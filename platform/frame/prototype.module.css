@@ -1,0 +1,93 @@
+/* =============================================================================
+   WS-A · Device frame + screen transition styles.
+   Physical device dimensions (390×844) and bezel geometry are hardware specs,
+   not design-system surface tokens, so they live here in a CSS module rather
+   than as Tailwind classes. Colors reference design-system CSS variables.
+   ============================================================================= */
+
+/* --- Device frame ---------------------------------------------------------- */
+
+.bezel {
+  flex: none;
+  padding: 12px;
+  background: var(--neutral-900);
+  border-radius: 56px;
+  box-shadow:
+    0 1px 2px rgba(17, 25, 40, 0.12),
+    0 24px 48px -12px rgba(17, 25, 40, 0.28);
+}
+
+.screen {
+  position: relative;
+  width: 390px;
+  height: 844px;
+  overflow: hidden;
+  border-radius: 44px;
+  background: var(--neutral-white);
+}
+
+/* The app viewport fills its container: framed on desktop, full-page on mobile. */
+.viewport {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/* Fixed-width annotation panel beside the device on desktop. */
+.annotations {
+  width: 264px;
+  max-width: 264px;
+}
+
+/* --- Screen stage + slide transitions -------------------------------------- */
+
+.stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.slide {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.forward {
+  animation: slide-in-forward 240ms ease-out;
+}
+
+.back {
+  animation: slide-in-back 240ms ease-out;
+}
+
+@keyframes slide-in-forward {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-back {
+  from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forward,
+  .back {
+    animation: none;
+  }
+}
