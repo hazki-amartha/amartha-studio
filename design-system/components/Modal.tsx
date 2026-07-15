@@ -1,3 +1,5 @@
+'use client'
+
 import { useEffect, type HTMLAttributes, type ReactNode } from 'react'
 
 export type ModalSize = 'sm' | 'md' | 'lg'

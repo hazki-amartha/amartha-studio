@@ -25,3 +25,7 @@ next-env.d.ts
 
 # scratch output
 /scripts/.check-flows-bundle.mjs
+/scripts/.check-flows-bundle.css
+
+# agent worktrees
+/.claude/worktrees/
