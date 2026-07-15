@@ -1,0 +1,90 @@
+/* ============================================================
+   FunDS Lite — Design Token CSS Variables
+   Required by every design-system component (they reference
+   var(--primary-500), var(--font), etc). Import once at the
+   app root, before component styles.
+   Values mirror tailwind.config.ts — keep the two in sync.
+   ============================================================ */
+
+:root {
+  /* Brand */
+  --primary-50:  #FEF3FF;
+  --primary-200: #E5B8EF;
+  --primary-300: #D68EE4;
+  --primary-400: #A642B7;
+  --primary-500: #853291;
+  --primary-600: #732C7C;
+  --primary-700: #612966;
+  --primary-900: #3D1042;
+
+  /* Neutral */
+  --neutral-50:    #F9FAF8;
+  --neutral-200:   #E5E7EB;
+  --neutral-400:   #C6CAD0;
+  --neutral-500:   #8E95A3;
+  --neutral-600:   #6B7280;
+  --neutral-700:   #525C6A;
+  --neutral-900:   #111928;
+  --neutral-white: #FFFFFF;
+  --neutral-black: #000000;
+
+  /* Blue */
+  --blue-50:  #EDF7FF;
+  --blue-200: #BCE0F7;
+  --blue-400: #70B7E5;
+  --blue-500: #056DCE;
+  --blue-600: #0457A5;
+  --blue-700: #03417C;
+  --blue-800: #022C52;
+
+  /* Green */
+  --green-50:  #E4FCEF;
+  --green-200: #A2EDC3;
+  --green-400: #4BDB98;
+  --green-500: #009C6A;
+  --green-600: #007D55;
+  --green-700: #005E40;
+  --green-800: #003E2A;
+
+  /* Orange */
+  --orange-50:  #FDF4E9;
+  --orange-200: #FCDDAB;
+  --orange-400: #FABF77;
+  --orange-500: #F7941D;
+  --orange-600: #E0771B;
+  --orange-700: #AD540A;
+  --orange-800: #70320D;
+
+  /* Red */
+  --red-50:  #FFF4F3;
+  --red-200: #FFD9D6;
+  --red-400: #F3726D;
+  --red-500: #D73630;
+  --red-600: #AC2B26;
+  --red-700: #81201D;
+  --red-800: #4C0C0A;
+
+  /* Yellow */
+  --yellow-50:  #FFFED9;
+  --yellow-200: #FFF4A9;
+  --yellow-400: #FCE677;
+  --yellow-500: #EAB20B;
+  --yellow-600: #C69608;
+  --yellow-700: #996F03;
+  --yellow-800: #6A4103;
+
+  /* Typography — --font-inter is provided by next/font in app/layout.tsx */
+  --font: var(--font-inter), 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* Layout patterns (mobile screen) */
+  --page-padding-x:   16px;
+  --page-padding-top: 16px;
+  --section-gap:      12px;
+  --card-padding:     12px;
+  --card-gap:         8px;
+  --topbar-height:    48px;
+  --topbar-padding-x: 16px;
+
+  /* Overlay */
+  --overlay: rgba(17, 25, 40, 0.8);
+}

@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Platform-level base styles only. Design-system truth lives in
+   design-system/tokens.css and design-system/components/styles.css. */
+
+html {
+  font-family: var(--font);
+}
+
+body {
+  background: var(--neutral-50);
+  color: var(--neutral-900);
+  -webkit-font-smoothing: antialiased;
+}
