@@ -8,5 +8,6 @@ import type { Registry } from '@/platform/types'
 
 export const registry: Registry = {
   'sample-topup': () => import('./sample-topup').then((m) => m.project),
+  'celengan-topup': () => import('./celengan-topup').then((m) => m.project),
   // <append new projects above this line — one line per project>
 }
