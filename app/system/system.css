@@ -1,0 +1,78 @@
+/* WS-C — /system manifest local styles.
+   Only expresses what the token-locked Tailwind scales cannot: a monospace
+   family (theme.fontFamily is replaced with `sans` only) and light markdown
+   table/prose chrome. Every color references a design token CSS variable
+   (design-system/tokens.css) — no hardcoded values. */
+
+.sys-mono {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* Code snippet block ------------------------------------------------------- */
+.sys-code {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+  overflow-x: auto;
+  color: var(--neutral-900);
+  background: var(--neutral-50);
+}
+
+/* Copy chip flash ---------------------------------------------------------- */
+.sys-chip {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* Rendered guideline markdown --------------------------------------------- */
+.sys-md {
+  color: var(--neutral-700);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.sys-md > *:first-child { margin-top: 0; }
+.sys-md h1, .sys-md h2, .sys-md h3, .sys-md h4 {
+  color: var(--neutral-900);
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 20px 0 8px;
+}
+.sys-md h1 { font-size: 20px; }
+.sys-md h2 { font-size: 18px; }
+.sys-md h3 { font-size: 16px; }
+.sys-md h4 { font-size: 14px; }
+.sys-md p { margin: 8px 0; }
+.sys-md ul, .sys-md ol { margin: 8px 0; padding-left: 20px; }
+.sys-md li { margin: 4px 0; }
+.sys-md a { color: var(--primary-500); text-decoration: underline; }
+.sys-md hr { border: 0; border-top: 1px solid var(--neutral-200); margin: 16px 0; }
+.sys-md code {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: var(--neutral-50);
+  border: 1px solid var(--neutral-200);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.sys-md pre {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+  overflow-x: auto;
+  background: var(--neutral-50);
+  border: 1px solid var(--neutral-200);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+}
+.sys-md pre code { background: none; border: 0; padding: 0; }
+.sys-md .sys-md-table-wrap { overflow-x: auto; margin: 8px 0; }
+.sys-md table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.sys-md th, .sys-md td {
+  border: 1px solid var(--neutral-200);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.sys-md th { background: var(--neutral-50); font-weight: 700; color: var(--neutral-900); }
