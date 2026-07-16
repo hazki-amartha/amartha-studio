@@ -13,8 +13,10 @@ export type TabId = 'home' | 'majelis' | 'kpi'
 
 /**
  * Bottom tab bar. Sits inside the Screen primitive's padded content area, so it
- * bleeds back out to the frame edges with -mx-16 and is pushed to the bottom
- * with mt-auto (the Screen primitive has no bottomBar slot of its own).
+ * bleeds back out to the frame edges with -mx-16, is pushed to the bottom with
+ * mt-auto, and pins to the viewport bottom while content scrolls with sticky
+ * (the Screen primitive has no bottomBar slot of its own). z-10 keeps it above
+ * scrolling content but below sheets/modals (z-1000).
  */
 export function TabBar({ active }: { active: TabId }) {
   const flow = useFlow()
@@ -31,7 +33,7 @@ export function TabBar({ active }: { active: TabId }) {
   }
 
   return (
-    <div className="-mx-16 mt-auto">
+    <div className="sticky bottom-0 z-10 -mx-16 mt-auto">
       <NavigationBar
         items={[
           {
