@@ -270,6 +270,18 @@ export function ContextStrip({ children }: { children: ReactNode }) {
   )
 }
 
+// --- BannerTag ---------------------------------------------------------------
+// Category pill sitting on a colored banner surface — translucent white fill,
+// white text (Badge has no on-color variant; see NOTES.md).
+
+export function BannerTag({ children }: { children: ReactNode }) {
+  return (
+    <span className="self-start rounded-full bg-neutral-white/20 px-12 py-2 text-12 font-regular text-neutral-white">
+      {children}
+    </span>
+  )
+}
+
 // --- EmptyState ------------------------------------------------------------
 
 export function EmptyState({ title, body }: { title: string; body: string }) {

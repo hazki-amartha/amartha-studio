@@ -1,10 +1,11 @@
 'use client'
 
-import { Badge, Card, NavigationHeader } from '@/design-system/components'
+import { Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { BANNERS } from '../lib/data'
 import { useApp } from '../lib/store'
+import { BannerTag } from '../lib/ui'
 
 export function BannerDetailScreen() {
   const flow = useFlow()
@@ -16,9 +17,7 @@ export function BannerDetailScreen() {
   return (
     <Screen topBar={<NavigationHeader title="Detail" onBack={flow.back} />}>
       <div className={`-mx-16 -mt-16 flex flex-col gap-8 p-16 ${banner.bg}`}>
-        <Badge intent="neutral" variant="inverted" className="self-start">
-          {banner.tag}
-        </Badge>
+        <BannerTag>{banner.tag}</BannerTag>
         <div>
           <h1 className="text-20 font-bold text-neutral-white">{banner.title}</h1>
           <p className="text-12 text-neutral-white">{banner.sub}</p>

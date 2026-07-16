@@ -25,6 +25,7 @@ import { TabBar } from '../lib/shell'
 import { store, unreadCount, useApp } from '../lib/store'
 import {
   Avatar,
+  BannerTag,
   ContextStrip,
   FilterBar,
   FilterChip,
@@ -121,7 +122,7 @@ export function HomeScreen() {
         <SectionHeader title="Informasi & Program" linkLabel="Lihat semua" onLink={() => flow.go('comms')} />
         <div
           ref={carousel}
-          className="-mx-16 flex snap-x snap-mandatory gap-12 overflow-x-auto px-16"
+          className="-mx-16 flex snap-x snap-mandatory gap-12 overflow-x-auto px-16 scroll-px-16"
         >
           {BANNERS.map((b) => (
             <button
@@ -133,9 +134,7 @@ export function HomeScreen() {
               }}
               className={`flex w-full shrink-0 snap-start flex-col justify-between gap-16 rounded-12 p-16 text-left ${b.bg}`}
             >
-              <Badge intent="neutral" variant="inverted">
-                {b.tag}
-              </Badge>
+              <BannerTag>{b.tag}</BannerTag>
               <span>
                 <span className="block text-14 font-bold text-neutral-white">{b.title}</span>
                 <span className="block text-12 text-neutral-white">{b.sub}</span>

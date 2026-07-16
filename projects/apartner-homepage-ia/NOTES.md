@@ -33,6 +33,13 @@ from tokens + existing design-system components. Candidates for FunDS Lite:
 - **Avatar** / **IconTile** — the circular initials chip and the rounded-square
   icon leading, both recurring across mitra/majelis/task/profile rows.
 
+- **BannerTag** (`lib/ui.tsx`) — a category pill for **colored surfaces**
+  (translucent white fill, white text). Used on the Home banner carousel and the
+  banner-detail hero. Motivating gap: `Badge` has no on-color variant —
+  `variant="inverted"` is a solid white pill with a primary border/text, which
+  reads wrong on a `primary-500`/`blue-500` banner. Proposal: a Badge
+  `variant="overlay"` (or similar) for content sitting on brand-colored fills.
+
 ## Translation decisions
 
 - **Tabs are real screens.** The source held tab + overlay state in one `<App>`
