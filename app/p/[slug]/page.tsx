@@ -25,7 +25,7 @@ function firstValue(v?: string | string[]): string | undefined {
 
 function NotFound({ slug }: { slug: string }) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-screen-sm flex-col items-center justify-center gap-16 bg-neutral-50 px-16 text-center">
+    <main className="mx-auto flex min-h-full max-w-screen-sm flex-col items-center justify-center gap-16 bg-neutral-50 px-16 text-center">
       <span className="text-10 font-bold uppercase text-caption">404 — Prototype not found</span>
       <h1 className="text-24 font-bold text-default">No project named “{slug}”</h1>
       <p className="text-14 text-caption">

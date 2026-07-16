@@ -9,6 +9,7 @@ import Link from 'next/link'
 import '@/design-system/components/styles.css'
 import { Badge, type BadgeIntent } from '@/design-system/components/Badge'
 import { Card } from '@/design-system/components/Card'
+import { PageHeader } from '@/platform/chrome'
 import type { ProjectConfig, ProjectStatus, ScreenDef } from '@/platform/types'
 import { registry } from '@/projects/registry'
 
@@ -120,16 +121,8 @@ export default async function Home() {
   const entries = await loadEntries()
 
   return (
-    <main className="mx-auto flex max-w-screen-lg flex-col gap-24 px-16 pt-32">
-      <header className="flex items-center justify-between gap-16">
-        <div className="flex flex-col gap-4">
-          <h1 className="text-24 font-bold text-default">Drafting Board</h1>
-          <p className="text-14 text-caption">Design-system-locked prototyping studio</p>
-        </div>
-        <Link href="/system" className="ds-btn ds-btn-outline ds-btn-sm">
-          Design system
-        </Link>
-      </header>
+    <div className="mx-auto flex max-w-screen-lg flex-col gap-24 px-16 py-32">
+      <PageHeader title="Drafting Board" subtitle="Design-system-locked prototyping studio" />
 
       {entries.length === 0 ? (
         <EmptyState />
@@ -140,6 +133,6 @@ export default async function Home() {
           ))}
         </section>
       )}
-    </main>
+    </div>
   )
 }

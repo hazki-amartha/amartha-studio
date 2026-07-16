@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
 import {
   Badge,
   BottomSheet,
@@ -17,37 +17,16 @@ import {
 import {
   COLOR_SCALES,
   LAYOUT_PATTERNS,
-  NAV_SECTIONS,
   RADII,
   SPACINGS,
   TOKENS,
   TYPE_SCALE,
 } from '@/design-system/tokens'
+import { PageHeader } from '@/platform/chrome'
 import { Markdown } from './Markdown'
 import './system.css'
 
 export type Guidelines = Record<string, string>
-
-// -----------------------------------------------------------------------------
-// Section metadata — order & labels follow tokens.ts NAV_SECTIONS exactly.
-// -----------------------------------------------------------------------------
-const SECTION_LABELS: Record<(typeof NAV_SECTIONS)[number], string> = {
-  overview: 'Overview',
-  colors: 'Colors',
-  typography: 'Typography',
-  spacing: 'Spacing & Layout',
-  buttons: 'Button',
-  inputs: 'Input',
-  badges: 'Badge',
-  cards: 'Card & List Row',
-  toggles: 'Toggle',
-  'selectable-cards': 'Selectable Card',
-  modals: 'Modal',
-  'bottom-sheets': 'Bottom Sheet',
-  'navigation-bars': 'Navigation',
-  prompts: 'Prompts',
-  llms: 'For Agents',
-}
 
 // Map a COLOR_SCALES family name to its Tailwind token base.
 const COLOR_BASE: Record<string, string> = {
@@ -211,76 +190,15 @@ function SheetDemo() {
   )
 }
 
-// -----------------------------------------------------------------------------
-// Sidebar (desktop) with scroll-spy
-// -----------------------------------------------------------------------------
-function Sidebar({ active }: { active: string }) {
-  return (
-    <aside className="hidden md:col-span-3 md:block">
-      <nav className="sticky top-32 flex flex-col gap-2">
-        <p className="px-8 py-4 text-10 font-bold uppercase text-caption">Sections</p>
-        {NAV_SECTIONS.map((slug) => {
-          const isActive = active === slug
-          return (
-            <a
-              key={slug}
-              href={`#${slug}`}
-              className={
-                isActive
-                  ? 'rounded-6 bg-primary-50 px-8 py-4 text-12 font-bold text-link'
-                  : 'rounded-6 px-8 py-4 text-12 font-regular text-caption'
-              }
-            >
-              {SECTION_LABELS[slug]}
-            </a>
-          )
-        })}
-      </nav>
-    </aside>
-  )
-}
-
 // =============================================================================
 // Main
 // =============================================================================
 export function Manifest({ guidelines }: { guidelines: Guidelines }) {
   const { copied, copy } = useCopy()
-  const [active, setActive] = useState<string>(NAV_SECTIONS[0])
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
-        if (visible[0]) setActive(visible[0].target.id)
-      },
-      { rootMargin: '0px 0px -70% 0px', threshold: 0 },
-    )
-    NAV_SECTIONS.forEach((slug) => {
-      const el = document.getElementById(slug)
-      if (el) observer.observe(el)
-    })
-    return () => observer.disconnect()
-  }, [])
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-default bg-neutral-white">
-        <div className="mx-auto flex max-w-screen-lg items-center justify-between px-16 py-12">
-          <div className="flex flex-col">
-            <span className="text-16 font-bold text-default">FunDS Lite — System</span>
-            <span className="text-12 text-caption">Tokens & components reference</span>
-          </div>
-          <a href="/" className="text-12 font-bold text-link">← Gallery</a>
-        </div>
-      </header>
-
-      <div className="mx-auto grid max-w-screen-lg grid-cols-1 gap-24 px-16 py-32 md:grid-cols-12">
-        <Sidebar active={active} />
-
-        <main className="flex flex-col gap-48 md:col-span-9">
+    <div className="mx-auto flex max-w-screen-lg flex-col gap-48 px-16 py-32">
+      <PageHeader title="FunDS Lite" subtitle="Tokens & components reference" />
           {/* -------------------------------------------------- Overview */}
           <Section id="overview" title="Overview" description="The token-locked vocabulary every prototype in this repo is built from. Everything below is generated straight from design-system/tokens.ts and design-system/components.">
             <Guideline source={guidelines['GUIDELINES']} />
@@ -631,8 +549,6 @@ export function Manifest({ guidelines }: { guidelines: Guidelines }) {
               copy={copy}
             />
           </Section>
-        </main>
-      </div>
     </div>
   )
 }

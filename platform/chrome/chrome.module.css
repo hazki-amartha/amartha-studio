@@ -1,0 +1,7 @@
+/* Chrome dimensions that fall outside the 4px spacing token scale (which caps
+   at 48px). Kept in a CSS module — the same escape hatch platform/frame uses in
+   prototype.module.css — so Tailwind class usage stays fully token-locked. */
+
+.secondary {
+  width: 248px;
+}

@@ -5,7 +5,7 @@ import { FlowCanvas } from '@/platform/flow'
 
 export default function FlowPage({ params }: { params: { slug: string } }) {
   return (
-    <main className="h-screen">
+    <main className="h-full">
       <FlowCanvas slug={params.slug} />
     </main>
   )
