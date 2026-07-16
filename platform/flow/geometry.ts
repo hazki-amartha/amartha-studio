@@ -26,6 +26,10 @@ export const NODE_H = TITLE_H + THUMB_H
 export const COL_GAP = 96
 export const ROW_GAP = 48
 
+/** Drag snap pitch — one column / one row of the auto-layout lattice. */
+export const SNAP_X = NODE_W + COL_GAP
+export const SNAP_Y = NODE_H + ROW_GAP
+
 /** Padding around the whole laid-out graph. */
 export const CANVAS_PAD = 64
 
