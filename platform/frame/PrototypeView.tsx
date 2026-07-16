@@ -9,7 +9,7 @@
 // A single app instance is rendered in either mode (no duplicate screen state).
 // =============================================================================
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { ProjectConfig, ScreenDef } from '@/platform/types'
 import { PrototypeProvider, ScreenStage, useFlow } from '@/platform/runtime'
 import { DeviceFrame } from './DeviceFrame'
@@ -57,7 +57,7 @@ function AnnotationPanel({
   const notes = active?.notes && active.notes.length > 0 ? active.notes : (projectNotes ?? [])
 
   return (
-    <aside className={`flex flex-col gap-12 pt-8 ${styles.annotations}`}>
+    <aside className={`flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${styles.annotations}`}>
       <span className="text-10 font-bold uppercase text-caption">Notes</span>
       {active ? <h2 className="text-16 font-bold text-default">{active.title}</h2> : null}
       {notes.length > 0 ? (
@@ -75,26 +75,61 @@ function AnnotationPanel({
   )
 }
 
+// Outer device dimensions: 390×844 screen + 12px bezel on each side.
+// Hardware specs, not design tokens.
+const DEVICE_W = 414
+const DEVICE_H = 868
+
+/** Scales the device frame down (never up) so it always fits the height this
+ *  view was given — whatever chrome surrounds it — without page scroll, while
+ *  screens keep their 390px layout. The wrapper is measured (not the window)
+ *  so headers/sidebars around the view are automatically accounted for. */
+function ScaledDevice({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      setScale(Math.min(1, el.clientHeight / DEVICE_H))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  return (
+    <div ref={ref} className="h-full flex-none" style={{ width: DEVICE_W * scale }}>
+      <div
+        style={{
+          width: DEVICE_W,
+          height: DEVICE_H,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
 function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
   return (
-    <div className="flex min-h-screen w-full flex-col items-center gap-32 bg-neutral-50 px-16 pt-32 pb-32">
-      <div className="flex flex-col items-center gap-4">
-        <h1 className="text-20 font-bold text-default">{config.name}</h1>
-        <p className="text-14 text-caption">{config.owner}</p>
-      </div>
-      <div className="flex items-start justify-center gap-32">
+    <div className="flex h-full min-h-0 w-full items-start justify-center gap-32 overflow-hidden bg-neutral-50 px-16 py-24">
+      <ScaledDevice>
         <DeviceFrame>
           <AppViewport />
         </DeviceFrame>
-        <AnnotationPanel screens={screens} projectNotes={config.notes} />
-      </div>
+      </ScaledDevice>
+      <AnnotationPanel screens={screens} projectNotes={config.notes} />
     </div>
   )
 }
 
 function MobileLayout() {
   return (
-    <div className="h-dvh w-full bg-neutral-white">
+    <div className="h-full w-full bg-neutral-white">
       <AppViewport />
     </div>
   )
