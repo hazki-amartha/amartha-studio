@@ -21,7 +21,7 @@ import { NavigationHeader } from '@/design-system/components'
 | `title` | `string` | — | Screen title (16px / 700) |
 | `variant` | `'light' \| 'dark'` | `'light'` | Color scheme |
 | `onBack` | `() => void` | — | Back arrow click handler |
-| `hideBack` | `boolean` | `false` | Hides the back arrow |
+| `hideBack` | `boolean` | `false` | Hides the back arrow; the title moves flush left (no spacer) |
 | `trailingIcons` | `ReactNode[]` | — | Up to 2 icons (24×24) on the right |
 | `link` | `string` | — | Text link on the right (e.g. "Bantuan") |
 | `onLinkClick` | `() => void` | — | Link press handler |

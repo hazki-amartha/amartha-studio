@@ -404,12 +404,11 @@
   display: flex; align-items: center; gap: 12px;
   height: 48px; padding: 0 16px;
 }
-.ds-navhdr-back, .ds-navhdr-back-spacer {
+.ds-navhdr-back {
   width: 24px; height: 24px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
   background: none; border: none; cursor: pointer; padding: 0; color: inherit;
 }
-.ds-navhdr-back-spacer { cursor: default; }
 .ds-navhdr-title { flex: 1; font-size: 16px; font-weight: 700; color: inherit; }
 .ds-navhdr-trailing { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .ds-navhdr-trailing-icon {
