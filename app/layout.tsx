@@ -13,7 +13,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Drafting Board',
+  title: 'Prototype Studio',
   description: 'Design-system-locked prototyping studio',
 }
 

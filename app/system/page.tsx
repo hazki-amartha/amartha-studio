@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import { Manifest, type Guidelines } from './Manifest'
 
 export const metadata: Metadata = {
-  title: 'System — Drafting Board',
+  title: 'System — Prototype Studio',
   description: 'Browsable reference for the FunDS Lite design system: tokens and components.',
 }
 
