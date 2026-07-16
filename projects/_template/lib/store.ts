@@ -6,7 +6,7 @@
 // and read them via the useSyncExternalStore hook below.
 //
 // Rename FlowState/useFlowState and the fields to fit your flow. See
-// projects/celengan-topup/lib/store.ts for a complete example.
+// projects/apartner-homepage-ia/lib/store.ts for a complete example.
 
 import { useSyncExternalStore } from 'react'
 

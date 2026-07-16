@@ -102,7 +102,7 @@ silently lost when you `go()` away and back. Any value that must survive
 navigation (an entered amount, a selected option) goes in a **module store**
 in `projects/<slug>/lib/store.ts`, read via `useSyncExternalStore`. The
 template ships a stub at `projects/_template/lib/store.ts`; see
-`projects/celengan-topup/lib/store.ts` for a full flow using the pattern.
+`projects/apartner-homepage-ia/lib/store.ts` for a full flow using the pattern.
 
 ---
 
