@@ -57,3 +57,22 @@ export const PanelIcon = icon(
 
 // Breadcrumb separator.
 export const ChevronRightIcon = icon(<path d="M9 6l6 6-6 6" />)
+
+// Prototype view — a phone.
+export const DeviceIcon = icon(
+  <>
+    <rect x="6" y="2" width="12" height="20" rx="2" />
+    <path d="M11 18h2" />
+  </>,
+)
+
+// Flow view — connected nodes.
+export const FlowIcon = icon(
+  <>
+    <rect x="3" y="3" width="7" height="6" rx="1.5" />
+    <rect x="14" y="15" width="7" height="6" rx="1.5" />
+    <rect x="3" y="15" width="7" height="6" rx="1.5" />
+    <path d="M6.5 9v6" />
+    <path d="M10 18h4" />
+  </>,
+)

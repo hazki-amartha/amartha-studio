@@ -2,9 +2,11 @@
 
 // =============================================================================
 // SVG edges between flow nodes (WS-B, task 3).
-// Cubic beziers from a source node's right anchor to a target's left anchor,
-// with optional labels. Edges touching the hovered node highlight; the rest
-// dim. Purely presentational — colours come from token classes via CSS vars.
+// Edges stay hidden until a screen is selected: clicking a node reveals only
+// that node's outgoing edges — "where can this screen lead?" — which keeps a
+// dense graph readable. Cubic beziers from the source's right anchor to the
+// target's left anchor, with optional labels. Purely presentational — colours
+// come from token classes via CSS vars.
 // =============================================================================
 
 import { Fragment } from 'react'
@@ -13,7 +15,8 @@ import { leftAnchor, rightAnchor } from './layout'
 
 interface EdgesProps {
   layout: FlowLayout
-  hovered: string | null
+  /** Selected screen id — only its outgoing edges are drawn. */
+  selected: string | null
 }
 
 function edgePath(from: FlowNode, to: FlowNode): string {
@@ -28,28 +31,21 @@ function edgePath(from: FlowNode, to: FlowNode): string {
   return `M ${a.x} ${a.y} C ${c1x} ${a.y}, ${c2x} ${b.y}, ${b.x} ${b.y}`
 }
 
-export function Edges({ layout, hovered }: EdgesProps) {
+export function Edges({ layout, selected }: EdgesProps) {
+  if (!selected) return null
+
   const byId = new Map(layout.nodes.map((n) => [n.screen.id, n] as const))
+  const outgoing = layout.links.filter((l) => l.from === selected)
+  if (outgoing.length === 0) return null
 
   return (
     <svg
-      className="pointer-events-none absolute left-0 top-0 overflow-visible text-neutral-400"
+      className="pointer-events-none absolute left-0 top-0 overflow-visible text-primary-500"
       width={layout.width}
       height={layout.height}
       aria-hidden
     >
       <defs>
-        <marker
-          id="flow-arrow"
-          viewBox="0 0 10 10"
-          refX="9"
-          refY="5"
-          markerWidth="7"
-          markerHeight="7"
-          orient="auto-start-reverse"
-        >
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
-        </marker>
         <marker
           id="flow-arrow-active"
           viewBox="0 0 10 10"
@@ -63,13 +59,11 @@ export function Edges({ layout, hovered }: EdgesProps) {
         </marker>
       </defs>
 
-      {layout.links.map((link, i) => {
+      {outgoing.map((link, i) => {
         const from = byId.get(link.from)
         const to = byId.get(link.to)
         if (!from || !to) return null
 
-        const active = hovered != null && (link.from === hovered || link.to === hovered)
-        const dimmed = hovered != null && !active
         const d = edgePath(from, to)
         const a = rightAnchor(from)
         const b = leftAnchor(to)
@@ -81,28 +75,26 @@ export function Edges({ layout, hovered }: EdgesProps) {
             <path
               d={d}
               fill="none"
-              className={
-                active ? 'stroke-primary-500' : dimmed ? 'stroke-neutral-200' : 'stroke-neutral-400'
-              }
-              strokeWidth={active ? 2 : 1.5}
-              markerEnd={active ? 'url(#flow-arrow-active)' : 'url(#flow-arrow)'}
+              className="stroke-primary-500"
+              strokeWidth={2}
+              markerEnd="url(#flow-arrow-active)"
             />
             {link.label ? (
-              <g opacity={dimmed ? 0.4 : 1}>
+              <g>
                 <rect
                   x={midX - link.label.length * 3.2 - 4}
                   y={midY - 9}
                   width={link.label.length * 6.4 + 8}
                   height={16}
                   rx={4}
-                  className="fill-neutral-white stroke-neutral-200"
+                  className="fill-neutral-white stroke-primary-200"
                   strokeWidth={1}
                 />
                 <text
                   x={midX}
                   y={midY + 2}
                   textAnchor="middle"
-                  className={active ? 'fill-primary-500' : 'fill-neutral-600'}
+                  className="fill-primary-500"
                   style={{ fontSize: 10, fontWeight: 500 }}
                 >
                   {link.label}

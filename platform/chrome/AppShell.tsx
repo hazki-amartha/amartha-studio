@@ -11,7 +11,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import styles from './chrome.module.css'
-import { ChevronRightIcon, PanelIcon } from './icons'
+import { HeaderStatusProvider, useHeaderStatus } from './headerStatus'
+import { ChevronRightIcon, DeviceIcon, FlowIcon, PanelIcon } from './icons'
 import { NavRail, type RailSection } from './NavRail'
 import { StudioSidebar } from './StudioSidebar'
 import { SystemSidebar } from './SystemSidebar'
@@ -27,6 +28,7 @@ interface Crumb {
 interface RouteInfo {
   active: RailSection
   currentSlug: string | null
+  isFlow: boolean
   crumbs: Crumb[]
 }
 
@@ -36,6 +38,7 @@ function resolveRoute(pathname: string, projects: ProjectIndexEntry[]): RouteInf
     return {
       active: 'funds',
       currentSlug: null,
+      isFlow: false,
       crumbs: [{ label: 'FunDS', href: '/system' }, { label: 'System' }],
     }
   }
@@ -48,14 +51,44 @@ function resolveRoute(pathname: string, projects: ProjectIndexEntry[]): RouteInf
     const crumbs: Crumb[] = [{ label: 'Studio', href: '/' }]
     crumbs.push(isFlow ? { label: name, href: `/p/${slug}` } : { label: name })
     if (isFlow) crumbs.push({ label: 'Flow' })
-    return { active: 'studio', currentSlug: slug, crumbs }
+    return { active: 'studio', currentSlug: slug, isFlow, crumbs }
   }
 
   return {
     active: 'studio',
     currentSlug: null,
+    isFlow: false,
     crumbs: [{ label: 'Studio', href: '/' }, { label: 'Gallery' }],
   }
+}
+
+/** Segmented prototype/flow switch — only shown on a project route. */
+function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
+  const base =
+    'flex items-center gap-4 rounded-full px-12 py-4 text-12 transition-colors'
+  const on = `${base} bg-neutral-white font-bold text-link shadow-sm`
+  const off = `${base} text-caption hover:text-default`
+
+  return (
+    <div className="flex shrink-0 items-center gap-2 rounded-full bg-neutral-50 p-2">
+      <Link
+        href={`/p/${slug}`}
+        aria-current={isFlow ? undefined : 'page'}
+        className={isFlow ? off : on}
+      >
+        <DeviceIcon className="size-16" />
+        Prototype
+      </Link>
+      <Link
+        href={`/p/${slug}/flow`}
+        aria-current={isFlow ? 'page' : undefined}
+        className={isFlow ? on : off}
+      >
+        <FlowIcon className="size-16" />
+        Flow
+      </Link>
+    </div>
+  )
 }
 
 function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
@@ -86,7 +119,39 @@ function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
   )
 }
 
+/** Route-published extras (zoom, badges) rendered into the top bar. */
+function HeaderStatusView() {
+  const status = useHeaderStatus()
+  if (!status) return null
+  return (
+    <>
+      {status.badge ? (
+        <span className="rounded-full bg-neutral-50 px-8 py-4 text-10 uppercase text-caption">
+          {status.badge}
+        </span>
+      ) : null}
+      {status.zoom != null ? (
+        <span className="text-12 text-caption">{Math.round(status.zoom * 100)}%</span>
+      ) : null}
+    </>
+  )
+}
+
 export function AppShell({
+  projects,
+  children,
+}: {
+  projects: ProjectIndexEntry[]
+  children: ReactNode
+}) {
+  return (
+    <HeaderStatusProvider>
+      <AppShellInner projects={projects}>{children}</AppShellInner>
+    </HeaderStatusProvider>
+  )
+}
+
+function AppShellInner({
   projects,
   children,
 }: {
@@ -111,7 +176,7 @@ export function AppShell({
   // Unlock gate renders without any chrome.
   if (pathname.startsWith('/unlock')) return <>{children}</>
 
-  const { active, currentSlug, crumbs } = resolveRoute(pathname, projects)
+  const { active, currentSlug, isFlow, crumbs } = resolveRoute(pathname, projects)
 
   return (
     <div className="flex h-screen overflow-hidden bg-neutral-50">
@@ -142,6 +207,10 @@ export function AppShell({
           </button>
           <span aria-hidden className="h-20 w-px bg-neutral-200" />
           <Breadcrumb crumbs={crumbs} />
+          <div className="ml-auto flex shrink-0 items-center gap-12">
+            <HeaderStatusView />
+            {currentSlug ? <ViewToggle slug={currentSlug} isFlow={isFlow} /> : null}
+          </div>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>

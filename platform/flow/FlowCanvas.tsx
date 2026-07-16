@@ -4,14 +4,16 @@
 // Flow canvas (WS-B) — the whole project at a glance.
 //   1. Live screen thumbnails at ~25% (ScreenThumb).
 //   2. BFS auto-layout, unreached screens trailing (layout.ts).
-//   3. SVG edges with labels + hover highlight (Edges).
+//   3. SVG edges with labels, revealed per-selection (Edges).
 //   4. Hand-rolled pan (drag) + zoom (wheel / trackpad pinch) — no graph lib.
-//   5. Clicking a screen deep-links to /p/<slug>?screen=<id> (WS-A prototype).
+//   5. Clicking a screen selects it — showing where it leads; the fullscreen
+//      button on the selected screen deep-links to /p/<slug>?screen=<id>.
 // =============================================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ProjectModule } from '@/platform/types'
+import { usePublishHeaderStatus } from '@/platform/chrome'
 import { registry } from '@/projects/registry'
 import { Edges } from './Edges'
 import { ScreenThumb } from './ScreenThumb'
@@ -29,15 +31,38 @@ type LoadState = 'loading' | 'missing' | 'ready'
 
 const DRAG_THRESHOLD = 4
 
+/** Expand-to-corners glyph, sized to the node overlay. */
+function FullscreenIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M9 3H3v6" />
+      <path d="M15 21h6v-6" />
+      <path d="M3 3l7 7" />
+      <path d="M21 21l-7-7" />
+    </svg>
+  )
+}
+
 export function FlowCanvas({ slug }: { slug: string }) {
   const router = useRouter()
   const [mod, setMod] = useState<ProjectModule | null>(null)
   const [state, setState] = useState<LoadState>('loading')
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const [pan, setPan] = useState({ x: CANVAS_PAD, y: CANVAS_PAD })
-  const [zoom, setZoom] = useState(1)
-  const [hovered, setHovered] = useState<string | null>(null)
+  // Pan and zoom live in one state object so a wheel event can move both in a
+  // single pure updater — zooming about the cursor needs them to agree exactly.
+  const [view, setView] = useState({ x: CANVAS_PAD, y: CANVAS_PAD, zoom: 1 })
+  const [selected, setSelected] = useState<string | null>(null)
   const fittedRef = useRef(false)
 
   // --- load the project module client-side (screen components can't cross the
@@ -63,6 +88,12 @@ export function FlowCanvas({ slug }: { slug: string }) {
 
   const layout = useMemo(() => (mod ? computeLayout(mod.screens) : null), [mod])
 
+  // Screens the selection leads to — ringed so the destinations read as a set.
+  const targets = useMemo(() => {
+    if (!layout || !selected) return new Set<string>()
+    return new Set(layout.links.filter((l) => l.from === selected).map((l) => l.to))
+  }, [layout, selected])
+
   // --- fit-to-view once, when layout + container are known -----------------
   useEffect(() => {
     if (!layout || fittedRef.current) return
@@ -74,8 +105,8 @@ export function FlowCanvas({ slug }: { slug: string }) {
     const contentH = layout.height + CANVAS_PAD * 2
     const z = Math.min(cw / contentW, ch / contentH, 1)
     const nz = Math.max(MIN_ZOOM, z)
-    setZoom(nz)
-    setPan({
+    setView({
+      zoom: nz,
       x: (cw - layout.width * nz) / 2,
       y: (ch - layout.height * nz) / 2,
     })
@@ -91,6 +122,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
     panX: number
     panY: number
     nodeId: string | null
+    fullscreen: boolean
   } | null>(null)
 
   const onPointerDown = useCallback(
@@ -102,13 +134,16 @@ export function FlowCanvas({ slug }: { slug: string }) {
         moved: false,
         startX: e.clientX,
         startY: e.clientY,
-        panX: pan.x,
-        panY: pan.y,
+        panX: view.x,
+        panY: view.y,
         nodeId: nodeEl?.dataset.nodeId ?? null,
+        // Resolved here rather than via the button's own onClick: the canvas
+        // takes pointer capture below, which retargets the follow-up click.
+        fullscreen: Boolean(target.closest('[data-fullscreen]')),
       }
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     },
-    [pan],
+    [view.x, view.y],
   )
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
@@ -117,7 +152,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
     const dx = e.clientX - d.startX
     const dy = e.clientY - d.startY
     if (!d.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD) d.moved = true
-    if (d.moved) setPan({ x: d.panX + dx, y: d.panY + dy })
+    if (d.moved) setView((v) => ({ ...v, x: d.panX + dx, y: d.panY + dy }))
   }, [])
 
   const onPointerUp = useCallback(
@@ -125,33 +160,49 @@ export function FlowCanvas({ slug }: { slug: string }) {
       const d = drag.current
       drag.current = null
       ;(e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId)
-      if (d && !d.moved && d.nodeId) {
+      if (!d || d.moved) return
+      if (d.fullscreen && d.nodeId) {
         router.push(`/p/${slug}?screen=${d.nodeId}`)
+        return
       }
+      // Clicking a screen selects it; clicking bare canvas clears.
+      setSelected(d.nodeId)
     },
     [router, slug],
   )
 
+  // Escape clears the selection, hiding its edges again.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelected(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   // --- zoom (wheel + trackpad pinch), centred on the cursor ----------------
-  const onWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault()
-      const el = containerRef.current
-      if (!el) return
-      const rect = el.getBoundingClientRect()
-      const cx = e.clientX - rect.left
-      const cy = e.clientY - rect.top
-      // Trackpad pinch arrives as wheel + ctrlKey; scale factor differs.
-      const factor = e.ctrlKey ? 1 - e.deltaY * 0.01 : 1 - e.deltaY * 0.0015
-      setZoom((z) => {
-        const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * factor))
-        const ratio = nz / z
-        setPan((p) => ({ x: cx - (cx - p.x) * ratio, y: cy - (cy - p.y) * ratio }))
-        return nz
-      })
-    },
-    [],
-  )
+  // cx/cy are cursor coordinates relative to the canvas box, so the nav rail
+  // and sidebar to our left are already excluded. Pan and zoom move together in
+  // one pure updater: nesting a setPan inside a setZoom updater made the
+  // updater impure, and StrictMode's double-invoke applied `ratio` twice —
+  // which is what pulled the anchor off the cursor.
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault()
+    const el = containerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const cx = e.clientX - rect.left
+    const cy = e.clientY - rect.top
+    // Trackpad pinch arrives as wheel + ctrlKey; scale factor differs.
+    const factor = e.ctrlKey ? 1 - e.deltaY * 0.01 : 1 - e.deltaY * 0.0015
+
+    setView((v) => {
+      const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * factor))
+      const ratio = nz / v.zoom
+      // Keep the canvas point under the cursor pinned there.
+      return { zoom: nz, x: cx - (cx - v.x) * ratio, y: cy - (cy - v.y) * ratio }
+    })
+  }, [])
 
   // Native listener so preventDefault works (React onWheel is passive).
   useEffect(() => {
@@ -161,6 +212,14 @@ export function FlowCanvas({ slug }: { slug: string }) {
     el.addEventListener('wheel', handler, { passive: false })
     return () => el.removeEventListener('wheel', handler)
   }, [])
+
+  // The shell's top bar already names the project and the view; it carries the
+  // canvas's zoom and grid-fallback badge too, so this route has no header.
+  usePublishHeaderStatus(
+    state === 'ready'
+      ? { zoom: view.zoom, badge: layout?.isGrid ? 'no flow metadata' : undefined }
+      : null,
+  )
 
   if (state === 'missing') {
     return (
@@ -175,23 +234,6 @@ export function FlowCanvas({ slug }: { slug: string }) {
 
   return (
     <div className="flex h-full flex-col bg-neutral-50">
-      <header className="flex h-48 shrink-0 items-center justify-between border-b border-default bg-neutral-white px-16">
-        <div className="flex flex-col">
-          <span className="text-14 font-bold text-default">
-            {mod?.config.name ?? 'Loading…'}
-          </span>
-          <span className="text-10 uppercase text-caption">Flow</span>
-        </div>
-        <div className="flex items-center gap-8">
-          {layout?.isGrid ? (
-            <span className="rounded-full bg-neutral-50 px-8 py-4 text-10 uppercase text-caption">
-              no flow metadata
-            </span>
-          ) : null}
-          <span className="text-12 text-caption">{Math.round(zoom * 100)}%</span>
-        </div>
-      </header>
-
       <div
         ref={containerRef}
         className="relative flex-1 cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing"
@@ -203,19 +245,18 @@ export function FlowCanvas({ slug }: { slug: string }) {
         {layout ? (
           <div
             className="absolute left-0 top-0 origin-top-left"
-            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+            style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
           >
-            <Edges layout={layout} hovered={hovered} />
+            <Edges layout={layout} selected={selected} />
             {layout.nodes.map((n) => {
-              const active = hovered === n.screen.id
+              const active = selected === n.screen.id
+              const isTarget = selected != null && targets.has(n.screen.id)
               return (
                 <div
                   key={n.screen.id}
                   data-node-id={n.screen.id}
                   className="absolute cursor-pointer"
                   style={{ left: n.x, top: n.y, width: NODE_W, height: TITLE_H + THUMB_H }}
-                  onMouseEnter={() => setHovered(n.screen.id)}
-                  onMouseLeave={() => setHovered((h) => (h === n.screen.id ? null : h))}
                 >
                   <div
                     className="flex items-center gap-4 truncate"
@@ -231,13 +272,25 @@ export function FlowCanvas({ slug }: { slug: string }) {
                     </span>
                   </div>
                   <div
-                    className={
+                    className={`relative rounded-8 ${
                       active
-                        ? 'rounded-8 ring-2 ring-primary-500'
-                        : 'rounded-8 ring-1 ring-transparent'
-                    }
+                        ? 'ring-2 ring-primary-500'
+                        : isTarget
+                          ? 'ring-2 ring-primary-200'
+                          : 'ring-1 ring-transparent'
+                    }`}
                   >
                     <ScreenThumb screen={n.screen} />
+                    {active ? (
+                      <button
+                        type="button"
+                        data-fullscreen
+                        aria-label={`Open ${n.screen.title} in the prototype`}
+                        className="absolute right-4 top-4 flex size-20 items-center justify-center rounded-4 bg-overlay text-neutral-white"
+                      >
+                        <FullscreenIcon />
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               )
