@@ -1,5 +1,6 @@
 // =============================================================================
-// Drafting Board — shared contracts (PLAN.md §5)
+// Drafting Board — shared contracts. This file IS the contract: the types
+// below define what a project exports and what the runtime provides.
 // FROZEN: changes to this file require the owner's sign-off and a notice to
 // all active workstreams. Extend privately or request a contract change.
 // =============================================================================

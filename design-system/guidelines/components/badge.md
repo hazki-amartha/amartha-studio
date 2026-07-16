@@ -3,7 +3,7 @@
 Status indicator or categorical label. Shape is always pill (9999px).
 
 ```tsx
-import { Badge } from '@funds/funds-lite'
+import { Badge } from '@/design-system/components'
 
 <Badge intent="green" variant="subtle" size="sm">Funded</Badge>
 ```

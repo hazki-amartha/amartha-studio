@@ -6,7 +6,7 @@ import type { ProjectConfig } from '@/platform/types'
 export const config: ProjectConfig = {
   slug: 'my-project', // kebab-case, unique across the repo
   name: 'My Project',
-  owner: 'Your Name', // ownership is checked against this by convention
+  owner: 'Your Name', // the DESIGNER's name — ask them if unknown (fallback: git config user.name); never guess
   description: 'One paragraph on what this prototype explores.',
   device: 'mobile', // v1 ships 'mobile' only
   status: 'draft', // 'draft' | 'in-review' | 'final'

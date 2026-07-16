@@ -3,8 +3,8 @@
 Mobile sheet that slides up from the bottom. Always includes a grip handle. Use for contextual actions, selection, and summaries on mobile screens.
 
 ```tsx
-import { BottomSheet } from '@funds/funds-lite'
-import { Button } from '@funds/funds-lite'
+import { BottomSheet } from '@/design-system/components'
+import { Button } from '@/design-system/components'
 
 <BottomSheet
   open={isOpen}
@@ -96,6 +96,6 @@ import { Button } from '@funds/funds-lite'
 ## Rules
 
 - Always use `sm` size unless content explicitly requires more width
-- Do NOT use bottom sheets for simple confirmations — use `Modal` with `dialog` variant instead
+- Pick by content, not by name: a **content-bearing confirmation** (order summary, amount + payment method, anything worth reviewing) belongs in a bottom sheet; a **simple yes/no** with nothing to review belongs in `Modal` with the `dialog` variant. If a designer asks for a "confirmation bottom sheet", give the sheet real summary content rather than a bare question
 - Actions are always full-width and stacked in a row — do NOT place actions inline in the slot
 - Use `slotPosition="below"` when the visual should appear after the text (e.g., a summary card below a description)

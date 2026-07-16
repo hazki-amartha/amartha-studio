@@ -42,6 +42,7 @@ import { Card, ListRow, Badge } from '@/design-system/components'
 ## Do / Don't
 
 - **Do** wrap row groups in `<Card flush>`.
+- **Do** use `trailing={<Badge intent="…">…</Badge>}` for status values — Badge applies the 500-on-50 status pairing for you.
 - **Do** pass `onClick` whenever the row navigates — it becomes a real button (keyboard accessible).
 - **Don't** put buttons inside a row that already has `onClick`.
 - **Don't** exceed one line of description; keep rows scannable.

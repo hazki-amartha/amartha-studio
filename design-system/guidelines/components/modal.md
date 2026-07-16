@@ -3,8 +3,8 @@
 Temporary dialog window displayed on top of main content. Has one visual state: open or closed.
 
 ```tsx
-import { Modal } from '@funds/funds-lite'
-import { Button } from '@funds/funds-lite'
+import { Modal } from '@/design-system/components'
+import { Button } from '@/design-system/components'
 
 <Modal
   open={isOpen}
@@ -26,7 +26,7 @@ import { Button } from '@funds/funds-lite'
 | `onClose` | `() => void` | — | Called when closed |
 | `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Modal width |
 | `variant` | `'default' \| 'dialog'` | `'default'` | Layout variant |
-| `intent` | `'success' \| 'warning' \| 'error' \| 'info'` | — | Icon color (dialog variant only) |
+| `intent` | `'success' \| 'warning' \| 'error' \| 'info'` | — | Status icon + color (works on any variant; conventionally used with `dialog`) |
 | `title` | `string` | — | Dialog heading |
 | `description` | `string` | — | Body copy |
 | `slot` | `ReactNode` | — | Custom content above description |

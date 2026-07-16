@@ -2,7 +2,8 @@
 
 // =============================================================================
 // WS-A · Prototype runtime.
-// Implements the §5 FlowApi contract (go / back / current) over a screen stack,
+// Implements the FlowApi contract from platform/types.ts (go / back / current)
+// over a screen stack,
 // and renders the active screen with an optional slide transition.
 //
 //   • useFlow()          — the frozen navigation API, consumed by every screen.

@@ -3,7 +3,7 @@
 Bottom tab bar for primary app navigation. Equal-width tabs with icon + label. White surface with a 1px top border.
 
 ```tsx
-import { NavigationBar } from '@funds/funds-lite'
+import { NavigationBar } from '@/design-system/components'
 
 <NavigationBar
   items={[

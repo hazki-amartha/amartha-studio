@@ -3,7 +3,7 @@
 Top app bar for screen-level navigation. 48px height, 16px horizontal padding.
 
 ```tsx
-import { NavigationHeader } from '@funds/funds-lite'
+import { NavigationHeader } from '@/design-system/components'
 
 <NavigationHeader
   title="Detail Investasi"

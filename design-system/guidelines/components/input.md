@@ -3,7 +3,7 @@
 Text field for user data entry. Supports labels, prefix/suffix, validation states, and helper text.
 
 ```tsx
-import { Input } from '@funds/funds-lite'
+import { Input } from '@/design-system/components'
 
 <Input label="Jumlah Investasi" prefix="Rp" placeholder="0" required />
 ```

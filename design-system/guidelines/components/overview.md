@@ -1,9 +1,10 @@
 # Components Overview — FunDS Lite
 
-All components are exported from `@funds/funds-lite`. Import component CSS once at the app root:
+All components are exported from the in-repo barrel `@/design-system/components`.
+The barrel loads its own CSS — no separate style import is needed.
 
 ```tsx
-import '@funds/funds-lite/styles'
+import { Button, Badge } from '@/design-system/components'
 ```
 
 ---
@@ -12,15 +13,15 @@ import '@funds/funds-lite/styles'
 
 | Component | Import | Primary Use |
 |-----------|--------|-------------|
-| `Button` | `import { Button } from '@funds/funds-lite'` | Actions and CTAs |
-| `Input` | `import { Input } from '@funds/funds-lite'` | Text fields, selects |
-| `Badge` | `import { Badge } from '@funds/funds-lite'` | Status labels |
-| `Toggle` | `import { Toggle } from '@funds/funds-lite'` | On/off settings |
-| `SelectableCard` | `import { SelectableCard } from '@funds/funds-lite'` | Radio/checkbox cards |
-| `Modal` | `import { Modal } from '@funds/funds-lite'` | Dialog overlays |
-| `BottomSheet` | `import { BottomSheet } from '@funds/funds-lite'` | Mobile drawers |
-| `NavigationBar` | `import { NavigationBar } from '@funds/funds-lite'` | Bottom tab bar |
-| `NavigationHeader` | `import { NavigationHeader } from '@funds/funds-lite'` | Top app bar |
+| `Button` | `import { Button } from '@/design-system/components'` | Actions and CTAs |
+| `Input` | `import { Input } from '@/design-system/components'` | Text fields, selects |
+| `Badge` | `import { Badge } from '@/design-system/components'` | Status labels |
+| `Toggle` | `import { Toggle } from '@/design-system/components'` | On/off settings |
+| `SelectableCard` | `import { SelectableCard } from '@/design-system/components'` | Radio/checkbox cards |
+| `Modal` | `import { Modal } from '@/design-system/components'` | Dialog overlays |
+| `BottomSheet` | `import { BottomSheet } from '@/design-system/components'` | Mobile drawers |
+| `NavigationBar` | `import { NavigationBar } from '@/design-system/components'` | Bottom tab bar |
+| `NavigationHeader` | `import { NavigationHeader } from '@/design-system/components'` | Top app bar |
 
 ---
 

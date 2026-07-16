@@ -3,7 +3,7 @@
 Binary on/off switch for a setting. Pill-shaped track with circular thumb. On state shows a check icon and primary-500 track.
 
 ```tsx
-import { Toggle } from '@funds/funds-lite'
+import { Toggle } from '@/design-system/components'
 
 <Toggle size="sm" label="Ingat saya" helperText="Simpan login untuk sesi berikutnya." defaultChecked />
 ```

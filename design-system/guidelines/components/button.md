@@ -3,7 +3,7 @@
 Triggers an action or event. Shape is always pill (9999px) — never rectangular or lightly rounded.
 
 ```tsx
-import { Button } from '@funds/funds-lite'
+import { Button } from '@/design-system/components'
 
 <Button variant="primary" size="md">Lanjutkan</Button>
 ```

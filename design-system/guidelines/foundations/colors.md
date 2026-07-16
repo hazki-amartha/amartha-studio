@@ -14,6 +14,18 @@ Prefer semantic aliases over raw hex values in all component and layout code.
 | `border-default` | `#E5E7EB` | `--neutral-200` | Card and input borders |
 | `border-light` | `#F9FAF8` | `--neutral-50` | Subtle dividers |
 
+> **The aliases are text/border-only.** There are no `bg-*` semantic aliases —
+> `bg-default` etc. do not exist. The only semantic background is `bg-overlay`
+> (modal/sheet backdrop). For surfaces, use the raw scale classes
+> (`bg-neutral-white`, `bg-neutral-50`, `bg-primary-50`, …).
+
+### Status backgrounds on hand-built surfaces
+
+The Badge component pairs status colors for you, but when you build a tinted
+status surface yourself (e.g. a success/error icon circle), apply the same
+rule manually: **500 foreground on the matching 50-tint background** —
+`text-green-500` on `bg-green-50`, `text-red-500` on `bg-red-50`, and so on.
+
 ---
 
 ## Brand (Primary Purple)

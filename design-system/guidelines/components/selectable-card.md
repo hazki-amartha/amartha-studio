@@ -3,7 +3,7 @@
 Card-shaped radio or checkbox — the entire card is the tap target. Active state shifts border to `--primary-500` and background to `--primary-50`.
 
 ```tsx
-import { SelectableCard } from '@funds/funds-lite'
+import { SelectableCard } from '@/design-system/components'
 
 <SelectableCard
   title="Tenor 12 Bulan"
