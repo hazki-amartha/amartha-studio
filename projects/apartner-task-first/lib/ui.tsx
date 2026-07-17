@@ -122,6 +122,32 @@ export function Segmented<T extends string>({
   )
 }
 
+// --- StepBar ---------------------------------------------------------------
+// Three bars + a label, pinned under the header on every majelis-visit step.
+// A visit is a sequence, so the BP should never have to wonder how much of it
+// is left. Deliberately not tappable: steps advance by finishing them, in the
+// same spirit as the schedule promoting the next task by itself.
+
+export const STEP_LABELS = ['Kehadiran & Pembayaran', 'Tugas Tambahan', 'Foto & Kirim']
+
+export function StepBar({ current }: { current: 1 | 2 | 3 }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex gap-4">
+        {[1, 2, 3].map((n) => (
+          <span
+            key={n}
+            className={`h-4 flex-1 rounded-full ${n <= current ? 'bg-primary-500' : 'bg-neutral-200'}`}
+          />
+        ))}
+      </div>
+      <span className="text-10 font-bold uppercase text-caption">
+        Langkah {current} dari 3 · {STEP_LABELS[current - 1]}
+      </span>
+    </div>
+  )
+}
+
 // --- Overline --------------------------------------------------------------
 // The 10px uppercase micro label that separates the schedule's three zones.
 

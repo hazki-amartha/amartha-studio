@@ -12,6 +12,7 @@ export const config: ProjectConfig = {
   notes: [
     'Sibling direction to apartner-homepage-ia, not a replacement — that one makes the KPI page the spine and hangs tasks off the metrics; this one deletes the metrics and keeps only the tasks.',
     'The test: can a BP work an entire majelis visit without reading a single number they have to interpret?',
-    'Two screens so far. Home Visit is scheduled and visible on the timeline but has no page yet — the "Mulai Kunjungan" button is disabled when it comes up.',
+    'The majelis visit is a sequence, so it is three steps rather than one screen: Kehadiran & Pembayaran → Tugas Tambahan → Foto & Kirim. Steps 1 and 2 share one MitraCard; only the action row differs.',
+    'Home Visit is scheduled and visible on the timeline but has no page yet — the "Mulai Kunjungan" button is disabled when it comes up. It lands together with the mitra page.',
   ],
 }

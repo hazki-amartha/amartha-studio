@@ -27,6 +27,8 @@ export interface AppState {
   offered: string[]
   /** Which majelis the visit screen renders. */
   openMajelis: string
+  /** Step 3 — whether the proof photo has been captured. Gates submission. */
+  photo: boolean
 }
 
 // The 15 who settled before the visit opened: present, paid in full.
@@ -43,6 +45,7 @@ const initial: AppState = {
   attendance: seedAttendance,
   offered: [],
   openMajelis: 'mawar',
+  photo: false,
 }
 
 let state: AppState = initial
@@ -66,7 +69,11 @@ export const store = {
   },
 
   openVisit(majelisId: string) {
-    store.set({ openMajelis: majelisId })
+    // A visit always starts at step 1 with no proof yet.
+    store.set({ openMajelis: majelisId, photo: false })
+  },
+  setPhoto(photo: boolean) {
+    store.set({ photo })
   },
   setAttendance(mitraId: string, value: Attendance) {
     store.set({ attendance: { ...state.attendance, [mitraId]: value } })
