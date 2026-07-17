@@ -24,6 +24,12 @@
   overflow: hidden;
   border-radius: 44px;
   background: var(--neutral-white);
+  /* Containing block for fixed-position descendants. BottomSheet and Modal
+     overlays are `position: fixed`, and `position: relative` does NOT contain
+     those — only transform/filter/contain do. Without this they anchor to the
+     browser viewport, so they render over the bezel and escape the 44px clip
+     instead of sitting inside the device screen. */
+  transform: translateZ(0);
 }
 
 /* The app viewport fills its container: framed on desktop, full-page on mobile. */
