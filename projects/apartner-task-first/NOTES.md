@@ -60,13 +60,19 @@ Exactly two things per mitra:
    pairing (green/red 500 on its own 50 tint) rather than `primary-500`:
    attendance is a status, not a primary action, and colour resolves at a glance
    while scanning a roster where two purple circles would differ only by glyph.
-2. **Payment** — three named outcomes, ordered
-   `[Tidak Bayar] [Jumlah Lain] [Bayar Lunas]` with the primary last, where the
-   thumb lands:
-   - **Bayar Lunas** — the common case, so it costs **one tap and no sheet**.
-   - **Jumlah Lain** — a sheet for the amount, over **or** under. Partial is a
-     normal field outcome; overpayment is marked later.
-   - **Tidak Bayar** — a sheet for the reason and, if given, the promise to pay.
+2. **Payment** — two buttons, primary last where the thumb lands:
+   - **Lunas** — the common case, so it costs **one tap and no sheet**.
+   - **Catatan** — the one door to every other outcome. The sheet opens on a
+     mode switch: *Bayar sebagian* (an amount, over **or** under — partial is a
+     normal field outcome and overpayment is marked later) or *Tidak bayar* (a
+     reason, plus a promise-to-pay if she gave one). Mode comes first because
+     "she paid some" and "she paid nothing" need different questions, and the BP
+     knows which she is before the sheet opens.
+
+Three buttons (`Tidak Bayar` / `Jumlah Lain` / `Bayar Lunas`) came first and were
+collapsed to two: at 390px three named actions crowd the row, and the split
+between "wrong amount" and "no money" is a question for the sheet, not a decision
+to make from the card.
 
 **"Tidak Bayar" as a first-class outcome is the point.** A no with a reason and a
 date is a result the BP can close and ops can chase. Leaving it unrecorded is
@@ -118,6 +124,16 @@ last chance to catch "I forgot to mark Ibu Ani". It reads back what they entered
 rather than asking them to interpret a metric. Unmarked attendance or unpaid
 mitra raise a **warning, not a block** — the field decides, not the app. A majelis
 where three mitra never showed up is a real Tuesday.
+
+### The 32px card rhythm
+
+Everything on the card sits on 32px — avatar, both attendance circles, and both
+action buttons — so the two rows read as clean bands rather than a ragged stack.
+
+**Design-system gap:** FunDS button sizes step **28px (`xs`) → 36px (`sm`)**, so
+neither lands on the 32px the card is built to. The buttons carry `h-32` (a token
+class, not an arbitrary value) to pin them. If this rhythm holds elsewhere, a
+32px button rung is worth adding to `Button` rather than re-fixing per screen.
 
 ## Deliberate cuts — open questions for review
 

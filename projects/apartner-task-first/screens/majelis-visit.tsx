@@ -67,15 +67,19 @@ const PTP_OPTIONS: { label: string; value: string | null }[] = [
   { label: 'Tidak ada janji', value: null },
 ]
 
+/** The two things "Catatan" can record. Full payment never comes through here —
+ *  that is the "Lunas" button, at one tap. */
+type CatatanMode = 'bayar' | 'tidak'
+
 export function MajelisVisitScreen() {
   const flow = useFlow()
   const s = useApp()
   const majelis = findMajelis(s.openMajelis)
 
   // Sheet state is deliberately local: it must not survive navigation.
-  const [amountFor, setAmountFor] = useState<Mitra | null>(null)
+  const [catatanFor, setCatatanFor] = useState<Mitra | null>(null)
+  const [mode, setMode] = useState<CatatanMode>('bayar')
   const [draft, setDraft] = useState('')
-  const [refusalFor, setRefusalFor] = useState<Mitra | null>(null)
   const [reason, setReason] = useState<string | null>(null)
   const [ptp, setPtp] = useState<string | null | undefined>(undefined)
 
@@ -85,33 +89,29 @@ export function MajelisVisitScreen() {
   // left in THIS step, not the majelis's outstanding debt.
   const owed = pending.reduce((sum, m) => sum + remainingOf(s, m), 0)
 
-  function openAmount(mitra: Mitra) {
+  function openCatatan(mitra: Mitra) {
+    const refusal = s.nonPayments[mitra.id]
+    setMode(refusal ? 'tidak' : 'bayar')
     setDraft(String(remainingOf(s, mitra)))
-    setAmountFor(mitra)
+    setReason(refusal?.reason ?? null)
+    setPtp(refusal ? refusal.ptp : undefined)
+    setCatatanFor(mitra)
   }
 
-  function saveAmount() {
-    if (!amountFor) return
-    const entered = Number(draft.replace(/\D/g, '')) || 0
-    store.setPayment(amountFor.id, paidOf(s, amountFor) + entered)
-    setAmountFor(null)
-  }
-
-  function openRefusal(mitra: Mitra) {
-    const existing = s.nonPayments[mitra.id]
-    setReason(existing?.reason ?? null)
-    setPtp(existing ? existing.ptp : undefined)
-    setRefusalFor(mitra)
-  }
-
-  function saveRefusal() {
-    if (!refusalFor || !reason) return
-    store.setNonPayment(refusalFor.id, { reason, ptp: ptp ?? null })
-    setRefusalFor(null)
+  function saveCatatan() {
+    if (!catatanFor) return
+    if (mode === 'tidak') {
+      if (!reason) return
+      store.setNonPayment(catatanFor.id, { reason, ptp: ptp ?? null })
+    } else {
+      const entered = Number(draft.replace(/\D/g, '')) || 0
+      store.setPayment(catatanFor.id, paidOf(s, catatanFor) + entered)
+    }
+    setCatatanFor(null)
   }
 
   const entered = Number(draft.replace(/\D/g, '')) || 0
-  const overpay = amountFor ? entered - remainingOf(s, amountFor) : 0
+  const overpay = catatanFor ? entered - remainingOf(s, catatanFor) : 0
 
   return (
     <Screen topBar={<NavigationHeader title={majelis.name} onBack={() => flow.back()} />}>
@@ -138,8 +138,7 @@ export function MajelisVisitScreen() {
                 mitra={mitra}
                 trailing={
                   <div className="flex flex-col items-center gap-4">
-                    <span className="text-10 font-bold uppercase text-caption">Kehadiran</span>
-                    <div className="flex gap-4">
+                    <div className="flex gap-8">
                       <IconToggle
                         selected={s.attendance[mitra.id] === 'tidak'}
                         tone="red"
@@ -160,39 +159,36 @@ export function MajelisVisitScreen() {
                   </div>
                 }
                 action={
-                  <div className="flex flex-col gap-8">
-                    <div className="flex items-center gap-8">
-                      <span className="flex-1 text-12 text-caption">Tagihan</span>
-                      <span className="text-14 font-bold text-default">{rupiah(mitra.due)}</span>
+                  // Bill left, actions right — one row, everything 32px tall.
+                  // Two buttons instead of three: "Lunas" is the common case at
+                  // one tap, and "Catatan" is the one door to every other
+                  // outcome (part payment, or a no with its reason).
+                  <div className="flex items-center gap-8">
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-12 text-caption">Tagihan</span>
+                      <span className="truncate text-18 font-bold text-default">
+                        {rupiah(mitra.due)}
+                      </span>
                     </div>
-                    {/* Buttons take their own row: at 390px, the label plus
-                        three named actions overflows the card. Primary sits
-                        last, where the thumb lands. */}
-                    <div className="flex gap-4">
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => openRefusal(mitra)}
-                      >
-                        Tidak Bayar
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => openAmount(mitra)}
-                      >
-                        Jumlah Lain
-                      </Button>
-                      <Button
-                        size="xs"
-                        className="flex-1"
-                        onClick={() => store.setPayment(mitra.id, mitra.due)}
-                      >
-                        Bayar Lunas
-                      </Button>
-                    </div>
+                    {/* h-32 pins both buttons to the avatar/toggle rhythm.
+                        FunDS button sizes step 28 (xs) → 36 (sm), so neither
+                        lands on 32 — see NOTES.md. h-32 is a token class, not
+                        an arbitrary value. */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-32"
+                      onClick={() => openCatatan(mitra)}
+                    >
+                      Catatan
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-32"
+                      onClick={() => store.setPayment(mitra.id, mitra.due)}
+                    >
+                      Lunas
+                    </Button>
                   </div>
                 }
               />
@@ -238,11 +234,7 @@ export function MajelisVisitScreen() {
               ) : (
                 <Badge intent="red">Tidak bayar</Badge>
               )}
-              <Button
-                size="xs"
-                variant="ghost"
-                onClick={() => (status === 'tidak' ? openRefusal(mitra) : openAmount(mitra))}
-              >
+              <Button size="xs" variant="ghost" onClick={() => openCatatan(mitra)}>
                 Ubah
               </Button>
             </div>
@@ -256,93 +248,105 @@ export function MajelisVisitScreen() {
         </Button>
       </div>
 
-      {/* --- Jumlah Lain: over or under, both are real. */}
+      {/* --- Catatan: the one door to every outcome that isn't a clean full
+          payment. Mode first, because "she paid some" and "she paid nothing"
+          need different questions and the BP knows which she is before the
+          sheet opens. */}
       <BottomSheet
-        open={amountFor !== null}
-        onClose={() => setAmountFor(null)}
-        title="Jumlah lain"
-        description={amountFor?.name}
-        primaryAction={
-          <Button className="w-full" onClick={saveAmount}>
-            Simpan
-          </Button>
-        }
-        secondaryAction={
-          <Button className="w-full" variant="ghost" onClick={() => setAmountFor(null)}>
-            Batal
-          </Button>
-        }
-      >
-        <div className="flex flex-col gap-12">
-          <div className="flex items-center gap-12 rounded-8 bg-neutral-50 px-12 py-8">
-            <span className="flex-1 text-12 text-caption">Sisa tagihan minggu ini</span>
-            <span className="text-14 font-bold text-default">
-              {amountFor ? rupiah(remainingOf(s, amountFor)) : ''}
-            </span>
-          </div>
-          <Input
-            label="Jumlah diterima"
-            prefix="Rp"
-            inputMode="numeric"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
-            helperText={
-              overpay > 0
-                ? `Lebih ${rupiah(overpay)} dari tagihan`
-                : overpay < 0
-                  ? `Bayar sebagian — kurang ${rupiah(-overpay)}`
-                  : 'Lunas untuk minggu ini'
-            }
-            state={overpay < 0 ? 'default' : 'valid'}
-          />
-        </div>
-      </BottomSheet>
-
-      {/* --- Tidak Bayar: the reason, then the next action. */}
-      <BottomSheet
-        open={refusalFor !== null}
-        onClose={() => setRefusalFor(null)}
+        open={catatanFor !== null}
+        onClose={() => setCatatanFor(null)}
         size="md"
-        title="Tidak bayar"
-        description={refusalFor?.name}
+        title="Catatan"
+        description={catatanFor?.name}
         primaryAction={
-          <Button className="w-full" disabled={!reason} onClick={saveRefusal}>
+          <Button
+            className="w-full"
+            disabled={mode === 'tidak' && !reason}
+            onClick={saveCatatan}
+          >
             Simpan
           </Button>
         }
         secondaryAction={
-          <Button className="w-full" variant="ghost" onClick={() => setRefusalFor(null)}>
+          <Button className="w-full" variant="ghost" onClick={() => setCatatanFor(null)}>
             Batal
           </Button>
         }
       >
         <div className="flex flex-col gap-12">
-          <div className="flex flex-col gap-8">
-            <span className="text-12 font-bold text-default">Alasan</span>
-            {REASONS.map((option) => (
-              <SelectableCard
-                key={option}
-                name="alasan-tidak-bayar"
-                inputType="radio"
-                title={option}
-                checked={reason === option}
-                onChange={() => setReason(option)}
-              />
-            ))}
+          <div className="flex gap-8">
+            <Button
+              size="sm"
+              className="flex-1"
+              variant={mode === 'bayar' ? 'primary' : 'outline'}
+              onClick={() => setMode('bayar')}
+            >
+              Bayar sebagian
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1"
+              variant={mode === 'tidak' ? 'primary' : 'outline'}
+              onClick={() => setMode('tidak')}
+            >
+              Tidak bayar
+            </Button>
           </div>
-          <div className="flex flex-col gap-8">
-            <span className="text-12 font-bold text-default">Janji bayar</span>
-            {PTP_OPTIONS.map((option) => (
-              <SelectableCard
-                key={option.label}
-                name="janji-bayar"
-                inputType="radio"
-                title={option.label}
-                checked={ptp !== undefined && ptp === option.value}
-                onChange={() => setPtp(option.value)}
+
+          {mode === 'bayar' ? (
+            <>
+              <div className="flex items-center gap-12 rounded-8 bg-neutral-50 px-12 py-8">
+                <span className="flex-1 text-12 text-caption">Sisa tagihan minggu ini</span>
+                <span className="text-14 font-bold text-default">
+                  {catatanFor ? rupiah(remainingOf(s, catatanFor)) : ''}
+                </span>
+              </div>
+              <Input
+                label="Jumlah diterima"
+                prefix="Rp"
+                inputMode="numeric"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
+                helperText={
+                  overpay > 0
+                    ? `Lebih ${rupiah(overpay)} dari tagihan`
+                    : overpay < 0
+                      ? `Bayar sebagian — kurang ${rupiah(-overpay)}`
+                      : 'Lunas untuk minggu ini'
+                }
+                state={overpay < 0 ? 'default' : 'valid'}
               />
-            ))}
-          </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col gap-8">
+                <span className="text-12 font-bold text-default">Alasan</span>
+                {REASONS.map((option) => (
+                  <SelectableCard
+                    key={option}
+                    name="alasan-tidak-bayar"
+                    inputType="radio"
+                    title={option}
+                    checked={reason === option}
+                    onChange={() => setReason(option)}
+                  />
+                ))}
+              </div>
+              <div className="flex flex-col gap-8">
+                <span className="text-12 font-bold text-default">Janji bayar</span>
+                {PTP_OPTIONS.map((option) => (
+                  <SelectableCard
+                    key={option.label}
+                    name="janji-bayar"
+                    inputType="radio"
+                    title={option.label}
+                    checked={ptp !== undefined && ptp === option.value}
+                    onChange={() => setPtp(option.value)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </BottomSheet>
     </Screen>
