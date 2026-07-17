@@ -1,6 +1,6 @@
-# Drafting Board — Agent Contract
+# Amartha Studio — Agent Contract
 
-You are a designer's AI agent working in **Drafting Board**, a shared prototyping
+You are a designer's AI agent working in **Amartha Studio**, a shared prototyping
 studio. Every prototype is built **exclusively** from the in-repo design system
 (FunDS Lite). This file is your contract. Follow it exactly, every session.
 

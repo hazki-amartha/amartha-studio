@@ -1,4 +1,4 @@
-# Drafting Board
+# Amartha Studio
 
 An internal prototyping studio for the design team. One shared git repository that
 every designer connects their AI agent (Claude Code) to, in order to build and
@@ -21,7 +21,7 @@ You need [Node.js](https://nodejs.org/) 18+ and git.
 
 ```bash
 git clone <this-repo-url>
-cd drafting-board
+cd amartha-studio
 npm install
 npm run dev          # open http://localhost:3000
 ```

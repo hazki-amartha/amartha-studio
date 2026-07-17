@@ -23,7 +23,7 @@ export function NavRail({ active }: { active: RailSection | null }) {
     >
       <Link
         href="/"
-        aria-label="Drafting Board home"
+        aria-label="Amartha Studio home"
         className="flex size-32 items-center justify-center rounded-8 bg-primary-500 text-14 font-bold text-neutral-white"
       >
         D

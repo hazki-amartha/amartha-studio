@@ -1,4 +1,4 @@
-# Drafting Board — Stack & Development Plan
+# Amartha Studio — Stack & Development Plan
 
 > **Status:** approved plan, pre-implementation
 > **Owner:** Hazki (hazki.hariowibowo@gmail.com)
@@ -9,14 +9,14 @@
 
 ## 1. Vision
 
-Drafting Board is an internal prototyping studio for the design team. It is a single
+Amartha Studio is an internal prototyping studio for the design team. It is a single
 repository that every designer connects their own AI agent (Claude Code) to, in order to
 create and iterate on high-fidelity, interactive prototypes built exclusively from the
 team's design system (FunDS Lite, derived from the Figma design system).
 
 ### Problems it solves
 
-| Today | With Drafting Board |
+| Today | With Amartha Studio |
 |---|---|
 | Designers work on separate machines and pass JSX/HTML files over Slack | One git repo is the shared machine; handoff = `git pull` |
 | No unified design system across prototypes | A token-locked design system is the only vocabulary agents can use |
@@ -82,7 +82,7 @@ team's design system (FunDS Lite, derived from the Figma design system).
 ## 4. Repository architecture
 
 ```
-drafting-board/
+amartha-studio/
 ├── PLAN.md                        ← this document
 ├── CLAUDE.md                      ← the agent contract (§6) — most important file
 ├── package.json
@@ -495,7 +495,7 @@ clone.
    assets and `/unlock` excluded from the check.
 3. `.env.example` + deployment notes appended to `README.md` (coordinate the append
    with WS-E — single trailing section, or hand the text to WS-E).
-4. Custom domain if available (e.g. `drafting.<team-domain>`), else platform URL.
+4. Custom domain if available (e.g. `studio.<team-domain>`), else platform URL.
 
 **Acceptance:** production URL live; wrong/no password → `/unlock`; correct password →
 30-day access across all routes; a push to `main` visibly deploys.

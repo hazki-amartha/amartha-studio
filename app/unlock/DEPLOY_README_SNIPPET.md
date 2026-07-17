@@ -9,7 +9,7 @@ Everything between the two ==== markers goes into the README.
 
 ## Deploy
 
-Drafting Board deploys on push to `main`. **Vercel** is the host (first choice for
+Amartha Studio deploys on push to `main`. **Vercel** is the host (first choice for
 Next.js; zero-config, built-in Edge middleware, per-push preview URLs).
 
 ### One-time setup (Vercel)
@@ -25,7 +25,7 @@ Next.js; zero-config, built-in Edge middleware, per-push preview URLs).
 
 ### Custom domain (optional)
 
-In **Settings → Domains**, add e.g. `drafting.<team-domain>` and point the DNS
+In **Settings → Domains**, add e.g. `studio.<team-domain>` and point the DNS
 record Vercel shows you. Until then, use the `*.vercel.app` URL. No code change
 is needed either way.
 
