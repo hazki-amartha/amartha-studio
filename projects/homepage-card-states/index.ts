@@ -44,7 +44,7 @@ export const project: ProjectModule = {
         'Card 1 turns alert: red headline, a tinted red-50 notice, and the pay CTA promoted to filled primary.',
         'Card 2 mutes to a neutral-50 shell — no "Dana Siap" pitch to someone who is behind. Card 3 is removed from the screen entirely.',
         'The whole state carries one message: get current. It is the sharpest test of the new direction, because a motivational purple headline is exactly wrong here — hence the red tone override.',
-        'Reached from the flow view rather than by a tap: falling behind is time passing, not a user action, so there is deliberately no inbound edge.',
+        'Reached with the next arrow beside the device, not by a tap: falling behind is time passing, not a user action, so there is deliberately no inbound edge.',
       ],
       flowsTo: [{ to: 'ontrack', label: 'tunggakan dibayar' }],
     },

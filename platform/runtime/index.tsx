@@ -37,6 +37,11 @@ interface RuntimeState {
   screens: ScreenDef[]
   current: string
   direction: Direction
+  /** Show a screen directly, bypassing the flow edges. Replaces the top of the
+   *  visit stack rather than pushing, so stepping does not grow history and any
+   *  stack beneath the current screen stays intact for useFlow().back().
+   *  Deliberately NOT on FlowApi: screens navigate, the viewer steps. */
+  jump: (id: string) => void
 }
 
 const RuntimeContext = createContext<RuntimeState | null>(null)
@@ -93,10 +98,25 @@ export function PrototypeProvider({ screens, initialScreenId, children }: Protot
     setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
   }, [])
 
+  const jump = useCallback(
+    (id: string) => {
+      if (!screens.some((s) => s.id === id)) {
+        console.warn(`jump("${id}") — no screen with that id in this project.`)
+        return
+      }
+      // Animate in the direction of travel through the declared screen order.
+      const from = screens.findIndex((s) => s.id === current)
+      const to = screens.findIndex((s) => s.id === id)
+      setDirection(to < from ? 'back' : 'forward')
+      setStack((s) => [...s.slice(0, -1), id])
+    },
+    [screens, current],
+  )
+
   const flow = useMemo<FlowApi>(() => ({ go, back, current }), [go, back, current])
   const runtime = useMemo<RuntimeState>(
-    () => ({ screens, current, direction }),
-    [screens, current, direction],
+    () => ({ screens, current, direction, jump }),
+    [screens, current, direction, jump],
   )
 
   return (
@@ -104,6 +124,29 @@ export function PrototypeProvider({ screens, initialScreenId, children }: Protot
       <RuntimeContext.Provider value={runtime}>{children}</RuntimeContext.Provider>
     </FlowContext.Provider>
   )
+}
+
+/** Steps through screens in the order the project declares them, independent of
+ *  flowsTo edges — so states nothing navigates to are still reachable. Used by
+ *  the viewer chrome (arrows beside the device), never by a prototype screen. */
+export function useScreenStep() {
+  const { screens, current, jump } = useRuntime()
+  const index = screens.findIndex((s) => s.id === current)
+  const prev = index > 0 ? screens[index - 1] : null
+  const next = index >= 0 && index < screens.length - 1 ? screens[index + 1] : null
+
+  return {
+    index,
+    total: screens.length,
+    prev,
+    next,
+    goPrev: useCallback(() => {
+      if (prev) jump(prev.id)
+    }, [prev, jump]),
+    goNext: useCallback(() => {
+      if (next) jump(next.id)
+    }, [next, jump]),
+  }
 }
 
 /** Renders the active screen inside the app viewport, animating each transition. */

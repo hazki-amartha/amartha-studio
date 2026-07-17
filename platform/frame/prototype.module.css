@@ -34,10 +34,24 @@
   height: 100%;
 }
 
-/* Fixed-width annotation panel beside the device on desktop. */
+/* Desktop prototype layout: an empty spacer, the device + its step arrows, then
+   the annotations. The outer 1fr columns are equal, so the device stays optically
+   centred in the view while the caption is pushed out to the right edge.
+   The explicit 100% row keeps the grid area's height definite, which is what
+   ScaledDevice's `h-full` measures itself against. */
+.desktop {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: 100%;
+  align-items: stretch;
+}
+
+/* Fixed-width annotation panel, pinned to the right edge of the view. */
 .annotations {
   width: 264px;
   max-width: 264px;
+  justify-self: end;
+  align-self: start;
 }
 
 /* --- Screen stage + slide transitions -------------------------------------- */

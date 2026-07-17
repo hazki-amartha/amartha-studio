@@ -57,6 +57,7 @@ export const PanelIcon = icon(
 
 // Breadcrumb separator.
 export const ChevronRightIcon = icon(<path d="M9 6l6 6-6 6" />)
+export const ChevronLeftIcon = icon(<path d="M15 6l-6 6 6 6" />)
 
 // Prototype view — a phone.
 export const DeviceIcon = icon(
