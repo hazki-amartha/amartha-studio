@@ -31,6 +31,9 @@ export function MajelisProofScreen() {
   const collected = majelis.members.reduce((sum, m) => sum + paidOf(s, m), 0)
   const hadir = majelis.members.filter((m) => s.attendance[m.id] === 'hadir').length
   const unmarked = majelis.members.filter((m) => !s.attendance[m.id]).length
+  // Only "tertarik" is worth reading back — it is the one that creates follow-up
+  // work. A pitch that landed on "tidak" is closed, not pending.
+  const tertarik = majelis.members.filter((m) => s.offerResults[m.id] === 'tertarik').length
 
   function submit() {
     if (task) store.finishTask(task.id)
@@ -60,6 +63,12 @@ export function MajelisProofScreen() {
               {settled.length} dari {majelis.members.length} mitra
             </span>
           </div>
+          {tertarik > 0 ? (
+            <div className="flex items-center gap-12">
+              <span className="flex-1 text-12 text-caption">Tertarik tugas tambahan</span>
+              <span className="text-14 font-bold text-default">{tertarik} mitra</span>
+            </div>
+          ) : null}
           {unmarked > 0 || outstanding.length > 0 ? (
             <div className="rounded-8 bg-orange-50 px-12 py-8 text-12 text-default">
               {unmarked > 0

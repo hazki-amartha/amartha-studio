@@ -37,8 +37,14 @@ export interface Mitra {
 
 export interface Offer {
   label: string
-  /** Why this mitra, why now — one line, already reasoned for the BP. */
-  reason: string
+  /**
+   * The mitra's standing on the thing being offered — shown under her name on
+   * step 2, in the slot step 1 uses for payment. It is a STATUS, not a pitch:
+   * it states where she is ("Belum pernah menabung"), and the recommendation
+   * follows from it. The BP reads a fact and draws the obvious conclusion,
+   * rather than being told what to think.
+   */
+  status: string
 }
 
 export interface Majelis {
@@ -109,7 +115,7 @@ const MAWAR_MEMBERS: Mitra[] = [
     name: 'Rina Marlina',
     due: 200_000,
     dpd: 34,
-    offer: { label: 'Perpanjangan pinjaman', reason: 'Siklus tinggal 4 minggu lagi' },
+    offer: { label: 'Perpanjangan pinjaman', status: 'Minggu 40 dari 48 di pinjaman terlama' },
   },
   { id: 'm2', name: 'Ani Suryani', due: 150_000, dpd: 7 },
   {
@@ -117,7 +123,7 @@ const MAWAR_MEMBERS: Mitra[] = [
     name: 'Sari Handayani',
     due: 125_000,
     dpd: 0,
-    offer: { label: 'Celengan', reason: 'Belum pernah menabung siklus ini' },
+    offer: { label: 'Celengan', status: 'Belum pernah menabung' },
   },
   { id: 'm4', name: 'Dewi Lestari', due: 175_000, dpd: 0 },
   {
@@ -125,7 +131,7 @@ const MAWAR_MEMBERS: Mitra[] = [
     name: 'Siti Aminah',
     due: 200_000,
     dpd: 0,
-    offer: { label: 'Agent AOne', reason: 'Punya warung, transaksi PPOB ramai' },
+    offer: { label: 'Agent AOne', status: '2 pinjaman aktif' },
   },
   { id: 'm6', name: 'Yanti Rohayati', due: 150_000, dpd: 14 },
   { id: 'm7', name: 'Eni Nuraeni', due: 125_000, dpd: 0 },

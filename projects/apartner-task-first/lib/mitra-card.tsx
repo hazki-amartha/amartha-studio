@@ -1,11 +1,14 @@
 'use client'
 
 // The one mitra card, shared by step 1 (kehadiran & pembayaran) and step 2
-// (tugas tambahan). The identity block — avatar, name, subtitle, DPD badge —
-// is computed HERE from state rather than passed in, so the two steps cannot
-// drift apart: a mitra looks identical in both, and only the action row below
-// the rule changes. That sameness is the point. The BP is looking at the same
-// people twice, doing a different thing to them.
+// (tugas tambahan). The LAYOUT is fixed here — avatar, name, one status line,
+// DPD badge, a rule, then an action row — so the two steps cannot drift apart:
+// a mitra sits in the same shape in both, and the BP re-reads nothing.
+//
+// The two slots that vary are the ones carrying the step's subject: the status
+// line and the action row. Step 1 fills the status line from payment ("Tagihan
+// Rp 200.000"); step 2 fills it from the mitra's standing on what's being
+// offered ("Belum pernah menabung"). Same slot, same shape, step's own fact.
 
 import type { ReactNode } from 'react'
 import { Badge, Card } from '@/design-system/components'
@@ -28,22 +31,26 @@ function DpdBadge({ dpd }: { dpd: number }) {
 export function MitraCard({
   mitra,
   state,
+  status,
   action,
 }: {
   mitra: Mitra
   state: AppState
-  /** The single row under the rule — the ONLY thing that differs per step. */
+  /** The line under the name. Defaults to payment standing (step 1's subject). */
+  status?: string
+  /** The single row under the rule. */
   action: ReactNode
 }) {
-  const status = paymentStatus(state, mitra)
+  const payment = paymentStatus(state, mitra)
   const paid = paidOf(state, mitra)
 
   const subtitle =
-    status === 'sebagian'
+    status ??
+    (payment === 'sebagian'
       ? `Dibayar ${rupiah(paid)} dari ${rupiah(mitra.due)}`
-      : status === 'lunas'
+      : payment === 'lunas'
         ? `Lunas ${rupiah(mitra.due)}`
-        : `Tagihan ${rupiah(mitra.due)}`
+        : `Tagihan ${rupiah(mitra.due)}`)
 
   return (
     <Card>

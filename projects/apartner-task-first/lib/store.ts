@@ -16,6 +16,13 @@ export type Attendance = 'hadir' | 'tidak'
 /** Where a mitra stands on this week's instalment. */
 export type PaymentStatus = 'belum' | 'sebagian' | 'lunas'
 
+/**
+ * The outcome of a pitch. "Offered" alone is not an outcome — it records that
+ * the BP spoke, which nobody downstream can act on. What the mitra said is the
+ * part worth capturing, so step 2's action closes its own loop.
+ */
+export type OfferResult = 'tertarik' | 'tidak'
+
 export interface AppState {
   /** Task ids the BP has completed today. */
   doneTasks: string[]
@@ -23,8 +30,8 @@ export interface AppState {
   payments: Record<string, number>
   /** mitraId → hadir/tidak. Absent = the BP hasn't marked them yet. */
   attendance: Record<string, Attendance>
-  /** Mitra ids the BP has already pitched to on this visit. */
-  offered: string[]
+  /** mitraId → what the mitra said. Absent = not pitched yet. */
+  offerResults: Record<string, OfferResult>
   /** Which majelis the visit screen renders. */
   openMajelis: string
   /** Step 3 — whether the proof photo has been captured. Gates submission. */
@@ -43,7 +50,7 @@ const initial: AppState = {
   doneTasks: [],
   payments: seedPayments,
   attendance: seedAttendance,
-  offered: [],
+  offerResults: {},
   openMajelis: 'mawar',
   photo: false,
 }
@@ -82,9 +89,9 @@ export const store = {
   setPayment(mitraId: string, amount: number) {
     store.set({ payments: { ...state.payments, [mitraId]: amount } })
   },
-  markOffered(mitraId: string) {
-    if (state.offered.includes(mitraId)) return
-    store.set({ offered: [...state.offered, mitraId] })
+  /** Records what the mitra said, not merely that she was asked. */
+  setOfferResult(mitraId: string, result: OfferResult) {
+    store.set({ offerResults: { ...state.offerResults, [mitraId]: result } })
   },
   finishTask(taskId: string) {
     if (state.doneTasks.includes(taskId)) return
