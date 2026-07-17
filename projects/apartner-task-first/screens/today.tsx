@@ -12,7 +12,7 @@ import { Badge, Button, Card } from '@/design-system/components'
 import { Screen, TopBar } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { TASKS, type Task } from '../lib/data'
-import { IconCheck, IconHome, IconPin, IconUsers } from '../lib/icons'
+import { IconCheck, IconChevronRight, IconHome, IconPin, IconUsers } from '../lib/icons'
 import { doneTasks, laterTasks, nowTask, store, useApp } from '../lib/store'
 import { Collapsible, IconTile, Overline } from '../lib/ui'
 
@@ -30,9 +30,13 @@ export function TodayScreen() {
   const done = doneTasks(s)
 
   function start(task: Task) {
-    if (!task.majelisId) return
-    store.openVisit(task.majelisId)
-    flow.go('majelis-visit')
+    if (task.kind === 'majelis' && task.majelisId) {
+      store.openVisit(task.majelisId)
+      flow.go('majelis-visit')
+    } else if (task.kind === 'home-visit') {
+      store.openHomeVisit(task.id)
+      flow.go('home-visit')
+    }
   }
 
   const header = (
@@ -79,15 +83,9 @@ export function TodayScreen() {
                 {now.reason}
               </div>
 
-              {now.majelisId ? (
-                <Button size="lg" className="w-full" onClick={() => start(now)}>
-                  Mulai Kunjungan
-                </Button>
-              ) : (
-                <Button size="lg" className="w-full" disabled>
-                  Mulai Kunjungan
-                </Button>
-              )}
+              <Button size="lg" className="w-full" onClick={() => start(now)}>
+                Mulai Kunjungan
+              </Button>
             </div>
           </Card>
         </>
@@ -102,13 +100,22 @@ export function TodayScreen() {
         </Card>
       )}
 
-      {/* --- Later: a timeline to read, not a list to choose from. */}
+      {/* --- Later: still a lightweight timeline — no KPIs, no filters — but
+          each row can launch its own visit directly. The schedule still
+          advances by itself, yet a BP whose plan slips (mitra is home now, a
+          majelis moved) can start the task in front of them without draining
+          the queue in clock order first. The chevron is the tappable tell. */}
       {later.length > 0 ? (
         <>
           <Overline>Berikutnya</Overline>
           <div className="flex flex-col gap-8">
             {later.map((task) => (
-              <div key={task.id} className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
+              <button
+                key={task.id}
+                type="button"
+                onClick={() => start(task)}
+                className="flex items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
+              >
                 <span className="w-40 shrink-0 text-12 font-bold text-caption">{task.time}</span>
                 <span className="text-disabled">
                   <KindIcon kind={task.kind} />
@@ -117,7 +124,10 @@ export function TodayScreen() {
                   <span className="truncate text-14 font-bold text-default">{task.title}</span>
                   <span className="truncate text-12 text-caption">{task.reason}</span>
                 </div>
-              </div>
+                <span className="shrink-0 text-disabled">
+                  <IconChevronRight size={20} />
+                </span>
+              </button>
             ))}
           </div>
         </>

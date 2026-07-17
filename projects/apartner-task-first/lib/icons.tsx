@@ -94,6 +94,15 @@ export function IconChevronUp(props: IconProps) {
   )
 }
 
+/** Trailing affordance on a tappable schedule row. */
+export function IconChevronRight(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m9 18 6-6-6-6" />
+    </Svg>
+  )
+}
+
 /** Step 3 — photo proof of the majelis. */
 export function IconCamera(props: IconProps) {
   return (

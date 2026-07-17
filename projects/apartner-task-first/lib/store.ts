@@ -51,6 +51,8 @@ export interface AppState {
   offerResults: Record<string, OfferResult>
   /** Which majelis the visit screen renders. */
   openMajelis: string
+  /** Which home-visit task the home-visit screens render (a Task id). */
+  openHome: string
   /** Step 3 — whether the proof photo has been captured. Gates submission. */
   photo: boolean
 }
@@ -70,6 +72,7 @@ const initial: AppState = {
   attendance: seedAttendance,
   offerResults: {},
   openMajelis: 'mawar',
+  openHome: 't3',
   photo: false,
 }
 
@@ -96,6 +99,10 @@ export const store = {
   openVisit(majelisId: string) {
     // A visit always starts at step 1 with no proof yet.
     store.set({ openMajelis: majelisId, photo: false })
+  },
+  openHomeVisit(taskId: string) {
+    // Same contract as a majelis visit: start at step 1 with no proof yet.
+    store.set({ openHome: taskId, photo: false })
   },
   setPhoto(photo: boolean) {
     store.set({ photo })
