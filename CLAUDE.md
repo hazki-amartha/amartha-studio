@@ -9,17 +9,44 @@ work — it is the build spec for the tool itself, not for prototypes.
 
 ---
 
-## 1. Scope — stay in your project folder
+## 1. Scope — two tiers, gated at the merge
 
-You may only create or modify:
+Nothing here is read-only. The gate is **where work lands**, not whether you may
+write it — so a good platform idea isn't lost just because the owner is asleep.
+
+**Tier 1 — project work. Yours.**
 
 - `projects/<slug>/**` — the project you were asked to work on.
 - **One** appended line in `projects/registry.ts` (see §3).
 
-**Everything else is read-only** — `design-system/`, `platform/`, `app/`,
-`tailwind.config.ts`, and all other config. If a task seems to require editing
-`design-system/` or `platform/`, **stop** and tell the designer to raise it with
-the design-system owner (Hazki). Never edit another designer's `projects/<slug>/`.
+Merges with **no human review** once CI is green. Nobody checks it but you, so
+§6 is not a formality — it is the only gate.
+
+**Tier 2 — shared work. The owner's (Hazki).**
+
+`design-system/`, `platform/`, `app/`, `tailwind.config.ts`, `CLAUDE.md`, CI, and
+all other config. You **may** edit these — but a PR touching them **blocks until
+Hazki reviews it** (enforced by `.github/CODEOWNERS`, not by good behaviour).
+
+When you touch Tier 2:
+
+1. **Isolate it in its own commit** — never mix shared and project changes in one
+   commit. A reviewer must be able to take one and revert the other.
+2. **Say so.** Tell the designer you're crossing into Tier 2 and why, before you
+   start. It costs them a review; that's their call to make, not yours.
+3. **Prefer Tier 1.** A project-local component in `projects/<slug>/lib/` (§4)
+   ships today and gets promoted later. Reach for Tier 2 only when the change
+   genuinely belongs to everyone — and if it's only *your* prototype that wants
+   it, that's the tell that it doesn't.
+
+`platform/types.ts` is **frozen**: it is the contract between every project and
+the runtime. Extend the internal runtime instead, and if you truly can't, stop
+and ask.
+
+**Never edit another designer's `projects/<slug>/`.** CODEOWNERS does not enforce
+this — `owner` in `project.config.ts` is a display name, not a GitHub account, so
+this rule holds only because you follow it. Project work auto-merges: if you
+rewrite someone else's prototype, it lands unreviewed and nobody finds out.
 
 ---
 
@@ -115,21 +142,45 @@ If a screen needs a component that `@/design-system/components` doesn't provide:
 2. Add a line to `projects/<slug>/NOTES.md` (create it if absent) proposing the
    component for promotion into the design system — name, why, where used.
 
-**Never** add to or edit `design-system/` directly. The owner promotes local
-components upstream later.
+This stays the **default** even though §1 now lets you edit `design-system/`:
+project-local ships today and can't break anyone else, and a component earns
+promotion by being wanted twice. Editing `design-system/` to satisfy one
+prototype is how a design system rots. The owner promotes local components
+upstream later — `NOTES.md` is how they learn a candidate exists.
 
 ---
 
-## 5. Git routine
+## 5. Git routine — everything lands by PR
 
-Designers rely on you for git.
+Designers rely on you for git. **`main` is protected: you cannot push to it.**
+Every change lands through a pull request. Don't try to push to `main` and then
+report the rejection as a problem — the PR *is* the route.
 
-- **Before starting:** `git pull --rebase`.
-- **Commit** with message `[<slug>] <what changed>`.
-- **Push to `main`** only when the designer confirms. Never force-push.
-- **Conflicts:** inside someone else's `projects/<slug>/` folder → take theirs;
-  inside your own project → take yours; **anywhere else** (design-system,
-  platform, app, config, registry structure) → **stop and ask** the designer.
+- **Before starting:** `git pull --rebase` on `main`.
+- **Branch.** `<slug>/<what>` for project work, `platform/<what>` or
+  `design-system/<what>` for Tier 2. Never work directly on `main`.
+- **Commit** with `[<slug>] <what changed>`, or `[platform]` / `[design-system]`
+  for Tier 2. **One tier per commit** (§1).
+- **Open the PR only when the designer confirms** — same rule as pushing used to
+  be. Then:
+  ```bash
+  gh pr create --fill
+  gh pr merge --auto --squash      # lands itself the moment it's allowed to
+  ```
+- **What happens next depends on the tier, and you should say which you expect:**
+  - *Project-only PR* → merges by itself as soon as CI is green, usually a minute
+    or two. No human looks at it. Tell the designer it's landing.
+  - *PR touching Tier 2* → `--auto` parks it until **Hazki** approves. This is
+    normal, not a failure. Tell the designer it's waiting on review, and don't
+    poll it — they'll come back to you.
+- **Never** force-push, and never `gh auth switch` to an admin account to get
+  around a block. If you're blocked, that is the gate working.
+- **Conflicts:** inside someone else's `projects/<slug>/` → take theirs; inside
+  your own project → take yours; **anywhere else** (design-system, platform, app,
+  config, registry structure) → **stop and ask** the designer.
+- **CI is not optional.** It runs §6 for you, but a red PR never merges — so run
+  §6 locally *before* opening the PR and don't outsource your own verification to
+  the robot.
 
 ---
 

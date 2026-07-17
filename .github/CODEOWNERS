@@ -1,0 +1,48 @@
+# =============================================================================
+# Amartha Studio — owner-gated paths.
+#
+# A pull request that touches ANY path below blocks until @hazki-amartha
+# reviews it. Everything else — above all projects/** — needs no review and
+# merges as soon as CI is green.
+#
+# This is the merge gate that replaced the old write gate: agents are free to
+# EDIT the design system and platform, they just can't LAND those edits alone.
+# See CLAUDE.md §1 and §5.
+#
+# Deliberately NOT gated:
+#   projects/**            — a designer's own prototype; the whole point
+#   projects/registry.ts   — every new project must append one line here, so
+#                            gating it would put a review on every new project.
+#                            Append-only by convention; `npm run check:flows`
+#                            and the build catch a broken registry in CI.
+# =============================================================================
+
+# The design system and its guidelines — the shared vocabulary.
+/design-system/       @hazki-amartha
+
+# The runtime, device frame, flow canvas, and studio chrome.
+/platform/            @hazki-amartha
+
+# Next.js routing and the password gate.
+/app/                 @hazki-amartha
+/middleware.ts        @hazki-amartha
+
+# The token lock and build config. Loosening these silently unlocks
+# off-system values in every prototype at once.
+/tailwind.config.ts   @hazki-amartha
+/postcss.config.mjs   @hazki-amartha
+/next.config.mjs      @hazki-amartha
+/tsconfig.json        @hazki-amartha
+/.eslintrc.json       @hazki-amartha
+/package.json         @hazki-amartha
+/package-lock.json    @hazki-amartha
+/vercel.json          @hazki-amartha
+
+# The verification gate itself, and this file.
+/scripts/             @hazki-amartha
+/.github/             @hazki-amartha
+
+# The contract and the docs.
+/CLAUDE.md            @hazki-amartha
+/README.md            @hazki-amartha
+/PLAN.md              @hazki-amartha

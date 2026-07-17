@@ -37,11 +37,26 @@ sentences that cover the whole workflow:
 - **Start:** *"Start a new project called `<name>` (slug `<slug>`) — I'm the owner.
   Copy the template and scaffold the first screen."*
 - **Continue:** *"Pull the latest, then keep working on `<slug>`: <what you want next>."*
-- **Hand off:** *"Commit everything on `<slug>` with a clear message and push to
-  main so <teammate> can pull it."*
+- **Hand off:** *"Commit everything on `<slug>` with a clear message and open a PR
+  so <teammate> can pull it."*
 
 Your agent handles git, composes screens from the design system, and runs
 `npm run lint`, `npm run build`, and `npm run check:flows` before calling it done.
+
+### How work lands
+
+`main` is protected — everything goes through a pull request, and your agent
+opens it for you. What happens then depends on what you touched:
+
+| You changed | What happens |
+|---|---|
+| Only your own `projects/<slug>/` | Merges by itself once CI is green. No review, usually a minute or two. |
+| `design-system/`, `platform/`, or config | Waits for Hazki to review. Normal, not a failure. |
+
+Agents are allowed to *edit* the design system and platform — they just can't
+*land* those edits alone. That's the whole gate: good ideas don't get blocked at
+the keyboard, they get judged at the merge. See `.github/CODEOWNERS` for exactly
+which paths need a review.
 
 ## How it's organized
 
@@ -54,8 +69,11 @@ Your agent handles git, composes screens from the design system, and runs
 | `platform/` | Runtime, device frame, flow canvas (owner-gated) |
 | `CLAUDE.md` | The agent contract — the most important file |
 
-Design-system changes are owner-gated: agents propose them via a project's
-`NOTES.md`; the owner (Hazki) uses `/ingest` to bring new components in from Figma.
+Design-system changes are owner-gated **at the merge**: an agent may edit
+`design-system/`, but the PR blocks until Hazki reviews it. The cheaper path is
+still a project-local component plus a `NOTES.md` promotion proposal — the owner
+promotes it upstream later, and uses `/ingest` to bring new components in from
+Figma.
 
 ## Scripts
 

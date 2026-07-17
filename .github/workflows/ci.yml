@@ -1,0 +1,42 @@
+# =============================================================================
+# The CLAUDE.md §6 verification gate, enforced.
+#
+# Project work merges without a human review, so this is the only thing standing
+# between a prototype and main. It runs exactly what §6 asks an agent to run —
+# lint (the token lock), build (type-checks every screen), and check:flows
+# (unique entry, unique ids, real flowsTo targets).
+#
+# `verify` is a required status check on main: no PR merges until it is green.
+# =============================================================================
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  # Also on main itself, so a merged PR's result is visible on the branch.
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The token lock — catches arbitrary Tailwind values and off-system classes.
+      - run: npm run lint
+
+      # Type-checks every screen in every project.
+      - run: npm run build
+
+      # Unique entry, unique screen ids, and every flowsTo.to resolves.
+      - run: npm run check:flows
