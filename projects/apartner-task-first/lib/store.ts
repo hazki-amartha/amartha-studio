@@ -13,8 +13,23 @@ import { PREPAID_MITRA, TASKS, type Mitra, type Task } from './data'
 
 export type Attendance = 'hadir' | 'tidak'
 
-/** Where a mitra stands on this week's instalment. */
-export type PaymentStatus = 'belum' | 'sebagian' | 'lunas'
+/**
+ * Where a mitra stands on this week's instalment.
+ * - `belum`    — nothing recorded yet; the BP hasn't got to her.
+ * - `sebagian` — paid part of it.
+ * - `lunas`    — settled (or overpaid; the excess is marked later).
+ * - `tidak`    — recorded as not paying, with a reason and maybe a PTP. This is
+ *                an OUTCOME, not an absence of one: "she said no, here's why,
+ *                here's when" is a result the BP can close and ops can chase.
+ */
+export type PaymentStatus = 'belum' | 'sebagian' | 'lunas' | 'tidak'
+
+/** Why she isn't paying, and when she says she will. */
+export interface NonPayment {
+  reason: string
+  /** Promise to pay. Null = no promise given; not every no has a next date. */
+  ptp: string | null
+}
 
 /**
  * The outcome of a pitch. "Offered" alone is not an outcome — it records that
@@ -28,6 +43,8 @@ export interface AppState {
   doneTasks: string[]
   /** mitraId → rupiah recorded this visit. Absent = nothing recorded yet. */
   payments: Record<string, number>
+  /** mitraId → why she isn't paying. Absent = no such outcome recorded. */
+  nonPayments: Record<string, NonPayment>
   /** mitraId → hadir/tidak. Absent = the BP hasn't marked them yet. */
   attendance: Record<string, Attendance>
   /** mitraId → what the mitra said. Absent = not pitched yet. */
@@ -49,6 +66,7 @@ PREPAID_MITRA.forEach((m) => {
 const initial: AppState = {
   doneTasks: [],
   payments: seedPayments,
+  nonPayments: {},
   attendance: seedAttendance,
   offerResults: {},
   openMajelis: 'mawar',
@@ -85,9 +103,19 @@ export const store = {
   setAttendance(mitraId: string, value: Attendance) {
     store.set({ attendance: { ...state.attendance, [mitraId]: value } })
   },
-  /** Records the rupiah actually handed over — full, partial, or corrected. */
+  /**
+   * Records the rupiah actually handed over — full, partial, or corrected.
+   * Money clears any "tidak bayar" on file: she paid, so the reason she gave
+   * for not paying is no longer true and must not linger.
+   */
   setPayment(mitraId: string, amount: number) {
-    store.set({ payments: { ...state.payments, [mitraId]: amount } })
+    const nonPayments = { ...state.nonPayments }
+    delete nonPayments[mitraId]
+    store.set({ payments: { ...state.payments, [mitraId]: amount }, nonPayments })
+  },
+  /** Records a no with its reason and, if given, when she promises to pay. */
+  setNonPayment(mitraId: string, value: NonPayment) {
+    store.set({ nonPayments: { ...state.nonPayments, [mitraId]: value } })
   },
   /** Records what the mitra said, not merely that she was asked. */
   setOfferResult(mitraId: string, result: OfferResult) {
@@ -112,16 +140,25 @@ export const remainingOf = (s: AppState, mitra: Mitra): number =>
 
 export function paymentStatus(s: AppState, mitra: Mitra): PaymentStatus {
   const paid = paidOf(s, mitra)
-  if (paid <= 0) return 'belum'
-  return paid >= mitra.due ? 'lunas' : 'sebagian'
+  // Money wins over a recorded no — setPayment clears the no, but read it in
+  // the same order so the two can never disagree.
+  if (paid > 0) return paid >= mitra.due ? 'lunas' : 'sebagian'
+  return s.nonPayments[mitra.id] ? 'tidak' : 'belum'
 }
 
 /** The queue: anyone who still owes something, in roster order. */
-export const outstandingMembers = (s: AppState, members: Mitra[]): Mitra[] =>
-  members.filter((m) => paymentStatus(s, m) !== 'lunas')
+// Step 1's job is to RECORD an outcome for every mitra, not to make everyone
+// lunas. So the split is recorded / not recorded — grouping on `lunas` would
+// strand a mitra recorded as "tidak bayar" (reason and PTP captured, work done)
+// in the queue forever, and the page could never reach zero.
 
-export const settledMembers = (s: AppState, members: Mitra[]): Mitra[] =>
-  members.filter((m) => paymentStatus(s, m) === 'lunas')
+/** Nobody has touched her yet — the queue. */
+export const pendingMembers = (s: AppState, members: Mitra[]): Mitra[] =>
+  members.filter((m) => paymentStatus(s, m) === 'belum')
+
+/** An outcome is on file: lunas, sebagian, or tidak bayar. */
+export const recordedMembers = (s: AppState, members: Mitra[]): Mitra[] =>
+  members.filter((m) => paymentStatus(s, m) !== 'belum')
 
 // --- Schedule derivations --------------------------------------------------
 // The schedule screen asks one question — "what do I do now?" — so the answer

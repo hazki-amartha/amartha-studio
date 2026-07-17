@@ -74,51 +74,45 @@ export function Collapsible({ title, hint, children }: CollapsibleProps) {
   )
 }
 
-// --- Segmented -------------------------------------------------------------
-// A two-or-three option pill group for a single choice that must stay visible
-// and answerable in one tap — attendance on every mitra card. A BottomSheet
-// (the design system's usual "pick one" pairing) would cost a tap and hide the
-// answer; a Toggle can't express "not answered yet" as distinct from "no".
+// --- IconToggle ------------------------------------------------------------
+// A circular icon button that holds a selected state — the attendance ✗ / ✓ on
+// every mitra card. Two of them replace a labelled pill group: at 22 cards the
+// words "Hadir"/"Tidak" repeat 44 times for a question whose answer is a shape.
 //
-// Unselected is a real state here: it means the BP hasn't marked them.
+// Selected uses the status pairing the foundations sanction (500 foreground on
+// its own 50 tint) rather than primary-500. Attendance is a STATUS, not a
+// primary action, and green/red resolves at a glance while scanning a roster —
+// two purple circles would differ only by glyph.
 
-export interface SegmentedOption<T extends string> {
-  value: T
+export interface IconToggleProps {
+  selected: boolean
+  tone: 'green' | 'red'
+  onClick: () => void
+  /** Spoken label — the icon alone is not accessible. */
   label: string
+  children: ReactNode
 }
 
-export interface SegmentedProps<T extends string> {
-  options: SegmentedOption<T>[]
-  value?: T
-  onChange: (value: T) => void
-  label: string
-}
+export function IconToggle({ selected, tone, onClick, label, children }: IconToggleProps) {
+  const selectedTone =
+    tone === 'green'
+      ? 'bg-green-50 text-green-500 border-green-500'
+      : 'bg-red-50 text-red-500 border-red-500'
+  // Unselected must still read as a live control: a neutral-400 glyph on a
+  // neutral-50 fill is the disabled pairing, so an unanswered card looked
+  // switched off. An outlined circle on white reads as "tap me".
+  const classes = selected ? selectedTone : 'bg-neutral-white text-neutral-600 border-default'
 
-export function Segmented<T extends string>({
-  options,
-  value,
-  onChange,
-  label,
-}: SegmentedProps<T>) {
   return (
-    <div role="group" aria-label={label} className="flex gap-4 rounded-full bg-neutral-50 p-2">
-      {options.map((option) => {
-        const active = value === option.value
-        return (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange(option.value)}
-            className={`rounded-full px-12 py-4 text-12 font-bold ${
-              active ? 'bg-primary-500 text-neutral-white' : 'text-caption'
-            }`}
-          >
-            {option.label}
-          </button>
-        )
-      })}
-    </div>
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-full border ${classes}`}
+    >
+      {children}
+    </button>
   )
 }
 

@@ -95,9 +95,7 @@ export function MajelisOffersScreen() {
                 <MitraCard
                   key={mitra.id}
                   mitra={mitra}
-                  state={s}
-                  // Step 2's subject: where she stands on the thing being
-                  // offered, in the slot step 1 uses for payment.
+                  // Step 2's subject: where she stands on the thing being offered.
                   status={mitra.offer?.status}
                   action={
                     // Same row shape as step 1: subject left, action right.

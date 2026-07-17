@@ -50,20 +50,48 @@ by itself.
 
 ### Step 1 — what a visit records
 
-Exactly two things per mitra, on **one action row**: attendance left, payment
-right. One glance, at most two taps.
+Exactly two things per mitra:
 
-1. **Attendance** — `Hadir` / `Tidak`, answerable in one tap. Unselected is a
-   real third state: it means the BP hasn't marked them yet, which is different
-   from marking them absent. No default, because a default would fabricate data.
-2. **Payment** — an **amount, not a flag.** Partial payment is a normal field
-   outcome, so a boolean would lose it. "Terima Pembayaran" opens a sheet
-   prefilled with the full instalment: paying in full is two taps, paying part
-   costs one edit.
+1. **Attendance** — two circular icon buttons (✗ / ✓) in the identity row. At 22
+   cards the words "Hadir"/"Tidak" repeat 44 times for a question whose answer is
+   a shape. Unselected is a real third state — the BP hasn't marked her yet,
+   which differs from marking her absent — so there is no default, because a
+   default would fabricate attendance data. Selected uses the sanctioned status
+   pairing (green/red 500 on its own 50 tint) rather than `primary-500`:
+   attendance is a status, not a primary action, and colour resolves at a glance
+   while scanning a roster where two purple circles would differ only by glyph.
+2. **Payment** — three named outcomes, ordered
+   `[Tidak Bayar] [Jumlah Lain] [Bayar Lunas]` with the primary last, where the
+   thumb lands:
+   - **Bayar Lunas** — the common case, so it costs **one tap and no sheet**.
+   - **Jumlah Lain** — a sheet for the amount, over **or** under. Partial is a
+     normal field outcome; overpayment is marked later.
+   - **Tidak Bayar** — a sheet for the reason and, if given, the promise to pay.
 
-A mitra leaves the queue only once they are **lunas**. A partial payer keeps
-their card, the button showing what's still short (`Kurang Rp 100.000`), because
-they still owe — an unfinished row is more honest than a green tick.
+**"Tidak Bayar" as a first-class outcome is the point.** A no with a reason and a
+date is a result the BP can close and ops can chase. Leaving it unrecorded is
+exactly what pushes DPD work onto the RM's Google Form (per Ciseeng).
+
+### The queue drains on *recorded*, not on *paid*
+
+The step's job is to record an outcome for every mitra, not to make everyone
+lunas. So the split is **Belum dicatat / Sudah dicatat**, and a card leaves the
+queue once it has an outcome of any kind.
+
+This was originally grouped on `lunas` (`Belum lunas` / `Sudah lunas`), which was
+wrong twice over: a mitra recorded as *tidak bayar* was finished but sat in the
+queue forever, so the count could never reach zero even when every mitra had been
+dealt with — and the copy claimed she was "sudah lunas" when she plainly wasn't.
+
+The header number is what's left **in this step** — mitra not yet dealt with and
+what they owe — not the majelis's outstanding debt. Recorded mitra collapse into
+`Sudah dicatat`, each row carrying its own outcome (`Rp 200.000` lunas / `Kurang
+Rp 100.000` / `Tidak bayar` + reason + PTP) and an **Ubah** that reopens the sheet
+that produced it, so leaving the queue never traps an entry.
+
+Step 3's warning follows the same rule: it flags work **not done** (`belum
+dicatat`), never money not collected. Nagging about a recorded refusal would
+train the BP to ignore the warning.
 
 ### Step 2 — the same list, one row different
 
@@ -138,12 +166,13 @@ from tokens + design-system components:
 - **StepBar** (`lib/ui.tsx`) — three bars + a "Langkah N dari 3" label for a
   multi-step task. FunDS Lite has no stepper at all, and any flow split across
   screens (visit, onboarding/UK, disbursement) needs one.
-- **Segmented** (`lib/ui.tsx`) — a 2–3 option pill group for a single choice that
-  must stay visible and answerable in one tap (attendance on every mitra card).
-  Motivating gap: the design system's sanctioned "pick one" pairing is a
-  BottomSheet + SelectableCard, which costs a tap and hides the answer; `Toggle`
-  can't express "not answered yet" as distinct from "no". A recurring need on any
-  high-frequency row-level choice.
+- **IconToggle** (`lib/ui.tsx`) — a circular icon button holding a selected
+  state; two of them make the attendance ✗/✓ on every mitra card. Motivating gap:
+  the design system's sanctioned "pick one" pairing is BottomSheet +
+  SelectableCard, which costs a tap and hides the answer, and `Toggle` can't
+  express "not answered yet" as distinct from "no". Note the unselected style is
+  load-bearing — `neutral-400` on `neutral-50` is the *disabled* pairing and made
+  unanswered cards look switched off, so it is an outlined circle on white.
 - **Collapsible** (`lib/ui.tsx`) — a disclosure section (header row + count hint +
   chevron) that expands its children. This direction leans on it hard: collapsing
   is how the page stays about one job. FunDS Lite has no disclosure control, and

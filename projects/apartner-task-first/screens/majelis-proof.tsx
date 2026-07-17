@@ -17,7 +17,14 @@ import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMajelis, rupiah } from '../lib/data'
 import { IconCamera, IconCheck } from '../lib/icons'
-import { outstandingMembers, paidOf, settledMembers, store, taskForMajelis, useApp } from '../lib/store'
+import {
+  paidOf,
+  paymentStatus,
+  pendingMembers,
+  store,
+  taskForMajelis,
+  useApp,
+} from '../lib/store'
 import { StepBar } from '../lib/ui'
 
 export function MajelisProofScreen() {
@@ -26,8 +33,8 @@ export function MajelisProofScreen() {
   const majelis = findMajelis(s.openMajelis)
   const task = taskForMajelis(majelis.id)
 
-  const settled = settledMembers(s, majelis.members)
-  const outstanding = outstandingMembers(s, majelis.members)
+  const lunas = majelis.members.filter((m) => paymentStatus(s, m) === 'lunas')
+  const pending = pendingMembers(s, majelis.members)
   const collected = majelis.members.reduce((sum, m) => sum + paidOf(s, m), 0)
   const hadir = majelis.members.filter((m) => s.attendance[m.id] === 'hadir').length
   const unmarked = majelis.members.filter((m) => !s.attendance[m.id]).length
@@ -60,7 +67,7 @@ export function MajelisProofScreen() {
           <div className="flex items-center gap-12">
             <span className="flex-1 text-12 text-caption">Lunas</span>
             <span className="text-14 font-bold text-default">
-              {settled.length} dari {majelis.members.length} mitra
+              {lunas.length} dari {majelis.members.length} mitra
             </span>
           </div>
           {tertarik > 0 ? (
@@ -69,11 +76,14 @@ export function MajelisProofScreen() {
               <span className="text-14 font-bold text-default">{tertarik} mitra</span>
             </div>
           ) : null}
-          {unmarked > 0 || outstanding.length > 0 ? (
+          {/* Warn on work not DONE, not on money not collected — a mitra
+              recorded as tidak bayar is finished, and nagging about her would
+              train the BP to ignore the warning. */}
+          {unmarked > 0 || pending.length > 0 ? (
             <div className="rounded-8 bg-orange-50 px-12 py-8 text-12 text-default">
-              {unmarked > 0
-                ? `${unmarked} mitra belum ditandai kehadirannya.`
-                : `${outstanding.length} mitra belum lunas.`}{' '}
+              {pending.length > 0
+                ? `${pending.length} mitra belum dicatat pembayarannya.`
+                : `${unmarked} mitra belum ditandai kehadirannya.`}{' '}
               Kunjungan tetap bisa dikirim.
             </div>
           ) : null}

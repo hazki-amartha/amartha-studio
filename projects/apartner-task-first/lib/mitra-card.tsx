@@ -2,25 +2,35 @@
 
 // The one mitra card, shared by step 1 (kehadiran & pembayaran) and step 2
 // (tugas tambahan). The LAYOUT is fixed here — avatar, name, one status line,
-// DPD badge, a rule, then an action row — so the two steps cannot drift apart:
-// a mitra sits in the same shape in both, and the BP re-reads nothing.
+// DPD badge, an optional trailing control, a rule, then an action block — so the
+// two steps cannot drift apart: a mitra sits in the same shape in both, and the
+// BP re-reads nothing.
 //
-// The two slots that vary are the ones carrying the step's subject: the status
-// line and the action row. Step 1 fills the status line from payment ("Tagihan
-// Rp 200.000"); step 2 fills it from the mitra's standing on what's being
-// offered ("Belum pernah menabung"). Same slot, same shape, step's own fact.
+// The slots that vary carry the step's subject. Step 1 puts attendance in the
+// trailing slot and payment in the action block; step 2 puts where she stands on
+// what's offered in the status line and the recommendation in the action block.
+// Same shape, each step's own facts.
 
 import type { ReactNode } from 'react'
 import { Badge, Card } from '@/design-system/components'
-import { rupiah, type Mitra } from './data'
-import { paidOf, paymentStatus, type AppState } from './store'
+import type { Mitra } from './data'
 import { Avatar } from './ui'
 
-/** DPD is the only status worth a badge — "current" needs no decoration. */
+/**
+ * Every mitra carries a bucket badge, current ones included. Showing "Lancar"
+ * rather than nothing keeps the badge row at a fixed height so cards don't jog
+ * as the BP scrolls, and makes "no badge" impossible to misread as "no data".
+ */
 function DpdBadge({ dpd }: { dpd: number }) {
-  if (dpd === 0) return null
   // self-start so the pill hugs its text instead of being stretched by the
   // surrounding flex column.
+  if (dpd === 0) {
+    return (
+      <Badge className="self-start" intent="green">
+        Lancar
+      </Badge>
+    )
+  }
   return (
     <Badge className="self-start" intent={dpd >= 30 ? 'red' : 'orange'}>
       Menunggak {dpd} hari
@@ -30,28 +40,18 @@ function DpdBadge({ dpd }: { dpd: number }) {
 
 export function MitraCard({
   mitra,
-  state,
   status,
+  trailing,
   action,
 }: {
   mitra: Mitra
-  state: AppState
-  /** The line under the name. Defaults to payment standing (step 1's subject). */
+  /** The line under the name — the step's subject. Omitted renders nothing. */
   status?: string
-  /** The single row under the rule. */
+  /** Control pinned to the right of the identity row (step 1: attendance). */
+  trailing?: ReactNode
+  /** The block under the rule. */
   action: ReactNode
 }) {
-  const payment = paymentStatus(state, mitra)
-  const paid = paidOf(state, mitra)
-
-  const subtitle =
-    status ??
-    (payment === 'sebagian'
-      ? `Dibayar ${rupiah(paid)} dari ${rupiah(mitra.due)}`
-      : payment === 'lunas'
-        ? `Lunas ${rupiah(mitra.due)}`
-        : `Tagihan ${rupiah(mitra.due)}`)
-
   return (
     <Card>
       <div className="flex flex-col gap-12">
@@ -59,9 +59,10 @@ export function MitraCard({
           <Avatar name={mitra.name} />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <span className="truncate text-14 font-bold text-default">{mitra.name}</span>
-            <span className="text-12 text-caption">{subtitle}</span>
+            {status ? <span className="text-12 text-caption">{status}</span> : null}
             <DpdBadge dpd={mitra.dpd} />
           </div>
+          {trailing ? <div className="shrink-0">{trailing}</div> : null}
         </div>
         <div className="border-t border-default pt-12">{action}</div>
       </div>
