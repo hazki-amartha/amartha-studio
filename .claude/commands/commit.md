@@ -1,10 +1,10 @@
-# /save — checkpoint the current work
+# /commit — checkpoint the current work
 
 Save a private, reversible checkpoint of whatever the designer is working on.
-This does **not** publish or deploy anything. See `CLAUDE.md` §7 for the two-verb
+This does **not** push or deploy anything. See `CLAUDE.md` §7 for the two-verb
 model this belongs to.
 
-Triggers: `/save`, "save it", "save my work", "checkpoint this".
+Triggers: `/commit`, "commit it", "commit my work", "checkpoint this".
 
 ## What to do
 
@@ -26,9 +26,9 @@ Triggers: `/save`, "save it", "save my work", "checkpoint this".
    `[design-system]` for shared). Write the message yourself from the diff unless
    the designer gave one.
 
-4. **Report in plain language.** Say what you saved and that it isn't live yet —
-   e.g. *"Saved a checkpoint of your Home Visit screens. Nothing's live yet — say
-   **publish it** when you want to share it."* No branch names, no PR talk, no raw
-   git commands in the summary.
+4. **Report in plain language.** Say what you committed and that it isn't live yet
+   — e.g. *"Committed a checkpoint of your Home Visit screens. Nothing's live yet
+   — say **push it** when you want to share it."* No PR talk, no raw git commands
+   in the summary.
 
-**Do not** push, open a PR, or deploy. That is `/publish`.
+**Do not** push, open a PR, or deploy. That is `/push`.

@@ -1,20 +1,22 @@
-# /publish — make the current work live
+# /push — make the current work live
 
 Take the designer's work all the way to a shareable, deploying state, and report
-it in plain language. See `CLAUDE.md` §7 for the two-verb model this belongs to.
+it in plain language. Here "push" means the **whole path to live** — not just a
+raw `git push`, but push → PR → auto-merge → deploy. See `CLAUDE.md` §7 for the
+two-verb model this belongs to.
 
-Triggers: `/publish`, "publish it", "ship it", "make it live", "deploy it".
+Triggers: `/push`, "push it", "ship it", "make it live", "deploy it".
 
 ## What to do
 
 1. **Verify first (`CLAUDE.md` §6).** Run `npm run lint`, `npm run build`, and
-   `npm run check:flows`. If any fails, fix it — **never publish broken work.** If
+   `npm run check:flows`. If any fails, fix it — **never push broken work.** If
    you can't fix it, stop and explain the problem in plain language.
 
-2. **Commit anything pending** exactly as `/save` does: right tier, right branch
+2. **Commit anything pending** exactly as `/commit` does: right tier, right branch
    (create one off `main` if the designer is on `main`), one tier per commit.
 
-3. **Push** the branch.
+3. **Push** the branch to the remote.
 
 4. **Open the PR and let it merge itself:**
    ```bash
@@ -24,7 +26,7 @@ Triggers: `/publish`, "publish it", "ship it", "make it live", "deploy it".
 
 5. **Tell them what will happen, in their terms:**
    - **Project-only** (only `projects/<slug>/`, maybe one registry line) →
-     *"Publishing — it'll be live in a minute or two."* It auto-merges once CI is
+     *"Pushing — it'll be live in a minute or two."* It auto-merges once CI is
      green; nobody has to review it.
    - **Touches shared files** (anything owner-gated in `.github/CODEOWNERS`) →
      *"This changes shared studio files, so it's waiting on Hazki's review before

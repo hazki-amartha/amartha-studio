@@ -24,7 +24,7 @@ You need [Node.js](https://nodejs.org/) 18+, git, and the
 git clone <this-repo-url>
 cd amartha-studio
 npm install
-gh auth login        # once — this is what lets "publish it" work
+gh auth login        # once — this is what lets "push it" work
 npm run dev          # open http://localhost:3000
 ```
 
@@ -32,24 +32,24 @@ Then point your AI agent (Claude Code) at this repo. The agent reads `CLAUDE.md`
 automatically — that contract is what keeps every prototype on-system, and it
 does all the git for you (see **Working with your agent** below). The one-time
 `gh auth login` is the only git-ish thing you ever run yourself; after that,
-"save it" and "publish it" are the whole workflow.
+"commit it" and "push it" are the whole workflow.
 
 ## Working with your agent
 
 You don't edit code and **you don't need to know git** — you talk to your agent,
 and it follows `CLAUDE.md`. Two words cover the whole workflow:
 
-- **"Save it"** — checkpoints your work so far. Private, safe, undoable. Say it as
-  often as you like.
-- **"Publish it"** — makes your prototype live and hands you a link to share.
+- **"Commit it"** — checkpoints your work so far. Private, safe, undoable. Say it
+  as often as you like.
+- **"Push it"** — makes your prototype live and hands you a link to share.
 
 Everything else is a plain sentence:
 
 - **Start:** *"Start a new project called `<name>` — I'm the owner. Copy the
   template and scaffold the first screen."*
 - **Continue:** *"Keep working on `<slug>`: <what you want next>."*
-- **Share a draft before it's finished:** *"Publish it."* Every version gets a
-  live preview link, so you can show work in progress without it being done.
+- **Share a draft before it's finished:** *"Push it."* Every version gets a live
+  preview link, so you can show work in progress without it being done.
 
 Behind the scenes your agent does all the git for you. It works on a private copy
 called a *branch* (like a Figma branch, so your drafts never touch anyone else's
