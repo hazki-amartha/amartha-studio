@@ -17,41 +17,60 @@ deployed URL per project — no more screenshots.
 
 ## One-time setup
 
-You need [Node.js](https://nodejs.org/) 18+ and git.
+You need [Node.js](https://nodejs.org/) 18+, git, and the
+[GitHub CLI](https://cli.github.com/) (`gh`).
 
 ```bash
 git clone <this-repo-url>
 cd amartha-studio
 npm install
+gh auth login        # once — this is what lets "publish it" work
 npm run dev          # open http://localhost:3000
 ```
 
 Then point your AI agent (Claude Code) at this repo. The agent reads `CLAUDE.md`
-automatically — that contract is what keeps every prototype on-system.
+automatically — that contract is what keeps every prototype on-system, and it
+does all the git for you (see **Working with your agent** below). The one-time
+`gh auth login` is the only git-ish thing you ever run yourself; after that,
+"save it" and "publish it" are the whole workflow.
 
 ## Working with your agent
 
-You don't edit code — you talk to your agent, and it follows `CLAUDE.md`. The three
-sentences that cover the whole workflow:
+You don't edit code and **you don't need to know git** — you talk to your agent,
+and it follows `CLAUDE.md`. Two words cover the whole workflow:
 
-- **Start:** *"Start a new project called `<name>` (slug `<slug>`) — I'm the owner.
-  Copy the template and scaffold the first screen."*
-- **Continue:** *"Pull the latest, then keep working on `<slug>`: <what you want next>."*
-- **Hand off:** *"Commit everything on `<slug>` with a clear message and open a PR
-  so <teammate> can pull it."*
+- **"Save it"** — checkpoints your work so far. Private, safe, undoable. Say it as
+  often as you like.
+- **"Publish it"** — makes your prototype live and hands you a link to share.
 
-Your agent handles git, composes screens from the design system, and runs
-`npm run lint`, `npm run build`, and `npm run check:flows` before calling it done.
+Everything else is a plain sentence:
+
+- **Start:** *"Start a new project called `<name>` — I'm the owner. Copy the
+  template and scaffold the first screen."*
+- **Continue:** *"Keep working on `<slug>`: <what you want next>."*
+- **Share a draft before it's finished:** *"Publish it."* Every version gets a
+  live preview link, so you can show work in progress without it being done.
+
+Behind the scenes your agent does all the git for you. It works on a private copy
+called a *branch* (like a Figma branch, so your drafts never touch anyone else's
+work), and it runs `npm run lint`, `npm run build`, and `npm run check:flows`
+before publishing. If you ever see a word like "branch," "commit," or "PR," you
+can ignore it or just ask *"what does that mean here?"* — you never have to manage
+any of it, and you **can't** break the live studio.
 
 ### How work lands
 
-`main` is protected — everything goes through a pull request, and your agent
-opens it for you. What happens then depends on what you touched:
+`main` is protected — everything goes through a pull request, and your agent opens
+it for you. What happens then depends on what you touched:
 
 | You changed | What happens |
 |---|---|
 | Only your own `projects/<slug>/` | Merges by itself once CI is green. No review, usually a minute or two. |
 | `design-system/`, `platform/`, or config | Waits for Hazki to review. Normal, not a failure. |
+
+Either way, **you get a preview link as soon as the build finishes** — even for a
+change that's waiting on Hazki. So "waiting on review" never means "can't show
+anyone"; you can share the live preview the whole time it waits.
 
 Agents are allowed to *edit* the design system and platform — they just can't
 *land* those edits alone. That's the whole gate: good ideas don't get blocked at
