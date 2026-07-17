@@ -122,9 +122,19 @@ export function IconToggle({ selected, tone, onClick, label, children }: IconTog
 // is left. Deliberately not tappable: steps advance by finishing them, in the
 // same spirit as the schedule promoting the next task by itself.
 
+// Both flows run three steps and share step 2 (Tugas Tambahan) and step 3
+// (Foto & Kirim). Only step 1's name differs: a majelis collects attendance,
+// a home visit records whether the one borrower was even reached.
 export const STEP_LABELS = ['Kehadiran & Pembayaran', 'Tugas Tambahan', 'Foto & Kirim']
+export const HOME_STEP_LABELS = ['Temui & Tagih', 'Tugas Tambahan', 'Foto & Kirim']
 
-export function StepBar({ current }: { current: 1 | 2 | 3 }) {
+export function StepBar({
+  current,
+  labels = STEP_LABELS,
+}: {
+  current: 1 | 2 | 3
+  labels?: string[]
+}) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex gap-4">
@@ -136,7 +146,7 @@ export function StepBar({ current }: { current: 1 | 2 | 3 }) {
         ))}
       </div>
       <span className="text-10 font-bold uppercase text-caption">
-        Langkah {current} dari 3 · {STEP_LABELS[current - 1]}
+        Langkah {current} dari 3 · {labels[current - 1]}
       </span>
     </div>
   )

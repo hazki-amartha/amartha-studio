@@ -168,6 +168,50 @@ export const MAJELIS: Majelis[] = [
 
 export const findMajelis = (id: string) => MAJELIS.find((m) => m.id === id) ?? MAJELIS[0]
 
+// --- Home visits -----------------------------------------------------------
+// A home visit is the single-mitra counterpart to a majelis: the BP rides to
+// ONE borrower's house, usually to collect an instalment that has slipped. It
+// records the same three facts as a majelis stop — was she met, what did she
+// pay, is it proven — so it reuses the same store, MitraCard, and payment sheet.
+// The only structural difference is the roster is one person, so step 1 is a
+// single card instead of a queue.
+
+export interface HomeVisit {
+  /** Matches the schedule Task id that opens it, so finishing closes the task. */
+  id: string
+  mitra: Mitra
+}
+
+export const HOME_VISITS: HomeVisit[] = [
+  {
+    id: 't3',
+    mitra: {
+      id: 'h1',
+      name: 'Rina Marlina',
+      due: 450_000,
+      dpd: 34,
+      // A delinquent's "extra task" is relief, not growth: the honest thing to
+      // offer someone two instalments behind is a longer tenor, not a new loan.
+      offer: {
+        label: 'Perpanjangan tenor',
+        status: 'Minggu 40 dari 48 · menunggak 2 angsuran',
+      },
+    },
+  },
+  {
+    id: 't4',
+    // No offer — exercises step 2's empty state, and a mitra keeping today's
+    // promise is not someone to pitch anything to.
+    mitra: { id: 'h2', name: 'Sari Handayani', due: 200_000, dpd: 3 },
+  },
+]
+
+export const findHomeVisit = (taskId: string) =>
+  HOME_VISITS.find((h) => h.id === taskId) ?? HOME_VISITS[0]
+
+/** The schedule row behind any visit — carries the pre-reasoned "why now" line. */
+export const findTask = (id: string) => TASKS.find((t) => t.id === id)
+
 /** "Rp 1.400.000" — the only number format this prototype prints. */
 export function rupiah(value: number): string {
   return `Rp ${value.toLocaleString('id-ID')}`

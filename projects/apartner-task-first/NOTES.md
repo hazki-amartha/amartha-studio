@@ -29,10 +29,13 @@ So: the app does the synthesising, the BP does the visiting.
 ## The two screens
 
 **`today`** — the schedule, hour by hour. One "Sekarang" card with one button;
-later tasks are a timeline the BP reads rather than a list they choose from; done
-tasks collapse to a count. Finishing a visit promotes the next task, so the BP
-never picks. Each task carries a pre-reasoned one-liner ("Menunggak 34 hari ·
-Rp 450.000") instead of raw data.
+later tasks are a lightweight timeline (no KPIs, no filters); done tasks collapse
+to a count. Finishing a visit still promotes the next task, so the queue advances
+by itself — but each "Berikutnya" row is also tappable (a right chevron is the
+tell) to launch its visit directly, because a BP's plan slips: a mitra is home
+*now*, a majelis moved, and forcing clock-order completion would fight the field
+rather than serve it. Each task carries a pre-reasoned one-liner ("Menunggak 34
+hari · Rp 450.000") instead of raw data.
 
 **The majelis visit** — three screens, because a visit is a **sequence**, not a
 screen. Splitting it means each page holds one job and the BP is never choosing
@@ -157,19 +160,52 @@ These are cuts, not oversights:
    lunas): once offers became their own step, the step order does that job, and
    the gate would only have hidden work from a BP who is standing right there.
 
-## Next — to design together
+## The home visit — the same flow, one borrower
 
-The mitra page and the Home Visit page overlap heavily (both are about one
-borrower and her repayment record), so they get tackled as one piece:
+Home visits now open a real flow (the "Mulai Kunjungan" button is no longer
+disabled). A home visit is the **single-mitra twin of the majelis visit**, and it
+is built as exactly that on purpose: same three-step `StepBar`, same `MitraCard`,
+same payment `BottomSheet`, same proof-gates-submit close. A BP who has run a
+majelis already knows every control; only the roster size changed.
+
+| Step | Screen | The one job |
+|------|--------|-------------|
+| 1 | `home-visit` | Temui & Tagih — reach her, record the outcome |
+| 2 | `home-offer` | Tugas Tambahan — the one recommended action |
+| 3 | `home-proof` | Foto & Kirim — proof, then submit |
+
+What differs, and why:
+
+- **The queue becomes one card.** With one borrower there is no countdown to
+  zero, so step 1 opens on the *why now* instead — the address and the
+  pre-reasoned reason line lifted straight from the schedule (`Menunggak 34 hari ·
+  Rp 450.000`). It is the same "hand the BP the reasoning" move the `today` card
+  makes.
+- **Attendance is reread as "Ditemui / Tidak di rumah".** On a doorstep the first
+  fact is whether you reached her at all. "Not home" is a real outcome, not a
+  blank: it is logged through the same **Catatan → Tidak bayar** door, with reason
+  `Tidak ada di rumah` and a revisit date, so an empty-handed trip still closes
+  the loop instead of vanishing.
+- **The extra task is relief, not growth.** For a delinquent the honest offer is a
+  longer tenor (`Perpanjangan tenor`), not a new product — so step 2 reads as part
+  of the collection conversation. It stays skippable and self-closing; a mitra with
+  nothing to offer (Sari, keeping today's promise) lands on the empty state.
+- **Step 3's only warning is "nothing recorded at all".** Same rule as the majelis
+  close: a recorded `tidak bayar` with a reason and a date is finished work, so the
+  banner flags an untouched visit, never an unpaid balance.
+
+Both home-visit mitra reuse the shared store keyed by mitra id
+(`attendance` / `payments` / `nonPayments` / `offerResults`), so nothing new was
+added to state beyond `openHome` (which home-visit task is open) — the mirror of
+`openMajelis`.
+
+## Next — to design together
 
 - **Mitra page** — the destination for the loan/payment history cut from the
   queue (point 2). Entry point is a button on the mitra card. **The button is not
   built yet**: a dead control in a prototype misleads reviewers, so it lands with
-  the page.
-- **Home Visit page.** Home visits are on the schedule and the timeline, but the
-  "Mulai Kunjungan" button is disabled when one reaches "Sekarang". Per Ciseeng
-  it should absorb the Google Form: visit outcome, amount paid, PTP date, reason
-  for non-payment, photo.
+  the page. The home visit is the closest existing surface (both are one borrower
+  and her repayment record), so the mitra page likely grows out of it.
 
 Also outstanding: only `Majelis Mawar` has a roster; the other two majelis tasks
 are schedule entries only.
