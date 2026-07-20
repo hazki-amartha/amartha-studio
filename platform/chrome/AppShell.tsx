@@ -15,6 +15,7 @@ import { HeaderStatusProvider, useHeaderStatus } from './headerStatus'
 import { ChevronRightIcon, DeviceIcon, FlowIcon, PanelIcon } from './icons'
 import { NavRail, type RailSection } from './NavRail'
 import { StudioSidebar } from './StudioSidebar'
+import { TripleTapExit } from './TripleTapExit'
 import { SystemSidebar } from './SystemSidebar'
 import type { ProjectIndexEntry } from './loadProjectIndex'
 
@@ -178,13 +179,17 @@ function AppShellInner({
 
   const { active, currentSlug, isFlow, crumbs } = resolveRoute(pathname, projects)
 
+  // On a phone, a prototype route IS the app: hide every piece of shell chrome
+  // below md and rely on TripleTapExit as the way back to the gallery.
+  const isProto = currentSlug != null
+
   return (
     <div className="flex h-screen overflow-hidden bg-neutral-50">
-      <NavRail active={active} />
+      <NavRail active={active} className={isProto ? 'hidden md:flex' : undefined} />
 
       {collapsed ? null : (
         <aside
-          className={`${styles.secondary} shrink-0 overflow-y-auto border-r border-default bg-neutral-white px-8 py-16`}
+          className={`${isProto ? 'hidden md:block' : ''} ${styles.secondary} shrink-0 overflow-y-auto border-r border-default bg-neutral-white px-8 py-16`}
         >
           {active === 'funds' ? (
             <SystemSidebar />
@@ -195,7 +200,9 @@ function AppShellInner({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-48 shrink-0 items-center gap-12 border-b border-default bg-neutral-white px-16">
+        <header
+          className={`${isProto ? 'hidden md:flex' : 'flex'} h-48 shrink-0 items-center gap-12 border-b border-default bg-neutral-white px-16`}
+        >
           <button
             type="button"
             onClick={toggle}
@@ -213,7 +220,13 @@ function AppShellInner({
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        {isProto ? (
+          <TripleTapExit className="min-h-0 flex-1 touch-manipulation overflow-y-auto">
+            {children}
+          </TripleTapExit>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        )}
       </div>
     </div>
   )
