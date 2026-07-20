@@ -1,0 +1,38 @@
+{
+  "$comment": "Team-wide, checked-in permissions for Amartha Studio. Pre-approves the ordinary save/publish git+gh flow (CLAUDE.md §7) so a designer never hits a scary permission prompt mid-publish. Personal, machine-specific allows still go in the gitignored settings.local.json. Nothing here can bypass the merge gate: main is protected and CODEOWNERS enforces review — see .github/CODEOWNERS.",
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git stash:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git push:*)",
+      "Bash(git merge --ff-only:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh repo view:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run build)",
+      "Bash(npm run check:flows)",
+      "Bash(npm run dev)",
+      "Bash(npm run:*)",
+      "Bash(npm ci)",
+      "Bash(npm install)",
+      "Bash(npm install:*)"
+    ]
+  }
+}

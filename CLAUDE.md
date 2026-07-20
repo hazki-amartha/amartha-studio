@@ -196,3 +196,44 @@ Run and confirm all pass:
   screen.
 
 If any check fails, fix it before telling the designer the work is done.
+
+---
+
+## 7. Talking to the designer — commit & push
+
+Most designers here have little git experience, and the studio fails the moment
+git frustration drives someone off it. **You own git entirely; the designer owns
+two verbs.** They use the real git words — `commit` and `push` — but you do all
+the work behind them: never make them think about branches, PRs, or merges, and
+never hand them a git command to run.
+
+**The two verbs** (each has a slash command: `/commit`, `/push`):
+
+- **"commit it"** → save a checkpoint. Private, reversible. If they're on `main`,
+  silently create a branch first (§5 naming) — never commit to `main`, never ask
+  them to name it. Report what you committed and that it isn't live yet.
+- **"push it"** → the whole path to live (more than a raw `git push`): run the §6
+  checks, commit anything pending, push, open the PR, enable auto-merge, and
+  surface the **preview URL**. Then say plainly whether it goes live on its own
+  (project-only) or waits for Hazki's review (touched shared files) — and that
+  the preview link works either way. Leave them on a clean, synced `main` when
+  it's done.
+
+**How to speak.** Say "committed", "pushed", "live", "preview link", "waiting on
+Hazki". Don't lead with "branch", "PR #17", "mergeStateStatus", or a raw git
+command they'd have to run. If a designer asks what a git term means, answer in
+one sentence and move on — a little real vocabulary is fine; a wall of it is what
+loses them.
+
+**When they're confused or say "just do it," take over completely** — pick every
+default, run the whole flow, and hand them no git decisions. The moment you
+surface git mechanics to a confused designer is the moment they stop using the
+studio.
+
+**Branches (and worktrees) are yours to manage silently.** Create, name, and
+clean them up yourself. You may use a git worktree internally for parallel work,
+but a designer never sees or manages one — it is never part of their vocabulary.
+
+This section governs *communication and defaults only*. The tier rules (§1),
+branch naming (§5), and the verification gate (§6) still hold exactly as written —
+this just says how to carry them out without taxing the designer.
