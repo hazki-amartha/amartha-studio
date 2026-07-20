@@ -21,7 +21,7 @@ import { Screen, TopBar } from '@/platform/primitives'
 import { rupiah, TASKS } from '../lib/data'
 import { doneTasks, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
-import { Overline } from '../lib/ui'
+import { Meter, Overline } from '../lib/ui'
 
 interface Kpi {
   label: string
@@ -63,20 +63,6 @@ const KPIS: Kpi[] = [
     progress: 75,
   },
 ]
-
-function Meter({ progress }: { progress: number }) {
-  return (
-    <div className="h-8 w-full rounded-full bg-neutral-200">
-      <div
-        className={`h-8 rounded-full ${progress >= 75 ? 'bg-green-500' : progress >= 50 ? 'bg-primary-500' : 'bg-orange-500'}`}
-        // A data-driven width is the one dimension a progress meter cannot take
-        // from a token — the value IS the geometry. Every colour and height
-        // around it is still a token.
-        style={{ width: `${progress}%` }}
-      />
-    </div>
-  )
-}
 
 export function KpiScreen() {
   const s = useApp()

@@ -13,7 +13,7 @@
 // percentages — those are BM monitoring numbers, and keeping them off the BP's
 // surfaces is a standing decision in this direction, not an oversight here.
 
-import { Badge, Card } from '@/design-system/components'
+import { Badge } from '@/design-system/components'
 import { Screen, TopBar } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS_DIRECTORY, TASKS } from '../lib/data'
@@ -99,13 +99,6 @@ export function MajelisListScreen() {
           <Row key={m.id} id={m.id} />
         ))}
       </div>
-
-      {/* Honest about the prototype's edges rather than faking five rosters. */}
-      <Card className="border-dashed">
-        <p className="text-12 text-caption">
-          Di prototipe ini hanya Majelis Mawar yang punya daftar mitra lengkap.
-        </p>
-      </Card>
 
       <TabBar active="majelis-list" />
     </Screen>

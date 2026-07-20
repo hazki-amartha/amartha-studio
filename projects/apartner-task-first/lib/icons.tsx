@@ -222,3 +222,13 @@ export function IconGift(props: IconProps) {
     </Svg>
   )
 }
+
+/** The capital ladder — a rising line. Leads the "Jalur Naik Modal" row. */
+export function IconTrendUp(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3 17l6-6 4 4 8-8" />
+      <path d="M15 7h6v6" />
+    </Svg>
+  )
+}

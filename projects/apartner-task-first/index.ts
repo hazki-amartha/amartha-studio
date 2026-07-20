@@ -9,6 +9,7 @@ import { MajelisProofScreen } from './screens/majelis-proof'
 import { HomeVisitScreen } from './screens/home-visit'
 import { HomeProofScreen } from './screens/home-proof'
 import { MitraScreen } from './screens/mitra'
+import { LadderScreen } from './screens/ladder'
 import { MajelisInfoScreen } from './screens/majelis-info'
 import { MajelisListScreen } from './screens/majelis-list'
 import { KpiScreen } from './screens/kpi'
@@ -122,7 +123,23 @@ export const project: ProjectModule = {
         'This is where loan/payment history lives, since CSAT says it\'s wanted but it doesn\'t belong cluttering the collection queue.',
         'The page opens on what to DO about her (one reasoned recommendation), with the full record collapsed underneath — not a dashboard of numbers to interpret first.',
         'A mitra who\'s current with nothing to offer shows "Tidak ada tindak lanjut" — a real, time-saving outcome, not a gap.',
+        '"Bahan obrolan" sits between the actions and the record — the one thing on the page meant to be said rather than done. Its subtitle carries the ladder\'s conclusion, so a BP who never opens the screen still learns the fact.',
       ],
+      flowsTo: [{ to: 'ladder', label: 'Jalur Naik Modal' }],
+    },
+    {
+      id: 'ladder',
+      title: 'Jalur Naik Modal',
+      component: LadderScreen,
+      notes: [
+        'Reframed from a mitra-facing screen into a BP briefing: the BP reads the quoted line out loud, then turns the phone around so the mitra can read the rail herself. The framing copy speaks to the BP about the mitra; the script and rail speak to the mitra.',
+        'Leads with the sentence to say, not the ladder — same rule as the mitra page. A BP who only reads the top of the screen has still got what she came for. The line is quoted verbatim because a BP handed bullet points has to compose it herself at the door, which is where a real argument collapses into "ada program top up, Bu".',
+        'The blocked ("Tertahan") state is the one that matters — most mitra worth opening are behind, and a cheerful progress bar for a woman 34 days down is a claim the BP has to walk back. Held rungs go orange, the meter greys out, and the script changes.',
+        'What releases it is the WHOLE arrears, not this week\'s angsuran — stated as one number with the arithmetic shown. It gets no button of its own: collecting is already the mitra page\'s recommendation, and two buttons for one job is how a second place for work quietly appears.',
+        'Rung amounts escalate off her current contract value (25% → 50% → 2× limit). The reference mock repeated the same +Rp1.250.000 on rungs 1 and 2, which makes the ladder a calendar rather than a ladder.',
+        'Framed as leverage for collection, not cross-sell — which is why it lands in this direction at all, given cross-sell is deliberately demoted elsewhere (NOTES, open question 2).',
+      ],
+      flowsTo: [{ to: 'mitra', label: 'kembali' }],
     },
     {
       id: 'majelis-info',
@@ -144,6 +161,7 @@ export const project: ProjectModule = {
         'Every group the BP carries, not just today\'s — for when someone asks about a group off-schedule (a BM, a moved visit).',
         'Stays a directory, not a dashboard: what the group is, when it meets, how many mitra are behind. No portfolio percentages — those are BM-level numbers.',
         'Today\'s groups sort first, so this tab agrees with the schedule rather than competing with it.',
+        'Prototype edge: only Majelis Mawar has a full mitra roster — the other groups open to placeholder data.',
       ],
       flowsTo: [
         { to: 'majelis-visit', label: 'buka kunjungan' },
