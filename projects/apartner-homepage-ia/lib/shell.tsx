@@ -6,7 +6,8 @@
 
 import { NavigationBar } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
-import { IconChart, IconHouse, IconUsers } from './icons'
+import { KPI_PERIODS, buildKpi } from './data'
+import { IconHouse, IconUsers } from './icons'
 import { store, unreadCount, useApp } from './store'
 
 export type TabId = 'home' | 'majelis' | 'kpi'
@@ -22,6 +23,7 @@ export function TabBar({ active }: { active: TabId }) {
   const flow = useFlow()
   const s = useApp()
   const unread = unreadCount(s.notifs)
+  const kpi = buildKpi(KPI_PERIODS[0])
 
   // Leaving a tab drops that tab's transient filters, matching the source's
   // switchTab, which reset the task filter and majelis sort on every tab change.
@@ -54,7 +56,15 @@ export function TabBar({ active }: { active: TabId }) {
           {
             id: 'kpi',
             label: 'KPI',
-            icon: <IconChart />,
+            icon: (
+              <span
+                className={`rounded-full border px-8 py-2 text-12 font-bold ${
+                  active === 'kpi' ? 'border-primary-500 text-primary-500' : 'border-default text-neutral-500'
+                }`}
+              >
+                {kpi.metCount}/{kpi.totalParams}
+              </span>
+            ),
             active: active === 'kpi',
             onClick: () => goTab('kpi'),
           },

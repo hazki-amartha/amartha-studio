@@ -292,3 +292,100 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
     </div>
   )
 }
+
+// --- SegmentedChoice ---------------------------------------------------------
+// Two (or three) evenly-sized pill-adjacent buttons, filling the row. Used for
+// every yes/no branch question in the Kunjungan Rumah flow and the majelis
+// visit-mode payment dialog. See NOTES.md for promotion.
+
+export interface ChoiceOption<T extends string> {
+  l: string
+  v: T
+}
+
+export function SegmentedChoice<T extends string>({
+  options,
+  value,
+  onPick,
+}: {
+  options: ChoiceOption<T>[]
+  value: T | null
+  onPick: (v: T) => void
+}) {
+  return (
+    <div className="flex gap-8">
+      {options.map((o) => {
+        const on = value === o.v
+        return (
+          <button
+            key={o.v}
+            type="button"
+            onClick={() => onPick(o.v)}
+            className={`flex-1 rounded-8 border px-8 py-12 text-12 font-bold ${
+              on ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-default bg-neutral-white text-neutral-700'
+            }`}
+          >
+            {o.l}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// --- ChipPicker --------------------------------------------------------------
+// Small wrapping pill buttons — reason chips, PTP date chips, and the compact
+// Hadir/Tidak toggle on a majelis visit-mode mitra card.
+
+export function ChipPicker<T extends string>({
+  options,
+  value,
+  onPick,
+}: {
+  options: ChoiceOption<T>[]
+  value: T | null
+  onPick: (v: T) => void
+}) {
+  return (
+    <div className="flex flex-wrap gap-6">
+      {options.map((o) => {
+        const on = value === o.v
+        return (
+          <button
+            key={o.v}
+            type="button"
+            onClick={() => onPick(o.v)}
+            className={`rounded-full border px-12 py-8 text-10 font-bold ${
+              on ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-default bg-neutral-white text-neutral-700'
+            }`}
+          >
+            {o.l}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// --- FlowQuestion --------------------------------------------------------
+// One Q-block in the Kunjungan Rumah wizard: title, optional subtext, control.
+
+export function FlowQuestion({
+  title,
+  sub,
+  children,
+}: {
+  title: string
+  sub?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-8">
+      <div>
+        <p className="text-14 font-bold text-default">{title}</p>
+        {sub ? <p className="mt-2 text-12 text-caption">{sub}</p> : null}
+      </div>
+      {children}
+    </div>
+  )
+}

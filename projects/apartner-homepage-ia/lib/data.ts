@@ -1,12 +1,12 @@
 // Mock data + derivations for the A-Partner IA prototype.
-// Ported from the team's standalone JSX draft. The source carried its own hex
-// palette; here every colour is expressed as a design-system Badge intent or a
-// token-named class, so the data layer never hardcodes a value.
+// Ported from the team's standalone JSX draft (apartner-homepage-ia_6). The
+// source carries its own hex palette; here every colour is expressed as a
+// design-system Badge intent or a token-named class, so the data layer never
+// hardcodes a value.
 
 import type { BadgeIntent } from '@/design-system/components'
 
 // --- Tone ------------------------------------------------------------------
-// Attainment tone, shared by KPI rows, majelis health, and the incentive hero.
 
 export type Tone = 'on' | 'warn' | 'off'
 
@@ -28,16 +28,17 @@ export const TONE_BADGE: Record<Tone, BadgeIntent> = {
   off: 'red',
 }
 
-// --- Formatting ------------------------------------------------------------
+// --- Formatting --------------------------------------------------------------
 
 export const rp = (n: number) => 'Rp' + Math.round(n).toLocaleString('id-ID')
 export const parseRp = (s: string) => Number(String(s).replace(/[^\d]/g, '')) || 0
 export const fmt = (v: number, unit: string) =>
   unit === 'rp' ? rp(v) : unit === '%' ? `${v}%` : `${v}`
 
+/** Small deterministic string hash — drives every "random but stable" derived value below. */
+export const hashOf = (s: string) => s.split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
+
 // --- Tasks -----------------------------------------------------------------
-// KPI types — the four buckets tasks roll up into. "Cross-sell" is a task type
-// that sits outside the four KPI buckets, so it reads neutral.
 
 export type KpiType = 'Collection' | 'Attendance' | 'Disbursement' | 'Acquisition'
 export type TaskType = KpiType | 'Cross-sell'
@@ -77,7 +78,9 @@ export const TASKS: Task[] = [
   { id: 't7', act: 'Kunjungan Majelis', who: 'Majelis Kenanga', maj: 'Majelis Kenanga', time: '15.00', loc: 'Desa Ngawen', types: ['Collection', 'Attendance'], meta: null, day: 0, kind: 'wajib' },
   { id: 't8', act: 'Kunjungan Rumah', who: 'Sumiyati', maj: 'Majelis Bougenville', time: '16.00', loc: 'Desa Ngawen', types: ['Collection'], meta: 'DPD 35', day: 0, kind: 'wajib' },
   { id: 't9', act: 'Pencairan Ulang', who: 'Endang Susilowati', maj: 'Majelis Mawar', time: '16.30', loc: 'Rp10.000.000', types: ['Disbursement'], meta: null, day: 0, kind: 'wajib' },
-  { id: 't10', act: 'Setor Angsuran', who: 'Cabang Terucuk', maj: null, time: '17.00', loc: 'Setoran harian', types: ['Collection'], meta: null, day: 0, kind: 'wajib' },
+  { id: 't10', act: 'Setor Titip Bayar', who: 'Cabang Terucuk', maj: null, time: '17.00', loc: 'Setoran harian ke VA', types: ['Collection'], meta: 'Belum disetor', day: 0, kind: 'wajib' },
+  { id: 't18', act: 'Kunjungan Rumah', who: 'Sukarni', maj: 'Majelis Melati', time: 'PTP 18 Jul', loc: 'Desa Terucuk', types: ['Collection'], meta: 'Janji bayar 18 Jul · Sakit', day: 0, kind: 'wajib' },
+  { id: 't19', act: 'Kunjungan Rumah', who: 'Yuliana Rahmawati', maj: 'Majelis Cempaka', time: 'Hari ini', loc: 'Desa Terucuk', types: ['Collection'], meta: 'DPD 72 · eligible Peldis', day: 0, kind: 'wajib' },
 
   { id: 't11', act: 'Tawarkan Agen AmarthaLink', who: 'Sulastri', maj: 'Majelis Teratai', time: 'Belum dijadwalkan', loc: 'Desa Terucuk', types: ['Cross-sell'], meta: 'Usaha aktif, cocok jadi agen', day: 0, kind: 'rekomendasi' },
 
@@ -113,24 +116,58 @@ export const inWhen = (day: number, w: WhenFilter) =>
 export const dayLabel = (d: number) =>
   d === 0 ? 'Hari ini' : d === 1 ? 'Besok' : d <= 6 ? 'Minggu ini' : 'Minggu depan'
 
-// --- Banners ---------------------------------------------------------------
-// The source painted each banner with a bespoke linear-gradient. Gradients are
-// off-system, so each banner instead carries a token background + its matching
-// on-dark text tint.
-
-export interface Banner {
-  id: string
-  tag: string
-  title: string
-  sub: string
-  bg: string
+/** Parse a schedule string like "08.00" into minutes; non-times sort last. */
+export const timeRank = (t: Task) => {
+  const m = /^(\d{1,2})\.(\d{2})$/.exec((t.time || '').trim())
+  return m ? Number(m[1]) * 60 + Number(m[2]) : 9999
 }
 
-export const BANNERS: Banner[] = [
-  { id: 'b1', tag: 'Program', title: 'Insentif Rekrutmen Q3', sub: 'Bonus per mitra aktif baru', bg: 'bg-primary-500' },
-  { id: 'b2', tag: 'Fitur baru', title: 'Cek SLIK langsung dari app', sub: 'Tak perlu buka NG-MIS lagi', bg: 'bg-blue-500' },
-  { id: 'b3', tag: 'Pengumuman', title: 'Jadwal setoran berubah', sub: 'Berlaku mulai 20 Juli', bg: 'bg-green-600' },
+export type TaskSort = 'default' | 'distance'
+
+export const SORT_OPTS: { l: string; v: TaskSort }[] = [
+  { l: 'Default (jadwal/waktu)', v: 'default' },
+  { l: 'Jarak terdekat', v: 'distance' },
 ]
+
+/** Deterministic distance (km) from the FO to a task location — demo only. */
+export const taskDist = (t: Task) =>
+  Math.round((0.3 + (hashOf(String(t.id) + t.who) % 118) / 10) * 10) / 10
+
+// --- Comms / banners ---------------------------------------------------------
+// Unread comms surface as banners on Home; read ones live only on the full
+// Informasi & Program list. Each tag carries a token background — the source
+// painted these with a bespoke linear-gradient, which is off-system here.
+
+export type CommTag = 'Program' | 'Fitur baru' | 'Pengumuman'
+
+export const TAG_BG: Record<CommTag, string> = {
+  Program: 'bg-primary-500',
+  'Fitur baru': 'bg-blue-500',
+  Pengumuman: 'bg-green-600',
+}
+
+export interface Comm {
+  id: string
+  tag: CommTag
+  title: string
+  sub: string
+  d: string
+  days: number
+  body: string
+  read: boolean
+}
+
+export const COMMS_SEED: Comm[] = [
+  { id: 'c1', tag: 'Program', title: 'Insentif Rekrutmen Q3 sudah dibuka', sub: 'Bonus per mitra aktif baru', d: '12 Jul 2026', days: 1, body: 'Setiap mitra aktif baru yang lolos verifikasi dihitung sebagai poin insentif.', read: false },
+  { id: 'c2', tag: 'Fitur baru', title: 'Cek SLIK langsung dari A-Partner', sub: 'Tak perlu buka NG-MIS lagi', d: '9 Jul 2026', days: 4, body: 'Tak perlu lagi membuka NG-MIS untuk pengecekan dasar.', read: false },
+  { id: 'c3', tag: 'Pengumuman', title: 'Jadwal setoran cabang berubah', sub: 'Berlaku mulai 20 Juli', d: '5 Jul 2026', days: 8, body: 'Mulai 20 Juli, setoran diterima sampai pukul 17.00.', read: false },
+  { id: 'c4', tag: 'Program', title: 'Pelatihan literasi keuangan mitra', sub: 'Modul baru untuk kumpulan', d: '1 Jul 2026', days: 12, body: 'Modul baru tersedia untuk kumpulan majelis mingguan.', read: true },
+  { id: 'c5', tag: 'Fitur baru', title: 'Titip bayar kini bisa disetor via VA', sub: 'Tanpa datang ke cabang', d: '24 Jun 2026', days: 19, body: 'Setoran harian tidak perlu lagi datang ke kantor cabang.', read: true },
+  { id: 'c6', tag: 'Pengumuman', title: 'Libur nasional 17 Agustus', sub: 'Tidak ada kumpulan', d: '18 Jun 2026', days: 25, body: 'Tidak ada kumpulan majelis pada tanggal tersebut.', read: true },
+  { id: 'c7', tag: 'Program', title: 'Bonus kehadiran kumpulan semester 1', sub: 'Rekap dikirim ke FO', d: '2 Jun 2026', days: 41, body: 'Rekap pencapaian kehadiran akan dikirim ke masing-masing FO.', read: true },
+]
+
+export const COMMS_TAGS: CommTag[] = ['Program', 'Fitur baru', 'Pengumuman']
 
 // --- Majelis ---------------------------------------------------------------
 
@@ -144,16 +181,18 @@ interface MajelisSeed {
   loan: LoanType
   rep: number
   att: number
+  /** True for majelis with a kumpulan (group visit) scheduled today. */
+  kumpulanToday?: boolean
 }
 
 const MAJELIS_BASE: MajelisSeed[] = [
-  { n: 'Majelis Melati', day: 'Senin, 07.30', area: 'Desa Terucuk', cnt: 4, loan: 'Group loan', rep: 75, att: 85 },
+  { n: 'Majelis Melati', day: 'Senin, 07.30', area: 'Desa Terucuk', cnt: 4, loan: 'Group loan', rep: 75, att: 85, kumpulanToday: true },
   { n: 'Majelis Bougenville', day: 'Senin, 09.30', area: 'Desa Ngawen', cnt: 2, loan: 'Group loan', rep: 95, att: 100 },
   { n: 'Majelis Kenanga', day: 'Senin, 15.00', area: 'Desa Ngawen', cnt: 3, loan: 'Group loan', rep: 67, att: 78 },
-  { n: 'Majelis Anggrek', day: 'Selasa, 08.00', area: 'Desa Terucuk', cnt: 3, loan: 'Modal', rep: 100, att: 90 },
+  { n: 'Majelis Anggrek', day: 'Selasa, 08.00', area: 'Desa Terucuk', cnt: 3, loan: 'Modal', rep: 100, att: 90, kumpulanToday: true },
   { n: 'Majelis Alamanda', day: 'Selasa, 10.00', area: 'Desa Bayat', cnt: 2, loan: 'Group loan', rep: 100, att: 88 },
   { n: 'Majelis Dahlia', day: 'Selasa, 14.00', area: 'Desa Bayat', cnt: 3, loan: 'Hybrid', rep: 100, att: 92 },
-  { n: 'Majelis Mawar', day: 'Rabu, 07.30', area: 'Desa Ngawen', cnt: 3, loan: 'Group loan', rep: 67, att: 75 },
+  { n: 'Majelis Mawar', day: 'Rabu, 07.30', area: 'Desa Ngawen', cnt: 3, loan: 'Group loan', rep: 67, att: 75, kumpulanToday: true },
   { n: 'Majelis Flamboyan', day: 'Rabu, 10.00', area: 'Desa Terucuk', cnt: 2, loan: 'Modal', rep: 100, att: 95 },
   { n: 'Majelis Teratai', day: 'Rabu, 15.00', area: 'Desa Terucuk', cnt: 3, loan: 'Group loan', rep: 100, att: 88 },
   { n: 'Majelis Kamboja', day: 'Kamis, 07.30', area: 'Desa Bayat', cnt: 2, loan: 'Group loan', rep: 100, att: 90 },
@@ -161,7 +200,7 @@ const MAJELIS_BASE: MajelisSeed[] = [
   { n: 'Majelis Seruni', day: 'Kamis, 14.00', area: 'Desa Ngawen', cnt: 2, loan: 'Group loan', rep: 100, att: 85 },
   { n: 'Majelis Cempaka', day: 'Jumat, 07.30', area: 'Desa Terucuk', cnt: 3, loan: 'Group loan', rep: 67, att: 70 },
   { n: 'Majelis Wijaya', day: 'Jumat, 15.00', area: 'Desa Bayat', cnt: 2, loan: 'Modal', rep: 100, att: 88 },
-  { n: 'Majelis Sakura', day: 'Sabtu, 08.00', area: 'Desa Terucuk', cnt: 2, loan: 'Group loan', rep: 100, att: 90 },
+  { n: 'Majelis Sakura', day: 'Sabtu, 08.00', area: 'Desa Terucuk', cnt: 2, loan: 'Group loan', rep: 100, att: 90, kumpulanToday: true },
 ]
 
 const STREETS = ['Bango', 'Melati', 'Anggrek', 'Kenanga', 'Mawar', 'Dahlia', 'Wijaya', 'Teratai']
@@ -258,6 +297,7 @@ export const MITRA: Mitra[] = [
   { n: 'Sri Wahyuni', m: 'Majelis Seruni', p: 'Rp5.600.000', dpd: 0, prod: [] },
 
   { n: 'Delia Hermansyah', m: 'Majelis Cempaka', p: 'Rp8.500.000', dpd: 12, prod: [] },
+  { n: 'Yuliana Rahmawati', m: 'Majelis Cempaka', p: 'Rp8.000.000', dpd: 72, prod: [], pic: { n: 'Bambang Sujarwo', phone: '0812-9988-1122', rel: 'Suami' } },
   { n: 'Dwi Lestari', m: 'Majelis Cempaka', p: 'Rp7.000.000', dpd: 0, prod: ['celengan'] },
   { n: 'Sumarni', m: 'Majelis Cempaka', p: 'Rp6.800.000', dpd: 0, prod: [] },
 
@@ -268,9 +308,21 @@ export const MITRA: Mitra[] = [
   { n: 'Jumiyem', m: 'Majelis Sakura', p: 'Rp6.100.000', dpd: 0, prod: [] },
 ]
 
-/* Augment MAJELIS with real menunggak count + worst DPD, now that MITRA exists.
-   Replaces the abstract "Sehat/Perhatian/Kritis" mood label with a specific,
-   actionable fact: how many mitra, and how bad the worst case is. */
+/** Back-fill a suami contact for every mitra who doesn't have one yet — pending
+ *  mitra excluded (no established relationship on file yet). Deterministic
+ *  from her name so it's stable across renders; clearly synthetic data. */
+const SUAMI_FIRST = ['Dono', 'Slamet', 'Bambang', 'Agus', 'Wahyu', 'Joko', 'Hendra', 'Sutrisno', 'Eko', 'Dedi', 'Yanto', 'Rahmat']
+const SUAMI_LAST = ['Sutardi', 'Riyadi', 'Prasetyo', 'Wibowo', 'Setiawan', 'Kurniawan', 'Santoso', 'Hidayat']
+MITRA.forEach((m) => {
+  if (m.pending || m.pic) return
+  const h = hashOf(m.n)
+  const first = SUAMI_FIRST[h % SUAMI_FIRST.length]
+  const last = SUAMI_LAST[(h >>> 3) % SUAMI_LAST.length]
+  const phone = `08${13 + (h % 6)}-${1000 + (h % 9000)}-${1000 + ((h >>> 5) % 9000)}`
+  m.pic = { n: `${first} ${last}`, phone, rel: 'Suami' }
+})
+
+/** Augment MAJELIS with real menunggak count + worst DPD, now that MITRA exists. */
 MAJELIS.forEach((g) => {
   const late = MITRA.filter((m) => m.m === g.n && !m.pending && m.dpd > 0)
   g.menunggak = late.length
@@ -279,16 +331,17 @@ MAJELIS.forEach((g) => {
 
 export const mitraOf = (majelisName: string) => MITRA.filter((m) => m.m === majelisName)
 
-/** Loan status buckets, derived from DPD. */
+/** Loan status buckets, derived from DPD — matches the KPI page's buckets
+ *  (0 / 1–30 / 31–90) plus Pending, so a mitra's badge always agrees with
+ *  which KPI tile they'd fall under. */
 export const loanStatus = (m: Mitra): { l: string; intent: BadgeIntent } => {
-  if (m.pending) return { l: 'Verifikasi', intent: 'blue' }
-  if (m.dpd === 0) return { l: 'Lancar', intent: 'green' }
-  if (m.dpd <= 7) return { l: 'DPD 1–7', intent: 'orange' }
-  if (m.dpd <= 30) return { l: 'DPD 8–30', intent: 'red' }
-  return { l: 'DPD 30–60', intent: 'red' }
+  if (m.pending) return { l: 'Pending', intent: 'blue' }
+  if (m.dpd === 0) return { l: 'DPD 0', intent: 'green' }
+  if (m.dpd <= 30) return { l: 'DPD 1–30', intent: 'orange' }
+  return { l: 'DPD 31–90', intent: 'red' }
 }
 
-// --- Installments ----------------------------------------------------------
+// --- Installments ------------------------------------------------------------
 
 export type InstallmentStatus = 'upcoming' | 'late' | 'ontime'
 
@@ -320,7 +373,117 @@ export const genInstallments = (m: Mitra): Installment[] => {
   })
 }
 
-// --- Recommendations -------------------------------------------------------
+/** Derived per-mitra attendance for the last 6 kumpulan — consistent with her
+ *  DPD (a late payer tends to attend less). Demo only, not real records. */
+export const genAttendance = (m: Mitra): { label: string; hadir: boolean }[] => {
+  const n = 6
+  const misses = m.dpd === 0 ? 0 : m.dpd <= 7 ? 1 : m.dpd <= 30 ? 2 : 3
+  const today = new Date()
+  return Array.from({ length: n }, (_, i) => {
+    const idx = n - 1 - i
+    const d = new Date(today)
+    d.setDate(today.getDate() - idx * 7)
+    const label = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
+    const hadir = !(idx > 0 && idx <= misses)
+    return { label, hadir }
+  })
+}
+
+export const attendanceRate = (m: Mitra) => {
+  const a = genAttendance(m)
+  return Math.round((a.filter((x) => x.hadir).length / a.length) * 100)
+}
+
+/** Loan snapshot for the majelis-detail mitra cards: total loan, weekly
+ *  installment, loan week (of 50), outstanding, and whether this week's
+ *  installment is paid. Deterministic from name/dpd; demo only. Loan week
+ *  drives the week-40 renewal offer. Some mitra are pinned to week 40 so
+ *  renewal is explorable. */
+export const RENEWAL_WEEK = 40
+const NEAR_RENEWAL = ['Rury Ramadhita', 'Aura Kasih Asmara', 'Hana Amarullah', 'Lastri Handayani']
+
+export interface MitraLoanInfo {
+  total: number
+  weekly: number
+  week: number
+  tenor: number
+  outstanding: number
+  paidThisWeek: boolean
+  dpd: number
+  nearRenewal: boolean
+}
+
+export const mitraLoanInfo = (m: Mitra): MitraLoanInfo => {
+  if (m.pending) {
+    return { total: 0, weekly: 0, week: 0, tenor: 50, outstanding: 0, paidThisWeek: false, dpd: 0, nearRenewal: false }
+  }
+  const total = parseRp(m.p)
+  const tenor = 50
+  const weekly = Math.round(total / tenor / 1000) * 1000
+  const week = NEAR_RENEWAL.includes(m.n) ? RENEWAL_WEEK : 8 + (hashOf(m.n) % 28)
+  const weeksPaidNominal = week - 1
+  const paidThisWeek = m.dpd === 0
+  const weeksOutstanding = tenor - weeksPaidNominal + (paidThisWeek ? 0 : 1)
+  const outstanding = Math.max(0, weeksOutstanding) * weekly
+  return { total, weekly, week, tenor, outstanding, paidThisWeek, dpd: m.dpd, nearRenewal: week >= RENEWAL_WEEK }
+}
+
+/** Healthy + no Celengan yet → a Top-up Celengan offer is worth surfacing. */
+export const offersCelengan = (m: Mitra) => !m.pending && m.dpd === 0 && !m.prod.includes('celengan')
+
+/** Home address + personal phone for a mitra, derived deterministically from
+ *  her name and majelis area. Demo only — real values come from NG-MIS/KYC. */
+export const mitraContact = (m: Mitra) => {
+  const g = MAJELIS.find((x) => x.n === m.m)
+  const area = g ? g.area : 'Desa Terucuk'
+  const houseNo = (hashOf(m.n) % 80) + 1
+  const rt = ((hashOf(m.n) % 8) + 1).toString().padStart(2, '0')
+  const rw = (((hashOf(m.n) >> 3) % 6) + 1).toString().padStart(2, '0')
+  const addr = `${area} No. ${houseNo}, RT ${rt}/RW ${rw}`
+  const digits = (hashOf(m.n + 'hp') % 100000000).toString().padStart(8, '0')
+  const phone = `0857-${digits.slice(0, 4)}-${digits.slice(4)}`
+  return { addr, phone }
+}
+
+/** Limit-increase outlook. Likelihood is driven by three factors the FO can
+ *  actually coach: her repayment, her attendance, and her majelis's collective
+ *  repayment rate. It's a PROBABILITY, never a promise — copy stays hedged
+ *  ("bisa naik", "berpeluang"), never "akan naik". Ceiling is indicative. */
+export interface LimitOutlook {
+  current: number
+  ceiling: number
+  minNext: number
+  status: { l: string; tone: Tone }
+  factors: { k: string; l: string; ok: boolean; detail: string }[]
+}
+
+export const limitOutlook = (m: Mitra, g: Majelis): LimitOutlook => {
+  const current = parseRp(m.p)
+  const ceiling = Math.round((current * 1.6) / 500000) * 500000
+  const minNext = Math.round((current * 1.05) / 100000) * 100000
+
+  const payOk = m.dpd === 0
+  const attOk = attendanceRate(m) >= 80
+  const majOk = g.rep >= 90
+  const strong = [payOk, attOk, majOk].filter(Boolean).length
+
+  const status: { l: string; tone: Tone } =
+    strong === 3 ? { l: 'Peluang besar', tone: 'on' } : strong === 2 ? { l: 'Cukup berpeluang', tone: 'warn' } : { l: 'Perlu diperbaiki', tone: 'off' }
+
+  return {
+    current,
+    ceiling,
+    minNext,
+    status,
+    factors: [
+      { k: 'pay', l: 'Pembayaran tepat waktu', ok: payOk, detail: payOk ? 'Tidak ada tunggakan' : `Menunggak ${m.dpd} hari` },
+      { k: 'att', l: 'Kehadiran kumpulan', ok: attOk, detail: `${attendanceRate(m)}% hadir (6 sesi terakhir)` },
+      { k: 'maj', l: 'Kesehatan majelis', ok: majOk, detail: `Repayment majelis ${g.rep}%` },
+    ],
+  }
+}
+
+// --- Recommendations ---------------------------------------------------------
 
 export interface Rec {
   id: string
@@ -355,7 +518,7 @@ export const recsFor = (m: Mitra): Rec[] => {
   return out
 }
 
-// --- Titip bayar -----------------------------------------------------------
+// --- Titip bayar ---------------------------------------------------------
 // Cash collected today that must be settled to Amartha via VA.
 
 export const TITIP = {
@@ -375,8 +538,8 @@ export const TITIP = {
   ],
 }
 
-// --- Majelis metrics -------------------------------------------------------
-// Metrics a majelis can be ranked by — one per KPI group.
+// --- Majelis metrics -----------------------------------------------------
+// Metrics a majelis can be ranked by — one per KPI parameter group.
 
 export type MetricKey = 'rep' | 'att' | 'disb' | 'acq' | 'celengan'
 
@@ -390,211 +553,129 @@ export const METRIC: Record<MetricKey, { l: string; unit: string; get: (g: Majel
     unit: '%',
     get: (g) => {
       const all = mitraOf(g.n)
-      return all.length
-        ? Math.round((all.filter((m) => m.prod.includes('celengan')).length / all.length) * 100)
-        : 0
+      return all.length ? Math.round((all.filter((m) => m.prod.includes('celengan')).length / all.length) * 100) : 0
     },
   },
 }
 
-// --- KPI -------------------------------------------------------------------
+// --- PTP (janji bayar) date options ---------------------------------------
+// Shared by the majelis-detail payment dialog and the Kunjungan Rumah flow.
+
+export interface PtpOption {
+  l: string
+  day: number
+  date: string
+}
+
+export const ptpOptions = (): PtpOption[] =>
+  Array.from({ length: 6 }, (_, i) => {
+    const day = i + 1
+    const d = new Date()
+    d.setDate(d.getDate() + day)
+    return {
+      l: day === 1 ? 'Besok' : d.toLocaleDateString('id-ID', { weekday: 'long' }),
+      day,
+      date: d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }),
+    }
+  })
+
+// --- KPI ---------------------------------------------------------------------
+// Flat-Rp model: each parameter is binary — hit the target, earn its full
+// rupiah bonus; miss it, earn nothing. Total earned = sum of met parameters.
 
 export interface KpiRowDef {
   k: string
   n: string
   unit: string
   target: number
-  /** Weight toward the score. Boost rows omit it and sit outside the score. */
-  w?: number
+  /** Mitra count the percentage is computed against — omitted for the two
+   *  count-unit rows (mitraNew), which target a raw count instead. */
+  base?: number
+  baseLabel?: string
+  /** Lower-is-better row (DPD buckets past 0). */
+  lower?: boolean
+  /** Flat Rp bonus earned when this parameter's target is met. */
+  bonus: number
 }
 
-export interface KpiGroupDef {
-  n: string
-  boost?: string
-  rows: KpiRowDef[]
-}
-
-export const KPI_DEF: KpiGroupDef[] = [
-  {
-    n: 'Kualitas portofolio',
-    rows: [
-      { k: 'dpd0', n: 'Repayment DPD 0', unit: '%', target: 90, w: 30 },
-      { k: 'dpd30', n: 'Repayment DPD 1–30', unit: '%', target: 85, w: 20 },
-      { k: 'dpd90', n: 'Repayment DPD 31–90 min 1x angsuran', unit: '%', target: 70, w: 10 },
-    ],
-  },
-  {
-    n: 'Pertumbuhan',
-    rows: [
-      { k: 'mitraNew', n: 'Mitra cair baru per bulan', unit: 'mitra', target: 15, w: 20 },
-      { k: 'renewal', n: 'Renewal mitra cair per bulan', unit: '%', target: 80, w: 20 },
-    ],
-  },
-  {
-    n: 'Insentif tambahan (boost)',
-    boost: '+Rp100rb',
-    rows: [
-      { k: 'celengan', n: 'Mitra saldo Celengan ≥ 50rb', unit: '%', target: 70 },
-      { k: 'ppob', n: 'Mitra transaksi PPOB', unit: '%', target: 60 },
-    ],
-  },
+export const KPI_DEF: KpiRowDef[] = [
+  { k: 'dpd0', n: 'Mitra DPD 0', unit: '%', target: 80, base: 225, baseLabel: 'mitra', bonus: 400000 },
+  { k: 'dpd30', n: 'Mitra DPD 1–30', unit: '%', target: 15, base: 225, baseLabel: 'mitra', lower: true, bonus: 300000 },
+  { k: 'dpd90', n: 'Mitra DPD 31–90', unit: '%', target: 5, base: 225, baseLabel: 'mitra', lower: true, bonus: 200000 },
+  { k: 'mitraNew', n: 'Pencairan mitra baru per bulan', unit: 'mitra', target: 15, bonus: 500000 },
+  { k: 'renewal', n: 'Pencairan mitra lama per bulan', unit: '%', target: 80, base: 27, baseLabel: 'mitra jatuh tempo', bonus: 500000 },
+  { k: 'celengan', n: 'Mitra saldo Celengan', unit: '%', target: 50, base: 225, baseLabel: 'mitra', bonus: 300000 },
+  { k: 'ppob', n: 'Mitra transaksi PPOB', unit: '%', target: 50, base: 225, baseLabel: 'mitra', bonus: 300000 },
 ]
 
-/** Maps each KPI group to the task type it drives. */
-export const GROUP_TO_TYPE: Record<string, TaskType> = {
-  'Kualitas portofolio': 'Collection',
-  Pertumbuhan: 'Acquisition',
-  'Insentif tambahan (boost)': 'Cross-sell',
-}
+export const KPI_MAX_BONUS = KPI_DEF.reduce((s, r) => s + r.bonus, 0) // Rp2.500.000
 
-/** Maps each KPI group to the majelis metric it ranks by. */
-export const GROUP_TO_METRIC: Record<string, MetricKey> = {
-  'Kualitas portofolio': 'rep',
-  Pertumbuhan: 'acq',
-  'Insentif tambahan (boost)': 'celengan',
+/** Maps each KPI parameter to the task type it drives. */
+export const PARAM_TO_TYPE: Record<string, TaskType> = {
+  dpd0: 'Collection',
+  dpd30: 'Collection',
+  dpd90: 'Collection',
+  mitraNew: 'Acquisition',
+  renewal: 'Acquisition',
+  celengan: 'Cross-sell',
+  ppob: 'Cross-sell',
 }
 
 export const KPI_PERIODS = ['Juli 2026', 'Juni 2026', 'Mei 2026']
 
 const PERIOD_VALS: Record<string, Record<string, number>> = {
-  'Juli 2026': { dpd0: 91, dpd30: 76, dpd90: 62, mitraNew: 12, renewal: 74, celengan: 62, ppob: 44 },
-  'Juni 2026': { dpd0: 94, dpd30: 88, dpd90: 78, mitraNew: 16, renewal: 85, celengan: 71, ppob: 58 },
-  'Mei 2026': { dpd0: 83, dpd30: 68, dpd90: 55, mitraNew: 9, renewal: 62, celengan: 48, ppob: 32 },
+  'Juli 2026': { dpd0: 82, dpd30: 12, dpd90: 6, mitraNew: 12, renewal: 74, celengan: 62, ppob: 44 },
+  'Juni 2026': { dpd0: 88, dpd30: 9, dpd90: 3, mitraNew: 16, renewal: 85, celengan: 71, ppob: 58 },
+  'Mei 2026': { dpd0: 76, dpd30: 18, dpd90: 8, mitraNew: 9, renewal: 62, celengan: 48, ppob: 40 },
 }
-
-const TOTAL_MITRA = 38
-
-/** Bonus bands — score determines the tier, so the two can never disagree. */
-const BONUS_TIERS: { min: number; label: string; tone: Tone }[] = [
-  { min: 0, label: 'Tanpa bonus', tone: 'off' },
-  { min: 70, label: '1–1,25x gaji', tone: 'warn' },
-  { min: 85, label: '1,25–1,5x gaji', tone: 'on' },
-  { min: 95, label: '1,5x gaji', tone: 'on' },
-]
-
-const tierOf = (s: number) => [...BONUS_TIERS].reverse().find((t) => s >= t.min) ?? BONUS_TIERS[0]
-const nextTier = (s: number) => BONUS_TIERS.find((t) => t.min > s)
-
-const rateOf = (r: { val: number; target: number }) => r.val / r.target
-const toneOf = (r: { val: number; target: number }): Tone => {
-  const a = rateOf(r)
-  return a >= 1 ? 'on' : a >= 0.7 ? 'warn' : 'off'
-}
-const pctOf = (r: { val: number; target: number }) => Math.min(rateOf(r), 1) * 100
 
 export interface KpiRow extends KpiRowDef {
   val: number
+  count: number
+  targetCount: number
+  met: boolean
+  earned: number
   tone: Tone
-  pct: number
-}
-
-export interface KpiGroup extends KpiGroupDef {
-  rows: KpiRow[]
-  score: number
-  tone: Tone
-  weight: number
 }
 
 export interface KpiView {
-  score: number
-  tone: Tone
-  bonus: string
-  next: { min: number; label: string } | undefined
-  groups: KpiGroup[]
+  rows: KpiRow[]
+  earned: number
+  maxBonus: number
+  metCount: number
+  totalParams: number
   totalMitra: number
   totalMajelis: number
 }
 
-/** Build the KPI view for a period, optionally narrowed to one majelis. */
-export const buildKpi = (period: string, majelis: Majelis | null): KpiView => {
-  const v = PERIOD_VALS[period]
-  const share = majelis ? majelis.cnt / TOTAL_MITRA : 1
+/** Build the KPI view for a period. */
+export const buildKpi = (period: string): KpiView => {
+  const vals = PERIOD_VALS[period]
 
-  /* When one majelis is selected, derive metrics from that majelis's own data;
-     counts get pro-rated by portfolio share; percentages stay realistic. */
-  const vals = { ...v }
-  if (majelis) {
-    const gap = Math.max(0, 100 - majelis.rep)
-    vals.dpd0 = majelis.rep
-    vals.dpd30 = Math.max(0, majelis.rep - Math.round(gap * 0.5))
-    vals.dpd90 = Math.max(0, majelis.rep - Math.round(gap * 0.8))
-    vals.mitraNew = Math.max(1, Math.round(v.mitraNew * share))
-    vals.renewal = Math.max(0, Math.round(v.renewal * (majelis.rep / 100)))
-    vals.celengan = Math.max(0, Math.round(v.celengan * (majelis.rep / 100)))
-    vals.ppob = Math.max(0, Math.round(v.ppob * (majelis.rep / 100)))
-  }
-
-  const groups: KpiGroup[] = KPI_DEF.map((g) => {
-    const rows: KpiRow[] = g.rows.map((r) => {
-      const target =
-        majelis && r.unit === 'mitra' ? Math.max(1, Math.round(r.target * share)) : r.target
-      const row = { ...r, target, val: vals[r.k] }
-      return { ...row, tone: toneOf(row), pct: pctOf(row) }
-    })
-    /* Group score = weighted attainment within the group.
-       Boost rows carry no weight, so that group falls back to a plain average. */
-    const wsum = rows.reduce((s, r) => s + (r.w ?? 0), 0)
-    const score =
-      wsum > 0
-        ? Math.round(rows.reduce((s, r) => s + r.pct * (r.w ?? 0), 0) / wsum)
-        : Math.round(rows.reduce((s, r) => s + r.pct, 0) / rows.length)
-    const tone: Tone = score >= 95 ? 'on' : score >= 70 ? 'warn' : 'off'
-    return { ...g, rows, score, tone, weight: wsum }
+  const rows: KpiRow[] = KPI_DEF.map((r) => {
+    const val = vals[r.k]
+    const count = r.unit === '%' && r.base != null ? Math.round((val / 100) * r.base) : val
+    const targetCount = r.unit === '%' && r.base != null ? Math.round((r.target / 100) * r.base) : r.target
+    const met = r.lower ? val <= r.target : val >= r.target
+    const earned = met ? r.bonus : 0
+    return { ...r, val, count, targetCount, met, earned, tone: met ? 'on' : 'off' }
   })
 
-  /* Overall score = sum of (attainment x bobot) across all scored rows. Bobot sums to 100. */
-  const scored = groups.flatMap((g) => g.rows).filter((r) => (r.w ?? 0) > 0)
-  const totalW = scored.reduce((s, r) => s + (r.w ?? 0), 0)
-  const score = Math.round(
-    scored.reduce((s, r) => s + (r.pct / 100) * (r.w ?? 0), 0) * (100 / totalW),
-  )
+  const earned = rows.reduce((s, r) => s + r.earned, 0)
+  const metCount = rows.filter((r) => r.met).length
 
   return {
-    score,
-    tone: score >= 95 ? 'on' : score >= 70 ? 'warn' : 'off',
-    bonus: tierOf(score).label,
-    next: nextTier(score),
-    groups,
-    totalMitra: majelis ? majelis.cnt : 225,
-    totalMajelis: majelis ? 1 : 15,
+    rows,
+    earned,
+    maxBonus: KPI_MAX_BONUS,
+    metCount,
+    totalParams: rows.length,
+    totalMitra: 225,
+    totalMajelis: 15,
   }
 }
 
-/** Incentive estimate + band table, both keyed off the score. */
-export const insentifFor = (score: number) =>
-  score >= 95 ? 2100000 : score >= 85 ? 1680000 : score >= 70 ? 1120000 : 0
-
-export const INSENTIF_BANDS: { s: string; v: string; tone: Tone }[] = [
-  { s: '95% ke atas', v: rp(2100000), tone: 'on' },
-  { s: '85% – 94%', v: rp(1680000), tone: 'on' },
-  { s: '70% – 84%', v: rp(1120000), tone: 'warn' },
-  { s: 'Di bawah 70%', v: 'Tidak ada insentif', tone: 'off' },
-]
-
-// --- Comms -----------------------------------------------------------------
-
-export interface Comm {
-  id: string
-  tag: string
-  title: string
-  d: string
-  days: number
-  body: string
-}
-
-export const COMMS: Comm[] = [
-  { id: 'c1', tag: 'Program', title: 'Insentif Rekrutmen Q3 sudah dibuka', d: '12 Jul 2026', days: 1, body: 'Setiap mitra aktif baru yang lolos verifikasi dihitung sebagai poin insentif.' },
-  { id: 'c2', tag: 'Fitur baru', title: 'Cek SLIK langsung dari A-Partner', d: '9 Jul 2026', days: 4, body: 'Tak perlu lagi membuka NG-MIS untuk pengecekan dasar.' },
-  { id: 'c3', tag: 'Pengumuman', title: 'Jadwal setoran cabang berubah', d: '5 Jul 2026', days: 8, body: 'Mulai 20 Juli, setoran diterima sampai pukul 17.00.' },
-  { id: 'c4', tag: 'Program', title: 'Pelatihan literasi keuangan mitra', d: '1 Jul 2026', days: 12, body: 'Modul baru tersedia untuk kumpulan majelis mingguan.' },
-  { id: 'c5', tag: 'Fitur baru', title: 'Titip bayar kini bisa disetor via VA', d: '24 Jun 2026', days: 19, body: 'Setoran harian tidak perlu lagi datang ke kantor cabang.' },
-  { id: 'c6', tag: 'Pengumuman', title: 'Libur nasional 17 Agustus', d: '18 Jun 2026', days: 25, body: 'Tidak ada kumpulan majelis pada tanggal tersebut.' },
-  { id: 'c7', tag: 'Program', title: 'Bonus kehadiran kumpulan semester 1', d: '2 Jun 2026', days: 41, body: 'Rekap pencapaian kehadiran akan dikirim ke masing-masing FO.' },
-]
-
-export const COMMS_TAGS = ['Program', 'Fitur baru', 'Pengumuman']
-
-// --- Notifications ---------------------------------------------------------
+// --- Notifications -----------------------------------------------------------
 
 export type NotifType = 'Tugas' | 'Penagihan' | 'Persetujuan' | 'Sistem'
 
@@ -639,7 +720,7 @@ export const TIME_OPTS: { l: string; v: number | null }[] = [
 export const inWindow = (days: number, w: number | null) =>
   w === null ? true : w === 0 ? days === 0 : days <= w
 
-// --- Profile ---------------------------------------------------------------
+// --- Profile -----------------------------------------------------------------
 
 export const FO = {
   name: 'Siti Rahayu',

@@ -162,3 +162,38 @@ export const IconShield = (p: IconProps) => (
     <path d="M12 3 4 6v5c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6l-8-3Z" />
   </Svg>
 )
+
+export const IconChevL = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m15 18-6-6 6-6" />
+  </Svg>
+)
+
+export const IconX = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6 6l12 12" />
+    <path d="M18 6 6 18" />
+  </Svg>
+)
+
+export const IconInfo = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5" />
+    <path d="M12 7.6h.01" />
+  </Svg>
+)
+
+export const IconSort = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 4v16M7 20l-3-3M7 4l3 3" />
+    <path d="M17 20V4M17 4l3 3M17 20l-3-3" />
+  </Svg>
+)
+
+export const IconCamera = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h5L17 6h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+    <circle cx="12" cy="12.5" r="3.2" />
+  </Svg>
+)

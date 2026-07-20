@@ -6,8 +6,9 @@ import { HomeScreen } from './screens/home'
 import { MajelisScreen } from './screens/majelis'
 import { MajelisDetailScreen } from './screens/majelis-detail'
 import { MitraDetailScreen } from './screens/mitra-detail'
+import { KunjunganRumahScreen } from './screens/kunjungan-rumah'
+import { TitipBayarScreen } from './screens/titip-bayar'
 import { KpiScreen } from './screens/kpi'
-import { KpiInfoScreen } from './screens/kpi-info'
 import { CommsScreen } from './screens/comms'
 import { BannerDetailScreen } from './screens/banner-detail'
 import { NotifScreen } from './screens/notif'
@@ -23,15 +24,19 @@ export const project: ProjectModule = {
       entry: true,
       notes: [
         'Entry screen, and the "Tugas" tab in everything but name — the task list is the primary work surface.',
-        'Three stacked entry points sit above it: the banner carousel (Informasi & Program), the collection summary with the expandable titip-bayar settlement, and the KPI link.',
-        'Four filters — waktu, jenis, majelis, tipe KPI — each open a bottom sheet. They default to "Hari ini" + "Wajib", so the list opens on today\'s obligations only.',
-        'Arriving from a KPI group shows a context strip explaining why the list came in pre-filtered.',
+        'Three stacked entry points sit above it: the banner carousel (Informasi & Program), the collection summary, and the KPI link.',
+        'Four filters — waktu, jenis, majelis, tipe KPI — each open a bottom sheet, plus an icon-only sort (default / jarak terdekat). Filters default to "Hari ini" + "Wajib".',
+        'Tapping a task routes by type: Kunjungan Majelis → majelis-detail, Kunjungan Rumah → mitra-detail (where the visit launches), Setor Titip Bayar → titip-bayar. Other task types are not tappable, matching the source.',
+        'Arriving from a KPI parameter shows a context strip explaining why the list came in pre-filtered.',
       ],
       flowsTo: [
         { to: 'comms', label: 'lihat semua informasi' },
         { to: 'banner-detail', label: 'tap banner' },
         { to: 'kpi', label: 'lihat semua achievement / tab KPI' },
         { to: 'majelis', label: 'tab majelis' },
+        { to: 'majelis-detail', label: 'tap tugas Kunjungan Majelis' },
+        { to: 'mitra-detail', label: 'tap tugas Kunjungan Rumah' },
+        { to: 'titip-bayar', label: 'tap tugas Setor Titip Bayar' },
         { to: 'notif', label: 'tap lonceng' },
         { to: 'profile', label: 'tap avatar' },
       ],
@@ -43,7 +48,6 @@ export const project: ProjectModule = {
       notes: [
         'Search spans majelis name, desa, and mitra name — one field, three targets.',
         'Sorting by a metric promotes it to a highlighted stat on every card and adds a rank number, so the ordering is legible rather than implicit.',
-        'Deep-linked from a KPI group, it arrives sorted worst-first on that group\'s metric with a context strip.',
       ],
       flowsTo: [
         { to: 'majelis-detail', label: 'tap majelis' },
@@ -56,53 +60,66 @@ export const project: ProjectModule = {
       title: 'Detail Majelis',
       component: MajelisDetailScreen,
       notes: [
-        'Repayment and attendance read against their targets (90% / 80%) rather than in isolation.',
-        'Mitra sort menunggak-first. Cards carry a status cue but are deliberately NOT tappable — see mitra-detail.',
+        'On a kumpulan day, "Mulai kunjungan" switches the whole page into visit mode: every mitra card expands into inline Kehadiran + Pembayaran controls, a Tugas tambahan section surfaces renewal/celengan offers, and a Rekam kumpulan step (lokasi + foto) gates the sticky Submit Kumpulan bar.',
+        'Browse mode keeps mitra cards tappable through to mitra-detail — the visit-mode gate that used to make them inert is gone now that mitra-detail is a live destination.',
+        'Mitra sort menunggak-first; a MAJ_FILTERS chip row (Semua / Belum bayar / Sudah bayar / Pengajuan) narrows the list further.',
       ],
-      flowsTo: [{ to: 'majelis', label: 'kembali' }],
+      flowsTo: [
+        { to: 'majelis', label: 'kembali' },
+        { to: 'mitra-detail', label: 'tap kartu mitra (browse mode)' },
+      ],
     },
     {
       id: 'mitra-detail',
       title: 'Detail Mitra',
       component: MitraDetailScreen,
       notes: [
-        'PARKED — no inbound go(), matching the source draft, which keeps this page built but switched off and drops the chevron from mitra cards because of it.',
-        'Opened directly it renders Rury Ramadhita (ketua, autodebit, PIC, celengan) — the record that exercises every section.',
+        'Live now — reached from a Home Kunjungan Rumah task, or a browse-mode mitra card on majelis-detail. Opened directly it renders Rury Ramadhita (ketua, autodebit, PIC, celengan), the record that exercises every section.',
+        'Two views in one screen: a compact "main" view (active tasks, HV launcher, recommendations) that taps through to a full "profil" view (loan history, progress-limit outlook, attendance, produk lain).',
+        'The active Kunjungan Rumah task gets its own primary-tinted launcher card instead of sitting in the plain task list — "Mulai kunjungan" is what opens the flow.',
         '"+ Jadikan tugas" writes a real task into the shared store, so a captured recommendation shows up in Beranda\'s list under the Rekomendasi filter.',
       ],
+      flowsTo: [{ to: 'kunjungan-rumah', label: 'mulai kunjungan' }],
+    },
+    {
+      id: 'kunjungan-rumah',
+      title: 'Kunjungan Rumah',
+      component: KunjunganRumahScreen,
+      notes: [
+        'A branching wizard, not a form: bertemu mitra? → bisa bayar? (penuh/sebagian/PTP), or tidak bertemu → temui PJ → titipan/PTP, else tetangga, else tidak ada siapa pun. DPD 60+ mitra who can\'t commit get a Peldis offer.',
+        'Every PTP branch auto-creates a follow-up Kunjungan Rumah task on the promised date; dead-end branches (nobody met, PJ can\'t commit) schedule a plain retry next week.',
+        'The result screen lists exactly which tasks got created, then "Selesai kunjungan" just closes the flow — there is no separate completion/return routing in the source to mirror.',
+      ],
+      flowsTo: [{ to: 'mitra-detail', label: 'tap pil Mitra / tutup' }],
+    },
+    {
+      id: 'titip-bayar',
+      title: 'Setor Titip Bayar',
+      component: TitipBayarScreen,
+      notes: [
+        'Reached only from the "Setor Titip Bayar" task on Beranda. Shows the VA to transfer to and the mitra-level breakdown that sums to it; "Saya sudah setor" is a self-reported confirmation, no real payment rail.',
+      ],
+      flowsTo: [{ to: 'home', label: 'selesai / tutup' }],
     },
     {
       id: 'kpi',
       title: 'KPI',
       component: KpiScreen,
       notes: [
-        'The hero answers "why did I open this page" with the incentive estimate, not the score — the score is the means.',
-        'Each group ends in two links: "Kejar <weakest metric>" into pre-filtered tasks, and "Lihat per majelis" into worst-first ranked majelis. This is the IA idea under test.',
-        'Selecting a single majelis re-derives every metric from that majelis and hides the incentive hero, which is portfolio-wide.',
-        'The boost group carries no weight and is labelled "Di luar skor" — it pays separately.',
+        'Flat-Rp model, not weighted groups: each of the 7 parameters is binary — hit the target, earn its own flat rupiah bonus; miss it, earn nothing. The hero is the sum earned out of the Rp2.500.000 maximum.',
+        'Each parameter row links straight to "Tugas" pre-filtered by the task type it drives — the per-majelis breakdown and the separate calculation explainer from the previous draft are both gone.',
       ],
-      flowsTo: [
-        { to: 'kpi-info', label: 'ikon bantuan' },
-        { to: 'home', label: 'kejar metrik (tugas terfilter)' },
-        { to: 'majelis', label: 'lihat per majelis (urut terendah)' },
-      ],
-    },
-    {
-      id: 'kpi-info',
-      title: 'Cara Perhitungan KPI',
-      component: KpiInfoScreen,
-      notes: [
-        'Explains the score formula, per-parameter weights, a worked example, the incentive bands, and why boost sits outside the score.',
-        'Weights and targets are read from the same KPI_DEF the KPI page scores against, so the explainer cannot drift from the maths.',
-      ],
-      flowsTo: [{ to: 'kpi', label: 'kembali' }],
+      flowsTo: [{ to: 'home', label: 'tugas (per parameter)' }],
     },
     {
       id: 'comms',
       title: 'Informasi & Program',
       component: CommsScreen,
-      notes: ['The banner carousel\'s "Lihat semua" target. Filters by time window and info type.'],
-      flowsTo: [{ to: 'home', label: 'kembali' }],
+      notes: ['The banner carousel\'s "Lihat semua" target. Filters by time window and info type; tapping a card marks it read.'],
+      flowsTo: [
+        { to: 'home', label: 'kembali' },
+        { to: 'banner-detail', label: 'tap kartu' },
+      ],
     },
     {
       id: 'banner-detail',
@@ -127,7 +144,7 @@ export const project: ProjectModule = {
       id: 'profile',
       title: 'Profil',
       component: ProfileScreen,
-      notes: ['The second route into KPI, showing the current score inline.'],
+      notes: ['The second route into KPI, showing the current parameter count (met / total) inline.'],
       flowsTo: [
         { to: 'kpi', label: 'KPI saya' },
         { to: 'home', label: 'kembali' },

@@ -1,26 +1,30 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Badge, Button, Card } from '@/design-system/components'
+import { Badge, Card } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import {
-  BANNERS,
+  KIND_OPTS,
   KTYPES,
-  TASKS,
+  SORT_OPTS,
   TASK_MAJELIS,
+  TASKS,
   TITIP,
+  TAG_BG,
   TYPE_BADGE,
+  WHEN_OPTS,
   dayLabel,
   inWhen,
-  KIND_OPTS,
-  WHEN_OPTS,
+  taskDist,
+  timeRank,
   type KindFilter,
   type KpiType,
   type Task,
+  type TaskSort,
   type WhenFilter,
 } from '../lib/data'
-import { IconBell, IconChart, IconChevD, IconChevR, IconDoc, IconHouse, IconUsers } from '../lib/icons'
+import { IconBell, IconChart, IconChevR, IconDoc, IconHouse, IconPin, IconSort, IconUsers } from '../lib/icons'
 import { TabBar } from '../lib/shell'
 import { store, unreadCount, useApp } from '../lib/store'
 import {
@@ -36,9 +40,8 @@ import {
   SectionHeader,
 } from '../lib/ui'
 
-type MenuId = 'when' | 'kind' | 'maj' | 'type' | null
+type MenuId = 'when' | 'kind' | 'maj' | 'type' | 'sort' | null
 
-/** Dot swatches for the KPI-type picker — one per Badge intent in TYPE_BADGE. */
 const TYPE_DOT: Record<KpiType, string> = {
   Collection: 'bg-blue-500',
   Attendance: 'bg-green-500',
@@ -56,7 +59,7 @@ export function HomeScreen() {
   const flow = useFlow()
   const s = useApp()
   const [menu, setMenu] = useState<MenuId>(null)
-  const [showTitip, setShowTitip] = useState(false)
+  const [sort, setSort] = useState<TaskSort>('default')
   const [slide, setSlide] = useState(0)
   const carousel = useRef<HTMLDivElement>(null)
 
@@ -70,14 +73,23 @@ export function HomeScreen() {
 
   const { filter } = s
   const unread = unreadCount(s.notifs)
+  const unreadComms = s.comms.filter((c) => !c.read)
 
-  const tasks = s.tasks.filter(
-    (t) =>
-      inWhen(t.day, filter.when) &&
-      (filter.kind === 'all' || t.kind === filter.kind) &&
-      (!filter.maj || t.maj === filter.maj) &&
-      (!filter.type || t.types.includes(filter.type)),
-  )
+  const tasks = s.tasks
+    .filter(
+      (t) =>
+        inWhen(t.day, filter.when) &&
+        (filter.kind === 'all' || t.kind === filter.kind) &&
+        (!filter.maj || t.maj === filter.maj) &&
+        (!filter.type || t.types.includes(filter.type)),
+    )
+    .sort((a, b) => {
+      // Setor titip bayar is the end-of-day wrap-up — always sorts last.
+      const aTitip = a.act === 'Setor Titip Bayar'
+      const bTitip = b.act === 'Setor Titip Bayar'
+      if (aTitip !== bTitip) return aTitip ? 1 : -1
+      return sort === 'distance' ? taskDist(a) - taskDist(b) : a.day - b.day || timeRank(a) - timeRank(b)
+    })
   const filtered =
     Boolean(filter.maj || filter.type) || filter.when !== 'today' || filter.kind !== 'wajib'
 
@@ -89,6 +101,20 @@ export function HomeScreen() {
     { l: 'Semua tipe KPI', v: null as KpiType | null },
     ...KTYPES.map((k) => ({ l: k, v: k as KpiType | null, dot: TYPE_DOT[k] })),
   ]
+
+  function openTask(t: Task) {
+    if (t.act === 'Kunjungan Majelis' && t.maj) {
+      store.set({ selMajelis: t.maj })
+      flow.go('majelis-detail')
+    } else if (t.act === 'Kunjungan Rumah') {
+      // Lands on the mitra's page — like Kunjungan Majelis lands on the majelis
+      // page — rather than opening the flow directly.
+      store.set({ selMitra: t.who, selMajelis: t.maj ?? store.get().selMajelis })
+      flow.go('mitra-detail')
+    } else if (t.act === 'Setor Titip Bayar') {
+      flow.go('titip-bayar')
+    }
+  }
 
   return (
     <Screen
@@ -117,108 +143,61 @@ export function HomeScreen() {
         </header>
       }
     >
-      {/* Informasi & Program — banner carousel */}
+      {/* Informasi & Program — only unread items surface here; read ones live
+          on the full Informasi & Program page. */}
       <section className="flex flex-col gap-8">
         <SectionHeader title="Informasi & Program" linkLabel="Lihat semua" onLink={() => flow.go('comms')} />
-        <div
-          ref={carousel}
-          className="-mx-16 flex snap-x snap-mandatory gap-12 overflow-x-auto px-16 scroll-px-16"
-        >
-          {BANNERS.map((b) => (
-            <button
-              type="button"
-              key={b.id}
-              onClick={() => {
-                store.set({ selBanner: b })
-                flow.go('banner-detail')
-              }}
-              className={`flex w-full shrink-0 snap-start flex-col justify-between gap-16 rounded-12 p-16 text-left ${b.bg}`}
+        {unreadComms.length === 0 ? (
+          <p className="text-12 text-caption">Semua informasi sudah dibaca. Buka halaman untuk melihat arsip.</p>
+        ) : (
+          <>
+            <div
+              ref={carousel}
+              className="-mx-16 flex snap-x snap-mandatory gap-12 overflow-x-auto px-16 scroll-px-16"
             >
-              <BannerTag>{b.tag}</BannerTag>
-              <span>
-                <span className="block text-14 font-bold text-neutral-white">{b.title}</span>
-                <span className="block text-12 text-neutral-white">{b.sub}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="flex justify-center gap-4">
-          {BANNERS.map((b, i) => (
-            <span
-              key={b.id}
-              className={`h-4 rounded-full ${i === slide ? 'w-16 bg-primary-500' : 'w-4 bg-neutral-200'}`}
-            />
-          ))}
-        </div>
+              {unreadComms.map((c) => (
+                <button
+                  type="button"
+                  key={c.id}
+                  onClick={() => {
+                    store.openBanner(c)
+                    flow.go('banner-detail')
+                  }}
+                  className={`flex w-full shrink-0 snap-start flex-col justify-between gap-16 rounded-12 p-16 text-left ${TAG_BG[c.tag]}`}
+                >
+                  <span className="flex items-center justify-between gap-8">
+                    <BannerTag>{c.tag}</BannerTag>
+                    <BannerTag>Belum dibaca</BannerTag>
+                  </span>
+                  <span>
+                    <span className="block text-14 font-bold text-neutral-white">{c.title}</span>
+                    <span className="block text-12 text-neutral-white">{c.sub}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-center gap-4">
+              {unreadComms.map((c, i) => (
+                <span
+                  key={c.id}
+                  className={`h-4 rounded-full ${i === slide ? 'w-16 bg-primary-500' : 'w-4 bg-neutral-200'}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
-      {/* Achievement hari ini */}
+      {/* Terkumpul hari ini */}
       <section className="flex flex-col gap-8">
-        <SectionHeader title="Achievement hari ini" linkLabel="Lihat semua" onLink={() => flow.go('kpi')} />
-        <Card flush>
-          <div className="flex flex-col gap-8 p-12">
-            <div className="flex items-center justify-between gap-8">
-              <span className="text-12 text-caption">Terkumpul hari ini</span>
-              <span className="text-10 text-disabled">Target {TITIP.target}</span>
-            </div>
-            <p className="text-16 font-bold text-default">{TITIP.total}</p>
-            <ProgressBar value={TITIP.pct} />
+        <SectionHeader title="Terkumpul hari ini" linkLabel="Lihat semua" onLink={() => flow.go('kpi')} />
+        <Card>
+          <div className="flex items-baseline justify-between gap-8">
+            <span className="text-16 font-bold text-default">{TITIP.total}</span>
+            <span className="text-10 text-disabled">Target {TITIP.target}</span>
           </div>
-
-          {/* Titip bayar — expandable settlement detail */}
-          <div className="border-t border-default">
-            <button
-              type="button"
-              onClick={() => setShowTitip((v) => !v)}
-              aria-expanded={showTitip}
-              className="flex w-full items-center gap-8 p-12 text-left"
-            >
-              <span className="min-w-0 flex-1 text-12 text-caption">Titip bayar belum disetor</span>
-              <span className="text-14 font-bold text-default">{TITIP.total}</span>
-              <span className={`flex shrink-0 text-disabled ${showTitip ? 'rotate-180' : ''}`}>
-                <IconChevD size={16} />
-              </span>
-            </button>
-
-            {showTitip ? (
-              <div className="flex flex-col gap-8 border-t border-light px-12 pb-12">
-                <p className="pt-8 text-10 text-caption">
-                  Dari {TITIP.items.length} setoran mitra · batas setor {TITIP.due}
-                </p>
-
-                <ul className="flex flex-col">
-                  {TITIP.items.map((it) => (
-                    <li
-                      key={it.n}
-                      className="flex items-center gap-8 border-b border-light py-8"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-12 font-bold text-default">{it.n}</span>
-                        <span className="block text-10 text-caption">{it.m}</span>
-                      </span>
-                      <span className="text-12 font-bold text-default">{it.a}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-12 font-bold text-neutral-700">Total</span>
-                  <span className="text-12 font-bold text-default">{TITIP.total}</span>
-                </div>
-
-                <div className="flex items-center gap-8 rounded-8 bg-neutral-50 p-8">
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-10 text-caption">{TITIP.bank}</span>
-                    <span className="block text-12 font-bold text-default">{TITIP.va}</span>
-                  </span>
-                  <Button variant="ghost" size="xs">
-                    Salin
-                  </Button>
-                </div>
-
-                <Button size="sm">Setor via transfer VA</Button>
-              </div>
-            ) : null}
+          <div className="mt-8">
+            <ProgressBar value={TITIP.pct} />
           </div>
         </Card>
       </section>
@@ -228,9 +207,22 @@ export function HomeScreen() {
         <SectionHeader
           title="Tugas"
           trailing={
-            <span className="shrink-0 text-12 text-caption">
-              {filtered ? `${tasks.length} dari ${TASKS.length} tugas` : '2 dari 10 tugas selesai'}
-            </span>
+            <div className="flex shrink-0 items-center gap-10">
+              <span className="text-12 text-caption">
+                {filtered ? `${tasks.length} dari ${TASKS.length} tugas` : '2 dari 10 tugas selesai'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setMenu('sort')}
+                aria-label="Urutkan tugas"
+                title="Urutkan"
+                className={`flex h-30 w-30 items-center justify-center rounded-8 border ${
+                  sort !== 'default' ? 'border-primary-200 bg-primary-50 text-primary-600' : 'border-default text-neutral-700'
+                }`}
+              >
+                <IconSort size={16} />
+              </button>
+            </div>
           }
         />
 
@@ -280,16 +272,14 @@ export function HomeScreen() {
           <ul className="flex flex-col gap-12">
             {tasks.map((t) => (
               <li key={t.id}>
-                <TaskCard task={t} when={filter.when} />
+                <TaskCard task={t} when={filter.when} sortedByDistance={sort === 'distance'} onOpen={() => openTask(t)} />
               </li>
             ))}
           </ul>
         )}
 
         {tasks.length > 0 ? (
-          <p className="pb-8 text-center text-12 text-disabled">
-            Semua tugas yang cocok sudah ditampilkan
-          </p>
+          <p className="pb-8 text-center text-12 text-disabled">Semua tugas yang cocok sudah ditampilkan</p>
         ) : null}
       </section>
 
@@ -343,15 +333,42 @@ export function HomeScreen() {
         }}
         onClose={() => setMenu(null)}
       />
+      <OptionSheet
+        open={menu === 'sort'}
+        title="Urutkan tugas"
+        name="sort"
+        options={SORT_OPTS}
+        value={sort}
+        onPick={(v) => {
+          setSort(v)
+          setMenu(null)
+        }}
+        onClose={() => setMenu(null)}
+      />
     </Screen>
   )
 }
 
-function TaskCard({ task, when }: { task: Task; when: WhenFilter }) {
+function TaskCard({
+  task,
+  when,
+  sortedByDistance,
+  onOpen,
+}: {
+  task: Task
+  when: WhenFilter
+  sortedByDistance: boolean
+  onOpen: () => void
+}) {
   const { I, tone } = taskIcon(task.act)
+  const clickable =
+    task.act === 'Kunjungan Majelis' || task.act === 'Kunjungan Rumah' || task.act === 'Setor Titip Bayar'
 
   return (
-    <Card className="flex items-start gap-12">
+    <Card
+      className={`flex items-start gap-12 ${clickable ? 'w-full text-left' : ''}`}
+      onClick={clickable ? onOpen : undefined}
+    >
       <IconTile tone={tone}>
         <I size={20} />
       </IconTile>
@@ -364,6 +381,12 @@ function TaskCard({ task, when }: { task: Task; when: WhenFilter }) {
           {task.time}
           {task.maj ? ` · ${task.maj}` : ''}
         </p>
+        <div className={`mt-4 flex items-center gap-4 text-10 font-bold ${sortedByDistance ? 'text-primary-600' : 'text-disabled'}`}>
+          <IconPin size={16} />
+          <span>
+            {taskDist(task)} km · {task.loc}
+          </span>
+        </div>
         <div className="mt-8 flex flex-wrap items-center gap-4">
           {task.kind === 'rekomendasi' ? <Badge intent="primary">Rekomendasi</Badge> : null}
           {task.types.map((k) => (
@@ -374,9 +397,11 @@ function TaskCard({ task, when }: { task: Task; when: WhenFilter }) {
         </div>
         {task.meta ? <p className="mt-8 text-12 font-bold text-orange-700">{task.meta}</p> : null}
       </div>
-      <span className="shrink-0 text-placeholder">
-        <IconChevR size={20} />
-      </span>
+      {clickable ? (
+        <span className="shrink-0 text-placeholder">
+          <IconChevR size={20} />
+        </span>
+      ) : null}
     </Card>
   )
 }

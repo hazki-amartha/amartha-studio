@@ -3,15 +3,13 @@
 import { Badge, Card, ListRow, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { FO, TONE_TEXT, buildKpi } from '../lib/data'
+import { FO, KPI_PERIODS, buildKpi } from '../lib/data'
 import { IconChart, IconChevR, IconGear, IconMegaphone, IconShield, IconSignOut, IconUsers } from '../lib/icons'
-import { store, useApp } from '../lib/store'
 import { Avatar, IconTile } from '../lib/ui'
 
 export function ProfileScreen() {
   const flow = useFlow()
-  const s = useApp()
-  const kpi = buildKpi(s.kpiPeriod, null)
+  const kpi = buildKpi(KPI_PERIODS[0])
 
   return (
     <Screen topBar={<NavigationHeader title="Profil" onBack={flow.back} />}>
@@ -27,24 +25,17 @@ export function ProfileScreen() {
       </Card>
 
       {/* KPI entry point — the profile's other route into the KPI tab */}
-      <Card
-        className="flex items-center gap-12"
-        role="button"
-        tabIndex={0}
-        onClick={() => {
-          store.resetFilter()
-          store.resetMajelisFilters()
-          flow.go('kpi')
-        }}
-      >
+      <Card className="flex items-center gap-12" role="button" tabIndex={0} onClick={() => flow.go('kpi')}>
         <IconTile tone="primary">
           <IconChart size={20} />
         </IconTile>
         <div className="min-w-0 flex-1">
           <p className="text-14 font-bold text-default">KPI saya</p>
-          <p className="text-12 text-caption">{s.kpiPeriod}</p>
+          <p className="text-12 text-caption">{KPI_PERIODS[0]}</p>
         </div>
-        <span className={`text-20 font-bold ${TONE_TEXT[kpi.tone]}`}>{kpi.score}%</span>
+        <span className="text-20 font-bold text-primary-600">
+          {kpi.metCount}/{kpi.totalParams}
+        </span>
         <span className="shrink-0 text-placeholder">
           <IconChevR size={20} />
         </span>
