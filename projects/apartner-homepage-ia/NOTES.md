@@ -5,6 +5,34 @@ Translated from the team's standalone JSX draft, most recently re-synced against
 hand-rolled primitives; this port rebuilds all of it from FunDS Lite tokens +
 `@/design-system/components`.
 
+## 2026-07-20 — Task-First visit flows ported in
+
+At the designer's request, this prototype now uses the **A-Partner Task-First**
+direction's visit flows, rewired onto this project's data (mitra keyed by name,
+weekly instalment via `mitraLoanInfo`). Both replaced the versions described in
+the resync section below:
+
+- **Majelis visit is now three standalone screens** — `majelis-visit`
+  (Kehadiran & Pembayaran) → `majelis-offers` (Tugas Tambahan) → `majelis-proof`
+  (Bukti & Kirim) — instead of the inline visit-mode on `majelis-detail`.
+  `majelis-detail` is browse-only; its "Mulai kunjungan" banner launches the
+  flow. The step-1 "Tagih" sheet keeps every payment outcome, and a short
+  **Bayar Sebagian now captures the same Alasan + Janji bayar (PTP)** a "Tidak
+  Bayar" does — the shortfall is a closed outcome. Recorded mitra stay in the
+  list as marked cards ("Sudah ditagih", "Sudah ditagih sebagian · PTP …"), no
+  collapsed drawer. dpd-0 mitra are seeded as already paid this week, so the
+  queue is only who the BP must collect from.
+- **Home visit is now two standalone screens** — `home-visit` (Temui & Tagih)
+  → `home-proof` (Bukti & Kirim) — replacing the `kunjungan-rumah` branching
+  wizard, which is **deleted**. Launched from `mitra-detail`'s HV launcher. One
+  mitra, everything inline (no sheet): doorstep card, amount owed, who was met
+  (mitra / PJ / nobody), then the outcome; "nobody home" drops the payment modes
+  and opens on a reason + revisit date.
+- **Store** gained per-mitra visit state (attendance, payments, nonPayments,
+  offerResults, payMode, metWith, newAddress, photo, geo) plus derivations
+  (`weeklyOf`, `paidOf`, `remainingOf`, `paymentStatus`, `activeMembers`,
+  `pendingMembers`, `recordedMembers`). Visit UI lives in `lib/visit-ui.tsx`.
+
 ## 2026-07-20 resync (`apartner-homepage-ia_6`)
 
 Full resync against a substantially expanded draft. New surface area:
