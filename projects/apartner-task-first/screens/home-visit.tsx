@@ -112,6 +112,10 @@ export function HomeVisitScreen() {
 
       <MitraCard
         mitra={mitra}
+        onOpen={() => {
+          store.openMitraPage(mitra.id)
+          flow.go('mitra')
+        }}
         trailing={
           <div className="flex gap-8">
             <IconToggle

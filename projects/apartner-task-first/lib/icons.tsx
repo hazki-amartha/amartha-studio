@@ -113,6 +113,36 @@ export function IconCamera(props: IconProps) {
   )
 }
 
+/** Reaching a mitra between visits. */
+export function IconChat(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.7-.8L3 21l1.9-5.3A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" />
+    </Svg>
+  )
+}
+
+/** Scheduling a follow-up. */
+export function IconCalendar(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18M8 3v4M16 3v4" />
+    </Svg>
+  )
+}
+
+/** The money sections — tagihan & pinjaman. */
+export function IconWallet(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1" />
+      <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H5a2 2 0 0 1-2-2z" />
+      <circle cx="16.5" cy="14" r="1.2" />
+    </Svg>
+  )
+}
+
 /** Trailing affordance on the offer rows. */
 export function IconGift(props: IconProps) {
   return (

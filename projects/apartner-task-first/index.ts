@@ -9,6 +9,7 @@ import { MajelisProofScreen } from './screens/majelis-proof'
 import { HomeVisitScreen } from './screens/home-visit'
 import { HomeOfferScreen } from './screens/home-offer'
 import { HomeProofScreen } from './screens/home-proof'
+import { MitraScreen } from './screens/mitra'
 
 export const project: ProjectModule = {
   config,
@@ -44,7 +45,10 @@ export const project: ProjectModule = {
         '"Tidak Bayar" as a first-class outcome is the point: a no with a reason and a date is a result the BP can close and ops can chase. Leaving it unrecorded is exactly what pushes DPD work onto the RM\'s Google Form.',
         'Recorded mitra collapse into "Sudah dicatat", each row carrying its outcome and an "Ubah" that reopens the sheet that produced it — so leaving the queue never traps an entry.',
       ],
-      flowsTo: [{ to: 'majelis-offers', label: 'Lanjut → langkah 2' }],
+      flowsTo: [
+        { to: 'majelis-offers', label: 'Lanjut → langkah 2' },
+        { to: 'mitra', label: 'ketuk nama mitra' },
+      ],
     },
     {
       id: 'majelis-offers',
@@ -58,6 +62,7 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'majelis-proof', label: 'Lanjut / Lewati → langkah 3' },
         { to: 'majelis-visit', label: 'kembali' },
+        { to: 'mitra', label: 'ketuk nama mitra' },
       ],
     },
     {
@@ -85,7 +90,10 @@ export const project: ProjectModule = {
         'Attendance is reread as "Ditemui / Tidak di rumah" — on a doorstep the first fact is whether you reached her at all. "Not home" is a real outcome, logged through Catatan as a no with reason "Tidak ada di rumah" and a date to come back, never left as a blank.',
         '"Tidak Bayar" carries a reason and a promise/revisit date, exactly as in the majelis flow — the point of a collection visit is to close the loop that otherwise falls to a Google Form.',
       ],
-      flowsTo: [{ to: 'home-offer', label: 'Lanjut → langkah 2' }],
+      flowsTo: [
+        { to: 'home-offer', label: 'Lanjut → langkah 2' },
+        { to: 'mitra', label: 'ketuk nama mitra' },
+      ],
     },
     {
       id: 'home-offer',
@@ -98,6 +106,7 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'home-proof', label: 'Lanjut / Lewati → langkah 3' },
         { to: 'home-visit', label: 'kembali' },
+        { to: 'mitra', label: 'ketuk nama mitra' },
       ],
     },
     {
@@ -112,6 +121,21 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'today', label: 'Selesaikan Tugas' },
         { to: 'home-offer', label: 'kembali' },
+      ],
+    },
+    {
+      id: 'mitra',
+      title: 'Halaman Mitra',
+      component: MitraScreen,
+      notes: [
+        'Opened by tapping a mitra\'s name on her card in any visit step — the chevron beside the name is the tell. It is the identity BLOCK, not an added button: a separate control would cost a row on every one of 22 cards, which is the "ribet" failure mode this direction exists to avoid.',
+        'This is where the loan and payment history cut from the queue lives. CSAT says that record is among the most-sought data in the app, so the cut was never "BPs don\'t need it" — it was "it does not belong in a collection queue".',
+        'The ORDER of the page is the argument. A mitra page is the classic place a task-first app quietly turns back into a dashboard: open a person, get a wall of balances and percentages, leave having read a lot and done nothing. So the page opens on what to DO about her and the record sits underneath, collapsed.',
+        'One recommendation, already reasoned, chosen from her state: 30+ days down gets a home visit, a few days down gets a WhatsApp nudge, current-with-an-offer gets the offer. The BP is handed a conclusion, never a number to interpret — the same move the schedule\'s "Sekarang" card makes.',
+        'A mitra who is current with nothing to offer shows "Tidak ada tindak lanjut". That is a first-class outcome, not a gap: she should cost the BP no time at all.',
+        'Reaching her (WhatsApp, rute) is plumbing, not a recommendation, so it is a quiet list under the one thing that IS recommended — never competing with it.',
+        'The record — tagihan & pinjaman, 8 weeks of payments, kehadiran — is three collapsed sections. It exists to answer a follow-up the BP already has ("kenapa dia telat?"), not to brief her on arrival.',
+        'Taking a follow-up is recorded, not navigated: the card reads back "Kunjungan dijadwalkan" rather than resetting, so the BP can tell what she already did about this mitra.',
       ],
     },
   ],

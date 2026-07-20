@@ -18,6 +18,7 @@
 import type { ReactNode } from 'react'
 import { Card } from '@/design-system/components'
 import type { Mitra } from './data'
+import { IconChevronRight } from './icons'
 import { Avatar } from './ui'
 
 /**
@@ -42,6 +43,7 @@ export function MitraCard({
   status,
   trailing,
   action,
+  onOpen,
 }: {
   mitra: Mitra
   /** Extra line under the name — the step's subject. Omitted renders nothing. */
@@ -50,17 +52,48 @@ export function MitraCard({
   trailing?: ReactNode
   /** The row under the rule. */
   action: ReactNode
+  /**
+   * Opens her mitra page. This is the identity BLOCK, not an added button: a
+   * separate control would cost a row on every one of 22 cards, which is the
+   * "ribet" failure mode this direction exists to avoid. A chevron beside the
+   * name is the tell, the same one the schedule's "Berikutnya" rows use.
+   */
+  onOpen?: () => void
 }) {
+  const identity = (
+    <>
+      <Avatar name={mitra.name} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="flex items-center gap-4">
+          <span className="truncate text-16 font-bold text-default">{mitra.name}</span>
+          {onOpen ? (
+            <span className="shrink-0 text-disabled">
+              <IconChevronRight size={16} />
+            </span>
+          ) : null}
+        </span>
+        {status ? <span className="truncate text-12 text-caption">{status}</span> : null}
+        <BucketLine dpd={mitra.dpd} />
+      </div>
+    </>
+  )
+
   return (
     <Card>
       <div className="flex flex-col gap-12">
         <div className="flex items-center gap-12">
-          <Avatar name={mitra.name} />
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-16 font-bold text-default">{mitra.name}</span>
-            {status ? <span className="truncate text-12 text-caption">{status}</span> : null}
-            <BucketLine dpd={mitra.dpd} />
-          </div>
+          {onOpen ? (
+            <button
+              type="button"
+              onClick={onOpen}
+              aria-label={`Buka halaman ${mitra.name}`}
+              className="flex min-w-0 flex-1 items-center gap-12 text-left"
+            >
+              {identity}
+            </button>
+          ) : (
+            identity
+          )}
           {trailing ? <div className="shrink-0">{trailing}</div> : null}
         </div>
         <div className="border-t border-default pt-12">{action}</div>

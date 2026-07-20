@@ -95,6 +95,10 @@ export function MajelisOffersScreen() {
                 <MitraCard
                   key={mitra.id}
                   mitra={mitra}
+                  onOpen={() => {
+                    store.openMitraPage(mitra.id)
+                    flow.go('mitra')
+                  }}
                   // Step 2's subject: where she stands on the thing being offered.
                   status={mitra.offer?.status}
                   action={

@@ -76,6 +76,10 @@ export function HomeOfferScreen() {
           <MitraCard
             mitra={mitra}
             status={offer.status}
+            onOpen={() => {
+              store.openMitraPage(mitra.id)
+              flow.go('mitra')
+            }}
             action={
               <div className="flex items-center gap-8">
                 <span className="min-w-0 flex-1 truncate text-12 font-bold text-default">

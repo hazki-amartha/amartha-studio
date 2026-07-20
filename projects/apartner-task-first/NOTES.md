@@ -199,16 +199,77 @@ Both home-visit mitra reuse the shared store keyed by mitra id
 added to state beyond `openHome` (which home-visit task is open) — the mirror of
 `openMajelis`.
 
+## The mitra page — actions first, record underneath
+
+The destination for the loan/payment history cut from the queue (deliberate cut
+2), now built. CSAT says that record is among the **most-sought** data in the
+app, so the cut was never "BPs don't need it" — it was "it does not belong in a
+collection queue". It lands here, on this direction's terms.
+
+**The order of the page is the whole argument.** A mitra page is the classic
+place a task-first app quietly turns back into a dashboard: open a person, get a
+wall of outstanding balances, instalment tables and attendance percentages, and
+leave having read a lot and done nothing. So:
+
+| Zone | What's in it |
+|------|--------------|
+| Identity | One card: her majelis, mitra sejak, a bucket badge. Enough to be sure you opened the right woman, no more — her name is already in the header. |
+| **Yang perlu dilakukan** | **One** recommendation, already reasoned, with the button. |
+| Hubungi | WhatsApp + rute — a quiet list, never competing with the recommendation. |
+| Riwayat & data | Three **collapsed** sections: tagihan & pinjaman, 8 weeks of payments, kehadiran. |
+
+### The one recommendation
+
+Chosen from her state, and it states its own justification rather than handing
+over a metric — the same move the schedule's "Sekarang" card makes:
+
+| Her state | The recommendation | The line under it |
+|-----------|-------------------|-------------------|
+| DPD ≥ 30 | Jadwalkan kunjungan rumah | "sudah lewat batas ditagih di majelis" |
+| DPD 1–29 | Ingatkan lewat WhatsApp | "biasanya bayar setelah diingatkan" |
+| Lancar, punya tawaran | Tawarkan *{produk}* | where she stands on it |
+| Lancar, tidak ada tawaran | — | **"Tidak ada tindak lanjut"** |
+
+That last row is a first-class outcome, not a gap: a mitra who is current and has
+nothing to be offered should cost the BP no time at all.
+
+Taking a follow-up is **recorded, not navigated** — the card reads back
+"Kunjungan dijadwalkan" instead of resetting, so the BP can tell what she already
+did about this mitra. It lives in the shared store (`followUps`), keyed by mitra
+id like every other per-mitra fact.
+
+### The record is collapsed on purpose
+
+It is there to answer a follow-up question the BP **already has** ("kenapa dia
+telat?"), not to brief her on arrival. Collapsed sections are also this
+direction's established move for "things the BP does not need in front of her" —
+the same `Collapsible` that hides `Sudah dicatat` on step 1.
+
+The numbers are derived per-mitra from a hash of her name (`lib/profile.ts`)
+rather than hand-authored 24 times, so every mitra is tappable from every screen
+and has the same record each time. The history is made to **agree with her DPD
+badge** — a mitra 34 days down shows five missed weeks — because a record that
+contradicts the card that opened it is worse than no record.
+
+### Entry point — the identity block, not a button
+
+NOTES previously specified "a button on the mitra card". Built as the identity
+**block** instead (avatar + name, with a right chevron beside the name as the
+tell). A separate button would cost a row on every one of 22 cards in the step 1
+queue, and adding surface area is precisely the "ribet" failure mode this
+direction exists to avoid. The chevron is the same affordance the schedule's
+"Berikutnya" rows already use, so it needs no learning.
+
+It is live from all four card surfaces: both majelis steps and both home-visit
+steps. Attendance toggles stay outside the tap target.
+
 ## Next — to design together
 
-- **Mitra page** — the destination for the loan/payment history cut from the
-  queue (point 2). Entry point is a button on the mitra card. **The button is not
-  built yet**: a dead control in a prototype misleads reviewers, so it lands with
-  the page. The home visit is the closest existing surface (both are one borrower
-  and her repayment record), so the mitra page likely grows out of it.
-
-Also outstanding: only `Majelis Mawar` has a roster; the other two majelis tasks
-are schedule entries only.
+- Only `Majelis Mawar` has a roster; the other two majelis tasks are schedule
+  entries only.
+- The mitra page's contact actions (WhatsApp, rute) currently just record
+  themselves — they don't leave the app. Fine for a prototype, but worth a
+  decision on what a real handoff looks like.
 
 ## Components proposed for promotion
 

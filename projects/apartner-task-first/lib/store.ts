@@ -53,6 +53,15 @@ export interface AppState {
   openMajelis: string
   /** Which home-visit task the home-visit screens render (a Task id). */
   openHome: string
+  /** Which mitra the mitra page renders (a Mitra id). */
+  openMitra: string
+  /**
+   * mitraId → action ids the BP has taken from the mitra page. Taking a
+   * follow-up is a RECORD, not a navigation, so it has to survive leaving the
+   * page — otherwise the BP re-reads the same recommendation on every visit and
+   * cannot tell what she already did about it.
+   */
+  followUps: Record<string, string[]>
   /** Step 3 — whether the proof photo has been captured. Gates submission. */
   photo: boolean
 }
@@ -73,6 +82,8 @@ const initial: AppState = {
   offerResults: {},
   openMajelis: 'mawar',
   openHome: 't3',
+  openMitra: 'm1',
+  followUps: {},
   photo: false,
 }
 
@@ -103,6 +114,16 @@ export const store = {
   openHomeVisit(taskId: string) {
     // Same contract as a majelis visit: start at step 1 with no proof yet.
     store.set({ openHome: taskId, photo: false })
+  },
+  /** Opens the mitra page on one borrower, from whichever screen asked. */
+  openMitraPage(mitraId: string) {
+    store.set({ openMitra: mitraId })
+  },
+  /** Records that the BP acted on a recommendation. Idempotent. */
+  addFollowUp(mitraId: string, actionId: string) {
+    const taken = state.followUps[mitraId] ?? []
+    if (taken.includes(actionId)) return
+    store.set({ followUps: { ...state.followUps, [mitraId]: [...taken, actionId] } })
   },
   setPhoto(photo: boolean) {
     store.set({ photo })

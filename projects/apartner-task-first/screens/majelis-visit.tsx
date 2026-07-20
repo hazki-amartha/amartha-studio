@@ -136,6 +136,10 @@ export function MajelisVisitScreen() {
               <MitraCard
                 key={mitra.id}
                 mitra={mitra}
+                onOpen={() => {
+                  store.openMitraPage(mitra.id)
+                  flow.go('mitra')
+                }}
                 trailing={
                   <div className="flex flex-col items-center gap-4">
                     <div className="flex gap-8">
