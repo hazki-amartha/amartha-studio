@@ -350,3 +350,76 @@ export function StatRows({ rows }: { rows: StatRow[] }) {
 export function Overline({ children }: { children: ReactNode }) {
   return <div className="text-10 font-bold uppercase text-caption">{children}</div>
 }
+
+// --- HeaderAction ----------------------------------------------------------
+// An icon button for the top bar, with an optional unread count. FunDS Lite has
+// no icon-button component and Badge is a pill for inline status, not a
+// corner-mounted counter.
+
+export function HeaderAction({
+  label,
+  count = 0,
+  onClick,
+  children,
+}: {
+  label: string
+  /** Unread count; 0 hides the counter entirely. */
+  count?: number
+  onClick?: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={count > 0 ? `${label}, ${count} belum dibaca` : label}
+      className="relative flex h-32 w-32 shrink-0 items-center justify-center text-default"
+    >
+      {children}
+      {count > 0 ? (
+        <span className="absolute right-0 top-0 flex h-16 min-w-16 items-center justify-center rounded-full border-2 border-neutral-white bg-red-500 px-4 text-10 font-bold text-neutral-white">
+          {count}
+        </span>
+      ) : null}
+    </button>
+  )
+}
+
+// --- AgendaRow -------------------------------------------------------------
+// The calendar gutter. Time lives OUTSIDE the card, in a fixed left column, so
+// every task on the day lines up on one clock rail and the card itself carries
+// only what the task IS. That is what makes the page read as an agenda rather
+// than a list: the eye scans the times down the left edge, and the cards are
+// told apart by their icon, not by hunting for a timestamp inside them.
+//
+//   08.00  ┌──────────────────┐
+//   09.30  │ [icon] Majelis…  │
+//          └──────────────────┘
+//
+// `until` is set only on the focus card — a finished or upcoming slot needs its
+// start time; the one you are standing in needs to know when it ends.
+
+export function AgendaRow({
+  time,
+  until,
+  muted,
+  children,
+}: {
+  time: string
+  until?: string
+  /** Dims the gutter for slots that are done. */
+  muted?: boolean
+  children: ReactNode
+}) {
+  return (
+    <div className="flex items-start gap-8">
+      <div className="flex w-40 shrink-0 flex-col items-end pt-12">
+        <span className={`text-12 font-bold ${muted ? 'text-disabled' : 'text-default'}`}>
+          {time}
+        </span>
+        {until ? <span className="text-10 text-disabled">{until}</span> : null}
+      </div>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  )
+}

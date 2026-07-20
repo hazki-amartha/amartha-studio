@@ -105,7 +105,7 @@ export function HomeVisitScreen() {
   // and a save button would imply the page might not be keeping up.
   function pick(next: 'penuh' | 'sebagian' | 'tidak') {
     store.setPayMode(mitra.id, next)
-    if (next === 'penuh') store.setPayment(mitra.id, mitra.due)
+    if (next === 'penuh') store.setPayment(mitra.id, mitra.due, mitra.due)
   }
 
   function pickReason(value: string) {
@@ -201,25 +201,49 @@ export function HomeVisitScreen() {
 
       {/* The amount is typed straight into the record — no draft, no Simpan. */}
       {met && !absent && mode === 'sebagian' ? (
-        <Input
-          label="Jumlah diterima"
-          prefix="Rp"
-          inputMode="numeric"
-          value={paid > 0 ? String(paid) : ''}
-          onChange={(e) =>
-            store.setPayment(mitra.id, Number(e.target.value.replace(/\D/g, '')) || 0)
-          }
-          helperText={
-            paid === 0
-              ? 'Masukkan jumlah yang diterima'
-              : shortfall > 0
-                ? `Kurang ${rupiah(shortfall)} dari tagihan`
-                : shortfall < 0
-                  ? `Lebih ${rupiah(-shortfall)} dari tagihan`
-                  : 'Sama dengan tagihan penuh'
-          }
-          state={paid > 0 && shortfall <= 0 ? 'valid' : 'default'}
-        />
+        <Card>
+          <div className="flex flex-col gap-12">
+            <Input
+              label="Jumlah diterima"
+              prefix="Rp"
+              inputMode="numeric"
+              value={paid > 0 ? String(paid) : ''}
+              onChange={(e) =>
+                store.setPayment(mitra.id, Number(e.target.value.replace(/\D/g, '')) || 0, mitra.due)
+              }
+              helperText={
+                paid === 0
+                  ? 'Masukkan jumlah yang diterima'
+                  : shortfall > 0
+                    ? `Sisa ${rupiah(shortfall)} — buat janji bayar untuk sisanya di bawah.`
+                    : shortfall < 0
+                      ? `Lebih ${rupiah(-shortfall)} dari tagihan`
+                      : 'Sama dengan tagihan penuh'
+              }
+              state={paid > 0 && shortfall <= 0 ? 'valid' : 'default'}
+            />
+
+            {/* Same rule as the majelis sheet: a balance is only a record once
+                it has a date. Asked only once money is actually on file — an
+                empty amount field has no "sisa" to promise. */}
+            {paid > 0 && shortfall > 0 ? (
+              <ChipGroup label="Janji bayar sisanya">
+                {PTP_OPTIONS.map((option) => (
+                  <Chip
+                    key={option.label}
+                    selected={
+                      s.partialPtp[mitra.id] !== undefined &&
+                      s.partialPtp[mitra.id] === option.value
+                    }
+                    onClick={() => store.setPartialPtp(mitra.id, option.value)}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </ChipGroup>
+            ) : null}
+          </div>
+        </Card>
       ) : null}
 
       {/* --- Nobody home, or a recorded no. Either way the remaining questions

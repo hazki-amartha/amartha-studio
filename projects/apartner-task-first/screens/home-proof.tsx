@@ -58,7 +58,11 @@ export function HomeProofScreen() {
     status === 'lunas'
       ? rupiah(paid)
       : status === 'sebagian'
-        ? `${rupiah(paid)} · kurang ${rupiah(remainingOf(s, mitra))}`
+        ? // The balance and its date, because both were entered on step 1 and
+          // this card's job is to read back everything the BP recorded.
+          `${rupiah(paid)} · sisa ${rupiah(remainingOf(s, mitra))} ${
+            s.partialPtp[mitra.id] ? `· janji ${s.partialPtp[mitra.id]}` : '· tanpa janji'
+          }`
         : status === 'tidak'
           ? `Tidak bayar · ${refusal?.ptp ? `janji ${refusal.ptp}` : 'tanpa janji'}`
           : 'Belum dicatat'

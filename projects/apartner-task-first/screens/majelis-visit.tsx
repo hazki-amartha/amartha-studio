@@ -120,10 +120,13 @@ export function MajelisVisitScreen() {
   function openTagih(mitra: Mitra) {
     const refusal = s.nonPayments[mitra.id]
     const paid = paidOf(s, mitra)
-    setMode(refusal ? 'tidak' : paid > 0 && paid < mitra.due ? 'sebagian' : 'penuh')
+    const partial = paid > 0 && paid < mitra.due
+    setMode(refusal ? 'tidak' : partial ? 'sebagian' : 'penuh')
     setDraft(String(paid > 0 ? paid : mitra.due))
     setReason(refusal?.reason ?? null)
-    setPtp(refusal ? refusal.ptp : undefined)
+    // One `ptp` field serves both outcomes, so reopening restores whichever
+    // promise is actually on file — the refusal's, or the part-payment's.
+    setPtp(refusal ? refusal.ptp : partial ? s.partialPtp[mitra.id] : undefined)
     setCatatanFor(mitra)
   }
 
@@ -133,11 +136,17 @@ export function MajelisVisitScreen() {
       if (!reason) return
       store.setNonPayment(catatanFor.id, { reason, ptp: ptp ?? null })
     } else if (mode === 'penuh') {
-      store.setPayment(catatanFor.id, catatanFor.due)
+      store.setPayment(catatanFor.id, catatanFor.due, catatanFor.due)
     } else {
       // The amount actually received, not an increment — so reopening the sheet
       // to fix a typo corrects the figure instead of adding to it.
-      store.setPayment(catatanFor.id, Number(draft.replace(/\D/g, '')) || 0)
+      const amount = Number(draft.replace(/\D/g, '')) || 0
+      store.setPayment(catatanFor.id, amount, catatanFor.due)
+      // A promise only survives if a balance survives with it — setPayment
+      // already drops it when the amount covers the bill.
+      if (amount < catatanFor.due && ptp !== undefined) {
+        store.setPartialPtp(catatanFor.id, ptp)
+      }
     }
     setCatatanFor(null)
   }
@@ -264,6 +273,15 @@ export function MajelisVisitScreen() {
                     {refusal?.reason}
                     {refusal?.ptp ? ` · Janji ${refusal.ptp}` : ' · Tanpa janji'}
                   </span>
+                ) : status === 'sebagian' ? (
+                  // The balance's promise, on the same line a refusal uses for
+                  // its own — a partial is an open item too, and the list is
+                  // where the BP checks what is still owed to whom.
+                  <span className="truncate text-12 text-caption">
+                    {s.partialPtp[mitra.id]
+                      ? `Sisa dijanjikan ${s.partialPtp[mitra.id]}`
+                      : 'Sisa tanpa janji'}
+                  </span>
                 ) : null}
               </div>
               {status === 'lunas' ? (
@@ -343,22 +361,42 @@ export function MajelisVisitScreen() {
             />
           </div>
 
+          {/* A part-payment leaves a balance, and a balance with no date on it
+              is the same unchased gap as an unrecorded refusal — so the shortfall
+              asks the same "kapan?" that "Tidak Bayar" asks. It appears only once
+              there IS a shortfall: typing the full amount, or overpaying, closes
+              the bill and the question with it. */}
           {mode === 'sebagian' ? (
-            <Input
-              label="Jumlah diterima"
-              prefix="Rp"
-              inputMode="numeric"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
-              helperText={
-                shortfall > 0
-                  ? `Kurang ${rupiah(shortfall)} dari tagihan`
-                  : shortfall < 0
-                    ? `Lebih ${rupiah(-shortfall)} dari tagihan`
-                    : 'Sama dengan tagihan penuh'
-              }
-              state={shortfall > 0 ? 'default' : 'valid'}
-            />
+            <>
+              <Input
+                label="Jumlah diterima"
+                prefix="Rp"
+                inputMode="numeric"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
+                helperText={
+                  shortfall > 0
+                    ? `Sisa ${rupiah(shortfall)} — buat janji bayar untuk sisanya di bawah.`
+                    : shortfall < 0
+                      ? `Lebih ${rupiah(-shortfall)} dari tagihan`
+                      : 'Sama dengan tagihan penuh'
+                }
+                state={shortfall > 0 ? 'default' : 'valid'}
+              />
+              {shortfall > 0 ? (
+                <ChipGroup label="Janji bayar sisanya">
+                  {PTP_OPTIONS.map((option) => (
+                    <Chip
+                      key={option.label}
+                      selected={ptp !== undefined && ptp === option.value}
+                      onClick={() => setPtp(option.value)}
+                    >
+                      {option.label}
+                    </Chip>
+                  ))}
+                </ChipGroup>
+              ) : null}
+            </>
           ) : null}
 
           {mode === 'tidak' ? (
