@@ -48,7 +48,7 @@ So: the app does the synthesising, the BP just does the visiting.
   sit underneath in collapsed sections, for when the BP wants to dig in rather
   than by default.
 - **Jalur Naik Modal** — the capital ladder for one mitra, reached from a
-  "Bahan obrolan" row on her page. Deliberately reframed from the mitra-facing
+  row on her identity card. Deliberately reframed from the mitra-facing
   reference it started as into a **BP briefing**: the BP reads a quoted line out
   loud, then turns the phone around so the mitra can read the rail herself. It
   leads with the sentence to say, not the ladder — the rungs are evidence for a

@@ -17,6 +17,7 @@
 //
 // Same rule as the schedule's "Sekarang" card: the app synthesises, the BP acts.
 
+import type { ReactNode } from 'react'
 import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
@@ -25,6 +26,7 @@ import {
   IconCalendar,
   IconChat,
   IconCheck,
+  IconChevronRight,
   IconGift,
   IconPin,
   IconTrendUp,
@@ -80,11 +82,16 @@ export function MitraScreen() {
 
   // The ladder row's subtitle is the ladder's own conclusion, not a teaser — a
   // BP who never opens the screen should still leave with the one fact it holds.
+  //
+  // It does NOT repeat the word the badge is already carrying: with the badge
+  // reading "Tertahan", a line reading "Tertahan — tunggakan Rp1.000.000" said
+  // it twice in one row and spent the subtitle's width saying nothing new. The
+  // badge states the status; the subtitle states the number behind it.
   const ladder = ladderOf(mitra)
   const ladderTold = taken.includes(LADDER_ACTION)
   const ladderLine =
     ladder.status === 'tertahan'
-      ? `Tertahan — tunggakan ${rupiah(ladder.arrears)}`
+      ? `Tunggakan ${rupiah(ladder.arrears)}`
       : ladder.current
         ? `${ladder.current.detail} menuju ${ladder.current.title}`
         : 'Siklus selesai — bisa ajukan pembiayaan baru'
@@ -93,23 +100,75 @@ export function MitraScreen() {
     store.addFollowUp(mitra.id, action.id)
   }
 
+  // The bar reads "Detail Mitra", not her name: the card below now carries the
+  // name, and with the bar pinned the two sat on screen together saying the same
+  // thing twice. The header says what the SCREEN is, the card says who she is.
   return (
-    <Screen topBar={<NavigationHeader title={mitra.name} onBack={() => flow.back()} />}>
-      {/* Who she is, in one card — enough to be sure you opened the right woman,
-          and no more. The name is already in the header, so this line carries
-          what the header cannot: her group and how long she has been a mitra. */}
+    <Screen topBar={<NavigationHeader title="Detail Mitra" onBack={() => flow.back()} />}>
+      {/* Who she is and how to reach her — one card, not three.
+          These were separate blocks (identity, then a "Hubungi" section, then a
+          "Bahan obrolan" section), which spent two section headings and two card
+          borders on what is really one answer to one question: who am I looking
+          at, and what do I know about her standing? Three bordered blocks in a
+          row also read as three ranked things to consider, which they never
+          were — only the recommendation below is ranked.
+          Inside, the divisions survive as hairlines: identity, then the two ways
+          to reach her, then the ladder. Same grouping, a third of the chrome. */}
       <Card>
-        <div className="flex items-center gap-12">
-          <Avatar name={mitra.name} />
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-14 font-bold text-default">{majelis.name}</span>
-            <span className="truncate text-12 text-caption">Mitra sejak {profile.joined}</span>
+        <div className="flex flex-col gap-12">
+          {/* Tenure sits on its own full-width line rather than as a third line
+              in the name column. Beside a "Menunggak 34 hari" badge that column
+              is only ~98px wide, and "Mitra sejak Oktober 2024" needs ~146px —
+              it truncated to "Mitra sejak Oktober 2…", which is worse than
+              useless: a date clipped mid-year reads as a rendering fault. */}
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-12">
+              <Avatar name={mitra.name} />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-14 font-bold text-default">{mitra.name}</span>
+                <span className="truncate text-12 text-caption">{majelis.name}</span>
+              </div>
+              {mitra.dpd > 0 ? (
+                <Badge intent={mitra.dpd >= 30 ? 'red' : 'orange'}>Menunggak {mitra.dpd} hari</Badge>
+              ) : (
+                <Badge intent="green">Lancar</Badge>
+              )}
+            </div>
+            <span className="text-12 text-caption">Mitra sejak {profile.joined}</span>
           </div>
-          {mitra.dpd > 0 ? (
-            <Badge intent={mitra.dpd >= 30 ? 'red' : 'orange'}>Menunggak {mitra.dpd} hari</Badge>
-          ) : (
-            <Badge intent="green">Lancar</Badge>
-          )}
+
+          {/* Reaching her is plumbing, never a recommendation — so these sit
+              inside her identity block rather than competing as their own
+              section with the one thing that IS recommended. */}
+          {contacts.map((action) => (
+            <CardRow
+              key={action.id}
+              icon={<ActionIcon kind={action.kind} />}
+              title={action.label}
+              subtitle={action.why}
+              trailing={taken.includes(action.id) ? <Badge intent="neutral">Sudah</Badge> : null}
+              onClick={() => take(action)}
+            />
+          ))}
+
+          {/* The ladder. Not an action and not a record — it is a fact about her
+              standing, which is what this card is for. Always shown, including
+              when it is held: a held ladder is the more useful conversation, not
+              a reason to hide the row. */}
+          <CardRow
+            tint="primary"
+            icon={<IconTrendUp size={20} />}
+            title="Jalur Naik Modal"
+            subtitle={ladderLine}
+            trailing={
+              ladderTold ? (
+                <Badge intent="neutral">Sudah</Badge>
+              ) : ladder.status === 'tertahan' ? (
+                <Badge intent="orange">Tertahan</Badge>
+              ) : null
+            }
+            onClick={() => flow.go('ladder')}
+          />
         </div>
       </Card>
 
@@ -154,59 +213,6 @@ export function MitraScreen() {
             </Button>
           </div>
         )}
-      </section>
-
-      {/* Reaching her is plumbing, not a recommendation — so it is a quiet list
-          under the one thing that IS recommended, never competing with it. */}
-      <section className="flex flex-col gap-8">
-        <Overline>Hubungi</Overline>
-        {contacts.map((action) => {
-          const done = taken.includes(action.id)
-          return (
-            <button
-              key={action.id}
-              type="button"
-              onClick={() => take(action)}
-              className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left"
-            >
-              <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-8 bg-neutral-50 text-neutral-600">
-                <ActionIcon kind={action.kind} />
-              </span>
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="text-14 font-bold text-default">{action.label}</span>
-                <span className="truncate text-12 text-caption">{action.why}</span>
-              </div>
-              {done ? <Badge intent="neutral">Sudah</Badge> : null}
-            </button>
-          )
-        })}
-      </section>
-
-      {/* Not an action and not a record — the one thing on this page meant to be
-          said rather than done, so it sits exactly between them: after "what do
-          I do about her", before "what is her history". Always shown, including
-          when the ladder is held, because a held ladder is the more useful
-          conversation rather than a reason to hide the row. */}
-      <section className="flex flex-col gap-8">
-        <Overline>Bahan obrolan</Overline>
-        <button
-          type="button"
-          onClick={() => flow.go('ladder')}
-          className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left"
-        >
-          <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-primary-500">
-            <IconTrendUp size={20} />
-          </span>
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-14 font-bold text-default">Jalur Naik Modal</span>
-            <span className="truncate text-12 text-caption">{ladderLine}</span>
-          </div>
-          {ladderTold ? (
-            <Badge intent="neutral">Sudah</Badge>
-          ) : ladder.status === 'tertahan' ? (
-            <Badge intent="orange">Tertahan</Badge>
-          ) : null}
-        </button>
       </section>
 
       {/* --- The record. Below the actions and collapsed, on purpose. It is here
@@ -262,6 +268,65 @@ export function MitraScreen() {
         </Collapsible>
       </section>
     </Screen>
+  )
+}
+
+/**
+ * A tappable row inside the identity card: icon, title, one line under it, and
+ * an optional trailing badge.
+ *
+ * The hairline above each row is what lets three different kinds of thing —
+ * identity, contact, ladder — share one card without the groupings dissolving.
+ * It is full-bleed (`-mx-12` against the card's 12px padding) so it reads as a
+ * division of the card rather than an underline on the row.
+ *
+ * `border-default`, not `border-light`: light is neutral-50 (#F9FAF8), which on
+ * a white card is invisible — the dividers were rendering and simply could not
+ * be seen, which defeats the whole reason the rows were merged into one card.
+ *
+ * The chevron is the tell that the row goes somewhere. The contact rows only
+ * record a tap today (NOTES, open question 4), so it is a promise the prototype
+ * half-keeps — but it is the same affordance the mitra rows elsewhere use, and
+ * inconsistency here would be the worse lie.
+ */
+function CardRow({
+  icon,
+  title,
+  subtitle,
+  trailing,
+  onClick,
+  tint = 'neutral',
+}: {
+  icon: ReactNode
+  title: string
+  subtitle: string
+  trailing?: ReactNode
+  onClick: () => void
+  tint?: 'neutral' | 'primary'
+}) {
+  const tone =
+    tint === 'primary' ? 'bg-primary-50 text-primary-500' : 'bg-neutral-50 text-neutral-600'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="-mx-12 flex items-center gap-12 border-t border-default px-12 pt-12 text-left"
+    >
+      <span
+        className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-8 ${tone}`}
+      >
+        {icon}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-14 font-bold text-default">{title}</span>
+        <span className="truncate text-12 text-caption">{subtitle}</span>
+      </div>
+      {trailing}
+      <span className="shrink-0 text-disabled">
+        <IconChevronRight size={20} />
+      </span>
+    </button>
   )
 }
 
