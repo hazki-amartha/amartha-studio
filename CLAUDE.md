@@ -11,50 +11,35 @@ work — it is the build spec for the tool itself, not for prototypes.
 
 ## 1. Scope — two tiers, gated at the merge
 
-Nothing here is read-only. The gate is **where work lands**, not whether you may
-write it — so a good platform idea isn't lost just because the owner is asleep.
+Everything is editable. The gate is **where work lands**, not what you may touch.
 
-**Tier 1 — project work. Yours.**
+- **Tier 1 — project work.** `projects/<slug>/**` plus one appended line in
+  `projects/registry.ts`. Auto-merges once CI is green; nobody reviews it, so §6
+  is the only gate.
+- **Tier 2 — shared work.** `design-system/`, `platform/`, `app/`,
+  `tailwind.config.ts`, `CLAUDE.md`, CI, config. Blocks until Hazki reviews
+  (`.github/CODEOWNERS`).
 
-- `projects/<slug>/**` — the project you were asked to work on.
-- **One** appended line in `projects/registry.ts` (see §3).
+Touching Tier 2: keep it in **its own commit**, tell the designer first (it costs
+them a review), and prefer a project-local component (§4) when only your
+prototype wants it.
 
-Merges with **no human review** once CI is green. Nobody checks it but you, so
-§6 is not a formality — it is the only gate.
+`platform/types.ts` is **frozen** — it's the contract between every project and
+the runtime. If you truly can't work around it, ask.
 
-**Tier 2 — shared work. The owner's (Hazki).**
-
-`design-system/`, `platform/`, `app/`, `tailwind.config.ts`, `CLAUDE.md`, CI, and
-all other config. You **may** edit these — but a PR touching them **blocks until
-Hazki reviews it** (enforced by `.github/CODEOWNERS`, not by good behaviour).
-
-When you touch Tier 2:
-
-1. **Isolate it in its own commit** — never mix shared and project changes in one
-   commit. A reviewer must be able to take one and revert the other.
-2. **Say so.** Tell the designer you're crossing into Tier 2 and why, before you
-   start. It costs them a review; that's their call to make, not yours.
-3. **Prefer Tier 1.** A project-local component in `projects/<slug>/lib/` (§4)
-   ships today and gets promoted later. Reach for Tier 2 only when the change
-   genuinely belongs to everyone — and if it's only *your* prototype that wants
-   it, that's the tell that it doesn't.
-
-`platform/types.ts` is **frozen**: it is the contract between every project and
-the runtime. Extend the internal runtime instead, and if you truly can't, stop
-and ask.
-
-**Never edit another designer's `projects/<slug>/`.** CODEOWNERS does not enforce
-this — `owner` in `project.config.ts` is a display name, not a GitHub account, so
-this rule holds only because you follow it. Project work auto-merges: if you
-rewrite someone else's prototype, it lands unreviewed and nobody finds out.
+**Never edit another designer's `projects/<slug>/`.** Nothing enforces this —
+`owner` is a display name, not a GitHub account — and project work auto-merges,
+so a mistake here lands unreviewed.
 
 ---
 
 ## 2. Vocabulary — build only from the design system
 
 Compose screens **only** from `@/design-system/components` and
-`@/platform/primitives`. Read `design-system/guidelines/` before building —
-`GUIDELINES.md`, the `foundations/` docs, and the relevant `components/*.md`.
+`@/platform/primitives`. Read **`design-system/guidelines/CHEATSHEET.md`** before
+building — that one file, not the whole folder. It carries every token and every
+component signature. Open a `components/*.md` doc only when the cheatsheet
+genuinely doesn't answer your question about a component you're actually using.
 
 **Never** hardcode hex colors, font sizes, spacing, or radii. **Never** use
 Tailwind arbitrary values (`p-[13px]`, `text-[#853291]`, `w-[200px]`) — the lint
@@ -106,18 +91,25 @@ A new project = **copy `projects/_template/` → `projects/<slug>/`**, then:
    acceptable fallback. Never guess.
 2. Write screens: **one file per screen** in `screens/`, `'use client'` at top.
 3. List screens in `index.ts` — each with `id` (kebab-case, stable), `title`,
-   `component`, optional `notes` and `flowsTo`. Exactly **one** screen sets
-   `entry: true`.
+   and `component`. Exactly **one** screen sets `entry: true`. That's the whole
+   requirement; `notes` and `flowsTo` are opt-in extras (see below).
 4. Register in `projects/registry.ts` — append **one** line above the marker
    comment; never modify or reorder other lines:
    ```ts
    '<slug>': () => import('./<slug>').then((m) => m.project),
    ```
 
-`notes` are annotations shown beside the device on desktop. `flowsTo` is
-descriptive metadata for the flow view — actual navigation happens via
-`useFlow().go(id)` inside the component. Keep `flowsTo` and your `go()` calls in
-sync. Optional project-local state / mock data goes in `projects/<slug>/lib/`.
+**`notes` — only when the designer asks for them.** They're annotations shown
+beside the device on desktop, and they are genuinely useful when someone wants
+them. Do **not** write them by default, and never write design rationale nobody
+requested: it costs more time than the screen did. Default to omitting the field.
+
+**`flowsTo` — optional.** It's descriptive metadata for the flow view; real
+navigation is `useFlow().go(id)` in the component. Add it when a flow diagram
+would help the designer, skip it otherwise. If you do add it, `check:flows`
+requires every `to` be a real screen id.
+
+Project-local state / mock data goes in `projects/<slug>/lib/`.
 
 A screen obtains navigation from `useFlow()` (`@/platform/runtime`): `go(id)`
 pushes, `back()` pops, `current` is the active id. Screens receive no props.
@@ -139,14 +131,16 @@ If a screen needs a component that `@/design-system/components` doesn't provide:
 
 1. Build a **project-local** version in `projects/<slug>/lib/`, using **only**
    tokens and existing design-system components (same vocabulary rules as §2).
-2. Add a line to `projects/<slug>/NOTES.md` (create it if absent) proposing the
-   component for promotion into the design system — name, why, where used.
+2. Add **one line** to `projects/<slug>/NOTES.md` (create it if absent) — name,
+   why, where used. One line, not a write-up.
 
-This stays the **default** even though §1 now lets you edit `design-system/`:
-project-local ships today and can't break anyone else, and a component earns
-promotion by being wanted twice. Editing `design-system/` to satisfy one
-prototype is how a design system rots. The owner promotes local components
-upstream later — `NOTES.md` is how they learn a candidate exists.
+This is the only thing `NOTES.md` is for. Don't write a project README, a design
+rationale, or a summary of what you built unless the designer asks — the repo and
+the prototype already say that.
+
+Project-local stays the default even though §1 lets you edit `design-system/`: it
+ships today, can't break anyone else, and a component earns promotion by being
+wanted twice. `NOTES.md` is just how the owner learns a candidate exists.
 
 ---
 
@@ -186,16 +180,24 @@ report the rejection as a problem — the PR *is* the route.
 
 ## 6. Verification — before declaring done
 
-Run and confirm all pass:
+Run these three and confirm all pass. They take about **12 seconds** together —
+there is no reason to skip them, and no reason to do more.
 
 - `npm run lint` — clean (catches arbitrary values / off-system classes).
-- `npm run build` — clean (type-checks every screen).
-- `npm run check:flows` — validates unique `entry`, unique screen ids, and that
-  every `flowsTo.to` targets an existing screen id.
-- The prototype renders from its `entry` screen and each `go()` reaches a real
-  screen.
+- `npm run build` — clean (type-checks every screen, so every `go()` target and
+  import is verified).
+- `npm run check:flows` — unique `entry`, unique screen ids, and every
+  `flowsTo.to` resolves.
 
-If any check fails, fix it before telling the designer the work is done.
+If any fails, fix it before telling the designer the work is done.
+
+**That is the whole gate. Do not add to it.** Specifically: **do not open a
+browser, drive a headless session, or take screenshots to "verify" a UI change.**
+The designer previews their own work — that's what the dev server and the preview
+link are for, and looking at it is their job, not yours. A visual pass is
+minutes of work to re-confirm what they can see in seconds. Only do it if the
+designer explicitly asks you to look at something, or you're chasing a bug that
+genuinely can't be seen in the code.
 
 ---
 
