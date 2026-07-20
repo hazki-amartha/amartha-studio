@@ -102,7 +102,7 @@ export function MajelisDetailScreen() {
     return (
       <Screen topBar={<Header title={g.n} onBack={() => setVisit(false)} />}>
         <Card className="flex flex-col items-center py-20 text-center">
-          <span className="mb-12 flex h-56 w-56 items-center justify-center rounded-full bg-green-50 text-green-600">
+          <span className="mb-12 flex h-48 w-48 items-center justify-center rounded-full bg-green-50 text-green-600">
             <IconCheck size={24} />
           </span>
           <p className="text-16 font-bold text-default">Kumpulan tersimpan</p>
@@ -149,7 +149,7 @@ export function MajelisDetailScreen() {
       ) : null}
 
       {!visit && isKumpulanDay && !submitted ? (
-        <div className="-mx-16 flex items-center gap-8 border-b border-primary-200 bg-primary-50 px-16 py-10">
+        <div className="-mx-16 flex items-center gap-8 border-b border-primary-200 bg-primary-50 px-16 py-8">
           <div className="min-w-0 flex-1">
             <p className="text-14 font-bold text-primary-600">Jadwal kumpulan hari ini</p>
             <p className="mt-2 text-10 text-caption">
@@ -163,7 +163,7 @@ export function MajelisDetailScreen() {
       ) : null}
 
       {!visit && submitted ? (
-        <div className="-mx-16 flex items-center gap-8 border-b border-green-500 bg-green-50 px-16 py-10">
+        <div className="-mx-16 flex items-center gap-8 border-b border-green-500 bg-green-50 px-16 py-8">
           <span className="shrink-0 text-green-600">
             <IconCheck size={20} />
           </span>
@@ -177,7 +177,7 @@ export function MajelisDetailScreen() {
       ) : null}
 
       {visit ? (
-        <div className="-mx-16 flex items-center gap-8 border-b border-primary-200 bg-primary-50 px-16 py-10">
+        <div className="-mx-16 flex items-center gap-8 border-b border-primary-200 bg-primary-50 px-16 py-8">
           <div className="min-w-0 flex-1">
             <p className="text-14 font-bold text-primary-600">Mode kunjungan kumpulan</p>
             <p className="mt-2 text-10 text-caption">Tandai kehadiran &amp; tagih pembayaran</p>
@@ -229,7 +229,7 @@ export function MajelisDetailScreen() {
           ) : null}
         </div>
 
-        <div className="flex gap-6 overflow-x-auto">
+        <div className="flex gap-4 overflow-x-auto">
           {MAJ_FILTERS.map((f) => {
             const on = filter === f.k
             return (
@@ -237,7 +237,7 @@ export function MajelisDetailScreen() {
                 key={f.k}
                 type="button"
                 onClick={() => setFilter(f.k)}
-                className={`shrink-0 whitespace-nowrap rounded-full border px-12 py-6 text-12 font-bold ${
+                className={`shrink-0 whitespace-nowrap rounded-full border px-12 py-4 text-12 font-bold ${
                   on ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-default bg-neutral-white text-neutral-600'
                 }`}
               >
@@ -254,7 +254,7 @@ export function MajelisDetailScreen() {
         {list.length === 0 ? (
           <EmptyState title="Tidak ada mitra" body="Coba ubah filter atau kata kunci." />
         ) : (
-          <ul className="flex flex-col gap-10">
+          <ul className="flex flex-col gap-8">
             {list.map((m) => (
               <li key={m.n}>
                 <MajelisMitraCard
@@ -277,7 +277,7 @@ export function MajelisDetailScreen() {
             <h2 className="text-14 font-bold text-default">Tugas tambahan</h2>
             <p className="text-12 text-caption">Penawaran untuk sebagian mitra saat kumpulan.</p>
           </div>
-          <ul className="flex flex-col gap-10">
+          <ul className="flex flex-col gap-8">
             {additionalMitra.map((m) => (
               <li key={m.n}>
                 <AdditionalTaskCard m={m} g={g} rec={records[m.n]} setRec={(patch) => setRec(m.n, patch)} />
@@ -303,7 +303,7 @@ export function MajelisDetailScreen() {
                   key={p.k}
                   type="button"
                   onClick={() => setPrep((v) => ({ ...v, [p.k]: true }))}
-                  className={`flex flex-1 flex-col items-center gap-6 rounded-8 border px-8 py-14 ${
+                  className={`flex flex-1 flex-col items-center gap-4 rounded-8 border px-8 py-12 ${
                     done ? 'border-green-500 bg-green-50' : 'border-default bg-neutral-white'
                   }`}
                 >
@@ -319,7 +319,7 @@ export function MajelisDetailScreen() {
       ) : null}
 
       {visit ? (
-        <div className="sticky bottom-0 -mx-16 mt-auto flex flex-col gap-6 border-t border-default bg-neutral-white px-16 py-10">
+        <div className="sticky bottom-0 z-10 -mx-16 mt-auto flex flex-col gap-4 border-t border-default bg-neutral-white px-16 py-12">
           <Button disabled={!prep.geo || !prep.photo} onClick={() => setSubmitted(true)}>
             Submit Kumpulan
           </Button>
@@ -358,7 +358,7 @@ function Header({
         <button
           type="button"
           onClick={onToggleInfo}
-          className={`flex shrink-0 items-center gap-4 rounded-full border px-12 py-6 text-12 font-bold ${
+          className={`flex shrink-0 items-center gap-4 rounded-full border px-12 py-4 text-12 font-bold ${
             infoOpen ? 'border-primary-500 bg-primary-500 text-neutral-white' : 'border-primary-200 bg-primary-50 text-primary-600'
           }`}
         >
@@ -387,7 +387,7 @@ function StatusRow({
 }) {
   const tone = muted ? 'text-disabled' : good ? 'text-green-600' : warn ? 'text-orange-700' : 'text-default'
   return (
-    <div className={`flex items-center px-14 py-11 ${last ? '' : 'border-b border-light'}`}>
+    <div className={`flex items-center px-12 py-12 ${last ? '' : 'border-b border-light'}`}>
       <span className="flex-1 text-12 text-caption">{label}</span>
       <span className={`text-12 font-bold ${tone}`}>{value}</span>
     </div>
@@ -460,13 +460,13 @@ function MajelisMitraCard({
       <button
         type="button"
         onClick={visit ? undefined : onOpen}
-        className={`flex w-full items-center gap-10 p-14 text-left ${visit ? 'cursor-default' : ''}`}
+        className={`flex w-full items-center gap-8 p-12 text-left ${visit ? 'cursor-default' : ''}`}
       >
         <Avatar tone={tone} size={40}>
           {m.n.charAt(0)}
         </Avatar>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex flex-wrap items-center gap-4">
             <span className="text-14 font-bold text-default">{m.n}</span>
             {isKetua ? <Badge intent="primary">Ketua</Badge> : null}
           </div>
@@ -480,13 +480,13 @@ function MajelisMitraCard({
       </button>
 
       {!visit && !isPending ? (
-        <div className="flex gap-8 px-14 pb-12">
-          <div className="flex-1 rounded-8 bg-neutral-50 px-10 py-8">
+        <div className="flex gap-8 px-12 pb-12">
+          <div className="flex-1 rounded-8 bg-neutral-50 px-8 py-8">
             <p className="text-10 text-disabled">Outstanding</p>
             <p className="mt-2 text-12 font-bold text-default">{rp(info.outstanding)}</p>
             <p className="mt-2 text-10 text-disabled">dari {rp(info.total)}</p>
           </div>
-          <div className="flex-1 rounded-8 bg-neutral-50 px-10 py-8">
+          <div className="flex-1 rounded-8 bg-neutral-50 px-8 py-8">
             <p className="text-10 text-disabled">Angsuran / minggu</p>
             <p className="mt-2 text-12 font-bold text-default">{rp(info.weekly)}</p>
             <p className="mt-2 text-10 text-disabled">
@@ -497,8 +497,8 @@ function MajelisMitraCard({
       ) : null}
 
       {visit && !isPending ? (
-        <div className="flex flex-col gap-12 border-t border-light px-14 pb-12 pt-10">
-          <div className="flex items-center gap-10">
+        <div className="flex flex-col gap-12 border-t border-light px-12 pb-12 pt-8">
+          <div className="flex items-center gap-8">
             <span className="flex-1 text-12 text-neutral-700">Kehadiran</span>
             <ChipPicker
               options={[
@@ -510,14 +510,14 @@ function MajelisMitraCard({
             />
           </div>
 
-          <div className="flex items-center gap-10 border-t border-light pt-12">
+          <div className="flex items-center gap-8 border-t border-light pt-12">
             <div className="min-w-0 flex-1">
               <p className="text-12 text-neutral-700">Pembayaran</p>
               <p className="mt-2 text-10 text-disabled">{rp(info.weekly)} / minggu</p>
             </div>
             {paidThisWeek ? (
               rec?.outcome === 'paid-partial' ? (
-                <div className="flex shrink-0 items-center gap-6">
+                <div className="flex shrink-0 items-center gap-4">
                   <div className="text-right">
                     <Badge intent="orange">Sebagian {rp(rec.amount ?? 0)}</Badge>
                     {rec.ptp ? <p className="mt-2 text-10 text-disabled">Sisa janji {rec.ptp}</p> : null}
@@ -534,7 +534,7 @@ function MajelisMitraCard({
                 <Badge intent="green">{rec?.outcome === 'paid-full' ? 'Tertagih' : 'Lunas'}</Badge>
               )
             ) : rec?.outcome === 'ptp' ? (
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4">
                 <Badge intent="orange">Janji {rec.ptp}</Badge>
                 <button type="button" onClick={() => setRec({ outcome: null, ptp: null })} className="text-10 font-bold text-link">
                   Ubah
@@ -550,7 +550,7 @@ function MajelisMitraCard({
       ) : null}
 
       {visit && isPending ? (
-        <p className="px-14 pb-12 text-10 text-disabled">Pengajuan baru — belum ada tagihan.</p>
+        <p className="px-12 pb-12 text-10 text-disabled">Pengajuan baru — belum ada tagihan.</p>
       ) : null}
 
       <BottomSheet
@@ -563,9 +563,12 @@ function MajelisMitraCard({
             {payKind === 'notpaid' ? 'Simpan janji bayar' : payKind === 'partial' ? 'Simpan bayar & janji' : 'Konfirmasi pembayaran'}
           </Button>
         }
-        slot={
-          <div className="flex flex-col gap-14">
-            <div className="flex flex-col gap-8">
+        size="md"
+      >
+        {/* Form content belongs in the body, not `slot` — `slot` is the
+            illustration surface (centered text on a primary-50 fill). */}
+        <div className="flex flex-col gap-12">
+          <div className="flex flex-col gap-8">
               <SelectableCard
                 name={`pay-${m.n}`}
                 title="Bayar penuh"
@@ -609,7 +612,7 @@ function MajelisMitraCard({
                 />
                 {partialValue > 0 && partialValue < info.weekly ? (
                   <div>
-                    <p className="mb-6 text-10 text-disabled">Kapan mitra bayar sisanya?</p>
+                    <p className="mb-4 text-10 text-disabled">Kapan mitra bayar sisanya?</p>
                     <ChipPicker
                       options={ptps.map((o) => ({ l: `${o.l} (${o.date})`, v: String(o.day) }))}
                       value={ptpDay ? String(ptpDay.day) : null}
@@ -622,7 +625,7 @@ function MajelisMitraCard({
 
             {payKind === 'notpaid' ? (
               <div>
-                <p className="mb-6 text-10 text-disabled">Kapan mitra berjanji bayar?</p>
+                <p className="mb-4 text-10 text-disabled">Kapan mitra berjanji bayar?</p>
                 <ChipPicker
                   options={ptps.map((o) => ({ l: `${o.l} (${o.date})`, v: String(o.day) }))}
                   value={ptpDay ? String(ptpDay.day) : null}
@@ -630,9 +633,8 @@ function MajelisMitraCard({
                 />
               </div>
             ) : null}
-          </div>
-        }
-      />
+        </div>
+      </BottomSheet>
     </Card>
   )
 }
@@ -687,7 +689,7 @@ function AdditionalTaskCard({
 
   return (
     <Card>
-      <div className="flex items-center gap-10">
+      <div className="flex items-center gap-8">
         <Avatar tone="primary" size={32}>
           {m.n.charAt(0)}
         </Avatar>
@@ -700,7 +702,7 @@ function AdditionalTaskCard({
       </div>
 
       {info.nearRenewal ? (
-        <div className="mt-10 rounded-8 border border-primary-200 bg-primary-50 px-12 py-10">
+        <div className="mt-8 rounded-8 border border-primary-200 bg-primary-50 px-12 py-8">
           <p className="text-12 font-bold text-primary-600">Pinjaman hampir lunas</p>
           <p className="mt-2 text-10 text-caption">Tawarkan pencairan ulang untuk siklus berikutnya.</p>
           {rec?.renewalStarted ? (
@@ -714,7 +716,7 @@ function AdditionalTaskCard({
       ) : null}
 
       {offersCelengan(m) ? (
-        <div className="mt-10 rounded-8 border border-green-500 bg-green-50 px-12 py-10">
+        <div className="mt-8 rounded-8 border border-green-500 bg-green-50 px-12 py-8">
           <p className="text-12 font-bold text-green-600">Belum punya Celengan</p>
           <p className="mt-2 text-10 text-caption">Repayment lancar — tawarkan buka/top-up Celengan.</p>
           {rec?.celenganOffered ? (

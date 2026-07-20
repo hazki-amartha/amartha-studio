@@ -207,7 +207,7 @@ export function HomeScreen() {
         <SectionHeader
           title="Tugas"
           trailing={
-            <div className="flex shrink-0 items-center gap-10">
+            <div className="flex shrink-0 items-center gap-8">
               <span className="text-12 text-caption">
                 {filtered ? `${tasks.length} dari ${TASKS.length} tugas` : '2 dari 10 tugas selesai'}
               </span>
@@ -216,7 +216,7 @@ export function HomeScreen() {
                 onClick={() => setMenu('sort')}
                 aria-label="Urutkan tugas"
                 title="Urutkan"
-                className={`flex h-30 w-30 items-center justify-center rounded-8 border ${
+                className={`flex h-32 w-32 items-center justify-center rounded-8 border ${
                   sort !== 'default' ? 'border-primary-200 bg-primary-50 text-primary-600' : 'border-default text-neutral-700'
                 }`}
               >

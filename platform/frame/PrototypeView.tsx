@@ -15,7 +15,14 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { ProjectConfig, ScreenDef } from '@/platform/types'
-import { PrototypeProvider, ScreenStage, useFlow, useScreenStep } from '@/platform/runtime'
+import {
+  PrototypeProvider,
+  ScreenStage,
+  useFlow,
+  useScreenJump,
+  useScreenStep,
+} from '@/platform/runtime'
+import { clearScreenBridge, publishScreenBridge } from '@/platform/runtime/bridge'
 import { ChevronLeftIcon, ChevronRightIcon } from '@/platform/chrome/icons'
 import { DeviceFrame } from './DeviceFrame'
 import { StatusBar } from './StatusBar'
@@ -38,6 +45,22 @@ function useIsDesktop(): boolean {
   }, [])
 
   return isDesktop
+}
+
+/** Mirrors the running prototype into the screen bridge so the shell's page
+ *  explorer can highlight the active screen and jump to another one. */
+function BridgePublisher({ slug }: { slug: string }) {
+  const { current } = useFlow()
+  const jump = useScreenJump()
+
+  useEffect(() => {
+    publishScreenBridge(slug, current, jump)
+  }, [slug, current, jump])
+
+  // Clear only on unmount — the publish effect above handles every update.
+  useEffect(() => () => clearScreenBridge(), [])
+
+  return null
 }
 
 /** The running app: status bar + the active screen stage. */
@@ -210,6 +233,7 @@ export function PrototypeView({ config, screens, initialScreenId }: PrototypeVie
 
   return (
     <PrototypeProvider screens={screens} initialScreenId={initialScreenId}>
+      <BridgePublisher slug={config.slug} />
       {isDesktop ? <DesktopLayout config={config} screens={screens} /> : <MobileLayout />}
     </PrototypeProvider>
   )

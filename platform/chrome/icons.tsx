@@ -59,6 +59,21 @@ export const PanelIcon = icon(
 export const ChevronRightIcon = icon(<path d="M9 6l6 6-6 6" />)
 export const ChevronLeftIcon = icon(<path d="M15 6l-6 6 6 6" />)
 
+// Mobile top nav — hamburger and its close state.
+export const MenuIcon = icon(
+  <>
+    <path d="M4 6h16" />
+    <path d="M4 12h16" />
+    <path d="M4 18h16" />
+  </>,
+)
+export const CloseIcon = icon(
+  <>
+    <path d="M6 6l12 12" />
+    <path d="M18 6L6 18" />
+  </>,
+)
+
 // Prototype view — a phone.
 export const DeviceIcon = icon(
   <>
