@@ -38,6 +38,12 @@ export interface Mitra {
 export interface Offer {
   label: string
   /**
+   * The completed state, past tense — "Sudah menabung", not "Celengan
+   * ditawarkan". Step 2's status card counts outcomes, and an outcome is what
+   * the mitra DID; "was offered" is a record of the BP talking.
+   */
+  done: string
+  /**
    * The mitra's standing on the thing being offered — shown under her name on
    * step 2, in the slot step 1 uses for payment. It is a STATUS, not a pitch:
    * it states where she is ("Belum pernah menabung"), and the recommendation
@@ -84,7 +90,7 @@ export const TASKS: Task[] = [
     until: '13.45',
     title: 'Ibu Rina Marlina',
     place: 'Kp. Cibeuteung RT 02',
-    reason: 'Menunggak 34 hari · Rp 450.000',
+    reason: 'Menunggak 62 hari · Rp 450.000',
   },
   {
     id: 't4',
@@ -115,7 +121,7 @@ const MAWAR_MEMBERS: Mitra[] = [
     name: 'Rina Marlina',
     due: 200_000,
     dpd: 34,
-    offer: { label: 'Perpanjangan pinjaman', status: 'Minggu 40 dari 48 di pinjaman terlama' },
+    offer: { label: 'Perpanjangan pinjaman', done: 'Sudah diperpanjang', status: 'Minggu 40 dari 48 di pinjaman terlama' },
   },
   { id: 'm2', name: 'Ani Suryani', due: 150_000, dpd: 7 },
   {
@@ -123,16 +129,13 @@ const MAWAR_MEMBERS: Mitra[] = [
     name: 'Sari Handayani',
     due: 125_000,
     dpd: 0,
-    offer: { label: 'Celengan', status: 'Belum pernah menabung' },
+    offer: { label: 'Celengan', done: 'Sudah menabung', status: 'Belum pernah menabung' },
   },
   { id: 'm4', name: 'Dewi Lestari', due: 175_000, dpd: 0 },
-  {
-    id: 'm5',
-    name: 'Siti Aminah',
-    due: 200_000,
-    dpd: 0,
-    offer: { label: 'Agent AOne', status: '2 pinjaman aktif' },
-  },
+  // No offer: agent onboarding (Agent AOne) was pulled from step 2 — it is not
+  // confirmed as a prioritised initiative, and step 2 should only carry pitches
+  // the BP will actually be asked to make.
+  { id: 'm5', name: 'Siti Aminah', due: 200_000, dpd: 0 },
   { id: 'm6', name: 'Yanti Rohayati', due: 150_000, dpd: 14 },
   { id: 'm7', name: 'Eni Nuraeni', due: 125_000, dpd: 0 },
 ]
@@ -168,6 +171,78 @@ export const MAJELIS: Majelis[] = [
 
 export const findMajelis = (id: string) => MAJELIS.find((m) => m.id === id) ?? MAJELIS[0]
 
+// --- The majelis directory -------------------------------------------------
+// What the Majelis tab lists. Every group the BP carries, not just the ones on
+// today's schedule — the whole point of the tab is reaching a group when the
+// schedule is NOT the thing sending you there.
+//
+// Only `mawar` has a real roster (see NOTES); the others carry their standing
+// facts so the directory is honest about the portfolio without pretending to
+// data this prototype does not have.
+
+export interface MajelisEntry {
+  id: string
+  name: string
+  place: string
+  /** The weekly pelayanan slot — the answer to "kapan majelis ini?". */
+  day: string
+  time: string
+  members: number
+  /** Mitra in this group currently behind. The one number worth listing. */
+  menunggak: number
+}
+
+export const MAJELIS_DIRECTORY: MajelisEntry[] = [
+  {
+    id: 'mawar',
+    name: 'Majelis Mawar',
+    place: 'Balai RW 04, Ciseeng',
+    day: 'Selasa',
+    time: '08.00',
+    members: 22,
+    menunggak: 3,
+  },
+  {
+    id: 'melati',
+    name: 'Majelis Melati',
+    place: 'Rumah Bu Yanti, Putat Nutug',
+    day: 'Selasa',
+    time: '10.00',
+    members: 18,
+    menunggak: 1,
+  },
+  {
+    id: 'kenanga',
+    name: 'Majelis Kenanga',
+    place: 'Balai Desa Ciseeng',
+    day: 'Selasa',
+    time: '16.00',
+    members: 25,
+    menunggak: 4,
+  },
+  {
+    id: 'anggrek',
+    name: 'Majelis Anggrek',
+    place: 'Rumah Bu Imas, Cibeuteung',
+    day: 'Kamis',
+    time: '09.00',
+    members: 20,
+    menunggak: 0,
+  },
+  {
+    id: 'dahlia',
+    name: 'Majelis Dahlia',
+    place: 'Balai RW 07, Ciseeng',
+    day: 'Jumat',
+    time: '13.30',
+    members: 16,
+    menunggak: 2,
+  },
+]
+
+export const findMajelisEntry = (id: string) =>
+  MAJELIS_DIRECTORY.find((m) => m.id === id) ?? MAJELIS_DIRECTORY[0]
+
 // --- Home visits -----------------------------------------------------------
 // A home visit is the single-mitra counterpart to a majelis: the BP rides to
 // ONE borrower's house, usually to collect an instalment that has slipped. It
@@ -182,26 +257,22 @@ export interface HomeVisit {
   mitra: Mitra
 }
 
+// Neither carries an `offer`. A home visit happens BECAUSE a mitra is behind,
+// so the flow is optimised end to end for collection — the cross-sell step was
+// cut from this flow entirely, and nothing replaced it: the Peldis
+// recommendation that briefly lived in step 1 is parked until the settlement
+// route is confirmed, so the step records the outcome and nothing else.
 export const HOME_VISITS: HomeVisit[] = [
   {
     id: 't3',
-    mitra: {
-      id: 'h1',
-      name: 'Rina Marlina',
-      due: 450_000,
-      dpd: 34,
-      // A delinquent's "extra task" is relief, not growth: the honest thing to
-      // offer someone two instalments behind is a longer tenor, not a new loan.
-      offer: {
-        label: 'Perpanjangan tenor',
-        status: 'Minggu 40 dari 48 · menunggak 2 angsuran',
-      },
-    },
+    // 62 days down: past the point a majelis collection can recover her, which
+    // is why she is a home visit at all.
+    mitra: { id: 'h1', name: 'Rina Marlina', due: 450_000, dpd: 62 },
   },
   {
     id: 't4',
-    // No offer — exercises step 2's empty state, and a mitra keeping today's
-    // promise is not someone to pitch anything to.
+    // A few days down and keeping today's promise — the ordinary case, where
+    // the visit is a nudge rather than a recovery.
     mitra: { id: 'h2', name: 'Sari Handayani', due: 200_000, dpd: 3 },
   },
 ]

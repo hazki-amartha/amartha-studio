@@ -14,6 +14,7 @@ import { useFlow } from '@/platform/runtime'
 import { TASKS, type Task } from '../lib/data'
 import { IconCheck, IconChevronRight, IconHome, IconPin, IconUsers } from '../lib/icons'
 import { doneTasks, laterTasks, nowTask, store, useApp } from '../lib/store'
+import { TabBar } from '../lib/tabs'
 import { Collapsible, IconTile, Overline } from '../lib/ui'
 
 function KindIcon({ kind }: { kind: Task['kind'] }) {
@@ -83,7 +84,7 @@ export function TodayScreen() {
                 {now.reason}
               </div>
 
-              <Button size="lg" className="w-full" onClick={() => start(now)}>
+              <Button size="md" className="w-full" onClick={() => start(now)}>
                 Mulai Kunjungan
               </Button>
             </div>
@@ -148,7 +149,7 @@ export function TodayScreen() {
         </Collapsible>
       ) : null}
 
-      <div className="pb-16" />
+      <TabBar active="today" />
     </Screen>
   )
 }

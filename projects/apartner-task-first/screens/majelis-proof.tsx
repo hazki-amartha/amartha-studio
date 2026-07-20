@@ -1,11 +1,13 @@
 'use client'
 
-// Step 3 of 3 — Foto & Kirim.
+// Step 3 of 3 — Bukti & Kirim.
 //
-// Proof of the majelis, then submit. The photo gates the submit button, because
-// that is the actual rule in the field — an unproven visit is not a submitted
-// one — and a disabled button with a reason under it is more honest than
-// accepting the task and failing it later at sync.
+// Proof of the majelis, then submit. TWO captures gate the submit button now —
+// location and photo — because that is the actual rule in the field: an
+// unproven visit is not a submitted one, and a photo on its own does not prove
+// the BP was at the majelis, only that she photographed something. A disabled
+// button with a reason under it is more honest than accepting the task and
+// failing it later at sync.
 //
 // The recap above the camera is the one place this direction shows the BP a
 // summary. It's earned here: submission is irreversible from the BP's side, and
@@ -16,7 +18,7 @@ import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMajelis, rupiah } from '../lib/data'
-import { IconCamera, IconCheck } from '../lib/icons'
+import { IconCamera, IconCheck, IconPin } from '../lib/icons'
 import {
   paidOf,
   paymentStatus,
@@ -25,7 +27,7 @@ import {
   taskForMajelis,
   useApp,
 } from '../lib/store'
-import { StepBar } from '../lib/ui'
+import { ProofTile, SectionTitle, StepBar } from '../lib/ui'
 
 export function MajelisProofScreen() {
   const flow = useFlow()
@@ -90,42 +92,57 @@ export function MajelisProofScreen() {
         </div>
       </Card>
 
-      {/* --- Proof. */}
-      <span className="text-14 font-bold text-default">Foto majelis</span>
-      {s.photo ? (
+      {/* --- Proof. Two equal tiles: location proves the BP was HERE, the photo
+          proves what she found. Neither substitutes for the other, so neither
+          gets to be the bigger control. */}
+      <SectionTitle>Bukti kunjungan</SectionTitle>
+      <div className="flex gap-8">
+        <ProofTile
+          done={s.geo}
+          label="Rekam lokasi"
+          doneLabel="Lokasi terekam"
+          icon={<IconPin size={24} />}
+          onClick={() => store.setGeo(!s.geo)}
+        />
+        <ProofTile
+          done={s.photo}
+          label="Ambil foto"
+          doneLabel="Foto tersimpan"
+          icon={<IconCamera size={24} />}
+          onClick={() => store.setPhoto(!s.photo)}
+        />
+      </div>
+      {s.geo || s.photo ? (
         <Card>
-          <div className="flex items-center gap-12">
-            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-green-50 text-green-500">
-              <IconCheck size={24} />
-            </span>
-            <div className="flex flex-1 flex-col">
-              <span className="text-14 font-bold text-default">Foto tersimpan</span>
-              <span className="text-12 text-caption">majelis-mawar-21juli.jpg</span>
-            </div>
-            <Button size="xs" variant="ghost" onClick={() => store.setPhoto(false)}>
-              Ambil ulang
-            </Button>
+          <div className="flex flex-col gap-8">
+            {s.geo ? (
+              <div className="flex items-center gap-8">
+                <span className="shrink-0 text-green-500">
+                  <IconCheck size={16} />
+                </span>
+                <span className="flex-1 text-12 text-caption">Balai RW 04, Ciseeng</span>
+                <span className="text-12 text-caption">±8 m</span>
+              </div>
+            ) : null}
+            {s.photo ? (
+              <div className="flex items-center gap-8">
+                <span className="shrink-0 text-green-500">
+                  <IconCheck size={16} />
+                </span>
+                <span className="flex-1 text-12 text-caption">majelis-mawar-21juli.jpg</span>
+              </div>
+            ) : null}
           </div>
         </Card>
-      ) : (
-        <button
-          type="button"
-          onClick={() => store.setPhoto(true)}
-          className="flex flex-col items-center gap-8 rounded-12 border border-default bg-neutral-white p-24 text-center"
-        >
-          <span className="flex h-48 w-48 items-center justify-center rounded-full bg-primary-50 text-primary-500">
-            <IconCamera size={24} />
-          </span>
-          <span className="text-14 font-bold text-default">Ambil foto majelis</span>
-          <span className="text-12 text-caption">Bukti kunjungan, wajib sebelum kirim</span>
-        </button>
-      )}
+      ) : null}
 
       <div className="sticky bottom-0 -mx-16 mt-auto flex flex-col gap-8 border-t border-default bg-neutral-white p-16">
-        {!s.photo ? (
-          <span className="text-center text-12 text-caption">Ambil foto dulu untuk mengirim</span>
+        {!s.geo || !s.photo ? (
+          <span className="text-center text-12 text-caption">
+            Rekam lokasi &amp; ambil foto dulu untuk mengirim
+          </span>
         ) : null}
-        <Button size="lg" className="w-full" disabled={!s.photo} onClick={submit}>
+        <Button size="lg" className="w-full" disabled={!s.geo || !s.photo} onClick={submit}>
           Selesaikan Tugas
         </Button>
       </div>

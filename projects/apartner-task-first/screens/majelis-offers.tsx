@@ -29,10 +29,10 @@ import {
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMajelis, type Mitra } from '../lib/data'
-import { IconCheck } from '../lib/icons'
+import { IconCheck, IconInfo } from '../lib/icons'
 import { MitraCard } from '../lib/mitra-card'
-import { store, useApp, type OfferResult } from '../lib/store'
-import { StepBar } from '../lib/ui'
+import { store, taskForMajelis, useApp, type OfferResult } from '../lib/store'
+import { InfoPill, SectionTitle, StatRows, StepBar, VisitTitle } from '../lib/ui'
 
 const RESULT_OPTIONS: { value: OfferResult; title: string; description: string }[] = [
   {
@@ -51,6 +51,7 @@ export function MajelisOffersScreen() {
   const flow = useFlow()
   const s = useApp()
   const majelis = findMajelis(s.openMajelis)
+  const task = taskForMajelis(majelis.id)
 
   // Sheet state is deliberately local: it must not survive navigation.
   const [pitching, setPitching] = useState<Mitra | null>(null)
@@ -58,6 +59,21 @@ export function MajelisOffersScreen() {
 
   const recommended = majelis.members.filter((m) => m.offer)
   const recorded = recommended.filter((m) => s.offerResults[m.id]).length
+
+  // One row per KIND of offer, not one row per mitra: the BP wants to know how
+  // far each product got, and a per-mitra list is what the cards below already
+  // are. Order follows first appearance in the roster so it never reshuffles.
+  const offerRows = recommended
+    .map((m) => m.offer!)
+    .filter((offer, i, all) => all.findIndex((o) => o.label === offer.label) === i)
+    .map((offer) => {
+      const withOffer = recommended.filter((m) => m.offer?.label === offer.label)
+      const taken = withOffer.filter((m) => s.offerResults[m.id] === 'tertarik').length
+      return {
+        label: offer.done,
+        value: `${taken} dari ${withOffer.length} mitra`,
+      }
+    })
 
   function openPitch(mitra: Mitra) {
     setDraft(s.offerResults[mitra.id] ?? null)
@@ -71,22 +87,35 @@ export function MajelisOffersScreen() {
   }
 
   return (
-    <Screen topBar={<NavigationHeader title={majelis.name} onBack={() => flow.back()} />}>
+    // Same header as step 1 — title, slot, and the Info pill in the same place.
+    // The steps share a shell so the only thing that changes between them is
+    // the list, which is the whole design of this flow.
+    <Screen
+      topBar={
+        <NavigationHeader
+          title={<VisitTitle title={majelis.name} when={`Selasa, ${task?.time ?? '—'}`} />}
+          onBack={() => flow.back()}
+          link={
+            <InfoPill>
+              <IconInfo size={16} />
+              Info
+            </InfoPill>
+          }
+          onLinkClick={() => flow.go('majelis-info')}
+        />
+      }
+    >
       <StepBar current={2} />
 
       {recommended.length > 0 ? (
         <>
-          <Card>
-            <div className="flex items-center gap-12">
-              <div className="flex flex-1 flex-col gap-2">
-                <span className="text-12 text-caption">Bisa ditawari</span>
-                <span className="text-24 font-bold text-default">
-                  {recommended.length} dari {majelis.members.length} mitra
-                </span>
-              </div>
-              <Badge intent="neutral">Opsional</Badge>
-            </div>
-          </Card>
+          {/* The same StatRows card step 1 uses, so the two steps read as one
+              screen with its list swapped. One row per offer, counted by what
+              the mitra DID ("Sudah menabung") rather than by what the BP said —
+              same rule as step 1's "Sudah ditagih". */}
+          <StatRows rows={offerRows} />
+
+          <SectionTitle>Daftar Mitra</SectionTitle>
 
           <div className="flex flex-col gap-8">
             {recommended.map((mitra) => {
@@ -95,6 +124,10 @@ export function MajelisOffersScreen() {
                 <MitraCard
                   key={mitra.id}
                   mitra={mitra}
+                  onOpen={() => {
+                    store.openMitraPage(mitra.id)
+                    flow.go('mitra')
+                  }}
                   // Step 2's subject: where she stands on the thing being offered.
                   status={mitra.offer?.status}
                   action={
