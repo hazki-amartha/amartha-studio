@@ -126,6 +126,12 @@ export function PrototypeProvider({ screens, initialScreenId, children }: Protot
   )
 }
 
+/** Direct screen access for viewer chrome (page explorer, bridge). Replaces the
+ *  top of the visit stack like the stepper arrows do — never used by screens. */
+export function useScreenJump(): (id: string) => void {
+  return useRuntime().jump
+}
+
 /** Steps through screens in the order the project declares them, independent of
  *  flowsTo edges — so states nothing navigates to are still reachable. Used by
  *  the viewer chrome (arrows beside the device), never by a prototype screen. */

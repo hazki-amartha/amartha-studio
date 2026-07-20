@@ -13,7 +13,9 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import styles from './chrome.module.css'
 import { HeaderStatusProvider, useHeaderStatus } from './headerStatus'
 import { ChevronRightIcon, DeviceIcon, FlowIcon, PanelIcon } from './icons'
+import { MobileTopNav } from './MobileTopNav'
 import { NavRail, type RailSection } from './NavRail'
+import { ScreenSidebar } from './ScreenSidebar'
 import { StudioSidebar } from './StudioSidebar'
 import { TripleTapExit } from './TripleTapExit'
 import { SystemSidebar } from './SystemSidebar'
@@ -179,20 +181,27 @@ function AppShellInner({
 
   const { active, currentSlug, isFlow, crumbs } = resolveRoute(pathname, projects)
 
-  // On a phone, a prototype route IS the app: hide every piece of shell chrome
-  // below md and rely on TripleTapExit as the way back to the gallery.
+  // Below md the rail and sidebar never render: prototype routes go fullscreen
+  // (TripleTapExit is the way back), every other route gets MobileTopNav.
   const isProto = currentSlug != null
+  // Inside a project the sidebar becomes its page explorer; an unknown slug
+  // (the 404 route) falls back to the project list.
+  const currentProject = currentSlug
+    ? (projects.find((p) => p.slug === currentSlug) ?? null)
+    : null
 
   return (
     <div className="flex h-screen overflow-hidden bg-neutral-50">
-      <NavRail active={active} className={isProto ? 'hidden md:flex' : undefined} />
+      <NavRail active={active} className="hidden md:flex" />
 
       {collapsed ? null : (
         <aside
-          className={`${isProto ? 'hidden md:block' : ''} ${styles.secondary} shrink-0 overflow-y-auto border-r border-default bg-neutral-white px-8 py-16`}
+          className={`${styles.secondary} hidden shrink-0 overflow-y-auto border-r border-default bg-neutral-white px-8 py-16 md:block`}
         >
           {active === 'funds' ? (
             <SystemSidebar />
+          ) : currentProject ? (
+            <ScreenSidebar project={currentProject} />
           ) : (
             <StudioSidebar projects={projects} currentSlug={currentSlug} />
           )}
@@ -200,6 +209,8 @@ function AppShellInner({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {isProto ? null : <MobileTopNav active={active} />}
+
         <header
           className={`${isProto ? 'hidden md:flex' : 'flex'} h-48 shrink-0 items-center gap-12 border-b border-default bg-neutral-white px-16`}
         >
@@ -208,11 +219,11 @@ function AppShellInner({
             onClick={toggle}
             aria-label={collapsed ? 'Show sidebar' : 'Hide sidebar'}
             aria-pressed={!collapsed}
-            className="flex size-32 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default"
+            className="hidden size-32 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default md:flex"
           >
             <PanelIcon className="size-20" />
           </button>
-          <span aria-hidden className="h-20 w-px bg-neutral-200" />
+          <span aria-hidden className="hidden h-20 w-px bg-neutral-200 md:block" />
           <Breadcrumb crumbs={crumbs} />
           <div className="ml-auto flex shrink-0 items-center gap-12">
             <HeaderStatusView />
