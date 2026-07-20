@@ -69,13 +69,14 @@ export interface Task {
 }
 
 export const TASKS: Task[] = [
-  { id: 't1', act: 'Kunjungan Majelis', who: 'Majelis Melati', maj: 'Majelis Melati', time: '07.30', loc: 'Desa Terucuk', types: ['Collection', 'Attendance'], meta: '2 mitra menunggak', day: 0, kind: 'wajib' },
+  { id: 't1', act: 'Kunjungan Majelis', who: 'Majelis Melati', maj: 'Majelis Melati', time: '07.30', loc: 'Desa Terucuk', types: ['Collection', 'Attendance'], meta: '1 menunggak · ada renewal', day: 0, kind: 'wajib' },
   { id: 't2', act: 'Kunjungan Rumah', who: 'Sri Rahayu', maj: 'Majelis Kenanga', time: '09.00', loc: 'Desa Ngawen', types: ['Collection'], meta: 'DPD 5', day: 0, kind: 'wajib' },
   { id: 't3', act: 'Verifikasi SLIK', who: 'Ratna Kanya Herdhitia', maj: 'Majelis Melati', time: '09.30', loc: 'Pengajuan baru', types: ['Acquisition', 'Disbursement'], meta: 'Batas hari ini', day: 0, kind: 'wajib' },
   { id: 't4', act: 'Survei Usaha', who: 'Siti Aminah', maj: 'Majelis Anggrek', time: '11.00', loc: 'Warung kelontong', types: ['Acquisition'], meta: null, day: 0, kind: 'wajib' },
   { id: 't5', act: 'Kunjungan Rumah', who: 'Calon mitra — Ibu Darmi', maj: 'Majelis Anggrek', time: '12.00', loc: 'Desa Terucuk', types: ['Acquisition'], meta: null, day: 0, kind: 'wajib' },
   { id: 't6', act: 'Pencairan', who: 'Aura Kasih Asmara', maj: 'Majelis Anggrek', time: '13.00', loc: 'Rp7.000.000', types: ['Disbursement'], meta: 'Menunggu tanda tangan', day: 0, kind: 'wajib' },
-  { id: 't7', act: 'Kunjungan Majelis', who: 'Majelis Kenanga', maj: 'Majelis Kenanga', time: '15.00', loc: 'Desa Ngawen', types: ['Collection', 'Attendance'], meta: null, day: 0, kind: 'wajib' },
+  { id: 't7', act: 'Kunjungan Majelis', who: 'Majelis Kenanga', maj: 'Majelis Kenanga', time: '15.00', loc: 'Desa Ngawen', types: ['Collection', 'Attendance'], meta: '2 mitra menunggak', day: 0, kind: 'wajib' },
+  { id: 't20', act: 'Kunjungan Majelis', who: 'Majelis Alamanda', maj: 'Majelis Alamanda', time: '10.00', loc: 'Desa Bayat', types: ['Collection', 'Attendance'], meta: 'Ada tawaran Celengan', day: 0, kind: 'wajib' },
   { id: 't8', act: 'Kunjungan Rumah', who: 'Sumiyati', maj: 'Majelis Bougenville', time: '16.00', loc: 'Desa Ngawen', types: ['Collection'], meta: 'DPD 35', day: 0, kind: 'wajib' },
   { id: 't9', act: 'Pencairan Ulang', who: 'Endang Susilowati', maj: 'Majelis Mawar', time: '16.30', loc: 'Rp10.000.000', types: ['Disbursement'], meta: null, day: 0, kind: 'wajib' },
   { id: 't10', act: 'Setor Titip Bayar', who: 'Cabang Terucuk', maj: null, time: '17.00', loc: 'Setoran harian ke VA', types: ['Collection'], meta: 'Belum disetor', day: 0, kind: 'wajib' },
@@ -84,7 +85,7 @@ export const TASKS: Task[] = [
 
   { id: 't11', act: 'Tawarkan Agen AmarthaLink', who: 'Sulastri', maj: 'Majelis Teratai', time: 'Belum dijadwalkan', loc: 'Desa Terucuk', types: ['Cross-sell'], meta: 'Usaha aktif, cocok jadi agen', day: 0, kind: 'rekomendasi' },
 
-  { id: 't12', act: 'Kunjungan Majelis', who: 'Majelis Anggrek', maj: 'Majelis Anggrek', time: '08.00', loc: 'Desa Terucuk', types: ['Collection', 'Attendance'], meta: null, day: 1, kind: 'wajib' },
+  { id: 't12', act: 'Kunjungan Majelis', who: 'Majelis Anggrek', maj: 'Majelis Anggrek', time: '08.00', loc: 'Desa Terucuk', types: ['Collection', 'Attendance'], meta: 'Ada renewal & Celengan', day: 0, kind: 'wajib' },
   { id: 't13', act: 'Pencairan', who: 'Darmi Wijayanti', maj: 'Majelis Anggrek', time: '10.00', loc: 'Rp5.500.000', types: ['Disbursement'], meta: null, day: 2, kind: 'wajib' },
   { id: 't14', act: 'Tawarkan Celengan', who: 'Ngatinem', maj: 'Majelis Dahlia', time: 'Belum dijadwalkan', loc: 'Desa Bayat', types: ['Cross-sell'], meta: 'Belum punya produk simpanan', day: 3, kind: 'rekomendasi' },
   { id: 't15', act: 'Tawarkan Top-up Modal', who: 'Andira Damara', maj: 'Majelis Dahlia', time: 'Belum dijadwalkan', loc: 'Desa Bayat', types: ['Disbursement'], meta: 'Riwayat bayar lancar', day: 5, kind: 'rekomendasi' },
@@ -188,11 +189,11 @@ interface MajelisSeed {
 const MAJELIS_BASE: MajelisSeed[] = [
   { n: 'Majelis Melati', day: 'Senin, 07.30', area: 'Desa Terucuk', cnt: 4, loan: 'Group loan', rep: 75, att: 85, kumpulanToday: true },
   { n: 'Majelis Bougenville', day: 'Senin, 09.30', area: 'Desa Ngawen', cnt: 2, loan: 'Group loan', rep: 95, att: 100 },
-  { n: 'Majelis Kenanga', day: 'Senin, 15.00', area: 'Desa Ngawen', cnt: 3, loan: 'Group loan', rep: 67, att: 78 },
+  { n: 'Majelis Kenanga', day: 'Senin, 15.00', area: 'Desa Ngawen', cnt: 3, loan: 'Group loan', rep: 67, att: 78, kumpulanToday: true },
   { n: 'Majelis Anggrek', day: 'Selasa, 08.00', area: 'Desa Terucuk', cnt: 3, loan: 'Modal', rep: 100, att: 90, kumpulanToday: true },
-  { n: 'Majelis Alamanda', day: 'Selasa, 10.00', area: 'Desa Bayat', cnt: 2, loan: 'Group loan', rep: 100, att: 88 },
+  { n: 'Majelis Alamanda', day: 'Selasa, 10.00', area: 'Desa Bayat', cnt: 2, loan: 'Group loan', rep: 100, att: 88, kumpulanToday: true },
   { n: 'Majelis Dahlia', day: 'Selasa, 14.00', area: 'Desa Bayat', cnt: 3, loan: 'Hybrid', rep: 100, att: 92 },
-  { n: 'Majelis Mawar', day: 'Rabu, 07.30', area: 'Desa Ngawen', cnt: 3, loan: 'Group loan', rep: 67, att: 75, kumpulanToday: true },
+  { n: 'Majelis Mawar', day: 'Rabu, 07.30', area: 'Desa Ngawen', cnt: 3, loan: 'Group loan', rep: 67, att: 75 },
   { n: 'Majelis Flamboyan', day: 'Rabu, 10.00', area: 'Desa Terucuk', cnt: 2, loan: 'Modal', rep: 100, att: 95 },
   { n: 'Majelis Teratai', day: 'Rabu, 15.00', area: 'Desa Terucuk', cnt: 3, loan: 'Group loan', rep: 100, att: 88 },
   { n: 'Majelis Kamboja', day: 'Kamis, 07.30', area: 'Desa Bayat', cnt: 2, loan: 'Group loan', rep: 100, att: 90 },
@@ -200,7 +201,7 @@ const MAJELIS_BASE: MajelisSeed[] = [
   { n: 'Majelis Seruni', day: 'Kamis, 14.00', area: 'Desa Ngawen', cnt: 2, loan: 'Group loan', rep: 100, att: 85 },
   { n: 'Majelis Cempaka', day: 'Jumat, 07.30', area: 'Desa Terucuk', cnt: 3, loan: 'Group loan', rep: 67, att: 70 },
   { n: 'Majelis Wijaya', day: 'Jumat, 15.00', area: 'Desa Bayat', cnt: 2, loan: 'Modal', rep: 100, att: 88 },
-  { n: 'Majelis Sakura', day: 'Sabtu, 08.00', area: 'Desa Terucuk', cnt: 2, loan: 'Group loan', rep: 100, att: 90, kumpulanToday: true },
+  { n: 'Majelis Sakura', day: 'Sabtu, 08.00', area: 'Desa Terucuk', cnt: 2, loan: 'Group loan', rep: 100, att: 90 },
 ]
 
 const STREETS = ['Bango', 'Melati', 'Anggrek', 'Kenanga', 'Mawar', 'Dahlia', 'Wijaya', 'Teratai']
