@@ -27,9 +27,12 @@ import {
   IconCheck,
   IconGift,
   IconPin,
+  IconTrendUp,
   IconWallet,
   IconX,
 } from '../lib/icons'
+import { ladderOf } from '../lib/ladder'
+import { LADDER_ACTION } from './ladder'
 import {
   attendanceOf,
   attendanceRate,
@@ -74,6 +77,17 @@ export function MitraScreen() {
   const taken = s.followUps[mitra.id] ?? []
   const primary = primaryActionFor(mitra)
   const contacts = contactActionsFor(mitra)
+
+  // The ladder row's subtitle is the ladder's own conclusion, not a teaser — a
+  // BP who never opens the screen should still leave with the one fact it holds.
+  const ladder = ladderOf(mitra)
+  const ladderTold = taken.includes(LADDER_ACTION)
+  const ladderLine =
+    ladder.status === 'tertahan'
+      ? `Tertahan — tunggakan ${rupiah(ladder.arrears)}`
+      : ladder.current
+        ? `${ladder.current.detail} menuju ${ladder.current.title}`
+        : 'Siklus selesai — bisa ajukan pembiayaan baru'
 
   function take(action: Action) {
     store.addFollowUp(mitra.id, action.id)
@@ -166,6 +180,33 @@ export function MitraScreen() {
             </button>
           )
         })}
+      </section>
+
+      {/* Not an action and not a record — the one thing on this page meant to be
+          said rather than done, so it sits exactly between them: after "what do
+          I do about her", before "what is her history". Always shown, including
+          when the ladder is held, because a held ladder is the more useful
+          conversation rather than a reason to hide the row. */}
+      <section className="flex flex-col gap-8">
+        <Overline>Bahan obrolan</Overline>
+        <button
+          type="button"
+          onClick={() => flow.go('ladder')}
+          className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left"
+        >
+          <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-primary-500">
+            <IconTrendUp size={20} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-14 font-bold text-default">Jalur Naik Modal</span>
+            <span className="truncate text-12 text-caption">{ladderLine}</span>
+          </div>
+          {ladderTold ? (
+            <Badge intent="neutral">Sudah</Badge>
+          ) : ladder.status === 'tertahan' ? (
+            <Badge intent="orange">Tertahan</Badge>
+          ) : null}
+        </button>
       </section>
 
       {/* --- The record. Below the actions and collapsed, on purpose. It is here

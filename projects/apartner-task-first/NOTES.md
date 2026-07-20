@@ -47,6 +47,16 @@ So: the app does the synthesising, the BP just does the visiting.
   reasoned recommendation and a button; loan/payment history and attendance
   sit underneath in collapsed sections, for when the BP wants to dig in rather
   than by default.
+- **Jalur Naik Modal** — the capital ladder for one mitra, reached from a
+  "Bahan obrolan" row on her page. Deliberately reframed from the mitra-facing
+  reference it started as into a **BP briefing**: the BP reads a quoted line out
+  loud, then turns the phone around so the mitra can read the rail herself. It
+  leads with the sentence to say, not the ladder — the rungs are evidence for a
+  claim the top of the screen has already made.
+  Its important state is **Tertahan**: with arrears the rail freezes, held rungs
+  go orange, and the screen states what releases it — the whole tunggakan, not
+  this week's angsuran. That state is what makes the ladder belong in this
+  direction at all: it is leverage for collection, not a top-up pitch.
 - **Majelis tab** — a directory (where a group is, when it meets, who's
   behind), for when the schedule isn't what's sending you there.
 - **KPI tab** — the four daily targets, deliberately read-only. No "do this
@@ -71,6 +81,16 @@ So: the app does the synthesising, the BP just does the visiting.
    until it's confirmed as a priority. Easy to put back.
 6. **Peldis has been removed** from the home visit for now, pending
    confirmation of the settlement route.
+7. **Ladder rung values are invented.** On Jalur Naik Modal, escalation is
+   derived from her current contract value (25% → 50% of it, and a limit rung at
+   1.5×), and the milestone months (3 / 6 / 10 / 12) came from the reference
+   mock. Both need confirming against the real top-up and limit-increase rules
+   before a BP is asked to say the numbers out loud. Related: the mock repeated
+   the same **+Rp1.250.000** on rungs 1 and 2, which makes the ladder a calendar
+   rather than a ladder — the rungs here escalate on purpose.
+8. **The ladder script is second-person and the rest of the app is not.** It is
+   the only copy in this direction written to be read aloud to a mitra. Worth
+   confirming BPs would actually use a scripted line rather than paraphrase it.
 
 ## Parked — the guiding rule, and the case it doesn't cover
 
@@ -95,6 +115,18 @@ selectable chip (used for reasons and promise-to-pay dates, to keep the sheet
 short), a proof-capture tile, a collapsible section, and a status-summary row
 (label/value list), among others. Several are now used across two projects and
 are reasonable promotion candidates; happy to walk through them.
+
+One from the ladder:
+
+- **`Meter`** (`lib/ui.tsx`) — a horizontal progress bar with a `tone`. Was a
+  private helper inside the KPI screen; the ladder wanted the same bar for
+  progress across a rung, which is the second-use tell, so it moved into `lib/`.
+  `tone` is the interesting part: a KPI bar is a verdict and colours itself by
+  how the number is doing, while the ladder's is elapsed time on a fixed path
+  and must not imply a judgement — and a held ladder greys out, because a frozen
+  bar that still reads purple looks like it is still moving.
+  `apartner-homepage-ia/lib/ui.tsx` hand-rolls the same thing, so that's two
+  projects.
 
 Two more from the agenda pass on the schedule tab:
 

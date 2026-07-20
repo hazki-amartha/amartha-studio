@@ -344,6 +344,49 @@ export function StatRows({ rows }: { rows: StatRow[] }) {
   )
 }
 
+// --- Meter -----------------------------------------------------------------
+// A horizontal progress bar. Lives here rather than in a screen because two now
+// want it: the KPI tab (progress toward a daily target) and the capital ladder
+// (progress across the rung a mitra is climbing).
+//
+// `tone` exists because the two mean different things by the same bar. A KPI
+// bar is a verdict — it colours itself by how the number is doing — while the
+// ladder's bar is elapsed time on a fixed path, where a red-to-green ramp would
+// imply a judgement the ladder isn't making. A held ladder greys out entirely:
+// a frozen bar that still reads purple looks like it is still moving.
+
+export function Meter({
+  progress,
+  tone = 'auto',
+}: {
+  progress: number
+  tone?: 'auto' | 'primary' | 'muted'
+}) {
+  const clamped = Math.max(0, Math.min(100, progress))
+  const fill =
+    tone === 'primary'
+      ? 'bg-primary-500'
+      : tone === 'muted'
+        ? 'bg-neutral-400'
+        : clamped >= 75
+          ? 'bg-green-500'
+          : clamped >= 50
+            ? 'bg-primary-500'
+            : 'bg-orange-500'
+
+  return (
+    <div className="h-8 w-full rounded-full bg-neutral-200">
+      <div
+        className={`h-8 rounded-full ${fill}`}
+        // A data-driven width is the one dimension a progress meter cannot take
+        // from a token — the value IS the geometry. Every colour and height
+        // around it is still a token.
+        style={{ width: `${clamped}%` }}
+      />
+    </div>
+  )
+}
+
 // --- Overline --------------------------------------------------------------
 // The 10px uppercase micro label that separates the schedule's three zones.
 
