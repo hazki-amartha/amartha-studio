@@ -34,7 +34,7 @@ import {
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMajelis, rupiah, type Mitra } from '../lib/data'
-import { IconCheck, IconX } from '../lib/icons'
+import { IconCheck, IconInfo, IconX } from '../lib/icons'
 import { MitraCard } from '../lib/mitra-card'
 import {
   paidOf,
@@ -43,9 +43,18 @@ import {
   recordedMembers,
   remainingOf,
   store,
+  taskForMajelis,
   useApp,
 } from '../lib/store'
-import { Collapsible, IconToggle, StepBar } from '../lib/ui'
+import {
+  Collapsible,
+  IconToggle,
+  InfoPill,
+  SectionTitle,
+  StatRows,
+  StepBar,
+  VisitTitle,
+} from '../lib/ui'
 
 // Field-realistic reasons. Free text is deliberately absent: the BP is standing
 // in front of her on a motorbike schedule, not writing a report — and a fixed
@@ -85,9 +94,11 @@ export function MajelisVisitScreen() {
 
   const pending = pendingMembers(s, majelis.members)
   const recorded = recordedMembers(s, majelis.members)
-  // What's still to collect from the mitra nobody has dealt with yet — the work
-  // left in THIS step, not the majelis's outstanding debt.
-  const owed = pending.reduce((sum, m) => sum + remainingOf(s, m), 0)
+  const total = majelis.members.length
+  const marked = majelis.members.filter((m) => s.attendance[m.id]).length
+  const billed = majelis.members.reduce((sum, m) => sum + paidOf(s, m), 0)
+  const billable = majelis.members.reduce((sum, m) => sum + m.due, 0)
+  const task = taskForMajelis(majelis.id)
 
   function openCatatan(mitra: Mitra) {
     const refusal = s.nonPayments[mitra.id]
@@ -114,20 +125,38 @@ export function MajelisVisitScreen() {
   const overpay = catatanFor ? entered - remainingOf(s, catatanFor) : 0
 
   return (
-    <Screen topBar={<NavigationHeader title={majelis.name} onBack={() => flow.back()} />}>
+    <Screen
+      topBar={
+        <NavigationHeader
+          title={<VisitTitle title={majelis.name} when={`Selasa, ${task?.time ?? '—'}`} />}
+          onBack={() => flow.back()}
+          link={
+            <InfoPill>
+              <IconInfo size={16} />
+              Info
+            </InfoPill>
+          }
+          onLinkClick={() => flow.go('majelis-info')}
+        />
+      }
+    >
       <StepBar current={1} />
 
-      <Card>
-        <div className="flex items-center gap-12">
-          <div className="flex flex-1 flex-col gap-2">
-            <span className="text-12 text-caption">Belum dicatat</span>
-            <span className="text-24 font-bold text-default">
-              {pending.length} dari {majelis.members.length} mitra
-            </span>
-          </div>
-          <span className="text-16 font-bold text-default">{rupiah(owed)}</span>
-        </div>
-      </Card>
+      {/* The visit's status, quiet: two label/value rows, not a hero number.
+          The subject of this screen is the mitra list — a 24px count above it
+          competed with the queue it was meant to be summarising. */}
+      <StatRows
+        rows={[
+          { label: 'Kehadiran', value: `${marked} dari ${total} mitra` },
+          {
+            label: 'Penagihan',
+            value: `${recorded.length} dari ${total} mitra`,
+            detail: `${rupiah(billed)} dari ${rupiah(billable)}`,
+          },
+        ]}
+      />
+
+      <SectionTitle>Daftar Mitra</SectionTitle>
 
       {pending.length > 0 ? (
         <div className="flex flex-col gap-8">
@@ -163,10 +192,10 @@ export function MajelisVisitScreen() {
                   </div>
                 }
                 action={
-                  // Bill left, actions right — one row, everything 32px tall.
-                  // Two buttons instead of three: "Lunas" is the common case at
-                  // one tap, and "Catatan" is the one door to every other
-                  // outcome (part payment, or a no with its reason).
+                  // Bill left, actions right — one row, everything 40px tall.
+                  // Two buttons instead of three: "Bayar Penuh" is the common
+                  // case at one tap, and "Lainnya" is the one door to every
+                  // other outcome (part payment, or a no with its reason).
                   <div className="flex items-center gap-8">
                     <div className="flex min-w-0 flex-1 flex-col">
                       <span className="text-12 text-caption">Tagihan</span>
@@ -174,24 +203,24 @@ export function MajelisVisitScreen() {
                         {rupiah(mitra.due)}
                       </span>
                     </div>
-                    {/* h-32 pins both buttons to the avatar/toggle rhythm.
+                    {/* h-40 pins both buttons to the avatar/toggle rhythm.
                         FunDS button sizes step 28 (xs) → 36 (sm), so neither
-                        lands on 32 — see NOTES.md. h-32 is a token class, not
+                        lands on 40 — see NOTES.md. h-40 is a token class, not
                         an arbitrary value. */}
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-32"
+                      className="h-40"
                       onClick={() => openCatatan(mitra)}
                     >
-                      Catatan
+                      Lainnya
                     </Button>
                     <Button
                       size="sm"
-                      className="h-32"
+                      className="h-40"
                       onClick={() => store.setPayment(mitra.id, mitra.due)}
                     >
-                      Lunas
+                      Bayar Penuh
                     </Button>
                   </div>
                 }
@@ -214,7 +243,7 @@ export function MajelisVisitScreen() {
       {/* Recorded ≠ paid: a mitra who said no is done, and her card says what
           she said. "Ubah" reopens the sheet that produced the outcome, so
           leaving the queue never traps an entry. */}
-      <Collapsible title="Sudah dicatat" hint={`${recorded.length} mitra`}>
+      <Collapsible title="Sudah ditagih" hint={`${recorded.length} mitra`}>
         {recorded.map((mitra) => {
           const status = paymentStatus(s, mitra)
           const refusal = s.nonPayments[mitra.id]

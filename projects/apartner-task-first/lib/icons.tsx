@@ -113,6 +113,26 @@ export function IconCamera(props: IconProps) {
   )
 }
 
+/** Header affordance — opens the majelis status page. */
+export function IconInfo(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 8h.01" />
+    </Svg>
+  )
+}
+
+/** The KPI tab. */
+export function IconChart(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3 21h18" />
+      <path d="M7 21v-8M12 21V6M17 21v-5" />
+    </Svg>
+  )
+}
+
 /** Reaching a mitra between visits. */
 export function IconChat(props: IconProps) {
   return (

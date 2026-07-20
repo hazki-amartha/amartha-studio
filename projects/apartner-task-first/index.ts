@@ -10,6 +10,9 @@ import { HomeVisitScreen } from './screens/home-visit'
 import { HomeOfferScreen } from './screens/home-offer'
 import { HomeProofScreen } from './screens/home-proof'
 import { MitraScreen } from './screens/mitra'
+import { MajelisInfoScreen } from './screens/majelis-info'
+import { MajelisListScreen } from './screens/majelis-list'
+import { KpiScreen } from './screens/kpi'
 
 export const project: ProjectModule = {
   config,
@@ -29,6 +32,8 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'majelis-visit', label: 'Mulai Kunjungan (tugas majelis)' },
         { to: 'home-visit', label: 'Mulai Kunjungan (home visit)' },
+        { to: 'majelis-list', label: 'tab Majelis' },
+        { to: 'kpi', label: 'tab KPI' },
       ],
     },
     {
@@ -48,6 +53,7 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'majelis-offers', label: 'Lanjut → langkah 2' },
         { to: 'mitra', label: 'ketuk nama mitra' },
+        { to: 'majelis-info', label: 'Info' },
       ],
     },
     {
@@ -136,6 +142,46 @@ export const project: ProjectModule = {
         'Reaching her (WhatsApp, rute) is plumbing, not a recommendation, so it is a quiet list under the one thing that IS recommended — never competing with it.',
         'The record — tagihan & pinjaman, 8 weeks of payments, kehadiran — is three collapsed sections. It exists to answer a follow-up the BP already has ("kenapa dia telat?"), not to brief her on arrival.',
         'Taking a follow-up is recorded, not navigated: the card reads back "Kunjungan dijadwalkan" rather than resetting, so the BP can tell what she already did about this mitra.',
+      ],
+    },
+    {
+      id: 'majelis-info',
+      title: 'Info Majelis',
+      component: MajelisInfoScreen,
+      notes: [
+        'Opened by the "Info" pill in the visit header. It exists so the VISIT does not have to carry this: step 1\'s job is to record an outcome per mitra, and the moment it also answers "when does this group meet?" and "who is the ketua?", the queue stops being a queue.',
+        'Reference material one tap away, behind a control that is clearly not part of the flow — the same move the mitra page makes for a borrower, at group scale.',
+        '"Kunjungan hari ini" reads back the visit\'s progress but does not nag. Step 3 is where an incomplete collection gets flagged; two places warning about the same thing trains the BP to ignore both.',
+      ],
+      flowsTo: [{ to: 'majelis-visit', label: 'kembali' }],
+    },
+    {
+      id: 'majelis-list',
+      title: 'Majelis',
+      component: MajelisListScreen,
+      notes: [
+        'The Majelis tab — every group the BP carries, not just today\'s. This is the one thing the schedule genuinely cannot do: "open the app, see the next thing" answers "what now?", but a BP also gets asked "kapan majelis Anggrek?" by a BM, or needs a group whose visit was moved.',
+        'It stays a DIRECTORY, not a dashboard: what a group is, when it meets, and the one number worth carrying (how many mitra are behind). No portfolio percentages — those are BM monitoring numbers, and keeping them off the BP\'s surfaces is a standing decision in this direction.',
+        'Today\'s groups sort first, so the tab agrees with the schedule rather than competing with it.',
+      ],
+      flowsTo: [
+        { to: 'majelis-visit', label: 'buka kunjungan' },
+        { to: 'today', label: 'tab Jadwal' },
+        { to: 'kpi', label: 'tab KPI' },
+      ],
+    },
+    {
+      id: 'kpi',
+      title: 'KPI',
+      component: KpiScreen,
+      notes: [
+        'The four daily targets, and the whole argument for where they live. This direction\'s claim was never "targets don\'t exist" — a BP carries four simultaneous daily targets and is measured on them. The claim is about PLACEMENT: a number on the working surface makes her synthesise before she can move; a number behind a tab is something she checks when she wants to know how the day is going.',
+        'Deliberately read-only. There is no "kerjakan sekarang" next to a lagging metric, because that is exactly the KPI-spine model apartner-homepage-ia explores — hang a task off a score and the score becomes how you navigate work.',
+        'The page ends by pointing back at the schedule: the targets move because visits get done, not the other way round.',
+      ],
+      flowsTo: [
+        { to: 'today', label: 'tab Jadwal' },
+        { to: 'majelis-list', label: 'tab Majelis' },
       ],
     },
   ],

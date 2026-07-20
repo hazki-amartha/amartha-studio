@@ -12,7 +12,7 @@
 //   Ditemui / Tidak di rumah  — the home-visit read of attendance. Whether the
 //     BP even reached her is the first fact of any doorstep visit, and "not
 //     home" is a real, recordable outcome, not a blank.
-//   Bayar Lunas / Catatan     — identical to the majelis card. "Catatan" is the
+//   Bayar Penuh / Lainnya     — identical to the majelis card. "Lainnya" is the
 //     one door to a partial payment, or to a no (with its reason and promise) —
 //     and "not home" is logged there too, as a no with reason "Tidak ada di
 //     rumah" and a date to come back.
@@ -32,7 +32,7 @@ import { findHomeVisit, findTask, rupiah } from '../lib/data'
 import { IconCheck, IconPin, IconX } from '../lib/icons'
 import { MitraCard } from '../lib/mitra-card'
 import { paidOf, remainingOf, store, useApp } from '../lib/store'
-import { HOME_STEP_LABELS, IconToggle, StepBar } from '../lib/ui'
+import { HOME_STEP_LABELS, IconToggle, StepBar, VisitTitle } from '../lib/ui'
 
 // Doorstep-realistic reasons — "Tidak ada di rumah" leads, because on a home
 // visit the most common not-paid outcome is simply not reaching her.
@@ -93,7 +93,17 @@ export function HomeVisitScreen() {
   const overpay = entered - remainingOf(s, mitra)
 
   return (
-    <Screen topBar={<NavigationHeader title="Home Visit" onBack={() => flow.back()} />}>
+    // Same header shape as the majelis visit: which visit, and the slot it was
+    // scheduled for. No Info pill — on a single-mitra visit the status page IS
+    // her mitra page, and that is already reachable by tapping her name.
+    <Screen
+      topBar={
+        <NavigationHeader
+          title={<VisitTitle title={mitra.name} when={`Selasa, ${task?.time ?? '—'}`} />}
+          onBack={() => flow.back()}
+        />
+      }
+    >
       <StepBar current={1} labels={HOME_STEP_LABELS} />
 
       {/* Why this visit is on the schedule — place plus the pre-reasoned line,
@@ -137,18 +147,18 @@ export function HomeVisitScreen() {
           </div>
         }
         action={
-          // Identical row to the majelis card: bill left, one-tap Lunas and the
-          // Catatan door right, both pinned to the 32px rhythm.
+          // Identical row to the majelis card: bill left, one-tap Bayar Penuh
+          // and the Lainnya door right, both pinned to the 40px rhythm.
           <div className="flex items-center gap-8">
             <div className="flex min-w-0 flex-1 flex-col">
               <span className="text-12 text-caption">Tagihan</span>
               <span className="truncate text-18 font-bold text-default">{rupiah(mitra.due)}</span>
             </div>
-            <Button size="sm" variant="outline" className="h-32" onClick={openCatatan}>
-              Catatan
+            <Button size="sm" variant="outline" className="h-40" onClick={openCatatan}>
+              Lainnya
             </Button>
-            <Button size="sm" className="h-32" onClick={() => store.setPayment(mitra.id, mitra.due)}>
-              Lunas
+            <Button size="sm" className="h-40" onClick={() => store.setPayment(mitra.id, mitra.due)}>
+              Bayar Penuh
             </Button>
           </div>
         }

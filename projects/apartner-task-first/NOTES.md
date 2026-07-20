@@ -64,8 +64,8 @@ Exactly two things per mitra:
    attendance is a status, not a primary action, and colour resolves at a glance
    while scanning a roster where two purple circles would differ only by glyph.
 2. **Payment** — two buttons, primary last where the thumb lands:
-   - **Lunas** — the common case, so it costs **one tap and no sheet**.
-   - **Catatan** — the one door to every other outcome. The sheet opens on a
+   - **Bayar Penuh** — the common case, so it costs **one tap and no sheet**.
+   - **Lainnya** — the one door to every other outcome. The sheet opens on a
      mode switch: *Bayar sebagian* (an amount, over **or** under — partial is a
      normal field outcome and overpayment is marked later) or *Tidak bayar* (a
      reason, plus a promise-to-pay if she gave one). Mode comes first because
@@ -84,7 +84,7 @@ exactly what pushes DPD work onto the RM's Google Form (per Ciseeng).
 ### The queue drains on *recorded*, not on *paid*
 
 The step's job is to record an outcome for every mitra, not to make everyone
-lunas. So the split is **Belum dicatat / Sudah dicatat**, and a card leaves the
+lunas. So the split is **Belum ditagih / Sudah ditagih**, and a card leaves the
 queue once it has an outcome of any kind.
 
 This was originally grouped on `lunas` (`Belum lunas` / `Sudah lunas`), which was
@@ -94,7 +94,7 @@ dealt with — and the copy claimed she was "sudah lunas" when she plainly wasn'
 
 The header number is what's left **in this step** — mitra not yet dealt with and
 what they owe — not the majelis's outstanding debt. Recorded mitra collapse into
-`Sudah dicatat`, each row carrying its own outcome (`Rp 200.000` lunas / `Kurang
+`Sudah ditagih`, each row carrying its own outcome (`Rp 200.000` lunas / `Kurang
 Rp 100.000` / `Tidak bayar` + reason + PTP) and an **Ubah** that reopens the sheet
 that produced it, so leaving the queue never traps an entry.
 
@@ -128,15 +128,86 @@ rather than asking them to interpret a metric. Unmarked attendance or unpaid
 mitra raise a **warning, not a block** — the field decides, not the app. A majelis
 where three mitra never showed up is a real Tuesday.
 
-### The 32px card rhythm
+### The 40px card rhythm
 
-Everything on the card sits on 32px — avatar, both attendance circles, and both
+Everything on the card sits on 40px — avatar, both attendance circles, and both
 action buttons — so the two rows read as clean bands rather than a ragged stack.
 
+This was 32px until the visit-page pass. The bands worked, but 32 is a small
+target for a control the BP hits 22 times per majelis with a thumb, on a phone,
+outdoors. 40 keeps the banding and buys back the tap area; the name moved to
+18px in the same pass so the identity row still leads the card.
+
 **Design-system gap:** FunDS button sizes step **28px (`xs`) → 36px (`sm`)**, so
-neither lands on the 32px the card is built to. The buttons carry `h-32` (a token
+neither lands on the 40px the card is built to. The buttons carry `h-40` (a token
 class, not an arbitrary value) to pin them. If this rhythm holds elsewhere, a
-32px button rung is worth adding to `Button` rather than re-fixing per screen.
+40px button rung is worth adding to `Button` rather than re-fixing per screen.
+
+### The visit header, and what got quieter
+
+The visit pass moved emphasis to where the work is:
+
+- **Header** carries two facts, not one: the visit's name and the slot it was
+  scheduled for (`Majelis Melati` / `Selasa, 07.30`). A BP running two hours late
+  needs to see which slot she is standing in, and the app otherwise dropped the
+  schedule the moment the visit opened. An **Info** pill opposite the back arrow
+  opens the majelis status page.
+- **Step title is now the heading** (`Kehadiran & Pembayaran`, 20px bold) with
+  `LANGKAH 1 DARI 3` demoted to a caption under it. The two were fused into one
+  small line, which buried the only part the BP needs — what this screen is
+  asking her to do. Position is reassurance; the job is the headline.
+- **The status hero got quiet.** It was a 24px count at the top of the screen,
+  which competed with the mitra queue it was meant to be summarising. It is now
+  two label/value rows (`Kehadiran`, `Penagihan` with the money underneath). The
+  subject of the screen is the list, so the list is what looks like the subject.
+- **`Daftar Mitra`** labels the list, and the payment buttons read **`Bayar
+  Penuh`** / **`Lainnya`** — plainer than `Lunas` / `Catatan`, which asked the BP
+  to know a bit of product vocabulary before she could tap. `Sudah dicatat`
+  became `Sudah ditagih` for the same reason.
+
+The home visit takes every one of these that applies, since it is built as the
+majelis visit's single-mitra twin — minus the Info pill, because on a one-borrower
+visit the status page *is* her mitra page, already reachable by tapping her name.
+
+## The wider IA — three tabs
+
+Until this pass the direction had exactly one surface, which was the point. A tab
+bar is the first thing that can undo "open the app, see the next thing to do", so
+the split is deliberate:
+
+| Tab | The question it answers |
+|-----|------------------------|
+| **Jadwal** | "What do I do now?" — still the entry screen, unchanged. |
+| **Majelis** | "Where is Majelis Anggrek, and when?" — when the schedule is *not* the thing sending you there. |
+| **KPI** | "How is the day going?" — the four daily targets. |
+
+**Majelis** is the one thing the schedule genuinely cannot do. A BM asks about a
+group, a mitra calls, a visit gets moved — and before this tab the only route to
+a majelis was to wait for it to come up on the schedule, which is not how a week
+goes. It stays a **directory, not a dashboard**: what a group is, when it meets,
+and how many mitra are behind. No portfolio percentages — cut 1 still stands.
+
+**KPI** is where the direction has to be honest with itself. The founding claim
+was never "targets don't exist" — a BP carries four simultaneous daily targets
+and is measured on them. The claim is about **placement**: a number on the
+working surface makes her synthesise before she can move; a number behind a tab
+is something she checks. So the page is deliberately **read-only** — no
+"kerjakan sekarang" beside a lagging metric, because that is precisely the
+KPI-spine model `apartner-homepage-ia` explores. It ends by pointing back at the
+schedule: targets move because visits get done, not the other way round.
+
+**The bar shows on those three screens only.** Inside a visit it is hidden — a
+visit is a sequence with its own sticky CTA, and offering "jump to KPI" in the
+middle of a collection queue is how a focused task turns back into browsing.
+
+### Info Majelis
+
+Opened by the header pill. It exists so the *visit* doesn't have to carry it: the
+moment step 1 also has to answer "when does this group meet?" and "who is the
+ketua?", the queue stops being a queue. Same move the mitra page makes for one
+borrower, at group scale. Its "Kunjungan hari ini" block reads back progress but
+does **not** nag — step 3 owns that, and two places warning about the same thing
+trains the BP to ignore both.
 
 ## Deliberate cuts — open questions for review
 
@@ -295,3 +366,20 @@ from tokens + design-system components:
   it has arguably earned promotion.
 - **IconTile** (`lib/ui.tsx`) — a rounded square holding a 20px icon on a status
   tint. Also proposed by `apartner-homepage-ia`.
+- **StatRows** (`lib/ui.tsx`) — a card of label/value rows, with an optional
+  second line under a value. Three screens use it (visit status, majelis info,
+  and the mitra page's record). It is the shape a summary takes once you decide
+  it should NOT be a hero number, which is a decision a design system can help
+  people make.
+- **VisitTitle** (`lib/ui.tsx`) — a two-line header title (name + when).
+  `NavigationHeader` types `title` as `ReactNode`, so this composes cleanly, but
+  every task-shaped screen wants the same stacked shape and none of them should
+  be inventing the type ramp for it.
+- **SectionTitle** (`lib/ui.tsx`) — a 14px bold heading over a list. Louder than
+  the existing `Overline`, for the one list that *is* the screen's subject.
+- **InfoPill** (`lib/ui.tsx`) — the header affordance that opens a status page.
+  Sits in `NavigationHeader`'s `link` slot; a pill rather than a bare link
+  because it sits opposite a back arrow and has to read as a control.
+
+Not proposed: the tab bar. `NavigationBar` already exists in FunDS Lite and
+`lib/tabs.tsx` only wires it to `useFlow()` — no new component was needed.

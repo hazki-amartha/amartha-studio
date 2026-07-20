@@ -10,7 +10,7 @@ import { IconChevronDown, IconChevronUp } from './icons'
 // The circular initials chip that leads every mitra row. FunDS Lite has no
 // avatar; ListRow just types its `leading` slot as ReactNode.
 
-export function Avatar({ name }: { name: string }) {
+export function Avatar({ name, size = 40 }: { name: string; size?: 32 | 40 }) {
   const initials = name
     .split(' ')
     .slice(0, 2)
@@ -18,8 +18,12 @@ export function Avatar({ name }: { name: string }) {
     .join('')
     .toUpperCase()
 
+  const box = size === 32 ? 'h-32 w-32 text-12' : 'h-40 w-40 text-14'
+
   return (
-    <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-primary-50 text-12 font-bold text-primary-500">
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-full bg-primary-50 font-bold text-primary-500 ${box}`}
+    >
       {initials}
     </span>
   )
@@ -109,7 +113,7 @@ export function IconToggle({ selected, tone, onClick, label, children }: IconTog
       aria-label={label}
       aria-pressed={selected}
       onClick={onClick}
-      className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-full border ${classes}`}
+      className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-full border ${classes}`}
     >
       {children}
     </button>
@@ -128,6 +132,10 @@ export function IconToggle({ selected, tone, onClick, label, children }: IconTog
 export const STEP_LABELS = ['Kehadiran & Pembayaran', 'Tugas Tambahan', 'Foto & Kirim']
 export const HOME_STEP_LABELS = ['Temui & Tagih', 'Tugas Tambahan', 'Foto & Kirim']
 
+// The step's NAME is the heading, and "Langkah 1 dari 3" is the caption beneath
+// it. The two were previously fused into one small line, which buried the only
+// part the BP actually needs: what this screen is asking her to do. Position is
+// reassurance — useful, but secondary to the job.
 export function StepBar({
   current,
   labels = STEP_LABELS,
@@ -136,7 +144,7 @@ export function StepBar({
   labels?: string[]
 }) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-8">
       <div className="flex gap-4">
         {[1, 2, 3].map((n) => (
           <span
@@ -145,9 +153,78 @@ export function StepBar({
           />
         ))}
       </div>
-      <span className="text-10 font-bold uppercase text-caption">
-        Langkah {current} dari 3 · {labels[current - 1]}
-      </span>
+      <div className="flex flex-col gap-2">
+        <span className="text-20 font-bold text-default">{labels[current - 1]}</span>
+        <span className="text-10 font-bold uppercase text-caption">Langkah {current} dari 3</span>
+      </div>
+    </div>
+  )
+}
+
+// --- VisitTitle ------------------------------------------------------------
+// The header of any visit carries two facts, not one: which visit this is, and
+// WHEN it was scheduled. The clock line matters in the field — a BP running two
+// hours late needs to see which slot she is actually standing in, and the app
+// otherwise drops the schedule the moment the visit opens.
+
+export function VisitTitle({ title, when }: { title: string; when: string }) {
+  return (
+    <span className="flex flex-col">
+      <span className="text-16 font-bold text-default">{title}</span>
+      <span className="text-12 font-regular text-caption">{when}</span>
+    </span>
+  )
+}
+
+// --- InfoPill --------------------------------------------------------------
+// The header affordance that opens a status page. A pill (not a bare link)
+// because it sits opposite a back arrow and has to read as a control at a
+// glance; label plus icon because an "i" alone is a guess.
+
+export function InfoPill({ children }: { children: ReactNode }) {
+  return (
+    <span className="flex items-center gap-4 rounded-full border border-primary-200 bg-primary-50 px-12 py-4 text-12 font-bold text-primary-500">
+      {children}
+    </span>
+  )
+}
+
+// --- SectionTitle ----------------------------------------------------------
+// A plain 14px heading over a list. Louder than an Overline, for the one list
+// that IS the screen's subject rather than a zone within it.
+
+export function SectionTitle({ children }: { children: ReactNode }) {
+  return <h2 className="text-14 font-bold text-default">{children}</h2>
+}
+
+// --- StatRows --------------------------------------------------------------
+// The visit's status, as label/value rows rather than a hero number. Step 1's
+// subject is the mitra list; the totals are reassurance the BP glances at, so
+// they are quiet by design — a 24px count at the top of the screen competed
+// with the queue it was supposed to be summarising.
+
+export interface StatRow {
+  label: string
+  value: string
+  /** Optional second line under the value, e.g. the money behind a count. */
+  detail?: string
+}
+
+export function StatRows({ rows }: { rows: StatRow[] }) {
+  return (
+    <div className="rounded-12 bg-neutral-white">
+      {rows.map((row, i) => (
+        <div
+          key={row.label}
+          className={`flex items-start gap-12 px-12 py-12 ${i === 0 ? '' : 'border-t border-light'}`}
+        >
+          <span className="flex-1 text-14 text-caption">{row.label}</span>
+          <span className="flex flex-col items-end">
+            <span className="text-14 font-bold text-default">{row.value}</span>
+            {row.detail ? <span className="text-12 text-caption">{row.detail}</span> : null}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }

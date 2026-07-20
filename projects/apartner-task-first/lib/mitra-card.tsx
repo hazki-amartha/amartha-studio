@@ -65,7 +65,7 @@ export function MitraCard({
       <Avatar name={mitra.name} />
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="flex items-center gap-4">
-          <span className="truncate text-16 font-bold text-default">{mitra.name}</span>
+          <span className="truncate text-18 font-bold text-default">{mitra.name}</span>
           {onOpen ? (
             <span className="shrink-0 text-disabled">
               <IconChevronRight size={16} />

@@ -168,6 +168,78 @@ export const MAJELIS: Majelis[] = [
 
 export const findMajelis = (id: string) => MAJELIS.find((m) => m.id === id) ?? MAJELIS[0]
 
+// --- The majelis directory -------------------------------------------------
+// What the Majelis tab lists. Every group the BP carries, not just the ones on
+// today's schedule — the whole point of the tab is reaching a group when the
+// schedule is NOT the thing sending you there.
+//
+// Only `mawar` has a real roster (see NOTES); the others carry their standing
+// facts so the directory is honest about the portfolio without pretending to
+// data this prototype does not have.
+
+export interface MajelisEntry {
+  id: string
+  name: string
+  place: string
+  /** The weekly pelayanan slot — the answer to "kapan majelis ini?". */
+  day: string
+  time: string
+  members: number
+  /** Mitra in this group currently behind. The one number worth listing. */
+  menunggak: number
+}
+
+export const MAJELIS_DIRECTORY: MajelisEntry[] = [
+  {
+    id: 'mawar',
+    name: 'Majelis Mawar',
+    place: 'Balai RW 04, Ciseeng',
+    day: 'Selasa',
+    time: '08.00',
+    members: 22,
+    menunggak: 3,
+  },
+  {
+    id: 'melati',
+    name: 'Majelis Melati',
+    place: 'Rumah Bu Yanti, Putat Nutug',
+    day: 'Selasa',
+    time: '10.00',
+    members: 18,
+    menunggak: 1,
+  },
+  {
+    id: 'kenanga',
+    name: 'Majelis Kenanga',
+    place: 'Balai Desa Ciseeng',
+    day: 'Selasa',
+    time: '16.00',
+    members: 25,
+    menunggak: 4,
+  },
+  {
+    id: 'anggrek',
+    name: 'Majelis Anggrek',
+    place: 'Rumah Bu Imas, Cibeuteung',
+    day: 'Kamis',
+    time: '09.00',
+    members: 20,
+    menunggak: 0,
+  },
+  {
+    id: 'dahlia',
+    name: 'Majelis Dahlia',
+    place: 'Balai RW 07, Ciseeng',
+    day: 'Jumat',
+    time: '13.30',
+    members: 16,
+    menunggak: 2,
+  },
+]
+
+export const findMajelisEntry = (id: string) =>
+  MAJELIS_DIRECTORY.find((m) => m.id === id) ?? MAJELIS_DIRECTORY[0]
+
 // --- Home visits -----------------------------------------------------------
 // A home visit is the single-mitra counterpart to a majelis: the BP rides to
 // ONE borrower's house, usually to collect an instalment that has slipped. It
