@@ -27,7 +27,13 @@ export function ScreenThumb({ screen }: { screen: ScreenDef }) {
       className="pointer-events-none select-none overflow-hidden rounded-8 border border-default bg-neutral-white"
       style={{ width: THUMB_W, height: THUMB_H }}
     >
+      {/* overflow-hidden here, on the full-size 390×844 box, is load-bearing:
+          it makes THIS the nearest scrolling ancestor, so a screen's
+          `sticky bottom-0` chrome resolves against the real screen height.
+          Without it the outer thumb (SCREEN_H × SCALE ≈ 211px) is the
+          scrollport and sticky bars land ~25% down the screen, over content. */}
       <div
+        className="overflow-hidden"
         style={{
           width: SCREEN_W,
           height: SCREEN_H,
