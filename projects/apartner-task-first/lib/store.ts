@@ -9,7 +9,7 @@
 // a boolean would lose the field's most common outcome.
 
 import { useSyncExternalStore } from 'react'
-import { PREPAID_MITRA, TASKS, type Mitra, type Task } from './data'
+import { PREPAID_MITRA, TASKS, type DayKey, type Mitra, type Task } from './data'
 
 export type Attendance = 'hadir' | 'tidak'
 
@@ -65,6 +65,23 @@ export interface NonPayment {
  */
 export type OfferResult = 'tertarik' | 'tidak'
 
+/**
+ * Why she said no, and when to ask again.
+ *
+ * A bare "tidak tertarik" is a dead end: next week's BP re-pitches from zero,
+ * and a mitra who said "belum butuh" gets treated the same as one who said
+ * "tidak sama sekali". Recording WHY is what makes the difference actionable —
+ * most nos are timing, not rejection, and timing has a date.
+ *
+ * `retrigger` is null for a hard no, which is a real outcome and not a missing
+ * one: it means the offer stops coming back.
+ */
+export interface OfferDecline {
+  reason: string
+  /** When to re-offer, or null if this one is closed for good. */
+  retrigger: string | null
+}
+
 export interface AppState {
   /** Task ids the BP has completed today. */
   doneTasks: string[]
@@ -72,6 +89,17 @@ export interface AppState {
   payments: Record<string, number>
   /** mitraId → why she isn't paying. Absent = no such outcome recorded. */
   nonPayments: Record<string, NonPayment>
+  /**
+   * mitraId → when she promises to hand over the REST, after a partial payment.
+   * Absent = no promise recorded.
+   *
+   * Separate from `nonPayments` on purpose: a part-payment is not a refusal, so
+   * it carries no reason — she paid, there is nothing to explain — but it does
+   * leave a balance, and a balance with no date on it is the same unchased gap
+   * as an unrecorded no. Folding it into `nonPayments` would also fight
+   * `paymentStatus`, which reads a refusal only when nothing was paid.
+   */
+  partialPtp: Record<string, string | null>
   /** mitraId → hadir/tidak. Absent = the BP hasn't marked them yet. */
   attendance: Record<string, Attendance>
   /**
@@ -87,6 +115,15 @@ export interface AppState {
   newAddress: Record<string, string>
   /** mitraId → what the mitra said. Absent = not pitched yet. */
   offerResults: Record<string, OfferResult>
+  /** mitraId → why she declined and when to re-offer. Only set for 'tidak'. */
+  offerDeclines: Record<string, OfferDecline>
+  /**
+   * Which day the schedule tab is showing. In the store rather than useState
+   * because the tab bar remounts the screen: a BP who looked ahead to besok,
+   * checked the Majelis tab, and came back would otherwise be silently
+   * returned to hari ini.
+   */
+  day: DayKey
   /** Which majelis the visit screen renders. */
   openMajelis: string
   /** Which home-visit task the home-visit screens render (a Task id). */
@@ -123,11 +160,14 @@ const initial: AppState = {
   doneTasks: [],
   payments: seedPayments,
   nonPayments: {},
+  partialPtp: {},
   attendance: seedAttendance,
   metWith: {},
   payMode: {},
   newAddress: {},
   offerResults: {},
+  offerDeclines: {},
+  day: 'today',
   openMajelis: 'mawar',
   openHome: 't3',
   openMitra: 'm1',
@@ -156,6 +196,9 @@ export const store = {
     return () => listeners.delete(listener)
   },
 
+  setDay(day: DayKey) {
+    store.set({ day })
+  },
   openVisit(majelisId: string) {
     // A visit always starts at step 1 with no proof yet.
     store.set({ openMajelis: majelisId, photo: false, geo: false })
@@ -202,11 +245,14 @@ export const store = {
     // Nobody home: no payment is possible, so the money comes off and the
     // outcome is forced to the only one an empty house can produce.
     const payments = { ...state.payments }
+    const partialPtp = { ...state.partialPtp }
     delete payments[mitraId]
+    delete partialPtp[mitraId]
     store.set({
       metWith: { ...state.metWith, [mitraId]: value },
       payments,
       nonPayments,
+      partialPtp,
       payMode: { ...state.payMode, [mitraId]: 'tidak' },
     })
   },
@@ -219,9 +265,11 @@ export const store = {
   setPayMode(mitraId: string, value: PayMode) {
     const payments = { ...state.payments }
     const nonPayments = { ...state.nonPayments }
+    const partialPtp = { ...state.partialPtp }
     delete payments[mitraId]
     delete nonPayments[mitraId]
-    store.set({ payments, nonPayments, payMode: { ...state.payMode, [mitraId]: value } })
+    delete partialPtp[mitraId]
+    store.set({ payments, nonPayments, partialPtp, payMode: { ...state.payMode, [mitraId]: value } })
   },
   setNewAddress(mitraId: string, value: string) {
     store.set({ newAddress: { ...state.newAddress, [mitraId]: value } })
@@ -234,18 +282,47 @@ export const store = {
    * Money clears any "tidak bayar" on file: she paid, so the reason she gave
    * for not paying is no longer true and must not linger.
    */
-  setPayment(mitraId: string, amount: number) {
+  setPayment(mitraId: string, amount: number, due?: number) {
     const nonPayments = { ...state.nonPayments }
     delete nonPayments[mitraId]
-    store.set({ payments: { ...state.payments, [mitraId]: amount }, nonPayments })
+
+    // A promise for "the rest" only means anything while there IS a rest. Pass
+    // `due` and the store retires the promise the moment the balance closes —
+    // otherwise correcting Rp 50.000 up to the full amount would leave a janji
+    // bayar on file for a debt that no longer exists.
+    const partialPtp = { ...state.partialPtp }
+    if (due !== undefined && amount >= due) delete partialPtp[mitraId]
+
+    store.set({ payments: { ...state.payments, [mitraId]: amount }, nonPayments, partialPtp })
+  },
+  /** When she'll hand over the balance left by a part-payment. */
+  setPartialPtp(mitraId: string, ptp: string | null) {
+    store.set({ partialPtp: { ...state.partialPtp, [mitraId]: ptp } })
+  },
+  clearPartialPtp(mitraId: string) {
+    const partialPtp = { ...state.partialPtp }
+    delete partialPtp[mitraId]
+    store.set({ partialPtp })
   },
   /** Records a no with its reason and, if given, when she promises to pay. */
   setNonPayment(mitraId: string, value: NonPayment) {
-    store.set({ nonPayments: { ...state.nonPayments, [mitraId]: value } })
+    // Nothing was paid, so there is no balance for a partial promise to cover;
+    // the date now lives on the refusal instead.
+    const partialPtp = { ...state.partialPtp }
+    delete partialPtp[mitraId]
+    store.set({ nonPayments: { ...state.nonPayments, [mitraId]: value }, partialPtp })
   },
-  /** Records what the mitra said, not merely that she was asked. */
-  setOfferResult(mitraId: string, result: OfferResult) {
-    store.set({ offerResults: { ...state.offerResults, [mitraId]: result } })
+  /**
+   * Records what the mitra said, not merely that she was asked. A `decline`
+   * comes with a no; saying yes retires whatever decline was on file, because a
+   * re-offer date for something she has now accepted would put the pitch back
+   * in a future queue she has already left.
+   */
+  setOfferResult(mitraId: string, result: OfferResult, decline?: OfferDecline) {
+    const offerDeclines = { ...state.offerDeclines }
+    if (result === 'tidak' && decline) offerDeclines[mitraId] = decline
+    else delete offerDeclines[mitraId]
+    store.set({ offerResults: { ...state.offerResults, [mitraId]: result }, offerDeclines })
   },
   finishTask(taskId: string) {
     if (state.doneTasks.includes(taskId)) return
