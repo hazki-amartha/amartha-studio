@@ -10,22 +10,23 @@ import { DetailScreen } from './screens/detail'
 export const project: ProjectModule = {
   config,
   screens: [
+    // id + title + component is the whole requirement. Two optional extras exist
+    // and are OFF by default:
+    //   notes    — annotations beside the device on desktop. Add ONLY when the
+    //              designer asks. Never write unrequested design rationale.
+    //   flowsTo  — descriptive edges for the flow view. Real navigation is
+    //              useFlow().go(id) in the component; this just draws the map.
+    //              Add it when a diagram helps, skip it otherwise.
     {
-      id: 'example', // kebab-case, unique in this project, stable (used by flow edges)
+      id: 'example', // kebab-case, unique in this project, stable
       title: 'Example',
       component: ExampleScreen,
       entry: true, // exactly ONE screen per project sets entry: true
-      notes: ['Annotation shown beside the device on desktop while this screen is active.'],
-      // flowsTo is descriptive metadata for the flow view — the real navigation
-      // happens via useFlow().go(id) inside the component. Keep them in sync.
-      flowsTo: [{ to: 'detail', label: 'view detail' }],
     },
     {
       id: 'detail',
       title: 'Detail',
       component: DetailScreen,
-      notes: ['Back returns to the entry screen via useFlow().back().'],
-      flowsTo: [{ to: 'example', label: 'back' }],
     },
   ],
 }
