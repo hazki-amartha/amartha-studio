@@ -7,7 +7,6 @@ import { MajelisVisitScreen } from './screens/majelis-visit'
 import { MajelisOffersScreen } from './screens/majelis-offers'
 import { MajelisProofScreen } from './screens/majelis-proof'
 import { HomeVisitScreen } from './screens/home-visit'
-import { HomeOfferScreen } from './screens/home-offer'
 import { HomeProofScreen } from './screens/home-proof'
 import { MitraScreen } from './screens/mitra'
 import { MajelisInfoScreen } from './screens/majelis-info'
@@ -42,13 +41,14 @@ export const project: ProjectModule = {
       component: MajelisVisitScreen,
       notes: [
         'Step 1 of 3. The visit is a sequence, so it is three pages rather than one long screen: collect, then offer, then prove and submit. The StepBar shows position; steps advance by being finished, never by tapping the bar.',
-        'The queue drains on RECORDED, not on paid. The step\'s job is to record an outcome for every mitra — not to make everyone lunas — so the split is "Belum dicatat / Sudah dicatat" and a card leaves the queue once it has an outcome of any kind.',
+        'The queue drains on RECORDED, not on paid. The step\'s job is to record an outcome for every mitra — not to make everyone lunas — so the split is "Belum ditagih / Sudah ditagih" and a card leaves the queue once it has an outcome of any kind.',
         'That fixed a real bug: grouped on lunas, a mitra recorded as "tidak bayar" was finished but sat in the queue forever, so the count could never reach zero — and the old "Sudah lunas" copy claimed she had paid when she plainly had not.',
-        'Everything on the card sits on a 32px rhythm — avatar, both attendance circles, both buttons — so the two rows read as clean bands. FunDS button sizes step 28 (xs) → 36 (sm), so neither lands on 32; the buttons carry h-32 to pin them. See NOTES.md.',
+        'Everything on the card sits on a 40px rhythm — avatar, both attendance circles, both buttons — so the two rows read as clean bands. FunDS button sizes step 28 (xs) → 36 (sm), so neither lands on 40; the buttons carry h-40 to pin them. See NOTES.md.',
         'Attendance is two circular icon buttons (✗/✓) in the identity row — at 22 cards the words "Hadir"/"Tidak" would repeat 44 times for a question whose answer is a shape. Unselected is a real third state, so there is no default: a default would fabricate attendance data.',
-        'Payment is two buttons. "Lunas" is the common case at one tap and no sheet. "Catatan" is the one door to every other outcome: the sheet opens on a mode switch — bayar sebagian (any amount, over or under) or tidak bayar (reason + janji bayar).',
+        'Payment is two buttons. "Bayar Penuh" is the common case at one tap and no sheet. "Lainnya" is the one door to every other outcome: the sheet opens on a mode switch — bayar sebagian (any amount, over or under) or tidak bayar (reason + janji bayar).',
         '"Tidak Bayar" as a first-class outcome is the point: a no with a reason and a date is a result the BP can close and ops can chase. Leaving it unrecorded is exactly what pushes DPD work onto the RM\'s Google Form.',
-        'Recorded mitra collapse into "Sudah dicatat", each row carrying its outcome and an "Ubah" that reopens the sheet that produced it — so leaving the queue never traps an entry.',
+        'Recorded mitra collapse into "Sudah ditagih", each row carrying its outcome and an "Ubah" that reopens the sheet that produced it — so leaving the queue never traps an entry.',
+        'The status card is two quiet label/value rows (Kehadiran, Penagihan), and step 2 uses the SAME card with its rows swapped for offer progress — so the two steps read as one screen with its list changed, not two screens.',
       ],
       flowsTo: [
         { to: 'majelis-offers', label: 'Lanjut → langkah 2' },
@@ -62,6 +62,7 @@ export const project: ProjectModule = {
       component: MajelisOffersScreen,
       notes: [
         'Step 2 of 3. The same mitra list, rendered by the same MitraCard as step 1 — only the action row is swapped for the recommended action. The sameness does work: the BP reads the same faces in the same layout, so the only new thing is the recommendation.',
+        'That sameness now runs all the way up the screen: same header (title, slot, Info pill), same StatRows status card, same "Daftar Mitra" heading. Step 2 counts by what the mitra DID — "Sudah menabung: 2 dari 15 mitra" — one row per offer kind, mirroring step 1\'s "Sudah ditagih".',
         'Cross-sell is nice-to-have, so the SEQUENCE carries the priority rather than the visual weight: this step comes after collection, is capped at one action per mitra, and is skippable — the CTA reads "Lewati" until something is offered.',
         'Only mitra with a recommendation are listed. Everyone else is simply absent, rather than shown as an empty row.',
       ],
@@ -91,27 +92,15 @@ export const project: ProjectModule = {
       title: 'Home Visit — Temui & Tagih',
       component: HomeVisitScreen,
       notes: [
-        'Step 1 of 3, and the single-mitra twin of majelis step 1. A home visit is one borrower at her door, so where a majelis opens on a countdown queue this opens on the "why now": the address and the pre-reasoned reason line lifted straight from the schedule.',
-        'The card is the same MitraCard, the payment sheet is the same sheet, the 32px rhythm is the same — deliberately. A BP who has done a majelis already knows this screen; only the roster size changed.',
-        'Attendance is reread as "Ditemui / Tidak di rumah" — on a doorstep the first fact is whether you reached her at all. "Not home" is a real outcome, logged through Catatan as a no with reason "Tidak ada di rumah" and a date to come back, never left as a blank.',
-        '"Tidak Bayar" carries a reason and a promise/revisit date, exactly as in the majelis flow — the point of a collection visit is to close the loop that otherwise falls to a Google Form.',
+        'Step 1 of TWO. A home visit happens because a mitra is behind, so the flow is optimised end to end for collection and the cross-sell step was cut — there is nothing to upsell someone two months down.',
+        'The doorstep card is one card, not three stacked blocks: who she is, WhatsApp and call buttons, her address, and the pre-reasoned reason line with "Selengkapnya" into her mitra page. A home visit fails most often by not reaching her, and the BP\'s real next move at a locked gate is to phone — which until now meant leaving the app for a number the app already had.',
+        'The team\'s flowchart branches hard (met mitra? → met PJ? → met neighbour?, then can-pay? → full/partial → reason → PTP → Peldis). apartner-homepage-ia renders that faithfully as fourteen stacked questions. Here the same tree is asked in two places: the PAGE holds what is simply true on arrival, the SHEET holds what has to be negotiated.',
+        'Three collapses do the work. (1) "met mitra / met PJ / met neighbour" is ONE question with three answers — they all ask who the BP talked to. (2) Mitra and PJ share the same outcome controls: whether the money came from her or her husband does not change what is recorded, so it is a tag, not a branch. (3) "Nobody home" cannot produce a payment, so its sheet drops the mode switch and opens straight on the reason and the revisit date.',
+        'Peldis is the one offer this flow makes, and it is a collection outcome rather than a pitch: 60+ days down, settle the principal, route to the BM. The app raises it because it already knows she is eligible — the BP should not have to remember a threshold.',
+        '"Pindah rumah" is the one reason that asks for more than a label. An address is what turns a relocation into something ops can act on instead of a dead end.',
       ],
       flowsTo: [
-        { to: 'home-offer', label: 'Lanjut → langkah 2' },
-        { to: 'mitra', label: 'ketuk nama mitra' },
-      ],
-    },
-    {
-      id: 'home-offer',
-      title: 'Home Visit — Tugas Tambahan',
-      component: HomeOfferScreen,
-      notes: [
-        'Step 2 of 3. The same offers step, for the one mitra. For a delinquent the honest "extra task" is relief, not growth — a longer tenor rather than a new loan — so it reads as part of the collection conversation instead of a bolt-on pitch.',
-        'Still skippable and self-closing: "Tawarkan" records what she said, not that she was asked. A mitra with nothing to offer (Sari, keeping today\'s promise) lands on the empty state, which is a first-class outcome, not a gap.',
-      ],
-      flowsTo: [
-        { to: 'home-proof', label: 'Lanjut / Lewati → langkah 3' },
-        { to: 'home-visit', label: 'kembali' },
+        { to: 'home-proof', label: 'Lanjut → langkah 2' },
         { to: 'mitra', label: 'ketuk nama mitra' },
       ],
     },
@@ -120,13 +109,13 @@ export const project: ProjectModule = {
       title: 'Home Visit — Foto & Kirim',
       component: HomeProofScreen,
       notes: [
-        'Step 3 of 3. Photo gates submission and the recap reads back what the BP entered — same contract as the majelis close, scaled to one mitra: was she met, what did she pay, is there a promise to come back for.',
+        'Step 2 of 2. Photo gates submission and the recap reads back what the BP entered — same contract as the majelis close, scaled to one mitra: who was met, what she paid, whether Peldis went in, and is there a promise to come back for.',
         'The only warning is "nothing recorded at all". A recorded "tidak bayar" with a reason and a date is finished work, so nagging about the unpaid balance would just train the BP to ignore the banner.',
         'Submitting finishes the task and returns to the schedule, which promotes the next task into "Sekarang" — the same self-advancing loop the majelis flow closes.',
       ],
       flowsTo: [
         { to: 'today', label: 'Selesaikan Tugas' },
-        { to: 'home-offer', label: 'kembali' },
+        { to: 'home-visit', label: 'kembali' },
       ],
     },
     {

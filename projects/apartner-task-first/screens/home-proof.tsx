@@ -1,15 +1,15 @@
 'use client'
 
-// Step 3 of 3 — Foto & Kirim.
+// Step 2 of 2 — Foto & Kirim.
 //
 // The home-visit read of the majelis proof step. Photo gates submission, the
 // recap reads back what the BP entered rather than showing a metric, and
 // submitting finishes the task so the schedule promotes the next one.
 //
-// The recap is scaled to one mitra: whether she was met, what she paid, and —
-// the fact a doorstep collection turns on — whether there is a promise to come
-// back for. An outstanding balance with a promise is work closed for today; an
-// outstanding balance with nothing recorded is the warning.
+// The recap is scaled to one mitra: who was met, what she paid, and — the fact
+// a doorstep collection turns on — whether there is a promise to come back for.
+// An outstanding balance with a promise is work closed for today; an outstanding
+// balance with nothing recorded is the warning.
 
 import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
@@ -25,14 +25,23 @@ export function HomeProofScreen() {
   const visit = findHomeVisit(s.openHome)
   const mitra = visit.mitra
 
-  const met = s.attendance[mitra.id]
+  const met = s.metWith[mitra.id]
   const status = paymentStatus(s, mitra)
   const paid = paidOf(s, mitra)
   const refusal = s.nonPayments[mitra.id]
-  const offerTertarik = s.offerResults[mitra.id] === 'tertarik'
+  const peldisDone = s.peldis.includes(mitra.id)
   // Nothing recorded at all — no payment, no logged no — is the one state worth
   // warning about. A recorded "tidak bayar" is finished work, not a gap.
   const nothingRecorded = status === 'belum'
+
+  const metLabel =
+    met === 'mitra'
+      ? 'Mitra sendiri'
+      : met === 'pj'
+        ? 'Keluarga / penanggung jawab'
+        : met === 'nobody'
+          ? 'Tidak ada orang'
+          : 'Belum ditandai'
 
   function submit() {
     store.finishTask(visit.id)
@@ -49,8 +58,8 @@ export function HomeProofScreen() {
           : 'Belum dicatat'
 
   return (
-    <Screen topBar={<NavigationHeader title="Home Visit" onBack={() => flow.back()} />}>
-      <StepBar current={3} labels={HOME_STEP_LABELS} />
+    <Screen topBar={<NavigationHeader title={mitra.name} onBack={() => flow.back()} />}>
+      <StepBar current={2} labels={HOME_STEP_LABELS} />
 
       {/* --- Read-back of what the BP entered, not a dashboard. */}
       <Card>
@@ -61,20 +70,16 @@ export function HomeProofScreen() {
           </div>
           <div className="flex items-center gap-12">
             <span className="flex-1 text-12 text-caption">Ditemui</span>
-            <span className="text-14 font-bold text-default">
-              {met === 'hadir' ? 'Ya' : met === 'tidak' ? 'Tidak' : 'Belum ditandai'}
-            </span>
+            <span className="text-14 font-bold text-default">{metLabel}</span>
           </div>
           <div className="flex items-center gap-12">
             <span className="flex-1 text-12 text-caption">Pembayaran</span>
             <span className="text-14 font-bold text-default">{statusLine}</span>
           </div>
-          {offerTertarik ? (
+          {peldisDone ? (
             <div className="flex items-center gap-12">
-              <span className="flex-1 text-12 text-caption">Tugas tambahan</span>
-              <span className="text-14 font-bold text-default">
-                {mitra.offer?.label} · tertarik
-              </span>
+              <span className="flex-1 text-12 text-caption">Peldis</span>
+              <span className="text-14 font-bold text-default">Diajukan ke BM</span>
             </div>
           ) : null}
           {nothingRecorded ? (

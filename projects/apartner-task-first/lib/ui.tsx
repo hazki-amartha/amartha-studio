@@ -126,11 +126,12 @@ export function IconToggle({ selected, tone, onClick, label, children }: IconTog
 // is left. Deliberately not tappable: steps advance by finishing them, in the
 // same spirit as the schedule promoting the next task by itself.
 
-// Both flows run three steps and share step 2 (Tugas Tambahan) and step 3
-// (Foto & Kirim). Only step 1's name differs: a majelis collects attendance,
-// a home visit records whether the one borrower was even reached.
+// The two flows no longer run the same number of steps, and that is the point.
+// A majelis visit is three: collect, offer, prove. A home visit is TWO — a home
+// visit happens because a mitra is behind, so there is nothing to cross-sell and
+// the offer step was cut. See NOTES.
 export const STEP_LABELS = ['Kehadiran & Pembayaran', 'Tugas Tambahan', 'Foto & Kirim']
-export const HOME_STEP_LABELS = ['Temui & Tagih', 'Tugas Tambahan', 'Foto & Kirim']
+export const HOME_STEP_LABELS = ['Temui & Tagih', 'Foto & Kirim']
 
 // The step's NAME is the heading, and "Langkah 1 dari 3" is the caption beneath
 // it. The two were previously fused into one small line, which buried the only
@@ -140,22 +141,25 @@ export function StepBar({
   current,
   labels = STEP_LABELS,
 }: {
-  current: 1 | 2 | 3
+  current: number
   labels?: string[]
 }) {
+  const total = labels.length
   return (
     <div className="flex flex-col gap-8">
       <div className="flex gap-4">
-        {[1, 2, 3].map((n) => (
+        {labels.map((label, i) => (
           <span
-            key={n}
-            className={`h-4 flex-1 rounded-full ${n <= current ? 'bg-primary-500' : 'bg-neutral-200'}`}
+            key={label}
+            className={`h-4 flex-1 rounded-full ${i < current ? 'bg-primary-500' : 'bg-neutral-200'}`}
           />
         ))}
       </div>
       <div className="flex flex-col gap-2">
         <span className="text-20 font-bold text-default">{labels[current - 1]}</span>
-        <span className="text-10 font-bold uppercase text-caption">Langkah {current} dari 3</span>
+        <span className="text-10 font-bold uppercase text-caption">
+          Langkah {current} dari {total}
+        </span>
       </div>
     </div>
   )

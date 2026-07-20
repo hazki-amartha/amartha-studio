@@ -113,6 +113,28 @@ export function IconCamera(props: IconProps) {
   )
 }
 
+/** WhatsApp, as a filled bubble — reads at 20px where the outline does not. */
+export function IconChatFill(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path
+        d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.7-.8L3 21l1.9-5.3A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"
+        fill="currentColor"
+        stroke="none"
+      />
+    </Svg>
+  )
+}
+
+/** Reaching a mitra from the doorstep card. */
+export function IconPhone(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6.5 3h3l1.5 4-2 1.5a12 12 0 0 0 5.5 5.5L16 12l4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.5 5.2 2 2 0 0 1 6.5 3z" />
+    </Svg>
+  )
+}
+
 /** Header affordance — opens the majelis status page. */
 export function IconInfo(props: IconProps) {
   return (

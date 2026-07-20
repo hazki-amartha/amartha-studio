@@ -14,6 +14,17 @@ import { PREPAID_MITRA, TASKS, type Mitra, type Task } from './data'
 export type Attendance = 'hadir' | 'tidak'
 
 /**
+ * Who the BP actually spoke to at the door.
+ * - `mitra`  — the borrower herself.
+ * - `pj`     — family or the penanggung jawab. Money and promises still count;
+ *              only who handed them over differs, which is why this is a tag on
+ *              the same outcome rather than a separate branch of questions.
+ * - `nobody` — no one. No payment is possible, so the only outcome is a reason
+ *              and a date to come back.
+ */
+export type MetWith = 'mitra' | 'pj' | 'nobody'
+
+/**
  * Where a mitra stands on this week's instalment.
  * - `belum`    — nothing recorded yet; the BP hasn't got to her.
  * - `sebagian` — paid part of it.
@@ -47,6 +58,15 @@ export interface AppState {
   nonPayments: Record<string, NonPayment>
   /** mitraId → hadir/tidak. Absent = the BP hasn't marked them yet. */
   attendance: Record<string, Attendance>
+  /**
+   * mitraId → who actually answered the door. A home visit's first fact, and
+   * the one question that replaces three nested ones (met mitra? → met PJ? →
+   * met neighbour?): they are all asking who the BP talked to, so it is asked
+   * once with three answers instead of three times with two.
+   */
+  metWith: Record<string, MetWith>
+  /** mitraId → Peldis submitted to the BM. The one offer a home visit makes. */
+  peldis: string[]
   /** mitraId → what the mitra said. Absent = not pitched yet. */
   offerResults: Record<string, OfferResult>
   /** Which majelis the visit screen renders. */
@@ -79,6 +99,8 @@ const initial: AppState = {
   payments: seedPayments,
   nonPayments: {},
   attendance: seedAttendance,
+  metWith: {},
+  peldis: [],
   offerResults: {},
   openMajelis: 'mawar',
   openHome: 't3',
@@ -127,6 +149,22 @@ export const store = {
   },
   setPhoto(photo: boolean) {
     store.set({ photo })
+  },
+  /** Who answered the door. Choosing "nobody" clears any payment on file —
+   *  you cannot have collected from someone you did not meet. */
+  setMetWith(mitraId: string, value: MetWith) {
+    if (value !== 'nobody') {
+      store.set({ metWith: { ...state.metWith, [mitraId]: value } })
+      return
+    }
+    const payments = { ...state.payments }
+    delete payments[mitraId]
+    store.set({ metWith: { ...state.metWith, [mitraId]: value }, payments })
+  },
+  /** Peldis submitted to the BM — a settlement route, not a sale. */
+  submitPeldis(mitraId: string) {
+    if (state.peldis.includes(mitraId)) return
+    store.set({ peldis: [...state.peldis, mitraId] })
   },
   setAttendance(mitraId: string, value: Attendance) {
     store.set({ attendance: { ...state.attendance, [mitraId]: value } })

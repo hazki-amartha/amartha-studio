@@ -38,6 +38,12 @@ export interface Mitra {
 export interface Offer {
   label: string
   /**
+   * The completed state, past tense — "Sudah menabung", not "Celengan
+   * ditawarkan". Step 2's status card counts outcomes, and an outcome is what
+   * the mitra DID; "was offered" is a record of the BP talking.
+   */
+  done: string
+  /**
    * The mitra's standing on the thing being offered — shown under her name on
    * step 2, in the slot step 1 uses for payment. It is a STATUS, not a pitch:
    * it states where she is ("Belum pernah menabung"), and the recommendation
@@ -84,7 +90,7 @@ export const TASKS: Task[] = [
     until: '13.45',
     title: 'Ibu Rina Marlina',
     place: 'Kp. Cibeuteung RT 02',
-    reason: 'Menunggak 34 hari · Rp 450.000',
+    reason: 'Menunggak 62 hari · Rp 450.000',
   },
   {
     id: 't4',
@@ -115,7 +121,7 @@ const MAWAR_MEMBERS: Mitra[] = [
     name: 'Rina Marlina',
     due: 200_000,
     dpd: 34,
-    offer: { label: 'Perpanjangan pinjaman', status: 'Minggu 40 dari 48 di pinjaman terlama' },
+    offer: { label: 'Perpanjangan pinjaman', done: 'Sudah diperpanjang', status: 'Minggu 40 dari 48 di pinjaman terlama' },
   },
   { id: 'm2', name: 'Ani Suryani', due: 150_000, dpd: 7 },
   {
@@ -123,7 +129,7 @@ const MAWAR_MEMBERS: Mitra[] = [
     name: 'Sari Handayani',
     due: 125_000,
     dpd: 0,
-    offer: { label: 'Celengan', status: 'Belum pernah menabung' },
+    offer: { label: 'Celengan', done: 'Sudah menabung', status: 'Belum pernah menabung' },
   },
   { id: 'm4', name: 'Dewi Lestari', due: 175_000, dpd: 0 },
   {
@@ -131,7 +137,7 @@ const MAWAR_MEMBERS: Mitra[] = [
     name: 'Siti Aminah',
     due: 200_000,
     dpd: 0,
-    offer: { label: 'Agent AOne', status: '2 pinjaman aktif' },
+    offer: { label: 'Agent AOne', done: 'Sudah jadi agen', status: '2 pinjaman aktif' },
   },
   { id: 'm6', name: 'Yanti Rohayati', due: 150_000, dpd: 14 },
   { id: 'm7', name: 'Eni Nuraeni', due: 125_000, dpd: 0 },
@@ -254,29 +260,34 @@ export interface HomeVisit {
   mitra: Mitra
 }
 
+// Neither carries an `offer`. A home visit happens BECAUSE a mitra is behind,
+// so the flow is optimised end to end for collection — the cross-sell step was
+// cut from this flow entirely. The one thing worth offering a delinquent is
+// relief, and that is Peldis (below), which is a collection outcome, not a
+// pitch.
 export const HOME_VISITS: HomeVisit[] = [
   {
     id: 't3',
-    mitra: {
-      id: 'h1',
-      name: 'Rina Marlina',
-      due: 450_000,
-      dpd: 34,
-      // A delinquent's "extra task" is relief, not growth: the honest thing to
-      // offer someone two instalments behind is a longer tenor, not a new loan.
-      offer: {
-        label: 'Perpanjangan tenor',
-        status: 'Minggu 40 dari 48 · menunggak 2 angsuran',
-      },
-    },
+    // 62 days down: past the point a majelis collection can recover her, which
+    // is why she is a home visit at all — and past the Peldis threshold.
+    mitra: { id: 'h1', name: 'Rina Marlina', due: 450_000, dpd: 62 },
   },
   {
     id: 't4',
-    // No offer — exercises step 2's empty state, and a mitra keeping today's
-    // promise is not someone to pitch anything to.
+    // A few days down and keeping today's promise — the ordinary case, where
+    // the visit is a nudge rather than a recovery.
     mitra: { id: 'h2', name: 'Sari Handayani', due: 200_000, dpd: 3 },
   },
 ]
+
+/**
+ * Peldis (pelunasan dipercepat / discounted settlement) — a mitra 60+ days down
+ * may settle by paying principal only, routed BP → BM → HO. It is the one
+ * "offer" a home visit can honestly make, and it exists to CLOSE a bad loan
+ * rather than to sell anything, so it lives inside the collection step instead
+ * of a cross-sell step of its own.
+ */
+export const PELDIS_DPD = 60
 
 export const findHomeVisit = (taskId: string) =>
   HOME_VISITS.find((h) => h.id === taskId) ?? HOME_VISITS[0]

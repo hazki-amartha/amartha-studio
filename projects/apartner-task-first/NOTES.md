@@ -165,9 +165,15 @@ The visit pass moved emphasis to where the work is:
   to know a bit of product vocabulary before she could tap. `Sudah dicatat`
   became `Sudah ditagih` for the same reason.
 
-The home visit takes every one of these that applies, since it is built as the
-majelis visit's single-mitra twin — minus the Info pill, because on a one-borrower
-visit the status page *is* her mitra page, already reachable by tapping her name.
+**Steps 1 and 2 share the whole shell** — same header, same `StatRows` status
+card, same `Daftar Mitra` heading — so the only thing that changes between them
+is the list, which is the entire design of this flow. Step 2's rows count by what
+the mitra *did*, one row per offer kind (`Sudah menabung: 2 dari 15 mitra`),
+mirroring step 1's `Sudah ditagih`.
+
+The home visit takes the header and step-title treatment, minus the Info pill:
+on a one-borrower visit the status page *is* her mitra page, already reachable by
+tapping her name.
 
 ## The wider IA — three tabs
 
@@ -231,44 +237,87 @@ These are cuts, not oversights:
    lunas): once offers became their own step, the step order does that job, and
    the gate would only have hidden work from a BP who is standing right there.
 
-## The home visit — the same flow, one borrower
+## The home visit — two steps, optimised for collection
 
-Home visits now open a real flow (the "Mulai Kunjungan" button is no longer
-disabled). A home visit is the **single-mitra twin of the majelis visit**, and it
-is built as exactly that on purpose: same three-step `StepBar`, same `MitraCard`,
-same payment `BottomSheet`, same proof-gates-submit close. A BP who has run a
-majelis already knows every control; only the roster size changed.
+A home visit is **not** the majelis visit with one row. It was built that way
+first — same three steps, same `MitraCard` — and the mismatch showed up as soon
+as the branching did. A majelis stop is a queue with a shallow decision per
+mitra. A home visit is **one** mitra with a deep decision, and it happens
+*because* she is behind. So the flow is now two steps and shaped for recovery:
 
 | Step | Screen | The one job |
 |------|--------|-------------|
 | 1 | `home-visit` | Temui & Tagih — reach her, record the outcome |
-| 2 | `home-offer` | Tugas Tambahan — the one recommended action |
-| 3 | `home-proof` | Foto & Kirim — proof, then submit |
+| 2 | `home-proof` | Foto & Kirim — proof, then submit |
 
-What differs, and why:
+**The cross-sell step is gone.** There is nothing to upsell someone two months
+down, and the previous answer ("offer a longer tenor — relief, not growth") was
+right about the *content* and wrong about the *shape*: relief is a collection
+outcome, so it belongs inside the collection step, not in a step of its own that
+copies the cross-sell furniture. See Peldis below.
 
-- **The queue becomes one card.** With one borrower there is no countdown to
-  zero, so step 1 opens on the *why now* instead — the address and the
-  pre-reasoned reason line lifted straight from the schedule (`Menunggak 34 hari ·
-  Rp 450.000`). It is the same "hand the BP the reasoning" move the `today` card
-  makes.
-- **Attendance is reread as "Ditemui / Tidak di rumah".** On a doorstep the first
-  fact is whether you reached her at all. "Not home" is a real outcome, not a
-  blank: it is logged through the same **Catatan → Tidak bayar** door, with reason
-  `Tidak ada di rumah` and a revisit date, so an empty-handed trip still closes
-  the loop instead of vanishing.
-- **The extra task is relief, not growth.** For a delinquent the honest offer is a
-  longer tenor (`Perpanjangan tenor`), not a new product — so step 2 reads as part
-  of the collection conversation. It stays skippable and self-closing; a mitra with
-  nothing to offer (Sari, keeping today's promise) lands on the empty state.
-- **Step 3's only warning is "nothing recorded at all".** Same rule as the majelis
-  close: a recorded `tidak bayar` with a reason and a date is finished work, so the
-  banner flags an untouched visit, never an unpaid balance.
+### The doorstep card
 
-Both home-visit mitra reuse the shared store keyed by mitra id
-(`attendance` / `payments` / `nonPayments` / `offerResults`), so nothing new was
-added to state beyond `openHome` (which home-visit task is open) — the mirror of
-`openMajelis`.
+One card, replacing three stacked blocks (a place card, a reason card, and the
+shared `MitraCard`). On a single-mitra visit those were never three things:
+
+```
+[avatar] Nama ›                      [WhatsApp] [Telepon]
+📍 Kp. Cibeuteung RT 02
+──────────────────────────────────────────────────────────
+Menunggak 62 hari · Rp 450.000              Selengkapnya ›
+```
+
+**The contact buttons are the point.** A home visit fails most often by simply
+not reaching her, and the BP's real next move at a locked gate is to phone —
+which until now meant leaving the app to look up a number the app already had.
+
+### Fourteen questions, asked in two places
+
+The team's flowchart branches hard: `met mitra? → can pay? → full/partial →
+reason → PTP → Peldis`, and in parallel `not present → met PJ? → titipan? → PJ
+PTP?`, and `met neighbour?` if not. `apartner-homepage-ia` renders that
+faithfully as fourteen progressively-revealed questions on one page — thorough,
+and a lot to stand in front of someone with.
+
+The split here:
+
+- **On the page** — what is simply *true when you arrive*: who answered the door,
+  and did she pay in full (one tap, no sheet — the good case stays cheap).
+- **In the sheet** — what has to be *negotiated*: the partial amount, the reason,
+  the promise-to-pay date, the new address.
+
+Three collapses do the actual work:
+
+1. **`met mitra? → met PJ? → met neighbour?` is one question with three
+   answers.** All three ask who the BP talked to. Nesting them made her answer
+   the same question repeatedly just to reach "nobody was home".
+2. **Mitra and PJ share the same outcome controls.** Whether the money came from
+   her or from her husband doesn't change what gets recorded — the amount and the
+   promise — so who handed it over is a **tag, not a branch**.
+3. **"Nobody home" can't produce a payment**, so its sheet drops the mode switch
+   and opens straight on the reason and the revisit date. Choosing it also clears
+   any payment on file: you cannot have collected from someone you didn't meet.
+
+`Pindah rumah` is the one reason that asks for more than a label — an address is
+what turns a relocation into something ops can act on instead of a dead end.
+
+### Peldis — the one offer a home visit makes
+
+A mitra 60+ days down may settle by paying **principal only**, routed BP → BM →
+HO. It surfaces inline in step 1 as a recommendation, because the app already
+knows she is eligible and the BP shouldn't have to carry a threshold in her head.
+
+This is what replaced the cross-sell step, and it is a better fit for the same
+reason the step was wrong: Peldis exists to **close a bad loan**, not to sell
+anything. It is the collection conversation, not a bolt-on to it.
+
+Rina's home-visit record is 62 days down (her majelis record stays at 34 — the
+home visit is explicitly the escalated case), so the flow exercises Peldis. Sari
+at 3 days is the ordinary nudge.
+
+State added: `metWith` (who answered the door) and `peldis`. Everything else —
+`payments`, `nonPayments` — is the shared store keyed by mitra id, unchanged.
 
 ## The mitra page — actions first, record underneath
 
@@ -380,6 +429,11 @@ from tokens + design-system components:
 - **InfoPill** (`lib/ui.tsx`) — the header affordance that opens a status page.
   Sits in `NavigationHeader`'s `link` slot; a pill rather than a bare link
   because it sits opposite a back arrow and has to read as a control.
+- **HomeMitraCard** (`lib/home-card.tsx`) — the doorstep card: identity, contact
+  buttons, address, and a reason line that links onward. Not proposed for
+  promotion yet — it has one use, and §4 says a component earns promotion by
+  being wanted twice. Noted here because its **contact-button pair** is the part
+  likely to recur: any screen showing a person the BP has to reach wants it.
 
 Not proposed: the tab bar. `NavigationBar` already exists in FunDS Lite and
 `lib/tabs.tsx` only wires it to `useFlow()` — no new component was needed.
