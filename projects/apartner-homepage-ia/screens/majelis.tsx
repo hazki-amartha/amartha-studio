@@ -16,19 +16,10 @@ import {
   type MetricKey,
   type Tone,
 } from '../lib/data'
-import { IconChart, IconChevR, IconUsers } from '../lib/icons'
+import { IconChevR, IconUsers } from '../lib/icons'
 import { TabBar } from '../lib/shell'
 import { store, useApp } from '../lib/store'
-import {
-  ContextStrip,
-  EmptyState,
-  FilterBar,
-  FilterChip,
-  IconTile,
-  OptionSheet,
-  ResetLink,
-  SearchField,
-} from '../lib/ui'
+import { EmptyState, FilterBar, FilterChip, IconTile, OptionSheet, ResetLink, SearchField } from '../lib/ui'
 
 type MenuId = 'sort' | 'loan' | null
 
@@ -85,7 +76,7 @@ export function MajelisScreen() {
       return
     }
     const [m, dir] = v.split(':')
-    store.set({ majSort: { m: m as MetricKey, dir: dir as 'asc' | 'desc', from: null } })
+    store.set({ majSort: { m: m as MetricKey, dir: dir as 'asc' | 'desc' } })
   }
 
   function open(g: Majelis) {
@@ -117,15 +108,6 @@ export function MajelisScreen() {
         />
         {hasFilter ? <ResetLink onClick={() => store.resetMajelisFilters()} /> : null}
       </FilterBar>
-
-      {sort?.from ? (
-        <ContextStrip>
-          <IconChart size={16} />
-          <span className="flex-1">
-            Dari KPI <b>{sort.from}</b> · {METRIC[sort.m].l} terendah dulu
-          </span>
-        </ContextStrip>
-      ) : null}
 
       <p className="text-12 text-caption">
         {qq || hasFilter

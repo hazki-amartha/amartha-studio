@@ -2,19 +2,23 @@
 
 // Project-local store. The platform runtime remounts a screen on every
 // navigation, so anything that must survive a go()/back() lives here rather
-// than in component state: the notification read state, the KPI deep-link
-// filters, and which majelis/mitra/banner a detail screen is showing.
+// than in component state: notification/comms read state, the KPI deep-link
+// task filter, which majelis/mitra/comm a detail screen is showing, and which
+// task is driving the active Kunjungan Rumah flow.
 //
 // This mirrors the useState pile in the source draft's <App> shell — that shell
 // held tabs + overlays in one tree, whereas here each screen stands alone.
+// Ephemeral, screen-local state (period pickers, in-progress form drafts) stays
+// as plain useState in the screen that owns it — it's meant to reset on remount.
 
 import { useSyncExternalStore } from 'react'
 import {
+  COMMS_SEED,
   MAJELIS,
   MITRA,
   NOTIFS_SEED,
   TASKS,
-  type Banner,
+  type Comm,
   type KindFilter,
   type MetricKey,
   type Notif,
@@ -28,30 +32,29 @@ export interface TaskFilter {
   type: TaskType | null
   when: WhenFilter
   kind: KindFilter
-  /** Set when Home was opened from a KPI group — drives the context strip. */
+  /** Set when Home was opened from a KPI parameter — drives the context strip. */
   from: string | null
 }
 
 export interface MajelisSort {
   m: MetricKey
   dir: 'asc' | 'desc'
-  /** Set when Majelis was opened from a KPI group — drives the context strip. */
-  from: string | null
 }
 
 export interface AppState {
   notifs: Notif[]
+  comms: Comm[]
   tasks: Task[]
   filter: TaskFilter
   majSort: MajelisSort | null
   majLoan: string | null
-  /** Majelis name the detail screen renders. */
+  /** Majelis name the detail screen (and the Kunjungan Rumah flow's context) renders. */
   selMajelis: string
-  /** Mitra name the (currently unreachable) mitra detail screen renders. */
+  /** Mitra name the mitra-detail screen (and the Kunjungan Rumah flow) renders. */
   selMitra: string
-  selBanner: Banner | null
-  kpiPeriod: string
-  kpiMajelis: string | null
+  selCommId: string | null
+  /** Id of the task driving the active Kunjungan Rumah flow screen. */
+  hvTaskId: string | null
 }
 
 const DEFAULT_FILTER: TaskFilter = {
@@ -64,17 +67,17 @@ const DEFAULT_FILTER: TaskFilter = {
 
 const initial: AppState = {
   notifs: NOTIFS_SEED,
+  comms: COMMS_SEED,
   tasks: TASKS,
   filter: DEFAULT_FILTER,
   majSort: null,
   majLoan: null,
   selMajelis: MAJELIS[0].n,
-  // Rury Ramadhita — ketua, autodebit, PIC, celengan. The richest record, so the
-  // parked mitra-detail screen still renders every section when opened directly.
+  // Rury Ramadhita — ketua, autodebit, PIC, celengan. The richest record, so
+  // opening mitra-detail directly still renders every section.
   selMitra: MITRA[0].n,
-  selBanner: null,
-  kpiPeriod: 'Juli 2026',
-  kpiMajelis: null,
+  selCommId: null,
+  hvTaskId: null,
 }
 
 let state: AppState = initial
@@ -105,6 +108,15 @@ export const store = {
     store.set({ notifs: state.notifs.map((n) => ({ ...n, read: true })) })
   },
 
+  // --- Comms
+  markCommRead(id: string) {
+    store.set({ comms: state.comms.map((c) => (c.id === id ? { ...c, read: true } : c)) })
+  },
+  openBanner(c: Comm) {
+    store.markCommRead(c.id)
+    store.set({ selCommId: c.id })
+  },
+
   // --- Tasks
   addTask(t: Task) {
     store.set({ tasks: [...state.tasks, t] })
@@ -119,14 +131,9 @@ export const store = {
   resetFilter() {
     store.set({ filter: DEFAULT_FILTER })
   },
-
-  /** KPI → Tugas, carrying the group's KPI type as a pre-applied filter. */
-  goTasksFrom(groupName: string, type: TaskType) {
-    store.set({ filter: { maj: null, type, when: 'today', kind: 'all', from: groupName } })
-  },
-  /** KPI → Majelis, ranked worst-first on that group's metric. */
-  goMajelisFrom(groupName: string, metric: MetricKey) {
-    store.set({ majSort: { m: metric, dir: 'asc', from: groupName }, majLoan: null })
+  /** KPI parameter → Tugas, carrying the mapped task type as a pre-applied filter. */
+  goTasksFrom(paramKey: string, type: TaskType) {
+    store.set({ filter: { maj: null, type, when: 'today', kind: 'all', from: paramKey } })
   },
   resetMajelisFilters() {
     store.set({ majSort: null, majLoan: null })
@@ -143,3 +150,6 @@ export const selectedMajelis = (s: AppState) =>
   MAJELIS.find((g) => g.n === s.selMajelis) ?? MAJELIS[0]
 
 export const selectedMitra = (s: AppState) => MITRA.find((m) => m.n === s.selMitra) ?? MITRA[0]
+
+export const selectedComm = (s: AppState) =>
+  s.comms.find((c) => c.id === s.selCommId) ?? s.comms[0]

@@ -1,8 +1,49 @@
 # A-Partner Homepage IA — notes
 
-Translated from the team's standalone JSX draft (`apartner-homepage-ia v13`). The
-draft carried its own hex palette, type ramp, and hand-rolled primitives; this
-port rebuilds all of it from FunDS Lite tokens + `@/design-system/components`.
+Translated from the team's standalone JSX draft, most recently re-synced against
+`apartner-homepage-ia_6`. The draft carries its own hex palette, type ramp, and
+hand-rolled primitives; this port rebuilds all of it from FunDS Lite tokens +
+`@/design-system/components`.
+
+## 2026-07-20 resync (`apartner-homepage-ia_6`)
+
+Full resync against a substantially expanded draft. New surface area:
+
+- **Kunjungan Majelis visit mode**, built directly into `majelis-detail.tsx`
+  rather than a separate flow screen — matches the source, which toggles the
+  same page into an expanded state instead of pushing a new one. Adds an Info
+  popover (lokasi + grup WhatsApp), a Status-minggu-ini card, per-mitra
+  Kehadiran + Pembayaran controls (with a payment bottom sheet for
+  penuh/sebagian/PTP), a Tugas-tambahan section for renewal/celengan offers,
+  and a Rekam-kumpulan (lokasi + foto) gate before Submit Kumpulan.
+- **`mitra-detail` is live now** — previously parked with no inbound `go()`.
+  The source now routes a Beranda "Kunjungan Rumah" task tap, and a
+  browse-mode mitra card on majelis-detail, straight to it. Gained a
+  main/profil view toggle, a dedicated HV launcher card, Potensi pencairan
+  tambahan, Progress limit (outlook factors), and Kehadiran kumpulan sections.
+- **`kunjungan-rumah.tsx`** (new) — the branching home-visit wizard. The
+  source models it as an overlay pushed over the whole shell with no
+  `onFinish`/return-routing concept; ported as a plain pushed screen whose
+  "Selesai kunjungan" just calls `flow.back()`.
+- **`titip-bayar.tsx`** (new) — the end-of-day settlement page, reached only
+  from Beranda's "Setor Titip Bayar" task. Not tied to a specific task id in
+  the source (`startTitip` takes no argument) — ported the same way.
+- **`kpi.tsx` — flat-Rp model.** The source dropped the weighted-group model
+  entirely: 7 flat parameters, each earning its own flat Rp bonus outright.
+  The per-majelis breakdown and the separate "Cara Perhitungan KPI" explainer
+  are both gone — `kpi-info.tsx` is deleted and no longer registered.
+- **Comms carry `read` state** and live in the store now (previously a static
+  `BANNERS` array + separate static `COMMS` list). The Home carousel shows
+  only unread comms; tapping one marks it read everywhere.
+- **No task-completion tracking.** The source has no `done` flag, no
+  "selesai" log, and no post-flow "scroll back to Tugas" behavior — dropped
+  from this project too (an earlier build of this sync had added all three;
+  the draft that shipped does not have them).
+
+## Components proposed for promotion
+
+Per the §4 missing-component protocol, these live in `lib/` and are built only
+from tokens + existing design-system components. Candidates for FunDS Lite:
 
 ## Components proposed for promotion
 
@@ -39,6 +80,15 @@ from tokens + existing design-system components. Candidates for FunDS Lite:
   `variant="inverted"` is a solid white pill with a primary border/text, which
   reads wrong on a `primary-500`/`blue-500` banner. Proposal: a Badge
   `variant="overlay"` (or similar) for content sitting on brand-colored fills.
+
+- **SegmentedChoice** (`lib/ui.tsx`) — two evenly-sized pill-adjacent buttons
+  filling a row. Used for every yes/no branch in the Kunjungan Rumah wizard and
+  the majelis-detail payment dialog. `SelectableCard` covers the card-shaped
+  radio case but not this compact inline-pair case.
+
+- **ChipPicker** (`lib/ui.tsx`) — small wrapping pill buttons for a single
+  choice among several: reason chips, PTP date chips, and the Hadir/Tidak
+  toggle on a visit-mode mitra card.
 
 ## Translation decisions
 

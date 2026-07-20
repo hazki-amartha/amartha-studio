@@ -3,24 +3,24 @@
 import { Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { BANNERS } from '../lib/data'
-import { useApp } from '../lib/store'
+import { TAG_BG } from '../lib/data'
+import { selectedComm, useApp } from '../lib/store'
 import { BannerTag } from '../lib/ui'
 
 export function BannerDetailScreen() {
   const flow = useFlow()
   const s = useApp()
-  // Falls back to the first banner so the screen still renders when opened
+  // Falls back to the first comm so the screen still renders when opened
   // directly from the flow view rather than by tapping a Home carousel card.
-  const banner = s.selBanner ?? BANNERS[0]
+  const comm = selectedComm(s)
 
   return (
     <Screen topBar={<NavigationHeader title="Detail" onBack={flow.back} />}>
-      <div className={`-mx-16 -mt-16 flex flex-col gap-8 p-16 ${banner.bg}`}>
-        <BannerTag>{banner.tag}</BannerTag>
+      <div className={`-mx-16 -mt-16 flex flex-col gap-8 p-16 ${TAG_BG[comm.tag]}`}>
+        <BannerTag>{comm.tag}</BannerTag>
         <div>
-          <h1 className="text-20 font-bold text-neutral-white">{banner.title}</h1>
-          <p className="text-12 text-neutral-white">{banner.sub}</p>
+          <h1 className="text-20 font-bold text-neutral-white">{comm.title}</h1>
+          <p className="text-12 text-neutral-white">{comm.sub}</p>
         </div>
       </div>
 
