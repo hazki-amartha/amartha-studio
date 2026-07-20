@@ -95,3 +95,15 @@ selectable chip (used for reasons and promise-to-pay dates, to keep the sheet
 short), a proof-capture tile, a collapsible section, and a status-summary row
 (label/value list), among others. Several are now used across two projects and
 are reasonable promotion candidates; happy to walk through them.
+
+Two more from the agenda pass on the schedule tab:
+
+- **`HeaderAction`** (`lib/ui.tsx`) — a top-bar icon button with a corner unread
+  counter. Used twice on the schedule tab (inbox, notifications), and
+  `apartner-homepage-ia`'s home screen hand-rolls the same badge markup. Two
+  projects want it, which is the promotion tell. `Badge` doesn't cover it: that's
+  an inline status pill, not a corner-mounted count.
+- **`AgendaRow`** (`lib/ui.tsx`) — a fixed 40px time gutter beside a content
+  slot, so a day's cards line up on one clock rail. Only used here so far, so
+  it's not a candidate yet — noting it because any calendar/agenda surface will
+  want the same primitive.

@@ -113,6 +113,55 @@ export const TASKS: Task[] = [
   },
 ]
 
+// Tomorrow, for the date switcher. Two days is the whole range on purpose: a BP
+// plans the evening before ("what am I riding to first tomorrow?") and does not
+// plan a week ahead, so a full calendar would be a control nobody turns.
+//
+// Tomorrow is READ-ONLY. There is no "Sekarang" on a day that hasn't started —
+// a focus card there would offer to begin a visit the BP cannot be at — so the
+// day renders as a plain agenda and every row is a preview, not a launcher.
+export const TOMORROW_TASKS: Task[] = [
+  {
+    id: 'w1',
+    kind: 'majelis',
+    time: '08.30',
+    until: '10.00',
+    title: 'Majelis Anggrek',
+    place: 'Rumah Bu Imas, Cibeuteung',
+    reason: 'Pelayanan rutin mingguan',
+    majelisId: 'anggrek',
+  },
+  {
+    id: 'w2',
+    kind: 'home-visit',
+    time: '11.00',
+    until: '11.45',
+    title: 'Ibu Eni Nuraeni',
+    place: 'Kp. Putat Nutug RT 03',
+    reason: 'Janji bayar · Rp 125.000',
+  },
+  {
+    id: 'w3',
+    kind: 'majelis',
+    time: '14.00',
+    until: '15.30',
+    title: 'Majelis Dahlia',
+    place: 'Balai RW 07, Ciseeng',
+    reason: 'Pelayanan rutin mingguan',
+    majelisId: 'dahlia',
+  },
+]
+
+/** Which day the schedule tab is showing. */
+export type DayKey = 'today' | 'tomorrow'
+
+export const DAYS: { key: DayKey; label: string; date: string }[] = [
+  { key: 'today', label: 'Hari ini', date: 'Selasa, 21 Juli' },
+  { key: 'tomorrow', label: 'Besok', date: 'Rabu, 22 Juli' },
+]
+
+export const findDay = (key: DayKey) => DAYS.find((d) => d.key === key) ?? DAYS[0]
+
 // --- The roster ------------------------------------------------------------
 
 const MAWAR_MEMBERS: Mitra[] = [

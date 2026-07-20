@@ -32,7 +32,7 @@ import { findMajelis, type Mitra } from '../lib/data'
 import { IconCheck, IconInfo } from '../lib/icons'
 import { MitraCard } from '../lib/mitra-card'
 import { store, taskForMajelis, useApp, type OfferResult } from '../lib/store'
-import { InfoPill, SectionTitle, StatRows, StepBar, VisitTitle } from '../lib/ui'
+import { Chip, ChipGroup, InfoPill, SectionTitle, StatRows, StepBar, VisitTitle } from '../lib/ui'
 
 const RESULT_OPTIONS: { value: OfferResult; title: string; description: string }[] = [
   {
@@ -47,6 +47,31 @@ const RESULT_OPTIONS: { value: OfferResult; title: string; description: string }
   },
 ]
 
+/**
+ * Why she said no — and whether that no has a shelf life.
+ *
+ * `soft: true` means the answer was about timing, not the product, so the offer
+ * comes back. That is the whole reason this list exists: without it every no
+ * looks identical, and next week's BP either re-pitches a mitra who has already
+ * refused outright, or drops one who only said "not this week". Both are the
+ * same bug — an outcome that closes nothing.
+ */
+const DECLINE_REASONS: { label: string; soft: boolean }[] = [
+  { label: 'Belum butuh saat ini', soft: true },
+  { label: 'Dana belum ada', soft: true },
+  { label: 'Mau diskusi dulu di rumah', soft: true },
+  { label: 'Sudah punya di tempat lain', soft: false },
+  { label: 'Tidak berminat', soft: false },
+]
+
+// Two horizons, because a BP negotiates in weeks and the majelis meets weekly.
+const RETRIGGER_OPTIONS: { label: string; value: string }[] = [
+  { label: 'Minggu depan (28 Juli)', value: '28 Juli' },
+  { label: '2 minggu lagi (4 Agustus)', value: '4 Agustus' },
+]
+
+const findReason = (label: string | null) => DECLINE_REASONS.find((r) => r.label === label)
+
 export function MajelisOffersScreen() {
   const flow = useFlow()
   const s = useApp()
@@ -56,6 +81,8 @@ export function MajelisOffersScreen() {
   // Sheet state is deliberately local: it must not survive navigation.
   const [pitching, setPitching] = useState<Mitra | null>(null)
   const [draft, setDraft] = useState<OfferResult | null>(null)
+  const [reason, setReason] = useState<string | null>(null)
+  const [retrigger, setRetrigger] = useState<string | null>(null)
 
   const recommended = majelis.members.filter((m) => m.offer)
   const recorded = recommended.filter((m) => s.offerResults[m.id]).length
@@ -76,13 +103,35 @@ export function MajelisOffersScreen() {
     })
 
   function openPitch(mitra: Mitra) {
+    const decline = s.offerDeclines[mitra.id]
     setDraft(s.offerResults[mitra.id] ?? null)
+    setReason(decline?.reason ?? null)
+    setRetrigger(decline?.retrigger ?? null)
     setPitching(mitra)
   }
 
+  /**
+   * Picking a soft reason preselects next week. The BP should not have to
+   * confirm the obvious follow-up to "belum butuh" — the common answer is
+   * already there and the other horizon is one tap away. A hard reason drops
+   * the date entirely: there is nothing to schedule.
+   */
+  function pickReason(label: string) {
+    setReason(label)
+    setRetrigger(findReason(label)?.soft ? RETRIGGER_OPTIONS[0].value : null)
+  }
+
+  const softNo = Boolean(findReason(reason)?.soft)
+  // A no is only saved once it says why. "Tertarik" needs nothing extra.
+  const canSave = draft === 'tertarik' || (draft === 'tidak' && Boolean(reason))
+
   function savePitch() {
-    if (!pitching || !draft) return
-    store.setOfferResult(pitching.id, draft)
+    if (!pitching || !draft || !canSave) return
+    store.setOfferResult(
+      pitching.id,
+      draft,
+      draft === 'tidak' && reason ? { reason, retrigger: softNo ? retrigger : null } : undefined,
+    )
     setPitching(null)
   }
 
@@ -120,6 +169,16 @@ export function MajelisOffersScreen() {
           <div className="flex flex-col gap-8">
             {recommended.map((mitra) => {
               const result = s.offerResults[mitra.id]
+              const decline = s.offerDeclines[mitra.id]
+              // Once she has answered, the status line stops describing where
+              // she stands on the product and starts carrying what she said —
+              // the reason, and when the offer comes back. Recorded ≠ finished:
+              // a soft no is an open item, and this is where it stays visible.
+              const status = decline
+                ? decline.retrigger
+                  ? `${decline.reason} · tawarkan lagi ${decline.retrigger}`
+                  : `${decline.reason} · tidak diulang`
+                : mitra.offer?.status
               return (
                 <MitraCard
                   key={mitra.id}
@@ -129,7 +188,7 @@ export function MajelisOffersScreen() {
                     flow.go('mitra')
                   }}
                   // Step 2's subject: where she stands on the thing being offered.
-                  status={mitra.offer?.status}
+                  status={status}
                   action={
                     // Same row shape as step 1: subject left, action right.
                     <div className="flex items-center gap-8">
@@ -183,7 +242,7 @@ export function MajelisOffersScreen() {
         title="Hasil tawaran"
         description={pitching ? `${pitching.offer?.label} · ${pitching.name}` : undefined}
         primaryAction={
-          <Button className="w-full" disabled={!draft} onClick={savePitch}>
+          <Button className="w-full" disabled={!canSave} onClick={savePitch}>
             Simpan
           </Button>
         }
@@ -193,18 +252,61 @@ export function MajelisOffersScreen() {
           </Button>
         }
       >
-        <div className="flex flex-col gap-8">
-          {RESULT_OPTIONS.map((option) => (
-            <SelectableCard
-              key={option.value}
-              name="hasil-tawaran"
-              inputType="radio"
-              title={option.title}
-              description={option.description}
-              checked={draft === option.value}
-              onChange={() => setDraft(option.value)}
-            />
-          ))}
+        <div className="flex flex-col gap-12">
+          <div className="flex flex-col gap-8">
+            {RESULT_OPTIONS.map((option) => (
+              <SelectableCard
+                key={option.value}
+                name="hasil-tawaran"
+                inputType="radio"
+                title={option.title}
+                description={option.description}
+                checked={draft === option.value}
+                onChange={() => setDraft(option.value)}
+              />
+            ))}
+          </div>
+
+          {/* A no closes its own loop: why, and — when the why is about timing —
+              when to come back. Chips rather than SelectableCards for the same
+              reason step 1 uses them: these are tags on an outcome, not the
+              outcome itself, and five stacked cards would push Simpan off the
+              sheet. */}
+          {draft === 'tidak' ? (
+            <>
+              <ChipGroup label="Alasan">
+                {DECLINE_REASONS.map((option) => (
+                  <Chip
+                    key={option.label}
+                    selected={reason === option.label}
+                    onClick={() => pickReason(option.label)}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </ChipGroup>
+
+              {softNo ? (
+                <ChipGroup label="Tawarkan lagi">
+                  {RETRIGGER_OPTIONS.map((option) => (
+                    <Chip
+                      key={option.value}
+                      selected={retrigger === option.value}
+                      onClick={() => setRetrigger(option.value)}
+                    >
+                      {option.label}
+                    </Chip>
+                  ))}
+                </ChipGroup>
+              ) : reason ? (
+                // The hard no, said out loud. Silence here would read as a
+                // missing question rather than a settled answer.
+                <span className="text-12 text-caption">
+                  Tawaran ini tidak akan diulang untuk {pitching?.name}.
+                </span>
+              ) : null}
+            </>
+          ) : null}
         </div>
       </BottomSheet>
     </Screen>
