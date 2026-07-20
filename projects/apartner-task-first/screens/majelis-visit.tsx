@@ -9,17 +9,25 @@
 // payment instead would strand a recorded refusal in the queue forever and the
 // page could never finish.
 //
-// Each card answers two questions. Attendance is two circular icon buttons in
-// the identity row — at 22 cards the words "Hadir"/"Tidak" would repeat 44 times
-// for a question whose answer is a shape. Payment is three named outcomes:
+// Each card answers two questions, and the card now spends its width on making
+// both unmistakable rather than on saving taps:
 //
-//   Bayar Lunas  — the common case, so it costs ONE tap and no sheet.
-//   Jumlah Lain  — a sheet with the amount, over or under; partial is normal.
-//   Tidak Bayar  — a sheet for the reason and, if given, the promise to pay.
+//   Kehadiran — two named pills, "Hadir" / "Tidak". Circular ✗ / ✓ icons came
+//     first and were denser, but a bare ✗ has no fixed meaning on a collection
+//     card, and it sits next to a red DPD line that already means something bad.
+//     Unselected stays a real third state: not yet marked ≠ marked absent.
 //
-// "Tidak Bayar" being a first-class outcome is the point: a no with a reason and
-// a date is a result the BP can close and ops can chase. Leaving it unrecorded
-// is what pushes DPD work onto a Google Form.
+//   Penagihan — ONE button, "Tagih", opening one sheet. It was two ("Bayar
+//     Penuh" + "Lainnya") on the theory that the common case should cost one tap
+//     and no sheet. What that actually bought was a card whose two buttons
+//     competed at 390px, and a full payment recorded with no chance to correct
+//     it. The sheet now opens with "Bayar Penuh" preselected and its amount
+//     shown, so the happy case is open-then-Simpan — two taps, one of which is
+//     a confirmation the BP previously never got.
+//
+// "Tidak Bayar" being a first-class outcome is still the point: a no with a
+// reason and a date is a result the BP can close and ops can chase. Leaving it
+// unrecorded is what pushes DPD work onto a Google Form.
 
 import { useState } from 'react'
 import {
@@ -34,7 +42,7 @@ import {
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMajelis, rupiah, type Mitra } from '../lib/data'
-import { IconCheck, IconInfo, IconX } from '../lib/icons'
+import { IconCheck, IconInfo } from '../lib/icons'
 import { MitraCard } from '../lib/mitra-card'
 import {
   paidOf,
@@ -47,8 +55,10 @@ import {
   useApp,
 } from '../lib/store'
 import {
+  AttendancePill,
+  Chip,
+  ChipGroup,
   Collapsible,
-  IconToggle,
   InfoPill,
   SectionTitle,
   StatRows,
@@ -76,9 +86,13 @@ const PTP_OPTIONS: { label: string; value: string | null }[] = [
   { label: 'Tidak ada janji', value: null },
 ]
 
-/** The two things "Catatan" can record. Full payment never comes through here —
- *  that is the "Lunas" button, at one tap. */
-type CatatanMode = 'bayar' | 'tidak'
+/**
+ * The three outcomes the Tagih sheet can record. Full payment now comes through
+ * here too — it used to be a button on the card — which is what let the card
+ * drop to one action. `penuh` is the default so the common case is
+ * open-then-Simpan.
+ */
+type TagihMode = 'penuh' | 'sebagian' | 'tidak'
 
 export function MajelisVisitScreen() {
   const flow = useFlow()
@@ -87,7 +101,7 @@ export function MajelisVisitScreen() {
 
   // Sheet state is deliberately local: it must not survive navigation.
   const [catatanFor, setCatatanFor] = useState<Mitra | null>(null)
-  const [mode, setMode] = useState<CatatanMode>('bayar')
+  const [mode, setMode] = useState<TagihMode>('penuh')
   const [draft, setDraft] = useState('')
   const [reason, setReason] = useState<string | null>(null)
   const [ptp, setPtp] = useState<string | null | undefined>(undefined)
@@ -100,29 +114,36 @@ export function MajelisVisitScreen() {
   const billable = majelis.members.reduce((sum, m) => sum + m.due, 0)
   const task = taskForMajelis(majelis.id)
 
-  function openCatatan(mitra: Mitra) {
+  // Reopened from "Ubah", the sheet comes back up on the mode that PRODUCED the
+  // outcome, holding the amount already on file — so correcting an entry is an
+  // edit, not a re-entry from scratch.
+  function openTagih(mitra: Mitra) {
     const refusal = s.nonPayments[mitra.id]
-    setMode(refusal ? 'tidak' : 'bayar')
-    setDraft(String(remainingOf(s, mitra)))
+    const paid = paidOf(s, mitra)
+    setMode(refusal ? 'tidak' : paid > 0 && paid < mitra.due ? 'sebagian' : 'penuh')
+    setDraft(String(paid > 0 ? paid : mitra.due))
     setReason(refusal?.reason ?? null)
     setPtp(refusal ? refusal.ptp : undefined)
     setCatatanFor(mitra)
   }
 
-  function saveCatatan() {
+  function saveTagih() {
     if (!catatanFor) return
     if (mode === 'tidak') {
       if (!reason) return
       store.setNonPayment(catatanFor.id, { reason, ptp: ptp ?? null })
+    } else if (mode === 'penuh') {
+      store.setPayment(catatanFor.id, catatanFor.due)
     } else {
-      const entered = Number(draft.replace(/\D/g, '')) || 0
-      store.setPayment(catatanFor.id, paidOf(s, catatanFor) + entered)
+      // The amount actually received, not an increment — so reopening the sheet
+      // to fix a typo corrects the figure instead of adding to it.
+      store.setPayment(catatanFor.id, Number(draft.replace(/\D/g, '')) || 0)
     }
     setCatatanFor(null)
   }
 
   const entered = Number(draft.replace(/\D/g, '')) || 0
-  const overpay = catatanFor ? entered - remainingOf(s, catatanFor) : 0
+  const shortfall = catatanFor ? catatanFor.due - entered : 0
 
   return (
     <Screen
@@ -170,32 +191,31 @@ export function MajelisVisitScreen() {
                   flow.go('mitra')
                 }}
                 trailing={
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="flex gap-8">
-                      <IconToggle
-                        selected={s.attendance[mitra.id] === 'tidak'}
-                        tone="red"
-                        label={`Tidak hadir — ${mitra.name}`}
-                        onClick={() => store.setAttendance(mitra.id, 'tidak')}
-                      >
-                        <IconX size={16} />
-                      </IconToggle>
-                      <IconToggle
-                        selected={s.attendance[mitra.id] === 'hadir'}
-                        tone="green"
-                        label={`Hadir — ${mitra.name}`}
-                        onClick={() => store.setAttendance(mitra.id, 'hadir')}
-                      >
-                        <IconCheck size={16} />
-                      </IconToggle>
-                    </div>
+                  <div className="flex gap-8">
+                    <AttendancePill
+                      selected={s.attendance[mitra.id] === 'hadir'}
+                      tone="green"
+                      label={`Hadir — ${mitra.name}`}
+                      onClick={() => store.setAttendance(mitra.id, 'hadir')}
+                    >
+                      Hadir
+                    </AttendancePill>
+                    <AttendancePill
+                      selected={s.attendance[mitra.id] === 'tidak'}
+                      tone="red"
+                      label={`Tidak hadir — ${mitra.name}`}
+                      onClick={() => store.setAttendance(mitra.id, 'tidak')}
+                    >
+                      Tidak
+                    </AttendancePill>
                   </div>
                 }
                 action={
-                  // Bill left, actions right — one row, everything 40px tall.
-                  // Two buttons instead of three: "Bayar Penuh" is the common
-                  // case at one tap, and "Lainnya" is the one door to every
-                  // other outcome (part payment, or a no with its reason).
+                  // Bill left, ONE action right. The second button ("Bayar
+                  // Penuh") moved into the sheet as its default mode: two
+                  // buttons competed for the same row at 390px, and the whole
+                  // outcome set now lives in one place instead of being split
+                  // between the card and a sheet called "Lainnya".
                   <div className="flex items-center gap-8">
                     <div className="flex min-w-0 flex-1 flex-col">
                       <span className="text-12 text-caption">Tagihan</span>
@@ -203,24 +223,12 @@ export function MajelisVisitScreen() {
                         {rupiah(mitra.due)}
                       </span>
                     </div>
-                    {/* h-40 pins both buttons to the avatar/toggle rhythm.
-                        FunDS button sizes step 28 (xs) → 36 (sm), so neither
-                        lands on 40 — see NOTES.md. h-40 is a token class, not
-                        an arbitrary value. */}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-40"
-                      onClick={() => openCatatan(mitra)}
-                    >
-                      Lainnya
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="h-40"
-                      onClick={() => store.setPayment(mitra.id, mitra.due)}
-                    >
-                      Bayar Penuh
+                    {/* h-40 pins the button to the avatar/pill rhythm. FunDS
+                        button sizes step 28 (xs) → 36 (sm), so neither lands on
+                        40 — see NOTES.md. h-40 is a token class, not an
+                        arbitrary value. */}
+                    <Button size="sm" className="h-40 px-24" onClick={() => openTagih(mitra)}>
+                      Tagih
                     </Button>
                   </div>
                 }
@@ -267,7 +275,7 @@ export function MajelisVisitScreen() {
               ) : (
                 <Badge intent="red">Tidak bayar</Badge>
               )}
-              <Button size="xs" variant="ghost" onClick={() => openCatatan(mitra)}>
+              <Button size="xs" variant="ghost" onClick={() => openTagih(mitra)}>
                 Ubah
               </Button>
             </div>
@@ -281,22 +289,25 @@ export function MajelisVisitScreen() {
         </Button>
       </div>
 
-      {/* --- Catatan: the one door to every outcome that isn't a clean full
-          payment. Mode first, because "she paid some" and "she paid nothing"
-          need different questions and the BP knows which she is before the
-          sheet opens. */}
+      {/* --- Tagih: the one door to every payment outcome, full payment now
+          included. Mode comes first because the three need different questions
+          and the BP knows which she is before the sheet opens — and "Bayar
+          Penuh" is preselected because it is what happens most, so the sheet
+          opens already answered and "Simpan" is the next tap.
+
+          The mode list stays SelectableCard while the reason and janji-bayar
+          lists became chips. That split is deliberate: mode carries the amount
+          as a second line and everything below depends on it, so it should not
+          look like the same weight as a reason tag — and the two lists it
+          replaced were nine stacked cards that pushed Simpan off the sheet. */}
       <BottomSheet
         open={catatanFor !== null}
         onClose={() => setCatatanFor(null)}
         size="md"
-        title="Catatan"
+        title="Tagih"
         description={catatanFor?.name}
         primaryAction={
-          <Button
-            className="w-full"
-            disabled={mode === 'tidak' && !reason}
-            onClick={saveCatatan}
-          >
+          <Button className="w-full" disabled={mode === 'tidak' && !reason} onClick={saveTagih}>
             Simpan
           </Button>
         }
@@ -307,79 +318,75 @@ export function MajelisVisitScreen() {
         }
       >
         <div className="flex flex-col gap-12">
-          <div className="flex gap-8">
-            <Button
-              size="sm"
-              className="flex-1"
-              variant={mode === 'bayar' ? 'primary' : 'outline'}
-              onClick={() => setMode('bayar')}
-            >
-              Bayar sebagian
-            </Button>
-            <Button
-              size="sm"
-              className="flex-1"
-              variant={mode === 'tidak' ? 'primary' : 'outline'}
-              onClick={() => setMode('tidak')}
-            >
-              Tidak bayar
-            </Button>
+          <div className="flex flex-col gap-8">
+            <SelectableCard
+              name="mode-tagih"
+              inputType="radio"
+              title="Bayar Penuh"
+              description={catatanFor ? rupiah(catatanFor.due) : undefined}
+              checked={mode === 'penuh'}
+              onChange={() => setMode('penuh')}
+            />
+            <SelectableCard
+              name="mode-tagih"
+              inputType="radio"
+              title="Bayar Sebagian"
+              checked={mode === 'sebagian'}
+              onChange={() => setMode('sebagian')}
+            />
+            <SelectableCard
+              name="mode-tagih"
+              inputType="radio"
+              title="Tidak Bayar"
+              checked={mode === 'tidak'}
+              onChange={() => setMode('tidak')}
+            />
           </div>
 
-          {mode === 'bayar' ? (
+          {mode === 'sebagian' ? (
+            <Input
+              label="Jumlah diterima"
+              prefix="Rp"
+              inputMode="numeric"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
+              helperText={
+                shortfall > 0
+                  ? `Kurang ${rupiah(shortfall)} dari tagihan`
+                  : shortfall < 0
+                    ? `Lebih ${rupiah(-shortfall)} dari tagihan`
+                    : 'Sama dengan tagihan penuh'
+              }
+              state={shortfall > 0 ? 'default' : 'valid'}
+            />
+          ) : null}
+
+          {mode === 'tidak' ? (
             <>
-              <div className="flex items-center gap-12 rounded-8 bg-neutral-50 px-12 py-8">
-                <span className="flex-1 text-12 text-caption">Sisa tagihan minggu ini</span>
-                <span className="text-14 font-bold text-default">
-                  {catatanFor ? rupiah(remainingOf(s, catatanFor)) : ''}
-                </span>
-              </div>
-              <Input
-                label="Jumlah diterima"
-                prefix="Rp"
-                inputMode="numeric"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
-                helperText={
-                  overpay > 0
-                    ? `Lebih ${rupiah(overpay)} dari tagihan`
-                    : overpay < 0
-                      ? `Bayar sebagian — kurang ${rupiah(-overpay)}`
-                      : 'Lunas untuk minggu ini'
-                }
-                state={overpay < 0 ? 'default' : 'valid'}
-              />
-            </>
-          ) : (
-            <>
-              <div className="flex flex-col gap-8">
-                <span className="text-12 font-bold text-default">Alasan</span>
+              <ChipGroup label="Alasan">
                 {REASONS.map((option) => (
-                  <SelectableCard
+                  <Chip
                     key={option}
-                    name="alasan-tidak-bayar"
-                    inputType="radio"
-                    title={option}
-                    checked={reason === option}
-                    onChange={() => setReason(option)}
-                  />
+                    selected={reason === option}
+                    onClick={() => setReason(option)}
+                  >
+                    {option}
+                  </Chip>
                 ))}
-              </div>
-              <div className="flex flex-col gap-8">
-                <span className="text-12 font-bold text-default">Janji bayar</span>
+              </ChipGroup>
+              <ChipGroup label="Janji bayar">
                 {PTP_OPTIONS.map((option) => (
-                  <SelectableCard
+                  <Chip
                     key={option.label}
-                    name="janji-bayar"
-                    inputType="radio"
-                    title={option.label}
-                    checked={ptp !== undefined && ptp === option.value}
-                    onChange={() => setPtp(option.value)}
-                  />
+                    selected={ptp !== undefined && ptp === option.value}
+                    onClick={() => setPtp(option.value)}
+                  >
+                    {option.label}
+                  </Chip>
                 ))}
-              </div>
+              </ChipGroup>
             </>
-          )}
+          ) : null}
         </div>
       </BottomSheet>
     </Screen>

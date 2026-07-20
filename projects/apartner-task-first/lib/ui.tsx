@@ -4,7 +4,7 @@
 // per the §4 missing-component protocol. See NOTES.md for promotion proposals.
 
 import { useState, type ReactNode } from 'react'
-import { IconChevronDown, IconChevronUp } from './icons'
+import { IconCheck, IconChevronDown, IconChevronUp } from './icons'
 
 // --- Avatar ----------------------------------------------------------------
 // The circular initials chip that leads every mitra row. FunDS Lite has no
@@ -78,33 +78,47 @@ export function Collapsible({ title, hint, children }: CollapsibleProps) {
   )
 }
 
-// --- IconToggle ------------------------------------------------------------
-// A circular icon button that holds a selected state — the attendance ✗ / ✓ on
-// every mitra card. Two of them replace a labelled pill group: at 22 cards the
-// words "Hadir"/"Tidak" repeat 44 times for a question whose answer is a shape.
+// --- AttendancePill --------------------------------------------------------
+// The attendance control on every mitra card: two named pills, "Hadir" and
+// "Tidak", sitting in the card's trailing slot.
 //
-// Selected uses the status pairing the foundations sanction (500 foreground on
-// its own 50 tint) rather than primary-500. Attendance is a STATUS, not a
-// primary action, and green/red resolves at a glance while scanning a roster —
-// two purple circles would differ only by glyph.
+// This replaced a pair of circular ✗ / ✓ icon buttons. The argument for icons
+// was density — at 22 cards the two words repeat 44 times for a question whose
+// answer is a shape. The argument against, which won, is that a bare ✗ has no
+// fixed meaning on a collection card: it reads as "absent" only once you have
+// been told, and the nearest neighbour on screen (a red DPD line) already means
+// something bad. A word costs horizontal space and removes the guess.
+//
+// Selected still uses the sanctioned status pairing (a 500 foreground on its
+// own 50 tint) rather than primary-500: attendance is a STATUS, not a primary
+// action, and green/red resolves while scanning a roster where two purple pills
+// would differ only by their label.
+//
+// Unselected is a real third state — the BP has not marked her yet, which is
+// not the same as marking her absent — so there is no default. The unselected
+// style is load-bearing: neutral-400 on neutral-50 is the DISABLED pairing and
+// made unanswered cards look switched off, so it is an outlined pill on white.
 
-export interface IconToggleProps {
+export interface AttendancePillProps {
   selected: boolean
   tone: 'green' | 'red'
   onClick: () => void
-  /** Spoken label — the icon alone is not accessible. */
+  /** Spoken label — "Hadir" alone doesn't say whose attendance this is. */
   label: string
   children: ReactNode
 }
 
-export function IconToggle({ selected, tone, onClick, label, children }: IconToggleProps) {
+export function AttendancePill({
+  selected,
+  tone,
+  onClick,
+  label,
+  children,
+}: AttendancePillProps) {
   const selectedTone =
     tone === 'green'
       ? 'bg-green-50 text-green-500 border-green-500'
       : 'bg-red-50 text-red-500 border-red-500'
-  // Unselected must still read as a live control: a neutral-400 glyph on a
-  // neutral-50 fill is the disabled pairing, so an unanswered card looked
-  // switched off. An outlined circle on white reads as "tap me".
   const classes = selected ? selectedTone : 'bg-neutral-white text-neutral-600 border-default'
 
   return (
@@ -113,9 +127,103 @@ export function IconToggle({ selected, tone, onClick, label, children }: IconTog
       aria-label={label}
       aria-pressed={selected}
       onClick={onClick}
-      className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-full border ${classes}`}
+      // px-12, not px-16: the two pills share the identity row with an avatar
+      // and an 18px name, and at 390px the wider padding truncated "Rina
+      // Marlina". Height stays 40 for the tap target and the card's rhythm.
+      className={`flex h-40 shrink-0 items-center justify-center rounded-full border px-12 text-14 font-bold ${classes}`}
     >
       {children}
+    </button>
+  )
+}
+
+// --- Chip ------------------------------------------------------------------
+// A compact selectable pill that wraps in a group. This is what shortened the
+// Tagih sheet: the reason list and the janji-bayar list were nine stacked
+// SelectableCards, which pushed "Simpan" below the fold on the outcome the BP
+// reaches most often after a full payment.
+//
+// Chips are right for these two lists specifically because the options are all
+// short, mutually exclusive, and need no description — the label IS the whole
+// option. The sheet's MODE switch stays SelectableCard: "Bayar Penuh" carries
+// the amount as a second line, and it is the choice the rest of the sheet
+// depends on, so it should not look like the same weight as a reason tag.
+
+export function Chip({
+  selected,
+  onClick,
+  children,
+}: {
+  selected: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  const classes = selected
+    ? 'border-primary-500 bg-primary-50 text-primary-500'
+    : 'border-default bg-neutral-white text-neutral-700'
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`rounded-full border px-12 py-8 text-12 font-bold ${classes}`}
+    >
+      {children}
+    </button>
+  )
+}
+
+export function ChipGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-8">
+      <span className="text-12 font-bold text-default">{label}</span>
+      <div className="flex flex-wrap gap-8">{children}</div>
+    </div>
+  )
+}
+
+// --- ProofTile -------------------------------------------------------------
+// One of the two proof captures that gate submitting a visit: location, then
+// photo. Both visits close the same way, so the pair lives here rather than
+// being re-authored per flow.
+//
+// Location is proof the BP was THERE, which a photo alone cannot establish —
+// a photo can be taken anywhere, and the whole point of the capture is that the
+// visit is verifiable after the fact. Recording it is one tap and needs no
+// preview, so the two sit side by side as equal tiles rather than the photo
+// keeping its big drop-zone and location becoming a footnote under it.
+
+export function ProofTile({
+  done,
+  label,
+  doneLabel,
+  icon,
+  onClick,
+}: {
+  done: boolean
+  label: string
+  doneLabel: string
+  icon: ReactNode
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-1 flex-col items-center gap-8 rounded-12 border p-16 text-center ${
+        done ? 'border-green-500 bg-green-50' : 'border-default bg-neutral-white'
+      }`}
+    >
+      <span
+        className={`flex h-48 w-48 items-center justify-center rounded-full ${
+          done ? 'bg-green-50 text-green-500' : 'bg-primary-50 text-primary-500'
+        }`}
+      >
+        {done ? <IconCheck size={24} /> : icon}
+      </span>
+      <span className={`text-14 font-bold ${done ? 'text-green-500' : 'text-default'}`}>
+        {done ? doneLabel : label}
+      </span>
     </button>
   )
 }
@@ -130,8 +238,11 @@ export function IconToggle({ selected, tone, onClick, label, children }: IconTog
 // A majelis visit is three: collect, offer, prove. A home visit is TWO — a home
 // visit happens because a mitra is behind, so there is nothing to cross-sell and
 // the offer step was cut. See NOTES.
-export const STEP_LABELS = ['Kehadiran & Pembayaran', 'Tugas Tambahan', 'Foto & Kirim']
-export const HOME_STEP_LABELS = ['Temui & Tagih', 'Foto & Kirim']
+// "Bukti & Kirim" rather than "Foto & Kirim": the last step gates on a location
+// AND a photo, and naming it after only one of them made the other look
+// optional.
+export const STEP_LABELS = ['Kehadiran & Pembayaran', 'Tugas Tambahan', 'Bukti & Kirim']
+export const HOME_STEP_LABELS = ['Temui & Tagih', 'Bukti & Kirim']
 
 // The step's NAME is the heading, and "Langkah 1 dari 3" is the caption beneath
 // it. The two were previously fused into one small line, which buried the only

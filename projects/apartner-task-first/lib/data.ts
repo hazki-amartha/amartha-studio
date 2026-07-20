@@ -132,13 +132,10 @@ const MAWAR_MEMBERS: Mitra[] = [
     offer: { label: 'Celengan', done: 'Sudah menabung', status: 'Belum pernah menabung' },
   },
   { id: 'm4', name: 'Dewi Lestari', due: 175_000, dpd: 0 },
-  {
-    id: 'm5',
-    name: 'Siti Aminah',
-    due: 200_000,
-    dpd: 0,
-    offer: { label: 'Agent AOne', done: 'Sudah jadi agen', status: '2 pinjaman aktif' },
-  },
+  // No offer: agent onboarding (Agent AOne) was pulled from step 2 — it is not
+  // confirmed as a prioritised initiative, and step 2 should only carry pitches
+  // the BP will actually be asked to make.
+  { id: 'm5', name: 'Siti Aminah', due: 200_000, dpd: 0 },
   { id: 'm6', name: 'Yanti Rohayati', due: 150_000, dpd: 14 },
   { id: 'm7', name: 'Eni Nuraeni', due: 125_000, dpd: 0 },
 ]
@@ -262,14 +259,14 @@ export interface HomeVisit {
 
 // Neither carries an `offer`. A home visit happens BECAUSE a mitra is behind,
 // so the flow is optimised end to end for collection — the cross-sell step was
-// cut from this flow entirely. The one thing worth offering a delinquent is
-// relief, and that is Peldis (below), which is a collection outcome, not a
-// pitch.
+// cut from this flow entirely, and nothing replaced it: the Peldis
+// recommendation that briefly lived in step 1 is parked until the settlement
+// route is confirmed, so the step records the outcome and nothing else.
 export const HOME_VISITS: HomeVisit[] = [
   {
     id: 't3',
     // 62 days down: past the point a majelis collection can recover her, which
-    // is why she is a home visit at all — and past the Peldis threshold.
+    // is why she is a home visit at all.
     mitra: { id: 'h1', name: 'Rina Marlina', due: 450_000, dpd: 62 },
   },
   {
@@ -279,15 +276,6 @@ export const HOME_VISITS: HomeVisit[] = [
     mitra: { id: 'h2', name: 'Sari Handayani', due: 200_000, dpd: 3 },
   },
 ]
-
-/**
- * Peldis (pelunasan dipercepat / discounted settlement) — a mitra 60+ days down
- * may settle by paying principal only, routed BP → BM → HO. It is the one
- * "offer" a home visit can honestly make, and it exists to CLOSE a bad loan
- * rather than to sell anything, so it lives inside the collection step instead
- * of a cross-sell step of its own.
- */
-export const PELDIS_DPD = 60
 
 export const findHomeVisit = (taskId: string) =>
   HOME_VISITS.find((h) => h.id === taskId) ?? HOME_VISITS[0]

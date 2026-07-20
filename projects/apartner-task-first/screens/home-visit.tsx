@@ -8,12 +8,16 @@
 // homepage-IA direction renders that faithfully as fourteen stacked questions.
 // This direction takes the same decision tree and asks it in two places:
 //
-//   ON THE PAGE — the facts that are simply true when you arrive:
-//     1. Who answered the door? (mitra / keluarga / nobody)
-//     2. Did she pay in full? (one tap, no sheet — the good case stays cheap)
+// It all now lives ON THE PAGE — there is no sheet in this flow. A majelis step
+// keeps its sheet because the screen behind it is a queue of 22 cards that has
+// to stay scannable, and a card cannot grow a form without wrecking the list.
+// A home visit is ONE mitra, so the screen has nothing to protect: the page can
+// simply grow as the BP answers, and a sheet here only added a layer over a
+// form that had room to be visible.
 //
-//   IN THE SHEET — everything that has to be negotiated:
-//     the partial amount, the reason, the promise-to-pay date, the new address.
+// So step 1 reads top to bottom as the conversation actually goes: who she is
+// and how to reach her, what she owes, who answered the door, and then what
+// happened about the money.
 //
 // Three collapses do the work:
 //
@@ -27,26 +31,22 @@
 //   entirely and opens straight on the reason and the revisit date.
 //
 // What is gone: the cross-sell step. A home visit happens BECAUSE a mitra is
-// behind, so there is nothing to upsell — the one honest offer is Peldis, which
-// settles a bad loan rather than selling anything, and it lives inline here as
-// a recommendation the app raises when she is eligible.
+// behind, so there is nothing to upsell. The Peldis recommendation that briefly
+// filled that gap is also gone — parked until the settlement route is confirmed
+// — so this step records the outcome and nothing else.
+//
+// The payment OPTIONS still match the majelis sheet exactly — the same three
+// outcomes, in the same order, with the same reason and janji-bayar chips. Only
+// the container differs, and it differs for a reason the BP can feel: at a
+// majelis she is working a list, at a door she is having one conversation.
 
-import { useState } from 'react'
-import {
-  BottomSheet,
-  Button,
-  Card,
-  Input,
-  NavigationHeader,
-  SelectableCard,
-} from '@/design-system/components'
+import { Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { findHomeVisit, findTask, PELDIS_DPD, rupiah } from '../lib/data'
-import { IconCheck } from '../lib/icons'
-import { HomeMitraCard } from '../lib/home-card'
-import { paidOf, paymentStatus, remainingOf, store, useApp, type MetWith } from '../lib/store'
-import { HOME_STEP_LABELS, SectionTitle, StepBar } from '../lib/ui'
+import { findHomeVisit, findTask, rupiah } from '../lib/data'
+import { HomeMitraCard, TagihanCard } from '../lib/home-card'
+import { paidOf, store, useApp, type MetWith } from '../lib/store'
+import { Chip, ChipGroup, HOME_STEP_LABELS, SectionTitle, StepBar } from '../lib/ui'
 
 const WHO: { value: MetWith; title: string; description: string }[] = [
   { value: 'mitra', title: 'Mitra sendiri', description: 'Bisa langsung menagih' },
@@ -83,8 +83,6 @@ const PTP_OPTIONS: { label: string; value: string | null }[] = [
   { label: 'Tidak ada janji', value: null },
 ]
 
-type SheetMode = 'bayar' | 'tidak'
-
 export function HomeVisitScreen() {
   const flow = useFlow()
   const s = useApp()
@@ -93,56 +91,32 @@ export function HomeVisitScreen() {
   const task = findTask(visit.id)
 
   const met = s.metWith[mitra.id]
-  const status = paymentStatus(s, mitra)
   const refusal = s.nonPayments[mitra.id]
-  const peldisDone = s.peldis.includes(mitra.id)
+  const paid = paidOf(s, mitra)
 
-  // Sheet state is deliberately local: it must not survive navigation.
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [mode, setMode] = useState<SheetMode>('bayar')
-  const [draft, setDraft] = useState('')
-  const [reason, setReason] = useState<string | null>(null)
-  const [ptp, setPtp] = useState<string | null | undefined>(undefined)
-  const [address, setAddress] = useState('')
-
-  // Nobody home means no money changed hands, so the sheet has one job.
+  // Nobody home means no money changed hands, so there is nothing to choose
+  // between: the outcome is forced to "tidak" and the mode list is not drawn.
   const absent = met === 'nobody'
+  const mode = s.payMode[mitra.id]
   const reasons = absent ? ABSENT_REASONS : PAY_REASONS
 
-  function openSheet(forced?: SheetMode) {
-    const existing = s.nonPayments[mitra.id]
-    setMode(absent ? 'tidak' : (forced ?? (existing ? 'tidak' : 'bayar')))
-    setDraft(String(remainingOf(s, mitra)))
-    setReason(existing?.reason ?? null)
-    setPtp(existing ? existing.ptp : undefined)
-    setAddress('')
-    setSheetOpen(true)
+  // Everything the BP touches writes straight to the store. There is no draft
+  // and no "Simpan" — with the options inline, what is on screen IS the record,
+  // and a save button would imply the page might not be keeping up.
+  function pick(next: 'penuh' | 'sebagian' | 'tidak') {
+    store.setPayMode(mitra.id, next)
+    if (next === 'penuh') store.setPayment(mitra.id, mitra.due)
   }
 
-  function save() {
-    if (mode === 'tidak') {
-      if (!reason) return
-      const note = reason === 'Pindah rumah' && address ? `${reason} → ${address}` : reason
-      store.setNonPayment(mitra.id, { reason: note, ptp: ptp ?? null })
-    } else {
-      const entered = Number(draft.replace(/\D/g, '')) || 0
-      store.setPayment(mitra.id, paidOf(s, mitra) + entered)
-    }
-    setSheetOpen(false)
+  function pickReason(value: string) {
+    store.setNonPayment(mitra.id, { reason: value, ptp: refusal?.ptp ?? null })
   }
 
-  const entered = Number(draft.replace(/\D/g, '')) || 0
-  const overpay = entered - remainingOf(s, mitra)
+  function pickPtp(value: string | null) {
+    store.setNonPayment(mitra.id, { reason: refusal?.reason ?? '', ptp: value })
+  }
 
-  // What the BP has recorded so far, read back in her own terms.
-  const outcomeLine =
-    status === 'lunas'
-      ? `Lunas · ${rupiah(paidOf(s, mitra))}`
-      : status === 'sebagian'
-        ? `${rupiah(paidOf(s, mitra))} · kurang ${rupiah(remainingOf(s, mitra))}`
-        : status === 'tidak'
-          ? `${refusal?.reason}${refusal?.ptp ? ` · janji ${refusal.ptp}` : ''}`
-          : null
+  const shortfall = mitra.due - paid
 
   return (
     <Screen
@@ -165,12 +139,15 @@ export function HomeVisitScreen() {
       <HomeMitraCard
         mitra={mitra}
         address={task?.place ?? ''}
-        reason={task?.reason ?? ''}
         onOpen={() => {
           store.openMitraPage(mitra.id)
           flow.go('mitra')
         }}
       />
+
+      {/* Always on screen, from the moment the step opens — the BP should never
+          be talking to her with the amount she is asking for off-screen. */}
+      <TagihanCard mitra={mitra} reason={task?.reason ?? ''} />
 
       {/* --- The one question that replaces three nested ones. */}
       <SectionTitle>Siapa yang ditemui?</SectionTitle>
@@ -188,109 +165,114 @@ export function HomeVisitScreen() {
         ))}
       </div>
 
-      {/* --- The outcome. Same controls whether it was her or her family: what
-          gets recorded is the money and the promise, not who handed them over. */}
+      {/* --- The outcome, inline. Same three options as the majelis sheet, in
+          the same order — only the container differs. Same controls whether it
+          was her or her family, too: what gets recorded is the money and the
+          promise, not who handed them over. */}
       {met && !absent ? (
         <>
           <SectionTitle>Pembayaran</SectionTitle>
-          <Card>
-            {outcomeLine ? (
-              <div className="flex items-center gap-8">
-                <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-500">
-                  <IconCheck size={20} />
-                </span>
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-12 text-caption">Tercatat</span>
-                  <span className="truncate text-14 font-bold text-default">{outcomeLine}</span>
-                </div>
-                <Button size="sm" variant="ghost" className="h-40" onClick={() => openSheet()}>
-                  Ubah
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-8">
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-12 text-caption">Tagihan</span>
-                  <span className="truncate text-18 font-bold text-default">
-                    {rupiah(mitra.due)}
-                  </span>
-                </div>
-                <Button size="sm" variant="outline" className="h-40" onClick={() => openSheet()}>
-                  Lainnya
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-40"
-                  onClick={() => store.setPayment(mitra.id, mitra.due)}
-                >
-                  Bayar Penuh
-                </Button>
-              </div>
-            )}
-          </Card>
+          <div className="flex flex-col gap-8">
+            <SelectableCard
+              name="mode-tagih"
+              inputType="radio"
+              title="Bayar Penuh"
+              description={rupiah(mitra.due)}
+              checked={mode === 'penuh'}
+              onChange={() => pick('penuh')}
+            />
+            <SelectableCard
+              name="mode-tagih"
+              inputType="radio"
+              title="Bayar Sebagian"
+              checked={mode === 'sebagian'}
+              onChange={() => pick('sebagian')}
+            />
+            <SelectableCard
+              name="mode-tagih"
+              inputType="radio"
+              title="Tidak Bayar"
+              checked={mode === 'tidak'}
+              onChange={() => pick('tidak')}
+            />
+          </div>
         </>
       ) : null}
 
-      {/* --- Nobody home. No payment is possible, so the only thing left to
-          record is why, and when to come back. One button, one sheet. */}
-      {absent ? (
+      {/* The amount is typed straight into the record — no draft, no Simpan. */}
+      {met && !absent && mode === 'sebagian' ? (
+        <Input
+          label="Jumlah diterima"
+          prefix="Rp"
+          inputMode="numeric"
+          value={paid > 0 ? String(paid) : ''}
+          onChange={(e) =>
+            store.setPayment(mitra.id, Number(e.target.value.replace(/\D/g, '')) || 0)
+          }
+          helperText={
+            paid === 0
+              ? 'Masukkan jumlah yang diterima'
+              : shortfall > 0
+                ? `Kurang ${rupiah(shortfall)} dari tagihan`
+                : shortfall < 0
+                  ? `Lebih ${rupiah(-shortfall)} dari tagihan`
+                  : 'Sama dengan tagihan penuh'
+          }
+          state={paid > 0 && shortfall <= 0 ? 'valid' : 'default'}
+        />
+      ) : null}
+
+      {/* --- Nobody home, or a recorded no. Either way the remaining questions
+          are the same two: why, and when to come back. When nobody was home the
+          three-option list above is not drawn at all — an empty house cannot
+          hand over money, so there is nothing to choose between. */}
+      {(absent || mode === 'tidak') && met ? (
         <>
-          <SectionTitle>Catatan kunjungan</SectionTitle>
+          <SectionTitle>{absent ? 'Catatan kunjungan' : 'Alasan belum bayar'}</SectionTitle>
           <Card>
-            {outcomeLine ? (
-              <div className="flex items-center gap-8">
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-12 text-caption">Tercatat</span>
-                  <span className="truncate text-14 font-bold text-default">{outcomeLine}</span>
-                </div>
-                <Button size="sm" variant="ghost" className="h-40" onClick={() => openSheet()}>
-                  Ubah
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-12">
-                <span className="text-12 text-caption">
-                  Catat alasan dan kapan akan dikunjungi lagi, supaya kunjungan hari ini tidak
-                  hilang begitu saja.
-                </span>
-                <Button size="sm" className="h-40 w-full" onClick={() => openSheet('tidak')}>
-                  Catat alasan &amp; jadwal ulang
-                </Button>
-              </div>
-            )}
+            <div className="flex flex-col gap-12">
+              <ChipGroup label={absent ? 'Kenapa tidak ada di rumah?' : 'Alasan'}>
+                {reasons.map((option) => (
+                  <Chip
+                    key={option}
+                    selected={refusal?.reason === option}
+                    onClick={() => pickReason(option)}
+                  >
+                    {option}
+                  </Chip>
+                ))}
+              </ChipGroup>
+
+              {/* Relocation is the one reason that needs more than a label — an
+                  address is what turns "pindah" into something ops can act on
+                  rather than a dead end. */}
+              {refusal?.reason === 'Pindah rumah' ? (
+                <Input
+                  label="Alamat baru (jika diketahui)"
+                  value={s.newAddress[mitra.id] ?? ''}
+                  onChange={(e) => store.setNewAddress(mitra.id, e.target.value)}
+                  helperText="Kosongkan jika belum tahu — akan dibuat tugas pelacakan."
+                />
+              ) : null}
+
+              {/* Asked only once there is a reason: a revisit date with nothing
+                  attached to it is not a record of anything. */}
+              {refusal?.reason && refusal.reason !== 'Meninggal dunia' ? (
+                <ChipGroup label={absent ? 'Kunjungan ulang' : 'Janji bayar'}>
+                  {PTP_OPTIONS.map((option) => (
+                    <Chip
+                      key={option.label}
+                      selected={refusal.ptp === option.value}
+                      onClick={() => pickPtp(option.value)}
+                    >
+                      {option.label}
+                    </Chip>
+                  ))}
+                </ChipGroup>
+              ) : null}
+            </div>
           </Card>
         </>
-      ) : null}
-
-      {/* --- Peldis. The one offer this flow makes, and it is a collection
-          outcome: settle the principal and close a loan that is 60+ days down.
-          The app raises it because it already knows she is eligible — the BP
-          should not have to remember a threshold. */}
-      {mitra.dpd >= PELDIS_DPD && status !== 'lunas' ? (
-        peldisDone ? (
-          <div className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12">
-            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-green-50 text-green-500">
-              <IconCheck size={20} />
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="text-14 font-bold text-default">Peldis diajukan</span>
-              <span className="text-12 text-caption">Diteruskan ke BM untuk persetujuan</span>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-12 rounded-12 border border-primary-200 bg-primary-50 p-12">
-            <div className="flex flex-col gap-2">
-              <span className="text-14 font-bold text-default">Tawarkan Peldis</span>
-              <span className="text-12 text-caption">
-                Menunggak {mitra.dpd} hari — mitra berhak melunasi dengan membayar pokok saja.
-                Pengajuan diteruskan ke BM.
-              </span>
-            </div>
-            <Button size="sm" className="h-40 w-full" onClick={() => store.submitPeldis(mitra.id)}>
-              Ajukan Peldis
-            </Button>
-          </div>
-        )
       ) : null}
 
       <div className="sticky bottom-0 -mx-16 mt-auto border-t border-default bg-neutral-white p-16">
@@ -298,124 +280,6 @@ export function HomeVisitScreen() {
           Lanjut
         </Button>
       </div>
-
-      {/* --- The negotiated part. When someone was home the sheet still opens
-          on the mode switch; when nobody was, that switch is gone — there is
-          no partial payment to record from an empty house. */}
-      <BottomSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        size="md"
-        title={absent ? 'Catatan kunjungan' : 'Catatan pembayaran'}
-        description={mitra.name}
-        primaryAction={
-          <Button className="w-full" disabled={mode === 'tidak' && !reason} onClick={save}>
-            Simpan
-          </Button>
-        }
-        secondaryAction={
-          <Button className="w-full" variant="ghost" onClick={() => setSheetOpen(false)}>
-            Batal
-          </Button>
-        }
-      >
-        <div className="flex flex-col gap-12">
-          {!absent ? (
-            <div className="flex gap-8">
-              <Button
-                size="sm"
-                className="flex-1"
-                variant={mode === 'bayar' ? 'primary' : 'outline'}
-                onClick={() => setMode('bayar')}
-              >
-                Bayar sebagian
-              </Button>
-              <Button
-                size="sm"
-                className="flex-1"
-                variant={mode === 'tidak' ? 'primary' : 'outline'}
-                onClick={() => setMode('tidak')}
-              >
-                Tidak bayar
-              </Button>
-            </div>
-          ) : null}
-
-          {mode === 'bayar' ? (
-            <>
-              <div className="flex items-center gap-12 rounded-8 bg-neutral-50 px-12 py-8">
-                <span className="flex-1 text-12 text-caption">Sisa tagihan</span>
-                <span className="text-14 font-bold text-default">
-                  {rupiah(remainingOf(s, mitra))}
-                </span>
-              </div>
-              <Input
-                label="Jumlah diterima"
-                prefix="Rp"
-                inputMode="numeric"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
-                helperText={
-                  overpay > 0
-                    ? `Lebih ${rupiah(overpay)} dari tagihan`
-                    : overpay < 0
-                      ? `Bayar sebagian — kurang ${rupiah(-overpay)}`
-                      : 'Lunas untuk tagihan ini'
-                }
-                state={overpay < 0 ? 'default' : 'valid'}
-              />
-            </>
-          ) : (
-            <>
-              <div className="flex flex-col gap-8">
-                <span className="text-12 font-bold text-default">
-                  {absent ? 'Kenapa tidak ada di rumah?' : 'Alasan belum bayar'}
-                </span>
-                {reasons.map((option) => (
-                  <SelectableCard
-                    key={option}
-                    name="alasan"
-                    inputType="radio"
-                    title={option}
-                    checked={reason === option}
-                    onChange={() => setReason(option)}
-                  />
-                ))}
-              </div>
-
-              {/* Relocation is the one reason that needs more than a label —
-                  an address is what turns "pindah" into something ops can act
-                  on rather than a dead end. */}
-              {reason === 'Pindah rumah' ? (
-                <Input
-                  label="Alamat baru (jika diketahui)"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  helperText="Kosongkan jika belum tahu — akan dibuat tugas pelacakan."
-                />
-              ) : null}
-
-              {reason !== 'Meninggal dunia' ? (
-                <div className="flex flex-col gap-8">
-                  <span className="text-12 font-bold text-default">
-                    {absent ? 'Kunjungan ulang' : 'Janji bayar'}
-                  </span>
-                  {PTP_OPTIONS.map((option) => (
-                    <SelectableCard
-                      key={option.label}
-                      name="janji-bayar"
-                      inputType="radio"
-                      title={option.label}
-                      checked={ptp !== undefined && ptp === option.value}
-                      onChange={() => setPtp(option.value)}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </>
-          )}
-        </div>
-      </BottomSheet>
     </Screen>
   )
 }

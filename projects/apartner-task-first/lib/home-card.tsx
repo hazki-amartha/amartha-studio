@@ -13,11 +13,15 @@
 //
 //   [avatar] Nama  ›            [WA] [Telepon]
 //   📍 alamat
-//   ────────────────────────────────────────
-//   Menunggak 62 hari · Rp 450.000   Selengkapnya ›
+//
+// The "why now" line used to sit under a rule at the bottom of this card. It
+// moved out to a Tagihan card of its own, because the amount owed has to be
+// readable at every moment of the visit — including before the BP has answered
+// anything — and burying it as a footnote on the identity card made it read as
+// context rather than as the number she is standing there to collect.
 
 import { Card } from '@/design-system/components'
-import type { Mitra } from './data'
+import { rupiah, type Mitra } from './data'
 import { IconChatFill, IconChevronRight, IconPhone, IconPin } from './icons'
 import { profileOf } from './profile'
 import { Avatar } from './ui'
@@ -25,14 +29,11 @@ import { Avatar } from './ui'
 export function HomeMitraCard({
   mitra,
   address,
-  reason,
   onOpen,
 }: {
   mitra: Mitra
   address: string
-  /** The pre-reasoned "why now" line from the schedule. */
-  reason: string
-  /** Opens her mitra page — from the name and from "Selengkapnya". */
+  /** Opens her mitra page, from the name. */
   onOpen: () => void
 }) {
   const phone = profileOf(mitra).phone
@@ -77,24 +78,33 @@ export function HomeMitraCard({
           </span>
           {address}
         </span>
+      </div>
+    </Card>
+  )
+}
 
-        <button
-          type="button"
-          onClick={onOpen}
-          className="flex items-center gap-8 border-t border-default pt-12 text-left"
+/**
+ * What she owes, and why the BP is here — always on screen, from the moment the
+ * step opens and regardless of what has been answered.
+ *
+ * This is the number the whole visit is about, so it does not wait for a
+ * selection to appear. It previously only showed up inside the payment block,
+ * which meant the BP could be mid-conversation at the door, having answered
+ * "who did you meet", with the amount she is asking for nowhere on screen.
+ */
+export function TagihanCard({ mitra, reason }: { mitra: Mitra; reason: string }) {
+  return (
+    <Card>
+      <div className="flex flex-col gap-2">
+        <span className="text-12 text-caption">Tagihan</span>
+        <span className="text-24 font-bold text-default">{rupiah(mitra.due)}</span>
+        <span
+          className={`text-12 font-bold ${
+            mitra.dpd >= 30 ? 'text-red-500' : mitra.dpd > 0 ? 'text-orange-500' : 'text-green-500'
+          }`}
         >
-          <span
-            className={`min-w-0 flex-1 truncate text-12 font-bold ${
-              mitra.dpd >= 30 ? 'text-red-500' : mitra.dpd > 0 ? 'text-orange-500' : 'text-green-500'
-            }`}
-          >
-            {reason}
-          </span>
-          <span className="flex shrink-0 items-center gap-2 text-12 font-bold text-link">
-            Selengkapnya
-            <IconChevronRight size={16} />
-          </span>
-        </button>
+          {reason}
+        </span>
       </div>
     </Card>
   )
