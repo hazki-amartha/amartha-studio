@@ -10,6 +10,7 @@ import {
   TONE_BADGE,
   TYPE_BADGE,
   attendanceRate,
+  capitalPath,
   genAttendance,
   genInstallments,
   hashOf,
@@ -18,11 +19,12 @@ import {
   mitraContact,
   recsFor,
   rp,
+  type CapitalStep,
   type Rec,
 } from '../lib/data'
 import { IconCal, IconCheck, IconChart, IconChat, IconChevR, IconDoc, IconPin, IconShield, IconUser, IconX } from '../lib/icons'
 import { selectedMitra, store, useApp } from '../lib/store'
-import { Avatar } from '../lib/ui'
+import { Avatar, ProgressBar } from '../lib/ui'
 
 const EVAL_DATE = '31 Des 2026'
 const DISB_ELIGIBLE_DATE = '31 Agu 2026'
@@ -44,6 +46,7 @@ export function MitraDetailScreen() {
   const outlook = m.pending ? null : limitOutlook(m, g)
   const attendance = m.pending ? [] : genAttendance(m)
   const contact = mitraContact(m)
+  const path = m.pending ? [] : capitalPath(m, g)
 
   const activeAll = s.tasks.filter((t) => t.who === m.n)
   const hvTask = activeAll.find((t) => t.act === 'Kunjungan Rumah')
@@ -75,8 +78,9 @@ export function MitraDetailScreen() {
 
   function startHV() {
     if (!hvTask) return
-    store.set({ hvTaskId: hvTask.id, selMitra: m.n, selMajelis: m.m })
-    flow.go('kunjungan-rumah')
+    store.set({ selMajelis: m.m })
+    store.openHomeVisit(hvTask.id, m.n)
+    flow.go('home-visit')
   }
 
   if (view === 'profil') {
@@ -263,6 +267,9 @@ export function MitraDetailScreen() {
           )}
         </section>
 
+        {/* Jalur Naik Modal */}
+        {path.length > 0 ? <CapitalPath steps={path} /> : null}
+
         {/* Kehadiran kumpulan */}
         {!m.pending ? (
           <section className="flex flex-col gap-4">
@@ -325,37 +332,41 @@ export function MitraDetailScreen() {
 
   return (
     <Screen topBar={<NavigationHeader title={m.n} onBack={flow.back} />}>
-      {/* Profile preview — tap through to the full profile */}
-      <button type="button" onClick={() => setView('profil')} className="w-full text-left">
-        <Card>
-          <div className="flex items-center gap-8">
-            <Avatar tone={m.ketua ? 'primary' : 'neutral'} size={48}>
-              {m.n.charAt(0)}
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-4">
-                <span className="text-14 font-bold text-default">{m.n}</span>
-                {m.ketua ? <Badge intent="primary">Ketua</Badge> : null}
-              </div>
-              <p className="mt-2 text-12 text-caption">
-                {m.m} · {g.area}
-              </p>
-              <p className={`mt-2 text-12 ${m.pending ? 'font-bold text-blue-700' : m.dpd > 0 ? 'font-bold text-red-500' : 'text-caption'}`}>
-                {m.pending ? 'Pengajuan baru · belum verifikasi SLIK' : m.dpd > 0 ? `DPD ${m.dpd} · ${m.p}` : `${m.p} · Lancar`}
-              </p>
+      {/* Profile preview — a full-bleed header band (edge to edge, flush under
+          the nav bar) so it reads as the mitra's header rather than one more
+          card in the task stack. Taps through to the full profile. */}
+      <button
+        type="button"
+        onClick={() => setView('profil')}
+        className="-mx-16 -mt-16 border-b border-default bg-neutral-white px-16 py-16 text-left"
+      >
+        <div className="flex items-center gap-8">
+          <Avatar tone={m.ketua ? 'primary' : 'neutral'} size={48}>
+            {m.n.charAt(0)}
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="text-14 font-bold text-default">{m.n}</span>
+              {m.ketua ? <Badge intent="primary">Ketua</Badge> : null}
             </div>
-            <span className="shrink-0 text-12 font-bold text-link">Profil</span>
+            <p className="mt-2 text-12 text-caption">
+              {m.m} · {g.area}
+            </p>
+            <p className={`mt-2 text-12 ${m.pending ? 'font-bold text-blue-700' : m.dpd > 0 ? 'font-bold text-red-500' : 'text-caption'}`}>
+              {m.pending ? 'Pengajuan baru · belum verifikasi SLIK' : m.dpd > 0 ? `DPD ${m.dpd} · ${m.p}` : `${m.p} · Lancar`}
+            </p>
           </div>
-          {m.prod.length > 0 ? (
-            <div className="mt-12 flex flex-wrap gap-4">
-              {m.prod.map((p) => (
-                <Badge key={p} intent={PRODUCT[p].intent}>
-                  {PRODUCT[p].l}
-                </Badge>
-              ))}
-            </div>
-          ) : null}
-        </Card>
+          <span className="shrink-0 text-12 font-bold text-link">Profil</span>
+        </div>
+        {m.prod.length > 0 ? (
+          <div className="mt-12 flex flex-wrap gap-4">
+            {m.prod.map((p) => (
+              <Badge key={p} intent={PRODUCT[p].intent}>
+                {PRODUCT[p].l}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
       </button>
 
       {/* Tugas aktif — HV task excluded; it gets its own launcher below */}
@@ -450,5 +461,78 @@ export function MitraDetailScreen() {
         ) : null}
       </section>
     </Screen>
+  )
+}
+
+// --- Jalur Naik Modal ------------------------------------------------------
+// A vertical milestone timeline: a rail of nodes (done / current / future) with
+// a card each. It reframes the loan cycle as a path to bigger capital — the same
+// hedged framing as Progress limit, never a promise.
+function CapitalPath({ steps }: { steps: CapitalStep[] }) {
+  return (
+    <section className="flex flex-col gap-8">
+      <div>
+        <h2 className="text-14 font-bold text-default">Jalur Naik Modal</h2>
+        <p className="text-12 text-caption">Disiplin hari ini, modal lebih besar menanti.</p>
+      </div>
+
+      <div className="flex flex-col">
+        {steps.map((st, i) => {
+          const last = i === steps.length - 1
+          const node =
+            st.status === 'done'
+              ? 'bg-green-500 text-neutral-white'
+              : st.status === 'current'
+                ? 'bg-primary-500 text-neutral-white'
+                : 'bg-neutral-200 text-neutral-600'
+          return (
+            <div key={st.months} className="flex gap-12">
+              <div className="flex flex-col items-center">
+                <span className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-full text-12 font-bold ${node}`}>
+                  {st.status === 'done' ? <IconCheck size={16} /> : i + 1}
+                </span>
+                {!last ? (
+                  <span className={`w-2 flex-1 ${st.status === 'done' ? 'bg-green-500' : 'bg-neutral-200'}`} />
+                ) : null}
+              </div>
+
+              <div className={`min-w-0 flex-1 ${last ? '' : 'pb-12'}`}>
+                <Card className={st.status === 'current' ? 'border-primary-500' : undefined}>
+                  <div className="flex flex-wrap items-center gap-8">
+                    <span className="text-16 font-bold text-default">{st.months} Bulan</span>
+                    <span className="rounded-full bg-primary-50 px-8 py-2 text-10 font-bold uppercase text-primary-600">
+                      {st.badge}
+                    </span>
+                  </div>
+                  <p className="mt-4 text-12 text-caption">{st.desc}</p>
+                  {st.amount != null ? (
+                    <p className="mt-2 text-18 font-bold text-primary-600">
+                      {st.kind === 'limit' ? rp(st.amount) : `+${rp(st.amount)}`}
+                    </p>
+                  ) : null}
+                  {st.status === 'done' ? (
+                    <p className="mt-4 text-12 font-bold text-green-600">Selesai pada {st.doneDate}</p>
+                  ) : st.status === 'current' ? (
+                    <div className="mt-8">
+                      <p className="mb-4 text-12 text-caption">{st.weeksLeft} minggu tersisa</p>
+                      <ProgressBar value={st.progress ?? 0} />
+                    </div>
+                  ) : null}
+                </Card>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <Card className="flex items-center gap-8 border-primary-200 bg-primary-50">
+        <span className="shrink-0 text-primary-600">
+          <IconChart size={20} />
+        </span>
+        <p className="text-12 text-primary-600">
+          Setiap pembayaran tepat waktu dan kehadiran kumpulan membuat Ibu semakin dekat ke modal yang lebih besar.
+        </p>
+      </Card>
+    </section>
   )
 }

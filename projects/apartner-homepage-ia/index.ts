@@ -5,8 +5,12 @@ import { config } from './project.config'
 import { HomeScreen } from './screens/home'
 import { MajelisScreen } from './screens/majelis'
 import { MajelisDetailScreen } from './screens/majelis-detail'
+import { MajelisVisitScreen } from './screens/majelis-visit'
+import { MajelisOffersScreen } from './screens/majelis-offers'
+import { MajelisProofScreen } from './screens/majelis-proof'
 import { MitraDetailScreen } from './screens/mitra-detail'
-import { KunjunganRumahScreen } from './screens/kunjungan-rumah'
+import { HomeVisitScreen } from './screens/home-visit'
+import { HomeProofScreen } from './screens/home-proof'
 import { TitipBayarScreen } from './screens/titip-bayar'
 import { KpiScreen } from './screens/kpi'
 import { CommsScreen } from './screens/comms'
@@ -60,37 +64,88 @@ export const project: ProjectModule = {
       title: 'Detail Majelis',
       component: MajelisDetailScreen,
       notes: [
-        'On a kumpulan day, "Mulai kunjungan" switches the whole page into visit mode: every mitra card expands into inline Kehadiran + Pembayaran controls, a Tugas tambahan section surfaces renewal/celengan offers, and a Rekam kumpulan step (lokasi + foto) gates the sticky Submit Kumpulan bar.',
-        'Browse mode keeps mitra cards tappable through to mitra-detail — the visit-mode gate that used to make them inert is gone now that mitra-detail is a live destination.',
+        'Browse-only now: what the group is, its status this week, and a mitra list that taps through to mitra-detail. On a kumpulan day it carries a "Mulai kunjungan" banner that launches the standalone Majelis visit flow (majelis-visit) rather than flipping this page into an inline visit mode.',
         'Mitra sort menunggak-first; a MAJ_FILTERS chip row (Semua / Belum bayar / Sudah bayar / Pengajuan) narrows the list further.',
       ],
       flowsTo: [
         { to: 'majelis', label: 'kembali' },
-        { to: 'mitra-detail', label: 'tap kartu mitra (browse mode)' },
+        { to: 'mitra-detail', label: 'tap kartu mitra' },
+        { to: 'majelis-visit', label: 'Mulai kunjungan' },
       ],
+    },
+    {
+      id: 'majelis-visit',
+      title: 'Majelis Visit - 1 — Kehadiran & Pembayaran',
+      component: MajelisVisitScreen,
+      notes: [
+        'Step 1 of 3, ported from the Task-First direction. The queue drains on RECORDED, not paid — a mitra recorded as "tidak bayar" (reason + PTP) still counts as done. dpd-0 mitra are seeded as already paid this week, so the queue is only who the BP has to collect from.',
+        'Attendance is two named pills; payment is one "Tagih" button opening a sheet with "Bayar Penuh" preselected. A short "Bayar Sebagian" now asks the same reason + PTP a "Tidak Bayar" asks — the shortfall is a closed outcome, not a gap.',
+        'Recorded mitra stay in the list as full cards, marked with their outcome ("Sudah ditagih", "Sudah ditagih sebagian · PTP …"); there is no separate collapsed drawer.',
+      ],
+      flowsTo: [
+        { to: 'majelis-offers', label: 'Lanjut → langkah 2' },
+        { to: 'mitra-detail', label: 'ketuk nama mitra' },
+      ],
+    },
+    {
+      id: 'majelis-offers',
+      title: 'Majelis Visit - 2 — Tugas Tambahan',
+      component: MajelisOffersScreen,
+      notes: [
+        'Step 2 of 3 — the same mitra list and card as step 1, action row swapped for a renewal/Celengan recommendation. Cross-sell comes after collection, one offer per mitra, and the whole step is skippable ("Lewati").',
+        'Only mitra with an actual recommendation are shown; "Tawarkan" records what she said (Tertarik / Tidak tertarik), not merely that she was asked.',
+      ],
+      flowsTo: [
+        { to: 'majelis-proof', label: 'Lanjut / Lewati → langkah 3' },
+        { to: 'majelis-visit', label: 'kembali' },
+        { to: 'mitra-detail', label: 'ketuk nama mitra' },
+      ],
+    },
+    {
+      id: 'majelis-proof',
+      title: 'Majelis Visit - 3 — Bukti & Kirim',
+      component: MajelisProofScreen,
+      notes: [
+        'Step 3 of 3 — a recap that reads back what was entered, then location + photo, both required before Submit unlocks. Submitting finishes the majelis task and returns to Beranda.',
+        'Warns on work not DONE (unmarked attendance, uncollected mitra), never on money not collected — a recorded "tidak bayar" is finished work.',
+      ],
+      flowsTo: [{ to: 'home', label: 'Selesaikan Kunjungan' }],
     },
     {
       id: 'mitra-detail',
       title: 'Detail Mitra',
       component: MitraDetailScreen,
       notes: [
-        'Live now — reached from a Home Kunjungan Rumah task, or a browse-mode mitra card on majelis-detail. Opened directly it renders Rury Ramadhita (ketua, autodebit, PIC, celengan), the record that exercises every section.',
+        'Live now — reached from a Home Kunjungan Rumah task, or a mitra card on majelis-detail / the majelis visit. Opened directly it renders Rury Ramadhita (ketua, autodebit, PIC, celengan), the record that exercises every section.',
         'Two views in one screen: a compact "main" view (active tasks, HV launcher, recommendations) that taps through to a full "profil" view (loan history, progress-limit outlook, attendance, produk lain).',
-        'The active Kunjungan Rumah task gets its own primary-tinted launcher card instead of sitting in the plain task list — "Mulai kunjungan" is what opens the flow.',
+        'The active Kunjungan Rumah task gets its own primary-tinted launcher card; "Mulai kunjungan" opens the standalone Home visit flow (home-visit).',
         '"+ Jadikan tugas" writes a real task into the shared store, so a captured recommendation shows up in Beranda\'s list under the Rekomendasi filter.',
       ],
-      flowsTo: [{ to: 'kunjungan-rumah', label: 'mulai kunjungan' }],
+      flowsTo: [{ to: 'home-visit', label: 'mulai kunjungan' }],
     },
     {
-      id: 'kunjungan-rumah',
-      title: 'Kunjungan Rumah',
-      component: KunjunganRumahScreen,
+      id: 'home-visit',
+      title: 'Home Visit - 1 — Temui & Tagih',
+      component: HomeVisitScreen,
       notes: [
-        'A branching wizard, not a form: bertemu mitra? → bisa bayar? (penuh/sebagian/PTP), or tidak bertemu → temui PJ → titipan/PTP, else tetangga, else tidak ada siapa pun. DPD 60+ mitra who can\'t commit get a Peldis offer.',
-        'Every PTP branch auto-creates a follow-up Kunjungan Rumah task on the promised date; dead-end branches (nobody met, PJ can\'t commit) schedule a plain retry next week.',
-        'The result screen lists exactly which tasks got created, then "Selesai kunjungan" just closes the flow — there is no separate completion/return routing in the source to mirror.',
+        'Step 1 of 2, ported from the Task-First direction — it replaces the branching Kunjungan Rumah wizard. One mitra, so everything lives on the page: doorstep card, the amount owed, who answered the door, then the outcome, top to bottom.',
+        '"Who was met" is one question with three answers (mitra / PJ / nobody). Mitra and PJ take the same outcome controls; "nobody home" drops the payment modes and opens straight on a reason and a revisit date.',
+        'Options write immediately — no "Simpan" — so the record survives tapping through to her mitra page and back.',
       ],
-      flowsTo: [{ to: 'mitra-detail', label: 'tap pil Mitra / tutup' }],
+      flowsTo: [
+        { to: 'home-proof', label: 'Lanjut → langkah 2' },
+        { to: 'mitra-detail', label: 'ketuk nama mitra' },
+      ],
+    },
+    {
+      id: 'home-proof',
+      title: 'Home Visit - 2 — Bukti & Kirim',
+      component: HomeProofScreen,
+      notes: [
+        'Step 2 of 2 — location and photo both required, same as the majelis close. The recap reads back who was met and what she paid; it only warns if nothing was recorded at all.',
+        'Submitting finishes the Kunjungan Rumah task and returns to Beranda.',
+      ],
+      flowsTo: [{ to: 'home', label: 'Selesaikan Kunjungan' }],
     },
     {
       id: 'titip-bayar',

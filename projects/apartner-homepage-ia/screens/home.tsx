@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Badge, Card } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
@@ -11,7 +11,6 @@ import {
   TASK_MAJELIS,
   TASKS,
   TITIP,
-  TAG_BG,
   TYPE_BADGE,
   WHEN_OPTS,
   dayLabel,
@@ -24,12 +23,11 @@ import {
   type TaskSort,
   type WhenFilter,
 } from '../lib/data'
-import { IconBell, IconChart, IconChevR, IconDoc, IconHouse, IconPin, IconSort, IconUsers } from '../lib/icons'
+import { IconBell, IconChart, IconChevR, IconDoc, IconHouse, IconInbox, IconPin, IconSort, IconUsers } from '../lib/icons'
 import { TabBar } from '../lib/shell'
 import { store, unreadCount, useApp } from '../lib/store'
 import {
   Avatar,
-  BannerTag,
   ContextStrip,
   FilterBar,
   FilterChip,
@@ -60,16 +58,6 @@ export function HomeScreen() {
   const s = useApp()
   const [menu, setMenu] = useState<MenuId>(null)
   const [sort, setSort] = useState<TaskSort>('default')
-  const [slide, setSlide] = useState(0)
-  const carousel = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = carousel.current
-    if (!el) return
-    const onScroll = () => setSlide(Math.round(el.scrollLeft / el.clientWidth))
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
-  }, [])
 
   const { filter } = s
   const unread = unreadCount(s.notifs)
@@ -129,6 +117,19 @@ export function HomeScreen() {
           </div>
           <button
             type="button"
+            onClick={() => flow.go('comms')}
+            className="relative shrink-0 text-default"
+            aria-label={`Informasi & Program, ${unreadComms.length} belum dibaca`}
+          >
+            <IconInbox />
+            {unreadComms.length > 0 ? (
+              <span className="absolute right-0 top-0 flex h-16 min-w-16 items-center justify-center rounded-full border-2 border-neutral-white bg-primary-500 px-4 text-10 font-bold text-neutral-white">
+                {unreadComms.length}
+              </span>
+            ) : null}
+          </button>
+          <button
+            type="button"
             onClick={() => flow.go('notif')}
             className="relative shrink-0 text-default"
             aria-label={`Notifikasi, ${unread} belum dibaca`}
@@ -143,51 +144,6 @@ export function HomeScreen() {
         </header>
       }
     >
-      {/* Informasi & Program — only unread items surface here; read ones live
-          on the full Informasi & Program page. */}
-      <section className="flex flex-col gap-8">
-        <SectionHeader title="Informasi & Program" linkLabel="Lihat semua" onLink={() => flow.go('comms')} />
-        {unreadComms.length === 0 ? (
-          <p className="text-12 text-caption">Semua informasi sudah dibaca. Buka halaman untuk melihat arsip.</p>
-        ) : (
-          <>
-            <div
-              ref={carousel}
-              className="-mx-16 flex snap-x snap-mandatory gap-12 overflow-x-auto px-16 scroll-px-16"
-            >
-              {unreadComms.map((c) => (
-                <button
-                  type="button"
-                  key={c.id}
-                  onClick={() => {
-                    store.openBanner(c)
-                    flow.go('banner-detail')
-                  }}
-                  className={`flex w-full shrink-0 snap-start flex-col justify-between gap-16 rounded-12 p-16 text-left ${TAG_BG[c.tag]}`}
-                >
-                  <span className="flex items-center justify-between gap-8">
-                    <BannerTag>{c.tag}</BannerTag>
-                    <BannerTag>Belum dibaca</BannerTag>
-                  </span>
-                  <span>
-                    <span className="block text-14 font-bold text-neutral-white">{c.title}</span>
-                    <span className="block text-12 text-neutral-white">{c.sub}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="flex justify-center gap-4">
-              {unreadComms.map((c, i) => (
-                <span
-                  key={c.id}
-                  className={`h-4 rounded-full ${i === slide ? 'w-16 bg-primary-500' : 'w-4 bg-neutral-200'}`}
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </section>
-
       {/* Terkumpul hari ini */}
       <section className="flex flex-col gap-8">
         <SectionHeader title="Terkumpul hari ini" linkLabel="Lihat semua" onLink={() => flow.go('kpi')} />

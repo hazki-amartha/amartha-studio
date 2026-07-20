@@ -484,6 +484,70 @@ export const limitOutlook = (m: Mitra, g: Majelis): LimitOutlook => {
   }
 }
 
+// --- Jalur Naik Modal (capital-growth path) --------------------------------
+// A milestone timeline that reframes the loan cycle as a path to bigger capital:
+// keep paying on time and attending kumpulan, and top-ups / an early payoff / a
+// limit increase come into reach. Milestones are pinned to the loan tenor and
+// each mitra's current loan week drives which one is done / current / future.
+// Deterministic, demo only — not a promise of approval.
+
+export type CapitalKind = 'topup' | 'pelunasan' | 'limit'
+export type CapitalStatus = 'done' | 'current' | 'future'
+
+export interface CapitalStep {
+  months: number
+  kind: CapitalKind
+  badge: string
+  desc: string
+  amount: number | null
+  status: CapitalStatus
+  doneDate?: string
+  weeksLeft?: number
+  progress?: number
+}
+
+export const capitalPath = (m: Mitra, g: Majelis): CapitalStep[] => {
+  const info = mitraLoanInfo(m)
+  const tenor = info.tenor || 50
+  const week = info.week
+  const current = parseRp(m.p)
+  const topUp = Math.max(250000, Math.round((current * 0.18) / 250000) * 250000)
+  const ceiling = limitOutlook(m, g).ceiling
+
+  const defs: { months: number; kind: CapitalKind; badge: string; desc: string; amount: number | null }[] = [
+    { months: 3, kind: 'topup', badge: 'Top up', desc: 'Tambah modal', amount: topUp },
+    { months: 6, kind: 'topup', badge: 'Top up', desc: 'Tambah modal', amount: topUp },
+    { months: 10, kind: 'pelunasan', badge: 'Pelunasan dini', desc: 'Bisa melunasi lebih awal', amount: null },
+    { months: 12, kind: 'limit', badge: 'Limit naik', desc: 'Limit naik menjadi', amount: ceiling },
+  ]
+
+  const today = new Date()
+  let currentAssigned = false
+  let prevWeek = 0
+  return defs.map((d) => {
+    const mw = Math.min(tenor, Math.round((d.months * tenor) / 12))
+    let status: CapitalStatus
+    let doneDate: string | undefined
+    let weeksLeft: number | undefined
+    let progress: number | undefined
+    if (week >= mw) {
+      status = 'done'
+      const dd = new Date(today)
+      dd.setDate(today.getDate() - (week - mw) * 7)
+      doneDate = dd.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+    } else if (!currentAssigned) {
+      status = 'current'
+      currentAssigned = true
+      weeksLeft = mw - week
+      progress = Math.round(Math.max(0, Math.min(1, (week - prevWeek) / (mw - prevWeek))) * 100)
+    } else {
+      status = 'future'
+    }
+    prevWeek = mw
+    return { ...d, status, doneDate, weeksLeft, progress }
+  })
+}
+
 // --- Recommendations ---------------------------------------------------------
 
 export interface Rec {
