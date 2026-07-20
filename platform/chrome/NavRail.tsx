@@ -15,11 +15,18 @@ const ITEMS: { section: RailSection; href: string; label: string; Icon: typeof S
   { section: 'funds', href: '/system', label: 'FunDS', Icon: FundsIcon },
 ]
 
-export function NavRail({ active }: { active: RailSection | null }) {
+export function NavRail({
+  active,
+  className,
+}: {
+  active: RailSection | null
+  /** Extra classes from the shell (e.g. responsive hiding on prototype routes). */
+  className?: string
+}) {
   return (
     <nav
       aria-label="Sections"
-      className="flex w-48 shrink-0 flex-col items-center gap-8 border-r border-default bg-neutral-white py-12"
+      className={`flex w-48 shrink-0 flex-col items-center gap-8 border-r border-default bg-neutral-white py-12 ${className ?? ''}`}
     >
       <Link
         href="/"
