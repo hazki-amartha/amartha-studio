@@ -44,17 +44,17 @@ export function KpiScreen() {
           </span>
           <span className="text-12 text-disabled">target tercapai</span>
         </div>
-        <div className="mt-10">
+        <div className="mt-8">
           <ProgressBar value={(d.metCount / d.totalParams) * 100} />
         </div>
 
         {/* Incentive as the reward: earned so far + what's still up for grabs */}
         <div className="mt-12 flex gap-8">
-          <div className="flex-1 rounded-8 bg-green-50 px-10 py-8">
+          <div className="flex-1 rounded-8 bg-green-50 px-8 py-8">
             <p className="text-10 text-caption">Insentif diraih</p>
             <p className="mt-2 text-14 font-bold text-green-600">{rp(d.earned)}</p>
           </div>
-          <div className="flex-1 rounded-8 bg-primary-50 px-10 py-8">
+          <div className="flex-1 rounded-8 bg-primary-50 px-8 py-8">
             <p className="text-10 text-caption">Masih bisa diraih</p>
             <p className="mt-2 text-14 font-bold text-primary-600">{rp(d.maxBonus - d.earned)}</p>
           </div>
@@ -63,7 +63,7 @@ export function KpiScreen() {
         <p className="mt-8 text-right text-10 text-disabled">Sisa {DAYS_LEFT} hari</p>
       </Card>
 
-      <section className="flex flex-col gap-10 pb-16">
+      <section className="flex flex-col gap-8 pb-16">
         <div>
           <h2 className="text-14 font-bold text-default">Target & insentif</h2>
           <p className="mt-4 text-12 text-caption">Capai tiap target untuk raih insentifnya.</p>
@@ -103,11 +103,11 @@ function KpiRowCard({ r, onGoTasks }: { r: KpiRow; onGoTasks: () => void }) {
     : r.lower
       ? `Turunkan ${gap} mitra lagi untuk raih ${rp(r.bonus)}`
       : `Kurang ${gap} mitra lagi untuk raih ${rp(r.bonus)}`
-  const motivClasses = r.met ? 'bg-green-50 border-green-50 text-green-600' : 'bg-primary-50 border-primary-100 text-primary-600'
+  const motivClasses = r.met ? 'bg-green-50 border-green-50 text-green-600' : 'bg-primary-50 border-primary-200 text-primary-600'
 
   return (
     <button type="button" onClick={onGoTasks} className="overflow-hidden rounded-12 border border-default bg-neutral-white text-left">
-      <div className="px-14 py-13">
+      <div className="px-12 py-12">
         <div className="flex items-center gap-8">
           <span className="min-w-0 flex-1 text-14 font-bold text-default">{r.n}</span>
           {r.met ? (
@@ -124,17 +124,17 @@ function KpiRowCard({ r, onGoTasks }: { r: KpiRow; onGoTasks: () => void }) {
           Target: {r.lower ? 'maks' : 'min'} {r.targetCount} {label}
         </p>
 
-        <div className="mt-10 flex items-baseline gap-6">
+        <div className="mt-8 flex items-baseline gap-4">
           <span className="text-24 font-bold text-default">{r.count}</span>
           <span className="text-14 text-caption">{label}</span>
         </div>
 
-        <div className="mt-12 h-8 overflow-hidden rounded-full bg-neutral-100">
+        <div className="mt-12 h-8 overflow-hidden rounded-full bg-neutral-200">
           <div className={`h-full rounded-full ${barFill}`} style={{ width: `${pct}%` }} />
         </div>
       </div>
 
-      <div className={`flex items-center gap-8 border-t px-14 py-10 ${motivClasses}`}>
+      <div className={`flex items-center gap-8 border-t px-12 py-8 ${motivClasses}`}>
         <span className="min-w-0 flex-1 text-12 font-bold">{motiv}</span>
         <span className="flex shrink-0 items-center gap-2 text-10 font-bold text-link">
           Tugas <IconChevR size={16} />

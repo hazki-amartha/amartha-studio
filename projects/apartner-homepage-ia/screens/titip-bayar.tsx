@@ -69,7 +69,7 @@ export function TitipBayarScreen() {
         <h2 className="text-10 font-bold uppercase tracking-wide text-disabled">Rincian setoran mitra</h2>
         <Card flush>
           {TITIP.items.map((it, i) => (
-            <div key={it.n} className={`flex items-center gap-8 px-14 py-11 ${i === 0 ? '' : 'border-t border-light'}`}>
+            <div key={it.n} className={`flex items-center gap-8 px-12 py-12 ${i === 0 ? '' : 'border-t border-light'}`}>
               <div className="min-w-0 flex-1">
                 <p className="text-12 font-bold text-default">{it.n}</p>
                 <p className="mt-2 text-10 text-caption">{it.m}</p>
@@ -77,7 +77,7 @@ export function TitipBayarScreen() {
               <span className="text-12 font-bold text-default">{it.a}</span>
             </div>
           ))}
-          <div className="flex border-t border-default bg-neutral-50 px-14 py-11">
+          <div className="flex border-t border-default bg-neutral-50 px-12 py-12">
             <span className="flex-1 text-12 font-bold text-neutral-700">Total</span>
             <span className="text-12 font-bold text-default">{TITIP.total}</span>
           </div>

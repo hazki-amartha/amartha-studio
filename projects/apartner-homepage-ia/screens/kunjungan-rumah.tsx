@@ -345,7 +345,7 @@ export function KunjunganRumahScreen() {
           store.set({ selMitra: m.n, selMajelis: m.m })
           flow.go('mitra-detail')
         }}
-        className="flex shrink-0 items-center gap-4 rounded-full border border-primary-200 bg-primary-50 px-10 py-6 text-10 font-bold text-primary-600"
+        className="flex shrink-0 items-center gap-4 rounded-full border border-primary-200 bg-primary-50 px-8 py-4 text-10 font-bold text-primary-600"
       >
         <IconUser size={16} />
         Mitra
@@ -363,17 +363,17 @@ export function KunjunganRumahScreen() {
     return (
       <Screen topBar={header}>
         <div className="flex flex-col items-center py-16 text-center">
-          <span className={`mb-12 flex h-56 w-56 items-center justify-center rounded-full ${toneClasses[result.tone]}`}>
+          <span className={`mb-12 flex h-48 w-48 items-center justify-center rounded-full ${toneClasses[result.tone]}`}>
             <IconCheck size={24} />
           </span>
           <p className="text-16 font-bold text-default">{result.title}</p>
-          <p className="mt-6 max-w-[280px] text-12 text-caption">{result.detail}</p>
+          <p className="mt-4 max-w-[280px] text-12 text-caption">{result.detail}</p>
 
           {result.tasks && result.tasks.length > 0 ? (
             <Card className="mt-16 w-full text-left">
               <p className="mb-8 text-10 font-bold text-disabled">TUGAS OTOMATIS DIBUAT</p>
               {result.tasks.map((t) => (
-                <div key={t.id} className="mt-6 flex items-center gap-8">
+                <div key={t.id} className="mt-4 flex items-center gap-8">
                   <IconCal size={16} className="text-primary-600" />
                   <span className="flex-1 text-12 text-default">
                     {t.act} · {t.time}
@@ -398,7 +398,7 @@ export function KunjunganRumahScreen() {
         <p className={`text-12 ${!m.pending && m.dpd > 0 ? 'text-red-500' : 'text-caption'}`}>
           {m.pending ? 'Pengajuan baru' : `DPD ${m.dpd} · tagihan ${rp(dueAmt)}`}
         </p>
-        <div className="flex flex-col gap-6 border-t border-light pt-10">
+        <div className="flex flex-col gap-4 border-t border-light pt-8">
           <div className="flex justify-between text-12">
             <span className="text-caption">Janji bayar terakhir (PTP)</span>
             <span className="font-bold text-default">{task?.time?.startsWith('PTP') ? task.time.replace('PTP ', '') : 'Belum ada'}</span>
@@ -657,14 +657,14 @@ export function KunjunganRumahScreen() {
       ) : null}
 
       {d.ptp || d.pjPtp ? (
-        <div className="rounded-8 border border-primary-200 bg-primary-50 px-12 py-10">
+        <div className="rounded-8 border border-primary-200 bg-primary-50 px-12 py-8">
           <p className="text-10 text-primary-600">
             Tugas <b>Kunjungan Rumah</b> otomatis dibuat sistem pada tanggal PTP.
           </p>
         </div>
       ) : null}
 
-      <div className="sticky bottom-0 -mx-16 mt-auto flex flex-col gap-6 border-t border-default bg-neutral-white px-16 py-10">
+      <div className="sticky bottom-0 -mx-16 mt-auto flex flex-col gap-4 border-t border-default bg-neutral-white px-16 py-8">
         <Button disabled={!ready} onClick={submit}>
           Selesai kunjungan
         </Button>

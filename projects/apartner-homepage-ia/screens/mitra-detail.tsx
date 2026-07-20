@@ -96,7 +96,7 @@ export function MitraDetailScreen() {
               <p className="text-16 font-bold text-default">{m.p}</p>
             </div>
           </div>
-          <div className="mt-10 flex flex-wrap gap-6">
+          <div className="mt-8 flex flex-wrap gap-4">
             <Badge intent={st.intent}>{st.l}</Badge>
             {m.keringanan ? <Badge intent="orange">Dapat Keringanan</Badge> : null}
           </div>
@@ -172,8 +172,8 @@ export function MitraDetailScreen() {
 
             <Card flush>
               {installments.slice(-3).map((x, i) => (
-                <div key={x.no} className={`flex items-center gap-10 px-14 py-10 ${i === 0 ? '' : 'border-t border-light'}`}>
-                  <span className="w-18 text-12 text-disabled">{x.no}</span>
+                <div key={x.no} className={`flex items-center gap-8 px-12 py-8 ${i === 0 ? '' : 'border-t border-light'}`}>
+                  <span className="w-20 text-12 text-disabled">{x.no}</span>
                   <span className="flex-1 text-12 text-default">{x.label}</span>
                   <span className="text-12 text-neutral-700">{rp(x.amt)}</span>
                   <Badge intent={x.status === 'ontime' ? 'green' : x.status === 'late' ? 'red' : 'neutral'}>
@@ -203,7 +203,7 @@ export function MitraDetailScreen() {
           <h2 className="text-14 font-bold text-default">Progress limit</h2>
           {outlook ? (
             <Card flush>
-              <div className="bg-primary-50 p-14">
+              <div className="bg-primary-50 p-12">
                 <div className="flex items-end gap-8">
                   <div className="flex-1">
                     <p className="text-10 font-bold uppercase tracking-wide text-primary-600">Limit sekarang</p>
@@ -220,22 +220,22 @@ export function MitraDetailScreen() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-8 border-b border-light bg-neutral-50 px-14 py-10">
+              <div className="flex items-center gap-8 border-b border-light bg-neutral-50 px-12 py-8">
                 <IconCal size={16} className="text-disabled" />
                 <p className="flex-1 text-10 text-caption">
                   Evaluasi limit akan dilakukan pada <b className="text-default">{EVAL_DATE}</b>
                 </p>
               </div>
 
-              <div className="px-14 pb-12 pt-6">
+              <div className="px-12 pb-12 pt-4">
                 {outlook.factors.map((f) => (
-                  <div key={f.k} className="flex items-center gap-10 border-b border-light py-8">
+                  <div key={f.k} className="flex items-center gap-8 border-b border-light py-8">
                     <span
                       className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full ${
-                        f.ok ? 'bg-green-50' : 'bg-neutral-100'
+                        f.ok ? 'bg-green-50' : 'bg-neutral-200'
                       }`}
                     >
-                      {f.ok ? <IconCheck size={16} className="text-green-600" /> : <span className="h-6 w-6 rounded-full bg-neutral-500" />}
+                      {f.ok ? <IconCheck size={16} className="text-green-600" /> : <span className="h-8 w-8 rounded-full bg-neutral-500" />}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-12 font-bold text-default">{f.l}</p>
@@ -244,7 +244,7 @@ export function MitraDetailScreen() {
                   </div>
                 ))}
 
-                <div className="mt-10 flex items-center gap-8">
+                <div className="mt-8 flex items-center gap-8">
                   <Badge intent={TONE_BADGE[outlook.status.tone]}>{outlook.status.l}</Badge>
                   <span className="flex-1 text-12 text-neutral-700">
                     {outlook.status.tone === 'on'
@@ -271,11 +271,11 @@ export function MitraDetailScreen() {
               {attendanceRate(m)}% hadir · {attendance.filter((a) => a.hadir).length} dari {attendance.length} sesi terakhir
             </p>
             <Card>
-              <div className="flex justify-between gap-6">
+              <div className="flex justify-between gap-4">
                 {attendance.map((a) => (
                   <div key={a.label} className="flex-1 text-center">
                     <span
-                      className={`mx-auto flex h-28 w-28 items-center justify-center rounded-full ${
+                      className={`mx-auto flex h-32 w-32 items-center justify-center rounded-full ${
                         a.hadir ? 'bg-green-50' : 'bg-red-50'
                       }`}
                     >
@@ -293,8 +293,8 @@ export function MitraDetailScreen() {
         <section className="flex flex-col gap-8 pb-16">
           <h2 className="text-14 font-bold text-default">Produk lain</h2>
           <Card flush>
-            <div className="flex items-center gap-12 border-b border-light px-14 py-12">
-              <span className="flex h-36 w-36 shrink-0 items-center justify-center rounded-8 bg-green-50">
+            <div className="flex items-center gap-12 border-b border-light px-12 py-12">
+              <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-8 bg-green-50">
                 <IconChart size={20} className="text-green-600" />
               </span>
               <div className="min-w-0 flex-1">
@@ -307,8 +307,8 @@ export function MitraDetailScreen() {
                 <Badge intent="neutral">Belum ada</Badge>
               )}
             </div>
-            <div className="flex items-center gap-12 px-14 py-12">
-              <span className="flex h-36 w-36 shrink-0 items-center justify-center rounded-8 bg-blue-50">
+            <div className="flex items-center gap-12 px-12 py-12">
+              <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-8 bg-blue-50">
                 <IconShield size={20} className="text-blue-500" />
               </span>
               <div className="min-w-0 flex-1">
@@ -328,12 +328,12 @@ export function MitraDetailScreen() {
       {/* Profile preview — tap through to the full profile */}
       <button type="button" onClick={() => setView('profil')} className="w-full text-left">
         <Card>
-          <div className="flex items-center gap-10">
+          <div className="flex items-center gap-8">
             <Avatar tone={m.ketua ? 'primary' : 'neutral'} size={48}>
               {m.n.charAt(0)}
             </Avatar>
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-6">
+              <div className="flex flex-wrap items-center gap-4">
                 <span className="text-14 font-bold text-default">{m.n}</span>
                 {m.ketua ? <Badge intent="primary">Ketua</Badge> : null}
               </div>
@@ -347,7 +347,7 @@ export function MitraDetailScreen() {
             <span className="shrink-0 text-12 font-bold text-link">Profil</span>
           </div>
           {m.prod.length > 0 ? (
-            <div className="mt-12 flex flex-wrap gap-6">
+            <div className="mt-12 flex flex-wrap gap-4">
               {m.prod.map((p) => (
                 <Badge key={p} intent={PRODUCT[p].intent}>
                   {PRODUCT[p].l}
@@ -370,7 +370,7 @@ export function MitraDetailScreen() {
             <p className="text-12 text-caption">Belum ada tugas aktif untuk mitra ini.</p>
           </Card>
         ) : activeNonHV.length > 0 ? (
-          <ul className="flex flex-col gap-10">
+          <ul className="flex flex-col gap-8">
             {activeNonHV.map((t) => (
               <li key={t.id}>
                 <Card>
@@ -391,7 +391,7 @@ export function MitraDetailScreen() {
         ) : null}
 
         {hvTask ? (
-          <div className="flex items-center gap-8 rounded-12 border border-primary-200 bg-primary-50 px-14 py-12">
+          <div className="flex items-center gap-8 rounded-12 border border-primary-200 bg-primary-50 px-12 py-12">
             <div className="min-w-0 flex-1">
               <p className="text-14 font-bold text-primary-600">Kunjungan Rumah</p>
               <p className="mt-2 text-10 text-caption">

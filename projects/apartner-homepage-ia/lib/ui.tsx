@@ -347,7 +347,7 @@ export function ChipPicker<T extends string>({
   onPick: (v: T) => void
 }) {
   return (
-    <div className="flex flex-wrap gap-6">
+    <div className="flex flex-wrap gap-4">
       {options.map((o) => {
         const on = value === o.v
         return (
