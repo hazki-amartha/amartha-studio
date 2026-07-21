@@ -11,8 +11,15 @@
 // this direction is named after is deliberately NOT in the way. The BP who was
 // sent here by the schedule already knows which group she is standing in front
 // of; making her read the roster first would be a page between her and the work.
-// The roster keeps its own way in — the Majelis tab — where it answers a
-// question ("who is in this group?") rather than delaying one.
+//
+// So the page has exactly ONE control that starts work — the button on the
+// "Sekarang" card. Tapping a card under Berikutnya opens the RECORD instead: a
+// majelis opens its Majelis View roster, a home visit opens that mitra's page.
+// That is the split the whole direction rests on. Looking ahead at a group is
+// something a BP does constantly (a BM asks, a mitra calls, she wants to know
+// what she is riding into) and it must not be the same gesture as clocking in
+// to a visit she is not standing at yet. Starting the next one early is still
+// one tap from the roster she lands on.
 
 import { useState } from 'react'
 import { Badge, BottomSheet, Button, Card } from '@/design-system/components'
@@ -24,6 +31,7 @@ import {
   IconCheck,
   IconChevronDown,
   IconChevronRight,
+  IconHome,
   IconInbox,
   IconPin,
   IconUsers,
@@ -31,6 +39,17 @@ import {
 import { doneTaskList, laterTasks, nowTask, store, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
 import { AgendaRow, Collapsible, HeaderAction, IconTile, Overline } from '../lib/ui'
+
+// The two kinds are told apart by their tile, never by hunting for a word: a
+// group of women at a balai, or one door.
+function KindIcon({ kind }: { kind: Task['kind'] }) {
+  return kind === 'majelis' ? <IconUsers size={20} /> : <IconHome size={20} />
+}
+
+const kindTint = (kind: Task['kind']) => (kind === 'majelis' ? 'primary' : 'red')
+
+const kindLabel = (kind: Task['kind']) =>
+  kind === 'majelis' ? 'Kunjungan Majelis' : 'Home Visit'
 
 /**
  * The day switcher. Two options, so a sheet rather than a floating menu: the
@@ -84,14 +103,31 @@ export function TodayScreen() {
 
   const subtitle =
     s.day === 'tomorrow'
-      ? `${TOMORROW_TASKS.length} pelayanan terjadwal`
+      ? `${TOMORROW_TASKS.length} kunjungan terjadwal`
       : `${done.length} dari ${TASKS.length} selesai`
 
-  // Straight into stage 1. The task id rides along so submitting the recap
-  // closes this row rather than leaving a finished pelayanan on the day.
+  // Straight into the work. A majelis goes to stage 1, a home visit to its own
+  // step 1. The task id rides along either way, so submitting closes this row
+  // rather than leaving finished work on the day.
   function start(task: Task) {
-    store.startVisit(task.id)
+    if (task.kind === 'home-visit') {
+      store.startHomeVisit(task.id)
+      flow.go('home-visit')
+      return
+    }
+    store.startVisit(task.majelisId ?? 'mawar', task.id)
     flow.go('attendance')
+  }
+
+  // A Berikutnya card opens the record, never the work. See the note up top.
+  function preview(task: Task) {
+    if (task.kind === 'home-visit') {
+      store.openMitraPage(task.mitraId ?? 'h1')
+      flow.go('mitra')
+      return
+    }
+    store.openMajelisPage(task.majelisId ?? 'mawar')
+    flow.go('majelis')
   }
 
   // Two lines, so this is a project-local header rather than the 48px TopBar
@@ -135,8 +171,8 @@ export function TodayScreen() {
             <AgendaRow key={task.id} time={task.time}>
               <Card>
                 <div className="flex items-center gap-12">
-                  <IconTile tint="primary">
-                    <IconUsers size={20} />
+                  <IconTile tint={kindTint(task.kind)}>
+                    <KindIcon kind={task.kind} />
                   </IconTile>
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-14 font-bold text-default">{task.title}</span>
@@ -168,12 +204,12 @@ export function TodayScreen() {
             <Card>
               <div className="flex flex-col gap-12">
                 <div className="flex items-start gap-12">
-                  <IconTile tint="primary">
-                    <IconUsers size={20} />
+                  <IconTile tint={kindTint(now.kind)}>
+                    <KindIcon kind={now.kind} />
                   </IconTile>
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <div className="flex">
-                      <Badge intent="primary">Kunjungan Majelis</Badge>
+                      <Badge intent={kindTint(now.kind)}>{kindLabel(now.kind)}</Badge>
                     </div>
                     <span className="text-18 font-bold text-default">{now.title}</span>
                     <span className="flex items-start gap-4 text-12 text-caption">
@@ -191,8 +227,9 @@ export function TodayScreen() {
                   {now.reason}
                 </div>
 
+                {/* The only control on this page that starts anything. */}
                 <Button size="md" className="w-full" onClick={() => start(now)}>
-                  Mulai Pelayanan
+                  {now.kind === 'majelis' ? 'Mulai Pelayanan' : 'Mulai Kunjungan'}
                 </Button>
               </div>
             </Card>
@@ -203,16 +240,16 @@ export function TodayScreen() {
           <div className="flex flex-col items-center gap-8 py-24 text-center">
             <span className="text-20 font-bold text-default">Tugas hari ini selesai</span>
             <span className="text-12 text-caption">
-              Semua {done.length} pelayanan sudah dituntaskan. Sampai jumpa besok.
+              Semua {done.length} kunjungan sudah dituntaskan. Sampai jumpa besok.
             </span>
           </div>
         </Card>
       )}
 
-      {/* --- Berikutnya: a light timeline, but every row can launch its own
-          pelayanan. The day advances by itself, yet a BP whose plan slips can
-          start the group in front of her without draining the queue in clock
-          order first. The chevron is the tappable tell. */}
+      {/* --- Berikutnya: a light timeline that opens the RECORD, not the work.
+          A majelis opens its roster, a home visit opens that mitra's page — so
+          "what am I riding into?" is one tap, and clocking in stays the one
+          button above. The chevron is the tappable tell. */}
       {later.length > 0 ? (
         <>
           <Overline>Berikutnya</Overline>
@@ -221,11 +258,11 @@ export function TodayScreen() {
               <AgendaRow key={task.id} time={task.time}>
                 <button
                   type="button"
-                  onClick={() => start(task)}
+                  onClick={() => preview(task)}
                   className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
                 >
-                  <IconTile tint="primary">
-                    <IconUsers size={20} />
+                  <IconTile tint={kindTint(task.kind)}>
+                    <KindIcon kind={task.kind} />
                   </IconTile>
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-14 font-bold text-default">{task.title}</span>

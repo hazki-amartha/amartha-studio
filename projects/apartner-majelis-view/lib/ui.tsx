@@ -50,10 +50,22 @@ export function Avatar({ name, size = 40 }: { name: string; size?: 32 | 40 }) {
 
 export const STAGE_LABELS = ['Kehadiran', 'Penagihan', 'Pertumbuhan']
 
-export function StageBar({ current }: { current: 1 | 2 | 3 | 4 }) {
+// A home visit is one mitra, so there is no queue to clear and no cross-sell
+// tail: meet her and settle the money, then prove it. Two stages, same bar —
+// the sequence is the same shape, it is just shorter.
+export const HOME_STAGE_LABELS = ['Temui & Tagih', 'Bukti & Kirim']
+
+export function StageBar({
+  current,
+  labels = STAGE_LABELS,
+}: {
+  /** 1-based. One past the last label means every stage is cleared. */
+  current: number
+  labels?: string[]
+}) {
   return (
     <div className="flex items-start">
-      {STAGE_LABELS.map((label, i) => {
+      {labels.map((label, i) => {
         const no = i + 1
         const done = no < current
         const active = no === current
@@ -77,7 +89,7 @@ export function StageBar({ current }: { current: 1 | 2 | 3 | 4 }) {
                 {done ? <IconCheck size={16} /> : no}
               </span>
               <span
-                className={`h-2 flex-1 rounded-full ${i === STAGE_LABELS.length - 1 ? 'bg-transparent' : done ? 'bg-green-500' : 'bg-neutral-200'}`}
+                className={`h-2 flex-1 rounded-full ${i === labels.length - 1 ? 'bg-transparent' : done ? 'bg-green-500' : 'bg-neutral-200'}`}
               />
             </div>
             <span

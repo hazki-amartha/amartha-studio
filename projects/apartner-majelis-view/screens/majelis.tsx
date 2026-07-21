@@ -28,13 +28,15 @@ import { useFlow } from '@/platform/runtime'
 import { MAJELIS, outstandingOf, rupiah } from '../lib/data'
 import { IconChevronDown } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
-import { store } from '../lib/store'
+import { openMajelisEntry, store, useApp } from '../lib/store'
 import { SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
 
 type Sort = 'tunggakan' | 'nama'
 
 export function MajelisScreen() {
   const flow = useFlow()
+  const s = useApp()
+  const group = openMajelisEntry(s)
   const [sort, setSort] = useState<Sort>('tunggakan')
 
   const members = [...MAJELIS.members].sort((a, b) =>
@@ -48,7 +50,7 @@ export function MajelisScreen() {
     <Screen
       topBar={
         <NavigationHeader
-          title={<VisitTitle title={MAJELIS.name} when={`${MAJELIS.members.length} mitra`} />}
+          title={<VisitTitle title={group.name} when={`${MAJELIS.members.length} mitra`} />}
           onBack={() => flow.go('majelis-list')}
         />
       }
@@ -96,7 +98,10 @@ export function MajelisScreen() {
           size="lg"
           className="w-full"
           onClick={() => {
-            store.startVisit()
+            // No task id: this route didn't come from the schedule. Submitting
+            // still ticks the day's row for this group — the work is the same
+            // work, and only the way in differed.
+            store.startVisit(s.openMajelis)
             flow.go('attendance')
           }}
         >

@@ -4,13 +4,15 @@
 // is built on (one majelis, one roster, 50 weeks of repayment), and this one is
 // the layer above it — where the BP is going today and which groups she carries.
 //
-// EVERY task here is a majelis pelayanan. `apartner-task-first` also schedules
-// home visits, and a real BP does them; this direction does not model one, and
-// a schedule row that opens nothing is worse than a schedule that is honest
-// about its scope. See NOTES.md.
+// A day carries both kinds of stop: the weekly pelayanan, and the home visits
+// that exist because a mitra has fallen far enough behind that a majelis
+// collection is no longer going to reach her.
+
+export type TaskKind = 'majelis' | 'home-visit'
 
 export interface Task {
   id: string
+  kind: TaskKind
   /** Start of the slot, "HH.MM" — Indonesian clock convention. */
   time: string
   /** End of the slot; shown only on the active card. */
@@ -20,13 +22,16 @@ export interface Task {
   place: string
   /** The single line that says why this task is on the list at all. */
   reason: string
-  /** The group this task opens. */
-  majelisId: string
+  /** Set on a majelis task — the group it opens. */
+  majelisId?: string
+  /** Set on a home visit — the mitra whose door it is (a `HOME_MITRA` id). */
+  mitraId?: string
 }
 
 export const TASKS: Task[] = [
   {
     id: 't1',
+    kind: 'majelis',
     time: '08.00',
     until: '09.30',
     title: 'Majelis Mawar',
@@ -36,6 +41,7 @@ export const TASKS: Task[] = [
   },
   {
     id: 't2',
+    kind: 'majelis',
     time: '10.00',
     until: '11.30',
     title: 'Majelis Melati',
@@ -45,21 +51,33 @@ export const TASKS: Task[] = [
   },
   {
     id: 't3',
-    time: '13.30',
-    until: '15.00',
+    kind: 'home-visit',
+    time: '13.00',
+    until: '13.45',
+    title: 'Ibu Wati Nurhasanah',
+    place: 'Kp. Cibeuteung RT 02',
+    reason: 'Menunggak 63 hari · Rp 1.500.000',
+    mitraId: 'h1',
+  },
+  {
+    id: 't4',
+    kind: 'home-visit',
+    time: '14.30',
+    until: '15.15',
+    title: 'Ibu Elin Herlina',
+    place: 'Kp. Putat Nutug RT 05',
+    reason: 'Janji bayar hari ini · Rp 250.000',
+    mitraId: 'h2',
+  },
+  {
+    id: 't5',
+    kind: 'majelis',
+    time: '16.00',
+    until: '17.30',
     title: 'Majelis Kenanga',
     place: 'Balai Desa Ciseeng',
     reason: '4 mitra menunggak · pelayanan rutin',
     majelisId: 'kenanga',
-  },
-  {
-    id: 't4',
-    time: '16.00',
-    until: '17.30',
-    title: 'Majelis Anggrek',
-    place: 'Rumah Bu Imas, Cibeuteung',
-    reason: 'Pelayanan rutin mingguan',
-    majelisId: 'anggrek',
   },
 ]
 
@@ -72,6 +90,7 @@ export const TASKS: Task[] = [
 export const TOMORROW_TASKS: Task[] = [
   {
     id: 'w1',
+    kind: 'majelis',
     time: '08.30',
     until: '10.00',
     title: 'Majelis Dahlia',
@@ -81,12 +100,23 @@ export const TOMORROW_TASKS: Task[] = [
   },
   {
     id: 'w2',
+    kind: 'home-visit',
     time: '11.00',
-    until: '12.30',
-    title: 'Majelis Melati',
-    place: 'Rumah Bu Yanti, Putat Nutug',
+    until: '11.45',
+    title: 'Ibu Eni Nuraeni',
+    place: 'Kp. Putat Nutug RT 03',
+    reason: 'Janji bayar · Rp 125.000',
+    mitraId: 'h2',
+  },
+  {
+    id: 'w3',
+    kind: 'majelis',
+    time: '14.00',
+    until: '15.30',
+    title: 'Majelis Anggrek',
+    place: 'Rumah Bu Imas, Cibeuteung',
     reason: 'Pelayanan rutin mingguan',
-    majelisId: 'melati',
+    majelisId: 'anggrek',
   },
 ]
 
@@ -149,7 +179,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     name: 'Majelis Kenanga',
     place: 'Balai Desa Ciseeng',
     day: 'Selasa',
-    time: '13.30',
+    time: '16.00',
     members: 25,
     menunggak: 4,
   },
@@ -157,8 +187,8 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     id: 'anggrek',
     name: 'Majelis Anggrek',
     place: 'Rumah Bu Imas, Cibeuteung',
-    day: 'Selasa',
-    time: '16.00',
+    day: 'Rabu',
+    time: '14.00',
     members: 20,
     menunggak: 0,
   },
@@ -172,3 +202,22 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 2,
   },
 ]
+
+/** "Selasa, 08.00 · 21 Juli 2026" — the subtitle every visit screen carries. */
+export const majelisWhen = (entry: MajelisEntry): string =>
+  `${entry.day}, ${entry.time} · 21 Juli 2026`
+
+export const findMajelisEntry = (id: string): MajelisEntry =>
+  MAJELIS_DIRECTORY.find((m) => m.id === id) ?? MAJELIS_DIRECTORY[0]
+
+/** The schedule row behind a visit — carries the pre-reasoned "why now" line. */
+export const findTask = (id: string | null): Task | undefined =>
+  id ? TASKS.find((t) => t.id === id) : undefined
+
+/**
+ * The scheduled pelayanan for a group, if the day has one. This is what lets a
+ * visit started from the Majelis tab still tick the schedule: the BP did the
+ * work she was rostered for, and the route she took to it is not the point.
+ */
+export const taskForMajelis = (majelisId: string): Task | undefined =>
+  TASKS.find((t) => t.majelisId === majelisId)

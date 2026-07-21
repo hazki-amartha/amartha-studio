@@ -25,6 +25,7 @@ import { Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS } from '../lib/data'
+import { majelisWhen } from '../lib/schedule'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import {
   attendanceComplete,
@@ -32,6 +33,7 @@ import {
   presentCount,
   store,
   useApp,
+  openMajelisEntry,
 } from '../lib/store'
 import {
   AttendancePill,
@@ -45,6 +47,7 @@ import {
 export function AttendanceScreen() {
   const flow = useFlow()
   const s = useApp()
+  const group = openMajelisEntry(s)
 
   const total = MAJELIS.members.length
   const marked = markedCount(s)
@@ -56,7 +59,7 @@ export function AttendanceScreen() {
     <Screen
       topBar={
         <NavigationHeader
-          title={<VisitTitle title={MAJELIS.name} when={MAJELIS.schedule} />}
+          title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
           onBack={() => flow.back()}
         />
       }
