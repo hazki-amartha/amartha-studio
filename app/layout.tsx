@@ -17,10 +17,17 @@ export const metadata: Metadata = {
   description: 'Design-system-locked prototyping studio',
 }
 
+// Runs before paint so the shell never flashes light then dark. Reads the saved
+// choice from localStorage, defaulting to dark, and stamps it on <html>.
+const themeInit = `(function(){try{var t=localStorage.getItem('db.chrome.theme');document.documentElement.dataset.theme=(t==='light'||t==='dark')?t:'dark';}catch(e){document.documentElement.dataset.theme='dark';}})();`
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const projects = await loadProjectIndex()
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+      </head>
       <body className="font-sans font-regular">
         <AppShell projects={projects}>{children}</AppShell>
       </body>

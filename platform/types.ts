@@ -13,19 +13,29 @@ export type DeviceKind = 'mobile' | 'desktop'
 
 export type ProjectStatus = 'draft' | 'in-review' | 'final'
 
+/** Product the prototype belongs to. Add a member here (Tier 2) to onboard a
+ *  new platform; omit the field entirely for studio-internal work. */
+export type Platform = 'APartner' | 'AFIN' | 'NGMIS'
+
 export interface ProjectConfig {
   /** URL slug, kebab-case, unique across the repo. */
   slug: string
-  /** Display name shown in the gallery and prototype chrome. */
+  /** Feature or initiative name — the platform (below) carries the product. */
   name: string
-  /** Designer's name — ownership is checked against this by convention. */
-  owner: string
+  /** Product this prototype belongs to. Omit for studio-internal work. */
+  platform?: Platform
+  /** Designer(s) who own this — one name or several. Ownership (§1) is
+   *  checked against these by convention. */
+  owner: string | string[]
   /** One-paragraph description for the gallery card. */
   description: string
   device: DeviceKind
   status: ProjectStatus
   /** ISO date, set at creation, never edited. */
   createdAt: string
+  /** ISO date of the last meaningful change. Omit until the first edit;
+   *  the gallery falls back to createdAt when it's absent. */
+  updatedAt?: string
   /** Optional annotations shown project-wide in the desktop prototype view. */
   notes?: string[]
 }

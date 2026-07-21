@@ -14,3 +14,19 @@ body {
   color: var(--neutral-900);
   -webkit-font-smoothing: antialiased;
 }
+
+/* Dark mode applies to the studio chrome only (see tailwind darkMode selector).
+   The canvas flips here; individual chrome surfaces carry their own dark:
+   variants. Prototype device content and FunDS specimens stay light. */
+html[data-theme='dark'] body {
+  background: var(--ink-950);
+  color: var(--neutral-50);
+}
+
+/* The gallery card is a .ds-card, and .ds-card's border is unlayered CSS that
+   outranks Tailwind's dark: utilities (they live in @layer utilities). This
+   scoped, unlayered override wins the cascade for the homepage cards without
+   touching the same .ds-card in FunDS specimens or the prototype device. */
+html[data-theme='dark'] .gallery-card {
+  border-color: var(--ink-700);
+}

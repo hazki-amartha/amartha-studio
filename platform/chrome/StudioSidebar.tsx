@@ -25,17 +25,17 @@ export function StudioSidebar({
 }) {
   return (
     <div className="flex flex-col gap-16">
-      <p className="px-12 text-16 font-bold text-default">Studio</p>
+      <p className="px-12 text-16 font-bold text-default dark:text-neutral-50">Studio</p>
 
       {projects.length === 0 ? (
-        <p className="px-12 text-12 text-caption">No projects registered yet.</p>
+        <p className="px-12 text-12 text-caption dark:text-neutral-400">No projects registered yet.</p>
       ) : (
         GROUP_ORDER.map((status) => {
           const group = projects.filter((p) => p.status === status)
           if (group.length === 0) return null
           return (
             <nav key={status} aria-label={GROUP_LABEL[status]} className="flex flex-col gap-2">
-              <p className="px-12 py-4 text-10 font-bold uppercase text-caption">
+              <p className="px-12 py-4 text-10 font-bold uppercase text-caption dark:text-neutral-400">
                 {GROUP_LABEL[status]}
               </p>
               {group.map((project) => {
@@ -47,8 +47,8 @@ export function StudioSidebar({
                     aria-current={isActive ? 'page' : undefined}
                     className={
                       isActive
-                        ? 'truncate rounded-8 bg-primary-50 px-12 py-8 text-14 font-bold text-link'
-                        : 'truncate rounded-8 px-12 py-8 text-14 text-default hover:bg-neutral-50'
+                        ? 'truncate rounded-8 bg-primary-50 px-12 py-8 text-14 font-bold text-link dark:border dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50'
+                        : 'truncate rounded-8 px-12 py-8 text-14 text-default hover:bg-neutral-50 dark:border dark:border-transparent dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50'
                     }
                   >
                     {project.name}

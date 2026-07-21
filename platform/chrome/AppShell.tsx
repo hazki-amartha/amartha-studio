@@ -69,11 +69,11 @@ function resolveRoute(pathname: string, projects: ProjectIndexEntry[]): RouteInf
 function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
   const base =
     'flex items-center gap-4 rounded-full px-12 py-4 text-12 transition-colors'
-  const on = `${base} bg-neutral-white font-bold text-link shadow-sm`
-  const off = `${base} text-caption hover:text-default`
+  const on = `${base} bg-neutral-white font-bold text-link shadow-sm dark:border dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50 dark:shadow-none`
+  const off = `${base} text-caption hover:text-default dark:border dark:border-transparent dark:text-neutral-400 dark:hover:text-neutral-50`
 
   return (
-    <div className="flex shrink-0 items-center gap-2 rounded-full bg-neutral-50 p-2">
+    <div className="flex shrink-0 items-center gap-2 rounded-full bg-neutral-50 p-2 dark:bg-ink-950">
       <Link
         href={`/p/${slug}`}
         aria-current={isFlow ? undefined : 'page'}
@@ -101,15 +101,17 @@ function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
         const isLast = i === crumbs.length - 1
         return (
           <span key={`${crumb.label}-${i}`} className="flex min-w-0 items-center gap-8">
-            {i > 0 ? <ChevronRightIcon className="size-12 shrink-0 text-placeholder" /> : null}
+            {i > 0 ? <ChevronRightIcon className="size-12 shrink-0 text-placeholder dark:text-neutral-600" /> : null}
             {crumb.href && !isLast ? (
-              <Link href={crumb.href} className="truncate text-14 text-caption hover:text-default">
+              <Link href={crumb.href} className="truncate text-14 text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50">
                 {crumb.label}
               </Link>
             ) : (
               <span
                 className={
-                  isLast ? 'truncate text-14 font-bold text-default' : 'truncate text-14 text-caption'
+                  isLast
+                    ? 'truncate text-14 font-bold text-default dark:text-neutral-50'
+                    : 'truncate text-14 text-caption dark:text-neutral-400'
                 }
               >
                 {crumb.label}
@@ -129,12 +131,12 @@ function HeaderStatusView() {
   return (
     <>
       {status.badge ? (
-        <span className="rounded-full bg-neutral-50 px-8 py-4 text-10 uppercase text-caption">
+        <span className="rounded-full bg-neutral-50 px-8 py-4 text-10 uppercase text-caption dark:bg-ink-800 dark:text-neutral-400">
           {status.badge}
         </span>
       ) : null}
       {status.zoom != null ? (
-        <span className="text-12 text-caption">{Math.round(status.zoom * 100)}%</span>
+        <span className="text-12 text-caption dark:text-neutral-400">{Math.round(status.zoom * 100)}%</span>
       ) : null}
     </>
   )
@@ -191,12 +193,12 @@ function AppShellInner({
     : null
 
   return (
-    <div className="flex h-screen overflow-hidden bg-neutral-50">
+    <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-ink-950">
       <NavRail active={active} className="hidden md:flex" />
 
       {collapsed ? null : (
         <aside
-          className={`${styles.secondary} hidden shrink-0 overflow-y-auto border-r border-default bg-neutral-white px-8 py-16 md:block`}
+          className={`${styles.secondary} hidden shrink-0 overflow-y-auto border-r border-default bg-neutral-white px-8 py-16 dark:border-ink-700 dark:bg-ink-900 md:block`}
         >
           {active === 'funds' ? (
             <SystemSidebar />
@@ -212,18 +214,18 @@ function AppShellInner({
         {isProto ? null : <MobileTopNav active={active} />}
 
         <header
-          className={`${isProto ? 'hidden md:flex' : 'flex'} h-48 shrink-0 items-center gap-12 border-b border-default bg-neutral-white px-16`}
+          className={`${isProto ? 'hidden md:flex' : 'flex'} h-48 shrink-0 items-center gap-12 border-b border-default bg-neutral-white px-16 dark:border-ink-700 dark:bg-ink-900`}
         >
           <button
             type="button"
             onClick={toggle}
             aria-label={collapsed ? 'Show sidebar' : 'Hide sidebar'}
             aria-pressed={!collapsed}
-            className="hidden size-32 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default md:flex"
+            className="hidden size-32 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50 md:flex"
           >
             <PanelIcon className="size-20" />
           </button>
-          <span aria-hidden className="hidden h-20 w-px bg-neutral-200 md:block" />
+          <span aria-hidden className="hidden h-20 w-px bg-neutral-200 dark:bg-ink-700 md:block" />
           <Breadcrumb crumbs={crumbs} />
           <div className="ml-auto flex shrink-0 items-center gap-12">
             <HeaderStatusView />

@@ -7,6 +7,7 @@
 
 import Link from 'next/link'
 import { FundsIcon, StudioIcon } from './icons'
+import { ThemeToggle } from './theme'
 
 export type RailSection = 'studio' | 'funds'
 
@@ -26,7 +27,7 @@ export function NavRail({
   return (
     <nav
       aria-label="Sections"
-      className={`flex w-48 shrink-0 flex-col items-center gap-8 border-r border-default bg-neutral-white py-12 ${className ?? ''}`}
+      className={`flex w-48 shrink-0 flex-col items-center gap-8 border-r border-default bg-neutral-white py-12 dark:border-ink-700 dark:bg-ink-900 ${className ?? ''}`}
     >
       <Link
         href="/"
@@ -47,14 +48,18 @@ export function NavRail({
               aria-current={isActive ? 'page' : undefined}
               className={
                 isActive
-                  ? 'flex size-40 items-center justify-center rounded-8 bg-primary-50 text-link'
-                  : 'flex size-40 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default'
+                  ? 'flex size-40 items-center justify-center rounded-8 bg-primary-50 text-link dark:border dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50'
+                  : 'flex size-40 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:border dark:border-transparent dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50'
               }
             >
               <Icon className="size-20" />
             </Link>
           )
         })}
+      </div>
+
+      <div className="mt-auto">
+        <ThemeToggle />
       </div>
     </nav>
   )

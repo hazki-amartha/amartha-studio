@@ -28,6 +28,12 @@
   --neutral-white: #FFFFFF;
   --neutral-black: #000000;
 
+  /* Ink — dark-mode surface ramp (studio chrome only) */
+  --ink-700: #33333A;
+  --ink-800: #26262B;
+  --ink-900: #1B1B1F;
+  --ink-950: #131316;
+
   /* Blue */
   --blue-50:  #EDF7FF;
   --blue-200: #BCE0F7;

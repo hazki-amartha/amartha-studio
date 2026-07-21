@@ -19,6 +19,12 @@ export const COLOR_SCALES: Record<string, { scale: string; hex: string }[]> = {
     { scale: '700', hex: '#525C6A' },
     { scale: '900', hex: '#111928' },
   ],
+  'Ink (dark surfaces)': [
+    { scale: '700', hex: '#33333A' },
+    { scale: '800', hex: '#26262B' },
+    { scale: '900', hex: '#1B1B1F' },
+    { scale: '950', hex: '#131316' },
+  ],
   Blue: [
     { scale: '50', hex: '#EDF7FF' },
     { scale: '200', hex: '#BCE0F7' },
