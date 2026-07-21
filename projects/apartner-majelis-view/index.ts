@@ -31,7 +31,7 @@ export const project: ProjectModule = {
         'Only that card carries a button. Everything under Berikutnya is there so she can shape her day — see what is coming, and tap through to read up on a group before she arrives — without it competing with the one thing to start now.',
       ],
       flowsTo: [
-        { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Kunjungan 1' },
+        { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Pelayanan 1' },
         { to: 'home-visit', label: 'Mulai Kunjungan (home visit)' },
         { to: 'majelis', label: 'ketuk kartu Berikutnya (majelis)' },
         { to: 'mitra', label: 'ketuk kartu Berikutnya (home visit)' },
@@ -105,7 +105,7 @@ export const project: ProjectModule = {
     },
     {
       id: 'attendance',
-      title: 'Kunjungan 1 — Kehadiran',
+      title: 'Pelayanan 1 — Kehadiran',
       component: AttendanceScreen,
       notes: [
         'Attendance is asked first and on its own, and collection does not open until every mitra is marked. The register is a record other people read later, and a half-marked one cannot be trusted or audited.',
@@ -115,7 +115,7 @@ export const project: ProjectModule = {
     },
     {
       id: 'collection',
-      title: 'Kunjungan 2 — Penagihan',
+      title: 'Pelayanan 2 — Penagihan',
       component: CollectionScreen,
       notes: [
         'The queue. One card per mitra who has not been dealt with yet, and it drains as the BP works down the room, so at any moment the page shows exactly who is left.',
@@ -126,6 +126,39 @@ export const project: ProjectModule = {
         { to: 'mitra', label: 'ketuk nama mitra' },
         { to: 'growth', label: 'Lanjut' },
       ],
+    },
+    {
+      id: 'growth',
+      title: 'Pelayanan 3 — Penawaran',
+      component: GrowthScreen,
+      notes: [
+        'Offers come last, after the money. Pitching a savings product before collecting would mean asking a woman to open an account with the instalment she has not handed over yet.',
+        'Only mitra with a real recommendation appear — four rows out of 22, not a list for everyone. Each states where she stands rather than what to say about it, and the whole stage can be skipped: a tail that blocks the close of a visit has stopped being a tail.',
+      ],
+      flowsTo: [
+        { to: 'proof', label: 'Lanjut' },
+        { to: 'mitra', label: 'ketuk nama mitra' },
+      ],
+    },
+    {
+      id: 'proof',
+      title: 'Bukti Pelayanan',
+      component: ProofScreen,
+      notes: [
+        'A photo and a recorded location, both required before the visit can be submitted. A photo alone proves she photographed something; a location alone proves she was in the right place but not that a majelis happened. Only the pair makes a visit verifiable afterwards.',
+        'They sit as two equal tiles rather than a big photo drop-zone with location as a footnote, and outside the three-stage bar — attendance, collection and growth are the work, this is the paperwork that closes it.',
+      ],
+      flowsTo: [{ to: 'recap', label: 'Lanjut — butuh foto + lokasi' }],
+    },
+    {
+      id: 'recap',
+      title: 'Ringkasan & Kirim',
+      component: RecapScreen,
+      notes: [
+        'The close. Submitting is final, so the page reads back all three stages first — the BP’s last chance to catch a majelis she half-finished before it becomes someone else’s problem.',
+        'It also states what the visit means for the group: how the majelis’ collective repayment shapes its credit limit. That is the only reason a BP can give a mitra for why her neighbour’s late payment is any of her business.',
+      ],
+      flowsTo: [{ to: 'today', label: 'Kirim Tugas' }],
     },
     {
       id: 'mitra',
@@ -162,39 +195,6 @@ export const project: ProjectModule = {
         'It reads back three numbers and nothing else — owed, paid, left. The remaining balance is not softened: a mitra who just handed over Rp300.000 against Rp650.000 should see the Rp350.000 now, not discover it next week.',
       ],
       flowsTo: [{ to: 'collection', label: 'Kembali ke Daftar' }],
-    },
-    {
-      id: 'growth',
-      title: 'Kunjungan 3 — Pertumbuhan',
-      component: GrowthScreen,
-      notes: [
-        'Offers come last, after the money. Pitching a savings product before collecting would mean asking a woman to open an account with the instalment she has not handed over yet.',
-        'Only mitra with a real recommendation appear — four rows out of 22, not a list for everyone. Each states where she stands rather than what to say about it, and the whole stage can be skipped: a tail that blocks the close of a visit has stopped being a tail.',
-      ],
-      flowsTo: [
-        { to: 'proof', label: 'Lanjut' },
-        { to: 'mitra', label: 'ketuk nama mitra' },
-      ],
-    },
-    {
-      id: 'proof',
-      title: 'Bukti Kunjungan',
-      component: ProofScreen,
-      notes: [
-        'A photo and a recorded location, both required before the visit can be submitted. A photo alone proves she photographed something; a location alone proves she was in the right place but not that a majelis happened. Only the pair makes a visit verifiable afterwards.',
-        'They sit as two equal tiles rather than a big photo drop-zone with location as a footnote, and outside the three-stage bar — attendance, collection and growth are the work, this is the paperwork that closes it.',
-      ],
-      flowsTo: [{ to: 'recap', label: 'Lanjut — butuh foto + lokasi' }],
-    },
-    {
-      id: 'recap',
-      title: 'Ringkasan & Kirim',
-      component: RecapScreen,
-      notes: [
-        'The close. Submitting is final, so the page reads back all three stages first — the BP’s last chance to catch a majelis she half-finished before it becomes someone else’s problem.',
-        'It also states what the visit means for the group: how the majelis’ collective repayment shapes its credit limit. That is the only reason a BP can give a mitra for why her neighbour’s late payment is any of her business.',
-      ],
-      flowsTo: [{ to: 'today', label: 'Kirim Tugas' }],
     },
     {
       id: 'ladder',

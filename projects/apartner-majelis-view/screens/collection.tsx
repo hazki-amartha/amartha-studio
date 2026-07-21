@@ -129,7 +129,7 @@ export function CollectionScreen() {
             <IconCheck size={24} />
           </span>
           <span className="text-20 font-bold text-default">Semua mitra sudah ditagih</span>
-          <span className="text-12 text-caption">Lanjut ke peluang pertumbuhan.</span>
+          <span className="text-12 text-caption">Lanjut ke peluang penawaran.</span>
         </div>
       )}
 

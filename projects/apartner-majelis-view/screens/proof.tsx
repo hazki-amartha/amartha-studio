@@ -39,7 +39,7 @@ export function ProofScreen() {
         />
       }
     >
-      <SectionTitle>Bukti Kunjungan</SectionTitle>
+      <SectionTitle>Bukti Pelayanan</SectionTitle>
       <p className="text-12 text-caption">
         Foto kegiatan majelis dan titik lokasi keduanya diperlukan sebelum tugas dikirim.
       </p>
