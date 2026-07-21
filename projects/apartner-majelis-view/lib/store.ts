@@ -66,12 +66,26 @@ export interface LastCollect {
 export interface AppState {
   /** mitraId → hadir/tidak. Absent = not marked yet. */
   attendance: Record<string, Attendance>
+  /**
+   * mitraId → why she wasn't at the majelis. Recorded at the moment she is
+   * marked `tidak`, before her card leaves the register: an absence with no
+   * reason is the same unauditable gap in the record that a half-marked
+   * register is, and the person reading it later wasn't in the room to guess.
+   */
+  absenceReasons: Record<string, string>
   /** mitraId → rupiah collected this visit. Absent = nothing recorded. */
   payments: Record<string, number>
   /** mitraId → why she isn't paying. Absent = no such outcome recorded. */
   nonPayments: Record<string, NonPayment>
   /** mitraId → what she said to her growth offer. Absent = not pitched. */
   growthResults: Record<string, GrowthResult>
+  /**
+   * mitraId → why she said no to the offer. Recorded alongside a `tidak`
+   * result: "tidak tertarik" alone tells next week's BP nothing about whether
+   * to pitch again, and an offer with no reason on file gets either re-pushed
+   * blindly or dropped for good. Absent = interested, or not yet answered.
+   */
+  growthReasons: Record<string, string>
   /** Which mitra the mitra page and collect page render. */
   openMitra: string
   /** The receipt the success screen prints. Null before any collection. */
@@ -142,9 +156,11 @@ PREPAID.forEach((m) => {
 
 const initial: AppState = {
   attendance: seedAttendance,
+  absenceReasons: {},
   payments: seedPayments,
   nonPayments: {},
   growthResults: {},
+  growthReasons: {},
   openMitra: 'm1',
   lastCollect: null,
   photo: false,
@@ -192,9 +208,11 @@ export const store = {
   startVisit(majelisId: string, taskId: string | null = null) {
     store.set({
       attendance: seedAttendance,
+      absenceReasons: {},
       payments: seedPayments,
       nonPayments: {},
       growthResults: {},
+      growthReasons: {},
       lastCollect: null,
       photo: false,
       geo: false,
@@ -245,13 +263,30 @@ export const store = {
     store.set({ openMitra: mitraId })
   },
   setAttendance(mitraId: string, value: Attendance) {
-    store.set({ attendance: { ...state.attendance, [mitraId]: value } })
+    // Marking present clears any absence reason left behind by a mis-tapped
+    // "Tidak" — she was here, so why she wasn't is no longer true.
+    const absenceReasons = { ...state.absenceReasons }
+    if (value === 'hadir') delete absenceReasons[mitraId]
+    store.set({ attendance: { ...state.attendance, [mitraId]: value }, absenceReasons })
+  },
+  /**
+   * Marks a mitra absent WITH the reason she isn't here, in one gesture — the
+   * reason and the absence are recorded together so her card only leaves the
+   * register once the record is complete.
+   */
+  setAbsent(mitraId: string, reason: string) {
+    store.set({
+      attendance: { ...state.attendance, [mitraId]: 'tidak' },
+      absenceReasons: { ...state.absenceReasons, [mitraId]: reason },
+    })
   },
   /** Puts a mitra back in the unmarked list — the "Ubah" on a recorded row. */
   clearAttendance(mitraId: string) {
     const attendance = { ...state.attendance }
+    const absenceReasons = { ...state.absenceReasons }
     delete attendance[mitraId]
-    store.set({ attendance })
+    delete absenceReasons[mitraId]
+    store.set({ attendance, absenceReasons })
   },
   /**
    * Records the rupiah actually handed over. Money clears any "tidak bayar" on
@@ -280,9 +315,16 @@ export const store = {
       lastCollect: null,
     })
   },
-  /** Records what the mitra said to an offer, not merely that she was asked. */
-  setGrowthResult(mitraId: string, result: GrowthResult) {
-    store.set({ growthResults: { ...state.growthResults, [mitraId]: result } })
+  /**
+   * Records what the mitra said to an offer, not merely that she was asked. A
+   * `tidak` carries the reason she gave; a `ya` clears any reason left behind
+   * by a corrected no — she's interested now, so the old refusal isn't true.
+   */
+  setGrowthResult(mitraId: string, result: GrowthResult, reason?: string) {
+    const growthReasons = { ...state.growthReasons }
+    if (result === 'tidak' && reason) growthReasons[mitraId] = reason
+    else delete growthReasons[mitraId]
+    store.set({ growthResults: { ...state.growthResults, [mitraId]: result }, growthReasons })
   },
   setPhoto(photo: boolean) {
     store.set({ photo })

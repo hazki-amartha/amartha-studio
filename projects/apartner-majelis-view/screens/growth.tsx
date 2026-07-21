@@ -15,6 +15,7 @@
 // The whole stage is skippable. It is a tail, and a tail that blocks the close
 // of a visit has stopped being a tail.
 
+import { useState } from 'react'
 import { Badge, Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
@@ -23,12 +24,29 @@ import { majelisWhen } from '../lib/schedule'
 import { IconCheck, IconTrendUp } from '../lib/icons'
 import { MitraCard } from '../lib/mitra-card'
 import { growthDoneCount, store, useApp, openMajelisEntry } from '../lib/store'
-import { IconTile, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
+import { Chip, ChipGroup, IconTile, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
+
+// Why she said no to the offer. Borrowed from apartner-task-first's decline
+// list: without a reason on file every "tidak tertarik" looks the same, and
+// next week's BP can't tell a settled no from a "not right now".
+const DECLINE_REASONS = [
+  'Belum butuh saat ini',
+  'Dana belum ada',
+  'Mau diskusi dulu di rumah',
+  'Sudah punya di tempat lain',
+  'Tidak berminat',
+]
 
 export function GrowthScreen() {
   const flow = useFlow()
   const s = useApp()
   const group = openMajelisEntry(s)
+
+  // Which card is picking its decline reason. "Tidak tertarik" opens the reason
+  // picker in place rather than recording the no outright — the result is only
+  // saved once she's said why. Local state, matching the attendance stage:
+  // nothing is recorded until a reason is chosen, so leaving abandons the tap.
+  const [asking, setAsking] = useState<string | null>(null)
 
   const members = growthMembers()
   const done = growthDoneCount(s)
@@ -76,41 +94,68 @@ export function GrowthScreen() {
                 flow.go('mitra')
               }}
               action={
-                result ? (
+                asking === mitra.id ? (
+                  // "Tidak tertarik" was tapped; capture WHY before the row
+                  // resolves. Picking a reason records the no in one gesture.
+                  <div className="flex flex-col gap-12">
+                    <ChipGroup label={`Alasan tidak tertarik — ${mitra.name}`}>
+                      {DECLINE_REASONS.map((reason) => (
+                        <Chip
+                          key={reason}
+                          selected={s.growthReasons[mitra.id] === reason}
+                          onClick={() => {
+                            store.setGrowthResult(mitra.id, 'tidak', reason)
+                            setAsking(null)
+                          }}
+                        >
+                          {reason}
+                        </Chip>
+                      ))}
+                    </ChipGroup>
+                    <Button size="sm" variant="ghost" onClick={() => setAsking(null)}>
+                      Batal
+                    </Button>
+                  </div>
+                ) : result ? (
                   <div className="flex items-center gap-8">
-                    <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-neutral-50 text-neutral-600">
+                    <span
+                      className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-full ${result === 'ya' ? 'bg-green-50 text-green-500' : 'bg-neutral-50 text-neutral-600'}`}
+                    >
                       <IconCheck size={16} />
                     </span>
                     <span className="min-w-0 flex-1 truncate text-12 text-caption">
-                      {result === 'ya' ? growth.done : 'Belum tertarik — ditawarkan lagi nanti'}
+                      {result === 'ya'
+                        ? growth.done
+                        : `Tidak tertarik${s.growthReasons[mitra.id] ? ` — ${s.growthReasons[mitra.id]}` : ''}`}
                     </span>
                     <Button
                       size="xs"
                       variant="ghost"
-                      onClick={() => store.setGrowthResult(mitra.id, result === 'ya' ? 'tidak' : 'ya')}
+                      onClick={() =>
+                        result === 'ya' ? setAsking(mitra.id) : store.setGrowthResult(mitra.id, 'ya')
+                      }
                     >
                       Ubah
                     </Button>
                   </div>
                 ) : (
-                  // Two outcomes, not one button. "Ditawarkan" records that the
-                  // BP spoke, which nobody downstream can act on; what the mitra
-                  // SAID is the part worth capturing.
+                  // Two outcomes, not one button. What the mitra SAID is the part
+                  // worth capturing — and a no carries its reason before it lands.
                   <div className="flex gap-8">
                     <Button
                       size="sm"
                       variant="outline"
                       className="h-40 flex-1"
-                      onClick={() => store.setGrowthResult(mitra.id, 'tidak')}
+                      onClick={() => setAsking(mitra.id)}
                     >
-                      Belum
+                      Tidak tertarik
                     </Button>
                     <Button
                       size="sm"
                       className="h-40 flex-1"
                       onClick={() => store.setGrowthResult(mitra.id, 'ya')}
                     >
-                      {growth.action}
+                      Tertarik
                     </Button>
                   </div>
                 )

@@ -21,6 +21,7 @@
 // asks about money, because money is the next stage's question and asking both
 // at once is precisely what the split is here to avoid.
 
+import { useState } from 'react'
 import { Badge, Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
@@ -40,6 +41,8 @@ import {
 } from '../lib/store'
 import {
   AttendancePill,
+  Chip,
+  ChipGroup,
   Collapsible,
   ProgressCard,
   SectionTitle,
@@ -48,10 +51,29 @@ import {
   VisitTitle,
 } from '../lib/ui'
 
+// Why a mitra isn't at the majelis. A fixed list, not free text: the BP is
+// running a register in a room, and the reasons a member misses a weekly
+// meeting are few and known. Free text would slow the one gesture the stage
+// repeats and give ops a column it can't sort.
+const ABSENCE_REASONS = [
+  'Sedang bekerja',
+  'Sakit',
+  'Ada urusan keluarga',
+  'Diwakilkan (titip)',
+  'Tanpa kabar',
+]
+
 export function AttendanceScreen() {
   const flow = useFlow()
   const s = useApp()
   const group = openMajelisEntry(s)
+
+  // Which unmarked card is currently asking WHY she's absent. Marking "Tidak"
+  // opens the reason picker in place rather than filing her away — she only
+  // leaves the register once a reason is chosen, so the record can't close with
+  // an unexplained absence in it. Local state, not the store: nothing has been
+  // recorded yet, and navigating away should simply abandon the half-tap.
+  const [asking, setAsking] = useState<string | null>(null)
 
   const total = MAJELIS.members.length
   const marked = markedCount(s)
@@ -98,24 +120,48 @@ export function AttendanceScreen() {
               meta={<span className="truncate text-12 text-caption">Minggu {mitra.week} dari {mitra.totalWeeks}</span>}
               trailing={<DpdBadge dpd={mitra.dpd} />}
               action={
-                <div className="flex gap-8">
-                  <AttendancePill
-                    selected={false}
-                    tone="green"
-                    label={`Hadir — ${mitra.name}`}
-                    onClick={() => store.setAttendance(mitra.id, 'hadir')}
-                  >
-                    Hadir
-                  </AttendancePill>
-                  <AttendancePill
-                    selected={false}
-                    tone="red"
-                    label={`Tidak hadir — ${mitra.name}`}
-                    onClick={() => store.setAttendance(mitra.id, 'tidak')}
-                  >
-                    Tidak
-                  </AttendancePill>
-                </div>
+                asking === mitra.id ? (
+                  // "Tidak" was tapped; record WHY before she leaves the list.
+                  // Picking a reason marks her absent in the same gesture.
+                  <div className="flex flex-col gap-12">
+                    <ChipGroup label={`Alasan tidak hadir — ${mitra.name}`}>
+                      {ABSENCE_REASONS.map((reason) => (
+                        <Chip
+                          key={reason}
+                          selected={false}
+                          onClick={() => {
+                            store.setAbsent(mitra.id, reason)
+                            setAsking(null)
+                          }}
+                        >
+                          {reason}
+                        </Chip>
+                      ))}
+                    </ChipGroup>
+                    <Button size="sm" variant="ghost" onClick={() => setAsking(null)}>
+                      Batal
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-8">
+                    <AttendancePill
+                      selected={false}
+                      tone="green"
+                      label={`Hadir — ${mitra.name}`}
+                      onClick={() => store.setAttendance(mitra.id, 'hadir')}
+                    >
+                      Hadir
+                    </AttendancePill>
+                    <AttendancePill
+                      selected={false}
+                      tone="red"
+                      label={`Tidak hadir — ${mitra.name}`}
+                      onClick={() => setAsking(mitra.id)}
+                    >
+                      Tidak
+                    </AttendancePill>
+                  </div>
+                )
               }
             />
           ))}
@@ -136,7 +182,12 @@ export function AttendanceScreen() {
       <Collapsible title="Sudah diabsen" hint={`${done.length} mitra`}>
         {done.map((mitra) => (
           <div key={mitra.id} className="flex items-center gap-8">
-            <span className="min-w-0 flex-1 truncate text-14 text-default">{mitra.name}</span>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-14 text-default">{mitra.name}</span>
+              {s.attendance[mitra.id] === 'tidak' && s.absenceReasons[mitra.id] ? (
+                <span className="truncate text-12 text-caption">{s.absenceReasons[mitra.id]}</span>
+              ) : null}
+            </div>
             {s.attendance[mitra.id] === 'hadir' ? (
               <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
                 Hadir
