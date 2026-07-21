@@ -1,6 +1,13 @@
 'use client'
 
-// Majelis View — the entry point, and the screen the direction is named after.
+// Majelis View — the screen the direction is named after.
+//
+// Reached from the Majelis tab, not from the schedule: a BP sent here by the
+// day already knows the group and goes straight into stage 1, while a BP who
+// opened the directory is looking something up and this is the answer. The
+// "Mulai Pelayanan" button stays, so a look-up can turn into work without
+// going back out to the schedule — it just doesn't tick a scheduled task,
+// because she was never sent.
 //
 // It is a ROSTER, not a dashboard and not yet a queue. Before the BP starts the
 // pelayanan she wants one thing from this page: who is in this group and what
@@ -42,7 +49,7 @@ export function MajelisScreen() {
       topBar={
         <NavigationHeader
           title={<VisitTitle title={MAJELIS.name} when={`${MAJELIS.members.length} mitra`} />}
-          hideBack
+          onBack={() => flow.go('majelis-list')}
         />
       }
     >

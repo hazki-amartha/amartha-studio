@@ -12,18 +12,51 @@ import { GrowthScreen } from './screens/growth'
 import { ProofScreen } from './screens/proof'
 import { RecapScreen } from './screens/recap'
 import { LadderScreen } from './screens/ladder'
+import { TodayScreen } from './screens/today'
+import { MajelisListScreen } from './screens/majelis-list'
+import { KpiScreen } from './screens/kpi'
 
 export const project: ProjectModule = {
   config,
   screens: [
     {
+      id: 'today',
+      title: 'Jadwal',
+      component: TodayScreen,
+      entry: true,
+      flowsTo: [
+        { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Kunjungan 1' },
+        { to: 'majelis-list', label: 'tab Majelis' },
+        { to: 'kpi', label: 'tab KPI' },
+      ],
+    },
+    {
+      id: 'majelis-list',
+      title: 'Majelis',
+      component: MajelisListScreen,
+      flowsTo: [
+        { to: 'majelis', label: 'ketuk majelis → Majelis View' },
+        { to: 'today', label: 'tab Jadwal' },
+        { to: 'kpi', label: 'tab KPI' },
+      ],
+    },
+    {
+      id: 'kpi',
+      title: 'KPI',
+      component: KpiScreen,
+      flowsTo: [
+        { to: 'today', label: 'tab Jadwal' },
+        { to: 'majelis-list', label: 'tab Majelis' },
+      ],
+    },
+    {
       id: 'majelis',
       title: 'Majelis View',
       component: MajelisScreen,
-      entry: true,
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan' },
         { to: 'mitra', label: 'ketuk nama mitra' },
+        { to: 'majelis-list', label: 'kembali' },
       ],
     },
     {
@@ -85,7 +118,7 @@ export const project: ProjectModule = {
       id: 'recap',
       title: 'Ringkasan & Kirim',
       component: RecapScreen,
-      flowsTo: [{ to: 'majelis', label: 'Kirim Tugas' }],
+      flowsTo: [{ to: 'today', label: 'Kirim Tugas' }],
     },
     {
       id: 'ladder',

@@ -119,8 +119,10 @@ export function RecapScreen() {
           size="lg"
           className="w-full"
           onClick={() => {
-            store.startVisit()
-            flow.go('majelis')
+            // Ticks the schedule row this pelayanan came from, then lands back
+            // on the day — the next group is already the focus card.
+            store.finishTask()
+            flow.go('today')
           }}
         >
           <span className="flex items-center justify-center gap-8">

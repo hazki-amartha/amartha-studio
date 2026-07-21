@@ -11,6 +11,7 @@
 
 import { useSyncExternalStore } from 'react'
 import { MAJELIS, PREPAID, outstandingOf, type Mitra } from './data'
+import { TASKS, type DayKey, type Task } from './schedule'
 
 export type Attendance = 'hadir' | 'tidak'
 
@@ -69,6 +70,24 @@ export interface AppState {
    * makes a visit verifiable after the fact.
    */
   geo: boolean
+
+  // --- L0: the schedule ----------------------------------------------------
+
+  /**
+   * Which day the schedule tab is showing. In the store rather than useState
+   * because the schedule remounts every time the BP comes back to the tab, and
+   * silently snapping back to "hari ini" would undo a deliberate choice.
+   */
+  day: DayKey
+  /** Task ids finished today. Drives the focus card and the KPI count. */
+  doneTasks: string[]
+  /**
+   * The task the open pelayanan belongs to, so submitting the recap closes the
+   * right row on the schedule. Null when the roster was opened from the Majelis
+   * tab instead — reaching a group off-schedule is browsing, and browsing must
+   * not be able to tick a task the BP never rode to.
+   */
+  activeTask: string | null
 }
 
 // The 15 who settled before the visit opened: present, and paid in full.
@@ -88,6 +107,9 @@ const initial: AppState = {
   lastCollect: null,
   photo: false,
   geo: false,
+  day: 'today',
+  doneTasks: [],
+  activeTask: null,
 }
 
 let state: AppState = initial
@@ -110,8 +132,14 @@ export const store = {
     return () => listeners.delete(listener)
   },
 
-  /** Starts the visit over — the roster's "Mulai Pelayanan". */
-  startVisit() {
+  /**
+   * Starts the visit over — the roster's "Mulai Pelayanan", and the schedule's
+   * "Mulai Pelayanan" which jumps straight past the roster into stage 1.
+   *
+   * `taskId` is passed only when the schedule opened it; that is what lets the
+   * recap tick the row off the day.
+   */
+  startVisit(taskId: string | null = null) {
     store.set({
       attendance: seedAttendance,
       payments: seedPayments,
@@ -120,7 +148,20 @@ export const store = {
       lastCollect: null,
       photo: false,
       geo: false,
+      activeTask: taskId,
     })
+  },
+  setDay(day: DayKey) {
+    store.set({ day })
+  },
+  /** Closes the schedule row the finished pelayanan belongs to. */
+  finishTask() {
+    const id = state.activeTask
+    if (!id || state.doneTasks.includes(id)) {
+      store.set({ activeTask: null })
+      return
+    }
+    store.set({ doneTasks: [...state.doneTasks, id], activeTask: null })
   },
   openMitraPage(mitraId: string) {
     store.set({ openMitra: mitraId })
@@ -225,3 +266,19 @@ export const collectedTotal = (s: AppState): number =>
 
 export const growthDoneCount = (s: AppState): number =>
   Object.keys(s.growthResults).length
+
+// --- L0: the schedule ------------------------------------------------------
+
+/** The first task the BP hasn't finished. Undefined once the day is done. */
+export const nowTask = (s: AppState): Task | undefined =>
+  TASKS.find((t) => !s.doneTasks.includes(t.id))
+
+/** Everything after the current one, in clock order. */
+export const laterTasks = (s: AppState): Task[] => {
+  const now = nowTask(s)
+  if (!now) return []
+  return TASKS.filter((t) => !s.doneTasks.includes(t.id) && t.id !== now.id)
+}
+
+export const doneTaskList = (s: AppState): Task[] =>
+  TASKS.filter((t) => s.doneTasks.includes(t.id))
