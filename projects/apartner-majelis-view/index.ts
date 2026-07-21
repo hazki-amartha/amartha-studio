@@ -131,6 +131,10 @@ export const project: ProjectModule = {
       id: 'mitra',
       title: 'Detail Mitra',
       component: MitraScreen,
+      notes: [
+        'One borrower, opened from her card anywhere in the flow. It opens on what to do about her — a single pre-reasoned recommendation — and puts the record underneath as the evidence for it.',
+        'The week strip is the heart of the page: it carries the amount inside each week rather than a paid/unpaid dot, so the BP can say “Ibu kurang Rp50.000 di minggu 7” instead of “Ibu belum bayar”.',
+      ],
       flowsTo: [
         { to: 'collect', label: 'Tagih Pembayaran' },
         { to: 'ladder', label: 'Jalur Naik Modal' },
@@ -140,6 +144,10 @@ export const project: ProjectModule = {
       id: 'collect',
       title: 'Tagih Pembayaran',
       component: CollectScreen,
+      notes: [
+        'The moment of negotiation, and the page is only two things: the choice, and its consequence. As the BP types an amount, the “sisa setelah ini” sits pinned above the button so the figure she is about to be held to stays in her eyeline.',
+        '“Tidak Bayar” is a full fourth option, not an escape hatch. A no with a reason and a date is a result the BP can close and ops can chase; leaving it unrecorded is what pushes arrears work out of the app and onto a spreadsheet.',
+      ],
       flowsTo: [
         { to: 'collect-done', label: 'Terima Tunai' },
         { to: 'collection', label: 'Simpan Catatan — tidak bayar' },
@@ -149,12 +157,20 @@ export const project: ProjectModule = {
       id: 'collect-done',
       title: 'Pembayaran Diterima',
       component: CollectDoneScreen,
+      notes: [
+        'A receipt, and it earns the extra tap for one reason: cash. The BP has just taken physical money from a woman standing in front of her, and both of them need a moment where the amount is stated and agreed.',
+        'It reads back three numbers and nothing else — owed, paid, left. The remaining balance is not softened: a mitra who just handed over Rp300.000 against Rp650.000 should see the Rp350.000 now, not discover it next week.',
+      ],
       flowsTo: [{ to: 'collection', label: 'Kembali ke Daftar' }],
     },
     {
       id: 'growth',
       title: 'Kunjungan 3 — Pertumbuhan',
       component: GrowthScreen,
+      notes: [
+        'Offers come last, after the money. Pitching a savings product before collecting would mean asking a woman to open an account with the instalment she has not handed over yet.',
+        'Only mitra with a real recommendation appear — four rows out of 22, not a list for everyone. Each states where she stands rather than what to say about it, and the whole stage can be skipped: a tail that blocks the close of a visit has stopped being a tail.',
+      ],
       flowsTo: [
         { to: 'proof', label: 'Lanjut' },
         { to: 'mitra', label: 'ketuk nama mitra' },
@@ -164,18 +180,30 @@ export const project: ProjectModule = {
       id: 'proof',
       title: 'Bukti Kunjungan',
       component: ProofScreen,
+      notes: [
+        'A photo and a recorded location, both required before the visit can be submitted. A photo alone proves she photographed something; a location alone proves she was in the right place but not that a majelis happened. Only the pair makes a visit verifiable afterwards.',
+        'They sit as two equal tiles rather than a big photo drop-zone with location as a footnote, and outside the three-stage bar — attendance, collection and growth are the work, this is the paperwork that closes it.',
+      ],
       flowsTo: [{ to: 'recap', label: 'Lanjut — butuh foto + lokasi' }],
     },
     {
       id: 'recap',
       title: 'Ringkasan & Kirim',
       component: RecapScreen,
+      notes: [
+        'The close. Submitting is final, so the page reads back all three stages first — the BP’s last chance to catch a majelis she half-finished before it becomes someone else’s problem.',
+        'It also states what the visit means for the group: how the majelis’ collective repayment shapes its credit limit. That is the only reason a BP can give a mitra for why her neighbour’s late payment is any of her business.',
+      ],
       flowsTo: [{ to: 'today', label: 'Kirim Tugas' }],
     },
     {
       id: 'ladder',
       title: 'Jalur Naik Modal',
       component: LadderScreen,
+      notes: [
+        'The one screen here that is not about what to do, but what to say. A BP opens it mid-conversation, reads the line at the top out loud, then turns the phone around and lets the mitra read the ladder herself.',
+        'So the copy is split by audience: the framing speaks to the BP about the mitra, while the quoted line and the rail speak to the mitra directly. Nothing is recorded here — the outcome of the conversation is logged where she is already being asked for it.',
+      ],
       flowsTo: [{ to: 'mitra', label: 'kembali' }],
     },
   ],
