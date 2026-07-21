@@ -12,14 +12,16 @@
 // sent here by the schedule already knows which group she is standing in front
 // of; making her read the roster first would be a page between her and the work.
 //
-// So the page has exactly ONE control that starts work — the button on the
-// "Sekarang" card. Tapping a card under Berikutnya opens the RECORD instead: a
-// majelis opens its Majelis View roster, a home visit opens that mitra's page.
-// That is the split the whole direction rests on. Looking ahead at a group is
-// something a BP does constantly (a BM asks, a mitra calls, she wants to know
-// what she is riding into) and it must not be the same gesture as clocking in
-// to a visit she is not standing at yet. Starting the next one early is still
-// one tap from the roster she lands on.
+// Every row on this page starts its task. Berikutnya used to open the RECORD
+// instead — a roster for a majelis, her page for a home visit — on the argument
+// that looking ahead should not be the same gesture as clocking in. Reverted:
+// a day does not run in clock order. She arrives early, a group is late, the
+// 13.00 door is on the way back from the 10.00 balai. A schedule that only ever
+// hands her the top row makes the app disagree with the road, and the work she
+// actually wants to start sits behind a screen that exists to be read.
+//
+// So the schedule is a list of tasks and a tap begins one. Reading a group
+// without starting anything is still there — it is what the Majelis tab is.
 
 import { useState } from 'react'
 import { Badge, BottomSheet, Button, Card } from '@/design-system/components'
@@ -117,17 +119,6 @@ export function TodayScreen() {
     }
     store.startVisit(task.majelisId ?? 'mawar', task.id)
     flow.go('attendance')
-  }
-
-  // A Berikutnya card opens the record, never the work. See the note up top.
-  function preview(task: Task) {
-    if (task.kind === 'home-visit') {
-      store.openMitraPage(task.mitraId ?? 'h1')
-      flow.go('mitra')
-      return
-    }
-    store.openMajelisPage(task.majelisId ?? 'mawar')
-    flow.go('majelis')
   }
 
   // Two lines, so this is a project-local header rather than the 48px TopBar
@@ -246,10 +237,9 @@ export function TodayScreen() {
         </Card>
       )}
 
-      {/* --- Berikutnya: a light timeline that opens the RECORD, not the work.
-          A majelis opens its roster, a home visit opens that mitra's page — so
-          "what am I riding into?" is one tap, and clocking in stays the one
-          button above. The chevron is the tappable tell. */}
+      {/* --- Berikutnya: the rest of the day, and every row starts its task —
+          the same thing the button above does, just for a stop she is reaching
+          out of order. The chevron is the tappable tell. */}
       {later.length > 0 ? (
         <>
           <Overline>Berikutnya</Overline>
@@ -258,7 +248,7 @@ export function TodayScreen() {
               <AgendaRow key={task.id} time={task.time}>
                 <button
                   type="button"
-                  onClick={() => preview(task)}
+                  onClick={() => start(task)}
                   className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
                 >
                   <IconTile tint={kindTint(task.kind)}>

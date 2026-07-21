@@ -4,7 +4,7 @@ export const config: ProjectConfig = {
   slug: 'apartner-majelis-view',
   name: 'Majelis View Concept',
   platform: 'APartner',
-  owner: 'Hazki',
+  owner: ['Chandra', 'Hazki', 'Patricia'],
   description:
     'A third direction on the majelis visit, taking its flow from the Majelis View reference: a visit is a gated three-stage sequence — attendance, then collection, then growth — and collecting from a mitra opens a full page built around a week-by-week repayment strip rather than a bottom sheet. Forked from apartner-task-first, which instead records attendance and payment together in one pass.',
   device: 'mobile',
