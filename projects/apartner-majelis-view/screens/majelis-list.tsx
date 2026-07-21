@@ -21,13 +21,13 @@ import { Screen, TopBar } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS_DIRECTORY, TASKS, type MajelisEntry } from '../lib/schedule'
 import { IconChevronRight, IconPin } from '../lib/icons'
-import { useApp } from '../lib/store'
+import { store, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
 import { Overline } from '../lib/ui'
 
 // Which groups the schedule is already sending her to today. They sort first —
 // the tab does not compete with the schedule, it agrees with it.
-const TODAY_IDS = TASKS.map((t) => t.majelisId)
+const TODAY_IDS = TASKS.filter((t) => t.majelisId).map((t) => t.majelisId)
 
 export function MajelisListScreen() {
   const flow = useFlow()
@@ -43,7 +43,10 @@ export function MajelisListScreen() {
     return (
       <button
         type="button"
-        onClick={() => flow.go('majelis')}
+        onClick={() => {
+          store.openMajelisPage(entry.id)
+          flow.go('majelis')
+        }}
         className="flex items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
       >
         <div className="flex min-w-0 flex-1 flex-col gap-2">

@@ -22,6 +22,7 @@ import { Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, growthMembers, rupiah } from '../lib/data'
+import { majelisWhen } from '../lib/schedule'
 import { IconArrowRight, IconCheck } from '../lib/icons'
 import {
   billableTotal,
@@ -31,12 +32,14 @@ import {
   presentCount,
   store,
   useApp,
+  openMajelisEntry,
 } from '../lib/store'
 import { SectionTitle, StageBar, StatRows, StickyBar, VisitTitle } from '../lib/ui'
 
 export function RecapScreen() {
   const flow = useFlow()
   const s = useApp()
+  const group = openMajelisEntry(s)
 
   const total = MAJELIS.members.length
   const present = presentCount(s)
@@ -52,7 +55,7 @@ export function RecapScreen() {
     <Screen
       topBar={
         <NavigationHeader
-          title={<VisitTitle title={MAJELIS.name} when={MAJELIS.schedule} />}
+          title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
           hideBack
         />
       }
@@ -100,7 +103,7 @@ export function RecapScreen() {
 
       {/* --- What it means for the group. ---------------------------------- */}
       <section className="flex flex-col gap-8 pb-16">
-        <SectionTitle>Untuk Majelis Mawar</SectionTitle>
+        <SectionTitle>Untuk {group.name}</SectionTitle>
         <div className="flex flex-col gap-8 rounded-12 border border-primary-200 bg-primary-50 p-12">
           <p className="text-14 text-default">
             Ketepatan bayar seluruh anggota menentukan limit pembiayaan yang bisa diberikan ke

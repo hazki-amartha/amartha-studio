@@ -19,14 +19,16 @@ import { Badge, Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, growthMembers } from '../lib/data'
+import { majelisWhen } from '../lib/schedule'
 import { IconCheck, IconTrendUp } from '../lib/icons'
 import { MitraCard } from '../lib/mitra-card'
-import { growthDoneCount, store, useApp } from '../lib/store'
+import { growthDoneCount, store, useApp, openMajelisEntry } from '../lib/store'
 import { IconTile, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
 
 export function GrowthScreen() {
   const flow = useFlow()
   const s = useApp()
+  const group = openMajelisEntry(s)
 
   const members = growthMembers()
   const done = growthDoneCount(s)
@@ -35,7 +37,7 @@ export function GrowthScreen() {
     <Screen
       topBar={
         <NavigationHeader
-          title={<VisitTitle title={MAJELIS.name} when={MAJELIS.schedule} />}
+          title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
           onBack={() => flow.back()}
         />
       }

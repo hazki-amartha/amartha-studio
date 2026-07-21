@@ -302,8 +302,47 @@ export const MAJELIS: Majelis = {
   members: [...ACTIVE, ...PREPAID],
 }
 
+// --- Home visits -----------------------------------------------------------
+// The single-mitra counterpart to a pelayanan: the BP rides to ONE borrower's
+// house, because she is far enough behind that a majelis collection is no
+// longer going to reach her.
+//
+// They get the SAME ledger every majelis member has, which is the whole reason
+// this direction can carry a home visit at all: the doorstep amount, the
+// shortfall, the week strip on her page and the "sisa setelah ini" line are all
+// derived from the record rather than authored as a figure per screen.
+
+export const HOME_MITRA: Mitra[] = [
+  {
+    id: 'h1',
+    name: 'Wati Nurhasanah',
+    loan: 6_000_000,
+    weekly: 150_000,
+    dpd: 63,
+    week: 20,
+    totalWeeks: 50,
+    // Nine straight weeks with nothing paid — 63 days, past the point a weekly
+    // pelayanan recovers her, which is why she is a home visit at all.
+    weeks: ledger(150_000, 20, [11, 12, 13, 14, 15, 16, 17, 18, 19]),
+  },
+  {
+    id: 'h2',
+    name: 'Elin Herlina',
+    loan: 5_000_000,
+    weekly: 125_000,
+    dpd: 7,
+    week: 20,
+    // One missed week and a promise she made for today — the ordinary case,
+    // where the visit is a nudge rather than a recovery.
+    totalWeeks: 50,
+    weeks: ledger(125_000, 20, [19]),
+  },
+]
+
 export const findMitra = (id: string): Mitra =>
-  MAJELIS.members.find((m) => m.id === id) ?? MAJELIS.members[0]
+  MAJELIS.members.find((m) => m.id === id) ??
+  HOME_MITRA.find((m) => m.id === id) ??
+  MAJELIS.members[0]
 
 /** Everyone with something to offer — the third stage's list. */
 export const growthMembers = (): Mitra[] => MAJELIS.members.filter((m) => m.growth)
