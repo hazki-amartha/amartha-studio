@@ -150,9 +150,22 @@ Designers rely on you for git. **`main` is protected: you cannot push to it.**
 Every change lands through a pull request. Don't try to push to `main` and then
 report the rejection as a problem — the PR *is* the route.
 
-- **Before starting:** `git pull --rebase` on `main`.
+- **Before starting:** `git checkout main`, then `git pull --rebase`. Always
+  branch from a **fresh `main`**, never from an old branch — see the branch
+  hygiene note below for why this is not optional.
 - **Branch.** `<slug>/<what>` for project work, `platform/<what>` or
   `design-system/<what>` for Tier 2. Never work directly on `main`.
+- **Branch hygiene — the squash trap.** PRs merge into `main` by **squash**, so
+  a branch's own commits *never* land on `main` — only a single new commit
+  holding their flattened result does. That means a merged branch is instantly
+  dead weight: reuse it, or branch off it, and git replays commits it thinks are
+  new on top of the squashed copy already on `main`, producing phantom
+  "conflicts" (a DIRTY PR) even when the trees are identical. Two habits, both
+  yours to run silently (§7): **(a)** start every branch from a freshly-pulled
+  `main`; **(b)** delete each branch — local and its `origin` copy — the moment
+  its PR merges (GitHub usually auto-deletes the remote; run `git remote prune
+  origin` to clear stale pointers). If DIRTY-on-every-push starts recurring,
+  stale merged branches are the cause — prune them, don't fight the conflict.
 - **Commit** with `[<slug>] <what changed>`, or `[platform]` / `[design-system]`
   for Tier 2. **One tier per commit** (§1).
 - **Open the PR only when the designer confirms** — same rule as pushing used to
