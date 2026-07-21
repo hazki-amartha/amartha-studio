@@ -2,6 +2,8 @@
 
 ## Project-local components (§4)
 
+- `TabBar` — the three L0 destinations (Jadwal / Majelis / KPI), hidden inside a pelayanan. Ported from `apartner-task-first`.
+- `AgendaRow`, `HeaderAction` — the schedule's clock gutter and its top-bar icon buttons. Ported from `apartner-task-first`.
 - `StageBar` — three numbered stages with rails; a cleared stage turns green and swaps its number for a tick. Used on attendance, collection, growth, recap.
 - `WeekStrip` — horizontal 50-week repayment rail carrying the amount inside each week. Used on the mitra page. The direction's centrepiece.
 - `ProgressCard` — headline value + denominator + percent over a meter. Used on attendance and collection.
@@ -9,6 +11,26 @@
 - `MitraCard` / `DpdBadge` — the one member card, shared by roster, attendance, collection and growth.
 - `AttendancePill`, `Chip`, `ChipGroup`, `ProofTile`, `StatRows`, `Meter`, `Avatar`, `IconTile`, `Collapsible`, `Overline`, `SectionTitle`, `VisitTitle` — carried over from `apartner-task-first`.
 - `h-40` on `Button size="sm"` — FunDS button sizes step 28 (xs) → 36 (sm), so neither lands on the 40px avatar rhythm the cards use. `h-40` is a token class, not an arbitrary value.
+
+## The L0 layer (Jadwal / Majelis / KPI)
+
+Ported from `apartner-task-first` so the two directions share a front door and
+what gets compared is the pelayanan itself, not the way in to it. Two routes,
+each opening on what it is for:
+
+- **Schedule → work.** "Mulai Pelayanan" goes **straight to Kunjungan 1 —
+  Kehadiran**, skipping the roster. A BP sent there by the day already knows the
+  group; the roster would be a page between her and the work.
+- **Majelis tab → record.** Tapping a group opens the **Majelis View roster** —
+  reaching a group off-schedule is a look-up, and the roster is the answer. Its
+  own "Mulai Pelayanan" still works, but a pelayanan started this way does not
+  tick a scheduled task: she was never sent.
+
+- **No home visits.** `apartner-task-first` schedules them and a real BP does
+  them; this direction models only the majelis pelayanan, so the day is four
+  majelis rather than a schedule with rows that open nothing.
+- **Prototype edge:** only Majelis Mawar has a real roster — every task and every
+  directory row opens Mawar's 22 mitra, whatever name is on the card.
 
 ## Where this departs from the reference
 
