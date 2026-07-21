@@ -16,6 +16,10 @@ const config: Config = {
     './design-system/**/*.{ts,tsx}',
     './projects/**/*.{ts,tsx}',
   ],
+  // Dark mode is opt-in per subtree via [data-theme="dark"] on <html>. Only the
+  // studio chrome uses `dark:` variants — prototype device content and FunDS
+  // specimens stay light on purpose.
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     // -------------------------------------------------------------------------
     // Replace (not extend) these scales so only design system values are valid
@@ -97,6 +101,16 @@ const config: Config = {
         900:   '#111928',
         white: '#FFFFFF',
         black: '#000000',
+      },
+
+      // Ink — dark-mode surface ramp for the studio chrome (canvas → panel →
+      // raised → border). Not for prototype content; text on these uses the
+      // neutral scale (neutral-50 primary, neutral-400 caption).
+      ink: {
+        700: '#33333A', // borders & dividers
+        800: '#26262B', // raised / hover
+        900: '#1B1B1F', // chrome surface (rail, sidebar, header, cards)
+        950: '#131316', // app canvas (deepest)
       },
 
       // Saturated

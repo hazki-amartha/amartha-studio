@@ -70,10 +70,10 @@ export function SystemSidebar() {
 
   return (
     <div className="flex flex-col gap-16">
-      <p className="px-12 text-16 font-bold text-default">FunDS Lite</p>
+      <p className="px-12 text-16 font-bold text-default dark:text-neutral-50">FunDS Lite</p>
       {GROUPS.map((group) => (
         <nav key={group.label} aria-label={group.label} className="flex flex-col gap-2">
-          <p className="px-12 py-4 text-10 font-bold uppercase text-caption">{group.label}</p>
+          <p className="px-12 py-4 text-10 font-bold uppercase text-caption dark:text-neutral-400">{group.label}</p>
           {group.sections.map((slug) => {
             const isActive = active === slug
             return (
@@ -83,8 +83,8 @@ export function SystemSidebar() {
                 aria-current={isActive ? 'true' : undefined}
                 className={
                   isActive
-                    ? 'rounded-8 bg-primary-50 px-12 py-8 text-14 font-bold text-link'
-                    : 'rounded-8 px-12 py-8 text-14 text-default hover:bg-neutral-50'
+                    ? 'rounded-8 bg-primary-50 px-12 py-8 text-14 font-bold text-link dark:border dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50'
+                    : 'rounded-8 px-12 py-8 text-14 text-default hover:bg-neutral-50 dark:border dark:border-transparent dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50'
                 }
               >
                 {SECTION_LABEL[slug]}

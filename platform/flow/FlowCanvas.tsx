@@ -334,9 +334,9 @@ export function FlowCanvas({ slug }: { slug: string }) {
 
   if (state === 'missing') {
     return (
-      <div className="flex min-h-full flex-col items-center justify-center gap-8 bg-neutral-50 px-16 text-center">
-        <p className="text-18 font-bold text-default">Project not found</p>
-        <p className="text-14 text-caption">
+      <div className="flex min-h-full flex-col items-center justify-center gap-8 bg-neutral-50 px-16 text-center dark:bg-ink-950">
+        <p className="text-18 font-bold text-default dark:text-neutral-50">Project not found</p>
+        <p className="text-14 text-caption dark:text-neutral-400">
           No project is registered for &ldquo;{slug}&rdquo;.
         </p>
       </div>
@@ -344,7 +344,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
   }
 
   return (
-    <div className="flex h-full flex-col bg-neutral-50">
+    <div className="flex h-full flex-col bg-neutral-50 dark:bg-ink-950">
       <div
         ref={containerRef}
         className="relative flex-1 cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing"
@@ -357,7 +357,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
           <button
             type="button"
             data-reset
-            className="absolute bottom-16 left-16 z-10 rounded-full border border-default bg-neutral-white px-12 py-8 text-12 text-caption hover:text-default"
+            className="absolute bottom-16 left-16 z-10 rounded-full border border-default bg-neutral-white px-12 py-8 text-12 text-caption hover:text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
           >
             Reset layout
           </button>
@@ -388,7 +388,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
                         entry
                       </span>
                     ) : null}
-                    <span className="truncate text-12 font-bold text-default">
+                    <span className="truncate text-12 font-bold text-default dark:text-neutral-50">
                       {n.screen.title}
                     </span>
                   </div>
@@ -429,7 +429,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
           </div>
         ) : (
           <div className="flex h-full items-center justify-center">
-            <span className="text-14 text-caption">Loading flow…</span>
+            <span className="text-14 text-caption dark:text-neutral-400">Loading flow…</span>
           </div>
         )}
       </div>

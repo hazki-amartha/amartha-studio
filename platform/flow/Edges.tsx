@@ -87,14 +87,14 @@ export function Edges({ layout, selected }: EdgesProps) {
                   width={link.label.length * 6.4 + 8}
                   height={16}
                   rx={4}
-                  className="fill-neutral-white stroke-primary-200"
+                  className="fill-neutral-white stroke-primary-200 dark:fill-ink-800 dark:stroke-ink-700"
                   strokeWidth={1}
                 />
                 <text
                   x={midX}
                   y={midY + 2}
                   textAnchor="middle"
-                  className="fill-primary-500"
+                  className="fill-primary-500 dark:fill-primary-200"
                   style={{ fontSize: 10, fontWeight: 500 }}
                 >
                   {link.label}

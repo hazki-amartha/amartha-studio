@@ -86,18 +86,18 @@ function AnnotationPanel({
 
   return (
     <aside className={`flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${styles.annotations}`}>
-      <span className="text-10 font-bold uppercase text-caption">Notes</span>
-      {active ? <h2 className="text-16 font-bold text-default">{active.title}</h2> : null}
+      <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">Notes</span>
+      {active ? <h2 className="text-16 font-bold text-default dark:text-neutral-50">{active.title}</h2> : null}
       {notes.length > 0 ? (
         <ul className="flex flex-col gap-8">
           {notes.map((note, i) => (
-            <li key={i} className="text-14 text-caption">
+            <li key={i} className="text-14 text-caption dark:text-neutral-400">
               {note}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-14 text-caption">No annotations for this screen.</p>
+        <p className="text-14 text-caption dark:text-neutral-400">No annotations for this screen.</p>
       )}
     </aside>
   )
@@ -160,7 +160,7 @@ function StepButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex h-40 w-40 flex-none items-center justify-center rounded-full border border-default bg-neutral-white text-default disabled:cursor-not-allowed disabled:text-placeholder"
+      className="flex h-40 w-40 flex-none items-center justify-center rounded-full border border-default bg-neutral-white text-default hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800 dark:disabled:text-neutral-600"
     >
       {children}
     </button>
@@ -197,7 +197,7 @@ function DeviceStepper({ children }: { children: ReactNode }) {
 function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
   return (
     <div
-      className={`h-full min-h-0 w-full gap-32 overflow-hidden bg-neutral-50 px-16 py-24 ${styles.desktop}`}
+      className={`h-full min-h-0 w-full gap-32 overflow-hidden bg-neutral-50 px-16 py-24 dark:bg-ink-950 ${styles.desktop}`}
     >
       {/* Balances the caption column so the device sits optically centred. */}
       <div aria-hidden />

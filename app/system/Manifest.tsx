@@ -119,8 +119,8 @@ function Section({ id, title, description, children }: { id: string; title: stri
   return (
     <section id={id} className="flex scroll-mt-32 flex-col gap-16">
       <div className="flex flex-col gap-4">
-        <h2 className="text-20 font-bold text-default">{title}</h2>
-        {description ? <p className="text-14 text-caption">{description}</p> : null}
+        <h2 className="text-20 font-bold text-default dark:text-neutral-50">{title}</h2>
+        {description ? <p className="text-14 text-caption dark:text-neutral-400">{description}</p> : null}
       </div>
       {children}
     </section>
@@ -128,7 +128,7 @@ function Section({ id, title, description, children }: { id: string; title: stri
 }
 
 function SubHeading({ children }: { children: ReactNode }) {
-  return <h3 className="text-14 font-bold text-default">{children}</h3>
+  return <h3 className="text-14 font-bold text-default dark:text-neutral-50">{children}</h3>
 }
 
 function Demo({ children }: { children: ReactNode }) {

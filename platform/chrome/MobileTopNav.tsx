@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { CloseIcon, FundsIcon, MenuIcon, StudioIcon } from './icons'
 import type { RailSection } from './NavRail'
+import { ThemeToggle } from './theme'
 
 const ITEMS: { section: RailSection; href: string; label: string; Icon: typeof StudioIcon }[] = [
   { section: 'studio', href: '/', label: 'Studio', Icon: StudioIcon },
@@ -23,13 +24,13 @@ export function MobileTopNav({ active }: { active: RailSection | null }) {
 
   return (
     <div className="shrink-0 md:hidden">
-      <div className="flex h-48 items-center gap-12 border-b border-default bg-neutral-white px-16">
+      <div className="flex h-48 items-center gap-12 border-b border-default bg-neutral-white px-16 dark:border-ink-700 dark:bg-ink-900">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-label={open ? 'Close menu' : 'Open menu'}
           aria-expanded={open}
-          className="flex size-32 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default"
+          className="flex size-32 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
         >
           {open ? <CloseIcon className="size-20" /> : <MenuIcon className="size-20" />}
         </button>
@@ -37,14 +38,15 @@ export function MobileTopNav({ active }: { active: RailSection | null }) {
           <span className="flex size-24 items-center justify-center rounded-8 bg-primary-500 text-12 font-bold text-neutral-white">
             D
           </span>
-          <span className="text-14 font-bold text-default">Amartha Studio</span>
+          <span className="text-14 font-bold text-default dark:text-neutral-50">Amartha Studio</span>
         </Link>
+        <ThemeToggle className="ml-auto flex size-32 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50" />
       </div>
 
       {open ? (
         <nav
           aria-label="Sections"
-          className="flex flex-col gap-2 border-b border-default bg-neutral-white p-8"
+          className="flex flex-col gap-2 border-b border-default bg-neutral-white p-8 dark:border-ink-700 dark:bg-ink-900"
         >
           {ITEMS.map(({ section, href, label, Icon }) => {
             const isActive = active === section
@@ -56,8 +58,8 @@ export function MobileTopNav({ active }: { active: RailSection | null }) {
                 onClick={() => setOpen(false)}
                 className={
                   isActive
-                    ? 'flex items-center gap-12 rounded-8 bg-primary-50 px-12 py-8 text-14 font-bold text-link'
-                    : 'flex items-center gap-12 rounded-8 px-12 py-8 text-14 text-default hover:bg-neutral-50'
+                    ? 'flex items-center gap-12 rounded-8 bg-primary-50 px-12 py-8 text-14 font-bold text-link dark:border dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50'
+                    : 'flex items-center gap-12 rounded-8 px-12 py-8 text-14 text-default hover:bg-neutral-50 dark:border dark:border-transparent dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50'
                 }
               >
                 <Icon className="size-20" />
