@@ -49,7 +49,7 @@ function KindIcon({ kind }: { kind: Task['kind'] }) {
 const kindTint = (kind: Task['kind']) => (kind === 'majelis' ? 'primary' : 'red')
 
 const kindLabel = (kind: Task['kind']) =>
-  kind === 'majelis' ? 'Kunjungan Majelis' : 'Home Visit'
+  kind === 'majelis' ? 'Pelayanan Majelis' : 'Home Visit'
 
 /**
  * The day switcher. Two options, so a sheet rather than a floating menu: the

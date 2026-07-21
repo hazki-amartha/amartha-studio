@@ -48,7 +48,7 @@ export function Avatar({ name, size = 40 }: { name: string; size?: 32 | 40 }) {
 // could jump to Collection by tapping "2" would walk straight past the gate the
 // direction exists to test.
 
-export const STAGE_LABELS = ['Kehadiran', 'Penagihan', 'Pertumbuhan']
+export const STAGE_LABELS = ['Kehadiran', 'Penagihan', 'Penawaran']
 
 // A home visit is one mitra, so there is no queue to clear and no cross-sell
 // tail: meet her and settle the money, then prove it. Two stages, same bar —

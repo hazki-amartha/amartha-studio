@@ -10,7 +10,7 @@ export const config: ProjectConfig = {
   device: 'mobile',
   status: 'draft',
   createdAt: '2026-07-20',
-  updatedAt: '2026-07-20',
+  updatedAt: '2026-07-21',
   notes: [
     'Sibling to apartner-task-first, not a replacement. That one puts attendance and payment on one card so the BP makes a single pass; this one gates collection behind a completed attendance step, which is what the reference direction specifies.',
     'The bet being tested: does a full collect PAGE — week strip, outstanding split into this-week / missed / partial balance, and a live "remaining after this" — beat a bottom sheet at the moment the BP is negotiating an amount in front of the mitra?',

@@ -1,6 +1,6 @@
 'use client'
 
-// Stage 3 of 3 — Pertumbuhan.
+// Stage 3 of 3 — Penawaran.
 //
 // The cross-sell tail, and it comes last on purpose: money first, offers after.
 // A BP who pitched a savings product before collecting would be asking a woman
@@ -49,7 +49,7 @@ export function GrowthScreen() {
           <IconTrendUp size={20} />
         </IconTile>
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-14 font-bold text-default">Peluang Pertumbuhan</span>
+          <span className="text-14 font-bold text-default">Peluang Penawaran</span>
           <span className="text-12 text-caption">
             {members.length} mitra bisa ditawari sesuatu hari ini
           </span>
