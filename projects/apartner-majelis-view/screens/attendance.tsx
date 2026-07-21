@@ -21,22 +21,26 @@
 // asks about money, because money is the next stage's question and asking both
 // at once is precisely what the split is here to avoid.
 
-import { Button, NavigationHeader } from '@/design-system/components'
+import { Badge, Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
+import { IconCheck } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import {
   attendanceComplete,
   markedCount,
+  markedMembers,
   presentCount,
   store,
+  unmarkedMembers,
   useApp,
   openMajelisEntry,
 } from '../lib/store'
 import {
   AttendancePill,
+  Collapsible,
   ProgressCard,
   SectionTitle,
   StageBar,
@@ -54,6 +58,8 @@ export function AttendanceScreen() {
   const present = presentCount(s)
   const complete = attendanceComplete(s)
   const left = total - marked
+  const unmarked = unmarkedMembers(s)
+  const done = markedMembers(s)
 
   return (
     <Screen
@@ -77,38 +83,73 @@ export function AttendanceScreen() {
         percent={Math.round((marked / total) * 100)}
       />
 
-      <SectionTitle>Daftar Hadir</SectionTitle>
+      <SectionTitle>Belum Diabsen</SectionTitle>
 
-      <div className="flex flex-col gap-8">
-        {MAJELIS.members.map((mitra) => (
-          <MitraCard
-            key={mitra.id}
-            mitra={mitra}
-            meta={<span className="truncate text-12 text-caption">Minggu {mitra.week} dari {mitra.totalWeeks}</span>}
-            trailing={<DpdBadge dpd={mitra.dpd} />}
-            action={
-              <div className="flex gap-8">
-                <AttendancePill
-                  selected={s.attendance[mitra.id] === 'hadir'}
-                  tone="green"
-                  label={`Hadir — ${mitra.name}`}
-                  onClick={() => store.setAttendance(mitra.id, 'hadir')}
-                >
-                  Hadir
-                </AttendancePill>
-                <AttendancePill
-                  selected={s.attendance[mitra.id] === 'tidak'}
-                  tone="red"
-                  label={`Tidak hadir — ${mitra.name}`}
-                  onClick={() => store.setAttendance(mitra.id, 'tidak')}
-                >
-                  Tidak
-                </AttendancePill>
-              </div>
-            }
-          />
+      {/* Marking a mitra files her away, exactly as recording an outcome drains
+          her from the penagihan queue. Same gesture, same reward: what is left
+          on screen is what is left to do, and a register of 22 becomes a list
+          of 7 the moment the pre-paid are seeded in. */}
+      {unmarked.length > 0 ? (
+        <div className="flex flex-col gap-8">
+          {unmarked.map((mitra) => (
+            <MitraCard
+              key={mitra.id}
+              mitra={mitra}
+              meta={<span className="truncate text-12 text-caption">Minggu {mitra.week} dari {mitra.totalWeeks}</span>}
+              trailing={<DpdBadge dpd={mitra.dpd} />}
+              action={
+                <div className="flex gap-8">
+                  <AttendancePill
+                    selected={false}
+                    tone="green"
+                    label={`Hadir — ${mitra.name}`}
+                    onClick={() => store.setAttendance(mitra.id, 'hadir')}
+                  >
+                    Hadir
+                  </AttendancePill>
+                  <AttendancePill
+                    selected={false}
+                    tone="red"
+                    label={`Tidak hadir — ${mitra.name}`}
+                    onClick={() => store.setAttendance(mitra.id, 'tidak')}
+                  >
+                    Tidak
+                  </AttendancePill>
+                </div>
+              }
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-8 rounded-12 bg-neutral-white py-24 text-center">
+          <span className="flex h-48 w-48 items-center justify-center rounded-full bg-green-50 text-green-500">
+            <IconCheck size={24} />
+          </span>
+          <span className="text-20 font-bold text-default">Semua mitra sudah diabsen</span>
+          <span className="text-12 text-caption">Lanjut ke penagihan.</span>
+        </div>
+      )}
+
+      {/* "Ubah" returns her to the list above rather than toggling in place: a
+          mis-tap is corrected by making the same choice again, not by learning a
+          second, different control for the same fact. */}
+      <Collapsible title="Sudah diabsen" hint={`${done.length} mitra`}>
+        {done.map((mitra) => (
+          <div key={mitra.id} className="flex items-center gap-8">
+            <span className="min-w-0 flex-1 truncate text-14 text-default">{mitra.name}</span>
+            {s.attendance[mitra.id] === 'hadir' ? (
+              <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
+                Hadir
+              </Badge>
+            ) : (
+              <Badge intent="red">Tidak hadir</Badge>
+            )}
+            <Button size="xs" variant="ghost" onClick={() => store.clearAttendance(mitra.id)}>
+              Ubah
+            </Button>
+          </div>
         ))}
-      </div>
+      </Collapsible>
 
       <StickyBar>
         {/* The gate says what is missing, not just that something is. A disabled

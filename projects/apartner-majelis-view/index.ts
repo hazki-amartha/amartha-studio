@@ -28,13 +28,11 @@ export const project: ProjectModule = {
       entry: true,
       notes: [
         'The BP opens her day here. The page commits to one answer: the single visit she should be doing right now, with the reason it matters already written for her.',
-        'Only that card carries a button. Everything under Berikutnya is there so she can shape her day — see what is coming, and tap through to read up on a group before she arrives — without it competing with the one thing to start now.',
+        'Berikutnya is the rest of the day, and tapping a row starts that task too. A day does not run in clock order — she arrives early, a group is late, a doorstep is on the way back — so the schedule stays a list of things she can begin, not a queue that only hands her the top row.',
       ],
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Pelayanan 1' },
         { to: 'home-visit', label: 'Mulai Kunjungan (home visit)' },
-        { to: 'majelis', label: 'ketuk kartu Berikutnya (majelis)' },
-        { to: 'mitra', label: 'ketuk kartu Berikutnya (home visit)' },
         { to: 'majelis-list', label: 'tab Majelis' },
         { to: 'kpi', label: 'tab KPI' },
       ],

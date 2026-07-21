@@ -32,6 +32,7 @@ import {
   pendingMembers,
   recordedMembers,
   remainingOf,
+  selfPaidMembers,
   store,
   useApp,
   openMajelisEntry,
@@ -52,6 +53,8 @@ export function CollectionScreen() {
 
   const pending = pendingMembers(s)
   const recorded = recordedMembers(s)
+  const selfPaid = selfPaidMembers(s)
+  const selfPaidTotal = selfPaid.reduce((sum, m) => sum + paidOf(s, m), 0)
   const collected = collectedTotal(s)
   const billable = billableTotal()
 
@@ -78,6 +81,30 @@ export function CollectionScreen() {
         percent={Math.round((collected / billable) * 100)}
         tone="green"
       />
+
+      {/* Sits ABOVE the queue, and closed. It is the answer to "why are there
+          only 7 cards in a 22-member majelis?" — a question the BP asks once, at
+          the top of the screen, and never again once she has the answer. They
+          are not in the queue at all: there is nothing to tagih from a woman who
+          already paid, and offering the button would invite a double entry. */}
+      {selfPaid.length > 0 ? (
+        <Collapsible
+          title="Sudah bayar mandiri"
+          hint={`${selfPaid.length} mitra · ${rupiah(selfPaidTotal)}`}
+        >
+          {selfPaid.map((mitra) => (
+            <div key={mitra.id} className="flex items-center gap-8">
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-14 text-default">{mitra.name}</span>
+                <span className="truncate text-12 text-caption">Dibayar sebelum pelayanan</span>
+              </div>
+              <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
+                {rupiah(paidOf(s, mitra))}
+              </Badge>
+            </div>
+          ))}
+        </Collapsible>
+      ) : null}
 
       <SectionTitle>Belum Ditagih</SectionTitle>
 

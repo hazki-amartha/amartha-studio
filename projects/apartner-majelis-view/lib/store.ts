@@ -10,7 +10,7 @@
 // which is the outcome this whole direction is built to record properly.
 
 import { useSyncExternalStore } from 'react'
-import { MAJELIS, PREPAID, findMitra, outstandingOf, type Mitra } from './data'
+import { MAJELIS, PREPAID, findMitra, isSelfServe, outstandingOf, type Mitra } from './data'
 import {
   TASKS,
   findMajelisEntry,
@@ -247,6 +247,12 @@ export const store = {
   setAttendance(mitraId: string, value: Attendance) {
     store.set({ attendance: { ...state.attendance, [mitraId]: value } })
   },
+  /** Puts a mitra back in the unmarked list — the "Ubah" on a recorded row. */
+  clearAttendance(mitraId: string) {
+    const attendance = { ...state.attendance }
+    delete attendance[mitraId]
+    store.set({ attendance })
+  },
   /**
    * Records the rupiah actually handed over. Money clears any "tidak bayar" on
    * file: she paid, so the reason she gave for not paying is no longer true and
@@ -314,6 +320,18 @@ export const presentCount = (s: AppState): number =>
   MAJELIS.members.filter((m) => s.attendance[m.id] === 'hadir').length
 
 /**
+ * The register drains the same way the collection queue does: a mitra leaves the
+ * list the moment she is marked EITHER way, so what is on screen is always
+ * exactly who is still unaccounted for. In a 22-member majelis the alternative
+ * is scanning a full list for the four rows without a pill on them.
+ */
+export const unmarkedMembers = (s: AppState): Mitra[] =>
+  MAJELIS.members.filter((m) => !s.attendance[m.id])
+
+export const markedMembers = (s: AppState): Mitra[] =>
+  MAJELIS.members.filter((m) => s.attendance[m.id])
+
+/**
  * The gate. Collection does not open until every mitra has been marked one way
  * or the other — the reference direction is explicit that attendance is
  * completed first, and a half-marked register is the thing that makes a majelis
@@ -328,9 +346,21 @@ export const attendanceComplete = (s: AppState): boolean =>
 export const pendingMembers = (s: AppState): Mitra[] =>
   MAJELIS.members.filter((m) => collectStatus(s, m) === 'belum')
 
-/** An outcome is on file: lunas, sebagian, or tidak bayar. */
+/**
+ * She settled before the BP arrived — through the app, an agent, or a transfer.
+ * Money the BP never handles, so it is not a collection result and does not
+ * belong under "Sudah ditagih": nobody tagih'd her. Kept separate so the two
+ * counts the BP is judged on stay honest — what she collected today, and what
+ * simply came in.
+ */
+export const selfPaidMembers = (s: AppState): Mitra[] =>
+  MAJELIS.members.filter((m) => isSelfServe(m) && collectStatus(s, m) === 'lunas')
+
+/** An outcome the BP recorded herself: lunas, sebagian, or tidak bayar. */
 export const recordedMembers = (s: AppState): Mitra[] =>
-  MAJELIS.members.filter((m) => collectStatus(s, m) !== 'belum')
+  MAJELIS.members.filter(
+    (m) => collectStatus(s, m) !== 'belum' && !(isSelfServe(m) && collectStatus(s, m) === 'lunas'),
+  )
 
 /** Everything owed across the majelis this visit. */
 export const billableTotal = (): number =>

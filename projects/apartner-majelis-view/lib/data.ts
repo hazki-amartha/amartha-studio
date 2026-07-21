@@ -294,6 +294,14 @@ export const PREPAID: Mitra[] = PREPAID_NAMES.map((name, i) => {
   }
 })
 
+/**
+ * She paid without the BP in the room — the app, an agent, a transfer to the
+ * ketua. The flow needs to tell that apart from money the BP collected, so the
+ * penagihan queue can skip her outright instead of asking for a tagih that
+ * already happened.
+ */
+export const isSelfServe = (mitra: Mitra): boolean => mitra.id.startsWith('p')
+
 export const MAJELIS: Majelis = {
   id: 'mawar',
   name: 'Majelis Mawar',
