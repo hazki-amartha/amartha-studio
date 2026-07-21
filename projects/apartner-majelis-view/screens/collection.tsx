@@ -21,6 +21,7 @@ import { Badge, Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, outstandingOf, rupiah } from '../lib/data'
+import { majelisWhen } from '../lib/schedule'
 import { IconCheck } from '../lib/icons'
 import { MitraCard } from '../lib/mitra-card'
 import {
@@ -33,6 +34,7 @@ import {
   remainingOf,
   store,
   useApp,
+  openMajelisEntry,
 } from '../lib/store'
 import {
   Collapsible,
@@ -46,6 +48,7 @@ import {
 export function CollectionScreen() {
   const flow = useFlow()
   const s = useApp()
+  const group = openMajelisEntry(s)
 
   const pending = pendingMembers(s)
   const recorded = recordedMembers(s)
@@ -61,7 +64,7 @@ export function CollectionScreen() {
     <Screen
       topBar={
         <NavigationHeader
-          title={<VisitTitle title={MAJELIS.name} when={MAJELIS.schedule} />}
+          title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
           onBack={() => flow.back()}
         />
       }

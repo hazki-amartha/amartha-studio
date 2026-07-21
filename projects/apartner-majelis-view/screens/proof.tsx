@@ -17,13 +17,15 @@ import { Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS } from '../lib/data'
+import { majelisWhen } from '../lib/schedule'
 import { IconCamera, IconPin } from '../lib/icons'
-import { pendingMembers, store, useApp } from '../lib/store'
+import { pendingMembers, store, useApp, openMajelisEntry } from '../lib/store'
 import { ProofTile, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
 
 export function ProofScreen() {
   const flow = useFlow()
   const s = useApp()
+  const group = openMajelisEntry(s)
 
   const ready = s.photo && s.geo
   const pending = pendingMembers(s)
@@ -32,7 +34,7 @@ export function ProofScreen() {
     <Screen
       topBar={
         <NavigationHeader
-          title={<VisitTitle title={MAJELIS.name} when={MAJELIS.schedule} />}
+          title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
           onBack={() => flow.back()}
         />
       }
@@ -62,7 +64,7 @@ export function ProofScreen() {
       {s.geo ? (
         <div className="flex flex-col gap-2 rounded-12 bg-neutral-white p-12">
           <span className="text-12 text-caption">Titik terekam</span>
-          <span className="text-14 font-bold text-default">{MAJELIS.place}</span>
+          <span className="text-14 font-bold text-default">{group.place}</span>
         </div>
       ) : null}
 

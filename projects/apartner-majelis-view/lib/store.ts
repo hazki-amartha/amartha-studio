@@ -10,7 +10,22 @@
 // which is the outcome this whole direction is built to record properly.
 
 import { useSyncExternalStore } from 'react'
-import { MAJELIS, PREPAID, outstandingOf, type Mitra } from './data'
+import { MAJELIS, PREPAID, findMitra, outstandingOf, type Mitra } from './data'
+import {
+  TASKS,
+  findMajelisEntry,
+  findTask,
+  taskForMajelis,
+  type DayKey,
+  type MajelisEntry,
+  type Task,
+} from './schedule'
+
+/** Who actually answered the door on a home visit. */
+export type MetWith = 'mitra' | 'pj' | 'nobody'
+
+/** The payment outcome picked inline on a home visit. */
+export type PayMode = 'penuh' | 'sebagian' | 'tidak'
 
 export type Attendance = 'hadir' | 'tidak'
 
@@ -69,6 +84,52 @@ export interface AppState {
    * makes a visit verifiable after the fact.
    */
   geo: boolean
+
+  // --- L0: the schedule ----------------------------------------------------
+
+  /**
+   * Which day the schedule tab is showing. In the store rather than useState
+   * because the schedule remounts every time the BP comes back to the tab, and
+   * silently snapping back to "hari ini" would undo a deliberate choice.
+   */
+  day: DayKey
+  /** Task ids finished today. Drives the focus card and the KPI count. */
+  doneTasks: string[]
+  /**
+   * The task the open pelayanan belongs to, so submitting the recap closes the
+   * right row on the schedule. Null when the roster was opened from the Majelis
+   * tab instead, where the task is recovered from the group itself.
+   */
+  activeTask: string | null
+  /**
+   * Which group the roster and the three stages render. Set by the schedule and
+   * by the Majelis tab, so a pelayanan opened either way names itself correctly
+   * and — the reason it is in the store rather than a route param — so
+   * submitting can find the schedule row it belongs to.
+   */
+  openMajelis: string
+
+  // --- Home visit ----------------------------------------------------------
+
+  /** Which home-visit task the two home screens render. */
+  openHome: string
+  /**
+   * mitraId → who answered the door. ONE question with three answers, rather
+   * than the flowchart's nested "met mitra? → met PJ? → met neighbour?": all
+   * three ask who the BP talked to.
+   */
+  metWith: Record<string, MetWith>
+  /** mitraId → the payment outcome picked inline at the door. */
+  payMode: Record<string, PayMode>
+  /**
+   * mitraId → when she promises the REST, after a part-payment. Separate from
+   * `nonPayments`: a part-payment is not a refusal, so it carries no reason —
+   * but it does leave a balance, and a balance with no date is the same
+   * unchased gap as an unrecorded no.
+   */
+  partialPtp: Record<string, string | null>
+  /** mitraId → her new address, when the reason given is "Pindah rumah". */
+  newAddress: Record<string, string>
 }
 
 // The 15 who settled before the visit opened: present, and paid in full.
@@ -88,6 +149,15 @@ const initial: AppState = {
   lastCollect: null,
   photo: false,
   geo: false,
+  day: 'today',
+  doneTasks: [],
+  activeTask: null,
+  openMajelis: 'mawar',
+  openHome: 't3',
+  metWith: {},
+  payMode: {},
+  partialPtp: {},
+  newAddress: {},
 }
 
 let state: AppState = initial
@@ -110,8 +180,16 @@ export const store = {
     return () => listeners.delete(listener)
   },
 
-  /** Starts the visit over — the roster's "Mulai Pelayanan". */
-  startVisit() {
+  /**
+   * Starts the pelayanan over — the schedule's "Mulai Pelayanan", which jumps
+   * straight past the roster into stage 1, and the roster's own button.
+   *
+   * `taskId` is passed only when the schedule opened it. It is not required for
+   * the schedule row to be ticked afterwards, though: `finishTask` recovers the
+   * task from the group when there isn't one, so a BP who reached the group
+   * through the Majelis tab still finishes the day's work by doing it.
+   */
+  startVisit(majelisId: string, taskId: string | null = null) {
     store.set({
       attendance: seedAttendance,
       payments: seedPayments,
@@ -120,7 +198,48 @@ export const store = {
       lastCollect: null,
       photo: false,
       geo: false,
+      openMajelis: majelisId,
+      activeTask: taskId,
     })
+  },
+  /** Opens a group's roster from the Majelis tab, without starting any work. */
+  openMajelisPage(majelisId: string) {
+    store.set({ openMajelis: majelisId })
+  },
+  /** Opens a home visit from the schedule. */
+  startHomeVisit(taskId: string) {
+    store.set({ openHome: taskId, activeTask: taskId, photo: false, geo: false })
+  },
+  setMetWith(mitraId: string, value: MetWith) {
+    store.set({ metWith: { ...state.metWith, [mitraId]: value } })
+  },
+  setPayMode(mitraId: string, value: PayMode) {
+    store.set({ payMode: { ...state.payMode, [mitraId]: value } })
+  },
+  setPartialPtp(mitraId: string, value: string | null) {
+    store.set({ partialPtp: { ...state.partialPtp, [mitraId]: value } })
+  },
+  setNewAddress(mitraId: string, value: string) {
+    store.set({ newAddress: { ...state.newAddress, [mitraId]: value } })
+  },
+  setDay(day: DayKey) {
+    store.set({ day })
+  },
+  /**
+   * Closes the schedule row the finished visit belongs to.
+   *
+   * Falls back to the group's own scheduled slot when no task was carried in —
+   * a pelayanan opened from the Majelis tab is the same work as the one the day
+   * rostered, and leaving it open on the schedule would ask the BP to do it
+   * twice. Only the route differed.
+   */
+  finishTask() {
+    const id = state.activeTask ?? taskForMajelis(state.openMajelis)?.id
+    if (!id || state.doneTasks.includes(id)) {
+      store.set({ activeTask: null })
+      return
+    }
+    store.set({ doneTasks: [...state.doneTasks, id], activeTask: null })
   },
   openMitraPage(mitraId: string) {
     store.set({ openMitra: mitraId })
@@ -225,3 +344,28 @@ export const collectedTotal = (s: AppState): number =>
 
 export const growthDoneCount = (s: AppState): number =>
   Object.keys(s.growthResults).length
+
+// --- L0: the schedule ------------------------------------------------------
+
+/** The first task the BP hasn't finished. Undefined once the day is done. */
+export const nowTask = (s: AppState): Task | undefined =>
+  TASKS.find((t) => !s.doneTasks.includes(t.id))
+
+/** Everything after the current one, in clock order. */
+export const laterTasks = (s: AppState): Task[] => {
+  const now = nowTask(s)
+  if (!now) return []
+  return TASKS.filter((t) => !s.doneTasks.includes(t.id) && t.id !== now.id)
+}
+
+export const doneTaskList = (s: AppState): Task[] =>
+  TASKS.filter((t) => s.doneTasks.includes(t.id))
+
+/** The group every majelis screen is currently naming itself after. */
+export const openMajelisEntry = (s: AppState): MajelisEntry => findMajelisEntry(s.openMajelis)
+
+/** The mitra whose door the home visit is standing at. */
+export const openHomeMitra = (s: AppState): Mitra =>
+  findMitra(findTask(s.openHome)?.mitraId ?? 'h1')
+
+export const openHomeTask = (s: AppState): Task | undefined => findTask(s.openHome)

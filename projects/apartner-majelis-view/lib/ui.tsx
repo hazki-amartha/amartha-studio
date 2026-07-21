@@ -50,10 +50,22 @@ export function Avatar({ name, size = 40 }: { name: string; size?: 32 | 40 }) {
 
 export const STAGE_LABELS = ['Kehadiran', 'Penagihan', 'Pertumbuhan']
 
-export function StageBar({ current }: { current: 1 | 2 | 3 | 4 }) {
+// A home visit is one mitra, so there is no queue to clear and no cross-sell
+// tail: meet her and settle the money, then prove it. Two stages, same bar —
+// the sequence is the same shape, it is just shorter.
+export const HOME_STAGE_LABELS = ['Temui & Tagih', 'Bukti & Kirim']
+
+export function StageBar({
+  current,
+  labels = STAGE_LABELS,
+}: {
+  /** 1-based. One past the last label means every stage is cleared. */
+  current: number
+  labels?: string[]
+}) {
   return (
     <div className="flex items-start">
-      {STAGE_LABELS.map((label, i) => {
+      {labels.map((label, i) => {
         const no = i + 1
         const done = no < current
         const active = no === current
@@ -77,7 +89,7 @@ export function StageBar({ current }: { current: 1 | 2 | 3 | 4 }) {
                 {done ? <IconCheck size={16} /> : no}
               </span>
               <span
-                className={`h-2 flex-1 rounded-full ${i === STAGE_LABELS.length - 1 ? 'bg-transparent' : done ? 'bg-green-500' : 'bg-neutral-200'}`}
+                className={`h-2 flex-1 rounded-full ${i === labels.length - 1 ? 'bg-transparent' : done ? 'bg-green-500' : 'bg-neutral-200'}`}
               />
             </div>
             <span
@@ -433,6 +445,74 @@ export function Meter({
 
 export function Overline({ children }: { children: ReactNode }) {
   return <div className="text-10 font-bold uppercase text-caption">{children}</div>
+}
+
+// --- HeaderAction ----------------------------------------------------------
+// An icon button for the schedule's top bar, with an optional unread count.
+// FunDS Lite has no icon-button component, and Badge is a pill for inline
+// status rather than a corner-mounted counter.
+
+export function HeaderAction({
+  label,
+  count = 0,
+  onClick,
+  children,
+}: {
+  label: string
+  /** Unread count; 0 hides the counter entirely. */
+  count?: number
+  onClick?: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={count > 0 ? `${label}, ${count} belum dibaca` : label}
+      className="relative flex h-32 w-32 shrink-0 items-center justify-center text-default"
+    >
+      {children}
+      {count > 0 ? (
+        <span className="absolute right-0 top-0 flex h-16 min-w-16 items-center justify-center rounded-full border-2 border-neutral-white bg-red-500 px-4 text-10 font-bold text-neutral-white">
+          {count}
+        </span>
+      ) : null}
+    </button>
+  )
+}
+
+// --- AgendaRow -------------------------------------------------------------
+// The calendar gutter. Time lives OUTSIDE the card, in a fixed left column, so
+// every task on the day lines up on one clock rail and the card itself carries
+// only what the task IS. That is what makes the page read as an agenda rather
+// than a list: the eye scans the times down the left edge.
+//
+// `until` is set only on the focus card — an upcoming slot needs its start
+// time; the one you are standing in needs to know when it ends.
+
+export function AgendaRow({
+  time,
+  until,
+  muted,
+  children,
+}: {
+  time: string
+  until?: string
+  /** Dims the gutter for slots that are done. */
+  muted?: boolean
+  children: ReactNode
+}) {
+  return (
+    <div className="flex items-start gap-8">
+      <div className="flex w-40 shrink-0 flex-col items-end pt-12">
+        <span className={`text-12 font-bold ${muted ? 'text-disabled' : 'text-default'}`}>
+          {time}
+        </span>
+        {until ? <span className="text-10 text-disabled">{until}</span> : null}
+      </div>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  )
 }
 
 // --- IconTile --------------------------------------------------------------

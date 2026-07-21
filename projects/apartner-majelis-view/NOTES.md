@@ -2,6 +2,9 @@
 
 ## Project-local components (§4)
 
+- `TabBar` — the three L0 destinations (Jadwal / Majelis / KPI), hidden inside a pelayanan. Ported from `apartner-task-first`.
+- `AgendaRow`, `HeaderAction` — the schedule's clock gutter and its top-bar icon buttons. Ported from `apartner-task-first`.
+- `HomeMitraCard` / `TagihanCard` — the home visit's doorstep card (identity + WhatsApp/call + address) and the ledger-derived amount card beneath it.
 - `StageBar` — three numbered stages with rails; a cleared stage turns green and swaps its number for a tick. Used on attendance, collection, growth, recap.
 - `WeekStrip` — horizontal 50-week repayment rail carrying the amount inside each week. Used on the mitra page. The direction's centrepiece.
 - `ProgressCard` — headline value + denominator + percent over a meter. Used on attendance and collection.
@@ -9,6 +12,35 @@
 - `MitraCard` / `DpdBadge` — the one member card, shared by roster, attendance, collection and growth.
 - `AttendancePill`, `Chip`, `ChipGroup`, `ProofTile`, `StatRows`, `Meter`, `Avatar`, `IconTile`, `Collapsible`, `Overline`, `SectionTitle`, `VisitTitle` — carried over from `apartner-task-first`.
 - `h-40` on `Button size="sm"` — FunDS button sizes step 28 (xs) → 36 (sm), so neither lands on the 40px avatar rhythm the cards use. `h-40` is a token class, not an arbitrary value.
+
+## The L0 layer (Jadwal / Majelis / KPI)
+
+Ported from `apartner-task-first` so the two directions share a front door and
+what gets compared is the pelayanan itself, not the way in to it. Two routes,
+each opening on what it is for:
+
+- **One button starts work.** Only the "Sekarang" card's button clocks in — a
+  majelis goes **straight to Kunjungan 1 — Kehadiran**, a home visit to its own
+  step 1. A BP sent by the day already knows the group, so the roster would be a
+  page between her and the work.
+- **Cards open the record.** Tapping a Berikutnya card opens the **Majelis View
+  roster** (majelis) or **the mitra page** (home visit). Reading up on what she
+  is riding into is something a BP does constantly, and it must not be the same
+  gesture as starting a visit she isn't standing at yet.
+- **Majelis tab → the roster**, same as a Berikutnya card. Its own "Mulai
+  Pelayanan" starts the work from there.
+- **Finishing ticks the schedule either way.** A pelayanan started from the
+  Majelis tab still closes the day's row for that group (`finishTask` recovers
+  the task from the group when no task id was carried in). The work is the same
+  work; only the route differed, and leaving the row open would ask the BP to do
+  it twice.
+- **Home visits** are ported from `apartner-task-first` — same two steps, same
+  one-question-with-three-answers ("siapa yang ditemui"), same inline options
+  instead of a sheet. What changes here: the doorstep amount is derived from her
+  ledger, so the Tagihan card names the three debts it is made of (this week,
+  the missed weeks, any shortfall) instead of printing one fused figure.
+- **Prototype edge:** only Majelis Mawar has a real roster — every task and every
+  directory row opens Mawar's 22 mitra under the name of the group tapped.
 
 ## Where this departs from the reference
 

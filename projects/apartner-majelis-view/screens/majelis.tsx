@@ -1,6 +1,13 @@
 'use client'
 
-// Majelis View — the entry point, and the screen the direction is named after.
+// Majelis View — the screen the direction is named after.
+//
+// Reached from the Majelis tab, not from the schedule: a BP sent here by the
+// day already knows the group and goes straight into stage 1, while a BP who
+// opened the directory is looking something up and this is the answer. The
+// "Mulai Pelayanan" button stays, so a look-up can turn into work without
+// going back out to the schedule — it just doesn't tick a scheduled task,
+// because she was never sent.
 //
 // It is a ROSTER, not a dashboard and not yet a queue. Before the BP starts the
 // pelayanan she wants one thing from this page: who is in this group and what
@@ -21,13 +28,15 @@ import { useFlow } from '@/platform/runtime'
 import { MAJELIS, outstandingOf, rupiah } from '../lib/data'
 import { IconChevronDown } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
-import { store } from '../lib/store'
+import { openMajelisEntry, store, useApp } from '../lib/store'
 import { SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
 
 type Sort = 'tunggakan' | 'nama'
 
 export function MajelisScreen() {
   const flow = useFlow()
+  const s = useApp()
+  const group = openMajelisEntry(s)
   const [sort, setSort] = useState<Sort>('tunggakan')
 
   const members = [...MAJELIS.members].sort((a, b) =>
@@ -41,8 +50,8 @@ export function MajelisScreen() {
     <Screen
       topBar={
         <NavigationHeader
-          title={<VisitTitle title={MAJELIS.name} when={`${MAJELIS.members.length} mitra`} />}
-          hideBack
+          title={<VisitTitle title={group.name} when={`${MAJELIS.members.length} mitra`} />}
+          onBack={() => flow.go('majelis-list')}
         />
       }
     >
@@ -89,7 +98,10 @@ export function MajelisScreen() {
           size="lg"
           className="w-full"
           onClick={() => {
-            store.startVisit()
+            // No task id: this route didn't come from the schedule. Submitting
+            // still ticks the day's row for this group — the work is the same
+            // work, and only the way in differed.
+            store.startVisit(s.openMajelis)
             flow.go('attendance')
           }}
         >
