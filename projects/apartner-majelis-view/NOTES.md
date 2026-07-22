@@ -88,6 +88,27 @@ time, which is exactly how it stops happening.
   second home visit moved to 15.30 and Majelis Kenanga to 16.30, so the deposit
   still lands inside its 18.00 cut-off.
 
+## The KPI page — one number per card
+
+Reworked toward the reference's flat-rupiah layout, with one rule: **every card
+answers "how many more women".** It used to print four figures per parameter —
+a percentage, a target count, the current count, and a rupiah motivation line —
+and the BP had to subtract two of them to reach the only one she can act on.
+
+- The subtraction is done for her and the result **is** the headline: *Kurangi 3
+  mitra lagi* / *Tambah 3 mitra lagi* / *Target tercapai*. The current count is
+  gone outright — a number that exists only to be subtracted from another number
+  is a number the app should be holding.
+- The hero says *Penuhi 4 target lagi* instead of *3 dari 7 tercapai*. Same
+  fact, phrased as work remaining. Period → Juni 2026 is the 7/7 all-clear.
+- What survives: the target as small print (a BP gets asked the threshold, and
+  nobody recites seven), and the bonus as a pill on the name line (it is what
+  makes the gap worth closing). The percentage badge and the footer motivation
+  strip both went.
+- **Not adopted:** the reference's *Tugas ›* deep link per lagging row, and the
+  *3/7* score on the KPI tab. The first contradicts this direction's thesis that
+  the schedule owns the work; the second adds a number back to save none.
+
 ## Open questions
 
 1. **Does the attendance gate pay for itself?** Collection cannot open until all 22 mitra are marked, per the reference. It means the BP passes the room twice. The 15 pre-paid mitra are seeded present so she marks 7 rather than 22, but the gate is the main thing to judge against `apartner-task-first`, which records attendance and payment on one card in one pass.

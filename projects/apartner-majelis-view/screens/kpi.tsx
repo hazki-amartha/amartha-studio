@@ -2,21 +2,36 @@
 
 // KPI — the seven monthly parameters and what each one is worth.
 //
-// The metrics and the layout are ported from `apartner-homepage-ia` so the two
-// directions are judged on the same scoreboard rather than on two different
-// inventions of what a BP is measured on. Seven parameters, each with a flat
-// rupiah bonus; the hero states how many are met and splits the incentive into
-// what has been earned and what is still on the table, because the money is the
-// reason this tab gets opened.
+// The metrics are ported from `apartner-homepage-ia` so the two directions are
+// judged on the same scoreboard rather than on two inventions of what a BP is
+// measured on. Seven parameters, each carrying a flat rupiah bonus.
 //
-// What this direction does NOT copy is the tap-through. In homepage-ia a lagging
-// parameter is a way to navigate into the tasks that would fix it — that is that
-// direction's whole thesis. Here the schedule owns the work, so the page stays
-// read-only: hang a task off a score and the score becomes the way you navigate,
-// which is the model this direction is arguing against.
+// EVERY CARD ANSWERS ONE QUESTION: how many more women.
+//
+// The page used to print four numbers per parameter — a percentage, a target
+// count, the current count, and a rupiah line — and the BP had to subtract two
+// of them to learn the only thing she can act on. So the subtraction is done
+// for her and the result IS the headline: "Kurangi 3 mitra lagi", "Tambah 3
+// mitra lagi", "Target tercapai". The current count is gone entirely; it was
+// only ever an input to a sum, and a number that exists to be subtracted from
+// another number is a number the app should be holding, not the BP.
+//
+// What survives as small print is the target itself ("maks. 11 mitra"), because
+// a BP does get asked what the threshold is. What survives as a pill is the
+// bonus, because it is what makes the gap worth closing. Everything else went.
+//
+// Same edit in the hero: "3 dari 7 tercapai" became "Penuhi 4 target lagi" —
+// the same fact, already phrased as work remaining rather than a score.
+//
+// What this direction still does NOT copy from the reference is the "Tugas ›"
+// deep link on each lagging row. In homepage-ia a lagging parameter is the way
+// into the tasks that would fix it — that is that direction's whole thesis.
+// Here the schedule owns the work, so the page stays read-only: hang a task off
+// a score and the score becomes how you navigate, which is the model this
+// direction exists to argue against.
 
 import { useState } from 'react'
-import { BottomSheet, Button, Card, SelectableCard } from '@/design-system/components'
+import { Badge, BottomSheet, Button, Card, SelectableCard } from '@/design-system/components'
 import { Screen, TopBar } from '@/platform/primitives'
 import { rupiah } from '../lib/data'
 import { KPI_DAYS_LEFT, KPI_PERIODS, buildKpi, type KpiRow } from '../lib/kpi'
@@ -29,6 +44,7 @@ export function KpiScreen() {
   const [picking, setPicking] = useState(false)
 
   const d = buildKpi(period)
+  const allMet = d.metCount === d.totalParams
 
   return (
     <Screen
@@ -55,42 +71,39 @@ export function KpiScreen() {
         Kamu pegang {d.totalMajelis} majelis · {d.totalMitra} mitra
       </p>
 
-      {/* Hero — target progress leads; the incentive is shown as reward earned
-          plus what is still up for grabs, which is the framing that makes the
-          seven rows below worth reading. */}
+      {/* Hero — one sentence of work remaining, then the money. The deadline
+          rides on the overline rather than taking a line of its own: it
+          qualifies "bulan ini" and is not a fifth figure to read. */}
       <Card>
-        <p className="text-12 text-caption">Progres target bulan ini</p>
-        <div className="mt-2 flex items-baseline gap-8">
-          <span className="text-24 font-bold text-default">
-            {d.metCount} dari {d.totalParams}
-          </span>
-          <span className="text-12 text-disabled">target tercapai</span>
-        </div>
+        <p className="text-12 text-caption">Bulan ini · sisa {KPI_DAYS_LEFT} hari</p>
+        <p
+          className={`mt-2 text-24 font-bold ${allMet ? 'text-green-600' : 'text-default'}`}
+        >
+          {allMet ? 'Semua target tercapai' : `Penuhi ${d.totalParams - d.metCount} target lagi`}
+        </p>
         <div className="mt-8">
-          <Meter progress={(d.metCount / d.totalParams) * 100} />
+          <Meter progress={(d.metCount / d.totalParams) * 100} tone={allMet ? 'green' : 'primary'} />
         </div>
 
-        <div className="mt-12 flex gap-8">
-          <div className="flex-1 rounded-8 bg-green-50 px-8 py-8">
-            <p className="text-10 text-caption">Insentif diraih</p>
+        {/* Banked against still on the table. Two figures, no tinted boxes —
+            the hero's job is the sentence above, and a pair of coloured chips
+            competes with it for the same glance. */}
+        <div className="mt-8 flex items-start justify-between gap-12 border-t border-default pt-12">
+          <div className="min-w-0">
+            <p className="text-10 text-caption">Capaian sekarang</p>
             <p className="mt-2 text-14 font-bold text-green-600">{rupiah(d.earned)}</p>
           </div>
-          <div className="flex-1 rounded-8 bg-primary-50 px-8 py-8">
-            <p className="text-10 text-caption">Masih bisa diraih</p>
+          <div className="min-w-0 text-right">
+            <p className="text-10 text-caption">Bisa diraih lagi</p>
             <p className="mt-2 text-14 font-bold text-primary-600">
               {rupiah(d.maxBonus - d.earned)}
             </p>
           </div>
         </div>
-
-        <p className="mt-8 text-right text-10 text-disabled">Sisa {KPI_DAYS_LEFT} hari</p>
       </Card>
 
       <section className="flex flex-col gap-8 pb-16">
-        <div>
-          <SectionTitle>Target &amp; insentif</SectionTitle>
-          <p className="mt-4 text-12 text-caption">Capai tiap target untuk raih insentifnya.</p>
-        </div>
+        <SectionTitle>List KPI</SectionTitle>
         {d.rows.map((r) => (
           <KpiRowCard key={r.k} r={r} />
         ))}
@@ -133,49 +146,46 @@ function KpiRowCard({ r }: { r: KpiRow }) {
   const pct = Math.min(100, Math.max(0, Math.round((r.count / r.targetCount) * 100)))
   const gap = r.lower ? r.count - r.targetCount : r.targetCount - r.count
 
-  // The gap stated in mitra, tied to the rupiah it unlocks. A percentage on its
-  // own tells the BP she is behind; this tells her by how many women and what
-  // closing it is worth.
-  const motiv = r.met
-    ? `${rupiah(r.bonus)} berhasil diraih`
+  // The headline, and the only number on the card the BP has to do anything
+  // with. "Kurangi" for the DPD buckets, where the target is a ceiling and the
+  // work is moving women OUT; "Tambah" everywhere else.
+  const action = r.met
+    ? 'Target tercapai'
     : r.lower
-      ? `Turunkan ${gap} mitra lagi untuk raih ${rupiah(r.bonus)}`
-      : `Kurang ${gap} mitra lagi untuk raih ${rupiah(r.bonus)}`
+      ? `Kurangi ${gap} mitra lagi`
+      : `Tambah ${gap} mitra lagi`
 
   return (
-    <div className="overflow-hidden rounded-12 border border-default bg-neutral-white">
-      <div className="px-12 py-12">
-        <div className="flex items-center gap-8">
-          <span className="min-w-0 flex-1 text-14 font-bold text-default">{r.n}</span>
-          {r.met ? (
-            <span className="flex shrink-0 items-center gap-2 text-10 font-bold text-green-600">
-              <IconCheck size={16} />
-              Tercapai
-            </span>
-          ) : (
-            <span className="shrink-0 text-10 font-bold text-disabled">{pct}%</span>
-          )}
-        </div>
-
-        <p className="mt-2 text-12 text-caption">
-          Target: {r.lower ? 'maks' : 'min'} {r.targetCount} {label}
-        </p>
-
-        <div className="mt-8 flex items-baseline gap-4">
-          <span className="text-24 font-bold text-default">{r.count}</span>
-          <span className="text-14 text-caption">{label}</span>
-        </div>
-
-        <div className="mt-12">
-          <Meter progress={pct} tone={r.met ? 'green' : r.lower ? 'red' : 'orange'} />
-        </div>
+    <div className="rounded-12 border border-default bg-neutral-white p-12">
+      <div className="flex items-center gap-8">
+        <span className="min-w-0 flex-1 text-12 font-bold text-default">{r.n}</span>
+        {/* What closing the gap is worth, banked or not. It stays a pill on the
+            same line as the parameter name so the money never competes with the
+            headline underneath it. */}
+        {r.met ? (
+          <Badge intent="green" size="sm" leadingIcon={<IconCheck size={16} />}>
+            {rupiah(r.bonus)}
+          </Badge>
+        ) : (
+          <Badge intent="primary" size="sm" dot>
+            {rupiah(r.bonus)}
+          </Badge>
+        )}
       </div>
 
-      <div
-        className={`border-t px-12 py-8 ${r.met ? 'border-green-50 bg-green-50 text-green-600' : 'border-primary-200 bg-primary-50 text-primary-600'}`}
-      >
-        <span className="text-12 font-bold">{motiv}</span>
+      <p className={`mt-4 text-18 font-bold ${r.met ? 'text-green-600' : 'text-default'}`}>
+        {action}
+      </p>
+
+      <div className="mt-12">
+        <Meter progress={pct} tone={r.met ? 'green' : r.lower ? 'red' : 'orange'} />
       </div>
+
+      {/* Small print, and deliberately the only surviving raw figure: a BP does
+          get asked what the threshold is, and nobody can recite seven of them. */}
+      <p className="mt-8 text-10 text-disabled">
+        Target: {r.lower ? 'maks.' : 'min.'} {r.targetCount} {label}
+      </p>
     </div>
   )
 }
