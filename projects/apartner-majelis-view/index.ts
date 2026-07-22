@@ -64,8 +64,10 @@ export const project: ProjectModule = {
       title: 'KPI',
       component: KpiScreen,
       notes: [
-        'The same seven monthly parameters and the same layout as apartner-homepage-ia, so the two directions are judged on one scoreboard rather than on two inventions of what a BP is measured on. Each parameter carries a flat rupiah bonus, and the hero splits the incentive into what has been earned and what is still on the table.',
-        'What this direction does not copy is the tap-through. In homepage-ia a lagging parameter is the way into the tasks that would fix it; here the schedule owns the work, so the page stays read-only — hang a task off a score and the score becomes how you navigate.',
+        'The same seven monthly parameters as apartner-homepage-ia, so the two directions are judged on one scoreboard rather than on two inventions of what a BP is measured on. Each carries a flat rupiah bonus.',
+        'Every card answers one question: how many more women. The page used to print four figures per parameter — a percentage, a target, the current count, a rupiah line — and the BP had to subtract two of them to reach the only one she can act on. Now the subtraction is done for her and the result IS the headline: “Kurangi 3 mitra lagi”, “Tambah 3 mitra lagi”, “Target tercapai”. The current count is gone; a number that exists to be subtracted from another number is a number the app should be holding.',
+        'Same edit in the hero — “3 dari 7 tercapai” became “Penuhi 4 target lagi”. Identical fact, already phrased as work remaining rather than as a score. Switch the period to Juni 2026 to see the all-clear.',
+        'What survives is the target itself as small print, because a BP does get asked what the threshold is and nobody recites seven of them, and the bonus as a pill, because it is what makes the gap worth closing. What this direction still does not copy is the reference’s “Tugas ›” link on each lagging row: here the schedule owns the work, and hanging a task off a score turns the score into how you navigate.',
       ],
       flowsTo: [
         { to: 'today', label: 'tab Jadwal' },
