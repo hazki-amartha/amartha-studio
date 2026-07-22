@@ -43,7 +43,6 @@ import {
   AttendancePill,
   Chip,
   ChipGroup,
-  Collapsible,
   ProgressCard,
   SectionTitle,
   StageBar,
@@ -107,10 +106,13 @@ export function AttendanceScreen() {
 
       <SectionTitle>Belum Diabsen</SectionTitle>
 
-      {/* Marking a mitra files her away, exactly as recording an outcome drains
-          her from the penagihan queue. Same gesture, same reward: what is left
-          on screen is what is left to do, and a register of 22 becomes a list
-          of 7 the moment the pre-paid are seeded in. */}
+      {/* Marking a mitra moves her DOWN, it does not file her away. The register
+          is one continuous list sorted by what still needs doing: unmarked on
+          top, marked below in the same card. A collapsed section hid the record
+          the BP is being asked to vouch for behind a tap — and the register is
+          the one artefact of this stage that gets read later by someone who was
+          not in the room. What is left to do is still obvious from the top of
+          the list; what has been recorded no longer has to be gone looking for. */}
       {unmarked.length > 0 ? (
         <div className="flex flex-col gap-8">
           {unmarked.map((mitra) => (
@@ -176,31 +178,54 @@ export function AttendanceScreen() {
         </div>
       )}
 
-      {/* "Ubah" returns her to the list above rather than toggling in place: a
-          mis-tap is corrected by making the same choice again, not by learning a
-          second, different control for the same fact. */}
-      <Collapsible title="Sudah diabsen" hint={`${done.length} mitra`}>
-        {done.map((mitra) => (
-          <div key={mitra.id} className="flex items-center gap-8">
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-14 text-default">{mitra.name}</span>
-              {s.attendance[mitra.id] === 'tidak' && s.absenceReasons[mitra.id] ? (
-                <span className="truncate text-12 text-caption">{s.absenceReasons[mitra.id]}</span>
-              ) : null}
-            </div>
-            {s.attendance[mitra.id] === 'hadir' ? (
-              <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                Hadir
-              </Badge>
-            ) : (
-              <Badge intent="red">Tidak hadir</Badge>
-            )}
-            <Button size="xs" variant="ghost" onClick={() => store.clearAttendance(mitra.id)}>
-              Ubah
-            </Button>
+      {/* Same card, same slots, one section lower. Only the action row differs:
+          the two pills have been replaced by what was recorded plus the way to
+          change it. "Ubah" returns her to the list above rather than toggling in
+          place — a mis-tap is corrected by making the same choice again, not by
+          learning a second, different control for the same fact. */}
+      {done.length > 0 ? (
+        <>
+          <SectionTitle>Sudah Diabsen</SectionTitle>
+          <div className="flex flex-col gap-8">
+            {done.map((mitra) => {
+              const hadir = s.attendance[mitra.id] === 'hadir'
+              return (
+                <MitraCard
+                  key={mitra.id}
+                  mitra={mitra}
+                  meta={
+                    <span className="truncate text-12 text-caption">
+                      Minggu {mitra.week} dari {mitra.totalWeeks}
+                    </span>
+                  }
+                  trailing={<DpdBadge dpd={mitra.dpd} />}
+                  action={
+                    <div className="flex items-center gap-8">
+                      {hadir ? (
+                        <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
+                          Hadir
+                        </Badge>
+                      ) : (
+                        <Badge intent="red">Tidak hadir</Badge>
+                      )}
+                      <span className="min-w-0 flex-1 truncate text-12 text-caption">
+                        {hadir ? '' : (s.absenceReasons[mitra.id] ?? '')}
+                      </span>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => store.clearAttendance(mitra.id)}
+                      >
+                        Ubah
+                      </Button>
+                    </div>
+                  }
+                />
+              )
+            })}
           </div>
-        ))}
-      </Collapsible>
+        </>
+      ) : null}
 
       <StickyBar>
         {/* The gate says what is missing, not just that something is. A disabled
