@@ -104,6 +104,16 @@ beside the device on desktop, and they are genuinely useful when someone wants
 them. Do **not** write them by default, and never write design rationale nobody
 requested: it costs more time than the screen did. Default to omitting the field.
 
+**`states` — optional, and worth offering when a screen has more than one
+condition worth showing.** Each entry is `{ id, label, description?, apply }`,
+rendered as a one-click control on the LEFT of the device in desktop view,
+mirroring `notes` on the right. `apply` is your own function — normally a write
+to the project's module store — so the platform never learns anything about your
+internals. It exists for presentations: reaching the state under discussion
+should not cost six screens of tapping, and some states (an error, a mismatch, a
+day that already happened) can't be tapped to at all. Keep the seeding functions
+in `projects/<slug>/lib/demo.ts`, out of the prototype's own code.
+
 **`flowsTo` — optional.** It's descriptive metadata for the flow view; real
 navigation is `useFlow().go(id)` in the component. Add it when a flow diagram
 would help the designer, skip it otherwise. If you do add it, `check:flows`

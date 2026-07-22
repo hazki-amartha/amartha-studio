@@ -6,7 +6,10 @@
 //   • ≥ md  → device frame centered on neutral-50, flanked by arrows that step
 //             through the declared screen order, with the annotation panel
 //             pinned to the right edge showing the active screen's notes
-//             (falling back to the project's notes).
+//             (falling back to the project's notes), and the states panel
+//             mirroring it on the left.
+// The two panels are the two axes of a walkthrough: the arrows and the states
+// reach any screen in any condition without tapping through the setup first.
 // The arrows exist because not every screen is reachable by tapping: component
 // explorations declare states (on-track / late / settled) that no flow edge
 // points at, and a lifecycle transition is often time passing, not a tap.
@@ -99,6 +102,68 @@ function AnnotationPanel({
       ) : (
         <p className="text-14 text-caption dark:text-neutral-400">No annotations for this screen.</p>
       )}
+    </aside>
+  )
+}
+
+/**
+ * The states panel — the annotation panel's mirror image, on the left.
+ *
+ * It is a presentation aid: during a walkthrough the state being discussed is
+ * often six taps of setup away, and some states cannot be tapped to at all. One
+ * click puts the screen in the condition, without leaving it.
+ *
+ * The selection it shows is what was last APPLIED here, not what the project is
+ * actually in — the platform cannot know that, and pretending otherwise would
+ * mean reading project internals. It resets when the screen changes, so a stale
+ * highlight never survives a navigation.
+ */
+function StatesPanel({ screens }: { screens: ScreenDef[] }) {
+  const { current } = useFlow()
+  const active = screens.find((s) => s.id === current)
+  const states = active?.states ?? []
+  const [applied, setApplied] = useState<string | null>(null)
+
+  useEffect(() => setApplied(null), [current])
+
+  // No states declared → the column goes back to being the invisible spacer
+  // that balances the annotations, and the device stays optically centred.
+  if (states.length === 0) return <div aria-hidden className={styles.states} />
+
+  return (
+    <aside className={`flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${styles.states}`}>
+      <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">States</span>
+      <div className="flex flex-col gap-8">
+        {states.map((state) => {
+          const on = applied === state.id
+          return (
+            <button
+              key={state.id}
+              type="button"
+              onClick={() => {
+                state.apply()
+                setApplied(state.id)
+              }}
+              className={`flex flex-col gap-2 rounded-12 border px-12 py-8 text-left ${
+                on
+                  ? 'border-primary-500 bg-primary-50 dark:border-ink-700 dark:bg-ink-800'
+                  : 'border-default bg-neutral-white hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:hover:bg-ink-800'
+              }`}
+            >
+              <span
+                className={`text-14 font-bold ${on ? 'text-link dark:text-neutral-50' : 'text-default dark:text-neutral-50'}`}
+              >
+                {state.label}
+              </span>
+              {state.description ? (
+                <span className="text-12 text-caption dark:text-neutral-400">
+                  {state.description}
+                </span>
+              ) : null}
+            </button>
+          )
+        })}
+      </div>
     </aside>
   )
 }
@@ -199,8 +264,9 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
     <div
       className={`h-full min-h-0 w-full gap-32 overflow-hidden bg-neutral-50 px-16 py-24 dark:bg-ink-950 ${styles.desktop}`}
     >
-      {/* Balances the caption column so the device sits optically centred. */}
-      <div aria-hidden />
+      {/* Mirrors the caption column, so the device stays optically centred
+          whether or not the active screen declares any states. */}
+      <StatesPanel screens={screens} />
       <DeviceStepper>
         <ScaledDevice>
           <DeviceFrame>

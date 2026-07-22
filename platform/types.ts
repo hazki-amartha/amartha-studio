@@ -47,6 +47,31 @@ export interface FlowEdge {
   label?: string
 }
 
+/**
+ * A condition worth showing a screen in, offered as a one-click control beside
+ * the device in desktop prototype view.
+ *
+ * It exists for the presentation, not for the prototype: explaining a concept to
+ * stakeholders should not require tapping through six screens of setup to reach
+ * the state being discussed, and some states (an error, a mismatch, a day that
+ * has already happened) cannot be reached by tapping at all.
+ *
+ * The platform stays ignorant of what a state IS: it renders `label` and calls
+ * `apply`. Everything behind that — seeding a module store, clearing it — is the
+ * project's own code, so this adds no coupling between the runtime and a
+ * project's internals.
+ */
+export interface ScreenState {
+  /** Unique within the screen. */
+  id: string
+  /** Short name for the control, e.g. "Sudah 3 pelayanan". */
+  label: string
+  /** One line on what the state contains, shown under the label. */
+  description?: string
+  /** Puts the project into this state. Called on click; must be idempotent. */
+  apply: () => void
+}
+
 export interface ScreenDef {
   /** Unique within the project, kebab-case, stable (used in flow edges). */
   id: string
@@ -59,6 +84,10 @@ export interface ScreenDef {
   /** Annotations shown beside the device in desktop prototype view
    *  while this screen is active. */
   notes?: string[]
+  /** States this screen can be put into from the desktop prototype view,
+   *  mirroring `notes` on the opposite side of the device. Omit when the
+   *  screen only has one condition worth showing. */
+  states?: ScreenState[]
   /** Outgoing edges rendered in flow view. Purely descriptive metadata —
    *  actual navigation happens via useFlow().go(id) inside the component. */
   flowsTo?: FlowEdge[]

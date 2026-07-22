@@ -60,6 +60,15 @@
   align-self: start;
 }
 
+/* The states panel mirrors it on the left edge — same width, same top, so the
+   device sits between two equal columns rather than beside one. */
+.states {
+  width: 264px;
+  max-width: 264px;
+  justify-self: start;
+  align-self: start;
+}
+
 /* --- Screen stage + slide transitions -------------------------------------- */
 
 .stage {

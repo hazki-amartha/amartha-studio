@@ -18,6 +18,7 @@ import { KpiScreen } from './screens/kpi'
 import { HomeVisitScreen } from './screens/home-visit'
 import { HomeProofScreen } from './screens/home-proof'
 import { DepositScreen } from './screens/deposit'
+import * as demo from './lib/demo'
 
 export const project: ProjectModule = {
   config,
@@ -112,6 +113,32 @@ export const project: ProjectModule = {
         'The amount is derived, not typed. Every rupiah was recorded against a named mitra in a named pelayanan, so the deposit is built from the day’s work — and it counts CASH only. A mitra who settled through the app paid the company directly, and folding her in is how a BP ends up short at the counter.',
         'The selisih is the part worth judging. The app’s figure and the money in the bag disagree more often than a happy-path screen admits, so the BP confirms or edits the amount, and any difference must carry a reason before it can be sent. Same rule as “tidak bayar”: a gap with a reason is a record ops can chase, a gap with nowhere to put it becomes a phone call.',
       ],
+      states: [
+        {
+          id: 'empty',
+          label: 'Hari belum jalan',
+          description: 'Belum ada pelayanan selesai — tidak ada yang bisa disetor',
+          apply: demo.dayEmpty,
+        },
+        {
+          id: 'collected',
+          label: 'Sudah 3 tugas',
+          description: '2 pelayanan + 1 kunjungan rumah, siap disetor',
+          apply: demo.dayCollected,
+        },
+        {
+          id: 'selisih',
+          label: 'Ada selisih',
+          description: 'Kurang Rp 15.000 dari catatan aplikasi, alasan terisi',
+          apply: demo.daySelisih,
+        },
+        {
+          id: 'sent',
+          label: 'Sudah dikirim',
+          description: 'Menunggu verifikasi cabang',
+          apply: demo.daySubmitted,
+        },
+      ],
       flowsTo: [{ to: 'today', label: 'Selesai — setelah setoran terkirim' }],
     },
     {
@@ -122,6 +149,26 @@ export const project: ProjectModule = {
         'Attendance is asked first and on its own, and collection does not open until every mitra is marked. The register is a record other people read later, and a half-marked one cannot be trusted or audited.',
         'Nothing on this screen mentions money — that is the next stage’s question, and asking both at once is what this split exists to avoid. The 15 who already paid before the visit come pre-marked present, so the BP confirms 7 rather than all 22.',
       ],
+      states: [
+        {
+          id: 'fresh',
+          label: 'Baru dibuka',
+          description: '15 mitra bayar mandiri sudah terisi, 7 belum diabsen',
+          apply: demo.registerFresh,
+        },
+        {
+          id: 'almost',
+          label: 'Tinggal 2 mitra',
+          description: 'Sisa register di atas, yang sudah ditandai di bawah',
+          apply: demo.registerAlmost,
+        },
+        {
+          id: 'done',
+          label: 'Register lengkap',
+          description: '20 hadir · 2 tidak hadir dengan alasannya',
+          apply: demo.registerDone,
+        },
+      ],
       flowsTo: [{ to: 'collection', label: 'Simpan & Lanjut — butuh 22/22' }],
     },
     {
@@ -131,6 +178,26 @@ export const project: ProjectModule = {
       notes: [
         'The queue. One card per mitra who has not been dealt with yet, and it drains as the BP works down the room, so at any moment the page shows exactly who is left.',
         'The stage’s job is to record an outcome for everyone, not to make everyone lunas — so a card leaves the queue on any recorded result, including “tidak bayar”. That is what lets the page actually reach zero and the visit be closed honestly.',
+      ],
+      states: [
+        {
+          id: 'full',
+          label: 'Antrean penuh',
+          description: '7 mitra belum ditagih, 15 sudah bayar mandiri di bawah',
+          apply: demo.queueFull,
+        },
+        {
+          id: 'half',
+          label: 'Setengah jalan',
+          description: 'Antrean tinggal separuh, hasilnya tersusun di bawah',
+          apply: demo.queueHalf,
+        },
+        {
+          id: 'done',
+          label: 'Semua ada hasilnya',
+          description: 'Termasuk 1 bayar sebagian dan 1 tidak bayar dengan janji',
+          apply: demo.queueDone,
+        },
       ],
       flowsTo: [
         { to: 'collect', label: 'Tagih' },
