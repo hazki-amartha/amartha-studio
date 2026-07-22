@@ -37,14 +37,7 @@ import {
   useApp,
   openMajelisEntry,
 } from '../lib/store'
-import {
-  Collapsible,
-  ProgressCard,
-  SectionTitle,
-  StageBar,
-  StickyBar,
-  VisitTitle,
-} from '../lib/ui'
+import { ProgressCard, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
 
 export function CollectionScreen() {
   const flow = useFlow()
@@ -81,30 +74,6 @@ export function CollectionScreen() {
         percent={Math.round((collected / billable) * 100)}
         tone="green"
       />
-
-      {/* Sits ABOVE the queue, and closed. It is the answer to "why are there
-          only 7 cards in a 22-member majelis?" — a question the BP asks once, at
-          the top of the screen, and never again once she has the answer. They
-          are not in the queue at all: there is nothing to tagih from a woman who
-          already paid, and offering the button would invite a double entry. */}
-      {selfPaid.length > 0 ? (
-        <Collapsible
-          title="Sudah bayar mandiri"
-          hint={`${selfPaid.length} mitra · ${rupiah(selfPaidTotal)}`}
-        >
-          {selfPaid.map((mitra) => (
-            <div key={mitra.id} className="flex items-center gap-8">
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-14 text-default">{mitra.name}</span>
-                <span className="truncate text-12 text-caption">Dibayar sebelum pelayanan</span>
-              </div>
-              <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                {rupiah(paidOf(s, mitra))}
-              </Badge>
-            </div>
-          ))}
-        </Collapsible>
-      ) : null}
 
       <SectionTitle>Belum Ditagih</SectionTitle>
 
@@ -160,40 +129,93 @@ export function CollectionScreen() {
         </div>
       )}
 
-      {/* Recorded ≠ paid: a mitra who said no is done, and her row says what she
-          said. "Ubah" reopens the same page that produced the outcome, so
-          leaving the queue never traps an entry. */}
-      <Collapsible title="Sudah ditagih" hint={`${recorded.length} mitra`}>
-        {recorded.map((mitra) => {
-          const status = collectStatus(s, mitra)
-          const refusal = s.nonPayments[mitra.id]
-          return (
-            <div key={mitra.id} className="flex items-center gap-8">
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-14 text-default">{mitra.name}</span>
-                {status === 'tidak' ? (
-                  <span className="truncate text-12 text-caption">
-                    {refusal?.reason}
-                    {refusal?.ptp ? ` · Janji ${refusal.ptp}` : ' · Tanpa janji'}
-                  </span>
-                ) : null}
-              </div>
-              {status === 'lunas' ? (
-                <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                  {rupiah(paidOf(s, mitra))}
-                </Badge>
-              ) : status === 'sebagian' ? (
-                <Badge intent="orange">Kurang {rupiah(remainingOf(s, mitra))}</Badge>
-              ) : (
-                <Badge intent="red">Tidak bayar</Badge>
-              )}
-              <Button size="xs" variant="ghost" onClick={() => openCollect(mitra.id)}>
-                Ubah
-              </Button>
-            </div>
-          )
-        })}
-      </Collapsible>
+      {/* Below the queue, in the same card, never behind a tap. Recorded ≠ paid:
+          a mitra who said no is done, and her card says what she said. "Ubah"
+          reopens the same page that produced the outcome, so leaving the queue
+          never traps an entry. */}
+      {recorded.length > 0 ? (
+        <>
+          <SectionTitle>Sudah Ditagih</SectionTitle>
+          <div className="flex flex-col gap-8">
+            {recorded.map((mitra) => {
+              const status = collectStatus(s, mitra)
+              const refusal = s.nonPayments[mitra.id]
+              return (
+                <MitraCard
+                  key={mitra.id}
+                  mitra={mitra}
+                  meta={
+                    <span className="truncate text-12 text-caption">
+                      {status === 'tidak'
+                        ? `${refusal?.reason}${refusal?.ptp ? ` · janji ${refusal.ptp}` : ' · tanpa janji'}`
+                        : `Dibayar ${rupiah(paidOf(s, mitra))} hari ini`}
+                    </span>
+                  }
+                  onOpen={() => {
+                    store.openMitraPage(mitra.id)
+                    flow.go('mitra')
+                  }}
+                  action={
+                    <div className="flex items-center gap-8">
+                      {status === 'lunas' ? (
+                        <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
+                          Lunas
+                        </Badge>
+                      ) : status === 'sebagian' ? (
+                        <Badge intent="orange">Kurang {rupiah(remainingOf(s, mitra))}</Badge>
+                      ) : (
+                        <Badge intent="red">Tidak bayar</Badge>
+                      )}
+                      <span className="min-w-0 flex-1" />
+                      <Button size="xs" variant="ghost" onClick={() => openCollect(mitra.id)}>
+                        Ubah
+                      </Button>
+                    </div>
+                  }
+                />
+              )
+            })}
+          </div>
+        </>
+      ) : null}
+
+      {/* Last, because it is the one group the BP did no work on — money that
+          simply came in. They are not in the queue: there is nothing to tagih
+          from a woman who already paid, and offering the button would invite a
+          double entry. But they stay visible, so the roster on screen is the
+          whole majelis rather than the part still owing. */}
+      {selfPaid.length > 0 ? (
+        <>
+          <SectionTitle>
+            Sudah Bayar Mandiri · {rupiah(selfPaidTotal)}
+          </SectionTitle>
+          <div className="flex flex-col gap-8">
+            {selfPaid.map((mitra) => (
+              <MitraCard
+                key={mitra.id}
+                mitra={mitra}
+                meta={
+                  <span className="truncate text-12 text-caption">Dibayar sebelum pelayanan</span>
+                }
+                onOpen={() => {
+                  store.openMitraPage(mitra.id)
+                  flow.go('mitra')
+                }}
+                action={
+                  <div className="flex items-center gap-8">
+                    <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
+                      Lunas
+                    </Badge>
+                    <span className="min-w-0 flex-1 truncate text-12 text-caption">
+                      {rupiah(paidOf(s, mitra))}
+                    </span>
+                  </div>
+                }
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
 
       <StickyBar>
         {pending.length > 0 ? (
