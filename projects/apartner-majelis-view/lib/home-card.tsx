@@ -21,7 +21,7 @@ import { Card } from '@/design-system/components'
 import { outstandingOf, rupiah, type Mitra } from './data'
 import { IconChatFill, IconChevronRight, IconPhone, IconPin } from './icons'
 import { profileOf } from './profile'
-import { Avatar } from './ui'
+import { Avatar, ContactButton } from './ui'
 
 export function HomeMitraCard({
   mitra,
@@ -132,29 +132,5 @@ function Line({
       <span className="flex-1 text-12 text-caption">{label}</span>
       <span className={`text-12 font-bold ${valueTone}`}>{value}</span>
     </div>
-  )
-}
-
-function ContactButton({
-  label,
-  tone,
-  children,
-}: {
-  label: string
-  tone: 'green' | 'primary'
-  children: React.ReactNode
-}) {
-  const classes =
-    tone === 'green'
-      ? 'bg-green-50 text-green-500 border-green-500'
-      : 'bg-primary-50 text-primary-500 border-primary-200'
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      className={`flex h-40 w-40 items-center justify-center rounded-full border ${classes}`}
-    >
-      {children}
-    </button>
   )
 }

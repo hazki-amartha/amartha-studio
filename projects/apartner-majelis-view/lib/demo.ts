@@ -14,7 +14,8 @@
 // indistinguishable from having done the work by hand.
 
 import { MAJELIS, PREPAID, isSelfServe, outstandingOf } from './data'
-import { store, type Attendance, type DepositEntry } from './store'
+import { INTEREST_ORDER, SEED_LEADS, type Lead } from './leads'
+import { store, type Attendance, type DepositEntry, type FollowUpDraft } from './store'
 
 const collectible = MAJELIS.members.filter((m) => !isSelfServe(m))
 
@@ -167,3 +168,170 @@ export const daySubmitted = () =>
     depositProof: true,
     depositDone: true,
   })
+
+// --- NTB: sosialisasi and follow up ----------------------------------------
+//
+// The prospecting states are the ones a walkthrough most needs handed to it.
+// A sosialisasi at its target is ten captures away; a prospect whose interest
+// COOLED between two calls cannot be reached by tapping at all, because the
+// first call happened last week.
+
+const NEW_NAMES = [
+  'Ipah Saripah',
+  'Dedeh Kurniasih',
+  'Euis Rohaeti',
+  'Titin Suryani',
+  'Nurhayati',
+  'Imas Masitoh',
+  'Cucu Sumiati',
+  'Lilis Rohaeni',
+  'Wiwin Winarti',
+  'Enok Sunarsih',
+]
+
+/** A prospect captured at today's Ciseeng session, built from the quick tier. */
+function made(i: number, over: Partial<Lead> = {}): Lead {
+  const name = NEW_NAMES[i]
+  const interest = INTEREST_ORDER[i % 3]
+  return {
+    id: `d${i + 1}`,
+    name,
+    phone: `0812-${4400 + i * 7}-${1100 + i * 13}`,
+    source: i % 4 === 3 ? 'referral' : 'sosialisasi',
+    referredBy: i % 4 === 3 ? 'Ibu Rina Marlina (Majelis Mawar)' : '',
+    referralKind: i % 4 === 3 ? 'mitra' : null,
+    interest,
+    followUpAt: interest === 'tinggi' ? '22 Juli' : '28 Juli',
+    address: '',
+    majelisId: null,
+    hasOtherLoan: null,
+    otherLoan: null,
+    stage: 'baru',
+    reason: '',
+    note: '',
+    eventId: 'e1',
+    log: [
+      {
+        at: '21 Juli',
+        via: 'sosialisasi',
+        outcome: `Minat ${interest} · follow up ${interest === 'tinggi' ? '22 Juli' : '28 Juli'}`,
+        note: '',
+      },
+    ],
+    ...over,
+  }
+}
+
+/** Seed leads plus `count` captured at today's session. */
+function withCaptured(extra: Lead[]) {
+  const leads: Record<string, Lead> = {}
+  const order: string[] = []
+  SEED_LEADS.concat(extra).forEach((l) => {
+    leads[l.id] = l
+    order.push(l.id)
+  })
+  return { leads, leadOrder: order }
+}
+
+export const eventEmpty = () =>
+  store.set({ openEvent: 'e1', scheduled: [], ...withCaptured([]) })
+
+export const eventHalf = () =>
+  store.set({
+    openEvent: 'e1',
+    scheduled: [],
+    ...withCaptured([0, 1, 2, 3, 4].map((i) => made(i))),
+  })
+
+/** Target met, and one refusal in the list — a no is a result, not a gap. */
+export const eventFull = () =>
+  store.set({
+    openEvent: 'e1',
+    scheduled: [],
+    ...withCaptured(
+      NEW_NAMES.map((_, i) =>
+        i === 6
+          ? made(i, {
+              interest: 'tidak',
+              stage: 'tidak',
+              followUpAt: null,
+              note: 'Keberatan tanggung renteng',
+            })
+          : made(i),
+      ),
+    ),
+  })
+
+// --- One prospect's record -------------------------------------------------
+
+const showLead = (lead: Lead) =>
+  store.set({
+    leads: { ...store.get().leads, [lead.id]: lead },
+    leadOrder: store.get().leadOrder.includes(lead.id)
+      ? store.get().leadOrder
+      : [...store.get().leadOrder, lead.id],
+    openLead: lead.id,
+    followUp: { ...store.get().followUp, leadId: lead.id, contact: null },
+  })
+
+const NIA = SEED_LEADS[0]
+
+export const leadIncomplete = () =>
+  showLead({
+    ...NIA,
+    address: '',
+    majelisId: null,
+    hasOtherLoan: null,
+    otherLoan: null,
+    reason: '',
+  })
+
+export const leadComplete = () => showLead({ ...NIA, stage: 'follow-up', reason: '' })
+
+/** The ordinary NTB case: she wants it, she just can't yet. */
+export const leadBlocked = () =>
+  showLead({
+    ...NIA,
+    interest: 'tinggi',
+    followUpAt: '21 Oktober',
+    reason: 'Menunggu pinjaman BRI lunas Oktober 2026',
+  })
+
+// --- The call ---------------------------------------------------------------
+
+const draft = (over: Partial<FollowUpDraft>) =>
+  store.set({
+    openLead: NIA.id,
+    leads: { ...store.get().leads, [NIA.id]: NIA },
+    followUp: {
+      leadId: NIA.id,
+      via: 'wa',
+      contact: null,
+      interest: null,
+      next: null,
+      reason: '',
+      followUpAt: null,
+      followUpPicked: false,
+      note: '',
+      ...over,
+    },
+  })
+
+export const followUpFresh = () => draft({})
+
+/** Interest moved between two calls — the line the screen exists to surface. */
+export const followUpCooled = () =>
+  draft({
+    contact: 'terhubung',
+    interest: 'sedang',
+    next: 'lanjut',
+    followUpAt: '21 Agustus',
+    followUpPicked: true,
+    reason: 'Suaminya belum setuju',
+  })
+
+export const followUpMissed = () =>
+  draft({ contact: 'tidak-diangkat', followUpAt: '22 Juli', followUpPicked: true })
+
+export const followUpQualified = () =>
+  draft({ contact: 'terhubung', interest: 'tinggi', next: 'siap' })

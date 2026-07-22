@@ -223,6 +223,27 @@ export function IconGift(props: IconProps) {
   )
 }
 
+/** Sosialisasi — talking to a village that isn't borrowing yet. */
+export function IconMegaphone(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z" />
+      <path d="M16 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11" />
+    </Svg>
+  )
+}
+
+/** Adding a prospect — the one action a sosialisasi screen exists for. */
+export function IconUserPlus(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M14 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="8" cy="7" r="4" />
+      <path d="M18 8v6M21 11h-6" />
+    </Svg>
+  )
+}
+
 /** Closing the visit — the forward motion on the final submit. */
 export function IconArrowRight(props: IconProps) {
   return (
