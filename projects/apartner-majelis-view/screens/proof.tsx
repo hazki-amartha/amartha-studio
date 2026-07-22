@@ -16,11 +16,19 @@
 import { Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { MAJELIS } from '../lib/data'
+import { MAJELIS, rupiah } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
 import { IconCamera, IconPin } from '../lib/icons'
-import { pendingMembers, store, useApp, openMajelisEntry } from '../lib/store'
-import { ProofTile, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
+import {
+  collectStatus,
+  collectedTotal,
+  pendingMembers,
+  presentCount,
+  store,
+  useApp,
+  openMajelisEntry,
+} from '../lib/store'
+import { ProofTile, SectionTitle, StatRows, StickyBar, VisitTitle } from '../lib/ui'
 
 export function ProofScreen() {
   const flow = useFlow()
@@ -29,6 +37,17 @@ export function ProofScreen() {
 
   const ready = s.photo && s.geo
   const pending = pendingMembers(s)
+
+  // Read-back of the three stages, borrowed from apartner-task-first's proof
+  // step. It sits BEFORE the capture, not after it: this is the last point where
+  // the BP is still doing the visit rather than filing it, so "I forgot to mark
+  // Ibu Ani" is still cheap to fix. The recap that follows says what the numbers
+  // MEAN for the group; this one only says what she entered.
+  const total = MAJELIS.members.length
+  const lunas = MAJELIS.members.filter((m) => collectStatus(s, m) === 'lunas').length
+  // Only "tertarik" is read back — a no is closed, and it carries its reason on
+  // the growth card already. An interest is the item that creates work later.
+  const tertarik = MAJELIS.members.filter((m) => s.growthResults[m.id] === 'ya').length
 
   return (
     <Screen
@@ -39,6 +58,19 @@ export function ProofScreen() {
         />
       }
     >
+      <SectionTitle>Yang sudah dicatat</SectionTitle>
+
+      <StatRows
+        rows={[
+          { label: 'Kehadiran', value: `${presentCount(s)} dari ${total} hadir` },
+          { label: 'Terkumpul', value: rupiah(collectedTotal(s)) },
+          { label: 'Lunas', value: `${lunas} dari ${total} mitra` },
+          ...(tertarik > 0
+            ? [{ label: 'Tertarik penawaran', value: `${tertarik} mitra` }]
+            : []),
+        ]}
+      />
+
       <SectionTitle>Bukti Pelayanan</SectionTitle>
       <p className="text-12 text-caption">
         Foto kegiatan majelis dan titik lokasi keduanya diperlukan sebelum tugas dikirim.
