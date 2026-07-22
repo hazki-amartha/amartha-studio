@@ -51,6 +51,27 @@ export interface NonPayment {
 export type GrowthResult = 'ya' | 'tidak'
 
 /**
+ * What one finished task contributed to the day's cash, banked at the moment it
+ * was submitted.
+ *
+ * It has to be a SNAPSHOT: `payments` is scoped to the open majelis and is reset
+ * by the next `startVisit`, so by the time the BP reaches the closing task the
+ * money from her first two groups is no longer in state. Recording the totals
+ * when the task closes is also the honest model — the deposit owes what she
+ * submitted, not what the roster currently says.
+ */
+export interface DepositEntry {
+  taskId: string
+  label: string
+  /** "7 mitra" — what the amount is made of. */
+  detail: string
+  /** Physical money in her bag. The only figure the deposit is about. */
+  cash: number
+  /** Paid by the mitra herself, digitally. Never passed through the BP. */
+  digital: number
+}
+
+/**
  * What the success screen reads back. It is written at the moment of collection
  * rather than recomputed on arrival, because by then the store has already
  * absorbed the payment and "sisa sebelum ini" would no longer be recoverable.
@@ -144,6 +165,23 @@ export interface AppState {
   partialPtp: Record<string, string | null>
   /** mitraId → her new address, when the reason given is "Pindah rumah". */
   newAddress: Record<string, string>
+
+  // --- The daily close -----------------------------------------------------
+
+  /** taskId → what that finished task put in her bag. Written by `finishTask`. */
+  deposits: Record<string, DepositEntry>
+  /**
+   * What she actually handed over, in rupiah. Null until she confirms — it is
+   * seeded from the computed total the moment she opens the closing task, so
+   * agreeing is a tap and disagreeing is the deliberate act.
+   */
+  depositAmount: number | null
+  /** Why her figure differs from the app's. Required when the two disagree. */
+  depositDiffReason: string | null
+  /** Photo of the transfer receipt. Gates submission, as on every visit. */
+  depositProof: boolean
+  /** Submitted. Not "verified" — the branch confirms that, and it isn't today. */
+  depositDone: boolean
 }
 
 // The 15 who settled before the visit opened: present, and paid in full.
@@ -174,6 +212,11 @@ const initial: AppState = {
   payMode: {},
   partialPtp: {},
   newAddress: {},
+  deposits: {},
+  depositAmount: null,
+  depositDiffReason: null,
+  depositProof: false,
+  depositDone: false,
 }
 
 let state: AppState = initial
@@ -183,6 +226,42 @@ const listeners = new Set<() => void>()
 function emit() {
   // forEach (not for..of) — the repo's tsconfig target predates Set iteration.
   listeners.forEach((l) => l())
+}
+
+/**
+ * What the just-finished task contributed to the day's cash.
+ *
+ * The split is the whole point: a mitra who settled through the app paid the
+ * company directly and her money is not in the BP's bag. Counting it into the
+ * deposit is how a BP ends up short at the counter with nothing to show for it.
+ */
+function snapshotDeposit(taskId: string): DepositEntry | null {
+  const task = findTask(taskId)
+  if (!task) return null
+
+  if (task.kind === 'home-visit') {
+    const mitra = findMitra(task.mitraId ?? 'h1')
+    const cash = state.payments[mitra.id] ?? 0
+    // Nothing collected is not a deposit line. A visit that ended in a promise
+    // is finished work, and listing it at Rp0 would pad the receipt.
+    if (cash <= 0) return null
+    return { taskId, label: task.title, detail: mitra.name, cash, digital: 0 }
+  }
+
+  let cash = 0
+  let digital = 0
+  let payers = 0
+  MAJELIS.members.forEach((m) => {
+    const paid = state.payments[m.id] ?? 0
+    if (paid <= 0) return
+    if (isSelfServe(m)) digital += paid
+    else {
+      cash += paid
+      payers += 1
+    }
+  })
+  if (cash <= 0 && digital <= 0) return null
+  return { taskId, label: task.title, detail: `${payers} mitra tunai`, cash, digital }
 }
 
 export const store = {
@@ -224,6 +303,18 @@ export const store = {
   openMajelisPage(majelisId: string) {
     store.set({ openMajelis: majelisId })
   },
+  /**
+   * Opens the closing task. The amount is seeded from what the day banked, so
+   * the BP's first act is to agree or disagree with a figure, never to type one
+   * from memory — she has just carried this money through five stops.
+   */
+  startDeposit(taskId: string) {
+    store.set({
+      activeTask: taskId,
+      depositAmount: depositExpected(state),
+      depositDiffReason: null,
+    })
+  },
   /** Opens a home visit from the schedule. */
   startHomeVisit(taskId: string) {
     store.set({ openHome: taskId, activeTask: taskId, photo: false, geo: false })
@@ -257,7 +348,15 @@ export const store = {
       store.set({ activeTask: null })
       return
     }
-    store.set({ doneTasks: [...state.doneTasks, id], activeTask: null })
+    // Bank what this task put in her bag before the next visit resets the
+    // roster. The closing task adds these up rather than re-reading a roster
+    // that has moved on.
+    const entry = snapshotDeposit(id)
+    store.set({
+      doneTasks: [...state.doneTasks, id],
+      activeTask: null,
+      deposits: entry ? { ...state.deposits, [id]: entry } : state.deposits,
+    })
   },
   openMitraPage(mitraId: string) {
     store.set({ openMitra: mitraId })
@@ -325,6 +424,23 @@ export const store = {
     if (result === 'tidak' && reason) growthReasons[mitraId] = reason
     else delete growthReasons[mitraId]
     store.set({ growthResults: { ...state.growthResults, [mitraId]: result }, growthReasons })
+  },
+  setDepositAmount(depositAmount: number | null) {
+    // Agreeing with the app clears any difference already explained — there is
+    // no longer a gap for the reason to be about.
+    store.set({
+      depositAmount,
+      depositDiffReason: depositAmount === depositExpected(state) ? null : state.depositDiffReason,
+    })
+  },
+  setDepositDiffReason(depositDiffReason: string | null) {
+    store.set({ depositDiffReason })
+  },
+  setDepositProof(depositProof: boolean) {
+    store.set({ depositProof })
+  },
+  submitDeposit() {
+    store.set({ depositDone: true })
   },
   setPhoto(photo: boolean) {
     store.set({ photo })
@@ -416,6 +532,27 @@ export const collectedTotal = (s: AppState): number =>
 
 export const growthDoneCount = (s: AppState): number =>
   Object.keys(s.growthResults).length
+
+// --- The daily close -------------------------------------------------------
+
+/** The day's banked lines, in the order the tasks were finished. */
+export const depositEntries = (s: AppState): DepositEntry[] =>
+  TASKS.map((t) => s.deposits[t.id]).filter((e): e is DepositEntry => Boolean(e))
+
+/** Physical money she is carrying — the figure the deposit is about. */
+export const depositExpected = (s: AppState): number =>
+  depositEntries(s).reduce((sum, e) => sum + e.cash, 0)
+
+/** Money that reached the company without her. Stated so it isn't asked about. */
+export const depositDigital = (s: AppState): number =>
+  depositEntries(s).reduce((sum, e) => sum + e.digital, 0)
+
+/**
+ * What she says she deposited, falling back to the app's figure. Signed
+ * difference: positive = she handed over more than the app expected.
+ */
+export const depositDiff = (s: AppState): number =>
+  (s.depositAmount ?? depositExpected(s)) - depositExpected(s)
 
 // --- L0: the schedule ------------------------------------------------------
 

@@ -17,6 +17,7 @@ import { MajelisListScreen } from './screens/majelis-list'
 import { KpiScreen } from './screens/kpi'
 import { HomeVisitScreen } from './screens/home-visit'
 import { HomeProofScreen } from './screens/home-proof'
+import { DepositScreen } from './screens/deposit'
 
 export const project: ProjectModule = {
   config,
@@ -33,6 +34,7 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Pelayanan 1' },
         { to: 'home-visit', label: 'Mulai Kunjungan (home visit)' },
+        { to: 'deposit', label: 'Setor Setoran Harian — tugas penutup' },
         { to: 'majelis-list', label: 'tab Majelis' },
         { to: 'kpi', label: 'tab KPI' },
       ],
@@ -100,6 +102,17 @@ export const project: ProjectModule = {
         'The recap is scaled to one mitra: who was met, what she paid, and whether there is a promise to come back for. A balance with a promise is work closed for today; a balance with nothing recorded is the one to worry about.',
       ],
       flowsTo: [{ to: 'today', label: 'Selesaikan Tugas — butuh foto + lokasi' }],
+    },
+    {
+      id: 'deposit',
+      title: 'Setoran Harian',
+      component: DepositScreen,
+      notes: [
+        'The close of the day, and the only task that is not a visit: the cash the BP collected leaves her hands here, transferred to the branch VA and self-reported, exactly as it is in the field where the app cannot see a bank transfer either.',
+        'The amount is derived, not typed. Every rupiah was recorded against a named mitra in a named pelayanan, so the deposit is built from the day’s work — and it counts CASH only. A mitra who settled through the app paid the company directly, and folding her in is how a BP ends up short at the counter.',
+        'The selisih is the part worth judging. The app’s figure and the money in the bag disagree more often than a happy-path screen admits, so the BP confirms or edits the amount, and any difference must carry a reason before it can be sent. Same rule as “tidak bayar”: a gap with a reason is a record ops can chase, a gap with nowhere to put it becomes a phone call.',
+      ],
+      flowsTo: [{ to: 'today', label: 'Selesai — setelah setoran terkirim' }],
     },
     {
       id: 'attendance',

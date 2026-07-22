@@ -37,6 +37,7 @@ import {
   IconInbox,
   IconPin,
   IconUsers,
+  IconWallet,
 } from '../lib/icons'
 import { doneTaskList, laterTasks, nowTask, store, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
@@ -45,13 +46,15 @@ import { AgendaRow, Collapsible, HeaderAction, IconTile, Overline } from '../lib
 // The two kinds are told apart by their tile, never by hunting for a word: a
 // group of women at a balai, or one door.
 function KindIcon({ kind }: { kind: Task['kind'] }) {
+  if (kind === 'setoran') return <IconWallet size={20} />
   return kind === 'majelis' ? <IconUsers size={20} /> : <IconHome size={20} />
 }
 
-const kindTint = (kind: Task['kind']) => (kind === 'majelis' ? 'primary' : 'red')
+const kindTint = (kind: Task['kind']) =>
+  kind === 'majelis' ? 'primary' : kind === 'setoran' ? 'green' : 'red'
 
 const kindLabel = (kind: Task['kind']) =>
-  kind === 'majelis' ? 'Pelayanan Majelis' : 'Home Visit'
+  kind === 'majelis' ? 'Pelayanan Majelis' : kind === 'setoran' ? 'Setoran' : 'Home Visit'
 
 /**
  * The day switcher. Two options, so a sheet rather than a floating menu: the
@@ -112,6 +115,11 @@ export function TodayScreen() {
   // step 1. The task id rides along either way, so submitting closes this row
   // rather than leaving finished work on the day.
   function start(task: Task) {
+    if (task.kind === 'setoran') {
+      store.startDeposit(task.id)
+      flow.go('deposit')
+      return
+    }
     if (task.kind === 'home-visit') {
       store.startHomeVisit(task.id)
       flow.go('home-visit')
