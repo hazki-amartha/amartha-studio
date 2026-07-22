@@ -8,7 +8,7 @@
 // that exist because a mitra has fallen far enough behind that a majelis
 // collection is no longer going to reach her.
 
-export type TaskKind = 'majelis' | 'home-visit'
+export type TaskKind = 'majelis' | 'home-visit' | 'setoran'
 
 export interface Task {
   id: string
@@ -79,6 +79,19 @@ export const TASKS: Task[] = [
     reason: '4 mitra menunggak · pelayanan rutin',
     majelisId: 'kenanga',
   },
+  // The close. Last on the day by construction, so `nowTask` only surfaces it
+  // once every visit is submitted — the deposit cannot be right while there is
+  // still cash to collect. It stays reachable early from Berikutnya, where it
+  // reads back the running total rather than pretending the day is over.
+  {
+    id: 't6',
+    kind: 'setoran',
+    time: '17.30',
+    until: '18.00',
+    title: 'Setor Setoran Harian',
+    place: 'Transfer ke VA cabang Ciseeng',
+    reason: 'Batas setor 18.00 · uang tunai hasil penagihan hari ini',
+  },
 ]
 
 // Tomorrow, for the date switcher. Two days is the whole range on purpose: a BP
@@ -119,6 +132,18 @@ export const TOMORROW_TASKS: Task[] = [
     majelisId: 'anggrek',
   },
 ]
+
+/**
+ * Where the day's cash goes. A VA rather than a counter: the branch stopped
+ * being a place the BP has to reach before it closes, which is the only reason
+ * a 17.30 deposit is possible at all after a 16.00 majelis.
+ */
+export const DEPOSIT = {
+  bank: 'BCA Virtual Account',
+  va: '8808 2145 7790 1123',
+  holder: 'Amartha Cabang Ciseeng',
+  due: '18.00',
+}
 
 /** Which day the schedule tab is showing. */
 export type DayKey = 'today' | 'tomorrow'
