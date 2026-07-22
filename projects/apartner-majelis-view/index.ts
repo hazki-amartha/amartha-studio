@@ -56,8 +56,8 @@ export const project: ProjectModule = {
       title: 'KPI',
       component: KpiScreen,
       notes: [
-        'A BP is measured on four daily targets at once. They live behind a tab so she can check how the day is going when she wants to, instead of reading numbers on every working screen and having to work out what they ask of her.',
-        'The page is read-only on purpose. Each target says in one line what it means, and the page ends by pointing back at the schedule — the work is planned there, not chased from a score.',
+        'The same seven monthly parameters and the same layout as apartner-homepage-ia, so the two directions are judged on one scoreboard rather than on two inventions of what a BP is measured on. Each parameter carries a flat rupiah bonus, and the hero splits the incentive into what has been earned and what is still on the table.',
+        'What this direction does not copy is the tap-through. In homepage-ia a lagging parameter is the way into the tasks that would fix it; here the schedule owns the work, so the page stays read-only — hang a task off a score and the score becomes how you navigate.',
       ],
       flowsTo: [
         { to: 'today', label: 'tab Jadwal' },

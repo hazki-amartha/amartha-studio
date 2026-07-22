@@ -423,11 +423,19 @@ export function Meter({
   tone = 'primary',
 }: {
   progress: number
-  tone?: 'primary' | 'green' | 'muted'
+  tone?: 'primary' | 'green' | 'orange' | 'red' | 'muted'
 }) {
   const clamped = Math.max(0, Math.min(100, progress))
   const fill =
-    tone === 'green' ? 'bg-green-500' : tone === 'muted' ? 'bg-neutral-400' : 'bg-primary-500'
+    tone === 'green'
+      ? 'bg-green-500'
+      : tone === 'orange'
+        ? 'bg-orange-500'
+        : tone === 'red'
+          ? 'bg-red-500'
+          : tone === 'muted'
+            ? 'bg-neutral-400'
+            : 'bg-primary-500'
   return (
     <div className="h-8 w-full rounded-full bg-neutral-200">
       <div
