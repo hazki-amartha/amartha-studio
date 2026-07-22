@@ -18,6 +18,9 @@ import { KpiScreen } from './screens/kpi'
 import { HomeVisitScreen } from './screens/home-visit'
 import { HomeProofScreen } from './screens/home-proof'
 import { DepositScreen } from './screens/deposit'
+import { SosialisasiScreen } from './screens/sosialisasi'
+import { LeadScreen } from './screens/lead'
+import { FollowUpScreen } from './screens/follow-up'
 import * as demo from './lib/demo'
 
 export const project: ProjectModule = {
@@ -35,6 +38,8 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Pelayanan 1' },
         { to: 'home-visit', label: 'Mulai Kunjungan (home visit)' },
+        { to: 'sosialisasi', label: 'Mulai Sosialisasi — cari prospek baru' },
+        { to: 'follow-up', label: 'Mulai Follow Up — telepon prospek' },
         { to: 'deposit', label: 'Setor Setoran Harian — tugas penutup' },
         { to: 'majelis-list', label: 'tab Majelis' },
         { to: 'kpi', label: 'tab KPI' },
@@ -140,6 +145,110 @@ export const project: ProjectModule = {
         },
       ],
       flowsTo: [{ to: 'today', label: 'Selesai — setelah setoran terkirim' }],
+    },
+    {
+      id: 'sosialisasi',
+      title: 'Sosialisasi',
+      component: SosialisasiScreen,
+      notes: [
+        'The first task on this day that is not about a woman who already borrows. A BP carries an NTB target out of the same seven KPI parameters as her collection target, so prospecting sits on the same schedule rather than in a tab she visits when there is time — which is how it stops happening.',
+        'The page is a counter, a button, and the names taken so far. The target is on screen DURING the event and not on a report afterwards: “4 dari 10” at 14.30 is a BP who works the room for another hour; the same fact at 17.00 is a BP who went home short.',
+        'Capture is the quick tier only — nama, WA, sumber, minat, kapan dihubungi lagi. Address, competing loans and destination majelis all need the prospect to think, and asking them in a crowded warung is how a BP comes back with four leads instead of ten. They become named blanks on her record instead.',
+      ],
+      states: [
+        {
+          id: 'awal',
+          label: 'Baru mulai',
+          description: 'Belum ada prospek dicatat — layar kosongnya',
+          apply: demo.eventEmpty,
+        },
+        {
+          id: 'separuh',
+          label: 'Separuh target',
+          description: '5 dari 10, campuran sosialisasi dan referral',
+          apply: demo.eventHalf,
+        },
+        {
+          id: 'penuh',
+          label: 'Target tercapai',
+          description: '10 prospek, termasuk 1 yang menolak dengan alasan',
+          apply: demo.eventFull,
+        },
+      ],
+      flowsTo: [
+        { to: 'lead', label: 'ketuk prospek' },
+        { to: 'today', label: 'Selesaikan Sosialisasi' },
+      ],
+    },
+    {
+      id: 'lead',
+      title: 'Data Prospek',
+      component: LeadScreen,
+      notes: [
+        'The counterpart to the mitra page, for a woman who is not one yet. It is deliberately drawn WITH GAPS: everything the quick capture skipped appears as an empty field with a name and a count, because a lead who cannot be submitted for want of an address is a lead that dies silently.',
+        'The history at the bottom is what makes a three-month-old prospect callable. “Minat tinggi, menunggu pinjaman BRI lunas Oktober” recorded on 14 Juli is the reason anyone dials her in October — without it, October’s BP is cold-calling a stranger the app told her was warm.',
+      ],
+      states: [
+        {
+          id: 'kosong',
+          label: 'Data belum lengkap',
+          description: 'Alamat, majelis dan pinjaman lain masih kosong',
+          apply: demo.leadIncomplete,
+        },
+        {
+          id: 'lengkap',
+          label: 'Siap diajukan',
+          description: 'Semua terisi — gerbang “siap diajukan” terbuka',
+          apply: demo.leadComplete,
+        },
+        {
+          id: 'menunggu',
+          label: 'Terganjal pinjaman lain',
+          description: 'Minat tinggi tapi masih terikat BRI sampai Oktober',
+          apply: demo.leadBlocked,
+        },
+      ],
+      flowsTo: [{ to: 'follow-up', label: 'Follow Up Sekarang' }],
+    },
+    {
+      id: 'follow-up',
+      title: 'Follow Up Prospek',
+      component: FollowUpScreen,
+      notes: [
+        'The same shape as a home visit, for the same reason: one person, a branch on whether you reached her at all, and worthless unless the outcome carries a date.',
+        '“Did the call land” is asked BEFORE minat. Most follow-ups do not connect, and a form that opens on how interested she is makes an unanswered phone look like a lead who went cold — two completely different facts, only one of them about her.',
+        '“Siap diajukan” is the one outcome the record can veto. Handing onboarding a prospect with no address and no majelis is how a qualified lead becomes a ticket, so the gate names the gap and offers the jump to fill it — which is why the half-finished call lives in the store and survives the trip.',
+      ],
+      states: [
+        {
+          id: 'brief',
+          label: 'Sebelum menelepon',
+          description: 'Layar seperti yang dibuka dari jadwal, belum ada jawaban',
+          apply: demo.followUpFresh,
+        },
+        {
+          id: 'terhubung',
+          label: 'Terhubung, minat turun',
+          description: 'Dari minat tinggi ke sedang — perubahan ditandai',
+          apply: demo.followUpCooled,
+        },
+        {
+          id: 'tidak-diangkat',
+          label: 'Tidak diangkat',
+          description: 'Hanya satu pertanyaan tersisa: kapan coba lagi',
+          apply: demo.followUpMissed,
+        },
+        {
+          id: 'siap',
+          label: 'Siap diajukan',
+          description: 'Data lengkap, gerbang terbuka',
+          apply: demo.followUpQualified,
+        },
+      ],
+      flowsTo: [
+        { to: 'lead', label: 'Lengkapi Data Prospek' },
+        { to: 'today', label: 'Simpan & Selesai — dari jadwal' },
+      ],
     },
     {
       id: 'attendance',

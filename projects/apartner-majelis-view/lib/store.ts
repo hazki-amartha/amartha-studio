@@ -12,6 +12,15 @@
 import { useSyncExternalStore } from 'react'
 import { MAJELIS, PREPAID, findMitra, isSelfServe, outstandingOf, type Mitra } from './data'
 import {
+  SEED_LEADS,
+  findEvent,
+  type ContactResult,
+  type Interest,
+  type Lead,
+  type LeadStage,
+  type SosialisasiEvent,
+} from './leads'
+import {
   TASKS,
   findMajelisEntry,
   findTask,
@@ -182,7 +191,66 @@ export interface AppState {
   depositProof: boolean
   /** Submitted. Not "verified" — the branch confirms that, and it isn't today. */
   depositDone: boolean
+
+  // --- NTB: prospects ------------------------------------------------------
+
+  /**
+   * Every lead, by id. A record rather than a list because a follow-up updates
+   * one prospect from three different screens and none of them should be
+   * scanning an array to find her.
+   */
+  leads: Record<string, Lead>
+  /** Capture order — the only order a sosialisasi list can honestly be in. */
+  leadOrder: string[]
+  /** Which prospect the lead page and the follow-up screen render. */
+  openLead: string
+  /** Which sosialisasi the event screen renders. */
+  openEvent: string
+  /**
+   * Follow-up tasks the BP created today for a LATER day. They are stored
+   * rather than derived because a promise to call is made once and has to
+   * survive every navigation after it — and because the schedule shows them on
+   * a day that has no roster of its own yet.
+   */
+  scheduled: Task[]
+  /**
+   * The follow-up being filled in. In the store rather than `useState` for the
+   * usual reason plus a specific one: the screen offers a jump to "Lengkapi
+   * data" on the lead's record — a BP who discovers mid-call that she never
+   * took an address must be able to go and take it — and a local draft would
+   * be wiped by exactly the navigation the screen invites.
+   */
+  followUp: FollowUpDraft
 }
+
+/** What the BP is recording about one call, before she saves it. */
+export interface FollowUpDraft {
+  leadId: string
+  /** Which button she tapped to reach her. */
+  via: 'wa' | 'telepon'
+  /** Whether the call landed at all. Null until answered. */
+  contact: ContactResult | null
+  interest: Interest | null
+  /** What happens to the prospect now. */
+  next: 'siap' | 'lanjut' | 'tidak' | null
+  reason: string
+  followUpAt: string | null
+  /** Distinguishes "chose no follow-up" from "hasn't chosen yet". */
+  followUpPicked: boolean
+  note: string
+}
+
+const emptyFollowUp = (leadId: string): FollowUpDraft => ({
+  leadId,
+  via: 'wa',
+  contact: null,
+  interest: null,
+  next: null,
+  reason: '',
+  followUpAt: null,
+  followUpPicked: false,
+  note: '',
+})
 
 // The 15 who settled before the visit opened: present, and paid in full.
 const seedPayments: Record<string, number> = {}
@@ -190,6 +258,11 @@ const seedAttendance: Record<string, Attendance> = {}
 PREPAID.forEach((m) => {
   seedPayments[m.id] = outstandingOf(m).total
   seedAttendance[m.id] = 'hadir'
+})
+
+const seedLeads: Record<string, Lead> = {}
+SEED_LEADS.forEach((l) => {
+  seedLeads[l.id] = l
 })
 
 const initial: AppState = {
@@ -217,6 +290,12 @@ const initial: AppState = {
   depositDiffReason: null,
   depositProof: false,
   depositDone: false,
+  leads: seedLeads,
+  leadOrder: SEED_LEADS.map((l) => l.id),
+  openLead: 'l1',
+  openEvent: 'e1',
+  scheduled: [],
+  followUp: emptyFollowUp('l1'),
 }
 
 let state: AppState = initial
@@ -262,6 +341,40 @@ function snapshotDeposit(taskId: string): DepositEntry | null {
   })
   if (cash <= 0 && digital <= 0) return null
   return { taskId, label: task.title, detail: `${payers} mitra tunai`, cash, digital }
+}
+
+/**
+ * Turns a promise to call into a task on the day it falls.
+ *
+ * Only dates the schedule can actually render get a task — in this prototype
+ * that is tomorrow. A lead due in three months keeps her date on her record and
+ * nothing appears anywhere, which is the honest depiction: the app is holding
+ * October for her, and October is not a screen.
+ *
+ * Keyed by lead id, so re-scheduling a prospect MOVES her call rather than
+ * booking a second one. A BP who changes her mind twice should not arrive
+ * tomorrow to three identical rows.
+ */
+function scheduleFollowUp(current: Task[], lead: Lead, tomorrow: boolean): Task[] {
+  const rest = current.filter((t) => t.leadId !== lead.id)
+  if (!tomorrow || !lead.followUpAt) return rest
+  // Staggered into the morning gap on tomorrow's roster (08.30 majelis, 11.00
+  // door), so several promises made today don't stack on one minute.
+  const slot = 15 + rest.length * 30
+  const time = `${String(9 + Math.floor(slot / 60)).padStart(2, '0')}.${String(slot % 60).padStart(2, '0')}`
+  return [
+    ...rest,
+    {
+      id: `f-${lead.id}`,
+      kind: 'follow-up',
+      time,
+      until: time,
+      title: `Follow Up: Ibu ${lead.name}`,
+      place: 'WhatsApp / telepon',
+      reason: lead.reason || 'Dijanjikan dihubungi kembali',
+      leadId: lead.id,
+    },
+  ]
 }
 
 export const store = {
@@ -358,6 +471,153 @@ export const store = {
       deposits: entry ? { ...state.deposits, [id]: entry } : state.deposits,
     })
   },
+  // --- NTB: prospects ------------------------------------------------------
+
+  /** Opens a sosialisasi from the schedule. */
+  startSosialisasi(taskId: string) {
+    store.set({ activeTask: taskId, openEvent: findTask(taskId)?.eventId ?? 'e1' })
+  },
+  /** Opens a follow-up from the schedule — the rostered call. */
+  startFollowUp(taskId: string) {
+    const leadId = findTask(taskId)?.leadId ?? 'l1'
+    store.set({ activeTask: taskId, openLead: leadId, followUp: emptyFollowUp(leadId) })
+  },
+  /**
+   * Opens a follow-up from the prospect's own record.
+   *
+   * RESUMES rather than resets when the draft already belongs to this lead —
+   * this is the return leg of the "Lengkapi data" round trip, and starting over
+   * would punish the BP for going to fetch the very field the screen asked her
+   * for. A saved follow-up leaves an empty draft behind, so resuming one is
+   * indistinguishable from starting one.
+   *
+   * Otherwise `activeTask` is cleared: an off-schedule call must NOT run
+   * `finishTask`, which falls back to the open majelis when there is no task
+   * and would tick a pelayanan the BP hasn't done.
+   */
+  openFollowUp(leadId: string) {
+    if (state.followUp.leadId === leadId) {
+      store.set({ openLead: leadId })
+      return
+    }
+    store.set({ activeTask: null, openLead: leadId, followUp: emptyFollowUp(leadId) })
+  },
+  setFollowUpDraft(patch: Partial<FollowUpDraft>) {
+    store.set({ followUp: { ...state.followUp, ...patch } })
+  },
+  openLeadPage(leadId: string) {
+    store.set({ openLead: leadId })
+  },
+
+  /**
+   * Captures a prospect — the QUICK tier only (see `leads.ts`). Everything the
+   * lengkap tier asks for lands empty and shows up as a gap on her record page,
+   * which is the design: an empty field the app names is homework, an empty
+   * field it hides is a lead nobody can submit and nobody knows why.
+   */
+  addLead(draft: {
+    name: string
+    phone: string
+    source: Lead['source']
+    referredBy: string
+    referralKind: Lead['referralKind']
+    interest: Interest
+    followUpAt: string | null
+    followUpTomorrow: boolean
+    note: string
+  }) {
+    const id = `l${state.leadOrder.length + 1}`
+    const event = findEvent(state.openEvent)
+    const lead: Lead = {
+      id,
+      name: draft.name.trim(),
+      phone: draft.phone.trim(),
+      source: draft.source,
+      referredBy: draft.source === 'referral' ? draft.referredBy.trim() : '',
+      referralKind: draft.source === 'referral' ? draft.referralKind : null,
+      interest: draft.interest,
+      followUpAt: draft.followUpAt,
+      address: '',
+      // A referral already names the group she would join — that is what being
+      // referred BY a mitra means — so it is the one lengkap field a referral
+      // arrives with. A cold sosialisasi lead has no answer to it yet.
+      majelisId: null,
+      hasOtherLoan: null,
+      otherLoan: null,
+      stage: draft.interest === 'tidak' ? 'tidak' : 'baru',
+      reason: '',
+      note: draft.note.trim(),
+      eventId: event.id,
+      log: [
+        {
+          at: '21 Juli',
+          via: 'sosialisasi',
+          outcome: `${draft.interest === 'tidak' ? 'Tidak tertarik' : 'Minat ' + draft.interest} · ${
+            draft.followUpAt ? `follow up ${draft.followUpAt}` : 'tanpa follow up'
+          }`,
+          note: draft.note.trim(),
+        },
+      ],
+    }
+    store.set({
+      leads: { ...state.leads, [id]: lead },
+      leadOrder: [...state.leadOrder, id],
+      scheduled: scheduleFollowUp(state.scheduled, lead, draft.followUpTomorrow),
+    })
+  },
+
+  /** The lengkap tier, edited field by field on the lead's record page. */
+  updateLead(leadId: string, patch: Partial<Lead>) {
+    const lead = state.leads[leadId]
+    if (!lead) return
+    store.set({ leads: { ...state.leads, [leadId]: { ...lead, ...patch } } })
+  },
+
+  /**
+   * Closes a follow-up: what happened on the call, and what it changed.
+   *
+   * The log entry is written HERE rather than left to the screen, because the
+   * history is the only thing that survives a lead being handed to another BP,
+   * and a record that depends on a screen remembering to append is a record
+   * with holes in it.
+   */
+  recordFollowUp(
+    leadId: string,
+    result: {
+      contact: ContactResult
+      via: 'wa' | 'telepon'
+      interest: Interest | null
+      stage: LeadStage
+      reason: string
+      followUpAt: string | null
+      followUpTomorrow: boolean
+      note: string
+      outcome: string
+    },
+  ) {
+    const lead = state.leads[leadId]
+    if (!lead) return
+    const next: Lead = {
+      ...lead,
+      interest: result.interest ?? lead.interest,
+      stage: result.stage,
+      reason: result.reason,
+      followUpAt: result.followUpAt,
+      note: result.note.trim() || lead.note,
+      log: [
+        ...lead.log,
+        { at: '21 Juli', via: result.via, outcome: result.outcome, note: result.note.trim() },
+      ],
+    }
+    store.set({
+      leads: { ...state.leads, [leadId]: next },
+      scheduled: scheduleFollowUp(state.scheduled, next, result.followUpTomorrow),
+      // Spent. Leaving it would let the next visit to her record resume a call
+      // that already happened.
+      followUp: emptyFollowUp(leadId),
+    })
+  },
+
   openMitraPage(mitraId: string) {
     store.set({ openMitra: mitraId })
   },
@@ -578,3 +838,30 @@ export const openHomeMitra = (s: AppState): Mitra =>
   findMitra(findTask(s.openHome)?.mitraId ?? 'h1')
 
 export const openHomeTask = (s: AppState): Task | undefined => findTask(s.openHome)
+
+// --- NTB: prospects --------------------------------------------------------
+
+export const allLeads = (s: AppState): Lead[] => s.leadOrder.map((id) => s.leads[id])
+
+/** The prospect the lead page and the follow-up screen are about. */
+export const openLead = (s: AppState): Lead => s.leads[s.openLead] ?? s.leads[s.leadOrder[0]]
+
+export const openEvent = (s: AppState): SosialisasiEvent => findEvent(s.openEvent)
+
+/** Captured at one sosialisasi, in the order the BP took them down. */
+export const leadsOfEvent = (s: AppState, eventId: string): Lead[] =>
+  allLeads(s).filter((l) => l.eventId === eventId)
+
+/** "4 dari 10" — the count the sosialisasi screen is built around. */
+export const eventProgress = (s: AppState, event: SosialisasiEvent) => {
+  const captured = leadsOfEvent(s, event.id).length
+  return {
+    captured,
+    target: event.target,
+    percent: Math.min(100, Math.round((captured / event.target) * 100)),
+  }
+}
+
+/** Follow-ups the BP booked today, for a day the schedule can show. */
+export const scheduledFor = (s: AppState, day: DayKey): Task[] =>
+  day === 'tomorrow' ? s.scheduled : []

@@ -11,6 +11,9 @@
 - `StickyBar` — pinned footer holding a summary above its button. Used on all six action screens; the collect page needs the summary inside the sticky region or "sisa setelah ini" scrolls away from the button it qualifies.
 - `MitraCard` / `DpdBadge` — the one member card, shared by roster, attendance, collection and growth.
 - `AttendancePill`, `Chip`, `ChipGroup`, `ProofTile`, `StatRows`, `Meter`, `Avatar`, `IconTile`, `Collapsible`, `Overline`, `SectionTitle`, `VisitTitle` — carried over from `apartner-task-first`.
+- `LeadRow` / `LeadIdentityCard` — a prospect as a list row and as the identity block on her own record. Both lead with the interest grade, because a list of leads has no other ranking.
+- `ContactButton` — the round WhatsApp/handset pair, lifted out of `home-card.tsx` into `ui.tsx`: reaching someone is now the whole job on two screens, not one.
+- `IconTile` gained `blue` and `orange` tints for the two NTB task kinds, and `IconMegaphone` / `IconUserPlus` were added to `icons.tsx`.
 - `h-40` on `Button size="sm"` — FunDS button sizes step 28 (xs) → 36 (sm), so neither lands on the 40px avatar rhythm the cards use. `h-40` is a token class, not an arbitrary value.
 
 ## The L0 layer (Jadwal / Majelis / KPI)
@@ -50,9 +53,57 @@ each opening on what it is for:
 - **The reference's numbers do not reconcile.** Its week strip and its outstanding breakdown imply different totals. Everything here derives from one authored ledger, so Rina lands on exactly the reference's arithmetic — this week 200.000 + two missed weeks 400.000 + a 50.000 shortfall = 650.000 — and "minggu ini saja" leaves 450.000, a custom 300.000 leaves 350.000.
 - **Proof and recap sit outside the stage bar.** Three stages are the work; proof is the paperwork that closes it.
 
+## The NTB layer (Sosialisasi / Follow Up)
+
+Two new task kinds on the same schedule as the pelayanan, the doorstep and the
+deposit — five stops, two jobs. A BP's NTB target and her collection target are
+paid out of the same seven KPI parameters and worked in the same eight hours;
+giving prospecting its own tab would let it be the thing she gets to if there is
+time, which is exactly how it stops happening.
+
+- **Two tiers of capture.** QUICK — nama, WA, sumber, minat, kapan dihubungi
+  lagi — is what a woman answers out loud while nine others wait. LENGKAP —
+  alamat, majelis tujuan, pinjaman lain — needs her to think, and asking it in a
+  crowded warung is how a BP comes back with four leads instead of ten. The
+  `0/10` counter counts the quick tier: a name and a number is a lead, the rest
+  is homework.
+- **Gaps are drawn, not hidden.** Everything the quick tier skipped appears on
+  the prospect's record as a named blank with a count. A lead who can't be
+  submitted for want of an address is a lead that dies silently.
+- **A promise to call becomes a task.** Recording "hubungi lagi besok" puts a
+  Follow Up on tomorrow's agenda, made by the same act that recorded the
+  promise. Only tomorrow renders — a lead due in October keeps her date on her
+  record and nothing appears anywhere, which is the honest depiction rather than
+  a limitation: the app is holding October, and October is not a screen.
+- **"Did the call land" is asked before minat.** Most follow-ups don't connect,
+  and a form that opens on how interested she is makes an unanswered phone look
+  like a lead who went cold.
+- **"Siap diajukan" is gated on complete data**, and the gate names the gap and
+  offers the jump to fill it. That round trip is why the half-finished call
+  lives in the store rather than `useState`.
+- **A no is a result.** Same rule as "tidak bayar" in the collection flow: a
+  refusal with a reason leaves the pipeline as a record ops can count, instead
+  of leaking onto someone's spreadsheet.
+- **The day was retimed** to fit both — the sosialisasi takes 14.00–15.15, the
+  second home visit moved to 15.30 and Majelis Kenanga to 16.30, so the deposit
+  still lands inside its 18.00 cut-off.
+
 ## Open questions
 
 1. **Does the attendance gate pay for itself?** Collection cannot open until all 22 mitra are marked, per the reference. It means the BP passes the room twice. The 15 pre-paid mitra are seeded present so she marks 7 rather than 22, but the gate is the main thing to judge against `apartner-task-first`, which records attendance and payment on one card in one pass.
 2. **Page vs sheet for collection.** This direction opens a full page where `apartner-task-first` opens a bottom sheet. The page can afford the week strip; the sheet kept the queue visible behind it. Both prototypes exist to be compared here.
 3. **The credit-limit line on the recap is generic.** Stating the relationship without a number is deliberate — a real figure needs a scoring model this prototype doesn't have, and a fabricated one is the kind of number a BP might repeat to a mitra as a promise.
 4. **Contact rows on the mitra page do nothing.** WhatsApp and route are affordances only, same as in `apartner-task-first`.
+5. **A prospect has no home between her two tasks.** Designer's call: no fourth
+   tab, the schedule owns the work. So the sosialisasi task stays on the day as
+   a record and its screen doubles as that event's lead list — the only route to
+   a prospect who isn't due today. That holds while a BP runs one session a
+   week; the moment she carries fifty open leads across six sessions, "which
+   sosialisasi did I meet her at?" becomes a real question with no screen behind
+   it. The alternative was a Prospek tab, and it stays the obvious fix if this
+   ever bites.
+6. **Nothing feeds the KPI page.** "Siap diajukan" says it counts toward
+   *Pencairan mitra baru*, but the KPI figures are authored per period and don't
+   move. Wiring them would mean the scoreboard changes while you demo it, which
+   is either the best argument for the flow or a distraction from it — worth a
+   decision, not worth guessing.

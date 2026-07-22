@@ -8,7 +8,17 @@
 // that exist because a mitra has fallen far enough behind that a majelis
 // collection is no longer going to reach her.
 
-export type TaskKind = 'majelis' | 'home-visit' | 'setoran'
+// The day carries FIVE kinds of stop, and the split is between two jobs, not
+// five activities: three of them service women who already borrow (a majelis, a
+// door, the cash that leaves her hands at the end), and two of them go looking
+// for women who don't yet — the sosialisasi that generates leads and the
+// follow-up call that decides what becomes of them.
+//
+// They sit on ONE schedule on purpose. A BP's NTB target and her collection
+// target are paid out of the same seven KPI parameters and worked in the same
+// eight hours; giving prospecting its own tab would let it be the thing she
+// gets to if there is time, which is precisely how it stops happening.
+export type TaskKind = 'majelis' | 'home-visit' | 'setoran' | 'sosialisasi' | 'follow-up'
 
 export interface Task {
   id: string
@@ -26,6 +36,10 @@ export interface Task {
   majelisId?: string
   /** Set on a home visit — the mitra whose door it is (a `HOME_MITRA` id). */
   mitraId?: string
+  /** Set on a sosialisasi — the session it opens (an `EVENTS` id). */
+  eventId?: string
+  /** Set on a follow-up — the prospect being called (a `Lead` id). */
+  leadId?: string
 }
 
 export const TASKS: Task[] = [
@@ -49,6 +63,20 @@ export const TASKS: Task[] = [
     reason: '1 mitra menunggak · pelayanan rutin',
     majelisId: 'melati',
   },
+  // A phone call, slotted into the gap between the 10.00 balai and the 13.00
+  // door rather than given a room of its own. That is where follow-up actually
+  // happens — on the motorbike, waiting for a group to gather — and a schedule
+  // that pretends otherwise is a schedule she works around.
+  {
+    id: 't2b',
+    kind: 'follow-up',
+    time: '11.45',
+    until: '12.15',
+    title: 'Follow Up: Ibu Nia Kurniasih',
+    place: 'WhatsApp / telepon',
+    reason: 'Minat tinggi · dijanjikan dihubungi hari ini',
+    leadId: 'l1',
+  },
   {
     id: 't3',
     kind: 'home-visit',
@@ -59,11 +87,22 @@ export const TASKS: Task[] = [
     reason: 'Menunggak 63 hari · Rp 1.500.000',
     mitraId: 'h1',
   },
+  // The one stop on the day that is not about a woman who already borrows.
+  {
+    id: 't3b',
+    kind: 'sosialisasi',
+    time: '14.00',
+    until: '15.15',
+    title: 'Sosialisasi Ciseeng',
+    place: 'Warung Bu Ipah, Kp. Cibeuteung RT 03',
+    reason: 'Target 10 prospek · desa baru, belum ada majelis',
+    eventId: 'e1',
+  },
   {
     id: 't4',
     kind: 'home-visit',
-    time: '14.30',
-    until: '15.15',
+    time: '15.30',
+    until: '16.00',
     title: 'Ibu Elin Herlina',
     place: 'Kp. Putat Nutug RT 05',
     reason: 'Janji bayar hari ini · Rp 250.000',
@@ -72,8 +111,8 @@ export const TASKS: Task[] = [
   {
     id: 't5',
     kind: 'majelis',
-    time: '16.00',
-    until: '17.30',
+    time: '16.30',
+    until: '17.45',
     title: 'Majelis Kenanga',
     place: 'Balai Desa Ciseeng',
     reason: '4 mitra menunggak · pelayanan rutin',
@@ -86,7 +125,7 @@ export const TASKS: Task[] = [
   {
     id: 't6',
     kind: 'setoran',
-    time: '17.30',
+    time: '17.45',
     until: '18.00',
     title: 'Setor Setoran Harian',
     place: 'Transfer ke VA cabang Ciseeng',
@@ -246,3 +285,12 @@ export const findTask = (id: string | null): Task | undefined =>
  */
 export const taskForMajelis = (majelisId: string): Task | undefined =>
   TASKS.find((t) => t.majelisId === majelisId)
+
+/**
+ * Merges follow-ups the BP scheduled today into a day's rostered list, in clock
+ * order. This is what makes "hubungi lagi besok" a real commitment rather than
+ * a note: the call she promised appears on tomorrow's agenda beside the
+ * majelis, made by the same act that recorded the promise.
+ */
+export const withScheduled = (base: Task[], extra: Task[]): Task[] =>
+  [...base, ...extra].sort((a, b) => a.time.localeCompare(b.time))

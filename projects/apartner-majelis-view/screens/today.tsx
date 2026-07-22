@@ -27,34 +27,65 @@ import { useState } from 'react'
 import { Badge, BottomSheet, Button, Card } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { DAYS, TASKS, TOMORROW_TASKS, findDay, type Task } from '../lib/schedule'
+import { DAYS, TASKS, TOMORROW_TASKS, findDay, withScheduled, type Task } from '../lib/schedule'
 import {
   IconBell,
   IconCheck,
   IconChevronDown,
   IconChevronRight,
   IconHome,
+  IconChat,
   IconInbox,
+  IconMegaphone,
   IconPin,
   IconUsers,
   IconWallet,
 } from '../lib/icons'
-import { doneTaskList, laterTasks, nowTask, store, useApp } from '../lib/store'
+import { doneTaskList, laterTasks, nowTask, scheduledFor, store, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
-import { AgendaRow, Collapsible, HeaderAction, IconTile, Overline } from '../lib/ui'
+import { AgendaRow, Collapsible, HeaderAction, IconTile, Overline, type Tint } from '../lib/ui'
 
 // The two kinds are told apart by their tile, never by hunting for a word: a
 // group of women at a balai, or one door.
 function KindIcon({ kind }: { kind: Task['kind'] }) {
   if (kind === 'setoran') return <IconWallet size={20} />
+  if (kind === 'sosialisasi') return <IconMegaphone size={20} />
+  if (kind === 'follow-up') return <IconChat size={20} />
   return kind === 'majelis' ? <IconUsers size={20} /> : <IconHome size={20} />
 }
 
-const kindTint = (kind: Task['kind']) =>
-  kind === 'majelis' ? 'primary' : kind === 'setoran' ? 'green' : 'red'
+// The two NTB kinds get their own tints rather than borrowing purple. Purple is
+// the colour of servicing a majelis on this schedule, and a prospecting stop
+// that looks like a pelayanan is a stop the eye stops distinguishing.
+const KIND_TINT: Record<Task['kind'], Tint> = {
+  majelis: 'primary',
+  'home-visit': 'red',
+  setoran: 'green',
+  sosialisasi: 'blue',
+  'follow-up': 'orange',
+}
 
-const kindLabel = (kind: Task['kind']) =>
-  kind === 'majelis' ? 'Pelayanan Majelis' : kind === 'setoran' ? 'Setoran' : 'Home Visit'
+const kindTint = (kind: Task['kind']): Tint => KIND_TINT[kind]
+
+const KIND_LABEL: Record<Task['kind'], string> = {
+  majelis: 'Pelayanan Majelis',
+  'home-visit': 'Home Visit',
+  setoran: 'Setoran',
+  sosialisasi: 'Sosialisasi',
+  'follow-up': 'Follow Up',
+}
+
+const kindLabel = (kind: Task['kind']) => KIND_LABEL[kind]
+
+// The verb on the focus card. A sosialisasi is not "started" the way a
+// pelayanan is and a follow-up is a call, not a journey.
+const KIND_CTA: Record<Task['kind'], string> = {
+  majelis: 'Mulai Pelayanan',
+  'home-visit': 'Mulai Kunjungan',
+  setoran: 'Setor Sekarang',
+  sosialisasi: 'Mulai Sosialisasi',
+  'follow-up': 'Mulai Follow Up',
+}
 
 /**
  * The day switcher. Two options, so a sheet rather than a floating menu: the
@@ -106,9 +137,14 @@ export function TodayScreen() {
   const done = doneTaskList(s)
   const day = findDay(s.day)
 
+  // Tomorrow is the rostered day PLUS whatever the BP promised today. A
+  // follow-up she committed to on a call at 11.45 is a real appointment, and
+  // the only place it can be honoured is the day it falls on.
+  const tomorrow = withScheduled(TOMORROW_TASKS, scheduledFor(s, 'tomorrow'))
+
   const subtitle =
     s.day === 'tomorrow'
-      ? `${TOMORROW_TASKS.length} kunjungan terjadwal`
+      ? `${tomorrow.length} kunjungan terjadwal`
       : `${done.length} dari ${TASKS.length} selesai`
 
   // Straight into the work. A majelis goes to stage 1, a home visit to its own
@@ -123,6 +159,16 @@ export function TodayScreen() {
     if (task.kind === 'home-visit') {
       store.startHomeVisit(task.id)
       flow.go('home-visit')
+      return
+    }
+    if (task.kind === 'sosialisasi') {
+      store.startSosialisasi(task.id)
+      flow.go('sosialisasi')
+      return
+    }
+    if (task.kind === 'follow-up') {
+      store.startFollowUp(task.id)
+      flow.go('follow-up')
       return
     }
     store.startVisit(task.majelisId ?? 'mawar', task.id)
@@ -166,7 +212,7 @@ export function TodayScreen() {
       <Screen topBar={header}>
         <Overline>Jadwal besok</Overline>
         <div className="flex flex-col gap-8">
-          {TOMORROW_TASKS.map((task) => (
+          {tomorrow.map((task) => (
             <AgendaRow key={task.id} time={task.time}>
               <Card>
                 <div className="flex items-center gap-12">
@@ -228,7 +274,7 @@ export function TodayScreen() {
 
                 {/* The only control on this page that starts anything. */}
                 <Button size="md" className="w-full" onClick={() => start(now)}>
-                  {now.kind === 'majelis' ? 'Mulai Pelayanan' : 'Mulai Kunjungan'}
+                  {KIND_CTA[now.kind]}
                 </Button>
               </div>
             </Card>

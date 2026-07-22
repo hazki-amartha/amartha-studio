@@ -525,17 +525,56 @@ export function AgendaRow({
 
 // --- IconTile --------------------------------------------------------------
 
-export function IconTile({ tint, children }: { tint: 'primary' | 'red' | 'green'; children: ReactNode }) {
+export type Tint = 'primary' | 'red' | 'green' | 'blue' | 'orange'
+
+export function IconTile({ tint, children }: { tint: Tint; children: ReactNode }) {
   const tone =
     tint === 'red'
       ? 'bg-red-50 text-red-500'
       : tint === 'green'
         ? 'bg-green-50 text-green-500'
-        : 'bg-primary-50 text-primary-500'
+        : tint === 'blue'
+          ? 'bg-blue-50 text-blue-500'
+          : tint === 'orange'
+            ? 'bg-orange-50 text-orange-500'
+            : 'bg-primary-50 text-primary-500'
   return (
     <span className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-8 ${tone}`}>
       {children}
     </span>
+  )
+}
+
+// --- ContactButton ---------------------------------------------------------
+// The round WhatsApp / handset pair. It lives here rather than beside the
+// doorstep card because reaching someone is the whole job on two different
+// screens now — a home visit that fails at a locked gate, and a follow-up call
+// where the contact IS the task.
+
+export function ContactButton({
+  label,
+  tone,
+  onClick,
+  children,
+}: {
+  label: string
+  tone: 'green' | 'primary'
+  onClick?: () => void
+  children: ReactNode
+}) {
+  const classes =
+    tone === 'green'
+      ? 'bg-green-50 text-green-500 border-green-500'
+      : 'bg-primary-50 text-primary-500 border-primary-200'
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className={`flex h-40 w-40 items-center justify-center rounded-full border ${classes}`}
+    >
+      {children}
+    </button>
   )
 }
 
