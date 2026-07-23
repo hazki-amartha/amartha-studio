@@ -28,12 +28,32 @@ export const project: ProjectModule = {
   screens: [
     {
       id: 'today',
-      title: 'Jadwal',
+      title: 'Tugas',
       component: TodayScreen,
       entry: true,
       notes: [
         'The BP opens her day here. The page commits to one answer: the single visit she should be doing right now, with the reason it matters already written for her.',
         'Berikutnya is the rest of the day, and tapping a row starts that task too. A day does not run in clock order — she arrives early, a group is late, a doorstep is on the way back — so the schedule stays a list of things she can begin, not a queue that only hands her the top row.',
+      ],
+      states: [
+        {
+          id: 'majelis',
+          label: 'Sekarang: Majelis',
+          description: 'Awal hari — pelayanan majelis jadi tugas aktif',
+          apply: demo.scheduleMajelis,
+        },
+        {
+          id: 'home-visit',
+          label: 'Sekarang: Home Visit',
+          description: 'Dua majelis selesai — kunjungan rumah jadi tugas aktif',
+          apply: demo.scheduleHomeVisit,
+        },
+        {
+          id: 'closing',
+          label: 'Sekarang: Setoran',
+          description: 'Semua kunjungan selesai — tinggal setor tutup hari',
+          apply: demo.scheduleClosing,
+        },
       ],
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Pelayanan 1' },

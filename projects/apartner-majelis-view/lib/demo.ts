@@ -98,6 +98,25 @@ export const queueDone = () => {
   })
 }
 
+// --- The schedule: which task is "Sekarang" --------------------------------
+//
+// The focus card is simply the first task the BP hasn't finished (`nowTask`),
+// so switching it is a matter of marking the ones before it done. A walkthrough
+// jumps straight to the pelayanan, the home visit, or the closing deposit
+// without tapping through the day to reach each one. Each also pins the day to
+// "hari ini", since the focus card only exists there.
+
+/** Start of day: the first majelis is the active task. */
+export const scheduleMajelis = () => store.set({ day: 'today', doneTasks: [] })
+
+/** Everything before the 13.00 door is done — a home visit is now "Sekarang". */
+export const scheduleHomeVisit = () =>
+  store.set({ day: 'today', doneTasks: ['t1', 't2', 't2b'] })
+
+/** Every visit submitted — the closing deposit is the only task left. */
+export const scheduleClosing = () =>
+  store.set({ day: 'today', doneTasks: ['t1', 't2', 't2b', 't3', 't3b', 't4', 't5'] })
+
 // --- The daily close -------------------------------------------------------
 
 // A day that has already happened. The amounts are computed from the same
