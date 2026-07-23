@@ -513,6 +513,66 @@ export function ActionRow({
   )
 }
 
+// --- OptionCard ------------------------------------------------------------
+// A radio card that can HOLD the thing its option needs — an amount field, a
+// reason list — inside itself.
+//
+// FunDS `SelectableCard` is the right look and the wrong shape for that: it is a
+// `<label>`, so every click inside it re-triggers the radio and pulls focus back
+// off whatever the BP was typing in. This is the same card drawn from tokens,
+// with the label reduced to the header row, so the body below it is ordinary
+// interactive content.
+//
+// Why the follow-up belongs INSIDE the option rather than under the list: at the
+// bottom of the page a reason field is a second question the BP has to connect
+// back to the answer that caused it, and on a screen where three of four options
+// have follow-ups, that connection is exactly what gets mis-made under time
+// pressure. In the card, the question is where the answer was.
+
+export function OptionCard({
+  selected,
+  title,
+  description,
+  onSelect,
+  children,
+}: {
+  selected: boolean
+  title: string
+  description?: string
+  onSelect: () => void
+  /** The option's follow-up. Rendered only while the option is selected. */
+  children?: ReactNode
+}) {
+  return (
+    <div
+      className={`flex flex-col gap-12 rounded-8 border p-12 ${
+        selected ? 'border-primary-500 bg-primary-50' : 'border-default bg-neutral-white'
+      }`}
+    >
+      <button
+        type="button"
+        role="radio"
+        aria-checked={selected}
+        onClick={onSelect}
+        className="flex items-center gap-12 text-left"
+      >
+        <span className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="text-14 font-bold text-default">{title}</span>
+          {description ? <span className="text-12 text-caption">{description}</span> : null}
+        </span>
+        <span
+          className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full border bg-neutral-white ${
+            selected ? 'border-primary-500' : 'border-neutral-400'
+          }`}
+        >
+          {selected ? <span className="h-8 w-8 rounded-full bg-primary-500" /> : null}
+        </span>
+      </button>
+      {selected && children ? <div className="flex flex-col gap-12">{children}</div> : null}
+    </div>
+  )
+}
+
 // --- ChoiceList / ChosenRow ------------------------------------------------
 // A single-choice reason picker, as a list of full-width rows rather than a
 // wrap of chips.

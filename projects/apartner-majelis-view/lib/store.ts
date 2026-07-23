@@ -108,6 +108,14 @@ export interface AppState {
   payments: Record<string, number>
   /** mitraId → why she isn't paying. Absent = no such outcome recorded. */
   nonPayments: Record<string, NonPayment>
+  /**
+   * mitraId → why she handed over less than the bill. A part-payment leaves a
+   * balance exactly as a refusal does, and a balance nobody wrote a reason
+   * against is the same unchaseable gap — "Ibu bayar 200 dari 650" tells next
+   * week's BP nothing about whether to expect the rest. Absent = she paid in
+   * full, or nothing was recorded.
+   */
+  shortfallReasons: Record<string, string>
   /** mitraId → what she said to her growth offer. Absent = not pitched. */
   growthResults: Record<string, GrowthResult>
   /**
@@ -279,6 +287,7 @@ const initial: AppState = {
   absenceReasons: {},
   payments: seedPayments,
   nonPayments: {},
+  shortfallReasons: {},
   growthResults: {},
   growthReasons: {},
   openMitra: 'm1',
@@ -414,6 +423,7 @@ export const store = {
       absenceReasons: {},
       payments: seedPayments,
       nonPayments: {},
+      shortfallReasons: {},
       growthResults: {},
       growthReasons: {},
       lastCollect: null,
@@ -678,12 +688,16 @@ export const store = {
    * file: she paid, so the reason she gave for not paying is no longer true and
    * must not linger under her name in the recap.
    */
-  collect(mitra: Mitra, amount: number) {
+  collect(mitra: Mitra, amount: number, shortfallReason?: string) {
     const nonPayments = { ...state.nonPayments }
     delete nonPayments[mitra.id]
+    const shortfallReasons = { ...state.shortfallReasons }
+    if (shortfallReason) shortfallReasons[mitra.id] = shortfallReason
+    else delete shortfallReasons[mitra.id]
     store.set({
       payments: { ...state.payments, [mitra.id]: amount },
       nonPayments,
+      shortfallReasons,
       lastCollect: { mitraId: mitra.id, owed: outstandingOf(mitra).total, paid: amount },
     })
   },
@@ -694,8 +708,11 @@ export const store = {
     // leave the money on file under a mitra the recap lists as refusing.
     const payments = { ...state.payments }
     delete payments[mitra.id]
+    const shortfallReasons = { ...state.shortfallReasons }
+    delete shortfallReasons[mitra.id]
     store.set({
       payments,
+      shortfallReasons,
       nonPayments: { ...state.nonPayments, [mitra.id]: value },
       lastCollect: null,
     })
