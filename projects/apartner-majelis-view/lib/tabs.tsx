@@ -19,7 +19,7 @@ import { IconCalendar, IconChart, IconUsers } from './icons'
 export type TabId = 'today' | 'majelis-list' | 'kpi'
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: 'today', label: 'Jadwal', icon: <IconCalendar /> },
+  { id: 'today', label: 'Tugas', icon: <IconCalendar /> },
   { id: 'majelis-list', label: 'Majelis', icon: <IconUsers /> },
   { id: 'kpi', label: 'KPI', icon: <IconChart /> },
 ]
