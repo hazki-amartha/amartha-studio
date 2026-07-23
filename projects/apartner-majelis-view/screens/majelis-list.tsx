@@ -204,6 +204,9 @@ function Row({ entry, onOpen }: { entry: MajelisEntry; onOpen: () => void }) {
  */
 function StatusBadge({ entry }: { entry: MajelisEntry }) {
   if (entry.status === 'draft') return <Badge intent="yellow">Draft</Badge>
-  if (entry.menunggak > 0) return <Badge intent="orange">{entry.menunggak} Menunggak</Badge>
+  // "3 Mitra DPD", not "3 menunggak": DPD is the term the badge inside the
+  // group already uses, and the two words for one fact were only ever telling
+  // the BP which screen she was on.
+  if (entry.menunggak > 0) return <Badge intent="orange">{entry.menunggak} Mitra DPD</Badge>
   return <Badge intent="green">Lancar</Badge>
 }

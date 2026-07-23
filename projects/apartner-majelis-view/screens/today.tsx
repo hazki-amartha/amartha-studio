@@ -37,14 +37,7 @@ import {
   withScheduled,
   type Task,
 } from '../lib/schedule'
-import {
-  IconBell,
-  IconCheck,
-  IconChevronDown,
-  IconChevronRight,
-  IconInbox,
-  IconPin,
-} from '../lib/icons'
+import { IconCheck, IconChevronDown, IconChevronRight, IconInbox, IconPin } from '../lib/icons'
 import {
   collectedToday,
   doneTaskList,
@@ -213,9 +206,13 @@ export function TodayScreen() {
 
   // Two lines, so this is a project-local header rather than the 48px TopBar
   // primitive: the date is the tappable thing (it opens the day switcher) and
-  // the progress count is its subtitle. Inbox and the bell are separate icons
-  // because they are separate senders — the business talking TO the BP, and the
-  // system reporting what happened.
+  // the progress count is its subtitle.
+  //
+  // One inbox, no bell. They were two senders — the business talking TO the BP,
+  // and the system reporting what happened — but a notification is a thing that
+  // has already happened, and this page is for what has not. What genuinely
+  // needs her is a message; the rest is a second badge competing with the only
+  // count on the page that changes her day.
   const header = (
     <header className="flex shrink-0 items-center gap-8 bg-neutral-white px-16 py-8">
       <button
@@ -234,9 +231,6 @@ export function TodayScreen() {
       </button>
       <HeaderAction label="Kotak masuk" count={2} onClick={() => {}}>
         <IconInbox size={20} />
-      </HeaderAction>
-      <HeaderAction label="Notifikasi" count={5} onClick={() => {}}>
-        <IconBell size={20} />
       </HeaderAction>
     </header>
   )
@@ -353,9 +347,19 @@ export function TodayScreen() {
                   className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
                 >
                   <KindTag kind={task.kind} />
+                  {/* Title and where it is. The "why now" line used to be the
+                      subtitle here; a row that carries a reason is a row being
+                      argued for, and the schedule already made that call by
+                      putting the stop on the day. Where she has to ride is the
+                      fact she reads a row for. */}
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                    <span className="truncate text-12 text-caption">{task.reason}</span>
+                    <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+                      <span className="shrink-0">
+                        <IconPin size={16} />
+                      </span>
+                      <span className="truncate">{task.place}</span>
+                    </span>
                   </div>
                   <span className="shrink-0 text-disabled">
                     <IconChevronRight size={20} />

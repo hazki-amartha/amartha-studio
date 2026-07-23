@@ -34,7 +34,8 @@ export const project: ProjectModule = {
       notes: [
         'The BP opens her day here. The page commits to one answer: the single visit she should be doing right now. Every row wears its kind as a short code — MV, HV, Sos, FU — the same shorthand she and her BM already speak.',
         'Terkumpul hari ini sits above the work, the same card apartner-homepage-ia opens on, minus its “Lihat semua”: the figure is what a BM asks for before the day is out, and at the deposit screen it would arrive too late to change how she works the afternoon. It counts cash AND app payments — on-track is a different question from what is in the bag.',
-        'The focus card no longer carries its “why now” line. A reason is an argument for CHOOSING a stop, and at the card she is standing at there is nothing left to choose; it still leads every row under Berikutnya, where choosing is the whole job.',
+        'Every card is now title + address and nothing else. The “why now” line is off both the focus card and the Berikutnya rows: a row that carries a reason is a row being argued for, and the schedule already made that call by putting the stop on the day. Where she has to ride is the fact a row gets read for.',
+        'One inbox in the header, no bell. They were two senders — the business talking TO the BP, and the system reporting what happened — but a notification is something that already happened, and this page is for what has not.',
         'Berikutnya is the rest of the day, and tapping a row starts that task too. A day does not run in clock order — she arrives early, a group is late, a doorstep is on the way back — so the schedule stays a list of things she can begin, not a queue that only hands her the top row.',
       ],
       states: [
@@ -103,8 +104,11 @@ export const project: ProjectModule = {
       title: 'Majelis View',
       component: MajelisScreen,
       notes: [
-        'The roster of one group, and the screen this direction is named after. Same header split as apartner-homepage-ia’s Detail Majelis: the kumpulan slot rides in the subtitle, because it is asked every time the page is opened, and the address sits behind the Info toggle, because it is asked once — on the way there. Every card is down to the pair that decides who to read first: tunggakan and DPD.',
-        'Sorting is the only control, defaulting to whoever is most behind, because the mitra worth reading about first are the ones in arrears. Nothing here records anything; the single button starts the pelayanan when she is ready.',
+        'The roster of one group, and the screen this direction is named after. The kumpulan slot rides in the header subtitle — it is asked every time the page is opened — and the address is a one-liner directly under it, ending in a Rute button rather than a full stop, because on the way there the answer she needs is the route, not the text.',
+        'Each card carries two numbers and three kinds of label. Tunggakan and DPD decide who to read first; KM says who the chair is; Modal / GL says which product she is on, since a Hybrid majelis is exactly a group with both in one room; and Janji bayar / Dapat keringanan are on the ROSTER rather than only in the collect flow, because a BP who walks up to a mitra without knowing she already promised a date is a BP who asks for the whole amount and gets the argument that follows. The two group totals that used to head the page are gone — BM monitoring numbers on a page whose job is the list beneath them.',
+        'Sorting is the only control, defaulting to whoever is most behind. It wears a sort mark now: the chevron it used to carry is the universal “this opens a list of options”, and it opens nothing.',
+        'What the footer OFFERS depends on the day. On the group’s kumpulan day it starts the pelayanan; on any other day there is no visit to start, so it becomes the thing a BP actually does from her sofa on a Thursday — send the group its reminder, already written, with this group’s day, time and place in it. It goes to the WhatsApp group, not to 22 numbers: that is where the group already talks, and a reminder arriving as 22 private messages is one the ketua cannot reinforce.',
+        'The header’s trailing control is Edit, not Info. Changing a majelis is three routes rather than one form — its schedule lives with the BP’s week, its Ketua is a mitra, its location is a place — so a combined form would be three unrelated fields sharing a Save button. All three are affordances only.',
       ],
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan' },

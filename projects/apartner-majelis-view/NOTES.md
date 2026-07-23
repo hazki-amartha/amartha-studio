@@ -9,7 +9,7 @@
 - `WeekStrip` — horizontal 50-week repayment rail carrying the amount inside each week. Used on the mitra page. The direction's centrepiece.
 - `ProgressCard` — headline value + denominator + percent over a meter. Used on attendance and collection.
 - `StickyBar` — pinned footer holding a summary above its button. Used on all six action screens; the collect page needs the summary inside the sticky region or "sisa setelah ini" scrolls away from the button it qualifies.
-- `MitraCard` / `DpdBadge` — the one member card, shared by roster, attendance, collection and growth.
+- `MitraCard` / `DpdBadge` / `MitraPhoto` — the one member card, shared by roster, attendance, collection and growth. `MitraPhoto` replaced the initials `Avatar` on every MITRA surface (roster, collect, doorstep): a BP in a room of 22 women recognises a face, and "SH" is something she has to decode into a name and then match to a person. It is a silhouette placeholder — the prototype has no photos — but it says what the real thing is. Leads keep `Avatar`: a prospect genuinely has no photo on file.
 - `AttendancePill`, `Chip`, `ChipGroup`, `ProofTile`, `StatRows`, `Meter`, `Avatar`, `IconTile`, `Collapsible`, `Overline`, `SectionTitle`, `VisitTitle` — carried over from `apartner-task-first`.
 - `LeadRow` / `LeadIdentityCard` — a prospect as a list row and as the identity block on her own record. Both lead with the interest grade, because a list of leads has no other ranking.
 - `ContactButton` — the round WhatsApp/handset pair, lifted out of `home-card.tsx` into `ui.tsx`: reaching someone is now the whole job on two screens, not one.

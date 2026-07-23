@@ -13,9 +13,9 @@
 
 import type { ReactNode } from 'react'
 import { Badge, Card } from '@/design-system/components'
+import { User } from '@/design-system/icons'
 import { rupiah, type Mitra } from './data'
 import { IconChevronRight } from './icons'
-import { Avatar } from './ui'
 
 /**
  * Her bucket, as the badge the reference puts top-right of every card.
@@ -32,9 +32,30 @@ export function DpdBadge({ dpd, format = 'long' }: { dpd: number; format?: 'long
   return <Badge intent={intent}>{format === 'short' ? `DPD ${dpd}` : `Menunggak ${dpd} hari`}</Badge>
 }
 
+/**
+ * Her photo, or the slot where one will go. A silhouette rather than initials:
+ * a BP standing in a room of 22 women recognises a face, and "SH" is something
+ * she has to decode into a name and then match to a person. Initials were the
+ * placeholder for a photo the prototype does not have; this one at least says
+ * what the real thing is.
+ */
+export function MitraPhoto({ size = 40 }: { size?: 32 | 40 }) {
+  const box = size === 32 ? 'h-32 w-32' : 'h-40 w-40'
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500 ${box}`}
+      aria-hidden
+    >
+      <User size={size === 32 ? 16 : 20} />
+    </span>
+  )
+}
+
 export function MitraCard({
   mitra,
   meta,
+  titleBadge,
+  labels,
   trailing,
   action,
   onOpen,
@@ -46,6 +67,15 @@ export function MitraCard({
    * that moment the bill outranks the contract it came from.
    */
   meta?: ReactNode
+  /** Sits against the name. For what she IS in the group, not how she is doing. */
+  titleBadge?: ReactNode
+  /**
+   * A wrapping row of small labels under the meta. Kept as a slot rather than
+   * derived here so a stage only pays for the ones it needs: the roster wants
+   * her product and any standing arrangement, the collection queue does not
+   * want a second row of chips on 22 cards it is trying to drain.
+   */
+  labels?: ReactNode
   /** Control pinned right of the identity row. */
   trailing?: ReactNode
   /** The row under the rule. Omitted renders no rule and no row. */
@@ -58,10 +88,11 @@ export function MitraCard({
 }) {
   const identity = (
     <>
-      <Avatar name={mitra.name} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <MitraPhoto />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="flex items-center gap-4">
           <span className="truncate text-16 font-bold text-default">{mitra.name}</span>
+          {titleBadge}
           {onOpen ? (
             <span className="shrink-0 text-disabled">
               <IconChevronRight size={16} />
@@ -76,6 +107,7 @@ export function MitraCard({
             </span>
           </>
         )}
+        {labels ? <span className="flex flex-wrap items-center gap-4">{labels}</span> : null}
       </div>
     </>
   )

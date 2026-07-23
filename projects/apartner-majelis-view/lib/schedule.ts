@@ -275,7 +275,10 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     time: '08.00',
     members: 22,
     menunggak: 3,
-    type: 'Modal',
+    // Hybrid, and it has to be: Mawar is the only group with a real roster, and
+    // that roster carries both products. A directory that called it Modal would
+    // be contradicted by the first card inside it.
+    type: 'Hybrid',
     status: 'aktif',
   },
   {

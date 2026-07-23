@@ -43,6 +43,21 @@ export interface Growth {
 export interface Mitra {
   id: string
   name: string
+  /**
+   * The product she borrows on. A majelis can carry both at once — a Hybrid
+   * group is exactly that — and the two behave differently at the door: a GL
+   * mitra's arrears are the group's problem, a Modal mitra's are her own.
+   */
+  product: 'Modal' | 'GL'
+  /**
+   * A promise already on file, made before this visit — "janji bayar 24 Jul".
+   * It is on the ROSTER rather than only in the collect flow because a BP who
+   * walks up to a mitra without knowing she already promised a date is a BP who
+   * asks for the whole amount and gets the argument that follows.
+   */
+  ptp?: string
+  /** Approved relief — rescheduled or reduced. Says "do not press her". */
+  keringanan?: boolean
   /** The contract's principal — "Pinjaman Rp8.000.000" in the page header. */
   loan: number
   /** The weekly instalment. Constant across the cycle. */
@@ -64,6 +79,8 @@ export interface Majelis {
   place: string
   /** The weekly pelayanan slot. */
   schedule: string
+  /** The Ketua Majelis — exactly one mitra, and the BP's way into the group. */
+  ketuaId: string
   members: Mitra[]
 }
 
@@ -170,6 +187,7 @@ const ACTIVE: Mitra[] = [
   {
     id: 'm1',
     name: 'Rina Marlina',
+    product: 'Modal',
     loan: 8_000_000,
     weekly: 200_000,
     dpd: 34,
@@ -186,6 +204,8 @@ const ACTIVE: Mitra[] = [
   {
     id: 'm2',
     name: 'Ani Suryani',
+    product: 'GL',
+    ptp: '24 Jul',
     loan: 6_000_000,
     weekly: 150_000,
     dpd: 7,
@@ -202,6 +222,7 @@ const ACTIVE: Mitra[] = [
   {
     id: 'm3',
     name: 'Sari Handayani',
+    product: 'Modal',
     loan: 5_000_000,
     weekly: 125_000,
     dpd: 0,
@@ -218,6 +239,7 @@ const ACTIVE: Mitra[] = [
   {
     id: 'm4',
     name: 'Dewi Lestari',
+    product: 'GL',
     loan: 7_000_000,
     weekly: 175_000,
     dpd: 0,
@@ -234,6 +256,7 @@ const ACTIVE: Mitra[] = [
   {
     id: 'm5',
     name: 'Siti Aminah',
+    product: 'Modal',
     loan: 6_500_000,
     weekly: 200_000,
     dpd: 0,
@@ -244,6 +267,8 @@ const ACTIVE: Mitra[] = [
   {
     id: 'm6',
     name: 'Yanti Rohayati',
+    product: 'GL',
+    keringanan: true,
     loan: 5_500_000,
     weekly: 150_000,
     dpd: 14,
@@ -254,6 +279,7 @@ const ACTIVE: Mitra[] = [
   {
     id: 'm7',
     name: 'Eni Nuraeni',
+    product: 'Modal',
     loan: 4_000_000,
     weekly: 125_000,
     dpd: 0,
@@ -298,6 +324,9 @@ export const PREPAID: Mitra[] = PREPAID_NAMES.map((name, i) => {
   return {
     id: `p${i + 1}`,
     name,
+    // Alternating, so the roster shows a Hybrid majelis as one actually is:
+    // two products in one room, not a label on the group.
+    product: i % 2 === 0 ? ('Modal' as const) : ('GL' as const),
     loan: weekly * 40,
     weekly,
     dpd: 0,
@@ -320,6 +349,9 @@ export const MAJELIS: Majelis = {
   name: 'Majelis Mawar',
   place: 'Balai RW 04, Ciseeng',
   schedule: 'Selasa, 08.00 · 21 Juli 2026',
+  // Sari is the chair: current, mid-tenure, and the one the BP calls when the
+  // group needs telling something. A KM in arrears is a different prototype.
+  ketuaId: 'm3',
   members: [...ACTIVE, ...PREPAID],
 }
 
@@ -337,6 +369,7 @@ export const HOME_MITRA: Mitra[] = [
   {
     id: 'h1',
     name: 'Wati Nurhasanah',
+    product: 'Modal',
     loan: 6_000_000,
     weekly: 150_000,
     dpd: 63,
@@ -349,6 +382,8 @@ export const HOME_MITRA: Mitra[] = [
   {
     id: 'h2',
     name: 'Elin Herlina',
+    product: 'GL',
+    ptp: 'hari ini',
     loan: 5_000_000,
     weekly: 125_000,
     dpd: 7,
