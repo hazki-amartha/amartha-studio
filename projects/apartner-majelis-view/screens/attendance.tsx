@@ -115,26 +115,27 @@ export function AttendanceScreen() {
               }}
               action={
                 <div className="flex flex-col gap-12">
-                  <div className="flex items-center gap-12">
-                    <span className="shrink-0 text-14 text-caption">Kehadiran</span>
-                    <div className="flex flex-1 gap-8">
-                      <ChoicePill
-                        selected={mark === 'tidak'}
-                        icon={<IconX size={16} />}
-                        label={`Tidak hadir — ${mitra.name}`}
-                        onClick={() => store.setAttendance(mitra.id, 'tidak')}
-                      >
-                        Tidak
-                      </ChoicePill>
-                      <ChoicePill
-                        selected={mark === 'hadir'}
-                        icon={<IconCheck size={16} />}
-                        label={`Hadir — ${mitra.name}`}
-                        onClick={() => store.setAttendance(mitra.id, 'hadir')}
-                      >
-                        Hadir
-                      </ChoicePill>
-                    </div>
+                  {/* No "Kehadiran" label. Two named pills on the one stage
+                      whose whole subject is attendance say what they are, and
+                      the label was a third word on a row that already had two —
+                      dropping it gives both pills the full width of the card. */}
+                  <div className="flex gap-8">
+                    <ChoicePill
+                      selected={mark === 'tidak'}
+                      icon={<IconX size={16} />}
+                      label={`Tidak hadir — ${mitra.name}`}
+                      onClick={() => store.setAttendance(mitra.id, 'tidak')}
+                    >
+                      Tidak
+                    </ChoicePill>
+                    <ChoicePill
+                      selected={mark === 'hadir'}
+                      icon={<IconCheck size={16} />}
+                      label={`Hadir — ${mitra.name}`}
+                      onClick={() => store.setAttendance(mitra.id, 'hadir')}
+                    >
+                      Hadir
+                    </ChoicePill>
                   </div>
 
                   {/* An absence carries its reason, and the card grows a second

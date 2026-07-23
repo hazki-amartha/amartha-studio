@@ -711,14 +711,6 @@ export const store = {
     else delete growthReasons[mitraId]
     store.set({ growthResults: { ...state.growthResults, [mitraId]: result }, growthReasons })
   },
-  /** Takes the offer back to unanswered — the "Ubah" on a resolved offer card. */
-  clearGrowthResult(mitraId: string) {
-    const growthResults = { ...state.growthResults }
-    const growthReasons = { ...state.growthReasons }
-    delete growthResults[mitraId]
-    delete growthReasons[mitraId]
-    store.set({ growthResults, growthReasons })
-  },
   setDepositAmount(depositAmount: number | null) {
     // Agreeing with the app clears any difference already explained — there is
     // no longer a gap for the reason to be about.

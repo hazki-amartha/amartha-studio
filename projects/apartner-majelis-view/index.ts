@@ -10,6 +10,7 @@ import { LoansScreen } from './screens/loans'
 import { CollectScreen } from './screens/collect'
 import { CollectDoneScreen } from './screens/collect-done'
 import { GrowthScreen } from './screens/growth'
+import { OfferScreen } from './screens/offer'
 import { ProofScreen } from './screens/proof'
 import { RecapScreen } from './screens/recap'
 import { LadderScreen } from './screens/ladder'
@@ -299,7 +300,7 @@ export const project: ProjectModule = {
         {
           id: 'almost',
           label: 'Tinggal 2 mitra',
-          description: 'Sisa register di atas, yang sudah ditandai di bawah',
+          description: '20 mitra sudah tercatat, 2 belum dijawab',
           apply: demo.registerAlmost,
         },
         {
@@ -316,20 +317,20 @@ export const project: ProjectModule = {
       title: 'Pelayanan 2 — Penagihan',
       component: CollectionScreen,
       notes: [
-        'The queue. One card per mitra who has not been dealt with yet, and it drains as the BP works down the room, so at any moment the page shows exactly who is left.',
-        'The stage’s job is to record an outcome for everyone, not to make everyone lunas — so a card leaves the queue on any recorded result, including “tidak bayar”. That is what lets the page actually reach zero and the visit be closed honestly.',
+        'The same roster in the same order as the register before it, and the same card — only the row under the rule changes, from a register question to a bill. The list is static: recording an outcome updates the card where it stands instead of moving it to a “sudah ditagih” section, so the woman the BP is standing in front of stays where she was.',
+        'The stage’s job is to record an outcome for everyone, not to make everyone lunas — any recorded result counts, including “tidak bayar”. Tagih opens a page rather than a sheet; the 15 who settled before the visit carry the fact and no button, because there is nothing to tagih from them and offering the control would invite a double entry.',
       ],
       states: [
         {
           id: 'full',
           label: 'Antrean penuh',
-          description: '7 mitra belum ditagih, 15 sudah bayar mandiri di bawah',
+          description: '7 mitra belum ditagih, 15 sudah bayar mandiri',
           apply: demo.queueFull,
         },
         {
           id: 'half',
           label: 'Setengah jalan',
-          description: 'Antrean tinggal separuh, hasilnya tersusun di bawah',
+          description: 'Separuh sudah ada hasilnya, separuh belum',
           apply: demo.queueHalf,
         },
         {
@@ -351,12 +352,19 @@ export const project: ProjectModule = {
       component: GrowthScreen,
       notes: [
         'Offers come last, after the money. Pitching a savings product before collecting would mean asking a woman to open an account with the instalment she has not handed over yet.',
-        'Only mitra with a real recommendation appear — four rows out of 22, not a list for everyone. Each states where she stands rather than what to say about it, and the whole stage can be skipped: a tail that blocks the close of a visit has stopped being a tail.',
+        'Only mitra with a real recommendation appear — four rows out of 22, not a list for everyone — in the same order and the same card as the two stages before. Tawarkan opens a page, exactly as Tagih does, so both actions on a visit card behave the same way. The whole stage can be skipped: a tail that blocks the close of a visit has stopped being a tail.',
       ],
       flowsTo: [
+        { to: 'offer', label: 'Tawarkan' },
         { to: 'proof', label: 'Lanjut' },
         { to: 'mitra', label: 'ketuk nama mitra' },
       ],
+    },
+    {
+      id: 'offer',
+      title: 'Tawarkan Produk',
+      component: OfferScreen,
+      flowsTo: [{ to: 'growth', label: 'Simpan Hasil' }],
     },
     {
       id: 'proof',

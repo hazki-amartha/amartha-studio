@@ -94,11 +94,6 @@ export function MitraCard({
         <span className="flex items-center gap-4">
           <span className="truncate text-16 font-bold text-default">{mitra.name}</span>
           {titleBadge}
-          {onOpen ? (
-            <span className="shrink-0 text-disabled">
-              <IconChevronRight size={16} />
-            </span>
-          ) : null}
         </span>
         {meta === undefined ? (
           <>
@@ -112,19 +107,31 @@ export function MitraCard({
         )}
         {labels ? <span className="flex flex-wrap items-center gap-4">{labels}</span> : null}
       </div>
+      {/* The chevron sits at the far RIGHT of the row, not against her name. Next
+          to the name it read as decoration on the text; at the edge it is where
+          every "this opens" mark in the app lives, and the name is left to be
+          the name. */}
+      {onOpen ? (
+        <span className="shrink-0 text-disabled">
+          <IconChevronRight size={20} />
+        </span>
+      ) : null}
     </>
   )
 
   return (
     <Card>
       <div className="flex flex-col gap-12">
-        <div className="flex items-start gap-12">
+        {/* Centred, not top-aligned: the identity block is now a name over its
+            two badges and nothing taller, so hanging the photo and the chevron
+            off the top edge left both sitting high of everything beside them. */}
+        <div className="flex items-center gap-12">
           {onOpen ? (
             <button
               type="button"
               onClick={onOpen}
               aria-label={`Buka halaman ${mitra.name}`}
-              className="flex min-w-0 flex-1 items-start gap-12 text-left"
+              className="flex min-w-0 flex-1 items-center gap-12 text-left"
             >
               {identity}
             </button>
