@@ -27,18 +27,28 @@ import { useState } from 'react'
 import { Badge, BottomSheet, Button, Card } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { DAYS, TASKS, TOMORROW_TASKS, findDay, withScheduled, type Task } from '../lib/schedule'
+import { rupiah } from '../lib/data'
 import {
-  IconBell,
-  IconCheck,
-  IconChevronDown,
-  IconChevronRight,
-  IconInbox,
-  IconPin,
-} from '../lib/icons'
-import { doneTaskList, laterTasks, nowTask, scheduledFor, store, useApp } from '../lib/store'
+  DAYS,
+  TARGET_HARIAN,
+  TASKS,
+  TOMORROW_TASKS,
+  findDay,
+  withScheduled,
+  type Task,
+} from '../lib/schedule'
+import { IconCheck, IconChevronDown, IconChevronRight, IconInbox, IconPin } from '../lib/icons'
+import {
+  collectedToday,
+  doneTaskList,
+  laterTasks,
+  nowTask,
+  scheduledFor,
+  store,
+  useApp,
+} from '../lib/store'
 import { TabBar } from '../lib/tabs'
-import { AgendaRow, Collapsible, HeaderAction, Overline, type Tint } from '../lib/ui'
+import { AgendaRow, Collapsible, HeaderAction, Meter, Overline, type Tint } from '../lib/ui'
 
 // The two NTB kinds get their own tints rather than borrowing purple. Purple is
 // the colour of servicing a majelis on this schedule, and a prospecting stop
@@ -153,6 +163,8 @@ export function TodayScreen() {
   const later = laterTasks(s)
   const done = doneTaskList(s)
   const day = findDay(s.day)
+  const collected = collectedToday(s)
+  const progress = Math.round((collected / TARGET_HARIAN) * 100)
 
   // Tomorrow is the rostered day PLUS whatever the BP promised today. A
   // follow-up she committed to on a call at 11.45 is a real appointment, and
@@ -194,9 +206,13 @@ export function TodayScreen() {
 
   // Two lines, so this is a project-local header rather than the 48px TopBar
   // primitive: the date is the tappable thing (it opens the day switcher) and
-  // the progress count is its subtitle. Inbox and the bell are separate icons
-  // because they are separate senders — the business talking TO the BP, and the
-  // system reporting what happened.
+  // the progress count is its subtitle.
+  //
+  // One inbox, no bell. They were two senders — the business talking TO the BP,
+  // and the system reporting what happened — but a notification is a thing that
+  // has already happened, and this page is for what has not. What genuinely
+  // needs her is a message; the rest is a second badge competing with the only
+  // count on the page that changes her day.
   const header = (
     <header className="flex shrink-0 items-center gap-8 bg-neutral-white px-16 py-8">
       <button
@@ -215,9 +231,6 @@ export function TodayScreen() {
       </button>
       <HeaderAction label="Kotak masuk" count={2} onClick={() => {}}>
         <IconInbox size={20} />
-      </HeaderAction>
-      <HeaderAction label="Notifikasi" count={5} onClick={() => {}}>
-        <IconBell size={20} />
       </HeaderAction>
     </header>
   )
@@ -256,6 +269,24 @@ export function TodayScreen() {
 
   return (
     <Screen topBar={header}>
+      {/* --- Terkumpul hari ini: the same card apartner-homepage-ia opens on.
+          It is the one number a BP is asked for by her BM before the day is
+          over, and it belongs above the work rather than at the deposit, where
+          it would arrive too late to change how she works the afternoon.
+          Without homepage-ia's "Lihat semua": there is no collection ledger to
+          send her to here, and a link that opens a list of what she just did is
+          a link back to the page she is on. */}
+      <Overline>Terkumpul hari ini</Overline>
+      <Card>
+        <div className="flex flex-col gap-8">
+          <div className="flex items-baseline justify-between gap-8">
+            <span className="text-16 font-bold text-default">{rupiah(collected)}</span>
+            <span className="text-10 text-disabled">Target {rupiah(TARGET_HARIAN)}</span>
+          </div>
+          <Meter progress={progress} tone={progress >= 100 ? 'green' : 'primary'} />
+        </div>
+      </Card>
+
       {/* --- Sekarang: the only card that grows a button. */}
       {now ? (
         <>
@@ -276,11 +307,11 @@ export function TodayScreen() {
                   </div>
                 </div>
 
-                {/* The one line that says why this task exists. Already reasoned
-                    for the BP — she never derives it from a dashboard. */}
-                <div className="rounded-8 bg-neutral-50 px-12 py-8 text-12 text-default">
-                  {now.reason}
-                </div>
+                {/* The "why this task exists" line used to sit here, in a tinted
+                    box of its own. It is gone from the focus card: the card is
+                    for the stop she is standing at, and a reason is an argument
+                    for choosing it — which she is not doing. It still leads
+                    every row under Berikutnya, where choosing IS the job. */}
 
                 {/* The only control on this page that starts anything. */}
                 <Button size="md" className="w-full" onClick={() => start(now)}>
@@ -316,9 +347,19 @@ export function TodayScreen() {
                   className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
                 >
                   <KindTag kind={task.kind} />
+                  {/* Title and where it is. The "why now" line used to be the
+                      subtitle here; a row that carries a reason is a row being
+                      argued for, and the schedule already made that call by
+                      putting the stop on the day. Where she has to ride is the
+                      fact she reads a row for. */}
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                    <span className="truncate text-12 text-caption">{task.reason}</span>
+                    <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+                      <span className="shrink-0">
+                        <IconPin size={16} />
+                      </span>
+                      <span className="truncate">{task.place}</span>
+                    </span>
                   </div>
                   <span className="shrink-0 text-disabled">
                     <IconChevronRight size={20} />

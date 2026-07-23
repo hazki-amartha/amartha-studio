@@ -7,37 +7,28 @@
 // AMOUNT inside each week rather than a paid/unpaid dot, which is what lets a BP
 // say "Ibu kurang Rp50.000 di minggu 7" instead of "Ibu belum bayar".
 //
-// The reference's second screen — a full payment-history table — is deliberately
-// absent. It was cut on the designer's call, and the strip is the reason it can
-// be: a table of 50 rows says the same thing the rail already says, one screen
-// further from the conversation that needed it.
-//
-// The page is now a RECORD and only a record. It used to open on a "Yang perlu
+// The page is a RECORD and only a record. It used to open on a "Yang perlu
 // dilakukan" card that named the bill and offered to collect it; that has been
-// taken out, along with the loan and join date in the header. Collecting is
-// something the pelayanan queue sends her into with a mitra in front of her —
-// carrying a second door into it from a page she opens to LOOK SOMETHING UP put
-// the flow's most consequential action behind a browsing gesture. What is left
-// is her standing (name, DPD), her ledger, and how to reach her.
+// taken out. Collecting is something the pelayanan queue sends her into with a
+// mitra in front of her — carrying a second door into it from a page she opens
+// to LOOK SOMETHING UP put the flow's most consequential action behind a
+// browsing gesture.
+//
+// What is left is ordered by how often it is wanted: her standing, the recent
+// ledger, what she owes today, the ladder, and — last, because it is looked up
+// rather than read — everything else on file about her.
 
-import type { ReactNode } from 'react'
-import { Badge, Card, NavigationHeader } from '@/design-system/components'
+import { Badge, Card } from '@/design-system/components'
+import { ArrowLeft } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { findMitra, outstandingBalanceOf, outstandingOf, rupiah } from '../lib/data'
-import {
-  IconChat,
-  IconChevronRight,
-  IconPin,
-  IconStore,
-  IconTrendUp,
-  IconUsers,
-} from '../lib/icons'
+import { findMitra, outstandingOf, rupiah } from '../lib/data'
+import { IconChat, IconChevronRight, IconPin, IconTrendUp } from '../lib/icons'
 import { ladderOf } from '../lib/ladder'
 import { profileOf } from '../lib/profile'
 import { DpdBadge } from '../lib/mitra-card'
-import { useApp } from '../lib/store'
-import { Overline, WeekStrip } from '../lib/ui'
+import { openMajelisEntry, store, useApp } from '../lib/store'
+import { HeaderAction, Overline, StatRows, WeekStrip } from '../lib/ui'
 
 export function MitraScreen() {
   const flow = useFlow()
@@ -47,6 +38,7 @@ export function MitraScreen() {
   const profile = profileOf(mitra)
   const owed = outstandingOf(mitra)
   const ladder = ladderOf(mitra)
+  const group = openMajelisEntry(s)
 
   // The ladder row carries the ladder's own conclusion, so a BP who never opens
   // that screen still leaves with the one fact it holds. It does not repeat the
@@ -59,97 +51,120 @@ export function MitraScreen() {
         ? `${ladder.current.detail} menuju ${ladder.current.title}`
         : 'Siklus selesai — bisa ajukan pembiayaan baru'
 
-  return (
-    <Screen
-      topBar={
-        // Her name and her bucket ARE the title. They used to sit in a card of
-        // their own under a bar that said "Detail Mitra" — a heading that named
-        // the screen to someone already looking at it, costing a card to repeat
-        // what the bar could have said. The bar is pinned, so the two facts now
-        // stay on screen while the ledger scrolls.
-        <NavigationHeader
-          title={
-            <span className="flex min-w-0 items-center gap-8">
-              <span className="min-w-0 flex-1 truncate">{mitra.name}</span>
-              <DpdBadge dpd={mitra.dpd} format="short" />
-            </span>
-          }
-          onBack={() => flow.back()}
-        />
-      }
-    >
-      {/* --- The ledger, and the three numbers it settles. ------------------ */}
-      {/* No overline here: the strip's own card is headed "Riwayat Angsuran",
-          and an overline above it would print the same words twice. */}
-      <section className="flex flex-col gap-8">
-        <WeekStrip weeks={mitra.weeks} totalWeeks={mitra.totalWeeks} />
-        {/* Three figures, three different questions: what she owes today, what
-            she still owes at all, and what one week costs. Side by side rather
-            than stacked, because they are read as a SET — the BP quotes the
-            three in one breath — and a vertical list of label/value rows makes
-            each one a separate line to find. The four-line split of that first
-            figure (this week / terlewat / sisa sebagian) lives on the collect
-            page, where she is explaining the number rather than reading it. */}
-        <div className="flex gap-8 rounded-12 bg-neutral-white p-12">
-          <Figure label="Total tagihan" value={rupiah(owed.total)} strong />
-          <Figure label="Total outstanding" value={rupiah(outstandingBalanceOf(mitra))} />
-          <Figure label="Weekly installment" value={rupiah(mitra.weekly)} />
-        </div>
-      </section>
+  // A project-local header rather than NavigationHeader, for one reason: this
+  // screen needs TWO icon buttons and a chip under the title, and the system
+  // header's trailing slot renders decorative spans, not controls.
+  //
+  // Chat and route are up here now instead of being rows further down. They are
+  // the two things a BP does WITH a mitra rather than reads about her, and a
+  // pinned control is reachable from wherever she has scrolled to.
+  const header = (
+    <header className="flex shrink-0 items-center gap-8 border-b border-default bg-neutral-white px-16 py-8">
+      <button
+        type="button"
+        onClick={() => flow.back()}
+        aria-label="Kembali"
+        className="-ml-4 flex h-32 w-32 shrink-0 items-center justify-center text-default"
+      >
+        <ArrowLeft size={20} />
+      </button>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="truncate text-16 font-bold text-default">{mitra.name}</span>
+        {/* The chip drops below the name rather than sitting beside it: on a
+            long name the two were competing for the same line, and her status
+            is a fact ABOUT the name, not a second title. */}
+        <span className="flex">
+          <DpdBadge dpd={mitra.dpd} format="short" />
+        </span>
+      </div>
+      <HeaderAction label={`Chat WhatsApp ${mitra.name}`} onClick={() => undefined}>
+        <IconChat size={20} />
+      </HeaderAction>
+      <HeaderAction label={`Rute ke rumah ${mitra.name}`} onClick={() => undefined}>
+        <IconPin size={20} />
+      </HeaderAction>
+    </header>
+  )
 
-      {/* --- Her standing and how to reach her. ---------------------------- */}
+  return (
+    <Screen topBar={header}>
+      {/* --- The recent ledger. No overline: the card names itself. --------- */}
+      <WeekStrip weeks={mitra.weeks} onSeeAll={() => flow.go('loans')} />
+
+      {/* --- What she owes today, and what it is made of. -------------------
+          Three lines in one card, no rules and no section title: the total is
+          the first line of its own breakdown, not a headline sitting above one.
+          A rule under it would turn "made of these" into "and also these".
+
+          "Terlewat" is now everything overdue — the missed weeks AND whatever
+          is left over from a week she part-paid. They were two lines because
+          they are two different failures, but the BP does not collect them
+          separately, and a card whose parts do not obviously sum to its total
+          is the one thing this project has been careful never to print. The
+          week strip above still tells the two apart, in the place where the
+          difference is actually said out loud. */}
+      <StatRows
+        divided={false}
+        rows={[
+          { label: 'Total tagihan', value: rupiah(owed.total), tone: 'strong' },
+          { label: 'Minggu ini', value: rupiah(owed.thisWeek) },
+          {
+            label: 'Terlewat',
+            value: rupiah(owed.missed + owed.partial),
+            tone: owed.missed + owed.partial > 0 ? 'red' : 'default',
+          },
+        ]}
+      />
+
+      {/* --- The ladder, on its own. --------------------------------------- */}
+      {/* It used to be the first row inside a "Data mitra" card, sharing a
+          container with a phone number and two addresses. It is not a datum
+          about her — it is a conversation the BP is meant to have, and the only
+          thing on this page that leads anywhere she does something. */}
+      <button
+        type="button"
+        onClick={() => flow.go('ladder')}
+        className="flex items-center gap-12 rounded-12 border border-primary-200 bg-primary-50 p-12 text-left"
+      >
+        <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-primary-500">
+          <IconTrendUp size={20} />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-14 font-bold text-default">Jalur Naik Modal</span>
+          <span className="truncate text-12 text-caption">{ladderLine}</span>
+        </div>
+        {/* Named in both directions. A row that badges only the bad state leaves
+            "no badge" meaning two things — she is fine, or nobody checked. */}
+        {ladder.status === 'tertahan' ? (
+          <Badge intent="orange">Tertahan</Badge>
+        ) : (
+          <Badge intent="green">Lancar</Badge>
+        )}
+        <span className="shrink-0 text-primary-500">
+          <IconChevronRight size={20} />
+        </span>
+      </button>
+
+      {/* --- Everything else on file. Last, because it is looked up. -------- */}
+      {/* These were five tappable rows called "Data mitra". Four of them opened
+          nothing that isn't now a header button, so what survives is the
+          CONTENT: the details a BP reads out when ops asks, or checks before
+          she rides. Read-only rows, because that is what they always were. */}
       <section className="flex flex-col gap-8 pb-16">
-        <Overline>Data mitra</Overline>
+        <Overline>Informasi tambahan</Overline>
         <Card>
           <div className="flex flex-col gap-12">
-            <CardRow
-              tint="primary"
-              icon={<IconTrendUp size={20} />}
-              title="Jalur Naik Modal"
-              subtitle={ladderLine}
-              // Named in both directions. A row that badges only the bad state
-              // leaves "no badge" meaning two things — she is fine, or nobody
-              // checked — and the BP cannot tell which from the row.
-              trailing={
-                ladder.status === 'tertahan' ? (
-                  <Badge intent="orange">Tertahan</Badge>
-                ) : (
-                  <Badge intent="green">Lancar</Badge>
-                )
-              }
-              onClick={() => flow.go('ladder')}
-              first
-            />
-            <CardRow
-              icon={<IconChat size={20} />}
-              title="Chat WhatsApp"
-              subtitle={profile.phone}
-              onClick={() => undefined}
-            />
-            <CardRow
-              icon={<IconPin size={20} />}
-              title="Rute ke rumah"
-              subtitle={profile.address}
-              onClick={() => undefined}
-            />
-            {/* Her trading place is a second route, not a detail of the first.
-                A BP chasing a warung owner mid-morning wants the warung; the
-                house is where she goes in the evening. */}
-            <CardRow
-              icon={<IconStore size={20} />}
-              title="Rute ke tempat usaha"
-              subtitle={profile.business}
-              onClick={() => undefined}
-            />
-            {/* The number the BP dials when the mitra doesn't answer hers. It
-                sits on the mitra's own page because that is where she is
-                standing when the call fails. */}
-            <CardRow
-              icon={<IconUsers size={20} />}
-              title="Chat WhatsApp PJ"
-              subtitle={`${profile.pjName} · ${profile.pjPhone}`}
-              onClick={() => undefined}
-            />
+            {[
+              { label: 'Majelis', value: `${group.name} · ${group.day}, ${group.time}` },
+              { label: 'Produk', value: mitra.product },
+              { label: 'Mitra sejak', value: profile.joined },
+              { label: 'Nomor HP', value: profile.phone },
+              { label: 'Alamat rumah', value: profile.address },
+              { label: 'Tempat usaha', value: profile.business },
+              { label: 'Penanggung jawab', value: `${profile.pjName} · ${profile.pjPhone}` },
+            ].map((row, i) => (
+              <InfoRow key={row.label} label={row.label} value={row.value} first={i === 0} />
+            ))}
           </div>
         </Card>
       </section>
@@ -158,68 +173,21 @@ export function MitraScreen() {
 }
 
 /**
- * One of the three figures under the strip. Divided by a hairline rather than
- * spaced apart, because three amounts with nothing between them read as one
- * number split three ways — which is exactly what they are not.
- */
-function Figure({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className="flex min-w-0 flex-1 flex-col gap-2 border-l border-default pl-8 first:border-l-0 first:pl-0">
-      <span className="text-10 text-caption">{label}</span>
-      <span className={`text-14 font-bold ${strong ? 'text-default' : 'text-neutral-700'}`}>
-        {value}
-      </span>
-    </div>
-  )
-}
-
-/**
- * A tappable row inside the data card. The hairline above each row is what lets
- * three different kinds of thing share one card without the groupings
- * dissolving; it is full-bleed (`-mx-12` against the card's 12px padding) so it
- * reads as a division of the card rather than an underline on the row.
+ * A label over its value, divided from the row above by a full-bleed hairline
+ * (`-mx-12` against the card's 12px padding) so the rule reads as a division of
+ * the card rather than an underline on the row.
  *
- * `border-default`, not `border-light`: light is neutral-50, which on a white
- * card is invisible.
+ * Stacked rather than label-left/value-right: an address and a PJ's name and
+ * number are too long to sit in half a row, and a layout that works for "Modal"
+ * but wraps badly for the rest is a layout tuned to its shortest case.
  */
-function CardRow({
-  icon,
-  title,
-  subtitle,
-  trailing,
-  onClick,
-  tint = 'neutral',
-  first = false,
-}: {
-  icon: ReactNode
-  title: string
-  subtitle: string
-  trailing?: ReactNode
-  onClick: () => void
-  tint?: 'neutral' | 'primary'
-  /** The first row needs no divider above it — the card edge is the division. */
-  first?: boolean
-}) {
-  const tone =
-    tint === 'primary' ? 'bg-primary-50 text-primary-500' : 'bg-neutral-50 text-neutral-600'
-
+function InfoRow({ label, value, first }: { label: string; value: string; first?: boolean }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`-mx-12 flex items-center gap-12 px-12 text-left ${first ? '' : 'border-t border-default pt-12'}`}
+    <div
+      className={`-mx-12 flex flex-col gap-2 px-12 ${first ? '' : 'border-t border-default pt-12'}`}
     >
-      <span className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-8 ${tone}`}>
-        {icon}
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-14 font-bold text-default">{title}</span>
-        <span className="truncate text-12 text-caption">{subtitle}</span>
-      </div>
-      {trailing}
-      <span className="shrink-0 text-disabled">
-        <IconChevronRight size={20} />
-      </span>
-    </button>
+      <span className="text-10 text-disabled">{label}</span>
+      <span className="break-words text-12 text-default">{value}</span>
+    </div>
   )
 }

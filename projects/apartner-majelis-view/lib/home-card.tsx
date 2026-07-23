@@ -21,7 +21,8 @@ import { Card } from '@/design-system/components'
 import { outstandingOf, rupiah, type Mitra } from './data'
 import { IconChatFill, IconChevronRight, IconPhone, IconPin } from './icons'
 import { profileOf } from './profile'
-import { Avatar, ContactButton } from './ui'
+import { MitraPhoto } from './mitra-card'
+import { ContactButton } from './ui'
 
 export function HomeMitraCard({
   mitra,
@@ -45,7 +46,7 @@ export function HomeMitraCard({
             aria-label={`Buka halaman ${mitra.name}`}
             className="flex min-w-0 flex-1 items-center gap-12 text-left"
           >
-            <Avatar name={mitra.name} />
+            <MitraPhoto />
             <span className="flex min-w-0 items-center gap-4">
               <span className="truncate text-18 font-bold text-default">{mitra.name}</span>
               <span className="shrink-0 text-disabled">

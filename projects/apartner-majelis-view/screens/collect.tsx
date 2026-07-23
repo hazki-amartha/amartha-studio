@@ -37,7 +37,8 @@ import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, outstandingOf, rupiah } from '../lib/data'
 import { paidOf, store, useApp } from '../lib/store'
-import { Avatar, Chip, ChipGroup, SectionTitle, StickyBar } from '../lib/ui'
+import { MitraPhoto } from '../lib/mitra-card'
+import { Chip, ChipGroup, SectionTitle, StickyBar } from '../lib/ui'
 
 // Field-realistic reasons. Free text is deliberately absent: the BP is standing
 // in front of her on a motorbike schedule, not writing a report — and a fixed
@@ -107,7 +108,7 @@ export function CollectScreen() {
           not have to trust the numbers below on memory alone. */}
       <Card>
         <div className="flex items-center gap-12">
-          <Avatar name={mitra.name} size={32} />
+          <MitraPhoto size={32} />
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-14 font-bold text-default">{mitra.name}</span>
             <span className="truncate text-12 text-caption">Pinjaman {rupiah(mitra.loan)}</span>

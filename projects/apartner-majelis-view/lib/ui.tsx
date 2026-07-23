@@ -8,7 +8,9 @@
 // StageBar and WeekStrip, which are the two things the Majelis View reference
 // actually introduces.
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Badge, BottomSheet, SelectableCard } from '@/design-system/components'
+import { MagnifyingGlass } from '@/design-system/icons'
 import { ringkas, type Week } from './data'
 import { IconCheck, IconChevronDown, IconChevronUp, IconX } from './icons'
 
@@ -134,31 +136,51 @@ const WEEK_TONE: Record<Week['status'], { ring: string; text: string; label: str
   },
 }
 
-export function WeekStrip({ weeks, totalWeeks }: { weeks: Week[]; totalWeeks: number }) {
-  const current = weeks[weeks.length - 1]
+/** How many weeks the rail holds. Ten is a season of payments, not a ledger. */
+const STRIP_WEEKS = 10
+
+export function WeekStrip({
+  weeks,
+  onSeeAll,
+}: {
+  weeks: Week[]
+  /** Opens the full record. Omitted renders no link. */
+  onSeeAll?: () => void
+}) {
+  // The last ten, because the rail is for the RECENT past: what happened over
+  // the weeks the BP is about to ask about. Fifty cells was a ledger rendered
+  // as a rail, and the forty at the far left were never scrolled to.
+  const shown = weeks.slice(-STRIP_WEEKS)
+
+  const rail = useRef<HTMLDivElement>(null)
+  // Opens on THIS week, at the right edge, and the BP scrolls left into the
+  // past. A rail that opens on week 1 puts the cell she actually came for off
+  // screen and makes "swipe" the first thing she has to do.
+  useEffect(() => {
+    const el = rail.current
+    if (el) el.scrollLeft = el.scrollWidth
+  }, [weeks])
 
   return (
     <div className="flex flex-col gap-8 rounded-12 bg-neutral-white p-12">
-      <div className="flex items-center gap-8">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-14 font-bold text-default">Riwayat Angsuran</span>
-          <span className="text-12 text-caption">{totalWeeks} minggu total</span>
-        </div>
-        <span className="shrink-0 rounded-full bg-primary-50 px-12 py-4 text-12 font-bold text-primary-500">
-          Minggu {current.no} dari {totalWeeks}
-        </span>
-      </div>
+      {/* A title and nothing else. The cycle length and "minggu 9 dari 50" were
+          two ways of saying how far through she is — which the rail itself
+          shows, in the only form she can act on: which weeks went wrong. */}
+      <span className="text-14 font-bold text-default">Riwayat Angsuran</span>
 
       {/* -mx-12 lets the rail bleed to the card's edges, so the last visible
           week is clipped by the card rather than by an inner gutter — which is
           what makes it read as scrollable without a scrollbar. */}
-      <div className="-mx-12 overflow-x-auto px-12">
+      <div ref={rail} className="-mx-12 overflow-x-auto px-12">
         <div className="flex gap-8">
-          {weeks.map((w) => {
+          {shown.map((w) => {
             const tone = WEEK_TONE[w.status]
             return (
+              // No "M7" label any more. The date under the cell already says
+              // which week this is in the only terms said out loud — "yang 7
+              // Juli, Bu" — and the week NUMBER was a second identifier for the
+              // same cell that only the app was counting in.
               <div key={w.no} className="flex w-48 shrink-0 flex-col items-center gap-4">
-                <span className="text-10 font-bold text-caption">M{w.no}</span>
                 <span className="text-10 text-disabled">{w.date}</span>
                 <span
                   className={`flex h-32 w-32 items-center justify-center rounded-full border ${tone.ring}`}
@@ -178,7 +200,171 @@ export function WeekStrip({ weeks, totalWeeks }: { weeks: Week[]; totalWeeks: nu
         </div>
       </div>
 
-      <span className="text-center text-10 text-disabled">Geser untuk melihat minggu lainnya</span>
+      {onSeeAll ? (
+        <button
+          type="button"
+          onClick={onSeeAll}
+          className="-mx-12 -mb-12 border-t border-default px-12 py-12 text-center text-12 font-bold text-link"
+        >
+          Lihat semua riwayat
+        </button>
+      ) : (
+        <span className="text-center text-10 text-disabled">Geser untuk melihat minggu lainnya</span>
+      )}
+    </div>
+  )
+}
+
+// --- ProductBadge ----------------------------------------------------------
+// The lending product, wherever it appears — on a group in the directory or on
+// a mitra in the roster. One component so the colours cannot drift between the
+// two screens, which is the only way a colour code is worth having.
+//
+// The palette is deliberately disjoint from the STATUS badges beside it. Those
+// own green / orange / yellow (lancar, DPD, draft), so a product cannot borrow
+// one without the same hue meaning two things on a single card. That leaves
+// blue and primary — Modal blue, GL purple — and Hybrid takes neutral, because
+// it is not a third product: it is a group carrying both at once, and giving it
+// its own hue would say otherwise.
+
+export function ProductBadge({ product }: { product: 'Modal' | 'GL' | 'Hybrid' }) {
+  const intent = product === 'Modal' ? 'blue' : product === 'GL' ? 'primary' : 'neutral'
+  return <Badge intent={intent}>{product}</Badge>
+}
+
+// --- Finding things in a list ----------------------------------------------
+// SearchField, FilterBar, FilterChip, OptionSheet and ResetLink are lifted from
+// apartner-homepage-ia, which has the same problem on the same tab: a directory
+// long enough that scrolling stops being an answer. Keeping the shapes
+// identical is the point — the two directions should differ on the FLOW, and a
+// second invention of "how do you filter a list" is noise in that comparison.
+//
+// The split between them: search is for a group the BP can NAME, filters are
+// for a set she can only describe ("the Kamis ones", "the drafts").
+
+export function SearchField({
+  value,
+  onChange,
+  placeholder,
+  label,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder: string
+  /** Spoken label — a magnifier alone doesn't say what is being searched. */
+  label: string
+}) {
+  return (
+    <div className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 focus-within:border-primary-500">
+      <span className="shrink-0 text-disabled">
+        <MagnifyingGlass size={20} />
+      </span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={label}
+        className="min-w-0 flex-1 bg-transparent text-14 text-default outline-none placeholder:text-placeholder"
+      />
+      {value ? (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className="shrink-0 text-12 font-bold text-link"
+        >
+          Hapus
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+export function FilterBar({ children }: { children: ReactNode }) {
+  return <div className="flex items-center gap-8 overflow-x-auto">{children}</div>
+}
+
+/**
+ * A dropdown-trigger pill. It names the CHOSEN value rather than the dimension
+ * once something is picked — "Kamis", not "Hari kumpulan" — so a filtered list
+ * says why it is short without the BP opening anything.
+ */
+export function FilterChip({
+  label,
+  active,
+  open,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  open: boolean
+  onClick: () => void
+}) {
+  const tone = active
+    ? 'border-primary-500 bg-primary-50 text-primary-500'
+    : 'border-default bg-neutral-white text-neutral-700'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      className={`flex shrink-0 items-center gap-4 rounded-full border px-12 py-8 text-12 font-bold ${tone}`}
+    >
+      <span className="truncate">{label}</span>
+      <span className={`flex shrink-0 ${open ? 'rotate-180' : ''}`}>
+        <IconChevronDown size={16} />
+      </span>
+    </button>
+  )
+}
+
+export function ResetLink({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="shrink-0 text-12 font-bold text-link">
+      Reset
+    </button>
+  )
+}
+
+/** Single-choice picker: the design system's BottomSheet over SelectableCard. */
+export function OptionSheet<T>({
+  open,
+  title,
+  name,
+  options,
+  value,
+  onPick,
+  onClose,
+}: {
+  open: boolean
+  title: string
+  name: string
+  options: { label: string; value: T }[]
+  value: T
+  onPick: (v: T) => void
+  onClose: () => void
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} title={title}>
+      <div className="flex flex-col gap-8">
+        {options.map((o) => (
+          <SelectableCard
+            key={o.label}
+            name={name}
+            title={o.label}
+            checked={o.value === value}
+            onChange={() => onPick(o.value)}
+          />
+        ))}
+      </div>
+    </BottomSheet>
+  )
+}
+
+export function EmptyState({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-12 bg-neutral-white p-24 text-center">
+      <span className="text-14 font-bold text-default">{title}</span>
+      <span className="text-12 text-caption">{body}</span>
     </div>
   )
 }
@@ -385,7 +571,18 @@ export interface StatRow {
   tone?: 'default' | 'strong' | 'red' | 'orange' | 'green'
 }
 
-export function StatRows({ rows }: { rows: StatRow[] }) {
+export function StatRows({
+  rows,
+  divided = true,
+}: {
+  rows: StatRow[]
+  /**
+   * Hairlines between rows. Off when the rows are a TOTAL and its parts rather
+   * than separate facts: a rule under the total turns "made of these" into "and
+   * also these", which is a different sentence.
+   */
+  divided?: boolean
+}) {
   const toneClass = (tone: StatRow['tone']) =>
     tone === 'red'
       ? 'text-red-500'
@@ -400,7 +597,9 @@ export function StatRows({ rows }: { rows: StatRow[] }) {
       {rows.map((row, i) => (
         <div
           key={row.label}
-          className={`flex items-center gap-12 px-12 py-12 ${i === 0 ? '' : 'border-t border-default'}`}
+          className={`flex items-center gap-12 px-12 ${divided ? 'py-12' : 'py-8 first:pt-12 last:pb-12'} ${
+            i === 0 || !divided ? '' : 'border-t border-default'
+          }`}
         >
           <span className="flex-1 text-14 text-caption">{row.label}</span>
           <span

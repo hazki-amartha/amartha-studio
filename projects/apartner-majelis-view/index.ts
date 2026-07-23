@@ -6,6 +6,7 @@ import { MajelisScreen } from './screens/majelis'
 import { AttendanceScreen } from './screens/attendance'
 import { CollectionScreen } from './screens/collection'
 import { MitraScreen } from './screens/mitra'
+import { LoansScreen } from './screens/loans'
 import { CollectScreen } from './screens/collect'
 import { CollectDoneScreen } from './screens/collect-done'
 import { GrowthScreen } from './screens/growth'
@@ -32,7 +33,10 @@ export const project: ProjectModule = {
       component: TodayScreen,
       entry: true,
       notes: [
-        'The BP opens her day here. The page commits to one answer: the single visit she should be doing right now, with the reason it matters already written for her. Every row wears its kind as a short code — MV, HV, Sos, FU — the same shorthand she and her BM already speak.',
+        'The BP opens her day here. The page commits to one answer: the single visit she should be doing right now. Every row wears its kind as a short code — MV, HV, Sos, FU — the same shorthand she and her BM already speak.',
+        'Terkumpul hari ini sits above the work, the same card apartner-homepage-ia opens on, minus its “Lihat semua”: the figure is what a BM asks for before the day is out, and at the deposit screen it would arrive too late to change how she works the afternoon. It counts cash AND app payments — on-track is a different question from what is in the bag.',
+        'Every card is now title + address and nothing else. The “why now” line is off both the focus card and the Berikutnya rows: a row that carries a reason is a row being argued for, and the schedule already made that call by putting the stop on the day. Where she has to ride is the fact a row gets read for.',
+        'One inbox in the header, no bell. They were two senders — the business talking TO the BP, and the system reporting what happened — but a notification is something that already happened, and this page is for what has not.',
         'Berikutnya is the rest of the day, and tapping a row starts that task too. A day does not run in clock order — she arrives early, a group is late, a doorstep is on the way back — so the schedule stays a list of things she can begin, not a queue that only hands her the top row.',
       ],
       states: [
@@ -71,7 +75,9 @@ export const project: ProjectModule = {
       component: MajelisListScreen,
       notes: [
         'Every majelis the BP is responsible for, in one flat list. It used to split into “Hari ini” and “Majelis lain”, which made the directory re-answer a question the schedule already owns — a BP who opens this tab is looking a group up, on whatever day it meets.',
-        'Each row states the health of the group at a glance — lancar, or how many mitra are menunggak — so she can see which majelis needs attention before she plans her week. Tapping one opens its roster to read, not to start work.',
+        'Each row states three things about the group: what product it runs on (Modal blue, GL purple, Hybrid neutral), when it meets, and one status badge — Draft, n Mitra DPD, or Lancar. The product palette deliberately avoids green/orange/yellow, which the status badges own; a hue that means two things on one card is worse than no hue at all. Hybrid is neutral because it is not a third product, it is a group carrying both.',
+        'Draft groups are the reason the filters earn their space. A majelis being assembled has no kumpulan to send the BP anywhere, so without a way to ask for it, it only ever surfaces by scrolling — and the one thing she needs from it is the gap: “Kurang 4 mitra untuk aktif”, not the word “Draft”.',
+        'Search and filter answer different questions. Search is for a group she can name; the filters are for a set she can only describe — “what am I doing Kamis”, “which ones am I still building”. Both are lifted shape-for-shape from apartner-homepage-ia, so the two directions differ on the flow rather than on how a list gets narrowed. The filters survive opening a group and coming back; the search box does not, because a query is a question already answered.',
       ],
       flowsTo: [
         { to: 'majelis', label: 'ketuk majelis → Majelis View' },
@@ -99,8 +105,11 @@ export const project: ProjectModule = {
       title: 'Majelis View',
       component: MajelisScreen,
       notes: [
-        'The roster of one group, and the screen this direction is named after. Same header split as apartner-homepage-ia’s Detail Majelis: the kumpulan slot rides in the subtitle, because it is asked every time the page is opened, and the address sits behind the Info toggle, because it is asked once — on the way there. Every card is down to the pair that decides who to read first: tunggakan and DPD.',
-        'Sorting is the only control, defaulting to whoever is most behind, because the mitra worth reading about first are the ones in arrears. Nothing here records anything; the single button starts the pelayanan when she is ready.',
+        'The roster of one group, and the screen this direction is named after. The kumpulan slot rides in the header subtitle — it is asked every time the page is opened — and the address is a one-liner directly under it, ending in a Rute button rather than a full stop, because on the way there the answer she needs is the route, not the text.',
+        'Each card is a name, a DPD badge and its labels — no rupiah figure at all. DPD already answers “who do I deal with first”, and an amount on a roster is a number the BP reads but cannot act on; the one she negotiates against is derived fresh on the collect page, from the ledger, at the moment she needs it. KM says who the chair is; Modal / GL says which product she is on, since a Hybrid majelis is exactly a group with both in one room; and Janji bayar / Dapat keringanan are on the ROSTER rather than only in the collect flow, because a BP who walks up to a mitra without knowing she already promised a date asks for the whole amount and gets the argument that follows.',
+        'Sorting is the only control, defaulting to whoever is most behind. It wears a sort mark now: the chevron it used to carry is the universal “this opens a list of options”, and it opens nothing.',
+        'What the footer OFFERS depends on the day. On the group’s kumpulan day it starts the pelayanan; on any other day there is no visit to start, so it becomes the thing a BP actually does from her sofa on a Thursday — send the group its reminder, already written, with this group’s day, time and place in it. It goes to the WhatsApp group, not to 22 numbers: that is where the group already talks, and a reminder arriving as 22 private messages is one the ketua cannot reinforce.',
+        'The header’s trailing control is Edit, not Info. Changing a majelis is four routes rather than one form — its schedule lives with the BP’s week, its Ketua is a mitra, its location is a place, and moving a member changes another group as well as this one — so a combined form would be four unrelated fields sharing a Save button. All four are affordances only.',
       ],
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan' },
@@ -374,11 +383,28 @@ export const project: ProjectModule = {
       title: 'Detail Mitra',
       component: MitraScreen,
       notes: [
-        'One borrower, opened from her card anywhere in the flow, and now a record rather than a second place to act. Her name and her DPD badge ARE the top bar — they used to sit in a card under a bar that said “Detail Mitra”, a heading that named the screen to someone already looking at it — so the two facts stay pinned while the ledger scrolls. Collecting happens in the pelayanan queue, which is the only place the BP has the mitra in front of her.',
-        'The week strip is the heart of the page: it carries the amount inside each week rather than a paid/unpaid dot, so the BP can say “Ibu kurang Rp50.000 di minggu 7” instead of “Ibu belum bayar”. Under it sit the three figures she gets asked for by name — total tagihan, total outstanding, angsuran.',
-        'Data mitra is the reach-her block, and it carries two routes and two numbers: her house and her tempat usaha, her WhatsApp and her PJ’s. A BP who cannot raise a mitra at home at 10.00 has three other things to try, and all of them are on this card.',
+        'One borrower, opened from her card anywhere in the flow, and a record rather than a second place to act. Her name and her DPD chip are the pinned top bar, with chat and route as the two icon buttons beside them — the two things a BP DOES with a mitra rather than reads about her, reachable from wherever she has scrolled to. Collecting happens in the pelayanan queue, which is the only place the BP has the mitra in front of her.',
+        'The week strip is the heart of the page: it carries the amount inside each week rather than a paid/unpaid dot, so the BP can say “Ibu kurang Rp50.000 di minggu 7” instead of “Ibu belum bayar”. It shows the last ten weeks and opens on THIS week at the right edge, scrolling left into the past — fifty cells was a ledger drawn as a rail, and the forty at the far left were never reached. The week numbers are gone: the date under each cell already says which week it is, in the only terms said out loud.',
+        'Under it, one figure and its parts: total tagihan, then minggu ini and terlewat. Total outstanding and the weekly instalment were facts about the CONTRACT; this is the only number she is about to act on, and the lines beneath it are the sentence she says when it gets argued with. The shortfall line appears only when there is one — but it does appear, because without it the parts do not add up to the total.',
+        'The ladder is its own entry point now instead of the first row of a card it shared with a phone number and two addresses. It is not a datum about her; it is a conversation, and the only thing on this page that leads somewhere she does something.',
+        'Everything else on file drops to the bottom as Informasi tambahan, read-only. Those rows were tappable and four of them opened nothing that is not now a header button, so what survives is the content: what a BP reads out when ops asks, or checks before she rides.',
       ],
-      flowsTo: [{ to: 'ladder', label: 'Jalur Naik Modal' }],
+      flowsTo: [
+        { to: 'loans', label: 'Lihat semua riwayat' },
+        { to: 'ladder', label: 'Jalur Naik Modal' },
+      ],
+    },
+    {
+      id: 'loans',
+      title: 'Semua Pencairan',
+      component: LoansScreen,
+      notes: [
+        'Every cycle she has taken, active first and settled below. The mitra page answers “what does she owe today”; this answers “how long has she been with us, and how did the last cycles go” — a different question with a different shelf life, which is why it is a page rather than another section on one already carrying a ledger.',
+        'It is the evidence behind the ladder. “Ibu sudah tiga kali cair dan dua lunas tepat waktu” is the sentence that makes a top-up conversation land, and until this screen existed the BP had to remember it.',
+        'A settled cycle keeps every number and loses only its colour. It is still the thing she quotes, and greying it down to a summary line would throw away the proof to save a card.',
+        'One active pencairan, always — the reference screen shows two. Every number on the mitra page derives from a single ledger, and a second live loan would make “total tagihan” mean different things on different screens. That is the contradiction this direction was built to avoid, so it is the one thing from the reference not copied.',
+      ],
+      flowsTo: [{ to: 'mitra', label: 'kembali' }],
     },
     {
       id: 'collect',

@@ -9,11 +9,12 @@
 - `WeekStrip` — horizontal 50-week repayment rail carrying the amount inside each week. Used on the mitra page. The direction's centrepiece.
 - `ProgressCard` — headline value + denominator + percent over a meter. Used on attendance and collection.
 - `StickyBar` — pinned footer holding a summary above its button. Used on all six action screens; the collect page needs the summary inside the sticky region or "sisa setelah ini" scrolls away from the button it qualifies.
-- `MitraCard` / `DpdBadge` — the one member card, shared by roster, attendance, collection and growth.
+- `MitraCard` / `DpdBadge` / `MitraPhoto` — the one member card, shared by roster, attendance, collection and growth. `MitraPhoto` replaced the initials `Avatar` on every MITRA surface (roster, collect, doorstep): a BP in a room of 22 women recognises a face, and "SH" is something she has to decode into a name and then match to a person. It is a silhouette placeholder — the prototype has no photos — but it says what the real thing is. Leads keep `Avatar`: a prospect genuinely has no photo on file.
 - `AttendancePill`, `Chip`, `ChipGroup`, `ProofTile`, `StatRows`, `Meter`, `Avatar`, `IconTile`, `Collapsible`, `Overline`, `SectionTitle`, `VisitTitle` — carried over from `apartner-task-first`.
 - `LeadRow` / `LeadIdentityCard` — a prospect as a list row and as the identity block on her own record. Both lead with the interest grade, because a list of leads has no other ranking.
 - `ContactButton` — the round WhatsApp/handset pair, lifted out of `home-card.tsx` into `ui.tsx`: reaching someone is now the whole job on two screens, not one.
 - `IconTile` gained `blue` and `orange` tints for the two NTB task kinds, and `IconMegaphone` / `IconUserPlus` were added to `icons.tsx`.
+- `SearchField`, `FilterBar`, `FilterChip`, `OptionSheet`, `ResetLink`, `EmptyState` — the Majelis tab's find-a-group layer, lifted shape-for-shape from `apartner-homepage-ia` (which solves the same problem on the same tab). Strong promotion candidates: three projects now want a filter chip over a bottom sheet, and two of them have written it independently. `SearchField` uses the shared `MagnifyingGlass` from `@/design-system/icons` rather than a local icon.
 - `h-40` on `Button size="sm"` — FunDS button sizes step 28 (xs) → 36 (sm), so neither lands on the 40px avatar rhythm the cards use. `h-40` is a token class, not an arbitrary value.
 
 ## The L0 layer (Jadwal / Majelis / KPI)
