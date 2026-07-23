@@ -11,9 +11,11 @@
 //
 // It is a ROSTER, not a dashboard and not yet a queue. Before the BP starts the
 // pelayanan she wants one thing from this page: who is in this group and what
-// state are they in. So every card carries the three facts the reference calls
-// for — outstanding loan, DPD bucket, weekly instalment — and nothing carries an
-// action except the one button that begins the visit.
+// state are they in. Each card is down to the two facts that answer that —
+// tunggakan and DPD — and nothing carries an action except the one button that
+// begins the visit. The loan and the weekly instalment used to sit here too;
+// they were four numbers per card on a page read 22 cards at a time, and they
+// are still one tap away where they are actually quoted.
 //
 // Sorting is the only control. It exists because "who is behind?" and "who is
 // this group, in order?" are both real questions and neither is a filter: a BP
@@ -22,11 +24,11 @@
 // mitra worth reading about first are the ones who are behind.
 
 import { useState } from 'react'
-import { Button, NavigationHeader } from '@/design-system/components'
+import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, outstandingOf, rupiah } from '../lib/data'
-import { IconChevronDown } from '../lib/icons'
+import { IconCalendar, IconChevronDown, IconPin } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import { openMajelisEntry, store, useApp } from '../lib/store'
 import { SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
@@ -38,6 +40,7 @@ export function MajelisScreen() {
   const s = useApp()
   const group = openMajelisEntry(s)
   const [sort, setSort] = useState<Sort>('tunggakan')
+  const [info, setInfo] = useState(false)
 
   const members = [...MAJELIS.members].sort((a, b) =>
     sort === 'nama' ? a.name.localeCompare(b.name) : b.dpd - a.dpd || a.name.localeCompare(b.name),
@@ -50,11 +53,50 @@ export function MajelisScreen() {
     <Screen
       topBar={
         <NavigationHeader
-          title={<VisitTitle title={group.name} when={`${MAJELIS.members.length} mitra`} />}
+          // Same split as apartner-homepage-ia's Detail Majelis: the kumpulan
+          // SLOT rides in the header subtitle, because "kapan majelis ini?" is
+          // asked every time this page is opened, and the address sits behind an
+          // Info toggle, because it is asked once — on the way there.
+          title={
+            <VisitTitle
+              title={group.name}
+              when={`${group.day}, ${group.time} · ${MAJELIS.members.length} mitra`}
+            />
+          }
+          link="Info"
+          onLinkClick={() => setInfo(!info)}
           onBack={() => flow.go('majelis-list')}
         />
       }
     >
+      {info ? (
+        <Card>
+          <div className="flex items-start gap-8">
+            <span className="shrink-0 text-disabled">
+              <IconPin size={16} />
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <span className="text-10 text-disabled">Lokasi kumpulan</span>
+              <span className="text-12 text-default">{group.place}</span>
+              <button type="button" className="text-left text-12 font-bold text-link">
+                Buka peta
+              </button>
+            </div>
+          </div>
+          <div className="mt-12 flex items-start gap-8 border-t border-default pt-12">
+            <span className="shrink-0 text-disabled">
+              <IconCalendar size={16} />
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <span className="text-10 text-disabled">Jadwal kumpulan</span>
+              <span className="text-12 text-default">
+                Setiap {group.day}, {group.time}
+              </span>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
       {/* The group's standing facts, before any work has started. Two numbers,
           both of which the BP is asked about by her BM and neither of which she
           should have to add up from the list below. */}
@@ -84,7 +126,16 @@ export function MajelisScreen() {
           <MitraCard
             key={mitra.id}
             mitra={mitra}
-            trailing={<DpdBadge dpd={mitra.dpd} />}
+            // Two facts per card, not four. The roster is scanned, not read:
+            // what she owes and how late she is are the pair that decides who
+            // the BP looks at first, and the contract behind them (pinjaman,
+            // angsuran) is one tap away on her page.
+            meta={
+              <span className="truncate text-12 text-caption">
+                Tunggakan {rupiah(outstandingOf(mitra).total)}
+              </span>
+            }
+            trailing={<DpdBadge dpd={mitra.dpd} format="short" />}
             onOpen={() => {
               store.openMitraPage(mitra.id)
               flow.go('mitra')

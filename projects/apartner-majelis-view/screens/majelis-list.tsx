@@ -19,27 +19,15 @@
 import { Badge } from '@/design-system/components'
 import { Screen, TopBar } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { MAJELIS_DIRECTORY, TASKS, type MajelisEntry } from '../lib/schedule'
+import { MAJELIS_DIRECTORY, type MajelisEntry } from '../lib/schedule'
 import { IconChevronRight, IconPin } from '../lib/icons'
-import { store, useApp } from '../lib/store'
+import { store } from '../lib/store'
 import { TabBar } from '../lib/tabs'
-import { Overline } from '../lib/ui'
-
-// Which groups the schedule is already sending her to today. They sort first —
-// the tab does not compete with the schedule, it agrees with it.
-const TODAY_IDS = TASKS.filter((t) => t.majelisId).map((t) => t.majelisId)
 
 export function MajelisListScreen() {
   const flow = useFlow()
-  const s = useApp()
-
-  const today = MAJELIS_DIRECTORY.filter((m) => TODAY_IDS.includes(m.id))
-  const rest = MAJELIS_DIRECTORY.filter((m) => !TODAY_IDS.includes(m.id))
 
   function Row({ entry }: { entry: MajelisEntry }) {
-    const task = TASKS.find((t) => t.majelisId === entry.id)
-    const done = task ? s.doneTasks.includes(task.id) : false
-
     return (
       <button
         type="button"
@@ -50,10 +38,7 @@ export function MajelisListScreen() {
         className="flex items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
       >
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex items-center gap-8">
-            <span className="truncate text-14 font-bold text-default">{entry.name}</span>
-            {done ? <Badge intent="green">Selesai</Badge> : null}
-          </div>
+          <span className="truncate text-14 font-bold text-default">{entry.name}</span>
           <span className="flex items-center gap-4 text-12 text-caption">
             <IconPin size={16} />
             <span className="truncate">{entry.place}</span>
@@ -85,16 +70,11 @@ export function MajelisListScreen() {
         </TopBar>
       }
     >
-      <Overline>Hari ini</Overline>
+      {/* One flat list. It was split into "Hari ini" and "Majelis lain", which
+          made the directory answer a question the schedule already owns — and a
+          BP who opens this tab is looking a group UP, on whatever day. */}
       <div className="flex flex-col gap-8">
-        {today.map((m) => (
-          <Row key={m.id} entry={m} />
-        ))}
-      </div>
-
-      <Overline>Majelis lain</Overline>
-      <div className="flex flex-col gap-8">
-        {rest.map((m) => (
+        {MAJELIS_DIRECTORY.map((m) => (
           <Row key={m.id} entry={m} />
         ))}
       </div>

@@ -23,17 +23,35 @@ function hashOf(name: string): number {
 export interface Profile {
   phone: string
   address: string
+  /**
+   * Where she trades. A separate route from her house because the BP chasing a
+   * warung owner at 10.00 wants the warung, not a locked front door — and the
+   * two are rarely the same address.
+   */
+  business: string
+  /** Her penanggung jawab — who the BP calls when the mitra doesn't answer. */
+  pjName: string
+  pjPhone: string
   /** How long she has been a mitra — the thing that earns patience. */
   joined: string
 }
 
 const JOINED = ['Maret 2023', 'Agustus 2023', 'Januari 2024', 'Juni 2024', 'Oktober 2024']
+const TRADES = ['Warung sembako', 'Kios sayur', 'Warung nasi', 'Toko kelontong', 'Lapak buah']
+const PJ_NAMES = ['Ibu Ketua Nurhayati', 'Ibu Imas Masitoh', 'Ibu Tuti Herawati', 'Bapak Asep Saepudin']
+
+function phoneFrom(h: number): string {
+  return `0812-${String(3000 + (h % 6000))}-${String(1000 + (h % 8999))}`
+}
 
 export function profileOf(mitra: Mitra): Profile {
   const h = hashOf(mitra.name)
   return {
-    phone: `0812-${String(3000 + (h % 6000))}-${String(1000 + (h % 8999))}`,
+    phone: phoneFrom(h),
     address: `Kp. Cibeuteung RT ${String(1 + (h % 8)).padStart(2, '0')} / RW 04, Ciseeng`,
+    business: `${TRADES[h % TRADES.length]} — Pasar Ciseeng blok ${String.fromCharCode(65 + (h % 4))}`,
+    pjName: PJ_NAMES[h % PJ_NAMES.length],
+    pjPhone: phoneFrom(h * 7 + 13),
     joined: JOINED[h % JOINED.length],
   }
 }

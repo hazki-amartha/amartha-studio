@@ -3,33 +3,41 @@
 // The mitra page — one borrower, opened from her card on any stage.
 //
 // This is the reference's "Repayment Overview", rebuilt on this project's terms.
-// The header it specifies is kept exactly as specified — avatar, the loan she is
-// carrying, her DPD badge — and so is the week strip beneath it, because the
-// strip is the thing the whole direction turns on: it carries the AMOUNT inside
-// each week rather than a paid/unpaid dot, which is what lets a BP say "Ibu
-// kurang Rp50.000 di minggu 7" instead of "Ibu belum bayar".
+// The week strip is the thing the whole direction turns on: it carries the
+// AMOUNT inside each week rather than a paid/unpaid dot, which is what lets a BP
+// say "Ibu kurang Rp50.000 di minggu 7" instead of "Ibu belum bayar".
 //
 // The reference's second screen — a full payment-history table — is deliberately
 // absent. It was cut on the designer's call, and the strip is the reason it can
 // be: a table of 50 rows says the same thing the rail already says, one screen
 // further from the conversation that needed it.
 //
-// What this project adds back is the ORDER. The record does not open the page.
-// What to do about her does — one pre-reasoned recommendation, with the ledger
-// as the evidence underneath. A mitra page is the classic place a task-first app
-// quietly turns back into a dashboard, and the strip is handsome enough to be
-// exactly that trap.
+// The page is now a RECORD and only a record. It used to open on a "Yang perlu
+// dilakukan" card that named the bill and offered to collect it; that has been
+// taken out, along with the loan and join date in the header. Collecting is
+// something the pelayanan queue sends her into with a mitra in front of her —
+// carrying a second door into it from a page she opens to LOOK SOMETHING UP put
+// the flow's most consequential action behind a browsing gesture. What is left
+// is her standing (name, DPD), her ledger, and how to reach her.
 
 import type { ReactNode } from 'react'
-import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
+import { Badge, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { findMitra, outstandingOf, rupiah } from '../lib/data'
-import { IconChat, IconCheck, IconChevronRight, IconPin, IconTrendUp } from '../lib/icons'
+import { findMitra, outstandingBalanceOf, outstandingOf, rupiah } from '../lib/data'
+import {
+  IconChat,
+  IconChevronRight,
+  IconPin,
+  IconStore,
+  IconTrendUp,
+  IconUsers,
+} from '../lib/icons'
 import { ladderOf } from '../lib/ladder'
 import { profileOf } from '../lib/profile'
-import { collectStatus, paidOf, remainingOf, store, useApp } from '../lib/store'
-import { Avatar, Overline, StatRows, WeekStrip } from '../lib/ui'
+import { DpdBadge } from '../lib/mitra-card'
+import { useApp } from '../lib/store'
+import { Overline, WeekStrip } from '../lib/ui'
 
 export function MitraScreen() {
   const flow = useFlow()
@@ -38,7 +46,6 @@ export function MitraScreen() {
   const mitra = findMitra(s.openMitra)
   const profile = profileOf(mitra)
   const owed = outstandingOf(mitra)
-  const status = collectStatus(s, mitra)
   const ladder = ladderOf(mitra)
 
   // The ladder row carries the ladder's own conclusion, so a BP who never opens
@@ -53,82 +60,41 @@ export function MitraScreen() {
         : 'Siklus selesai — bisa ajukan pembiayaan baru'
 
   return (
-    <Screen topBar={<NavigationHeader title="Detail Mitra" onBack={() => flow.back()} />}>
-      {/* The reference's header, kept: who she is, what she carries, how she is
-          doing. The loan is the number she is asked about; the badge is the one
-          the BP is asked about. */}
-      <Card>
-        <div className="flex items-center gap-12">
-          <Avatar name={mitra.name} />
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-18 font-bold text-default">{mitra.name}</span>
-            <span className="truncate text-12 text-caption">Pinjaman {rupiah(mitra.loan)}</span>
-            <span className="truncate text-12 text-caption">Mitra sejak {profile.joined}</span>
-          </div>
-          {mitra.dpd > 0 ? (
-            <Badge intent={mitra.dpd >= 30 ? 'red' : 'orange'}>Menunggak {mitra.dpd} hari</Badge>
-          ) : (
-            <Badge intent="green">Lancar</Badge>
-          )}
-        </div>
-      </Card>
-
-      {/* --- What to do about her. First, before the record. ---------------- */}
-      <section className="flex flex-col gap-8">
-        <Overline>Yang perlu dilakukan</Overline>
-
-        {status === 'lunas' ? (
-          <Done
-            title="Sudah lunas hari ini"
-            detail={`${rupiah(paidOf(s, mitra))} diterima`}
-          />
-        ) : status === 'tidak' ? (
-          <Done
-            title="Tercatat tidak bayar"
-            detail={
-              s.nonPayments[mitra.id]?.ptp
-                ? `${s.nonPayments[mitra.id]?.reason} · janji ${s.nonPayments[mitra.id]?.ptp}`
-                : (s.nonPayments[mitra.id]?.reason ?? '')
-            }
-          />
-        ) : (
-          <div className="flex flex-col gap-12 rounded-12 border border-primary-200 bg-primary-50 p-12">
-            <div className="flex flex-col gap-2">
-              <span className="text-12 text-caption">
-                {status === 'sebagian' ? 'Sisa yang belum dibayar' : 'Total yang harus ditagih'}
-              </span>
-              <span className="text-24 font-bold text-default">
-                {rupiah(status === 'sebagian' ? remainingOf(s, mitra) : owed.total)}
-              </span>
-            </div>
-            <Button className="w-full" onClick={() => flow.go('collect')}>
-              Tagih Pembayaran
-            </Button>
-          </div>
-        )}
-      </section>
-
-      {/* --- The evidence. The ledger the recommendation was reasoned from. -- */}
-      <section className="flex flex-col gap-8">
-        <Overline>Riwayat pembayaran</Overline>
-        <WeekStrip weeks={mitra.weeks} totalWeeks={mitra.totalWeeks} />
-        <StatRows
-          rows={[
-            { label: 'Angsuran minggu ini', value: rupiah(owed.thisWeek) },
-            {
-              label:
-                owed.missedWeeks > 0 ? `Terlewat (${owed.missedWeeks} minggu)` : 'Terlewat',
-              value: rupiah(owed.missed),
-              tone: owed.missed > 0 ? 'red' : 'default',
-            },
-            {
-              label: 'Sisa bayar sebagian',
-              value: rupiah(owed.partial),
-              tone: owed.partial > 0 ? 'orange' : 'default',
-            },
-            { label: 'Total tagihan', value: rupiah(owed.total), tone: 'strong' },
-          ]}
+    <Screen
+      topBar={
+        // Her name and her bucket ARE the title. They used to sit in a card of
+        // their own under a bar that said "Detail Mitra" — a heading that named
+        // the screen to someone already looking at it, costing a card to repeat
+        // what the bar could have said. The bar is pinned, so the two facts now
+        // stay on screen while the ledger scrolls.
+        <NavigationHeader
+          title={
+            <span className="flex min-w-0 items-center gap-8">
+              <span className="min-w-0 flex-1 truncate">{mitra.name}</span>
+              <DpdBadge dpd={mitra.dpd} format="short" />
+            </span>
+          }
+          onBack={() => flow.back()}
         />
+      }
+    >
+      {/* --- The ledger, and the three numbers it settles. ------------------ */}
+      {/* No overline here: the strip's own card is headed "Riwayat Angsuran",
+          and an overline above it would print the same words twice. */}
+      <section className="flex flex-col gap-8">
+        <WeekStrip weeks={mitra.weeks} totalWeeks={mitra.totalWeeks} />
+        {/* Three figures, three different questions: what she owes today, what
+            she still owes at all, and what one week costs. Side by side rather
+            than stacked, because they are read as a SET — the BP quotes the
+            three in one breath — and a vertical list of label/value rows makes
+            each one a separate line to find. The four-line split of that first
+            figure (this week / terlewat / sisa sebagian) lives on the collect
+            page, where she is explaining the number rather than reading it. */}
+        <div className="flex gap-8 rounded-12 bg-neutral-white p-12">
+          <Figure label="Total tagihan" value={rupiah(owed.total)} strong />
+          <Figure label="Total outstanding" value={rupiah(outstandingBalanceOf(mitra))} />
+          <Figure label="Weekly installment" value={rupiah(mitra.weekly)} />
+        </div>
       </section>
 
       {/* --- Her standing and how to reach her. ---------------------------- */}
@@ -141,7 +107,16 @@ export function MitraScreen() {
               icon={<IconTrendUp size={20} />}
               title="Jalur Naik Modal"
               subtitle={ladderLine}
-              trailing={ladder.status === 'tertahan' ? <Badge intent="orange">Tertahan</Badge> : null}
+              // Named in both directions. A row that badges only the bad state
+              // leaves "no badge" meaning two things — she is fine, or nobody
+              // checked — and the BP cannot tell which from the row.
+              trailing={
+                ladder.status === 'tertahan' ? (
+                  <Badge intent="orange">Tertahan</Badge>
+                ) : (
+                  <Badge intent="green">Lancar</Badge>
+                )
+              }
               onClick={() => flow.go('ladder')}
               first
             />
@@ -157,6 +132,24 @@ export function MitraScreen() {
               subtitle={profile.address}
               onClick={() => undefined}
             />
+            {/* Her trading place is a second route, not a detail of the first.
+                A BP chasing a warung owner mid-morning wants the warung; the
+                house is where she goes in the evening. */}
+            <CardRow
+              icon={<IconStore size={20} />}
+              title="Rute ke tempat usaha"
+              subtitle={profile.business}
+              onClick={() => undefined}
+            />
+            {/* The number the BP dials when the mitra doesn't answer hers. It
+                sits on the mitra's own page because that is where she is
+                standing when the call fails. */}
+            <CardRow
+              icon={<IconUsers size={20} />}
+              title="Chat WhatsApp PJ"
+              subtitle={`${profile.pjName} · ${profile.pjPhone}`}
+              onClick={() => undefined}
+            />
           </div>
         </Card>
       </section>
@@ -164,17 +157,18 @@ export function MitraScreen() {
   )
 }
 
-/** An outcome already on file — a finished state, not a gap to fill. */
-function Done({ title, detail }: { title: string; detail: string }) {
+/**
+ * One of the three figures under the strip. Divided by a hairline rather than
+ * spaced apart, because three amounts with nothing between them read as one
+ * number split three ways — which is exactly what they are not.
+ */
+function Figure({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12">
-      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-green-50 text-green-500">
-        <IconCheck size={20} />
+    <div className="flex min-w-0 flex-1 flex-col gap-2 border-l border-default pl-8 first:border-l-0 first:pl-0">
+      <span className="text-10 text-caption">{label}</span>
+      <span className={`text-14 font-bold ${strong ? 'text-default' : 'text-neutral-700'}`}>
+        {value}
       </span>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-14 font-bold text-default">{title}</span>
-        <span className="truncate text-12 text-caption">{detail}</span>
-      </div>
     </div>
   )
 }

@@ -17,10 +17,19 @@ import { rupiah, type Mitra } from './data'
 import { IconChevronRight } from './icons'
 import { Avatar } from './ui'
 
-/** Her bucket, as the badge the reference puts top-right of every card. */
-export function DpdBadge({ dpd }: { dpd: number }) {
+/**
+ * Her bucket, as the badge the reference puts top-right of every card.
+ *
+ * Two wordings, same fact. `long` — "Menunggak 34 hari" — is for the stages,
+ * where the card is being read one at a time and the sentence is what the BP
+ * says out loud. `short` — "DPD 34" — is for the roster and her page, where the
+ * badge is being SCANNED down a column of 22 and the ops term is the shortest
+ * thing that still sorts.
+ */
+export function DpdBadge({ dpd, format = 'long' }: { dpd: number; format?: 'long' | 'short' }) {
   if (dpd === 0) return <Badge intent="green">Lancar</Badge>
-  return <Badge intent={dpd >= 30 ? 'red' : 'orange'}>Menunggak {dpd} hari</Badge>
+  const intent = dpd >= 30 ? 'red' : 'orange'
+  return <Badge intent={intent}>{format === 'short' ? `DPD ${dpd}` : `Menunggak ${dpd} hari`}</Badge>
 }
 
 export function MitraCard({

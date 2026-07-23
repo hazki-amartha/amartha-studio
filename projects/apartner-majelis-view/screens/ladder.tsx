@@ -40,6 +40,13 @@ export function LadderScreen() {
         <div className="flex items-center gap-12">
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-14 font-bold text-default">{mitra.name}</span>
+            {/* Where she stands TODAY, directly under her name. Every rung on
+                the rail below is an amount added to this one, and without it
+                the whole ladder is a set of increments measured from a number
+                the BP has to remember from another screen. */}
+            <span className="truncate text-12 text-caption">
+              Limit saat ini {rupiah(mitra.loan)}
+            </span>
             <span className="truncate text-12 text-caption">
               {held
                 ? `${ladder.missedWeeks} minggu belum dibayar`
