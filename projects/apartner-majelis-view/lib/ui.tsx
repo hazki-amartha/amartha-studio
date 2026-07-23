@@ -720,18 +720,7 @@ export interface StatRow {
   tone?: 'default' | 'strong' | 'red' | 'orange' | 'green'
 }
 
-export function StatRows({
-  rows,
-  divided = true,
-}: {
-  rows: StatRow[]
-  /**
-   * Hairlines between rows. Off when the rows are a TOTAL and its parts rather
-   * than separate facts: a rule under the total turns "made of these" into "and
-   * also these", which is a different sentence.
-   */
-  divided?: boolean
-}) {
+export function StatRows({ rows }: { rows: StatRow[] }) {
   const toneClass = (tone: StatRow['tone']) =>
     tone === 'red'
       ? 'text-red-500'
@@ -746,9 +735,7 @@ export function StatRows({
       {rows.map((row, i) => (
         <div
           key={row.label}
-          className={`flex items-center gap-12 px-12 ${divided ? 'py-12' : 'py-8 first:pt-12 last:pb-12'} ${
-            i === 0 || !divided ? '' : 'border-t border-default'
-          }`}
+          className={`flex items-center gap-12 px-12 py-12 ${i === 0 ? '' : 'border-t border-default'}`}
         >
           <span className="flex-1 text-14 text-caption">{row.label}</span>
           <span

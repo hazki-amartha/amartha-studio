@@ -16,37 +16,59 @@ import { Badge, Card } from '@/design-system/components'
 import { User } from '@/design-system/icons'
 import { outstandingOf, rupiah, type Mitra } from './data'
 import { IconChevronRight } from './icons'
-import { StatRows } from './ui'
 
 /**
  * What she owes, and what it is made of. ONE component, used by the mitra page
- * and by the home visit, because they are the same three facts read at the same
+ * and by the home visit, because they are the same facts read at the same
  * moment — before the BP asks for money — and two drawings of one card is how a
  * prototype ends up arguing with itself in a review.
  *
- * The total is the first line of its own breakdown rather than a headline over
- * one, and there are no rules between the rows: a rule under the total turns
- * "made of these" into "and also these".
+ * The total leads at full size with its parts under a rule, because the total
+ * is what gets said first and the lines under it are what gets said when it is
+ * argued with: "seratus lima puluh minggu ini, sisanya sembilan minggu yang
+ * belum kebayar."
  *
- * "Terlewat" carries everything overdue — the missed weeks AND whatever is left
- * of a week she part-paid. Two different failures, but the BP does not collect
- * them separately, and a card whose parts do not visibly sum to its total is
- * the one thing this project has been careful never to print. The week strip
- * still tells the two apart, where the difference is said out loud.
+ * The tunggakan line carries everything overdue — the missed weeks AND whatever
+ * is left of a week she part-paid. Two different failures, but the BP does not
+ * collect them separately. The week count in its label counts MISSED weeks
+ * only, so on a mitra with a part-payment behind her the label is a slight
+ * understatement of the amount beside it; the week strip above is where the two
+ * are actually told apart.
  */
 export function TagihanBreakdown({ mitra }: { mitra: Mitra }) {
   const owed = outstandingOf(mitra)
   const overdue = owed.missed + owed.partial
 
   return (
-    <StatRows
-      divided={false}
-      rows={[
-        { label: 'Total tagihan', value: rupiah(owed.total), tone: 'strong' },
-        { label: 'Minggu ini', value: rupiah(owed.thisWeek) },
-        { label: 'Terlewat', value: rupiah(overdue), tone: overdue > 0 ? 'red' : 'default' },
-      ]}
-    />
+    <Card>
+      <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-2">
+          <span className="text-12 text-caption">Total tagihan</span>
+          <span className="text-24 font-bold text-default">{rupiah(owed.total)}</span>
+        </div>
+        <div className="flex flex-col gap-4 border-t border-default pt-8">
+          <TagihanLine label="Angsuran minggu ini" value={rupiah(owed.thisWeek)} />
+          {overdue > 0 ? (
+            <TagihanLine
+              label={
+                owed.missedWeeks > 0 ? `Tunggakan ${owed.missedWeeks} minggu` : 'Tunggakan'
+              }
+              value={rupiah(overdue)}
+              red
+            />
+          ) : null}
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function TagihanLine({ label, value, red }: { label: string; value: string; red?: boolean }) {
+  return (
+    <div className="flex items-center gap-12">
+      <span className="flex-1 text-12 text-caption">{label}</span>
+      <span className={`text-12 font-bold ${red ? 'text-red-500' : 'text-default'}`}>{value}</span>
+    </div>
   )
 }
 
