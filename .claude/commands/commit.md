@@ -1,8 +1,9 @@
 # /commit — checkpoint the current work
 
-Save a private, reversible checkpoint of whatever the designer is working on.
-This does **not** push or deploy anything. See `CLAUDE.md` §7 for the two-verb
-model this belongs to.
+Commit the designer's current work as a checkpoint — saved, but not live. This
+does **not** push anything. See `CLAUDE.md` §7 for the two-verb model this
+belongs to (and its rule: never introduce a third word like "save", and never
+say "PR" to a designer).
 
 Triggers: `/commit`, "commit it", "commit my work", "checkpoint this".
 
@@ -27,8 +28,8 @@ Triggers: `/commit`, "commit it", "commit my work", "checkpoint this".
    the designer gave one.
 
 4. **Report in plain language.** Say what you committed and that it isn't live yet
-   — e.g. *"Committed a checkpoint of your Home Visit screens. Nothing's live yet
-   — say **push it** when you want to share it."* No PR talk, no raw git commands
-   in the summary.
+   — e.g. *"Committed your Home Visit screens. Not live yet — say **push it** when
+   you want to share it."* Don't explain what a commit *is* (no "private,
+   reversible checkpoint" aside — §7). No "PR", no raw git commands in the summary.
 
-**Do not** push, open a PR, or deploy. That is `/push`.
+**Do not** push or open a PR. That is `/push`.

@@ -2,8 +2,10 @@
 
 Take the designer's work all the way to a shareable, deploying state, and report
 it in plain language. Here "push" means the **whole path to live** — not just a
-raw `git push`, but push → PR → auto-merge → deploy. See `CLAUDE.md` §7 for the
-two-verb model this belongs to.
+raw `git push`, but push → PR → auto-merge → deploy. All of that machinery is
+yours; the designer only ever hears "pushed", "live", "preview link", and — for
+shared changes — "pending review". See `CLAUDE.md` §7 for the two-verb model
+this belongs to (never say "PR" to a designer).
 
 Triggers: `/push`, "push it", "ship it", "make it live", "deploy it".
 
@@ -26,13 +28,15 @@ Triggers: `/push`, "push it", "ship it", "make it live", "deploy it".
 
 5. **Tell them what will happen, in their terms:**
    - **Project-only** (only `projects/<slug>/`, maybe one registry line) →
-     *"Pushing — it'll be live in a minute or two."* It auto-merges once CI is
-     green; nobody has to review it.
+     *"Pushed — it'll be live in a minute or two, here's the preview link."* It
+     goes live on its own; nobody has to review it. Don't mention review, and
+     don't say "PR".
    - **Touches shared files** (anything owner-gated in `.github/CODEOWNERS`) →
-     *"This changes shared studio files, so it's waiting on Hazki's review before
-     it goes live — that's normal, not a failure."*
-   - **Either way, give them the preview link** (see below). It works even while a
-     review is pending, so "waiting on Hazki" never means "can't show anyone."
+     *"Pushed — this changes shared studio files, so it's **pending review** by
+     Hazki before it goes live. That's normal, not a failure — and the preview
+     link works right now."*
+   - **Either way, give them the preview link** (see below). It works even while
+     review is pending, so "pending review" never means "can't show anyone."
 
 6. **Leave them clean.** Once it has merged (or auto-merge is set on a project-only
    PR), return their checkout to a synced `main`:
