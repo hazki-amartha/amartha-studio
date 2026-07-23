@@ -1,9 +1,12 @@
 'use client'
 
-// Project-local module store — the pattern for state that must survive
-// navigation. Screens remount on every go()/back(), so useState inside a
-// screen is lost; keep flow-level values (entered amounts, selections) here
-// and read them via the useSyncExternalStore hook below.
+// OPTIONAL — delete this file if your prototype is a plain click-through
+// (screens + go(), the default per CLAUDE.md §3). Most prototypes don't need it.
+//
+// Keep it ONLY when a value must survive navigation: screens remount on every
+// go()/back(), so useState inside a screen is lost. Flow-level values (entered
+// amounts, selections) live here and are read via the useSyncExternalStore hook
+// below.
 //
 // Rename FlowState/useFlowState and the fields to fit your flow. See
 // projects/apartner-homepage-ia/lib/store.ts for a complete example.

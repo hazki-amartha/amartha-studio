@@ -82,6 +82,16 @@ Every screen wraps its content in **`Screen`** — never hand-roll page padding:
 
 ## 3. Structure — how a project is shaped
 
+**Default to a click-through.** A prototype is screens that call `go()` to reach
+each other — nothing more. Local `useState` is fine for anything that doesn't
+need to survive navigation. Do **not** reach for a module store, `lib/demo.ts`
+seed data, or `states` unless the designer asks to *demonstrate real behavior*
+(a value carried across screens, an error condition, a day that already
+happened). Real data and state cost real tokens to build and maintain; a
+click-through is the cheap default, and most prototypes want exactly that. When
+in doubt, build the click-through and offer the fancier version rather than
+assuming it.
+
 A new project = **copy `projects/_template/` → `projects/<slug>/`**, then:
 
 1. Fill `project.config.ts` — every field. `slug` must match the folder name and
@@ -99,10 +109,13 @@ A new project = **copy `projects/_template/` → `projects/<slug>/`**, then:
    '<slug>': () => import('./<slug>').then((m) => m.project),
    ```
 
-**`notes` — only when the designer asks for them.** They're annotations shown
-beside the device on desktop, and they are genuinely useful when someone wants
-them. Do **not** write them by default, and never write design rationale nobody
-requested: it costs more time than the screen did. Default to omitting the field.
+**`notes` — only when the designer asks, in words, this session.** They're
+annotations shown beside the device on desktop — genuinely useful when someone
+wants them, and pure wasted effort when nobody did. The failure mode is adding
+them *by habit*: if you're about to write a `notes` entry and the designer did
+not explicitly ask for annotations, **stop and leave the field off.** Building
+the screen is not a licence to also explain it. Never write design rationale
+nobody requested — it costs more time than the screen did. Default: omit.
 
 **`states` — optional, and worth offering when a screen has more than one
 condition worth showing.** Each entry is `{ id, label, description?, apply }`,
@@ -119,18 +132,27 @@ navigation is `useFlow().go(id)` in the component. Add it when a flow diagram
 would help the designer, skip it otherwise. If you do add it, `check:flows`
 requires every `to` be a real screen id.
 
-Project-local state / mock data goes in `projects/<slug>/lib/`.
+Project-local state / mock data goes in `projects/<slug>/lib/`. **Keep mock data
+to what's actually on screen** — a few representative rows (~3–5), not a
+realistic-scale dataset. A list that shows five items needs five, not fifty; the
+invisible rows are pure token cost for zero visible difference. Never generate
+faker-style volume "to make it look real" unless the designer asks to see the
+prototype under load.
 
 A screen obtains navigation from `useFlow()` (`@/platform/runtime`): `go(id)`
 pushes, `back()` pops, `current` is the active id. Screens receive no props.
 
 ### Cross-screen state
 
+Most prototypes never need this — see the click-through default at the top of
+§3. Reach for it only when a value genuinely must survive navigation.
+
 **Screens remount on every navigation** — `useState` inside a screen is
-silently lost when you `go()` away and back. Any value that must survive
-navigation (an entered amount, a selected option) goes in a **module store**
+silently lost when you `go()` away and back. When a value *must* survive
+navigation (an entered amount, a selected option), it goes in a **module store**
 in `projects/<slug>/lib/store.ts`, read via `useSyncExternalStore`. The
-template ships a stub at `projects/_template/lib/store.ts`; see
+template ships an **optional** stub at `projects/_template/lib/store.ts` —
+delete it if the prototype is a plain click-through; see
 `projects/apartner-homepage-ia/lib/store.ts` for a full flow using the pattern.
 
 ---
@@ -232,23 +254,33 @@ two verbs.** They use the real git words — `commit` and `push` — but you do 
 the work behind them: never make them think about branches, PRs, or merges, and
 never hand them a git command to run.
 
-**The two verbs** (each has a slash command: `/commit`, `/push`):
+**The two verbs — and only these two** (each has a slash command: `/commit`,
+`/push`). Never introduce a third word for either — not "save", not "publish",
+not "ship", not "deploy". Commit and push are the whole vocabulary:
 
-- **"commit it"** → save a checkpoint. Private, reversible. If they're on `main`,
-  silently create a branch first (§5 naming) — never commit to `main`, never ask
-  them to name it. Report what you committed and that it isn't live yet.
-- **"push it"** → the whole path to live (more than a raw `git push`): run the §6
-  checks, commit anything pending, push, open the PR, enable auto-merge, and
-  surface the **preview URL**. Then say plainly whether it goes live on its own
-  (project-only) or waits for Hazki's review (touched shared files) — and that
-  the preview link works either way. Leave them on a clean, synced `main` when
-  it's done.
+- **"commit it"** → a checkpoint, not live yet. If they're on `main`, silently
+  create a branch first (§5 naming) — never commit to `main`, never ask them to
+  name it. Report what you committed and that it isn't live yet. Don't explain
+  *why* a commit is private or reversible — they didn't ask; just say it's saved
+  and not live.
+- **"push it"** → make it live. Behind the words you run the §6 checks, commit
+  anything pending, push, open the PR, enable auto-merge, and surface the
+  **preview link** — but you never narrate that machinery. Then say plainly:
+  - **Project-only** → it goes live on its own; give the preview link. Nothing
+    is "waiting" — don't mention review, and don't offer commit-vs-push as if it
+    were a fork in the road.
+  - **Touches shared files** → it's **pending review** (Hazki looks before it
+    goes live). Give the preview link — it works while review is pending.
 
-**How to speak.** Say "committed", "pushed", "live", "preview link", "waiting on
-Hazki". Don't lead with "branch", "PR #17", "mergeStateStatus", or a raw git
-command they'd have to run. If a designer asks what a git term means, answer in
-one sentence and move on — a little real vocabulary is fine; a wall of it is what
-loses them.
+  Leave them on a clean, synced `main` when it's done.
+
+**How to speak.** The only words are "commit", "committed", "push", "pushed",
+"live", "preview link", and — for shared changes — "pending review". **Never say
+"PR"** (or "pull request", "merge", "auto-merge", "branch", "mergeStateStatus")
+to a designer, and never hand them a raw git command. Don't dress a verb in a
+parenthetical that teaches a concept — "commit it (a private checkpoint)" is
+worse than "commit it", because the aside answers a question they didn't ask. If
+a designer asks what a git term means, answer in one sentence and move on.
 
 **When they're confused or say "just do it," take over completely** — pick every
 default, run the whole flow, and hand them no git decisions. The moment you
