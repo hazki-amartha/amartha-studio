@@ -141,15 +141,12 @@ const STRIP_WEEKS = 10
 
 export function WeekStrip({
   weeks,
-  totalWeeks,
   onSeeAll,
 }: {
   weeks: Week[]
-  totalWeeks: number
   /** Opens the full record. Omitted renders no link. */
   onSeeAll?: () => void
 }) {
-  const current = weeks[weeks.length - 1]
   // The last ten, because the rail is for the RECENT past: what happened over
   // the weeks the BP is about to ask about. Fifty cells was a ledger rendered
   // as a rail, and the forty at the far left were never scrolled to.
@@ -166,15 +163,10 @@ export function WeekStrip({
 
   return (
     <div className="flex flex-col gap-8 rounded-12 bg-neutral-white p-12">
-      <div className="flex items-center gap-8">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-14 font-bold text-default">Riwayat Angsuran</span>
-          <span className="text-12 text-caption">{totalWeeks} minggu total</span>
-        </div>
-        <span className="shrink-0 rounded-full bg-primary-50 px-12 py-4 text-12 font-bold text-primary-500">
-          Minggu {current.no} dari {totalWeeks}
-        </span>
-      </div>
+      {/* A title and nothing else. The cycle length and "minggu 9 dari 50" were
+          two ways of saying how far through she is — which the rail itself
+          shows, in the only form she can act on: which weeks went wrong. */}
+      <span className="text-14 font-bold text-default">Riwayat Angsuran</span>
 
       {/* -mx-12 lets the rail bleed to the card's edges, so the last visible
           week is clipped by the card rather than by an inner gutter — which is
@@ -579,7 +571,18 @@ export interface StatRow {
   tone?: 'default' | 'strong' | 'red' | 'orange' | 'green'
 }
 
-export function StatRows({ rows }: { rows: StatRow[] }) {
+export function StatRows({
+  rows,
+  divided = true,
+}: {
+  rows: StatRow[]
+  /**
+   * Hairlines between rows. Off when the rows are a TOTAL and its parts rather
+   * than separate facts: a rule under the total turns "made of these" into "and
+   * also these", which is a different sentence.
+   */
+  divided?: boolean
+}) {
   const toneClass = (tone: StatRow['tone']) =>
     tone === 'red'
       ? 'text-red-500'
@@ -594,7 +597,9 @@ export function StatRows({ rows }: { rows: StatRow[] }) {
       {rows.map((row, i) => (
         <div
           key={row.label}
-          className={`flex items-center gap-12 px-12 py-12 ${i === 0 ? '' : 'border-t border-default'}`}
+          className={`flex items-center gap-12 px-12 ${divided ? 'py-12' : 'py-8 first:pt-12 last:pb-12'} ${
+            i === 0 || !divided ? '' : 'border-t border-default'
+          }`}
         >
           <span className="flex-1 text-14 text-caption">{row.label}</span>
           <span

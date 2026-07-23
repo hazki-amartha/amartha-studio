@@ -89,46 +89,32 @@ export function MitraScreen() {
   return (
     <Screen topBar={header}>
       {/* --- The recent ledger. No overline: the card names itself. --------- */}
-      <WeekStrip
-        weeks={mitra.weeks}
-        totalWeeks={mitra.totalWeeks}
-        onSeeAll={() => flow.go('loans')}
-      />
+      <WeekStrip weeks={mitra.weeks} onSeeAll={() => flow.go('loans')} />
 
-      {/* --- What she owes today, and what it is made of. ------------------- */}
-      {/* One figure with its parts under it, rather than three figures side by
-          side. Total outstanding and the weekly instalment were facts about the
-          CONTRACT; this is the only number the BP is about to act on, and the
-          lines beneath it are the sentence she says when it gets argued with:
-          "minggu ini dua ratus, dua minggu terlewat empat ratus."
-          The shortfall line only appears when there is one — but it does appear,
-          because without it the parts do not add up to the total, which is the
-          exact contradiction this project was built to avoid. */}
-      <section className="flex flex-col gap-8">
-        <Overline>Total tagihan</Overline>
-        <div className="flex flex-col gap-2 rounded-12 bg-neutral-white p-12">
-          <span className="text-24 font-bold text-default">{rupiah(owed.total)}</span>
-        </div>
-        <StatRows
-          rows={[
-            { label: 'Minggu ini', value: rupiah(owed.thisWeek) },
-            {
-              label: owed.missedWeeks > 0 ? `Terlewat (${owed.missedWeeks} minggu)` : 'Terlewat',
-              value: rupiah(owed.missed),
-              tone: owed.missed > 0 ? 'red' : 'default',
-            },
-            ...(owed.partial > 0
-              ? [
-                  {
-                    label: 'Sisa bayar sebagian',
-                    value: rupiah(owed.partial),
-                    tone: 'orange' as const,
-                  },
-                ]
-              : []),
-          ]}
-        />
-      </section>
+      {/* --- What she owes today, and what it is made of. -------------------
+          Three lines in one card, no rules and no section title: the total is
+          the first line of its own breakdown, not a headline sitting above one.
+          A rule under it would turn "made of these" into "and also these".
+
+          "Terlewat" is now everything overdue — the missed weeks AND whatever
+          is left over from a week she part-paid. They were two lines because
+          they are two different failures, but the BP does not collect them
+          separately, and a card whose parts do not obviously sum to its total
+          is the one thing this project has been careful never to print. The
+          week strip above still tells the two apart, in the place where the
+          difference is actually said out loud. */}
+      <StatRows
+        divided={false}
+        rows={[
+          { label: 'Total tagihan', value: rupiah(owed.total), tone: 'strong' },
+          { label: 'Minggu ini', value: rupiah(owed.thisWeek) },
+          {
+            label: 'Terlewat',
+            value: rupiah(owed.missed + owed.partial),
+            tone: owed.missed + owed.partial > 0 ? 'red' : 'default',
+          },
+        ]}
+      />
 
       {/* --- The ladder, on its own. --------------------------------------- */}
       {/* It used to be the first row inside a "Data mitra" card, sharing a
