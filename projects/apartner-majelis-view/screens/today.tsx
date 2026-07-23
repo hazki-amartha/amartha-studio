@@ -33,26 +33,12 @@ import {
   IconCheck,
   IconChevronDown,
   IconChevronRight,
-  IconHome,
-  IconChat,
   IconInbox,
-  IconMegaphone,
   IconPin,
-  IconUsers,
-  IconWallet,
 } from '../lib/icons'
 import { doneTaskList, laterTasks, nowTask, scheduledFor, store, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
-import { AgendaRow, Collapsible, HeaderAction, IconTile, Overline, type Tint } from '../lib/ui'
-
-// The two kinds are told apart by their tile, never by hunting for a word: a
-// group of women at a balai, or one door.
-function KindIcon({ kind }: { kind: Task['kind'] }) {
-  if (kind === 'setoran') return <IconWallet size={20} />
-  if (kind === 'sosialisasi') return <IconMegaphone size={20} />
-  if (kind === 'follow-up') return <IconChat size={20} />
-  return kind === 'majelis' ? <IconUsers size={20} /> : <IconHome size={20} />
-}
+import { AgendaRow, Collapsible, HeaderAction, Overline, type Tint } from '../lib/ui'
 
 // The two NTB kinds get their own tints rather than borrowing purple. Purple is
 // the colour of servicing a majelis on this schedule, and a prospecting stop
@@ -67,23 +53,45 @@ const KIND_TINT: Record<Task['kind'], Tint> = {
 
 const kindTint = (kind: Task['kind']): Tint => KIND_TINT[kind]
 
-// The short code every row wears. It is the BP's own shorthand — MV, HV, Sos are
-// what she and her BM say to each other — and it earns the space because it fits
-// on ONE line beside a title, which "Pelayanan Majelis" does not. The tile colour
-// already carries the kind for the eye; the badge is what names it.
+// The BP's own shorthand — MV, HV, Sos, FU are what she and her BM already say
+// to each other. "Setor" is the odd one out and stays a word: there is no code
+// for the deposit because nobody needed one, it happens once a day.
 const KIND_LABEL: Record<Task['kind'], string> = {
   majelis: 'MV',
   'home-visit': 'HV',
-  setoran: 'Setoran',
+  setoran: 'Setor',
   sosialisasi: 'Sos',
   'follow-up': 'FU',
 }
 
-const kindLabel = (kind: Task['kind']) => KIND_LABEL[kind]
-
-/** The badge itself, so the focus card, Berikutnya and Besok cannot drift. */
-function KindBadge({ kind }: { kind: Task['kind'] }) {
-  return <Badge intent={kindTint(kind)}>{kindLabel(kind)}</Badge>
+/**
+ * The tile at the head of every task, and it holds the CODE rather than a
+ * pictogram. The icons were a second vocabulary to learn — a house, a group of
+ * women, a megaphone — that resolved to the same five words the BP already has
+ * names for, and at 20px a megaphone and a speech bubble are one blur apart.
+ * The tint still does the pre-attentive work; the letters remove the guess.
+ *
+ * Fixed width, so titles start on one line down the agenda whatever the code.
+ */
+function KindTag({ kind }: { kind: Task['kind'] }) {
+  const tint = kindTint(kind)
+  const tone =
+    tint === 'red'
+      ? 'bg-red-50 text-red-500'
+      : tint === 'green'
+        ? 'bg-green-50 text-green-500'
+        : tint === 'blue'
+          ? 'bg-blue-50 text-blue-500'
+          : tint === 'orange'
+            ? 'bg-orange-50 text-orange-500'
+            : 'bg-primary-50 text-primary-500'
+  return (
+    <span
+      className={`flex h-40 w-48 shrink-0 items-center justify-center rounded-8 text-12 font-bold ${tone}`}
+    >
+      {KIND_LABEL[kind]}
+    </span>
+  )
 }
 
 // The verb on the focus card. A sosialisasi is not "started" the way a
@@ -225,14 +233,9 @@ export function TodayScreen() {
             <AgendaRow key={task.id} time={task.time}>
               <Card>
                 <div className="flex items-center gap-12">
-                  <IconTile tint={kindTint(task.kind)}>
-                    <KindIcon kind={task.kind} />
-                  </IconTile>
+                  <KindTag kind={task.kind} />
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="flex min-w-0 items-center gap-4">
-                      <KindBadge kind={task.kind} />
-                      <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                    </span>
+                    <span className="truncate text-14 font-bold text-default">{task.title}</span>
                     <span className="flex items-center gap-4 text-12 text-caption">
                       <span className="shrink-0">
                         <IconPin size={16} />
@@ -261,13 +264,8 @@ export function TodayScreen() {
             <Card>
               <div className="flex flex-col gap-12">
                 <div className="flex items-start gap-12">
-                  <IconTile tint={kindTint(now.kind)}>
-                    <KindIcon kind={now.kind} />
-                  </IconTile>
+                  <KindTag kind={now.kind} />
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
-                    <div className="flex">
-                      <KindBadge kind={now.kind} />
-                    </div>
                     <span className="text-18 font-bold text-default">{now.title}</span>
                     <span className="flex items-start gap-4 text-12 text-caption">
                       <span className="shrink-0">
@@ -317,14 +315,9 @@ export function TodayScreen() {
                   onClick={() => start(task)}
                   className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
                 >
-                  <IconTile tint={kindTint(task.kind)}>
-                    <KindIcon kind={task.kind} />
-                  </IconTile>
+                  <KindTag kind={task.kind} />
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="flex min-w-0 items-center gap-4">
-                      <KindBadge kind={task.kind} />
-                      <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                    </span>
+                    <span className="truncate text-14 font-bold text-default">{task.title}</span>
                     <span className="truncate text-12 text-caption">{task.reason}</span>
                   </div>
                   <span className="shrink-0 text-disabled">

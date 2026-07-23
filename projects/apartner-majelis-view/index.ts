@@ -99,7 +99,7 @@ export const project: ProjectModule = {
       title: 'Majelis View',
       component: MajelisScreen,
       notes: [
-        'The roster of one group, and the screen this direction is named after. The page header carries where the group meets and when — the two questions a look-up asks — and every card is down to the pair that decides who to read first: tunggakan and DPD.',
+        'The roster of one group, and the screen this direction is named after. Same header split as apartner-homepage-ia’s Detail Majelis: the kumpulan slot rides in the subtitle, because it is asked every time the page is opened, and the address sits behind the Info toggle, because it is asked once — on the way there. Every card is down to the pair that decides who to read first: tunggakan and DPD.',
         'Sorting is the only control, defaulting to whoever is most behind, because the mitra worth reading about first are the ones in arrears. Nothing here records anything; the single button starts the pelayanan when she is ready.',
       ],
       flowsTo: [
@@ -374,7 +374,7 @@ export const project: ProjectModule = {
       title: 'Detail Mitra',
       component: MitraScreen,
       notes: [
-        'One borrower, opened from her card anywhere in the flow, and now a record rather than a second place to act. The header states only who she is and how late she is; collecting happens in the pelayanan queue, which is the only place the BP has the mitra in front of her.',
+        'One borrower, opened from her card anywhere in the flow, and now a record rather than a second place to act. Her name and her DPD badge ARE the top bar — they used to sit in a card under a bar that said “Detail Mitra”, a heading that named the screen to someone already looking at it — so the two facts stay pinned while the ledger scrolls. Collecting happens in the pelayanan queue, which is the only place the BP has the mitra in front of her.',
         'The week strip is the heart of the page: it carries the amount inside each week rather than a paid/unpaid dot, so the BP can say “Ibu kurang Rp50.000 di minggu 7” instead of “Ibu belum bayar”. Under it sit the three figures she gets asked for by name — total tagihan, total outstanding, angsuran.',
         'Data mitra is the reach-her block, and it carries two routes and two numbers: her house and her tempat usaha, her WhatsApp and her PJ’s. A BP who cannot raise a mitra at home at 10.00 has three other things to try, and all of them are on this card.',
       ],
@@ -408,7 +408,7 @@ export const project: ProjectModule = {
       title: 'Jalur Naik Modal',
       component: LadderScreen,
       notes: [
-        'The one screen here that is not about what to do, but what to say. A BP opens it mid-conversation, reads the line at the top out loud, then turns the phone around and lets the mitra read the ladder herself.',
+        'The one screen here that is not about what to do, but what to say. A BP opens it mid-conversation, reads the line at the top out loud, then turns the phone around and lets the mitra read the ladder herself. The top card states her current limit, because every rung below is an amount added to it and without the base the ladder is a set of increments measured from nowhere.',
         'So the copy is split by audience: the framing speaks to the BP about the mitra, while the quoted line and the rail speak to the mitra directly. Nothing is recorded here — the outcome of the conversation is logged where she is already being asked for it.',
       ],
       flowsTo: [{ to: 'mitra', label: 'kembali' }],

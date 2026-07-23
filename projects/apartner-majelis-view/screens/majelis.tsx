@@ -24,7 +24,7 @@
 // mitra worth reading about first are the ones who are behind.
 
 import { useState } from 'react'
-import { Button, NavigationHeader } from '@/design-system/components'
+import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, outstandingOf, rupiah } from '../lib/data'
@@ -40,6 +40,7 @@ export function MajelisScreen() {
   const s = useApp()
   const group = openMajelisEntry(s)
   const [sort, setSort] = useState<Sort>('tunggakan')
+  const [info, setInfo] = useState(false)
 
   const members = [...MAJELIS.members].sort((a, b) =>
     sort === 'nama' ? a.name.localeCompare(b.name) : b.dpd - a.dpd || a.name.localeCompare(b.name),
@@ -52,31 +53,49 @@ export function MajelisScreen() {
     <Screen
       topBar={
         <NavigationHeader
-          title={<VisitTitle title={group.name} when={`${MAJELIS.members.length} mitra`} />}
+          // Same split as apartner-homepage-ia's Detail Majelis: the kumpulan
+          // SLOT rides in the header subtitle, because "kapan majelis ini?" is
+          // asked every time this page is opened, and the address sits behind an
+          // Info toggle, because it is asked once — on the way there.
+          title={
+            <VisitTitle
+              title={group.name}
+              when={`${group.day}, ${group.time} · ${MAJELIS.members.length} mitra`}
+            />
+          }
+          link="Info"
+          onLinkClick={() => setInfo(!info)}
           onBack={() => flow.go('majelis-list')}
         />
       }
     >
-      {/* Where the group meets, and when. Both belong at the top of the page
-          rather than in the nav bar: a BP who reached this roster from the
-          directory is looking a group UP, and "kapan majelis ini?" / "di mana?"
-          are the two questions that route asks most. */}
-      <div className="flex flex-col gap-8 rounded-12 bg-neutral-white p-12">
-        <div className="flex items-start gap-8 text-12 text-default">
-          <span className="shrink-0 text-caption">
-            <IconPin size={16} />
-          </span>
-          <span className="min-w-0 flex-1">{group.place}</span>
-        </div>
-        <div className="flex items-start gap-8 text-12 text-default">
-          <span className="shrink-0 text-caption">
-            <IconCalendar size={16} />
-          </span>
-          <span className="min-w-0 flex-1">
-            Kumpulan {group.day}, {group.time}
-          </span>
-        </div>
-      </div>
+      {info ? (
+        <Card>
+          <div className="flex items-start gap-8">
+            <span className="shrink-0 text-disabled">
+              <IconPin size={16} />
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <span className="text-10 text-disabled">Lokasi kumpulan</span>
+              <span className="text-12 text-default">{group.place}</span>
+              <button type="button" className="text-left text-12 font-bold text-link">
+                Buka peta
+              </button>
+            </div>
+          </div>
+          <div className="mt-12 flex items-start gap-8 border-t border-default pt-12">
+            <span className="shrink-0 text-disabled">
+              <IconCalendar size={16} />
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <span className="text-10 text-disabled">Jadwal kumpulan</span>
+              <span className="text-12 text-default">
+                Setiap {group.day}, {group.time}
+              </span>
+            </div>
+          </div>
+        </Card>
+      ) : null}
 
       {/* The group's standing facts, before any work has started. Two numbers,
           both of which the BP is asked about by her BM and neither of which she
