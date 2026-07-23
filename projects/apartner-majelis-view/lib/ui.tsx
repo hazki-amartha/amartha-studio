@@ -151,8 +151,22 @@ export function StageBar({
 // strip that shrank to fit would turn the amounts back into dots, losing the
 // only thing it was for.
 
+// Three states, and the cell says which by its MARK, not by a number:
+//
+//   paid            tick, green
+//   missed          cross, red
+//   due, not late   nothing, grey, dotted
+//
+// The dotted ring is the whole point of the third one. This week's instalment
+// is not a failure — it is a week that has not finished — and drawing it in a
+// solid ring like the other two made "nothing has happened yet" look like an
+// outcome. A dotted edge is the only thing on the rail that says "still open".
 const WEEK_TONE: Record<Week['status'], { ring: string; text: string; label: string }> = {
   lunas: { ring: 'border-green-500 bg-green-50 text-green-500', text: 'text-green-500', label: 'Lunas' },
+  // The one state the three-way split doesn't name. A part-payment is neither
+  // paid nor missed, so it keeps its own colour and shows no mark — the amount
+  // under the cell ("Rp150rb" against a Rp200rb week) is what tells the story,
+  // and it is the reason this rail exists rather than a row of dots.
   sebagian: {
     ring: 'border-orange-500 bg-orange-50 text-orange-500',
     text: 'text-orange-500',
@@ -160,8 +174,8 @@ const WEEK_TONE: Record<Week['status'], { ring: string; text: string; label: str
   },
   lewat: { ring: 'border-red-500 bg-red-50 text-red-500', text: 'text-red-500', label: 'Terlewat' },
   'jatuh-tempo': {
-    ring: 'border-primary-500 bg-primary-50 text-primary-500',
-    text: 'text-primary-500',
+    ring: 'border-dotted border-neutral-400 bg-neutral-white text-neutral-500',
+    text: 'text-caption',
     label: 'Jatuh tempo',
   },
 }
@@ -206,10 +220,12 @@ export function WeekStrip({
           {shown.map((w) => {
             const tone = WEEK_TONE[w.status]
             return (
-              // No "M7" label any more. The date under the cell already says
-              // which week this is in the only terms said out loud — "yang 7
-              // Juli, Bu" — and the week NUMBER was a second identifier for the
-              // same cell that only the app was counting in.
+              // No week number anywhere on the rail — not above the cell, not
+              // inside it. The date under the cell already says which week this
+              // is in the only terms said out loud ("yang 7 Juli, Bu"); the
+              // number was a second identifier for the same cell that only the
+              // app was ever counting in, and inside the circle it sat where a
+              // mark should be, so an unanswered week looked answered.
               <div key={w.no} className="flex w-48 shrink-0 flex-col items-center gap-4">
                 <span className="text-10 text-disabled">{w.date}</span>
                 <span
@@ -219,9 +235,7 @@ export function WeekStrip({
                     <IconCheck size={16} />
                   ) : w.status === 'lewat' ? (
                     <IconX size={16} />
-                  ) : (
-                    <span className="text-12 font-bold">{w.no}</span>
-                  )}
+                  ) : null}
                 </span>
                 <span className={`text-10 font-bold ${tone.text}`}>{ringkas(w.paid)}</span>
               </div>
