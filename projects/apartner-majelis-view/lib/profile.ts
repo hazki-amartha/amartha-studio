@@ -38,7 +38,14 @@ export interface Profile {
 
 const JOINED = ['Maret 2023', 'Agustus 2023', 'Januari 2024', 'Juni 2024', 'Oktober 2024']
 const TRADES = ['Warung sembako', 'Kios sayur', 'Warung nasi', 'Toko kelontong', 'Lapak buah']
-const PJ_NAMES = ['Ibu Ketua Nurhayati', 'Ibu Imas Masitoh', 'Ibu Tuti Herawati', 'Bapak Asep Saepudin']
+// The PJ is almost always the husband — the mitra borrows, he answers the phone
+// when she doesn't — so the names are male, and Sundanese, because Ciseeng is.
+const PJ_NAMES = [
+  'Bapak Asep Saepudin',
+  'Bapak Dedi Mulyana',
+  'Bapak Ujang Suryana',
+  'Bapak Endang Sutisna',
+]
 
 function phoneFrom(h: number): string {
   return `0812-${String(3000 + (h % 6000))}-${String(1000 + (h % 8999))}`
