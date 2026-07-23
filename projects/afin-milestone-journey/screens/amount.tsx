@@ -13,10 +13,10 @@
 
 import { useState } from 'react'
 import { BottomSheet, NavigationHeader } from '@/design-system/components'
+import { ChevronRight } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { IconChevronRight } from '../lib/icons'
 import { outstanding, store, useApp } from '../lib/store'
 import { FullWidthButton, Meter, OptionCard, SectionTitle, StickyBar } from '../lib/ui'
 
@@ -70,7 +70,7 @@ export function AmountScreen() {
           onClick={() => setDetailOpen(true)}
           className="mt-12 inline-flex items-center gap-4 text-12 font-bold text-primary-500"
         >
-          Detail tagihan <IconChevronRight size={16} />
+          Detail tagihan <ChevronRight size={16} />
         </button>
       </div>
 

@@ -4,35 +4,35 @@
 
 import type { ReactNode } from 'react'
 import {
-  IconBank,
-  IconClock,
-  IconPin,
-  IconSend,
-  IconStore,
-  IconWallet,
+  Bank,
+  Hourglass,
+  MapPin,
+  PaperPlaneTilt,
+  Storefront,
+  Wallet,
   type IconSize,
-} from './icons'
+} from '@/design-system/icons'
 import type { MethodId } from './data'
 
 /** The agen is a person you hand cash to, so it takes the map pin, not a logo. */
 export function IconAgent(props: { size?: IconSize }) {
-  return <IconPin {...props} />
+  return <MapPin {...props} />
 }
 
 export function methodIcon(id: MethodId, size: IconSize = 20): ReactNode {
   switch (id) {
     case 'poket':
-      return <IconWallet size={size} />
+      return <Wallet size={size} />
     case 'va-bca':
     case 'va-mandiri':
-      return <IconBank size={size} />
+      return <Bank size={size} />
     case 'transfer':
-      return <IconSend size={size} />
+      return <PaperPlaneTilt size={size} />
     case 'indomaret':
-      return <IconStore size={size} />
+      return <Storefront size={size} />
     case 'amartha-link':
-      return <IconPin size={size} />
+      return <MapPin size={size} />
     default:
-      return <IconClock size={size} />
+      return <Hourglass size={size} />
   }
 }

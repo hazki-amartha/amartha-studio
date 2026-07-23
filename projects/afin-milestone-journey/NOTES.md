@@ -9,4 +9,4 @@ Project-local components (§4 missing-component protocol) — all in `lib/ui.tsx
 - **Meter** — data-driven progress bar. Used on `home`, `progress`, `amount`.
 - **IconTile** — tinted square or circle behind an icon. Used across `home`, `method`, `majelis`.
 - **CopyBlock / InfoBlock / Notice / Steps / Hero / ResultHeader / StatRow / Chip / StatusMark / SectionTitle / Caption** — the shared vocabulary of the payment-instruction and outcome screens.
-- **`lib/icons.tsx`** — FunDS Lite ships no icon library; this is the minimum set these screens need.
+- **`lib/icons.tsx`** — `IconWalletOff` (empty/crossed-out wallet) and `IconPiggy` (Celengan). Everything else moved to `@/design-system/icons` once the shared FunDS set landed.

@@ -6,10 +6,10 @@
 // fact she will want to have seen before tapping, not after.
 
 import { NavigationHeader } from '@/design-system/components'
+import { Wallet } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { IconWallet } from '../lib/icons'
 import { store, useApp } from '../lib/store'
 import { FullWidthButton, Hero, InfoBlock, StickyBar } from '../lib/ui'
 
@@ -26,7 +26,7 @@ export function PoketConfirmScreen() {
     <Screen
       topBar={<NavigationHeader title="Konfirmasi pembayaran" onBack={() => flow.go('method')} />}
     >
-      <Hero icon={<IconWallet size={24} />} name="Poket — Amartha Wallet" amount={rupiah(s.amount)} />
+      <Hero icon={<Wallet size={24} />} name="Poket — Amartha Wallet" amount={rupiah(s.amount)} />
 
       <InfoBlock label="Saldo Poket sebelum">
         <div className="text-18 font-bold text-default">{rupiah(s.poketBalance)}</div>

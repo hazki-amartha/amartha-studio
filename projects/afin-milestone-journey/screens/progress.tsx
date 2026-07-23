@@ -10,10 +10,10 @@
 // Rp8jt" — because a lock only motivates if you can read what is behind it.
 
 import { NavigationHeader } from '@/design-system/components'
+import { Check, ChevronRight, LockKey } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MILESTONES, type Milestone } from '../lib/data'
-import { IconCheck, IconChevronRight, IconLock } from '../lib/icons'
 import { Meter } from '../lib/ui'
 
 export function ProgressScreen() {
@@ -65,11 +65,11 @@ function MilestoneRung({
         }`}
       >
         {state === 'unlocked' ? (
-          <IconCheck size={20} />
+          <Check size={20} />
         ) : state === 'next' ? (
           <span className="text-16">🎯</span>
         ) : (
-          <IconLock size={20} />
+          <LockKey size={20} />
         )}
       </span>
 
@@ -96,7 +96,7 @@ function MilestoneRung({
           ) : null}
           <span className="flex-1" />
           <span className="shrink-0 text-disabled">
-            <IconChevronRight size={20} />
+            <ChevronRight size={20} />
           </span>
         </div>
 

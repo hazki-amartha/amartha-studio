@@ -14,23 +14,23 @@
 
 import type { ReactNode } from 'react'
 import { NavigationBar, NavigationHeader } from '@/design-system/components'
+import {
+  Bell,
+  ChartLineUp,
+  ChatCircleQuestion,
+  Check,
+  ChevronRight,
+  Clipboard,
+  Headset,
+  House,
+  Majelis,
+  User,
+  Wallet,
+} from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { WEEKLY_BILL, rupiah } from '../lib/data'
-import {
-  IconBars,
-  IconBell,
-  IconCheck,
-  IconChevronRight,
-  IconClipboard,
-  IconGroup,
-  IconHeadphones,
-  IconHelp,
-  IconHome,
-  IconPiggy,
-  IconUser,
-  IconWallet,
-} from '../lib/icons'
+import { IconPiggy } from '../lib/icons'
 import { outstanding, store, useApp } from '../lib/store'
 import { IconTile, Meter, TaskButton } from '../lib/ui'
 
@@ -67,7 +67,7 @@ export function HomeScreen() {
           title={
             <span className="flex items-center gap-12">
               <IconTile tint="neutral" round size={32}>
-                <IconUser size={20} />
+                <User size={20} />
               </IconTile>
               <span className="flex min-w-0 flex-col">
                 <span className="text-12 font-regular text-caption">Hello! 👋</span>
@@ -77,7 +77,7 @@ export function HomeScreen() {
           }
           trailingIcons={[
             <span key="bell" className="relative flex text-primary-500">
-              <IconBell size={20} />
+              <Bell size={20} />
               <span className="absolute -right-8 -top-8 flex h-16 min-w-16 items-center justify-center rounded-full bg-red-500 px-4 text-10 font-bold text-neutral-white">
                 8
               </span>
@@ -136,7 +136,7 @@ export function HomeScreen() {
           {isNew ? (
             <Task
               tint="primary"
-              icon={<IconWallet size={20} />}
+              icon={<Wallet size={20} />}
               title="Cairkan Rp5jt"
               description="Limit tersedia Rp5jt"
               action={
@@ -149,7 +149,7 @@ export function HomeScreen() {
             <>
               <Task
                 tint="blue"
-                icon={<IconWallet size={20} />}
+                icon={<Wallet size={20} />}
                 title="Bayar angsuran"
                 description={<BillLine />}
                 action={<BayarButton onPay={goToPayment} />}
@@ -157,7 +157,7 @@ export function HomeScreen() {
               <div className="flex flex-col gap-4">
                 <Task
                   tint="green"
-                  icon={<IconGroup size={20} />}
+                  icon={<Majelis size={20} />}
                   title="Datang kumpulan"
                   description="Setiap Kamis, jam 11.30"
                   action={<AbsenButton onCheck={confirmAttendance} />}
@@ -185,19 +185,19 @@ export function HomeScreen() {
         className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-16 text-left"
       >
         <IconTile tint="primary" round>
-          <IconClipboard size={20} />
+          <Clipboard size={20} />
         </IconTile>
         <span className="flex-1 text-14 font-bold text-default">
           Lihat perjalanan ibu untuk 48 minggu
         </span>
         <span className="shrink-0 text-neutral-700">
-          <IconChevronRight size={16} />
+          <ChevronRight size={16} />
         </span>
       </button>
 
       <div className="flex gap-12">
-        <QuickLink icon={<IconHelp size={20} />} label="Tanya Jawab" />
-        <QuickLink icon={<IconHeadphones size={20} />} label="AmarthaCare" />
+        <QuickLink icon={<ChatCircleQuestion size={20} />} label="Tanya Jawab" />
+        <QuickLink icon={<Headset size={20} />} label="AmarthaCare" />
       </div>
 
       <div className="pb-16 text-center">
@@ -209,24 +209,24 @@ export function HomeScreen() {
       <div className="sticky bottom-0 -mx-16 mt-auto">
         <NavigationBar
           items={[
-            { id: 'home', label: 'Home', icon: <IconHome size={24} />, active: true },
+            { id: 'home', label: 'Home', icon: <House size={24} />, active: true },
             {
               id: 'progress',
               label: 'Progress',
-              icon: <IconBars size={24} />,
+              icon: <ChartLineUp size={24} />,
               onClick: () => flow.go('progress'),
             },
             {
               id: 'majelis',
               label: 'Majelis',
-              icon: <IconGroup size={24} />,
+              icon: <Majelis size={24} />,
               onClick: () => flow.go('majelis'),
             },
             { id: 'celengan', label: 'Celengan', icon: <IconPiggy size={24} /> },
             {
               id: 'transaksi',
               label: 'Transaksi',
-              icon: <IconClipboard size={24} />,
+              icon: <Clipboard size={24} />,
               onClick: () => flow.go('riwayat'),
             },
           ]}
@@ -271,7 +271,7 @@ function GoalRail({ stops, percent }: { stops: Stop[]; percent: number }) {
                 stop.done ? 'bg-primary-500' : 'bg-neutral-400'
               }`}
             >
-              {stop.done ? <IconCheck size={16} /> : null}
+              {stop.done ? <Check size={16} /> : null}
             </span>
           </span>
         ))}
@@ -348,7 +348,7 @@ function BayarButton({ onPay }: { onPay: () => void }) {
   if (s.billState === 'paid' && s.paidAmount >= WEEKLY_BILL) {
     return (
       <TaskButton tone="green" disabled>
-        <IconCheck size={16} /> Lunas
+        <Check size={16} /> Lunas
       </TaskButton>
     )
   }
@@ -379,7 +379,7 @@ function AbsenButton({ onCheck }: { onCheck: () => void }) {
   if (s.attendState === 'ok') {
     return (
       <TaskButton tone="green" disabled>
-        <IconCheck size={16} /> Hadir
+        <Check size={16} /> Hadir
       </TaskButton>
     )
   }
@@ -398,7 +398,7 @@ function QuickLink({ icon, label }: { icon: ReactNode; label: string }) {
     >
       <span className="text-primary-500">{icon}</span>
       {label}
-      <IconChevronRight size={16} />
+      <ChevronRight size={16} />
     </button>
   )
 }
