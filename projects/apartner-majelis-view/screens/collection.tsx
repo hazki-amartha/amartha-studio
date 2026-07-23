@@ -136,7 +136,13 @@ export function CollectionScreen() {
                     value={
                       status === 'tidak'
                         ? `${refusal?.reason ?? ''}${refusal?.ptp ? ` · janji ${refusal.ptp}` : ''}`
-                        : rupiah(paid)
+                        : // A part-payment says why it was short, the same way a
+                          // refusal says why it was a refusal.
+                          `${rupiah(paid)}${
+                            status === 'sebagian' && s.shortfallReasons[mitra.id]
+                              ? ` · ${s.shortfallReasons[mitra.id]}`
+                              : ''
+                          }`
                     }
                   >
                     <div className="flex items-center gap-8">

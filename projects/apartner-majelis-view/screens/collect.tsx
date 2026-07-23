@@ -2,43 +2,37 @@
 
 // Tagih Pembayaran — the collect page.
 //
-// The reference puts a "Total to Collect" breakdown at the top of this screen
-// and then repeats the same total above the CTA. The top block is dropped here
-// on the designer's call: it is the third time the BP has seen that breakdown in
-// two taps (her card, then her page), and the only version that earns its place
-// is the one that MOVES — the summary above the button, which re-answers "so
-// what is left?" every time she touches an option.
+// The page opens on one card: who she is, and what she owes, in the same
+// breakdown the mitra page and the doorstep card use. Three surfaces, one
+// drawing of the same three facts — total, this week, arrears — because they are
+// read at the same moment (before the BP asks for money) and two drawings of one
+// number is how a prototype ends up arguing with itself in a review.
 //
-// So the page is two things and nothing else: the choice, and its consequence.
+// Under it, the choice — and every follow-up a choice needs is drawn INSIDE the
+// option that caused it. A reason field parked at the bottom of the page is a
+// second question the BP has to connect back to the answer above it, and on a
+// screen where three of four options carry a follow-up that connection is
+// exactly what gets mis-made in a room of 22 women.
 //
-// The consequence is pinned rather than placed. It sits inside the sticky footer
-// with the button, because a "sisa setelah ini" that scrolled away from the
-// action it qualifies would be a number the BP reads once and then commits
-// blind. This is also why the amount field lives above it rather than beside it:
-// as she types, the figure she is about to be held to updates in her eyeline.
+// What must be recorded before the button unlocks:
+//   • a payment short of the bill carries WHY it was short
+//   • a "tidak bayar" carries both the reason AND the janji bayar
+// Both for the same reason as the register's absence reasons: a balance nobody
+// wrote a reason against is a balance nobody can chase, and "janji bayar" is the
+// only part of a refusal that says what happens next.
 //
-// "Tidak Bayar" is the fourth option, and it is not in the reference at all.
-// The reference's three choices are all payments, which leaves a mitra who hands
-// over nothing with no way to be recorded — she simply stays in the queue, and
-// the queue never reaches zero. A no with a reason and a date is a RESULT: the
-// BP can close it and ops can chase it. Leaving it unrecorded is exactly what
-// pushes DPD work onto a spreadsheet outside the app.
+// The consequence is pinned rather than placed. "Sisa setelah ini" sits inside
+// the sticky footer with the button, because a figure that scrolled away from
+// the action it qualifies is a figure the BP reads once and then commits blind.
 
 import { useState } from 'react'
-import {
-  Badge,
-  Button,
-  Card,
-  Input,
-  NavigationHeader,
-  SelectableCard,
-} from '@/design-system/components'
+import { Button, Input, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, outstandingOf, rupiah } from '../lib/data'
 import { paidOf, store, useApp } from '../lib/store'
-import { MitraPhoto } from '../lib/mitra-card'
-import { Chip, ChipGroup, SectionTitle, StickyBar } from '../lib/ui'
+import { DpdBadge, MitraCard, TagihanBreakdown } from '../lib/mitra-card'
+import { ChoiceList, OptionCard, ProductBadge, SectionTitle, StickyBar } from '../lib/ui'
 
 // Field-realistic reasons. Free text is deliberately absent: the BP is standing
 // in front of her on a motorbike schedule, not writing a report — and a fixed
@@ -49,6 +43,17 @@ const REASONS = [
   'Sakit / keluarga sakit',
   'Sedang tidak di tempat',
   'Menolak bayar',
+]
+
+// Why she handed over less than the bill. Same list minus "menolak bayar" —
+// a woman who paid something did not refuse — plus the two answers that only
+// make sense when money did change hands.
+const SHORTFALL_REASONS = [
+  'Usaha sedang sepi',
+  'Ada kebutuhan mendesak',
+  'Sakit / keluarga sakit',
+  'Uang belum terkumpul semua',
+  'Sisanya menyusul minggu ini',
 ]
 
 // Discrete options rather than a date picker: a BP negotiates a rough date at
@@ -80,16 +85,24 @@ export function CollectScreen() {
   const [draft, setDraft] = useState(String(existing > 0 ? existing : ''))
   const [reason, setReason] = useState<string | null>(refusal?.reason ?? null)
   const [ptp, setPtp] = useState<string | null | undefined>(refusal ? refusal.ptp : undefined)
+  const [shortfall, setShortfall] = useState<string | null>(s.shortfallReasons[mitra.id] ?? null)
 
   // When she is current, "bayar penuh" and "minggu ini saja" collect the same
   // money. Showing both would be a choice with no difference behind it.
   const hasArrears = owed.total > owed.thisWeek
 
   const typed = Number(draft.replace(/\D/g, '')) || 0
-  const amount = mode === 'penuh' ? owed.total : mode === 'minggu' ? owed.thisWeek : mode === 'lain' ? typed : 0
+  const amount =
+    mode === 'penuh' ? owed.total : mode === 'minggu' ? owed.thisWeek : mode === 'lain' ? typed : 0
   const after = Math.max(0, owed.total - amount)
 
-  const canSave = mode === 'tidak' ? reason !== null : amount > 0
+  // A payment that leaves a balance needs its reason; a payment that clears the
+  // bill does not. `mode === 'minggu'` on a mitra with arrears is always short.
+  const short = amount > 0 && amount < owed.total
+  const canSave =
+    mode === 'tidak'
+      ? reason !== null && ptp !== undefined
+      : amount > 0 && (!short || shortfall !== null)
 
   function save() {
     if (!canSave) return
@@ -98,108 +111,117 @@ export function CollectScreen() {
       flow.go('collection')
       return
     }
-    store.collect(mitra, amount)
+    store.collect(mitra, amount, short ? (shortfall as string) : undefined)
     flow.go('collect-done')
   }
 
+  const ptpLabel = PTP_OPTIONS.find((o) => ptp !== undefined && o.value === ptp)?.label
+
   return (
     <Screen topBar={<NavigationHeader title="Tagih Pembayaran" onBack={() => flow.back()} />}>
-      {/* Who she is, compactly. She was chosen two screens ago and the BP should
-          not have to trust the numbers below on memory alone. */}
-      <Card>
-        <div className="flex items-center gap-12">
-          <MitraPhoto size={32} />
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-14 font-bold text-default">{mitra.name}</span>
-            <span className="truncate text-12 text-caption">Pinjaman {rupiah(mitra.loan)}</span>
-          </div>
-          {mitra.dpd > 0 ? (
-            <Badge intent={mitra.dpd >= 30 ? 'red' : 'orange'}>Menunggak {mitra.dpd} hari</Badge>
-          ) : (
-            <Badge intent="green">Lancar</Badge>
-          )}
-        </div>
-      </Card>
+      {/* Who she is and what she owes, as one card. The identity block is the
+          same one the stage lists use, so the woman on this page is visibly the
+          woman whose card was tapped. */}
+      <MitraCard
+        mitra={mitra}
+        meta={null}
+        labels={
+          <>
+            <ProductBadge product={mitra.product} />
+            <DpdBadge dpd={mitra.dpd} format="short" />
+          </>
+        }
+        onOpen={() => flow.go('mitra')}
+        action={<TagihanBreakdown mitra={mitra} bare />}
+      />
 
       <SectionTitle>Bagaimana Ibu membayar?</SectionTitle>
 
-      <div className="flex flex-col gap-8">
-        <SelectableCard
-          name="mode-tagih"
-          inputType="radio"
+      <div role="radiogroup" aria-label="Cara membayar" className="flex flex-col gap-8 pb-16">
+        <OptionCard
+          selected={mode === 'penuh'}
           title="Bayar penuh"
           description={rupiah(owed.total)}
-          checked={mode === 'penuh'}
-          onChange={() => setMode('penuh')}
+          onSelect={() => setMode('penuh')}
         />
+
         {hasArrears ? (
-          <SelectableCard
-            name="mode-tagih"
-            inputType="radio"
+          <OptionCard
+            selected={mode === 'minggu'}
             title="Minggu ini saja"
             description={rupiah(owed.thisWeek)}
-            checked={mode === 'minggu'}
-            onChange={() => setMode('minggu')}
-          />
+            onSelect={() => setMode('minggu')}
+          >
+            {/* Paying this week only on a mitra with arrears IS paying short,
+                so the same question follows it as follows a smaller amount. */}
+            <ChoiceList
+              label={`Alasan kurang bayar — sisa ${rupiah(owed.total - owed.thisWeek)}`}
+              options={SHORTFALL_REASONS}
+              value={shortfall ?? undefined}
+              onPick={setShortfall}
+            />
+          </OptionCard>
         ) : null}
-        <SelectableCard
-          name="mode-tagih"
-          inputType="radio"
+
+        <OptionCard
+          selected={mode === 'lain'}
           title="Jumlah lain"
           description="Masukkan nominal yang diterima"
-          checked={mode === 'lain'}
-          onChange={() => setMode('lain')}
-        />
-        <SelectableCard
-          name="mode-tagih"
-          inputType="radio"
+          onSelect={() => setMode('lain')}
+        >
+          <Input
+            label="Jumlah diterima"
+            prefix="Rp"
+            inputMode="numeric"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
+            helperText={
+              typed > owed.total
+                ? `Lebih ${rupiah(typed - owed.total)} dari total tagihan`
+                : typed === owed.total
+                  ? 'Sama dengan total tagihan'
+                  : 'Sisa akan tercatat sebagai tunggakan'
+            }
+            state={typed > 0 && typed >= owed.total ? 'valid' : 'default'}
+          />
+          {/* Only once there is a shortfall to explain — asking why she paid
+              less before she has typed anything is a question about nothing. */}
+          {mode === 'lain' && short ? (
+            <ChoiceList
+              label={`Alasan kurang bayar — sisa ${rupiah(owed.total - typed)}`}
+              options={SHORTFALL_REASONS}
+              value={shortfall ?? undefined}
+              onPick={setShortfall}
+            />
+          ) : null}
+        </OptionCard>
+
+        <OptionCard
+          selected={mode === 'tidak'}
           title="Tidak bayar"
           description="Catat alasan dan janji bayar"
-          checked={mode === 'tidak'}
-          onChange={() => setMode('tidak')}
-        />
+          onSelect={() => setMode('tidak')}
+        >
+          <ChoiceList
+            label="Alasan tidak bayar"
+            options={REASONS}
+            value={reason ?? undefined}
+            onPick={setReason}
+          />
+          {/* Both halves are required. A refusal with no reason is uncountable;
+              a refusal with no date is unchaseable — and "Tidak ada janji" is a
+              real answer, which is why it is on the list rather than implied by
+              skipping the question. */}
+          <ChoiceList
+            label="Janji bayar"
+            options={PTP_OPTIONS.map((o) => o.label)}
+            value={ptpLabel}
+            onPick={(picked) =>
+              setPtp(PTP_OPTIONS.find((o) => o.label === picked)?.value ?? null)
+            }
+          />
+        </OptionCard>
       </div>
-
-      {mode === 'lain' ? (
-        <Input
-          label="Jumlah diterima"
-          prefix="Rp"
-          inputMode="numeric"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
-          helperText={
-            typed > owed.total
-              ? `Lebih ${rupiah(typed - owed.total)} dari total tagihan`
-              : typed === owed.total
-                ? 'Sama dengan total tagihan'
-                : 'Sisa akan tercatat sebagai tunggakan'
-          }
-          state={typed > 0 && typed >= owed.total ? 'valid' : 'default'}
-        />
-      ) : null}
-
-      {mode === 'tidak' ? (
-        <div className="flex flex-col gap-12 pb-16">
-          <ChipGroup label="Alasan">
-            {REASONS.map((option) => (
-              <Chip key={option} selected={reason === option} onClick={() => setReason(option)}>
-                {option}
-              </Chip>
-            ))}
-          </ChipGroup>
-          <ChipGroup label="Janji bayar">
-            {PTP_OPTIONS.map((option) => (
-              <Chip
-                key={option.label}
-                selected={ptp !== undefined && ptp === option.value}
-                onClick={() => setPtp(option.value)}
-              >
-                {option.label}
-              </Chip>
-            ))}
-          </ChipGroup>
-        </div>
-      ) : null}
 
       {/* --- The consequence, pinned to the action that causes it. ---------- */}
       <StickyBar>

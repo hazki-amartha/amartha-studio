@@ -419,8 +419,8 @@ export const project: ProjectModule = {
       title: 'Tagih Pembayaran',
       component: CollectScreen,
       notes: [
-        'The moment of negotiation, and the page is only two things: the choice, and its consequence. As the BP types an amount, the “sisa setelah ini” sits pinned above the button so the figure she is about to be held to stays in her eyeline.',
-        '“Tidak Bayar” is a full fourth option, not an escape hatch. A no with a reason and a date is a result the BP can close and ops can chase; leaving it unrecorded is what pushes arrears work out of the app and onto a spreadsheet.',
+        'The moment of negotiation. It opens on one card — who she is over what she owes, in the same breakdown the mitra page and the doorstep card use — and every follow-up a choice needs is drawn inside the option that caused it, rather than parked at the bottom of the page where the BP has to connect it back up. As she types, the “sisa setelah ini” sits pinned above the button so the figure she is about to be held to stays in her eyeline.',
+        '“Tidak Bayar” is a full fourth option, not an escape hatch, and it does not save until it carries BOTH the reason and the janji bayar — a no with no date is unchaseable, and “tidak ada janji” is a real answer rather than something you express by skipping the question. The same rule now covers money: any payment short of the bill has to say why it was short, because a balance nobody wrote a reason against is the same unchaseable gap.',
       ],
       flowsTo: [
         { to: 'collect-done', label: 'Terima Tunai' },

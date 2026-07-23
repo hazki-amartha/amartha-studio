@@ -71,14 +71,14 @@ export const registerDone = () => {
 // --- Stage 2: the queue ----------------------------------------------------
 
 export const queueFull = () =>
-  store.set({ payments: freshPayments(), nonPayments: {}, lastCollect: null })
+  store.set({ payments: freshPayments(), nonPayments: {}, shortfallReasons: {}, lastCollect: null })
 
 export const queueHalf = () => {
   const payments = freshPayments()
   collectible.slice(0, Math.ceil(collectible.length / 2)).forEach((m) => {
     payments[m.id] = outstandingOf(m).total
   })
-  store.set({ payments, nonPayments: {}, lastCollect: null })
+  store.set({ payments, nonPayments: {}, shortfallReasons: {}, lastCollect: null })
 }
 
 /** Everyone recorded, and the two outcomes that are not "lunas" both present. */
@@ -94,6 +94,9 @@ export const queueDone = () => {
     nonPayments: {
       [refuser.id]: { reason: 'Usaha sedang sepi', ptp: 'Sabtu, 25 Juli' },
     },
+    // A part-payment carries its reason exactly as a refusal does — the balance
+    // it leaves behind has to be chaseable by whoever reads the visit later.
+    shortfallReasons: { [partial.id]: 'Uang belum terkumpul semua' },
     lastCollect: null,
   })
 }

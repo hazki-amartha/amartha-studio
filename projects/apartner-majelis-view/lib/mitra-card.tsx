@@ -35,39 +35,40 @@ import { IconChevronRight } from './icons'
  * understatement of the amount beside it; the week strip above is where the two
  * are actually told apart.
  */
-export function TagihanBreakdown({ mitra }: { mitra: Mitra }) {
+export function TagihanBreakdown({ mitra, bare }: { mitra: Mitra; bare?: boolean }) {
   const owed = outstandingOf(mitra)
   const overdue = owed.missed + owed.partial
 
-  return (
-    <Card>
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-2">
-          <span className="text-12 text-caption">Total tagihan</span>
-          <span className="text-24 font-bold text-default">{rupiah(owed.total)}</span>
-        </div>
-        <div className="flex flex-col gap-4 border-t border-default pt-8">
-          <TagihanLine label="Angsuran minggu ini" value={rupiah(owed.thisWeek)} />
-          {overdue > 0 ? (
-            <TagihanLine
-              label={
-                owed.missedWeeks > 0 ? `Tunggakan ${owed.missedWeeks} minggu` : 'Tunggakan'
-              }
-              value={rupiah(overdue)}
-              red
-            />
-          ) : null}
-        </div>
+  const body = (
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <span className="text-12 text-caption">Total tagihan</span>
+        <span className="text-24 font-bold text-default">{rupiah(owed.total)}</span>
       </div>
-    </Card>
+      <div className="flex flex-col gap-4 border-t border-default pt-8">
+        <TagihanLine label="Angsuran minggu ini" value={rupiah(owed.thisWeek)} />
+        {overdue > 0 ? (
+          <TagihanLine
+            label={owed.missedWeeks > 0 ? `Tunggakan ${owed.missedWeeks} minggu` : 'Tunggakan'}
+            value={rupiah(overdue)}
+            red
+          />
+        ) : null}
+      </div>
+    </div>
   )
+
+  // `bare` drops the Card so the breakdown can sit UNDER an identity block in
+  // one card — which is how the collect page opens: who she is and what she
+  // owes, read as one object rather than as two cards that happen to be stacked.
+  return bare ? body : <Card>{body}</Card>
 }
 
 function TagihanLine({ label, value, red }: { label: string; value: string; red?: boolean }) {
   return (
     <div className="flex items-center gap-12">
-      <span className="flex-1 text-12 text-caption">{label}</span>
-      <span className={`text-12 font-bold ${red ? 'text-red-500' : 'text-default'}`}>{value}</span>
+      <span className="flex-1 text-14 text-caption">{label}</span>
+      <span className={`text-14 font-bold ${red ? 'text-red-500' : 'text-default'}`}>{value}</span>
     </div>
   )
 }
