@@ -11,9 +11,11 @@
 //
 // It is a ROSTER, not a dashboard and not yet a queue. Before the BP starts the
 // pelayanan she wants one thing from this page: who is in this group and what
-// state are they in. So every card carries the three facts the reference calls
-// for — outstanding loan, DPD bucket, weekly instalment — and nothing carries an
-// action except the one button that begins the visit.
+// state are they in. Each card is down to the two facts that answer that —
+// tunggakan and DPD — and nothing carries an action except the one button that
+// begins the visit. The loan and the weekly instalment used to sit here too;
+// they were four numbers per card on a page read 22 cards at a time, and they
+// are still one tap away where they are actually quoted.
 //
 // Sorting is the only control. It exists because "who is behind?" and "who is
 // this group, in order?" are both real questions and neither is a filter: a BP
@@ -26,7 +28,7 @@ import { Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, outstandingOf, rupiah } from '../lib/data'
-import { IconChevronDown } from '../lib/icons'
+import { IconCalendar, IconChevronDown, IconPin } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import { openMajelisEntry, store, useApp } from '../lib/store'
 import { SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
@@ -55,6 +57,27 @@ export function MajelisScreen() {
         />
       }
     >
+      {/* Where the group meets, and when. Both belong at the top of the page
+          rather than in the nav bar: a BP who reached this roster from the
+          directory is looking a group UP, and "kapan majelis ini?" / "di mana?"
+          are the two questions that route asks most. */}
+      <div className="flex flex-col gap-8 rounded-12 bg-neutral-white p-12">
+        <div className="flex items-start gap-8 text-12 text-default">
+          <span className="shrink-0 text-caption">
+            <IconPin size={16} />
+          </span>
+          <span className="min-w-0 flex-1">{group.place}</span>
+        </div>
+        <div className="flex items-start gap-8 text-12 text-default">
+          <span className="shrink-0 text-caption">
+            <IconCalendar size={16} />
+          </span>
+          <span className="min-w-0 flex-1">
+            Kumpulan {group.day}, {group.time}
+          </span>
+        </div>
+      </div>
+
       {/* The group's standing facts, before any work has started. Two numbers,
           both of which the BP is asked about by her BM and neither of which she
           should have to add up from the list below. */}
@@ -84,7 +107,16 @@ export function MajelisScreen() {
           <MitraCard
             key={mitra.id}
             mitra={mitra}
-            trailing={<DpdBadge dpd={mitra.dpd} />}
+            // Two facts per card, not four. The roster is scanned, not read:
+            // what she owes and how late she is are the pair that decides who
+            // the BP looks at first, and the contract behind them (pinjaman,
+            // angsuran) is one tap away on her page.
+            meta={
+              <span className="truncate text-12 text-caption">
+                Tunggakan {rupiah(outstandingOf(mitra).total)}
+              </span>
+            }
+            trailing={<DpdBadge dpd={mitra.dpd} format="short" />}
             onOpen={() => {
               store.openMitraPage(mitra.id)
               flow.go('mitra')

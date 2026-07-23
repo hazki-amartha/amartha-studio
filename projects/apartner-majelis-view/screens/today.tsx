@@ -67,15 +67,24 @@ const KIND_TINT: Record<Task['kind'], Tint> = {
 
 const kindTint = (kind: Task['kind']): Tint => KIND_TINT[kind]
 
+// The short code every row wears. It is the BP's own shorthand — MV, HV, Sos are
+// what she and her BM say to each other — and it earns the space because it fits
+// on ONE line beside a title, which "Pelayanan Majelis" does not. The tile colour
+// already carries the kind for the eye; the badge is what names it.
 const KIND_LABEL: Record<Task['kind'], string> = {
-  majelis: 'Pelayanan Majelis',
-  'home-visit': 'Home Visit',
+  majelis: 'MV',
+  'home-visit': 'HV',
   setoran: 'Setoran',
-  sosialisasi: 'Sosialisasi',
-  'follow-up': 'Follow Up',
+  sosialisasi: 'Sos',
+  'follow-up': 'FU',
 }
 
 const kindLabel = (kind: Task['kind']) => KIND_LABEL[kind]
+
+/** The badge itself, so the focus card, Berikutnya and Besok cannot drift. */
+function KindBadge({ kind }: { kind: Task['kind'] }) {
+  return <Badge intent={kindTint(kind)}>{kindLabel(kind)}</Badge>
+}
 
 // The verb on the focus card. A sosialisasi is not "started" the way a
 // pelayanan is and a follow-up is a call, not a journey.
@@ -220,7 +229,10 @@ export function TodayScreen() {
                     <KindIcon kind={task.kind} />
                   </IconTile>
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-14 font-bold text-default">{task.title}</span>
+                    <span className="flex min-w-0 items-center gap-4">
+                      <KindBadge kind={task.kind} />
+                      <span className="truncate text-14 font-bold text-default">{task.title}</span>
+                    </span>
                     <span className="flex items-center gap-4 text-12 text-caption">
                       <span className="shrink-0">
                         <IconPin size={16} />
@@ -254,7 +266,7 @@ export function TodayScreen() {
                   </IconTile>
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <div className="flex">
-                      <Badge intent={kindTint(now.kind)}>{kindLabel(now.kind)}</Badge>
+                      <KindBadge kind={now.kind} />
                     </div>
                     <span className="text-18 font-bold text-default">{now.title}</span>
                     <span className="flex items-start gap-4 text-12 text-caption">
@@ -309,7 +321,10 @@ export function TodayScreen() {
                     <KindIcon kind={task.kind} />
                   </IconTile>
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-14 font-bold text-default">{task.title}</span>
+                    <span className="flex min-w-0 items-center gap-4">
+                      <KindBadge kind={task.kind} />
+                      <span className="truncate text-14 font-bold text-default">{task.title}</span>
+                    </span>
                     <span className="truncate text-12 text-caption">{task.reason}</span>
                   </div>
                   <span className="shrink-0 text-disabled">

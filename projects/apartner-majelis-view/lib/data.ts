@@ -130,6 +130,19 @@ export interface Outstanding {
   total: number
 }
 
+/**
+ * What is left of the whole loan — principal minus every rupiah received so far.
+ *
+ * A different question from `outstandingOf`, and the mitra page prints both
+ * side by side: "total tagihan" is what she owes TODAY, "total outstanding" is
+ * what she still owes at all. Derived from the same ledger as everything else,
+ * so the two lines can never drift apart.
+ */
+export function outstandingBalanceOf(mitra: Mitra): number {
+  const paid = mitra.weeks.reduce((sum, w) => sum + w.paid, 0)
+  return Math.max(0, mitra.loan - paid)
+}
+
 export function outstandingOf(mitra: Mitra): Outstanding {
   let missed = 0
   let missedWeeks = 0

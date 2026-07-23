@@ -32,7 +32,7 @@ export const project: ProjectModule = {
       component: TodayScreen,
       entry: true,
       notes: [
-        'The BP opens her day here. The page commits to one answer: the single visit she should be doing right now, with the reason it matters already written for her.',
+        'The BP opens her day here. The page commits to one answer: the single visit she should be doing right now, with the reason it matters already written for her. Every row wears its kind as a short code — MV, HV, Sos, FU — the same shorthand she and her BM already speak.',
         'Berikutnya is the rest of the day, and tapping a row starts that task too. A day does not run in clock order — she arrives early, a group is late, a doorstep is on the way back — so the schedule stays a list of things she can begin, not a queue that only hands her the top row.',
       ],
       states: [
@@ -70,7 +70,7 @@ export const project: ProjectModule = {
       title: 'Majelis',
       component: MajelisListScreen,
       notes: [
-        'Every majelis the BP is responsible for, in one list. Today’s groups sort to the top so the list agrees with her schedule rather than competing with it.',
+        'Every majelis the BP is responsible for, in one flat list. It used to split into “Hari ini” and “Majelis lain”, which made the directory re-answer a question the schedule already owns — a BP who opens this tab is looking a group up, on whatever day it meets.',
         'Each row states the health of the group at a glance — lancar, or how many mitra are menunggak — so she can see which majelis needs attention before she plans her week. Tapping one opens its roster to read, not to start work.',
       ],
       flowsTo: [
@@ -99,7 +99,7 @@ export const project: ProjectModule = {
       title: 'Majelis View',
       component: MajelisScreen,
       notes: [
-        'The roster of one group, and the screen this direction is named after. Before the BP walks in she wants one thing: who is in this majelis and what state is each one in — outstanding loan, how many days behind, weekly instalment, on every card.',
+        'The roster of one group, and the screen this direction is named after. The page header carries where the group meets and when — the two questions a look-up asks — and every card is down to the pair that decides who to read first: tunggakan and DPD.',
         'Sorting is the only control, defaulting to whoever is most behind, because the mitra worth reading about first are the ones in arrears. Nothing here records anything; the single button starts the pelayanan when she is ready.',
       ],
       flowsTo: [
@@ -374,13 +374,11 @@ export const project: ProjectModule = {
       title: 'Detail Mitra',
       component: MitraScreen,
       notes: [
-        'One borrower, opened from her card anywhere in the flow. It opens on what to do about her — a single pre-reasoned recommendation — and puts the record underneath as the evidence for it.',
-        'The week strip is the heart of the page: it carries the amount inside each week rather than a paid/unpaid dot, so the BP can say “Ibu kurang Rp50.000 di minggu 7” instead of “Ibu belum bayar”.',
+        'One borrower, opened from her card anywhere in the flow, and now a record rather than a second place to act. The header states only who she is and how late she is; collecting happens in the pelayanan queue, which is the only place the BP has the mitra in front of her.',
+        'The week strip is the heart of the page: it carries the amount inside each week rather than a paid/unpaid dot, so the BP can say “Ibu kurang Rp50.000 di minggu 7” instead of “Ibu belum bayar”. Under it sit the three figures she gets asked for by name — total tagihan, total outstanding, angsuran.',
+        'Data mitra is the reach-her block, and it carries two routes and two numbers: her house and her tempat usaha, her WhatsApp and her PJ’s. A BP who cannot raise a mitra at home at 10.00 has three other things to try, and all of them are on this card.',
       ],
-      flowsTo: [
-        { to: 'collect', label: 'Tagih Pembayaran' },
-        { to: 'ladder', label: 'Jalur Naik Modal' },
-      ],
+      flowsTo: [{ to: 'ladder', label: 'Jalur Naik Modal' }],
     },
     {
       id: 'collect',

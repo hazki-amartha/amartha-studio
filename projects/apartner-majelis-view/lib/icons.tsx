@@ -262,3 +262,18 @@ export function IconTrendUp(props: IconProps) {
     </Svg>
   )
 }
+
+/**
+ * A storefront — her tempat usaha, as opposed to her house. The two routes sit
+ * one under the other on the mitra page, so they cannot share IconPin: an
+ * identical icon on both rows makes the BP read the label to tell them apart.
+ */
+export function IconStore(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 9h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" />
+      <path d="M3 9l1.5-5h15L21 9" />
+      <path d="M9 21v-6h6v6" />
+    </Svg>
+  )
+}
