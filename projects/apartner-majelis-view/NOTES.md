@@ -20,7 +20,7 @@
 - `ContactButton` — the round WhatsApp/handset pair, lifted out of `home-card.tsx` into `ui.tsx`: reaching someone is now the whole job on two screens, not one.
 - `IconTile` gained `blue` and `orange` tints for the two NTB task kinds, and `IconMegaphone` / `IconUserPlus` were added to `icons.tsx`.
 - `SearchField`, `FilterBar`, `FilterChip`, `OptionSheet`, `ResetLink`, `EmptyState` — the Majelis tab's find-a-group layer, lifted shape-for-shape from `apartner-homepage-ia` (which solves the same problem on the same tab). Strong promotion candidates: three projects now want a filter chip over a bottom sheet, and two of them have written it independently. `SearchField` uses the shared `MagnifyingGlass` from `@/design-system/icons` rather than a local icon.
-- `h-40` on `Button size="sm"` — FunDS button sizes step 28 (xs) → 36 (sm), so neither lands on the 40px avatar rhythm the cards use. `h-40` is a token class, not an arbitrary value.
+- `h-40` on a default-size `Button` — FunDS button sizes step 28 (xs) → 36 (sm) → 38 (md), so none lands on the 40px avatar rhythm the cards use. `h-40` is a token class, not an arbitrary value. The in-card actions (Tagih, Tawarkan) use the DEFAULT size rather than `sm`: `sm` sets 12px type and the attendance pills are 14px, so the same card was read at two sizes from one stage to the next.
 
 ## The L0 layer (Jadwal / Majelis / KPI)
 

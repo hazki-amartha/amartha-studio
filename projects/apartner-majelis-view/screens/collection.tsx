@@ -122,10 +122,11 @@ export function CollectionScreen() {
                   </ActionRow>
                 ) : status === 'belum' ? (
                   <ActionRow label="Tagihan" value={rupiah(owed.total)}>
-                    {/* h-40 pins the button to the avatar rhythm. FunDS button
-                        sizes step 28 (xs) → 36 (sm), so neither lands on 40 —
-                        see NOTES.md. h-40 is a token class, not arbitrary. */}
-                    <Button size="sm" className="h-40 px-24" onClick={() => openCollect(mitra.id)}>
+                    {/* Default size, not sm: sm sets 12px type and the pills on
+                        the attendance stage are 14px, so the same card read at
+                        two different sizes from one stage to the next. h-40
+                        pins it to the avatar rhythm — see NOTES.md. */}
+                    <Button className="h-40 px-24" onClick={() => openCollect(mitra.id)}>
                       Tagih
                     </Button>
                   </ActionRow>
