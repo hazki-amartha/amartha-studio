@@ -33,7 +33,7 @@ import {
   type MajelisEntry,
   type MajelisStatus,
 } from '../lib/schedule'
-import { IconChevronRight, IconPin } from '../lib/icons'
+import { IconChevronRight } from '../lib/icons'
 import { store, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
 import {
@@ -41,6 +41,7 @@ import {
   FilterBar,
   FilterChip,
   OptionSheet,
+  PinMark,
   ProductBadge,
   ResetLink,
   SearchField,
@@ -186,7 +187,7 @@ function Row({ entry, onOpen }: { entry: MajelisEntry; onOpen: () => void }) {
           <ProductBadge product={entry.type} />
         </span>
         <span className="flex items-center gap-4 text-12 text-caption">
-          <IconPin size={16} />
+          <PinMark />
           <span className="truncate">{entry.place}</span>
         </span>
         <span className="text-12 text-caption">

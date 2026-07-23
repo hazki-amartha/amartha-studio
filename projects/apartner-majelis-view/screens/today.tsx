@@ -37,7 +37,7 @@ import {
   withScheduled,
   type Task,
 } from '../lib/schedule'
-import { IconCheck, IconChevronDown, IconChevronRight, IconInbox, IconPin } from '../lib/icons'
+import { IconCheck, IconChevronDown, IconChevronRight, IconInbox } from '../lib/icons'
 import {
   collectedToday,
   doneTaskList,
@@ -48,7 +48,15 @@ import {
   useApp,
 } from '../lib/store'
 import { TabBar } from '../lib/tabs'
-import { AgendaRow, Collapsible, HeaderAction, Meter, Overline, type Tint } from '../lib/ui'
+import {
+  AgendaRow,
+  Collapsible,
+  HeaderAction,
+  Meter,
+  Overline,
+  PinMark,
+  type Tint,
+} from '../lib/ui'
 
 // The two NTB kinds get their own tints rather than borrowing purple. Purple is
 // the colour of servicing a majelis on this schedule, and a prospecting stop
@@ -250,9 +258,7 @@ export function TodayScreen() {
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-14 font-bold text-default">{task.title}</span>
                     <span className="flex items-center gap-4 text-12 text-caption">
-                      <span className="shrink-0">
-                        <IconPin size={16} />
-                      </span>
+                      <PinMark />
                       <span className="truncate">{task.place}</span>
                     </span>
                   </div>
@@ -299,9 +305,7 @@ export function TodayScreen() {
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <span className="text-18 font-bold text-default">{now.title}</span>
                     <span className="flex items-start gap-4 text-12 text-caption">
-                      <span className="shrink-0">
-                        <IconPin size={16} />
-                      </span>
+                      <PinMark />
                       {now.place}
                     </span>
                   </div>
@@ -355,9 +359,7 @@ export function TodayScreen() {
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-14 font-bold text-default">{task.title}</span>
                     <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
-                      <span className="shrink-0">
-                        <IconPin size={16} />
-                      </span>
+                      <PinMark />
                       <span className="truncate">{task.place}</span>
                     </span>
                   </div>

@@ -35,7 +35,7 @@ import { IconArrowRight, IconCalendar, IconChevronRight, IconPin, IconUsers } fr
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import { taskForMajelis } from '../lib/schedule'
 import { openMajelisEntry, store, useApp } from '../lib/store'
-import { ProductBadge, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
+import { PinMark, ProductBadge, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
 
 type Sort = 'tunggakan' | 'nama'
 type Sheet = 'edit' | 'reminder' | null
@@ -83,9 +83,7 @@ export function MajelisScreen() {
           is not the text — it is the route, which is why the line ends in a
           button rather than in a full stop. */}
       <div className="flex items-center gap-8 rounded-12 bg-neutral-white p-12">
-        <span className="shrink-0 text-caption">
-          <IconPin size={16} />
-        </span>
+        <PinMark />
         <span className="min-w-0 flex-1 truncate text-12 text-default">{group.place}</span>
         <button
           type="button"

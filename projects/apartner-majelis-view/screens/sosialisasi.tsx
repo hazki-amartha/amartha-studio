@@ -34,9 +34,17 @@ import {
   type ReferralKind,
 } from '../lib/leads'
 import { LeadRow } from '../lib/lead-card'
-import { IconPin, IconUserPlus } from '../lib/icons'
+import { IconUserPlus } from '../lib/icons'
 import { eventProgress, leadsOfEvent, openEvent, store, useApp } from '../lib/store'
-import { Chip, ChipGroup, ProgressCard, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
+import {
+  Chip,
+  ChipGroup,
+  PinMark,
+  ProgressCard,
+  SectionTitle,
+  StickyBar,
+  VisitTitle,
+} from '../lib/ui'
 
 const SOURCES: { value: LeadSource; label: string }[] = [
   { value: 'sosialisasi', label: 'Hadir di sosialisasi' },
@@ -76,9 +84,7 @@ export function SosialisasiScreen() {
       <Card>
         <div className="flex flex-col gap-12">
           <span className="flex items-start gap-4 text-12 text-caption">
-            <span className="shrink-0">
-              <IconPin size={16} />
-            </span>
+            <PinMark />
             {event.place}
           </span>
           {/* The only control that adds anything, and it stays above the list
