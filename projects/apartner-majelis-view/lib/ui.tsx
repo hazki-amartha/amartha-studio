@@ -400,32 +400,32 @@ export function Collapsible({ title, hint, children }: CollapsibleProps) {
   )
 }
 
-// --- AttendancePill --------------------------------------------------------
-// Two named pills, "Hadir" and "Tidak". Carried over from apartner-task-first,
-// including its argument: a bare ✗ has no fixed meaning next to a red DPD line,
-// and unselected is a real third state — not marked ≠ marked absent.
+// --- ChoicePill ------------------------------------------------------------
+// The two-outcome control at the bottom of a stage card: "Tidak / Hadir",
+// "Tidak tertarik / Tertarik". Named pills rather than a bare ✗/✓, because a
+// tick alone has no fixed meaning next to a red DPD line — and unselected is a
+// real third state, since not answered ≠ answered no.
+//
+// Selection is PRIMARY, not green-for-yes and red-for-no. The pills record what
+// was said; they are not a verdict on it, and a red "Tidak hadir" on a card that
+// also carries a red DPD badge puts two different alarms in the same colour.
+// One selected colour also means the same control reads identically on all
+// three stages, which is the point of the card keeping one shape.
 
-export interface AttendancePillProps {
+export interface ChoicePillProps {
   selected: boolean
-  tone: 'green' | 'red'
   onClick: () => void
   /** Spoken label — "Hadir" alone doesn't say whose attendance this is. */
   label: string
+  /** The mark after the word — a tick for yes, a cross for no. */
+  icon: ReactNode
   children: ReactNode
 }
 
-export function AttendancePill({
-  selected,
-  tone,
-  onClick,
-  label,
-  children,
-}: AttendancePillProps) {
-  const selectedTone =
-    tone === 'green'
-      ? 'bg-green-50 text-green-500 border-green-500'
-      : 'bg-red-50 text-red-500 border-red-500'
-  const classes = selected ? selectedTone : 'bg-neutral-white text-neutral-600 border-default'
+export function ChoicePill({ selected, onClick, label, icon, children }: ChoicePillProps) {
+  const classes = selected
+    ? 'bg-primary-50 text-primary-500 border-primary-500'
+    : 'bg-neutral-white text-neutral-600 border-default'
 
   return (
     <button
@@ -433,10 +433,131 @@ export function AttendancePill({
       aria-label={label}
       aria-pressed={selected}
       onClick={onClick}
-      className={`flex h-40 flex-1 items-center justify-center rounded-full border px-12 text-14 font-bold ${classes}`}
+      className={`flex h-40 flex-1 items-center justify-center gap-4 rounded-full border px-12 text-14 font-bold ${classes}`}
     >
       {children}
+      <span className="shrink-0">{icon}</span>
     </button>
+  )
+}
+
+// --- ActionRow -------------------------------------------------------------
+// The bottom half of a stage card: what is at stake on the left, the one
+// control on the right. Every stage uses it, which is what keeps the card the
+// same object as the BP moves from attendance to collection to offers — only
+// the caption, the figure and the verb change.
+
+export function ActionRow({
+  label,
+  value,
+  children,
+}: {
+  label: string
+  /** The figure, bold. Omitted when the label is the whole fact. */
+  value?: ReactNode
+  /** The control. A button, a badge, or a badge and a way to change it. */
+  children?: ReactNode
+}) {
+  return (
+    <div className="flex items-center gap-12">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="truncate text-12 text-caption">{label}</span>
+        {value ? <span className="truncate text-16 font-bold text-default">{value}</span> : null}
+      </div>
+      {children ? <div className="shrink-0">{children}</div> : null}
+    </div>
+  )
+}
+
+// --- ChoiceList / ChosenRow ------------------------------------------------
+// A single-choice reason picker, as a list of full-width rows rather than a
+// wrap of chips.
+//
+// Chips were the wrong shape for this: reasons are sentences of uneven length,
+// so a chip wrap reflows into a ragged block that has to be READ before it can
+// be tapped, and the tap targets end up different sizes on every card. Rows are
+// one column, one line each, one target size — the BP scans down and hits one.
+//
+// Once picked, the whole list collapses to the answer plus "Ubah". A resolved
+// card is a record, and a record does not need to keep showing the four things
+// it could have said instead.
+
+export function ChoiceList({
+  label,
+  options,
+  value,
+  onPick,
+}: {
+  label: string
+  options: string[]
+  value?: string
+  onPick: (option: string) => void
+}) {
+  return (
+    <div className="flex flex-col gap-8">
+      <span className="text-12 text-caption">{label}</span>
+      <div role="radiogroup" aria-label={label} className="flex flex-col gap-8">
+        {options.map((option) => {
+          const selected = option === value
+          return (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => onPick(option)}
+              className={`flex items-center gap-12 rounded-8 border p-12 text-left ${
+                selected ? 'border-primary-500 bg-primary-50' : 'border-default bg-neutral-white'
+              }`}
+            >
+              <span
+                className={`min-w-0 flex-1 truncate text-14 ${selected ? 'font-bold text-primary-500' : 'text-default'}`}
+              >
+                {option}
+              </span>
+              <span
+                className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full border ${
+                  selected
+                    ? 'border-primary-500 bg-primary-500 text-neutral-white'
+                    : 'border-default bg-neutral-white'
+                }`}
+              >
+                {selected ? <IconCheck size={16} /> : null}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export function ChosenRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  /** Reopens the list. Omitted renders no "Ubah". */
+  onChange?: () => void
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-8">
+        <span className="min-w-0 flex-1 truncate text-12 text-caption">{label}</span>
+        {onChange ? (
+          <button
+            type="button"
+            onClick={onChange}
+            className="shrink-0 text-12 font-bold text-primary-500"
+          >
+            Ubah
+          </button>
+        ) : null}
+      </div>
+      <span className="truncate text-14 text-default">{value}</span>
+    </div>
   )
 }
 

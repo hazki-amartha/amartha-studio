@@ -10,7 +10,10 @@
 - `ProgressCard` — headline value + denominator + percent over a meter. Used on attendance and collection.
 - `StickyBar` — pinned footer holding a summary above its button. Used on all six action screens; the collect page needs the summary inside the sticky region or "sisa setelah ini" scrolls away from the button it qualifies.
 - `MitraCard` / `DpdBadge` / `MitraPhoto` — the one member card, shared by roster, attendance, collection and growth. `MitraPhoto` replaced the initials `Avatar` on every MITRA surface (roster, collect, doorstep): a BP in a room of 22 women recognises a face, and "SH" is something she has to decode into a name and then match to a person. It is a silhouette placeholder — the prototype has no photos — but it says what the real thing is. Leads keep `Avatar`: a prospect genuinely has no photo on file.
-- `AttendancePill`, `Chip`, `ChipGroup`, `ProofTile`, `StatRows`, `Meter`, `Avatar`, `IconTile`, `Collapsible`, `Overline`, `SectionTitle`, `VisitTitle` — carried over from `apartner-task-first`.
+- `ActionRow` — the bottom half of a stage card: caption + bold figure left, one control right. Used by all three visit stages, which is what keeps the card one object as the BP moves through them.
+- `ChoicePill` — the two-outcome pill pair (Tidak/Hadir, Tidak/Tertarik), selected in primary. Replaces `AttendancePill`'s green/red selection: the pills record what was said, and a red "Tidak hadir" beside a red DPD badge puts two alarms in one colour. Used on attendance and growth.
+- `ChoiceList` / `ChosenRow` — a single-choice reason picker as full-width rows with a radio mark, collapsing to the answer + "Ubah" once picked. Replaces the chip wrap for absence and decline reasons: reasons are uneven-length sentences, and a chip wrap gives ragged rows and unequal tap targets. Used on attendance and growth.
+- `Chip`, `ChipGroup`, `ProofTile`, `StatRows`, `Meter`, `Avatar`, `IconTile`, `Collapsible`, `Overline`, `SectionTitle`, `VisitTitle` — carried over from `apartner-task-first`.
 - `LeadRow` / `LeadIdentityCard` — a prospect as a list row and as the identity block on her own record. Both lead with the interest grade, because a list of leads has no other ranking.
 - `ContactButton` — the round WhatsApp/handset pair, lifted out of `home-card.tsx` into `ui.tsx`: reaching someone is now the whole job on two screens, not one.
 - `IconTile` gained `blue` and `orange` tints for the two NTB task kinds, and `IconMegaphone` / `IconUserPlus` were added to `icons.tsx`.
@@ -52,6 +55,7 @@ each opening on what it is for:
 - **"Tidak Bayar" added as a fourth collect option.** The reference's three choices are all payments, which leaves a mitra who hands over nothing unrecordable — she stays in the queue and the queue never reaches zero.
 - **The repeated "Total to Collect" block at the top of the collect page dropped.** It is the third showing of the same breakdown in two taps; only the version above the CTA earns its place, because it moves.
 - **The reference's numbers do not reconcile.** Its week strip and its outstanding breakdown imply different totals. Everything here derives from one authored ledger, so Rina lands on exactly the reference's arithmetic — this week 200.000 + two missed weeks 400.000 + a 50.000 shortfall = 650.000 — and "minggu ini saja" leaves 450.000, a custom 300.000 leaves 350.000.
+- **The stage lists are static.** One roster, one order, on all three stages — answering a card updates the card in place and never moves it. The "Belum/Sudah Diabsen" and "Belum/Sudah Ditagih" sections are gone: they re-sorted the list under the BP's thumb on every tap, and the woman she is standing in front of has to stay where she was.
 - **Proof and recap sit outside the stage bar.** Three stages are the work; proof is the paperwork that closes it.
 
 ## The NTB layer (Sosialisasi / Follow Up)

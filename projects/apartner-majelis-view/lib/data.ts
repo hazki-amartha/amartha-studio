@@ -34,8 +34,13 @@ export interface Growth {
   label: string
   /** Where she stands on it. A FACT, not a pitch; the BP draws the conclusion. */
   status: string
-  /** The verb on the button — "Diskusikan", "Buka Celengan", "Aktifkan". */
-  action: string
+  /**
+   * The headline of the offer, printed bold in the card's action row — the one
+   * figure the BP says out loud when she opens the subject. It sits where the
+   * bill sits on the collection stage, because the card keeps one shape across
+   * all three stages and only what is at stake in the row changes.
+   */
+  value: string
   /** Past tense, for once it has been done. */
   done: string
 }
@@ -224,7 +229,7 @@ const ACTIVE: Mitra[] = [
     growth: {
       label: 'Naik plafon',
       status: 'Layak naik ke Rp10.000.000',
-      action: 'Diskusikan',
+      value: 'Rp10.000.000',
       done: 'Sudah didiskusikan',
     },
   },
@@ -242,7 +247,7 @@ const ACTIVE: Mitra[] = [
     growth: {
       label: 'Celengan',
       status: 'Belum pernah menabung',
-      action: 'Buka Celengan',
+      value: 'Mulai Rp10.000/minggu',
       done: 'Celengan dibuka',
     },
   },
@@ -259,7 +264,7 @@ const ACTIVE: Mitra[] = [
     growth: {
       label: 'PPOB',
       status: 'Belum ada transaksi digital',
-      action: 'Aktifkan',
+      value: 'Pulsa, listrik, BPJS',
       done: 'PPOB diaktifkan',
     },
   },
@@ -276,7 +281,7 @@ const ACTIVE: Mitra[] = [
     growth: {
       label: 'Naik plafon',
       status: 'Layak naik ke Rp9.000.000',
-      action: 'Diskusikan',
+      value: 'Rp9.000.000',
       done: 'Sudah didiskusikan',
     },
   },
