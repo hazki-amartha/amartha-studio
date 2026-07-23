@@ -114,13 +114,19 @@ export function MitraScreen() {
           container with a phone number and two addresses. It is not a datum
           about her — it is a conversation the BP is meant to have, and the only
           thing on this page that leads anywhere she does something. */}
+      {/* White, like every other card on the page. The purple wash marked it as
+          the one thing here that leads somewhere — but the page has no other
+          card competing for that, and a tinted panel among white ones reads as
+          a notice rather than as a place to go. What earns the attention now is
+          SIZE: bigger tile, bigger title, and the offer set at reading size
+          instead of caption size, because that sentence is the whole card. */}
       <button
         type="button"
         onClick={() => flow.go('ladder')}
-        className="flex items-center gap-12 rounded-12 border border-primary-200 bg-primary-50 p-12 text-left"
+        className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left"
       >
-        <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-primary-500">
-          <IconTrendUp size={20} />
+        <span className="flex h-48 w-48 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-primary-500">
+          <IconTrendUp size={24} />
         </span>
         {/* The badge rides on the TITLE line and the promise gets the full
             width beneath it. Sharing one line, the badge and the chevron left
@@ -128,7 +134,7 @@ export function MitraScreen() {
             that ends in an ellipsis is not an offer. */}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <span className="flex min-w-0 items-center gap-8">
-            <span className="truncate text-14 font-bold text-default">Jalur Naik Modal</span>
+            <span className="truncate text-16 font-bold text-default">Jalur Naik Modal</span>
             {/* Named in both directions. A row that badges only the bad state
                 leaves "no badge" meaning two things — she is fine, or nobody
                 checked.
@@ -144,10 +150,12 @@ export function MitraScreen() {
               <Badge intent="green">On Track</Badge>
             )}
           </span>
-          <span className="text-12 text-caption">{ladderLine}</span>
+          {/* text-default, not caption: this line IS the offer. Grey it and the
+              card is a heading with a footnote. */}
+          <span className="text-14 text-default">{ladderLine}</span>
         </div>
         <span className="shrink-0 text-primary-500">
-          <IconChevronRight size={20} />
+          <IconChevronRight size={24} />
         </span>
       </button>
 
