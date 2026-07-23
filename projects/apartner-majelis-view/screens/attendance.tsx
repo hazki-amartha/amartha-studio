@@ -53,7 +53,19 @@ import {
 // running a register in a room, and the reasons a member misses a weekly
 // meeting are few and known. Free text would slow the one gesture the stage
 // repeats and give ops a column it can't sort.
-const ABSENCE_REASONS = ['Sedang bekerja', 'Sakit', 'Diwakilkan', 'Tanpa kabar']
+//
+// "Salah majelis" is the odd one out: it is not about the mitra at all, it is
+// the roster being wrong. She is on this list because of a transfer nobody
+// recorded, and marking her absent week after week hides a data fix behind an
+// attendance figure — so it gets its own reason rather than landing in "tanpa
+// kabar", where it is indistinguishable from a woman who simply didn't come.
+const ABSENCE_REASONS = [
+  'Sedang bekerja',
+  'Sakit',
+  'Diwakilkan',
+  'Salah majelis',
+  'Tanpa kabar',
+]
 
 export function AttendanceScreen() {
   const flow = useFlow()

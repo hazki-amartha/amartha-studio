@@ -61,6 +61,14 @@ export interface NonPayment {
 export type GrowthResult = 'ya' | 'tidak'
 
 /**
+ * What happened to a YES. "Tertarik" is not an outcome on its own — a celengan
+ * she agreed to and one that was actually opened are the same record until this
+ * says otherwise, and the difference is whether next week's BP has to bring it
+ * up again.
+ */
+export type GrowthFollowUp = 'selesai' | 'lanjut'
+
+/**
  * What one finished task contributed to the day's cash, banked at the moment it
  * was submitted.
  *
@@ -125,6 +133,11 @@ export interface AppState {
    * blindly or dropped for good. Absent = interested, or not yet answered.
    */
   growthReasons: Record<string, string>
+  /**
+   * mitraId → whether her YES was finished on the spot or carried to the next
+   * kumpulan. Absent = she said no, or nothing recorded.
+   */
+  growthFollowUps: Record<string, GrowthFollowUp>
   /** Which mitra the mitra page and collect page render. */
   openMitra: string
   /** The receipt the success screen prints. Null before any collection. */
@@ -290,6 +303,7 @@ const initial: AppState = {
   shortfallReasons: {},
   growthResults: {},
   growthReasons: {},
+  growthFollowUps: {},
   openMitra: 'm1',
   lastCollect: null,
   photo: false,
@@ -426,6 +440,7 @@ export const store = {
       shortfallReasons: {},
       growthResults: {},
       growthReasons: {},
+      growthFollowUps: {},
       lastCollect: null,
       photo: false,
       geo: false,
@@ -722,11 +737,28 @@ export const store = {
    * `tidak` carries the reason she gave; a `ya` clears any reason left behind
    * by a corrected no — she's interested now, so the old refusal isn't true.
    */
-  setGrowthResult(mitraId: string, result: GrowthResult, reason?: string) {
+  setGrowthResult(
+    mitraId: string,
+    result: GrowthResult,
+    reason?: string,
+    followUp?: GrowthFollowUp,
+  ) {
     const growthReasons = { ...state.growthReasons }
     if (result === 'tidak' && reason) growthReasons[mitraId] = reason
     else delete growthReasons[mitraId]
-    store.set({ growthResults: { ...state.growthResults, [mitraId]: result }, growthReasons })
+
+    // The two branches are exclusive: a no has a reason, a yes has a follow-up,
+    // and re-answering has to clear whichever no longer applies or the card
+    // reads back the previous answer's tail.
+    const growthFollowUps = { ...state.growthFollowUps }
+    if (result === 'ya' && followUp) growthFollowUps[mitraId] = followUp
+    else delete growthFollowUps[mitraId]
+
+    store.set({
+      growthResults: { ...state.growthResults, [mitraId]: result },
+      growthReasons,
+      growthFollowUps,
+    })
   },
   setDepositAmount(depositAmount: number | null) {
     // Agreeing with the app clears any difference already explained — there is

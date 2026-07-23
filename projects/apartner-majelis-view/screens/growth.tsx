@@ -80,6 +80,7 @@ export function GrowthScreen() {
           if (!growth) return null
           const result = s.growthResults[mitra.id]
           const reason = s.growthReasons[mitra.id]
+          const followUp = s.growthFollowUps[mitra.id]
 
           return (
             <MitraCard
@@ -112,9 +113,15 @@ export function GrowthScreen() {
                     value={result === 'ya' ? growth.value : (reason ?? 'Tanpa alasan')}
                   >
                     <div className="flex items-center gap-8">
-                      {result === 'ya' ? (
+                      {/* A yes that was finished in the room and one that was
+                          not are different states on this queue: the second is
+                          work the next kumpulan inherits, and badging both
+                          "Tertarik" hides it. */}
+                      {result === 'ya' && followUp === 'lanjut' ? (
+                        <Badge intent="orange">Lanjut kumpulan depan</Badge>
+                      ) : result === 'ya' ? (
                         <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                          Tertarik
+                          Selesai
                         </Badge>
                       ) : (
                         <Badge intent="neutral">Ditolak</Badge>
