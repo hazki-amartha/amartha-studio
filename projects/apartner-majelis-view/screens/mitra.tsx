@@ -40,16 +40,20 @@ export function MitraScreen() {
   const ladder = ladderOf(mitra)
   const group = openMajelisEntry(s)
 
-  // The ladder row carries the ladder's own conclusion, so a BP who never opens
-  // that screen still leaves with the one fact it holds. It does not repeat the
-  // word the badge already shows: the badge says "Tertahan", the line says the
-  // number behind it.
+  // The row states the PRIZE, not the problem. It used to read "Tunggakan
+  // Rp450.000" whenever she was behind, which is the same figure the tagihan
+  // card two blocks up already prints — so the one row on this page that exists
+  // to open a conversation about growth was spending its line on the debt.
+  //
+  // Now it names what is on the other side of the arrears and when she reaches
+  // it. The badge carries the caveat: a mitra who is at risk still hears the
+  // offer, because the offer is the reason to clear the arrears.
   const ladderLine =
-    ladder.status === 'tertahan'
-      ? `Tunggakan ${rupiah(ladder.arrears)}`
-      : ladder.current
-        ? `${ladder.current.detail} menuju ${ladder.current.title}`
-        : 'Siklus selesai — bisa ajukan pembiayaan baru'
+    ladder.reward === null || ladder.weeksLeft === null
+      ? 'Siklus selesai — bisa ajukan pembiayaan baru'
+      : ladder.reward.amount === null
+        ? `${ladder.weeksLeft} minggu lagi bisa melunasi lebih awal`
+        : `${ladder.weeksLeft} minggu lagi bisa cairkan ${rupiah(ladder.reward.amount)}`
 
   // A project-local header rather than NavigationHeader, for one reason: this
   // screen needs TWO icon buttons and a chip under the title, and the system
@@ -110,27 +114,48 @@ export function MitraScreen() {
           container with a phone number and two addresses. It is not a datum
           about her — it is a conversation the BP is meant to have, and the only
           thing on this page that leads anywhere she does something. */}
+      {/* White, like every other card on the page. The purple wash marked it as
+          the one thing here that leads somewhere — but the page has no other
+          card competing for that, and a tinted panel among white ones reads as
+          a notice rather than as a place to go. What earns the attention now is
+          SIZE: bigger tile, bigger title, and the offer set at reading size
+          instead of caption size, because that sentence is the whole card. */}
       <button
         type="button"
         onClick={() => flow.go('ladder')}
-        className="flex items-center gap-12 rounded-12 border border-primary-200 bg-primary-50 p-12 text-left"
+        className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left"
       >
-        <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-primary-500">
-          <IconTrendUp size={20} />
+        <span className="flex h-48 w-48 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-primary-500">
+          <IconTrendUp size={24} />
         </span>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-14 font-bold text-default">Jalur Naik Modal</span>
-          <span className="truncate text-12 text-caption">{ladderLine}</span>
+        {/* The badge rides on the TITLE line and the promise gets the full
+            width beneath it. Sharing one line, the badge and the chevron left
+            the sentence about 130px, which truncated the amount — and an offer
+            that ends in an ellipsis is not an offer. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="flex min-w-0 items-center gap-8">
+            <span className="truncate text-16 font-bold text-default">Jalur Naik Modal</span>
+            {/* Named in both directions. A row that badges only the bad state
+                leaves "no badge" meaning two things — she is fine, or nobody
+                checked.
+
+                "At risk" rather than "Tertahan" because the row now leads with
+                the prize: the badge has to say whether that prize is in danger,
+                which is a judgement about the FUTURE. "Tertahan" describes the
+                ladder's state, and beside "3 minggu lagi bisa cairkan" that
+                reads as a contradiction rather than a caveat. */}
+            {ladder.status === 'tertahan' ? (
+              <Badge intent="orange">At risk</Badge>
+            ) : (
+              <Badge intent="green">On Track</Badge>
+            )}
+          </span>
+          {/* text-default, not caption: this line IS the offer. Grey it and the
+              card is a heading with a footnote. */}
+          <span className="text-14 text-default">{ladderLine}</span>
         </div>
-        {/* Named in both directions. A row that badges only the bad state leaves
-            "no badge" meaning two things — she is fine, or nobody checked. */}
-        {ladder.status === 'tertahan' ? (
-          <Badge intent="orange">Tertahan</Badge>
-        ) : (
-          <Badge intent="green">Lancar</Badge>
-        )}
         <span className="shrink-0 text-primary-500">
-          <IconChevronRight size={20} />
+          <IconChevronRight size={24} />
         </span>
       </button>
 

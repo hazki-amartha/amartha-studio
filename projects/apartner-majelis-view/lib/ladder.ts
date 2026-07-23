@@ -51,6 +51,18 @@ export interface Ladder {
   rungs: Rung[]
   /** The rung she is on — moving or held. Null once the cycle is finished. */
   current: Rung | null
+  /**
+   * The next rung that pays her in MODAL, which is not always the one she is
+   * on: a mitra approaching "pelunasan dini" is being offered the right to pay
+   * early, and that is not a reason to keep paying on time. Null once nothing
+   * is left to earn.
+   */
+  reward: Rung | null
+  /**
+   * Weeks between here and `reward`. The unit a BP actually uses out loud —
+   * "tiga minggu lagi" — rather than a month count she would have to convert.
+   */
+  weeksLeft: number | null
   /** Weeks she paid nothing on. Drives the "one week" vs "all of it" wording. */
   missedWeeks: number
   /** What it costs to release the ladder: every overdue rupiah, not this week's. */
@@ -163,10 +175,17 @@ export function ladderOf(mitra: Mitra): Ladder {
   // "Bu Rina", not "Bu Marlina" — the given name leads, as it is said aloud.
   const first = mitra.name.split(' ')[0]
 
+  // Weeks to the rung that pays. Measured from the START of the cycle to the
+  // reward's month, so a mitra two rungs away gets the honest distance rather
+  // than the distance to the next milestone she happens to pass on the way.
+  const weeksLeft = reward === null ? null : Math.max(0, reward.month * 4 - mitra.week)
+
   return {
     status,
     rungs,
     current,
+    reward,
+    weeksLeft,
     missedWeeks: owed.missedWeeks,
     arrears,
     script: scriptFor(first, status, current, reward, arrears),

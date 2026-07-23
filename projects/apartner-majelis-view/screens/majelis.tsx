@@ -82,7 +82,7 @@ export function MajelisScreen() {
           question a BP asks on the way there, and the answer she needs from it
           is not the text — it is the route, which is why the line ends in a
           button rather than in a full stop. */}
-      <div className="flex items-center gap-8 rounded-12 bg-neutral-white p-12">
+      <div className="flex items-center gap-8 rounded-12 bg-neutral-white p-12 text-caption">
         <PinMark />
         <span className="min-w-0 flex-1 truncate text-12 text-default">{group.place}</span>
         <button
