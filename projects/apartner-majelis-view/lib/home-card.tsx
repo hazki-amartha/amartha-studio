@@ -18,11 +18,11 @@
 // rather than as the number she is standing there to collect.
 
 import { Card } from '@/design-system/components'
-import { outstandingOf, rupiah, type Mitra } from './data'
-import { IconChatFill, IconChevronRight, IconPhone, IconPin } from './icons'
+import { type Mitra } from './data'
+import { IconChevronRight, IconPhone } from './icons'
 import { profileOf } from './profile'
 import { MitraPhoto } from './mitra-card'
-import { ContactButton } from './ui'
+import { ContactButton, PinMark, WaMark } from './ui'
 
 export function HomeMitraCard({
   mitra,
@@ -61,7 +61,7 @@ export function HomeMitraCard({
               the loudest thing in the row. */}
           <div className="flex shrink-0 gap-8">
             <ContactButton label={`WhatsApp ${mitra.name}`} tone="green">
-              <IconChatFill size={20} />
+              <WaMark size={20} />
             </ContactButton>
             <ContactButton label={`Telepon ${mitra.name} — ${phone}`} tone="primary">
               <IconPhone size={20} />
@@ -70,9 +70,7 @@ export function HomeMitraCard({
         </div>
 
         <span className="flex items-start gap-4 text-12 text-caption">
-          <span className="shrink-0">
-            <IconPin size={16} />
-          </span>
+          <PinMark />
           {address}
         </span>
       </div>
@@ -81,57 +79,13 @@ export function HomeMitraCard({
 }
 
 /**
- * What she owes, broken into the three debts it is actually made of — this
- * week, the weeks she missed, and any shortfall left over from a part-payment.
+ * What she owes at the door. It used to be drawn here — a big total over a
+ * three-line split with its own wording ("Angsuran minggu ini", "Tunggakan 9
+ * minggu", "Kekurangan bayar") — while her mitra page drew the same three facts
+ * a different way. Same moment, same numbers, two cards: exactly the drift the
+ * shared components in this project exist to stop.
  *
- * Naming all three is this direction's rule, and it matters more at a door than
- * in a queue: "Rp1.500.000" on its own is a number to be argued with, while
- * "this week, plus nine missed weeks" is a number to be explained, which is
- * exactly what the BP is standing there doing.
+ * So it is now the mitra page's card, and this is the name the home visit
+ * already imports it under.
  */
-export function TagihanCard({ mitra }: { mitra: Mitra }) {
-  const owed = outstandingOf(mitra)
-
-  return (
-    <Card>
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-2">
-          <span className="text-12 text-caption">Total tagihan</span>
-          <span className="text-24 font-bold text-default">{rupiah(owed.total)}</span>
-        </div>
-        <div className="flex flex-col gap-4 border-t border-default pt-8">
-          <Line label="Angsuran minggu ini" value={rupiah(owed.thisWeek)} />
-          {owed.missed > 0 ? (
-            <Line
-              label={`Tunggakan ${owed.missedWeeks} minggu`}
-              value={rupiah(owed.missed)}
-              tone="red"
-            />
-          ) : null}
-          {owed.partial > 0 ? (
-            <Line label="Kekurangan bayar" value={rupiah(owed.partial)} tone="orange" />
-          ) : null}
-        </div>
-      </div>
-    </Card>
-  )
-}
-
-function Line({
-  label,
-  value,
-  tone = 'default',
-}: {
-  label: string
-  value: string
-  tone?: 'default' | 'red' | 'orange'
-}) {
-  const valueTone =
-    tone === 'red' ? 'text-red-500' : tone === 'orange' ? 'text-orange-500' : 'text-default'
-  return (
-    <div className="flex items-center gap-12">
-      <span className="flex-1 text-12 text-caption">{label}</span>
-      <span className={`text-12 font-bold ${valueTone}`}>{value}</span>
-    </div>
-  )
-}
+export { TagihanBreakdown as TagihanCard } from './mitra-card'

@@ -14,8 +14,41 @@
 import type { ReactNode } from 'react'
 import { Badge, Card } from '@/design-system/components'
 import { User } from '@/design-system/icons'
-import { rupiah, type Mitra } from './data'
+import { outstandingOf, rupiah, type Mitra } from './data'
 import { IconChevronRight } from './icons'
+import { StatRows } from './ui'
+
+/**
+ * What she owes, and what it is made of. ONE component, used by the mitra page
+ * and by the home visit, because they are the same three facts read at the same
+ * moment — before the BP asks for money — and two drawings of one card is how a
+ * prototype ends up arguing with itself in a review.
+ *
+ * The total is the first line of its own breakdown rather than a headline over
+ * one, and there are no rules between the rows: a rule under the total turns
+ * "made of these" into "and also these".
+ *
+ * "Terlewat" carries everything overdue — the missed weeks AND whatever is left
+ * of a week she part-paid. Two different failures, but the BP does not collect
+ * them separately, and a card whose parts do not visibly sum to its total is
+ * the one thing this project has been careful never to print. The week strip
+ * still tells the two apart, where the difference is said out loud.
+ */
+export function TagihanBreakdown({ mitra }: { mitra: Mitra }) {
+  const owed = outstandingOf(mitra)
+  const overdue = owed.missed + owed.partial
+
+  return (
+    <StatRows
+      divided={false}
+      rows={[
+        { label: 'Total tagihan', value: rupiah(owed.total), tone: 'strong' },
+        { label: 'Minggu ini', value: rupiah(owed.thisWeek) },
+        { label: 'Terlewat', value: rupiah(overdue), tone: overdue > 0 ? 'red' : 'default' },
+      ]}
+    />
+  )
+}
 
 /**
  * Her bucket, as the badge the reference puts top-right of every card.

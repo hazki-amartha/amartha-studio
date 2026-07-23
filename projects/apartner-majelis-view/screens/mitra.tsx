@@ -23,12 +23,12 @@ import { ArrowLeft } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, outstandingOf, rupiah } from '../lib/data'
-import { IconChat, IconChevronRight, IconPin, IconTrendUp } from '../lib/icons'
+import { IconChevronRight, IconTrendUp } from '../lib/icons'
 import { ladderOf } from '../lib/ladder'
 import { profileOf } from '../lib/profile'
-import { DpdBadge } from '../lib/mitra-card'
+import { DpdBadge, TagihanBreakdown } from '../lib/mitra-card'
 import { openMajelisEntry, store, useApp } from '../lib/store'
-import { HeaderAction, Overline, StatRows, WeekStrip } from '../lib/ui'
+import { HeaderAction, Overline, PinMark, WaMark, WeekStrip } from '../lib/ui'
 
 export function MitraScreen() {
   const flow = useFlow()
@@ -77,11 +77,11 @@ export function MitraScreen() {
           <DpdBadge dpd={mitra.dpd} format="short" />
         </span>
       </div>
-      <HeaderAction label={`Chat WhatsApp ${mitra.name}`} onClick={() => undefined}>
-        <IconChat size={20} />
+      <HeaderAction label={`Chat WhatsApp ${mitra.name}`} tone="green" onClick={() => undefined}>
+        <WaMark size={20} />
       </HeaderAction>
-      <HeaderAction label={`Rute ke rumah ${mitra.name}`} onClick={() => undefined}>
-        <IconPin size={20} />
+      <HeaderAction label={`Rute ke rumah ${mitra.name}`} tone="red" onClick={() => undefined}>
+        <PinMark size={20} />
       </HeaderAction>
     </header>
   )
@@ -103,18 +103,7 @@ export function MitraScreen() {
           is the one thing this project has been careful never to print. The
           week strip above still tells the two apart, in the place where the
           difference is actually said out loud. */}
-      <StatRows
-        divided={false}
-        rows={[
-          { label: 'Total tagihan', value: rupiah(owed.total), tone: 'strong' },
-          { label: 'Minggu ini', value: rupiah(owed.thisWeek) },
-          {
-            label: 'Terlewat',
-            value: rupiah(owed.missed + owed.partial),
-            tone: owed.missed + owed.partial > 0 ? 'red' : 'default',
-          },
-        ]}
-      />
+      <TagihanBreakdown mitra={mitra} />
 
       {/* --- The ladder, on its own. --------------------------------------- */}
       {/* It used to be the first row inside a "Data mitra" card, sharing a

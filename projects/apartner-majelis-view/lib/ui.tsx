@@ -10,9 +10,37 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, SelectableCard } from '@/design-system/components'
-import { MagnifyingGlass } from '@/design-system/icons'
+import { MagnifyingGlass, WhatsappLogo } from '@/design-system/icons'
 import { ringkas, type Week } from './data'
-import { IconCheck, IconChevronDown, IconChevronUp, IconX } from './icons'
+import { IconCheck, IconChevronDown, IconChevronUp, IconPin, IconX } from './icons'
+
+// --- The two coloured marks ------------------------------------------------
+// Two glyphs in this project are never neutral: WhatsApp is green and a
+// location pin is red, in a header, on a card, or inside a line of caption
+// text. They are components rather than a convention because a convention is
+// something that drifts — one screen tints the pin, the next inherits
+// text-caption, and the BP is left deciding whether the grey one means
+// something different.
+//
+// Both are the same colours the world already uses for them, which is the only
+// reason a red pin reads as "location" rather than "problem" while sitting next
+// to genuinely red arrears figures.
+
+export function PinMark({ size = 16 }: { size?: 16 | 20 | 24 }) {
+  return (
+    <span className="flex shrink-0 text-red-500">
+      <IconPin size={size} />
+    </span>
+  )
+}
+
+export function WaMark({ size = 20 }: { size?: 16 | 20 | 24 }) {
+  return (
+    <span className="flex shrink-0 text-green-500">
+      <WhatsappLogo size={size} />
+    </span>
+  )
+}
 
 // --- Avatar ----------------------------------------------------------------
 
@@ -783,21 +811,31 @@ export function Overline({ children }: { children: ReactNode }) {
 export function HeaderAction({
   label,
   count = 0,
+  tone = 'default',
   onClick,
   children,
 }: {
   label: string
   /** Unread count; 0 hides the counter entirely. */
   count?: number
+  /**
+   * Tints the glyph. The two that are tinted are tinted everywhere in this
+   * project: WhatsApp is green and a location pin is red, on a header, in a
+   * card, or in a line of caption text. A glyph that changes colour by context
+   * is a glyph the BP re-reads.
+   */
+  tone?: 'default' | 'green' | 'red'
   onClick?: () => void
   children: ReactNode
 }) {
+  const toneClass =
+    tone === 'green' ? 'text-green-500' : tone === 'red' ? 'text-red-500' : 'text-default'
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={count > 0 ? `${label}, ${count} belum dibaca` : label}
-      className="relative flex h-32 w-32 shrink-0 items-center justify-center text-default"
+      className={`relative flex h-32 w-32 shrink-0 items-center justify-center ${toneClass}`}
     >
       {children}
       {count > 0 ? (
