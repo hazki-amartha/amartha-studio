@@ -14,21 +14,23 @@ import { MagnifyingGlass, WhatsappLogo } from '@/design-system/icons'
 import { ringkas, type Week } from './data'
 import { IconCheck, IconChevronDown, IconChevronUp, IconPin, IconX } from './icons'
 
-// --- The two coloured marks ------------------------------------------------
-// Two glyphs in this project are never neutral: WhatsApp is green and a
-// location pin is red, in a header, on a card, or inside a line of caption
-// text. They are components rather than a convention because a convention is
-// something that drifts — one screen tints the pin, the next inherits
-// text-caption, and the BP is left deciding whether the grey one means
-// something different.
+// --- The two marks ---------------------------------------------------------
+// Two glyphs get one treatment each, wherever they appear, because a glyph that
+// changes with context is a glyph the BP re-reads.
 //
-// Both are the same colours the world already uses for them, which is the only
-// reason a red pin reads as "location" rather than "problem" while sitting next
-// to genuinely red arrears figures.
+// WhatsApp is always green — every place it appears is a control, so there is
+// no second case to distinguish.
+//
+// The PIN takes its colour from what it IS. Red when it is the button — a tap
+// that opens a route — and inherited when it is punctuation in front of an
+// address. Colour is the affordance here: a page with six red pins down it has
+// spent the loudest colour it owns on labelling text that was already labelled
+// by being an address, and the one pin that actually does something stops
+// standing out.
 
 export function PinMark({ size = 16 }: { size?: 16 | 20 | 24 }) {
   return (
-    <span className="flex shrink-0 text-red-500">
+    <span className="flex shrink-0">
       <IconPin size={size} />
     </span>
   )

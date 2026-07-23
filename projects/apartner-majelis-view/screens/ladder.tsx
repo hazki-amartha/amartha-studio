@@ -55,7 +55,10 @@ export function LadderScreen() {
                   : 'Siklus selesai'}
             </span>
           </div>
-          <Badge intent={held ? 'orange' : 'green'}>{held ? 'Tertahan' : 'Berjalan'}</Badge>
+          {/* The same two words as the card that opened this screen. The rungs
+              below still say "Tertahan" — that describes a RUNG, frozen where
+              it stands; this describes her, and whether the prize is in danger. */}
+          <Badge intent={held ? 'orange' : 'green'}>{held ? 'At risk' : 'On Track'}</Badge>
         </div>
       </Card>
 
