@@ -159,6 +159,15 @@ delete it if the prototype is a plain click-through; see
 
 ## 4. Missing component protocol
 
+**Icons are not a missing component.** FunDS ships 166 shared icons at
+`@/design-system/icons` — import them by name (`import { Coins } from
+'@/design-system/icons'`). **Never hand-roll an icon or add a project-local
+`icons.tsx`.** See the Icons section of the cheatsheet for names and the `-fill`
+convention. Only if a glyph genuinely isn't in the set does the protocol below
+apply — and even then, prefer a project-local one-off over expanding the shared
+module (a shared icon earns its place by being wanted twice, same as any
+component).
+
 If a screen needs a component that `@/design-system/components` doesn't provide:
 
 1. Build a **project-local** version in `projects/<slug>/lib/`, using **only**

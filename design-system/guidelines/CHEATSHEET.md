@@ -99,6 +99,28 @@ All props below are optional except where marked **required**.
 
 ---
 
+## Icons
+
+**166 shared icons live in `@/design-system/icons`. Never hand-roll an icon.**
+
+```tsx
+import { Coins, ArrowRight, CheckCircle } from '@/design-system/icons'
+
+<Coins />                              // 24px, inherits currentColor
+<ArrowRight size={16} />               // size is 16 | 20 | 24
+<CheckCircle className="text-green-500" />   // color via a text-* token
+```
+
+- Names are **Phosphor** names in PascalCase (`chat-circle-dots` → `ChatCircleDots`).
+  Look glyphs up on phosphoricons.com, or `grep 'export function' design-system/icons/index.tsx`.
+- **Filled weight = `-fill` suffix**: `House` / `HouseFill`, `Star` / `StarFill`.
+- Color comes from `currentColor` — set it with a `text-*` token on the icon or its
+  container; don't pass hex.
+- If a glyph genuinely isn't in the set, follow the missing-component protocol (§4)
+  — build it project-local, don't add a one-off to the shared module.
+
+---
+
 ## Navigation
 
 ```tsx
