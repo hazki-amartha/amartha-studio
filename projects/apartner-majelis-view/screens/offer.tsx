@@ -19,17 +19,31 @@ import { Badge, Button, Card, NavigationHeader, SelectableCard } from '@/design-
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, rupiah } from '../lib/data'
-import { store, useApp } from '../lib/store'
+import { store, useApp, type GrowthFollowUp } from '../lib/store'
 import { MitraPhoto } from '../lib/mitra-card'
 import { ChoiceList, SectionTitle, StickyBar } from '../lib/ui'
 
 // Why she said no. Without a reason on file every "tidak tertarik" looks the
 // same, and next week's BP can't tell a settled no from a "not right now".
+//
+// "Tidak sesuai" is the one that says the OFFER was wrong, not the timing —
+// she already has the celengan, she renewed last month. That is a note about
+// the recommendation rather than about her, and without it a mitra who was
+// pitched something she already owns gets logged as uninterested and pitched
+// again next week.
 const DECLINE_REASONS = [
   'Belum butuh saat ini',
   'Dana belum ada',
   'Mau diskusi dulu di rumah',
   'Sudah punya di tempat lain',
+  'Tidak sesuai — sudah punya / sudah renew',
+]
+
+// What happened to the yes. Two answers, because there are only two: it was
+// finished in the room, or it wasn't and the next kumpulan has to pick it up.
+const FOLLOW_UPS: { value: GrowthFollowUp; label: string }[] = [
+  { value: 'selesai', label: 'Sudah selesai hari ini' },
+  { value: 'lanjut', label: 'Belum — lanjut kumpulan depan' },
 ]
 
 export function OfferScreen() {
@@ -43,12 +57,18 @@ export function OfferScreen() {
   // correcting an answer is an edit rather than a re-entry.
   const [result, setResult] = useState<'ya' | 'tidak' | null>(s.growthResults[mitra.id] ?? null)
   const [reason, setReason] = useState<string | null>(s.growthReasons[mitra.id] ?? null)
+  const [followUp, setFollowUp] = useState<GrowthFollowUp | null>(
+    s.growthFollowUps[mitra.id] ?? null,
+  )
 
-  const canSave = result === 'ya' || (result === 'tidak' && reason !== null)
+  // Both branches now ask a second question, and both gate on it. A yes with
+  // nothing after it is the same dead end a no with no reason was.
+  const canSave =
+    (result === 'ya' && followUp !== null) || (result === 'tidak' && reason !== null)
 
   function save() {
     if (!canSave || !result) return
-    store.setGrowthResult(mitra.id, result, reason ?? undefined)
+    store.setGrowthResult(mitra.id, result, reason ?? undefined, followUp ?? undefined)
     flow.go('growth')
   }
 
@@ -107,9 +127,30 @@ export function OfferScreen() {
               title="Tidak tertarik"
               description="Catat alasannya"
               checked={result === 'tidak'}
-              onChange={() => setResult('tidak')}
+              onChange={() => {
+                setResult('tidak')
+                setFollowUp(null)
+              }}
             />
           </div>
+
+          {/* A yes is not the end of the conversation. Opening a celengan takes
+              a form and a signature, and at a kumpulan of 22 there is often no
+              time — so "she agreed" and "it is done" are different facts, and
+              recording only the first is how a BP arrives next week unsure
+              whether to raise it again. */}
+          {result === 'ya' ? (
+            <div className="pb-16">
+              <ChoiceList
+                label="Sudah diproses?"
+                options={FOLLOW_UPS.map((f) => f.label)}
+                value={FOLLOW_UPS.find((f) => f.value === followUp)?.label}
+                onPick={(label) =>
+                  setFollowUp(FOLLOW_UPS.find((f) => f.label === label)?.value ?? null)
+                }
+              />
+            </div>
+          ) : null}
 
           {result === 'tidak' ? (
             <div className="pb-16">
