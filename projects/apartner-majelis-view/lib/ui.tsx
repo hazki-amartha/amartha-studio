@@ -8,7 +8,7 @@
 // StageBar and WeekStrip, which are the two things the Majelis View reference
 // actually introduces.
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, SelectableCard } from '@/design-system/components'
 import { MagnifyingGlass } from '@/design-system/icons'
 import { ringkas, type Week } from './data'
@@ -136,8 +136,33 @@ const WEEK_TONE: Record<Week['status'], { ring: string; text: string; label: str
   },
 }
 
-export function WeekStrip({ weeks, totalWeeks }: { weeks: Week[]; totalWeeks: number }) {
+/** How many weeks the rail holds. Ten is a season of payments, not a ledger. */
+const STRIP_WEEKS = 10
+
+export function WeekStrip({
+  weeks,
+  totalWeeks,
+  onSeeAll,
+}: {
+  weeks: Week[]
+  totalWeeks: number
+  /** Opens the full record. Omitted renders no link. */
+  onSeeAll?: () => void
+}) {
   const current = weeks[weeks.length - 1]
+  // The last ten, because the rail is for the RECENT past: what happened over
+  // the weeks the BP is about to ask about. Fifty cells was a ledger rendered
+  // as a rail, and the forty at the far left were never scrolled to.
+  const shown = weeks.slice(-STRIP_WEEKS)
+
+  const rail = useRef<HTMLDivElement>(null)
+  // Opens on THIS week, at the right edge, and the BP scrolls left into the
+  // past. A rail that opens on week 1 puts the cell she actually came for off
+  // screen and makes "swipe" the first thing she has to do.
+  useEffect(() => {
+    const el = rail.current
+    if (el) el.scrollLeft = el.scrollWidth
+  }, [weeks])
 
   return (
     <div className="flex flex-col gap-8 rounded-12 bg-neutral-white p-12">
@@ -154,13 +179,16 @@ export function WeekStrip({ weeks, totalWeeks }: { weeks: Week[]; totalWeeks: nu
       {/* -mx-12 lets the rail bleed to the card's edges, so the last visible
           week is clipped by the card rather than by an inner gutter — which is
           what makes it read as scrollable without a scrollbar. */}
-      <div className="-mx-12 overflow-x-auto px-12">
+      <div ref={rail} className="-mx-12 overflow-x-auto px-12">
         <div className="flex gap-8">
-          {weeks.map((w) => {
+          {shown.map((w) => {
             const tone = WEEK_TONE[w.status]
             return (
+              // No "M7" label any more. The date under the cell already says
+              // which week this is in the only terms said out loud — "yang 7
+              // Juli, Bu" — and the week NUMBER was a second identifier for the
+              // same cell that only the app was counting in.
               <div key={w.no} className="flex w-48 shrink-0 flex-col items-center gap-4">
-                <span className="text-10 font-bold text-caption">M{w.no}</span>
                 <span className="text-10 text-disabled">{w.date}</span>
                 <span
                   className={`flex h-32 w-32 items-center justify-center rounded-full border ${tone.ring}`}
@@ -180,7 +208,17 @@ export function WeekStrip({ weeks, totalWeeks }: { weeks: Week[]; totalWeeks: nu
         </div>
       </div>
 
-      <span className="text-center text-10 text-disabled">Geser untuk melihat minggu lainnya</span>
+      {onSeeAll ? (
+        <button
+          type="button"
+          onClick={onSeeAll}
+          className="-mx-12 -mb-12 border-t border-default px-12 py-12 text-center text-12 font-bold text-link"
+        >
+          Lihat semua riwayat
+        </button>
+      ) : (
+        <span className="text-center text-10 text-disabled">Geser untuk melihat minggu lainnya</span>
+      )}
     </div>
   )
 }

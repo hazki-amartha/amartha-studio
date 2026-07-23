@@ -99,6 +99,33 @@ function weekDate(weeksBack: number): string {
   return `${d.getDate()} ${MONTHS_ID[d.getMonth()]}`
 }
 
+const MONTHS_FULL = [
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
+]
+
+/**
+ * "23 April 2025" — the long form, for dates that are read once rather than
+ * scanned in a row. The week strip cannot afford it; a disbursement record has
+ * nothing else on the line and a bare "23 Apr" there is a date without a year,
+ * which on a two-cycle history is exactly the ambiguity that matters.
+ */
+export function fullDate(weeksBack: number): string {
+  const d = new Date(TODAY)
+  d.setDate(d.getDate() - weeksBack * 7)
+  return `${d.getDate()} ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}`
+}
+
 /**
  * Builds the ledger for one mitra.
  *

@@ -6,6 +6,7 @@ import { MajelisScreen } from './screens/majelis'
 import { AttendanceScreen } from './screens/attendance'
 import { CollectionScreen } from './screens/collection'
 import { MitraScreen } from './screens/mitra'
+import { LoansScreen } from './screens/loans'
 import { CollectScreen } from './screens/collect'
 import { CollectDoneScreen } from './screens/collect-done'
 import { GrowthScreen } from './screens/growth'
@@ -382,11 +383,28 @@ export const project: ProjectModule = {
       title: 'Detail Mitra',
       component: MitraScreen,
       notes: [
-        'One borrower, opened from her card anywhere in the flow, and now a record rather than a second place to act. Her name and her DPD badge ARE the top bar — they used to sit in a card under a bar that said “Detail Mitra”, a heading that named the screen to someone already looking at it — so the two facts stay pinned while the ledger scrolls. Collecting happens in the pelayanan queue, which is the only place the BP has the mitra in front of her.',
-        'The week strip is the heart of the page: it carries the amount inside each week rather than a paid/unpaid dot, so the BP can say “Ibu kurang Rp50.000 di minggu 7” instead of “Ibu belum bayar”. Under it sit the three figures she gets asked for by name — total tagihan, total outstanding, angsuran.',
-        'Data mitra is the reach-her block, and it carries two routes and two numbers: her house and her tempat usaha, her WhatsApp and her PJ’s. A BP who cannot raise a mitra at home at 10.00 has three other things to try, and all of them are on this card.',
+        'One borrower, opened from her card anywhere in the flow, and a record rather than a second place to act. Her name and her DPD chip are the pinned top bar, with chat and route as the two icon buttons beside them — the two things a BP DOES with a mitra rather than reads about her, reachable from wherever she has scrolled to. Collecting happens in the pelayanan queue, which is the only place the BP has the mitra in front of her.',
+        'The week strip is the heart of the page: it carries the amount inside each week rather than a paid/unpaid dot, so the BP can say “Ibu kurang Rp50.000 di minggu 7” instead of “Ibu belum bayar”. It shows the last ten weeks and opens on THIS week at the right edge, scrolling left into the past — fifty cells was a ledger drawn as a rail, and the forty at the far left were never reached. The week numbers are gone: the date under each cell already says which week it is, in the only terms said out loud.',
+        'Under it, one figure and its parts: total tagihan, then minggu ini and terlewat. Total outstanding and the weekly instalment were facts about the CONTRACT; this is the only number she is about to act on, and the lines beneath it are the sentence she says when it gets argued with. The shortfall line appears only when there is one — but it does appear, because without it the parts do not add up to the total.',
+        'The ladder is its own entry point now instead of the first row of a card it shared with a phone number and two addresses. It is not a datum about her; it is a conversation, and the only thing on this page that leads somewhere she does something.',
+        'Everything else on file drops to the bottom as Informasi tambahan, read-only. Those rows were tappable and four of them opened nothing that is not now a header button, so what survives is the content: what a BP reads out when ops asks, or checks before she rides.',
       ],
-      flowsTo: [{ to: 'ladder', label: 'Jalur Naik Modal' }],
+      flowsTo: [
+        { to: 'loans', label: 'Lihat semua riwayat' },
+        { to: 'ladder', label: 'Jalur Naik Modal' },
+      ],
+    },
+    {
+      id: 'loans',
+      title: 'Semua Pencairan',
+      component: LoansScreen,
+      notes: [
+        'Every cycle she has taken, active first and settled below. The mitra page answers “what does she owe today”; this answers “how long has she been with us, and how did the last cycles go” — a different question with a different shelf life, which is why it is a page rather than another section on one already carrying a ledger.',
+        'It is the evidence behind the ladder. “Ibu sudah tiga kali cair dan dua lunas tepat waktu” is the sentence that makes a top-up conversation land, and until this screen existed the BP had to remember it.',
+        'A settled cycle keeps every number and loses only its colour. It is still the thing she quotes, and greying it down to a summary line would throw away the proof to save a card.',
+        'One active pencairan, always — the reference screen shows two. Every number on the mitra page derives from a single ledger, and a second live loan would make “total tagihan” mean different things on different screens. That is the contradiction this direction was built to avoid, so it is the one thing from the reference not copied.',
+      ],
+      flowsTo: [{ to: 'mitra', label: 'kembali' }],
     },
     {
       id: 'collect',
