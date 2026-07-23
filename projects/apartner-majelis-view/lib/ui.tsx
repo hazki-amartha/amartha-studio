@@ -9,7 +9,7 @@
 // actually introduces.
 
 import { useState, type ReactNode } from 'react'
-import { BottomSheet, SelectableCard } from '@/design-system/components'
+import { Badge, BottomSheet, SelectableCard } from '@/design-system/components'
 import { MagnifyingGlass } from '@/design-system/icons'
 import { ringkas, type Week } from './data'
 import { IconCheck, IconChevronDown, IconChevronUp, IconX } from './icons'
@@ -183,6 +183,23 @@ export function WeekStrip({ weeks, totalWeeks }: { weeks: Week[]; totalWeeks: nu
       <span className="text-center text-10 text-disabled">Geser untuk melihat minggu lainnya</span>
     </div>
   )
+}
+
+// --- ProductBadge ----------------------------------------------------------
+// The lending product, wherever it appears — on a group in the directory or on
+// a mitra in the roster. One component so the colours cannot drift between the
+// two screens, which is the only way a colour code is worth having.
+//
+// The palette is deliberately disjoint from the STATUS badges beside it. Those
+// own green / orange / yellow (lancar, DPD, draft), so a product cannot borrow
+// one without the same hue meaning two things on a single card. That leaves
+// blue and primary — Modal blue, GL purple — and Hybrid takes neutral, because
+// it is not a third product: it is a group carrying both at once, and giving it
+// its own hue would say otherwise.
+
+export function ProductBadge({ product }: { product: 'Modal' | 'GL' | 'Hybrid' }) {
+  const intent = product === 'Modal' ? 'blue' : product === 'GL' ? 'primary' : 'neutral'
+  return <Badge intent={intent}>{product}</Badge>
 }
 
 // --- Finding things in a list ----------------------------------------------

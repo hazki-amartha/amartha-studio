@@ -23,8 +23,8 @@
 // send her anywhere, so without a filter it only ever surfaces by scrolling.
 
 import { useState } from 'react'
-import { Badge } from '@/design-system/components'
-import { Screen, TopBar } from '@/platform/primitives'
+import { Badge, NavigationHeader } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import {
   KUMPULAN_DAYS,
@@ -36,7 +36,16 @@ import {
 import { IconChevronRight, IconPin } from '../lib/icons'
 import { store, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
-import { EmptyState, FilterBar, FilterChip, OptionSheet, ResetLink, SearchField } from '../lib/ui'
+import {
+  EmptyState,
+  FilterBar,
+  FilterChip,
+  OptionSheet,
+  ProductBadge,
+  ResetLink,
+  SearchField,
+  VisitTitle,
+} from '../lib/ui'
 
 type MenuId = 'day' | 'status' | null
 
@@ -70,12 +79,13 @@ export function MajelisListScreen() {
   return (
     <Screen
       topBar={
-        <TopBar>
-          <span className="flex-1">Majelis</span>
-          <span className="text-12 font-regular text-caption">
-            {MAJELIS_DIRECTORY.length} majelis
-          </span>
-        </TopBar>
+        // The count reads as a subtitle rather than as a figure pinned to the
+        // far edge: it is what the title is ABOUT — how many groups she carries
+        // — not a second, competing fact.
+        <NavigationHeader
+          hideBack
+          title={<VisitTitle title="Majelis" when={`${MAJELIS_DIRECTORY.length} majelis`} />}
+        />
       }
     >
       <SearchField
@@ -170,10 +180,10 @@ function Row({ entry, onOpen }: { entry: MajelisEntry; onOpen: () => void }) {
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="flex min-w-0 items-center gap-8">
           <span className="truncate text-14 font-bold text-default">{entry.name}</span>
-          {/* The product the group runs on. Neutral on purpose: it is what the
-              group IS, not how it is doing, and a coloured pill here would
-              compete with the status badge that is. */}
-          <Badge intent="neutral">{entry.type}</Badge>
+          {/* The product the group runs on — colour-coded so the type is read
+              at a glance rather than word by word. See ProductBadge for why the
+              palette avoids the status badge's green/orange/yellow. */}
+          <ProductBadge product={entry.type} />
         </span>
         <span className="flex items-center gap-4 text-12 text-caption">
           <IconPin size={16} />

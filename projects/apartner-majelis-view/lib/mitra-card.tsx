@@ -64,7 +64,8 @@ export function MitraCard({
   /**
    * Replaces the standing facts when a stage has something more relevant to
    * say in that slot — the collection stage puts what she owes here, because at
-   * that moment the bill outranks the contract it came from.
+   * that moment the bill outranks the contract it came from. Pass `null` for a
+   * stage that wants no second line at all; only `undefined` falls back.
    */
   meta?: ReactNode
   /** Sits against the name. For what she IS in the group, not how she is doing. */
@@ -99,13 +100,15 @@ export function MitraCard({
             </span>
           ) : null}
         </span>
-        {meta ?? (
+        {meta === undefined ? (
           <>
             <span className="truncate text-12 text-caption">Pinjaman {rupiah(mitra.loan)}</span>
             <span className="truncate text-12 text-caption">
               Angsuran {rupiah(mitra.weekly)}/minggu
             </span>
           </>
+        ) : (
+          meta
         )}
         {labels ? <span className="flex flex-wrap items-center gap-4">{labels}</span> : null}
       </div>

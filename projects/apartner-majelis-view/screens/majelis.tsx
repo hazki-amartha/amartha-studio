@@ -27,15 +27,15 @@
 
 import { useState } from 'react'
 import { Badge, BottomSheet, Button, NavigationHeader } from '@/design-system/components'
-import { NotePencil, PaperPlaneTilt, Sort, WhatsappLogo } from '@/design-system/icons'
+import { PaperPlaneTilt, Sort, WhatsappLogo } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { MAJELIS, outstandingOf, rupiah, type Mitra } from '../lib/data'
+import { MAJELIS, type Mitra } from '../lib/data'
 import { IconArrowRight, IconCalendar, IconChevronRight, IconPin, IconUsers } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import { taskForMajelis } from '../lib/schedule'
 import { openMajelisEntry, store, useApp } from '../lib/store'
-import { SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
+import { ProductBadge, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
 
 type Sort = 'tunggakan' | 'nama'
 type Sheet = 'edit' | 'reminder' | null
@@ -69,12 +69,10 @@ export function MajelisScreen() {
               when={`${group.day}, ${group.time} · ${MAJELIS.members.length} mitra`}
             />
           }
-          link={
-            <span className="flex items-center">
-              <NotePencil size={20} />
-              <span className="sr-only">Ubah data majelis</span>
-            </span>
-          }
+          // A word, not a pencil. The pencil had to carry a screen-reader label
+          // to say what it edited, which is the tell that it was not saying it
+          // to anyone else either.
+          link="Edit"
           onLinkClick={() => setSheet('edit')}
           onBack={() => flow.go('majelis-list')}
         />
@@ -122,15 +120,13 @@ export function MajelisScreen() {
           <MitraCard
             key={mitra.id}
             mitra={mitra}
-            // Two facts per card, not four. The roster is scanned, not read:
-            // what she owes and how late she is are the pair that decides who
-            // the BP looks at first, and the contract behind them (pinjaman,
-            // angsuran) is one tap away on her page.
-            meta={
-              <span className="truncate text-12 text-caption">
-                Tunggakan {rupiah(outstandingOf(mitra).total)}
-              </span>
-            }
+            // No amount on the card at all now. DPD already answers "who do I
+            // deal with first", and a rupiah figure on a roster is a number the
+            // BP reads but cannot act on — the one she negotiates against is
+            // derived fresh on the collect page, from the ledger, at the moment
+            // she needs it. Two places printing the same debt is how they end
+            // up disagreeing.
+            meta={null}
             titleBadge={mitra.id === MAJELIS.ketuaId ? <Badge intent="primary">KM</Badge> : null}
             labels={<MitraLabels mitra={mitra} />}
             trailing={<DpdBadge dpd={mitra.dpd} format="short" />}
@@ -183,7 +179,7 @@ export function MajelisScreen() {
 function MitraLabels({ mitra }: { mitra: Mitra }) {
   return (
     <>
-      <Badge intent="neutral">{mitra.product}</Badge>
+      <ProductBadge product={mitra.product} />
       {mitra.ptp ? <Badge intent="blue">Janji bayar {mitra.ptp}</Badge> : null}
       {mitra.keringanan ? <Badge intent="yellow">Dapat keringanan</Badge> : null}
     </>
@@ -218,6 +214,15 @@ function EditSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
           icon={<IconPin size={20} />}
           title="Ubah lokasi kumpulan"
           subtitle="Alamat tempat majelis berkumpul"
+          onClick={onClose}
+        />
+        {/* The only one of the four that changes another group as well as this
+            one, which is why it says "pindahkan" rather than "hapus": a mitra
+            does not leave a majelis, she arrives at a different one. */}
+        <EditRow
+          icon={<IconArrowRight size={20} />}
+          title="Pindahkan anggota"
+          subtitle="Pindahkan mitra ke majelis lain"
           onClick={onClose}
         />
       </div>
