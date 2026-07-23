@@ -6,25 +6,35 @@
 // A BP who pitched a savings product before collecting would be asking a woman
 // to open an account with the instalment she has not handed over yet.
 //
-// Only mitra with an actual recommendation appear. The reference shows four rows
-// on a 22-member majelis, which is the right ratio — an offer for everyone is a
-// list nobody reads. Each row states where she STANDS ("Belum pernah menabung")
-// rather than what to say about it; the BP reads a fact and draws the obvious
-// conclusion, which is the same move the mitra page makes.
+// Only mitra with an actual recommendation appear — an offer for everyone is a
+// list nobody reads — but they appear in the SAME order as the two stages
+// before, in the same card, with the offer sitting exactly where the bill sat.
+// Nothing re-sorts when a card is answered; the pills simply fill in.
 //
 // The whole stage is skippable. It is a tail, and a tail that blocks the close
 // of a visit has stopped being a tail.
 
 import { useState } from 'react'
-import { Badge, Button, NavigationHeader } from '@/design-system/components'
+import { Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { MAJELIS, growthMembers } from '../lib/data'
+import { growthMembers } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
-import { IconCheck, IconTrendUp } from '../lib/icons'
-import { MitraCard } from '../lib/mitra-card'
+import { IconCheck, IconTrendUp, IconX } from '../lib/icons'
+import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import { growthDoneCount, store, useApp, openMajelisEntry } from '../lib/store'
-import { Chip, ChipGroup, IconTile, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
+import {
+  ActionRow,
+  ChoiceList,
+  ChoicePill,
+  ChosenRow,
+  IconTile,
+  ProductBadge,
+  SectionTitle,
+  StageBar,
+  StickyBar,
+  VisitTitle,
+} from '../lib/ui'
 
 // Why she said no to the offer. Borrowed from apartner-task-first's decline
 // list: without a reason on file every "tidak tertarik" looks the same, and
@@ -34,7 +44,6 @@ const DECLINE_REASONS = [
   'Dana belum ada',
   'Mau diskusi dulu di rumah',
   'Sudah punya di tempat lain',
-  'Tidak berminat',
 ]
 
 export function GrowthScreen() {
@@ -42,11 +51,10 @@ export function GrowthScreen() {
   const s = useApp()
   const group = openMajelisEntry(s)
 
-  // Which card is picking its decline reason. "Tidak tertarik" opens the reason
-  // picker in place rather than recording the no outright — the result is only
-  // saved once she's said why. Local state, matching the attendance stage:
-  // nothing is recorded until a reason is chosen, so leaving abandons the tap.
-  const [asking, setAsking] = useState<string | null>(null)
+  // Which card has been opened for an answer. "Tawarkan" is the BP saying she
+  // has raised the subject; the outcome pills only exist after that, so a row
+  // she never brought up stays visibly un-pitched rather than un-answered.
+  const [offering, setOffering] = useState<string | null>(null)
 
   const members = growthMembers()
   const done = growthDoneCount(s)
@@ -76,89 +84,106 @@ export function GrowthScreen() {
 
       <SectionTitle>Rekomendasi</SectionTitle>
 
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-8 pb-16">
         {members.map((mitra) => {
           const growth = mitra.growth
           if (!growth) return null
           const result = s.growthResults[mitra.id]
+          const reason = s.growthReasons[mitra.id]
+          const open = offering === mitra.id || result !== undefined
+
           return (
             <MitraCard
               key={mitra.id}
               mitra={mitra}
-              // Her standing on the thing being offered replaces the contract
-              // facts — this stage is not about her loan.
-              meta={<span className="truncate text-12 text-caption">{growth.status}</span>}
-              trailing={<Badge intent="primary">{growth.label}</Badge>}
+              // Identical to stages 1 and 2. See attendance.tsx.
+              meta={null}
+              labels={
+                <>
+                  <ProductBadge product={mitra.product} />
+                  <DpdBadge dpd={mitra.dpd} format="short" />
+                </>
+              }
               onOpen={() => {
                 store.openMitraPage(mitra.id)
                 flow.go('mitra')
               }}
               action={
-                asking === mitra.id ? (
-                  // "Tidak tertarik" was tapped; capture WHY before the row
-                  // resolves. Picking a reason records the no in one gesture.
-                  <div className="flex flex-col gap-12">
-                    <ChipGroup label={`Alasan tidak tertarik — ${mitra.name}`}>
-                      {DECLINE_REASONS.map((reason) => (
-                        <Chip
-                          key={reason}
-                          selected={s.growthReasons[mitra.id] === reason}
-                          onClick={() => {
-                            store.setGrowthResult(mitra.id, 'tidak', reason)
-                            setAsking(null)
-                          }}
-                        >
-                          {reason}
-                        </Chip>
-                      ))}
-                    </ChipGroup>
-                    <Button size="sm" variant="ghost" onClick={() => setAsking(null)}>
-                      Batal
-                    </Button>
-                  </div>
-                ) : result ? (
-                  <div className="flex items-center gap-8">
-                    <span
-                      className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-full ${result === 'ya' ? 'bg-green-50 text-green-500' : 'bg-neutral-50 text-neutral-600'}`}
-                    >
-                      <IconCheck size={16} />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-12 text-caption">
-                      {result === 'ya'
-                        ? growth.done
-                        : `Tidak tertarik${s.growthReasons[mitra.id] ? ` — ${s.growthReasons[mitra.id]}` : ''}`}
-                    </span>
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      onClick={() =>
-                        result === 'ya' ? setAsking(mitra.id) : store.setGrowthResult(mitra.id, 'ya')
-                      }
-                    >
-                      Ubah
-                    </Button>
-                  </div>
-                ) : (
-                  // Two outcomes, not one button. What the mitra SAID is the part
-                  // worth capturing — and a no carries its reason before it lands.
-                  <div className="flex gap-8">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-40 flex-1"
-                      onClick={() => setAsking(mitra.id)}
-                    >
-                      Tidak tertarik
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="h-40 flex-1"
-                      onClick={() => store.setGrowthResult(mitra.id, 'ya')}
-                    >
-                      Tertarik
-                    </Button>
-                  </div>
-                )
+                <div className="flex flex-col gap-12">
+                  <ActionRow label={growth.label} value={growth.value}>
+                    {open ? null : (
+                      <Button
+                        size="sm"
+                        className="h-40 px-24"
+                        onClick={() => setOffering(mitra.id)}
+                      >
+                        Tawarkan
+                      </Button>
+                    )}
+                  </ActionRow>
+
+                  {open ? (
+                    <div className="flex flex-col gap-12 border-t border-default pt-12">
+                      <div className="flex items-center gap-12">
+                        <span className="shrink-0 text-14 text-caption">Tanggapan</span>
+                        <div className="flex flex-1 gap-8">
+                          <ChoicePill
+                            selected={result === 'tidak'}
+                            icon={<IconX size={16} />}
+                            label={`Tidak tertarik — ${mitra.name}`}
+                            onClick={() => store.setGrowthResult(mitra.id, 'tidak')}
+                          >
+                            Tidak
+                          </ChoicePill>
+                          <ChoicePill
+                            selected={result === 'ya'}
+                            icon={<IconCheck size={16} />}
+                            label={`Tertarik — ${mitra.name}`}
+                            onClick={() => store.setGrowthResult(mitra.id, 'ya')}
+                          >
+                            Tertarik
+                          </ChoicePill>
+                        </div>
+                      </div>
+
+                      {/* A no carries its reason, the same way an absence does —
+                          same list, same collapse, so the two stages teach one
+                          control rather than two. */}
+                      {result === 'tidak' ? (
+                        <div className="border-t border-default pt-12">
+                          {reason ? (
+                            <ChosenRow
+                              label="Alasan tidak tertarik"
+                              value={reason}
+                              onChange={() => store.setGrowthResult(mitra.id, 'tidak')}
+                            />
+                          ) : (
+                            <ChoiceList
+                              label="Alasan tidak tertarik"
+                              options={DECLINE_REASONS}
+                              onPick={(picked) =>
+                                store.setGrowthResult(mitra.id, 'tidak', picked)
+                              }
+                            />
+                          )}
+                        </div>
+                      ) : null}
+
+                      {result === 'ya' ? (
+                        <div className="border-t border-default pt-12">
+                          <ChosenRow
+                            label="Tindak lanjut"
+                            value={growth.done}
+                            onChange={() => {
+                              store.clearGrowthResult(mitra.id)
+                              setOffering(mitra.id)
+                            }}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               }
             />
           )

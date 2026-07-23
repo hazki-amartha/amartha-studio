@@ -14,35 +14,34 @@
 // people, then goes back to the top and collects from them. Whether that costs
 // more than it buys is the question this screen exists to answer.
 //
-// Two things soften it without dissolving the gate. The 15 who paid before the
-// visit are seeded present, so the BP marks 7 rather than 22 — a mitra who
-// settled this week is the safest available default for "she was here". And the
-// cards are stripped to the identity plus the two pills: nothing on this screen
-// asks about money, because money is the next stage's question and asking both
-// at once is precisely what the split is here to avoid.
+// The list is STATIC. One roster, one order, and answering a card never moves
+// it: the card the BP just tapped is still under her thumb, and the woman she is
+// standing in front of is where she was a second ago. The earlier design filed
+// each answered mitra into a "Sudah Diabsen" section below, which meant the list
+// re-sorted itself under the BP's hand on every tap — the one thing a register
+// worked through in person cannot afford. What changes is the STATE of the card,
+// not its place, and the same roster in the same order carries all three stages.
 
-import { useState } from 'react'
-import { Badge, Button, NavigationHeader } from '@/design-system/components'
+import { Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
-import { IconCheck } from '../lib/icons'
+import { IconCheck, IconX } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import {
   attendanceComplete,
-  markedCount,
-  markedMembers,
   presentCount,
+  settledCount,
   store,
-  unmarkedMembers,
   useApp,
   openMajelisEntry,
 } from '../lib/store'
 import {
-  AttendancePill,
-  Chip,
-  ChipGroup,
+  ChoiceList,
+  ChoicePill,
+  ChosenRow,
+  ProductBadge,
   ProgressCard,
   SectionTitle,
   StageBar,
@@ -54,33 +53,18 @@ import {
 // running a register in a room, and the reasons a member misses a weekly
 // meeting are few and known. Free text would slow the one gesture the stage
 // repeats and give ops a column it can't sort.
-const ABSENCE_REASONS = [
-  'Sedang bekerja',
-  'Sakit',
-  'Ada urusan keluarga',
-  'Diwakilkan (titip)',
-  'Tanpa kabar',
-]
+const ABSENCE_REASONS = ['Sedang bekerja', 'Sakit', 'Diwakilkan', 'Tanpa kabar']
 
 export function AttendanceScreen() {
   const flow = useFlow()
   const s = useApp()
   const group = openMajelisEntry(s)
 
-  // Which unmarked card is currently asking WHY she's absent. Marking "Tidak"
-  // opens the reason picker in place rather than filing her away — she only
-  // leaves the register once a reason is chosen, so the record can't close with
-  // an unexplained absence in it. Local state, not the store: nothing has been
-  // recorded yet, and navigating away should simply abandon the half-tap.
-  const [asking, setAsking] = useState<string | null>(null)
-
   const total = MAJELIS.members.length
-  const marked = markedCount(s)
+  const settled = settledCount(s)
   const present = presentCount(s)
   const complete = attendanceComplete(s)
-  const left = total - marked
-  const unmarked = unmarkedMembers(s)
-  const done = markedMembers(s)
+  const left = total - settled
 
   return (
     <Screen
@@ -93,139 +77,93 @@ export function AttendanceScreen() {
     >
       <StageBar current={1} />
 
-      {/* The count is of MARKED, not present. The stage's job is to finish the
+      {/* The count is of RECORDED, not present. The stage's job is to finish the
           register, and a bar that filled up as people arrived would sit at 80%
           on a complete register with four absentees — reading as unfinished work
           when the work is done. */}
       <ProgressCard
         title="Sudah dicatat"
-        value={`${marked}`}
+        value={`${settled}`}
         of={`${total} mitra`}
-        percent={Math.round((marked / total) * 100)}
+        percent={Math.round((settled / total) * 100)}
       />
 
-      <SectionTitle>Belum Diabsen</SectionTitle>
+      <SectionTitle>Daftar Mitra</SectionTitle>
 
-      {/* Marking a mitra moves her DOWN, it does not file her away. The register
-          is one continuous list sorted by what still needs doing: unmarked on
-          top, marked below in the same card. A collapsed section hid the record
-          the BP is being asked to vouch for behind a tap — and the register is
-          the one artefact of this stage that gets read later by someone who was
-          not in the room. What is left to do is still obvious from the top of
-          the list; what has been recorded no longer has to be gone looking for. */}
-      {unmarked.length > 0 ? (
-        <div className="flex flex-col gap-8">
-          {unmarked.map((mitra) => (
+      <div className="flex flex-col gap-8 pb-16">
+        {MAJELIS.members.map((mitra) => {
+          const mark = s.attendance[mitra.id]
+          const reason = s.absenceReasons[mitra.id]
+          return (
             <MitraCard
               key={mitra.id}
               mitra={mitra}
-              meta={<span className="truncate text-12 text-caption">Minggu {mitra.week} dari {mitra.totalWeeks}</span>}
-              trailing={<DpdBadge dpd={mitra.dpd} />}
+              // The identity block is identical on all three stages: her face,
+              // her name, her product and her bucket. Nothing stage-specific
+              // gets in there, so the BP re-reads nothing as she moves between
+              // stages — only the row under the rule changes.
+              meta={null}
+              labels={
+                <>
+                  <ProductBadge product={mitra.product} />
+                  <DpdBadge dpd={mitra.dpd} format="short" />
+                </>
+              }
+              onOpen={() => {
+                store.openMitraPage(mitra.id)
+                flow.go('mitra')
+              }}
               action={
-                asking === mitra.id ? (
-                  // "Tidak" was tapped; record WHY before she leaves the list.
-                  // Picking a reason marks her absent in the same gesture.
-                  <div className="flex flex-col gap-12">
-                    <ChipGroup label={`Alasan tidak hadir — ${mitra.name}`}>
-                      {ABSENCE_REASONS.map((reason) => (
-                        <Chip
-                          key={reason}
-                          selected={false}
-                          onClick={() => {
-                            store.setAbsent(mitra.id, reason)
-                            setAsking(null)
-                          }}
-                        >
-                          {reason}
-                        </Chip>
-                      ))}
-                    </ChipGroup>
-                    <Button size="sm" variant="ghost" onClick={() => setAsking(null)}>
-                      Batal
-                    </Button>
+                <div className="flex flex-col gap-12">
+                  <div className="flex items-center gap-12">
+                    <span className="shrink-0 text-14 text-caption">Kehadiran</span>
+                    <div className="flex flex-1 gap-8">
+                      <ChoicePill
+                        selected={mark === 'tidak'}
+                        icon={<IconX size={16} />}
+                        label={`Tidak hadir — ${mitra.name}`}
+                        onClick={() => store.setAttendance(mitra.id, 'tidak')}
+                      >
+                        Tidak
+                      </ChoicePill>
+                      <ChoicePill
+                        selected={mark === 'hadir'}
+                        icon={<IconCheck size={16} />}
+                        label={`Hadir — ${mitra.name}`}
+                        onClick={() => store.setAttendance(mitra.id, 'hadir')}
+                      >
+                        Hadir
+                      </ChoicePill>
+                    </div>
                   </div>
-                ) : (
-                  <div className="flex gap-8">
-                    <AttendancePill
-                      selected={false}
-                      tone="green"
-                      label={`Hadir — ${mitra.name}`}
-                      onClick={() => store.setAttendance(mitra.id, 'hadir')}
-                    >
-                      Hadir
-                    </AttendancePill>
-                    <AttendancePill
-                      selected={false}
-                      tone="red"
-                      label={`Tidak hadir — ${mitra.name}`}
-                      onClick={() => setAsking(mitra.id)}
-                    >
-                      Tidak
-                    </AttendancePill>
-                  </div>
-                )
+
+                  {/* An absence carries its reason, and the card grows a second
+                      row to take it rather than filing her somewhere else. Once
+                      chosen it collapses to the answer — the record, not the
+                      four things she could have said. */}
+                  {mark === 'tidak' ? (
+                    <div className="border-t border-default pt-12">
+                      {reason ? (
+                        <ChosenRow
+                          label="Alasan tidak hadir"
+                          value={reason}
+                          onChange={() => store.clearAbsenceReason(mitra.id)}
+                        />
+                      ) : (
+                        <ChoiceList
+                          label="Alasan tidak hadir"
+                          options={ABSENCE_REASONS}
+                          onPick={(picked) => store.setAbsent(mitra.id, picked)}
+                        />
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               }
             />
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center gap-8 rounded-12 bg-neutral-white py-24 text-center">
-          <span className="flex h-48 w-48 items-center justify-center rounded-full bg-green-50 text-green-500">
-            <IconCheck size={24} />
-          </span>
-          <span className="text-20 font-bold text-default">Semua mitra sudah diabsen</span>
-          <span className="text-12 text-caption">Lanjut ke penagihan.</span>
-        </div>
-      )}
-
-      {/* Same card, same slots, one section lower. Only the action row differs:
-          the two pills have been replaced by what was recorded plus the way to
-          change it. "Ubah" returns her to the list above rather than toggling in
-          place — a mis-tap is corrected by making the same choice again, not by
-          learning a second, different control for the same fact. */}
-      {done.length > 0 ? (
-        <>
-          <SectionTitle>Sudah Diabsen</SectionTitle>
-          <div className="flex flex-col gap-8">
-            {done.map((mitra) => {
-              const hadir = s.attendance[mitra.id] === 'hadir'
-              return (
-                <MitraCard
-                  key={mitra.id}
-                  mitra={mitra}
-                  meta={
-                    <span className="truncate text-12 text-caption">
-                      Minggu {mitra.week} dari {mitra.totalWeeks}
-                    </span>
-                  }
-                  trailing={<DpdBadge dpd={mitra.dpd} />}
-                  action={
-                    <div className="flex items-center gap-8">
-                      {hadir ? (
-                        <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                          Hadir
-                        </Badge>
-                      ) : (
-                        <Badge intent="red">Tidak hadir</Badge>
-                      )}
-                      <span className="min-w-0 flex-1 truncate text-12 text-caption">
-                        {hadir ? '' : (s.absenceReasons[mitra.id] ?? '')}
-                      </span>
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        onClick={() => store.clearAttendance(mitra.id)}
-                      >
-                        Ubah
-                      </Button>
-                    </div>
-                  }
-                />
-              )
-            })}
-          </div>
-        </>
-      ) : null}
+          )
+        })}
+      </div>
 
       <StickyBar>
         {/* The gate says what is missing, not just that something is. A disabled
@@ -240,7 +178,12 @@ export function AttendanceScreen() {
             {left} mitra belum dicatat kehadirannya
           </span>
         )}
-        <Button size="lg" className="w-full" disabled={!complete} onClick={() => flow.go('collection')}>
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={!complete}
+          onClick={() => flow.go('collection')}
+        >
           Simpan &amp; Lanjut
         </Button>
       </StickyBar>

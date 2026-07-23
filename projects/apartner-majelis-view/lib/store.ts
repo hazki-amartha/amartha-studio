@@ -649,15 +649,21 @@ export const store = {
     store.set({ attendance: { ...state.attendance, [mitraId]: value }, absenceReasons })
   },
   /**
-   * Marks a mitra absent WITH the reason she isn't here, in one gesture — the
-   * reason and the absence are recorded together so her card only leaves the
-   * register once the record is complete.
+   * Records WHY she isn't here. Marking "Tidak" and giving the reason are two
+   * taps on one card now — the card stays where it is and simply grows the
+   * reason list — so the absence lands first and this completes it.
    */
   setAbsent(mitraId: string, reason: string) {
     store.set({
       attendance: { ...state.attendance, [mitraId]: 'tidak' },
       absenceReasons: { ...state.absenceReasons, [mitraId]: reason },
     })
+  },
+  /** Reopens the reason list on a card already marked absent — its "Ubah". */
+  clearAbsenceReason(mitraId: string) {
+    const absenceReasons = { ...state.absenceReasons }
+    delete absenceReasons[mitraId]
+    store.set({ absenceReasons })
   },
   /** Puts a mitra back in the unmarked list — the "Ubah" on a recorded row. */
   clearAttendance(mitraId: string) {
@@ -704,6 +710,14 @@ export const store = {
     if (result === 'tidak' && reason) growthReasons[mitraId] = reason
     else delete growthReasons[mitraId]
     store.set({ growthResults: { ...state.growthResults, [mitraId]: result }, growthReasons })
+  },
+  /** Takes the offer back to unanswered — the "Ubah" on a resolved offer card. */
+  clearGrowthResult(mitraId: string) {
+    const growthResults = { ...state.growthResults }
+    const growthReasons = { ...state.growthReasons }
+    delete growthResults[mitraId]
+    delete growthReasons[mitraId]
+    store.set({ growthResults, growthReasons })
   },
   setDepositAmount(depositAmount: number | null) {
     // Agreeing with the app clears any difference already explained — there is
@@ -758,25 +772,26 @@ export const presentCount = (s: AppState): number =>
   MAJELIS.members.filter((m) => s.attendance[m.id] === 'hadir').length
 
 /**
- * The register drains the same way the collection queue does: a mitra leaves the
- * list the moment she is marked EITHER way, so what is on screen is always
- * exactly who is still unaccounted for. In a 22-member majelis the alternative
- * is scanning a full list for the four rows without a pill on them.
+ * Her attendance is fully recorded: present, or absent WITH a reason. An
+ * absence without a reason is a half-written line in the register — the mark
+ * lands the moment "Tidak" is tapped so the card can show it, but the record
+ * isn't done until the reason is on file.
  */
-export const unmarkedMembers = (s: AppState): Mitra[] =>
-  MAJELIS.members.filter((m) => !s.attendance[m.id])
+export const attendanceSettled = (s: AppState, mitra: Mitra): boolean =>
+  s.attendance[mitra.id] === 'hadir' ||
+  (s.attendance[mitra.id] === 'tidak' && !!s.absenceReasons[mitra.id])
 
-export const markedMembers = (s: AppState): Mitra[] =>
-  MAJELIS.members.filter((m) => s.attendance[m.id])
+export const settledCount = (s: AppState): number =>
+  MAJELIS.members.filter((m) => attendanceSettled(s, m)).length
 
 /**
- * The gate. Collection does not open until every mitra has been marked one way
- * or the other — the reference direction is explicit that attendance is
+ * The gate. Collection does not open until every mitra has been recorded one
+ * way or the other — the reference direction is explicit that attendance is
  * completed first, and a half-marked register is the thing that makes a majelis
  * record unauditable later.
  */
 export const attendanceComplete = (s: AppState): boolean =>
-  markedCount(s) === MAJELIS.members.length
+  settledCount(s) === MAJELIS.members.length
 
 // --- Stage 2: collection ---------------------------------------------------
 
