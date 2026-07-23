@@ -32,7 +32,9 @@ export const project: ProjectModule = {
       component: TodayScreen,
       entry: true,
       notes: [
-        'The BP opens her day here. The page commits to one answer: the single visit she should be doing right now, with the reason it matters already written for her. Every row wears its kind as a short code — MV, HV, Sos, FU — the same shorthand she and her BM already speak.',
+        'The BP opens her day here. The page commits to one answer: the single visit she should be doing right now. Every row wears its kind as a short code — MV, HV, Sos, FU — the same shorthand she and her BM already speak.',
+        'Terkumpul hari ini sits above the work, the same card apartner-homepage-ia opens on, minus its “Lihat semua”: the figure is what a BM asks for before the day is out, and at the deposit screen it would arrive too late to change how she works the afternoon. It counts cash AND app payments — on-track is a different question from what is in the bag.',
+        'The focus card no longer carries its “why now” line. A reason is an argument for CHOOSING a stop, and at the card she is standing at there is nothing left to choose; it still leads every row under Berikutnya, where choosing is the whole job.',
         'Berikutnya is the rest of the day, and tapping a row starts that task too. A day does not run in clock order — she arrives early, a group is late, a doorstep is on the way back — so the schedule stays a list of things she can begin, not a queue that only hands her the top row.',
       ],
       states: [
@@ -71,7 +73,9 @@ export const project: ProjectModule = {
       component: MajelisListScreen,
       notes: [
         'Every majelis the BP is responsible for, in one flat list. It used to split into “Hari ini” and “Majelis lain”, which made the directory re-answer a question the schedule already owns — a BP who opens this tab is looking a group up, on whatever day it meets.',
-        'Each row states the health of the group at a glance — lancar, or how many mitra are menunggak — so she can see which majelis needs attention before she plans her week. Tapping one opens its roster to read, not to start work.',
+        'Each row states three things about the group: what product it runs on (Modal / GL / Hybrid, in neutral — it is what the group IS, not how it is doing), when it meets, and one status badge — Draft, n Menunggak, or Lancar. They never contend: a draft has disbursed nothing, so it cannot be in arrears.',
+        'Draft groups are the reason the filters earn their space. A majelis being assembled has no kumpulan to send the BP anywhere, so without a way to ask for it, it only ever surfaces by scrolling — and the one thing she needs from it is the gap: “Kurang 4 mitra untuk aktif”, not the word “Draft”.',
+        'Search and filter answer different questions. Search is for a group she can name; the filters are for a set she can only describe — “what am I doing Kamis”, “which ones am I still building”. Both are lifted shape-for-shape from apartner-homepage-ia, so the two directions differ on the flow rather than on how a list gets narrowed. The filters survive opening a group and coming back; the search box does not, because a query is a question already answered.',
       ],
       flowsTo: [
         { to: 'majelis', label: 'ketuk majelis → Majelis View' },

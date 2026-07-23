@@ -9,6 +9,8 @@
 // actually introduces.
 
 import { useState, type ReactNode } from 'react'
+import { BottomSheet, SelectableCard } from '@/design-system/components'
+import { MagnifyingGlass } from '@/design-system/icons'
 import { ringkas, type Week } from './data'
 import { IconCheck, IconChevronDown, IconChevronUp, IconX } from './icons'
 
@@ -179,6 +181,143 @@ export function WeekStrip({ weeks, totalWeeks }: { weeks: Week[]; totalWeeks: nu
       </div>
 
       <span className="text-center text-10 text-disabled">Geser untuk melihat minggu lainnya</span>
+    </div>
+  )
+}
+
+// --- Finding things in a list ----------------------------------------------
+// SearchField, FilterBar, FilterChip, OptionSheet and ResetLink are lifted from
+// apartner-homepage-ia, which has the same problem on the same tab: a directory
+// long enough that scrolling stops being an answer. Keeping the shapes
+// identical is the point — the two directions should differ on the FLOW, and a
+// second invention of "how do you filter a list" is noise in that comparison.
+//
+// The split between them: search is for a group the BP can NAME, filters are
+// for a set she can only describe ("the Kamis ones", "the drafts").
+
+export function SearchField({
+  value,
+  onChange,
+  placeholder,
+  label,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder: string
+  /** Spoken label — a magnifier alone doesn't say what is being searched. */
+  label: string
+}) {
+  return (
+    <div className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 focus-within:border-primary-500">
+      <span className="shrink-0 text-disabled">
+        <MagnifyingGlass size={20} />
+      </span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={label}
+        className="min-w-0 flex-1 bg-transparent text-14 text-default outline-none placeholder:text-placeholder"
+      />
+      {value ? (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className="shrink-0 text-12 font-bold text-link"
+        >
+          Hapus
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+export function FilterBar({ children }: { children: ReactNode }) {
+  return <div className="flex items-center gap-8 overflow-x-auto">{children}</div>
+}
+
+/**
+ * A dropdown-trigger pill. It names the CHOSEN value rather than the dimension
+ * once something is picked — "Kamis", not "Hari kumpulan" — so a filtered list
+ * says why it is short without the BP opening anything.
+ */
+export function FilterChip({
+  label,
+  active,
+  open,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  open: boolean
+  onClick: () => void
+}) {
+  const tone = active
+    ? 'border-primary-500 bg-primary-50 text-primary-500'
+    : 'border-default bg-neutral-white text-neutral-700'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      className={`flex shrink-0 items-center gap-4 rounded-full border px-12 py-8 text-12 font-bold ${tone}`}
+    >
+      <span className="truncate">{label}</span>
+      <span className={`flex shrink-0 ${open ? 'rotate-180' : ''}`}>
+        <IconChevronDown size={16} />
+      </span>
+    </button>
+  )
+}
+
+export function ResetLink({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="shrink-0 text-12 font-bold text-link">
+      Reset
+    </button>
+  )
+}
+
+/** Single-choice picker: the design system's BottomSheet over SelectableCard. */
+export function OptionSheet<T>({
+  open,
+  title,
+  name,
+  options,
+  value,
+  onPick,
+  onClose,
+}: {
+  open: boolean
+  title: string
+  name: string
+  options: { label: string; value: T }[]
+  value: T
+  onPick: (v: T) => void
+  onClose: () => void
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} title={title}>
+      <div className="flex flex-col gap-8">
+        {options.map((o) => (
+          <SelectableCard
+            key={o.label}
+            name={name}
+            title={o.label}
+            checked={o.value === value}
+            onChange={() => onPick(o.value)}
+          />
+        ))}
+      </div>
+    </BottomSheet>
+  )
+}
+
+export function EmptyState({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-12 bg-neutral-white p-24 text-center">
+      <span className="text-14 font-bold text-default">{title}</span>
+      <span className="text-12 text-caption">{body}</span>
     </div>
   )
 }

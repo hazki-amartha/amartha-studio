@@ -27,6 +27,7 @@ import {
   taskForMajelis,
   type DayKey,
   type MajelisEntry,
+  type MajelisStatus,
   type Task,
 } from './schedule'
 
@@ -152,6 +153,14 @@ export interface AppState {
    * submitting can find the schedule row it belongs to.
    */
   openMajelis: string
+  /**
+   * The Majelis tab's two filters. They live here rather than in the screen
+   * because a BP filters to Kamis, opens a group, comes back — and a filter
+   * that resets on the way back is one she stops trusting and stops using.
+   * The search box does NOT: a query is a question she just asked and finished.
+   */
+  majelisDay: string | null
+  majelisStatus: MajelisStatus | null
 
   // --- Home visit ----------------------------------------------------------
 
@@ -280,6 +289,8 @@ const initial: AppState = {
   doneTasks: [],
   activeTask: null,
   openMajelis: 'mawar',
+  majelisDay: null,
+  majelisStatus: null,
   openHome: 't3',
   metWith: {},
   payMode: {},
@@ -415,6 +426,15 @@ export const store = {
   /** Opens a group's roster from the Majelis tab, without starting any work. */
   openMajelisPage(majelisId: string) {
     store.set({ openMajelis: majelisId })
+  },
+  setMajelisDay(day: string | null) {
+    store.set({ majelisDay: day })
+  },
+  setMajelisStatus(status: MajelisStatus | null) {
+    store.set({ majelisStatus: status })
+  },
+  resetMajelisFilters() {
+    store.set({ majelisDay: null, majelisStatus: null })
   },
   /**
    * Opens the closing task. The amount is seeded from what the day banked, so
@@ -806,6 +826,17 @@ export const depositExpected = (s: AppState): number =>
 /** Money that reached the company without her. Stated so it isn't asked about. */
 export const depositDigital = (s: AppState): number =>
   depositEntries(s).reduce((sum, e) => sum + e.digital, 0)
+
+/**
+ * Everything the day has brought in, cash and digital together — the figure the
+ * schedule's progress card is about.
+ *
+ * Deliberately NOT `depositExpected`: that one counts physical money because it
+ * is about what leaves her hands at 17.45. This one is about whether the day is
+ * on track, and a mitra who settled through the app paid just the same.
+ */
+export const collectedToday = (s: AppState): number =>
+  depositEntries(s).reduce((sum, e) => sum + e.cash + e.digital, 0)
 
 /**
  * What she says she deposited, falling back to the app's figure. Signed
