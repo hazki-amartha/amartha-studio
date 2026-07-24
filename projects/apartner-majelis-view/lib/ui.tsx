@@ -259,6 +259,56 @@ export function WeekStrip({
   )
 }
 
+// --- RepaymentStrip --------------------------------------------------------
+// The recent cycle as a FIXED row — the last eight weeks, sized to the card
+// width and not scrollable. It replaces the horizontal rail on every
+// payment-related page: a swipe hides the weeks it doesn't open on, and the
+// question a BP brings to this strip ("how has the last month or two gone?") is
+// answered by what fits on screen, not by what she can reach.
+//
+// Eight, because that is what sits comfortably across a phone at a legible mark
+// size — a season of payments, the same span the reference draws on its
+// overview card. The amounts are gone from under each cell (they live behind
+// "Lihat Semua"); here a week is only its outcome, so the mark carries the whole
+// meaning: green paid, orange part-paid, red missed, and a hollow primary ring
+// for the week that has not closed yet.
+const MARK_TONE: Record<Week['status'], string> = {
+  lunas: 'border-green-500 bg-green-500 text-neutral-white',
+  sebagian: 'border-orange-500 bg-orange-500 text-neutral-white',
+  lewat: 'border-red-500 bg-red-500 text-neutral-white',
+  'jatuh-tempo': 'border-2 border-primary-500 text-primary-500',
+}
+
+export function RepaymentStrip({ weeks }: { weeks: Week[] }) {
+  const shown = weeks.slice(-STRIP_WEEKS_STATIC)
+  return (
+    <div className="flex items-start justify-between">
+      {shown.map((w) => {
+        const current = w.status === 'jatuh-tempo'
+        return (
+          <div key={w.no} className="flex flex-col items-center gap-4">
+            <span
+              className={`flex h-24 w-24 items-center justify-center rounded-full border ${MARK_TONE[w.status]}`}
+            >
+              {w.status === 'lunas' || w.status === 'sebagian' ? (
+                <IconCheck size={16} />
+              ) : w.status === 'lewat' ? (
+                <IconX size={16} />
+              ) : null}
+            </span>
+            <span className={`text-10 ${current ? 'font-bold text-primary-500' : 'text-disabled'}`}>
+              {w.date}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Eight weeks fit across a phone at a legible mark size without scrolling. */
+const STRIP_WEEKS_STATIC = 8
+
 // --- ProductBadge ----------------------------------------------------------
 // The lending product, wherever it appears — on a group in the directory or on
 // a mitra in the roster. One component so the colours cannot drift between the
