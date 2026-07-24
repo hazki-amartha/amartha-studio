@@ -9,10 +9,10 @@
 // as a simulation so nobody mistakes it for something the mitra would ever see.
 
 import { NavigationHeader } from '@/design-system/components'
+import { Hourglass } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { methodName, rupiah } from '../lib/data'
-import { IconClock } from '../lib/icons'
 import { store, useApp } from '../lib/store'
 import { FullWidthButton, ResultHeader, StatRow, StickyBar } from '../lib/ui'
 
@@ -24,7 +24,7 @@ export function PendingScreen() {
     <Screen topBar={<NavigationHeader title="Status pembayaran" onBack={() => flow.go('home')} />}>
       <ResultHeader
         tint="orange"
-        icon={<IconClock size={24} />}
+        icon={<Hourglass size={24} />}
         title="Menunggu konfirmasi"
         description="Pembayaran sedang diverifikasi. Biasanya selesai dalam 5–15 menit."
       />

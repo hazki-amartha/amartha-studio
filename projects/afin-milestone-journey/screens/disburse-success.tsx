@@ -5,10 +5,10 @@
 // ladder is trying to create.
 
 import { NavigationHeader } from '@/design-system/components'
+import { Check } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { IconCheck } from '../lib/icons'
 import { useApp } from '../lib/store'
 import { FullWidthButton, ResultHeader, StickyBar } from '../lib/ui'
 
@@ -20,7 +20,7 @@ export function DisburseSuccessScreen() {
     <Screen topBar={<NavigationHeader title="Pencairan" hideBack />}>
       <ResultHeader
         tint="green"
-        icon={<IconCheck size={24} />}
+        icon={<Check size={24} />}
         title="Pencairan berhasil!"
         description={`${rupiah(s.lastDisburse)} sudah masuk ke saldo Poket Ibu.`}
       />

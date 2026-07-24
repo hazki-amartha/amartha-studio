@@ -10,9 +10,9 @@
 // she has forfeited the milestone.
 
 import { NavigationHeader } from '@/design-system/components'
+import { Check, LockKeyOpen } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { IconCheck, IconLockOpen } from '../lib/icons'
 import { FullWidthButton, StickyBar } from '../lib/ui'
 
 const REASONS = [
@@ -33,7 +33,7 @@ export function MilestoneUnlockedScreen() {
     >
       <div className="flex flex-col items-center gap-8 pt-16 text-center">
         <span className="flex h-48 w-48 items-center justify-center rounded-full bg-green-50 text-green-500">
-          <IconLockOpen size={24} />
+          <LockKeyOpen size={24} />
         </span>
         <p className="text-18 font-bold text-default">
           Ibu berhasil disiplin 12 minggu berturut-turut! 🎉
@@ -54,7 +54,7 @@ export function MilestoneUnlockedScreen() {
         {REASONS.map((reason) => (
           <div key={reason} className="flex items-center gap-8 py-4">
             <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-500">
-              <IconCheck size={16} />
+              <Check size={16} />
             </span>
             <span className="text-12 text-caption">{reason}</span>
           </div>
