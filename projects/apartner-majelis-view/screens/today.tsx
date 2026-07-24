@@ -458,7 +458,7 @@ export function TodayScreen() {
             className="h-40 shrink-0 px-16"
             onClick={() => {
               store.openSettlement()
-              flow.go('deposit')
+              flow.go('settlement')
             }}
           >
             Setor

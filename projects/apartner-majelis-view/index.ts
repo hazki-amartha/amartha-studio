@@ -21,6 +21,7 @@ import { HomeBriefScreen } from './screens/home-brief'
 import { HomeVisitScreen } from './screens/home-visit'
 import { HomeProofScreen } from './screens/home-proof'
 import { DepositScreen } from './screens/deposit'
+import { SettlementScreen } from './screens/settlement'
 import { SosialisasiScreen } from './screens/sosialisasi'
 import { LeadScreen } from './screens/lead'
 import { FollowUpScreen } from './screens/follow-up'
@@ -81,6 +82,7 @@ export const project: ProjectModule = {
         { to: 'home-brief', label: 'Mulai Kunjungan (home visit)' },
         { to: 'sosialisasi', label: 'Mulai Sosialisasi — cari prospek baru' },
         { to: 'follow-up', label: 'Mulai Follow Up — telepon prospek' },
+        { to: 'settlement', label: 'Setor Sekarang — setoran tengah hari' },
         { to: 'deposit', label: 'Setor Setoran Harian — tugas penutup' },
         { to: 'majelis-list', label: 'tab Majelis' },
         { to: 'mitra-list', label: 'tab Mitra' },
@@ -201,6 +203,18 @@ export const project: ProjectModule = {
         'The close of a home visit: a photo of the door, required before it can be submitted. What she recorded on the two steps before — who was met, what was paid — is not read back here; this step is the paperwork that closes the visit, not a second review of it.',
       ],
       flowsTo: [{ to: 'today', label: 'Selesaikan Tugas — butuh foto' }],
+    },
+    {
+      id: 'settlement',
+      title: 'Setoran',
+      component: SettlementScreen,
+      notes: [
+        'Where the cash leaves her hands — separate from Closing, which is the checklist that ends the DAY. This screen is about the BAG: the money she is carrying right now and the transfer that gets it to the branch.',
+        'A settlement takes EVERYTHING outstanding; there is no amount to choose. Partial handovers would need the app to hold an opinion about which rupiah in her bag belongs to which pelayanan, which it cannot check and she cannot separate — and a BP free to pick the number is a BP who can be asked why she picked it. What she chooses is when.',
+        'Three a day, two of them mid-day from the schedule widget. Each gets its own VA, because a virtual account is what the branch reconciles against and three transfers to one number are three deposits nobody can tell apart at the other end.',
+        'The selisih flow survives from the old deposit screen, because the disagreement it exists for does not go away when the handovers get smaller: the app’s figure and the money in the bag differ, and a gap with a reason is a record ops can chase while a gap with nowhere to put it becomes a phone call.',
+      ],
+      flowsTo: [{ to: 'today', label: 'Selesai — kembali ke jadwal' }],
     },
     {
       id: 'deposit',
