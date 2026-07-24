@@ -9,7 +9,7 @@
 // actually introduces.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Badge, BottomSheet, SelectableCard } from '@/design-system/components'
+import { Badge, BottomSheet, Button, SelectableCard } from '@/design-system/components'
 import { MagnifyingGlass, NotePencil, WhatsappLogo } from '@/design-system/icons'
 import { ringkas, type Week } from './data'
 import { IconCheck, IconChevronDown, IconChevronUp, IconPin, IconX } from './icons'
@@ -1184,5 +1184,94 @@ export function StickyBar({ children }: { children: ReactNode }) {
     <div className="sticky bottom-0 -mx-16 mt-auto flex flex-col gap-12 border-t border-default bg-neutral-white p-16">
       {children}
     </div>
+  )
+}
+
+// --- RescheduleSheet -------------------------------------------------------
+// Moving a home visit to another day, from the top bar of any of its three
+// steps. A bottom sheet rather than an inline block or its own screen: it is a
+// meta-action on the TASK, not a step in the visit, and it has to be reachable
+// mid-visit — the BP who opens the door, finds the mitra can't talk now, and
+// decides to come back should not have to unwind the flow to do it.
+//
+// Two questions, both required: why it is moving (the record ops reads) and
+// when to (the day it lands on). The draft is local and resets each time the
+// sheet opens, so a cancelled reschedule leaves nothing behind on the next door.
+
+/** Why a visit gets moved — BP-side reasons, distinct from a mitra's absence. */
+const RESCHEDULE_REASONS = [
+  'Mitra minta waktu lain',
+  'Waktu tidak cukup hari ini',
+  'Rumah sulit dijangkau',
+  'Menunggu koordinasi PJ',
+]
+
+/** When to move it to. A reschedule needs a date, so there is no "no date". */
+const RESCHEDULE_DATES = ['Besok, 22 Juli', 'Lusa, 23 Juli', 'Minggu depan, 28 Juli']
+
+export function RescheduleSheet({
+  open,
+  onClose,
+  subject,
+  onConfirm,
+}: {
+  open: boolean
+  onClose: () => void
+  /** Whose visit is being moved — named in the sheet so it can't be mis-tapped. */
+  subject: string
+  onConfirm: (reason: string, date: string) => void
+}) {
+  const [reason, setReason] = useState('')
+  const [date, setDate] = useState('')
+  const ready = Boolean(reason && date)
+
+  // Fresh every time it opens: a reschedule cancelled on one door must not
+  // pre-fill its answers on the next.
+  useEffect(() => {
+    if (open) {
+      setReason('')
+      setDate('')
+    }
+  }, [open])
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="Jadwalkan ulang kunjungan"
+      description={`Kunjungan ${subject} dipindah ke hari lain.`}
+      secondaryAction={
+        <Button variant="outline" size="lg" className="w-full" onClick={onClose}>
+          Batal
+        </Button>
+      }
+      primaryAction={
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={!ready}
+          onClick={() => onConfirm(reason, date)}
+        >
+          Jadwalkan ulang
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-16">
+        <ChipGroup label="Alasan">
+          {RESCHEDULE_REASONS.map((option) => (
+            <Chip key={option} selected={reason === option} onClick={() => setReason(option)}>
+              {option}
+            </Chip>
+          ))}
+        </ChipGroup>
+        <ChipGroup label="Jadwal baru">
+          {RESCHEDULE_DATES.map((option) => (
+            <Chip key={option} selected={date === option} onClick={() => setDate(option)}>
+              {option}
+            </Chip>
+          ))}
+        </ChipGroup>
+      </div>
+    </BottomSheet>
   )
 }

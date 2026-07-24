@@ -12,12 +12,21 @@
 // alone cannot make. So the confirmation reads back the geotag — where the shot
 // was taken — rather than a filename.
 
+import { useState } from 'react'
 import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { profileOf } from '../lib/profile'
 import { openHomeMitra, openHomeTask, store, useApp } from '../lib/store'
-import { HOME_STAGE_LABELS, PinMark, ProofTile, SectionTitle, StageBar, StickyBar } from '../lib/ui'
+import {
+  HOME_STAGE_LABELS,
+  PinMark,
+  ProofTile,
+  RescheduleSheet,
+  SectionTitle,
+  StageBar,
+  StickyBar,
+} from '../lib/ui'
 import { IconCamera } from '../lib/icons'
 
 export function HomeProofScreen() {
@@ -26,14 +35,30 @@ export function HomeProofScreen() {
   const mitra = openHomeMitra(s)
   const task = openHomeTask(s)
   const houseLocation = task?.place ?? profileOf(mitra).address
+  const [rescheduling, setRescheduling] = useState(false)
 
   function submit() {
     store.finishTask()
     flow.go('today')
   }
 
+  function reschedule(reason: string, date: string) {
+    store.rescheduleTask(s.openHome, reason, date)
+    setRescheduling(false)
+    flow.go('today')
+  }
+
   return (
-    <Screen topBar={<NavigationHeader title="Bukti & Kirim" onBack={() => flow.back()} />}>
+    <Screen
+      topBar={
+        <NavigationHeader
+          title="Bukti & Kirim"
+          link="Jadwal ulang"
+          onLinkClick={() => setRescheduling(true)}
+          onBack={() => flow.back()}
+        />
+      }
+    >
       <StageBar current={3} labels={HOME_STAGE_LABELS} />
 
       <SectionTitle>Bukti kunjungan</SectionTitle>
@@ -68,6 +93,13 @@ export function HomeProofScreen() {
           Selesaikan Tugas
         </Button>
       </StickyBar>
+
+      <RescheduleSheet
+        open={rescheduling}
+        onClose={() => setRescheduling(false)}
+        subject={mitra.name}
+        onConfirm={reschedule}
+      />
     </Screen>
   )
 }

@@ -36,8 +36,18 @@ import {
 /** Who actually answered the door on a home visit. */
 export type MetWith = 'mitra' | 'pj' | 'nobody'
 
-/** The payment outcome picked inline on a home visit. */
-export type PayMode = 'penuh' | 'sebagian' | 'tidak'
+/**
+ * The outcome picked inline on a home visit.
+ * - `penuh`    — she cleared the whole bill herself.
+ * - `sebagian` — a part-payment, with a promise for the rest.
+ * - `tanggung` — the group covered her under tanggung renteng (joint liability):
+ *                a full settlement funded by the majelis, not by the mitra. The
+ *                "PAR payment" a collections door exists to reach.
+ * - `tidak`    — reached, but did not pay: a reason and maybe a promise.
+ * - `keluar`   — she is dropping out of the program. A flag with a reason, not a
+ *                payment — recorded here so ops can pick the case up.
+ */
+export type PayMode = 'penuh' | 'sebagian' | 'tanggung' | 'tidak' | 'keluar'
 
 export type Attendance = 'hadir' | 'tidak'
 
@@ -255,6 +265,19 @@ export interface AppState {
    * borrower was absent, not only that someone else answered.
    */
   mitraAbsence: Record<string, string>
+  /**
+   * mitraId → why she is dropping out of the program. Presence IS the drop-out:
+   * a `keluar` outcome is not a payment and not a promise, so it carries only a
+   * reason, and recording one retracts any money or refusal left on her.
+   */
+  dropOut: Record<string, string>
+  /**
+   * taskId → the visit the BP moved to another day, with why and when. A home
+   * visit she can't or won't work today doesn't vanish and isn't "done" — it is
+   * rescheduled, and the schedule has to say so rather than leave a locked door
+   * looking like unfinished work.
+   */
+  reschedules: Record<string, { reason: string; date: string }>
 
   // --- The daily close -----------------------------------------------------
 
@@ -378,6 +401,8 @@ const initial: AppState = {
   partialPtp: {},
   newAddress: {},
   mitraAbsence: {},
+  dropOut: {},
+  reschedules: {},
   deposits: {},
   settlements: [],
   depositAmount: null,
@@ -577,6 +602,47 @@ export const store = {
   },
   setMitraAbsence(mitraId: string, value: string) {
     store.set({ mitraAbsence: { ...state.mitraAbsence, [mitraId]: value } })
+  },
+  /**
+   * Records a drop-out. It is neither a payment nor a promise, so it retracts
+   * both — a mitra leaving the program cannot also be carrying a part-payment or
+   * a janji bayar in the same record.
+   */
+  setDropOut(mitra: Mitra, reason: string) {
+    const payments = { ...state.payments }
+    delete payments[mitra.id]
+    const nonPayments = { ...state.nonPayments }
+    delete nonPayments[mitra.id]
+    const shortfallReasons = { ...state.shortfallReasons }
+    delete shortfallReasons[mitra.id]
+    const partialPtp = { ...state.partialPtp }
+    delete partialPtp[mitra.id]
+    store.set({
+      payments,
+      nonPayments,
+      shortfallReasons,
+      partialPtp,
+      dropOut: { ...state.dropOut, [mitra.id]: reason },
+      lastCollect: null,
+    })
+  },
+  /** Reverses a drop-out — picked when the BP switches to another outcome. */
+  clearDropOut(mitraId: string) {
+    if (state.dropOut[mitraId] === undefined) return
+    const dropOut = { ...state.dropOut }
+    delete dropOut[mitraId]
+    store.set({ dropOut })
+  },
+  /**
+   * Moves a visit to another day. It leaves `doneTasks` untouched — a
+   * rescheduled visit is not finished — and clears any half-started state, since
+   * a door the BP rode away from is no longer in progress today.
+   */
+  rescheduleTask(taskId: string, reason: string, date: string) {
+    store.set({
+      reschedules: { ...state.reschedules, [taskId]: { reason, date } },
+      startedTasks: state.startedTasks.filter((id) => id !== taskId),
+    })
   },
   setDay(day: DayKey) {
     store.set({ day })
@@ -1134,6 +1200,10 @@ export const openHomeMitra = (s: AppState): Mitra =>
   findMitra(findTask(s.openHome)?.mitraId ?? 'h1')
 
 export const openHomeTask = (s: AppState): Task | undefined => findTask(s.openHome)
+
+/** Visits the BP moved to another day — off today's plate, not done. */
+export const rescheduledTasks = (s: AppState): Task[] =>
+  TASKS.filter((t) => s.reschedules[t.id])
 
 // --- NTB: prospects --------------------------------------------------------
 
