@@ -435,34 +435,33 @@ export function TodayScreen() {
           task, which is hers to reach on the schedule below — a widget that
           stayed visible and refused to work would teach her to distrust it. */}
       {canSettleMidDay(s) ? (
-        <div className="flex flex-col gap-12 rounded-12 bg-neutral-white p-12">
-          <div className="flex items-center gap-12">
-            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-green-50 text-green-500">
-              <IconWallet size={20} />
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="text-12 text-caption">Uang tunai belum disetor</span>
-              <span className="text-20 font-bold text-default">{rupiah(toSettle)}</span>
-            </div>
-          </div>
-
-          {/* The count as USED of allowed, not as remaining. "Sisa 2" makes her
-              subtract to learn where she is; "0 dari maks 2" is the state
-              itself, and it is the number that decides whether she puts the
-              money down now or carries it to the next stop. */}
-          <span className="text-10 text-caption">
-            {midDayUsed(s)} dari maks {DEPOSIT.maxMidDay} setoran di tengah hari
+        // Same shape as the sync widget below it: tile, two lines, one small
+        // button pinned right. They are the two things on this page that are
+        // not tasks, and giving them one shape says so — a full-width button
+        // made this the loudest object on a page whose subject is the day.
+        <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-green-50 text-green-500">
+            <IconWallet size={20} />
           </span>
-
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-16 font-bold text-default">{rupiah(toSettle)}</span>
+            {/* The count as USED of allowed, not as remaining. "Sisa 2" makes
+                her subtract to learn where she is; "0 dari maks 2" is the state
+                itself, and it is the number that decides whether she puts the
+                money down now or carries it to the next stop. */}
+            <span className="truncate text-12 text-caption">
+              Belum disetor · {midDayUsed(s)} dari maks {DEPOSIT.maxMidDay} setoran tengah hari
+            </span>
+          </div>
           <Button
-            size="md"
-            className="w-full"
+            size="sm"
+            className="h-40 shrink-0 px-16"
             onClick={() => {
               store.openSettlement()
               flow.go('deposit')
             }}
           >
-            Setor Sekarang
+            Setor
           </Button>
         </div>
       ) : null}
