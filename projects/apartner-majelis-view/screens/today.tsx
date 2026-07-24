@@ -674,19 +674,27 @@ export function TodayScreen() {
             {rescheduled.map((task) => {
               const moved = s.reschedules[task.id]
               return (
-                <AgendaRow key={task.id} time={task.time} muted>
-                  <div className="flex w-full items-center gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12">
-                    <KindTag kind={task.kind} />
-                    <div className="flex min-w-0 flex-1 flex-col gap-2">
-                      <span className="flex min-w-0 items-baseline gap-8">
-                        <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                        <span className="shrink-0 text-10 text-caption">Dijadwalkan ulang</span>
-                      </span>
-                      <span className="text-12 text-caption">Dipindah ke {moved.date}</span>
-                      <span className="text-10 text-disabled">{moved.reason}</span>
-                    </div>
+                // Same card as every other row, on a dashed border: title,
+                // then when-and-where — except "when" is the day it moved TO,
+                // because the time it was booked for today stopped being a fact
+                // about it the moment she moved it.
+                <div
+                  key={task.id}
+                  className="flex w-full items-center gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12"
+                >
+                  <KindTag kind={task.kind} />
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <span className="truncate text-14 font-bold text-default">{task.title}</span>
+                    <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+                      <span className="shrink-0">Dipindah ke {moved.date}</span>
+                      <span className="shrink-0">·</span>
+                      <PinMark />
+                      <span className="truncate">{task.place}</span>
+                    </span>
+                    <span className="text-10 text-disabled">{moved.reason}</span>
                   </div>
-                </AgendaRow>
+                  <span className="shrink-0 text-10 text-caption">Dijadwalkan ulang</span>
+                </div>
               )
             })}
           </div>
