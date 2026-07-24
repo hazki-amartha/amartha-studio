@@ -566,6 +566,79 @@ export function ActionRow({
   )
 }
 
+// --- ResultRow -------------------------------------------------------------
+// What a card says once its outcome is RECORDED — the collection stage's other
+// half, and deliberately not `ActionRow`.
+//
+// ActionRow is one line with one control on the right, which is right while the
+// card still asks for something ("Tagihan Rp650.000 · [Tagih]"). The moment an
+// outcome exists there are three or four facts to carry — the amount, what kind
+// of outcome it was, what is still short, why — and squeezing them into one row
+// meant the amount, a badge and "Ubah" fought over the same 340px, with the
+// shortfall reduced to text inside a badge.
+//
+// So: the figure gets its own line at reading size with its status beside it,
+// "Ubah" sits out at the edge as a link rather than a button, and anything
+// further — what is still owed, the reason, the promise — drops to a SECOND row
+// under a rule. The row only appears when there is something to put in it, so a
+// clean "Lunas" stays exactly one row tall.
+
+export function ResultRow({
+  label,
+  amount,
+  badge,
+  onEdit,
+  detail,
+}: {
+  label: string
+  /** The figure, at reading size. */
+  amount: string
+  /** What kind of outcome it was, set beside the figure rather than opposite it. */
+  badge?: ReactNode
+  /** Reopens whatever produced the outcome. Omitted renders no "Ubah". */
+  onEdit?: () => void
+  /** The second row. Omitted renders no rule and no row. */
+  detail?: { label: string; value: string; tone?: 'red' | 'default'; note?: string }
+}) {
+  return (
+    <div className="flex flex-col gap-12">
+      <div className="flex items-center gap-12">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="truncate text-12 text-caption">{label}</span>
+          {/* Wraps rather than truncates: on a narrow card the badge drops under
+              the figure instead of shortening it, and a half-printed amount is
+              the one thing this row must never do. */}
+          <span className="flex flex-wrap items-center gap-8">
+            <span className="text-20 font-bold text-default">{amount}</span>
+            {badge}
+          </span>
+        </div>
+        {onEdit ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="shrink-0 text-14 font-bold text-primary-500"
+          >
+            Ubah
+          </button>
+        ) : null}
+      </div>
+
+      {detail ? (
+        <div className="flex flex-col gap-2 border-t border-default pt-12">
+          <span className="text-12 text-caption">{detail.label}</span>
+          <span
+            className={`text-16 font-bold ${detail.tone === 'red' ? 'text-red-500' : 'text-default'}`}
+          >
+            {detail.value}
+          </span>
+          {detail.note ? <span className="text-12 text-caption">{detail.note}</span> : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 // --- OptionCard ------------------------------------------------------------
 // A radio card that can HOLD the thing its option needs — an amount field, a
 // reason list — inside itself.

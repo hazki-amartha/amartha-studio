@@ -44,6 +44,7 @@ import {
   ActionRow,
   ProductBadge,
   ProgressCard,
+  ResultRow,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -115,11 +116,15 @@ export function CollectionScreen() {
               }}
               action={
                 selfPaid ? (
-                  <ActionRow label="Dibayar mandiri" value={rupiah(paid)}>
-                    <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                      Lunas
-                    </Badge>
-                  </ActionRow>
+                  <ResultRow
+                    label="Dibayar mandiri"
+                    amount={rupiah(paid)}
+                    badge={
+                      <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
+                        Lunas
+                      </Badge>
+                    }
+                  />
                 ) : status === 'belum' ? (
                   <ActionRow label="Tagihan" value={rupiah(owed.total)}>
                     {/* Default size, not sm: sm sets 12px type and the pills on
@@ -131,37 +136,44 @@ export function CollectionScreen() {
                     </Button>
                   </ActionRow>
                 ) : (
-                  <ActionRow
-                    label={status === 'tidak' ? 'Tidak bayar' : 'Dibayar hari ini'}
-                    value={
-                      status === 'tidak'
-                        ? `${refusal?.reason ?? ''}${refusal?.ptp ? ` · janji ${refusal.ptp}` : ''}`
-                        : // A part-payment says why it was short, the same way a
-                          // refusal says why it was a refusal.
-                          `${rupiah(paid)}${
-                            status === 'sebagian' && s.shortfallReasons[mitra.id]
-                              ? ` · ${s.shortfallReasons[mitra.id]}`
-                              : ''
-                          }`
-                    }
-                  >
-                    <div className="flex items-center gap-8">
-                      {status === 'lunas' ? (
+                  // The figure leads, its status sits beside it, and whatever is
+                  // left to say drops to a second row rather than being crushed
+                  // into the first. "Ubah" reopens the page that produced the
+                  // outcome, so a recorded entry is never trapped.
+                  <ResultRow
+                    label="Dibayar hari ini"
+                    amount={rupiah(status === 'tidak' ? 0 : paid)}
+                    badge={
+                      status === 'lunas' ? (
                         <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
                           Lunas
                         </Badge>
                       ) : status === 'sebagian' ? (
-                        <Badge intent="orange">Kurang {rupiah(remainingOf(s, mitra))}</Badge>
+                        <Badge intent="orange">Sebagian</Badge>
                       ) : (
                         <Badge intent="red">Tidak bayar</Badge>
-                      )}
-                      {/* "Ubah" reopens the same page that produced the outcome,
-                          so a recorded entry is never trapped. */}
-                      <Button size="xs" variant="ghost" onClick={() => openCollect(mitra.id)}>
-                        Ubah
-                      </Button>
-                    </div>
-                  </ActionRow>
+                      )
+                    }
+                    onEdit={() => openCollect(mitra.id)}
+                    detail={
+                      status === 'tidak'
+                        ? {
+                            label: 'Alasan',
+                            value: refusal?.reason ?? '—',
+                            note: refusal?.ptp
+                              ? `Janji bayar ${refusal.ptp}`
+                              : 'Tidak ada janji bayar',
+                          }
+                        : status === 'sebagian'
+                          ? {
+                              label: 'Kurang',
+                              value: rupiah(remainingOf(s, mitra)),
+                              tone: 'red',
+                              note: s.shortfallReasons[mitra.id],
+                            }
+                          : undefined
+                    }
+                  />
                 )
               }
             />
