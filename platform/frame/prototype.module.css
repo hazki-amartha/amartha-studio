@@ -40,6 +40,23 @@
   height: 100%;
 }
 
+/* Phones don't show scrollbar tracks, so neither does the prototype. This covers
+   every scroller inside the running app — the screen stage, sheet bodies, and any
+   horizontal rail a project builds — in both the framed and full-page layouts.
+   Scrolling itself is untouched; only the visible bar is removed. */
+.viewport,
+.viewport * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.viewport::-webkit-scrollbar,
+.viewport *::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 /* Desktop prototype layout: an empty spacer, the device + its step arrows, then
    the annotations. The outer 1fr columns are equal, so the device stays optically
    centred in the view while the caption is pushed out to the right edge.
