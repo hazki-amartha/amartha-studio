@@ -21,8 +21,7 @@ import { Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { HomeMitraCard } from '../lib/home-card'
-import { JanjiBayarCard } from '../lib/mitra-card'
-import { IconPhone } from '../lib/icons'
+import { JanjiBayarCard, mapsUrl } from '../lib/mitra-card'
 import { profileOf } from '../lib/profile'
 import { DAYS } from '../lib/schedule'
 import { openHomeMitra, openHomeTask, store, useApp, type MetWith } from '../lib/store'
@@ -136,11 +135,15 @@ export function HomeBriefScreen() {
             </span>
           </div>
           <div className="flex shrink-0 gap-8">
+            <ContactButton
+              label={`Buka lokasi ${profile.pjName} di peta`}
+              tone="red"
+              href={mapsUrl(task?.place ?? profile.address)}
+            >
+              <PinMark size={20} />
+            </ContactButton>
             <ContactButton label={`WhatsApp ${profile.pjName}`} tone="green">
               <WaMark size={20} />
-            </ContactButton>
-            <ContactButton label={`Telepon ${profile.pjName} — ${profile.pjPhone}`} tone="primary">
-              <IconPhone size={20} />
             </ContactButton>
           </div>
         </div>

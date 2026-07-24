@@ -969,33 +969,44 @@ export function IconTile({ tint, children }: { tint: Tint; children: ReactNode }
 }
 
 // --- ContactButton ---------------------------------------------------------
-// The round WhatsApp / handset pair. It lives here rather than beside the
-// doorstep card because reaching someone is the whole job on two different
-// screens now — a home visit that fails at a locked gate, and a follow-up call
-// where the contact IS the task.
+// The round action buttons beside a mitra — WhatsApp and a route out to maps.
+// It lives here rather than beside the doorstep card because reaching someone,
+// or her house, is the whole job on two different screens: a home visit that
+// fails at a locked gate, and a follow-up call where the contact IS the task.
+//
+// Renders as an anchor when given `href` (the maps link) and as a button when
+// given `onClick`. Red is the route tone, matching the location-pin convention.
 
 export function ContactButton({
   label,
   tone,
   onClick,
+  href,
   children,
 }: {
   label: string
-  tone: 'green' | 'primary'
+  tone: 'green' | 'primary' | 'red'
   onClick?: () => void
+  /** When set, renders as a link (used for the maps route). */
+  href?: string
   children: ReactNode
 }) {
   const classes =
     tone === 'green'
       ? 'bg-green-50 text-green-500 border-green-500'
-      : 'bg-primary-50 text-primary-500 border-primary-200'
+      : tone === 'red'
+        ? 'bg-red-50 text-red-500 border-red-200'
+        : 'bg-primary-50 text-primary-500 border-primary-200'
+  const shared = `flex h-40 w-40 items-center justify-center rounded-full border ${classes}`
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" aria-label={label} className={shared}>
+        {children}
+      </a>
+    )
+  }
   return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className={`flex h-40 w-40 items-center justify-center rounded-full border ${classes}`}
-    >
+    <button type="button" aria-label={label} onClick={onClick} className={shared}>
       {children}
     </button>
   )

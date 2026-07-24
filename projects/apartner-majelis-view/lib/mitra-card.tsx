@@ -16,7 +16,6 @@ import { Badge, Card } from '@/design-system/components'
 import { User } from '@/design-system/icons'
 import { outstandingOf, rupiah, type Mitra } from './data'
 import { IconCalendar, IconChevronRight, IconHome } from './icons'
-import { PinMark } from './ui'
 
 /**
  * What she owes, and what it is made of. ONE component, used by the mitra page
@@ -145,12 +144,7 @@ export function HouseLocation({ address }: { address: string }) {
       className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white p-8"
     >
       <HousePhoto />
-      <span className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="break-words text-12 text-default">{address}</span>
-        <span className="flex items-center gap-4 text-12 font-bold text-link">
-          <PinMark size={16} /> Lihat di peta
-        </span>
-      </span>
+      <span className="min-w-0 flex-1 break-words text-12 text-default">{address}</span>
       <span className="shrink-0 text-link">
         <IconChevronRight size={20} />
       </span>
