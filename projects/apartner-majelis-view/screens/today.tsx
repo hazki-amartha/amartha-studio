@@ -38,7 +38,7 @@ import {
   withScheduled,
   type Task,
 } from '../lib/schedule'
-import { IconCheck, IconChevronDown, IconChevronRight, IconInbox, IconWallet } from '../lib/icons'
+import { IconCheck, IconChevronDown, IconInbox, IconWallet } from '../lib/icons'
 import { CloudArrowUp, Door, Medal } from '@/design-system/icons'
 import {
   canCloseDay,
@@ -171,9 +171,6 @@ function TaskRow({
           long name into an ellipsis to say a word that never changes width. */}
       <span className={`shrink-0 text-10 ${STATUS_META[status].tone}`}>
         {STATUS_META[status].label}
-      </span>
-      <span className="shrink-0 text-disabled">
-        <IconChevronRight size={20} />
       </span>
     </button>
   )
