@@ -16,6 +16,8 @@ import { RecapScreen } from './screens/recap'
 import { LadderScreen } from './screens/ladder'
 import { TodayScreen } from './screens/today'
 import { MajelisListScreen } from './screens/majelis-list'
+import { MitraListScreen } from './screens/mitra-list'
+import { ProfileScreen } from './screens/profile'
 import { KpiScreen } from './screens/kpi'
 import { HomeVisitScreen } from './screens/home-visit'
 import { HomeProofScreen } from './screens/home-proof'
@@ -67,7 +69,9 @@ export const project: ProjectModule = {
         { to: 'follow-up', label: 'Mulai Follow Up — telepon prospek' },
         { to: 'deposit', label: 'Setor Setoran Harian — tugas penutup' },
         { to: 'majelis-list', label: 'tab Majelis' },
+        { to: 'mitra-list', label: 'tab Mitra' },
         { to: 'kpi', label: 'tab KPI' },
+        { to: 'profile', label: 'tab Profil' },
       ],
     },
     {
@@ -83,7 +87,9 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'majelis', label: 'ketuk majelis → Majelis View' },
         { to: 'today', label: 'tab Jadwal' },
+        { to: 'mitra-list', label: 'tab Mitra' },
         { to: 'kpi', label: 'tab KPI' },
+        { to: 'profile', label: 'tab Profil' },
       ],
     },
     {
@@ -99,6 +105,41 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'today', label: 'tab Jadwal' },
         { to: 'majelis-list', label: 'tab Majelis' },
+        { to: 'mitra-list', label: 'tab Mitra' },
+        { to: 'profile', label: 'tab Profil' },
+      ],
+    },
+    {
+      id: 'mitra-list',
+      title: 'Mitra',
+      component: MitraListScreen,
+      notes: [
+        'Every borrower the BP carries, across every group. The Majelis tab answers “who is in this group”; this answers “where is Ibu Rina” — a question a directory of groups cannot take, because the woman phoning her does not open with which balai she attends.',
+        'The card is the roster’s card unchanged, with one line added under the name: her majelis and when it meets. That line is the only reason this list is not the roster — on the roster, the group is the page you are already on.',
+        'Search finds a woman she can name; the two filters find a set she can only describe — “everyone past 30 days”, “everyone in Kenanga”. DPD is filtered by BUCKET rather than by day count, because a bucket is a question someone actually asks.',
+        'Prototype edge, and an honest version of one this project already has: only Majelis Mawar has an authored roster, so the other groups draw their members from it under their own names. Every card is real — a ledger, a DPD, a product — without inventing six more week-by-week records to fill a list that exists to be searched.',
+      ],
+      flowsTo: [
+        { to: 'mitra', label: 'ketuk mitra → Detail Mitra' },
+        { to: 'today', label: 'tab Jadwal' },
+        { to: 'majelis-list', label: 'tab Majelis' },
+        { to: 'kpi', label: 'tab KPI' },
+        { to: 'profile', label: 'tab Profil' },
+      ],
+    },
+    {
+      id: 'profile',
+      title: 'Profil',
+      component: ProfileScreen,
+      notes: [
+        'Ported from apartner-homepage-ia, the same way the L0 tabs were: the two directions should differ on the pelayanan, not on where “Keluar” lives, and a second invention of a settings page is noise in that comparison.',
+        'One change from the source. That version carried a KPI card here as a second route into the scoreboard, which made sense when Profil sat behind an avatar in a header. Here KPI is its own tab one thumb away, so the card would be a shortcut to the thing beside it.',
+      ],
+      flowsTo: [
+        { to: 'today', label: 'tab Jadwal' },
+        { to: 'majelis-list', label: 'tab Majelis' },
+        { to: 'mitra-list', label: 'tab Mitra' },
+        { to: 'kpi', label: 'tab KPI' },
       ],
     },
     {

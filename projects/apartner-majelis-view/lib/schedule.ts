@@ -194,6 +194,19 @@ export const DEPOSIT = {
   due: '18.00',
 }
 
+/**
+ * The BP herself. Her own record is the one thing on the Profil tab that is
+ * about her rather than about her portfolio, and it is authored here rather
+ * than in the profile screen so the branch matches the VA the deposit goes to.
+ */
+export const BP = {
+  name: 'Siti Rahayu',
+  initials: 'SR',
+  role: 'Business Partner · BP-10482',
+  branch: 'Cabang Ciseeng, Bogor',
+  version: 'A-Partner v2.0.0',
+}
+
 /** Which day the schedule tab is showing. */
 export type DayKey = 'today' | 'tomorrow'
 

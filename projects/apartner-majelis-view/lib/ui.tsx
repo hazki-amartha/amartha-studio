@@ -273,7 +273,10 @@ export function WeekStrip({
 
 export function ProductBadge({ product }: { product: 'Modal' | 'GL' | 'Hybrid' }) {
   const intent = product === 'Modal' ? 'blue' : product === 'GL' ? 'primary' : 'neutral'
-  return <Badge intent={intent}>{product}</Badge>
+  // "Hybrid" is the internal word; "GL Modal Mix" is what it actually means and
+  // names both products in it, which is the whole reason a BP looks at this
+  // badge before she opens the group.
+  return <Badge intent={intent}>{product === 'Hybrid' ? 'GL Modal Mix' : product}</Badge>
 }
 
 // --- Finding things in a list ----------------------------------------------
