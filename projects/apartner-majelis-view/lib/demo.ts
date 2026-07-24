@@ -190,6 +190,16 @@ export const closingReady = () =>
     depositDone: false,
   })
 
+/** Both checks pass — every task done AND the titipan deposited. Ready to close. */
+export const closingSettled = () =>
+  store.set({
+    day: 'today',
+    doneTasks: CLOSING_DONE,
+    deposits: bankedDay,
+    depositProof: true,
+    depositDone: false,
+  })
+
 /** Closed and sent — waiting on branch verification. */
 export const closingSent = () =>
   store.set({

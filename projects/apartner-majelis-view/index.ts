@@ -171,10 +171,16 @@ export const project: ProjectModule = {
           apply: demo.closingPartial,
         },
         {
-          id: 'siap',
-          label: 'Siap ditutup',
+          id: 'perlu-setor',
+          label: 'Perlu setor titipan',
           description: 'Semua tugas selesai, titip bayar belum disetor',
           apply: demo.closingReady,
+        },
+        {
+          id: 'siap',
+          label: 'Siap ditutup',
+          description: 'Semua tugas selesai & titip bayar sudah disetor — dua-duanya tercentang',
+          apply: demo.closingSettled,
         },
         {
           id: 'terkirim',
