@@ -35,7 +35,6 @@ import {
   TOMORROW_TASKS,
   findDay,
   km,
-  taskCode,
   withScheduled,
   type Task,
 } from '../lib/schedule'
@@ -46,7 +45,6 @@ import {
   midDayUsed,
   pendingSync,
   settledTotal,
-  unsettledEntries,
   unsettledTotal,
   scheduledFor,
   store,
@@ -304,7 +302,6 @@ export function TodayScreen() {
   const [menu, setMenu] = useState<'kind' | 'status' | null>(null)
   const day = findDay(s.day)
   const pending = pendingSync(s)
-  const settleEntries = unsettledEntries(s)
   const toSettle = unsettledTotal(s)
 
   // A filter replaces the whole agenda with one flat list. Sekarang/Berikutnya/
@@ -438,9 +435,9 @@ export function TodayScreen() {
           task, which is hers to reach on the schedule below — a widget that
           stayed visible and refused to work would teach her to distrust it. */}
       {canSettleMidDay(s) ? (
-        <div className="flex flex-col gap-12 rounded-12 border border-green-200 bg-green-50 p-12">
+        <div className="flex flex-col gap-12 rounded-12 bg-neutral-white p-12">
           <div className="flex items-center gap-12">
-            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-green-500">
+            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-green-50 text-green-500">
               <IconWallet size={20} />
             </span>
             <div className="flex min-w-0 flex-1 flex-col">
@@ -449,23 +446,13 @@ export function TodayScreen() {
             </div>
           </div>
 
-          {/* What the money is made of, in the codes she thinks in. At this
-              moment she is not thinking "Majelis Mawar", she is thinking "the
-              first two majelis and the doorstep". */}
-          <div className="flex flex-wrap items-center gap-4">
-            {settleEntries.map((e) => (
-              <span
-                key={e.taskId}
-                className="rounded-8 bg-neutral-white px-8 py-4 text-10 font-bold text-neutral-700"
-              >
-                {taskCode(e.taskId)}
-              </span>
-            ))}
-            <span className="text-10 text-caption">
-              {settleEntries.length} tugas · sisa {DEPOSIT.maxMidDay - midDayUsed(s)} setoran
-              di tengah hari
-            </span>
-          </div>
+          {/* The count as USED of allowed, not as remaining. "Sisa 2" makes her
+              subtract to learn where she is; "0 dari maks 2" is the state
+              itself, and it is the number that decides whether she puts the
+              money down now or carries it to the next stop. */}
+          <span className="text-10 text-caption">
+            {midDayUsed(s)} dari maks {DEPOSIT.maxMidDay} setoran di tengah hari
+          </span>
 
           <Button
             size="md"
@@ -513,8 +500,8 @@ export function TodayScreen() {
           on screen saying "0" is a permanent reminder of a problem she does not
           have, and the empty state of a queue is no queue. */}
       {pending.length > 0 ? (
-        <div className="flex items-center gap-12 rounded-12 border border-orange-200 bg-orange-50 p-12">
-          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-orange-500">
+        <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-orange-50 text-orange-500">
             <CloudArrowUp size={20} />
           </span>
           <div className="flex min-w-0 flex-1 flex-col">

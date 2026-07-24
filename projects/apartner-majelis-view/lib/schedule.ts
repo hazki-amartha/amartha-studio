@@ -236,18 +236,17 @@ export const DEPOSIT = {
 export const vaFor = (no: number): string => `8808 2145 77${90 + no} ${1123 + no * 7}`
 
 /**
- * "MV 1", "HV 2" — a task's short name, numbered within its kind across the day.
+ * "MV", "HV" — the KIND of a task, in the shorthand a BP and her BM speak.
  *
- * The settlement widget lists what its money is made of, and at that moment the
- * BP is not thinking "Majelis Mawar", she is thinking "the first two majelis and
- * the doorstep". Names would take three lines; the codes take one.
+ * Not numbered. The settlement breakdown puts this beside the group's own name
+ * ("MV · Majelis Mawar"), so an ordinal would be a second identifier for a row
+ * that is already named — and "MV 1" invites the question of what happened to
+ * an MV 2 that may not be in this settlement at all.
  */
 export const taskCode = (taskId: string): string => {
   const kind = TASKS.find((t) => t.id === taskId)?.kind
   if (!kind) return ''
-  const short = { majelis: 'MV', 'home-visit': 'HV', sosialisasi: 'Sos', 'follow-up': 'FU', setoran: 'Setor' }[kind]
-  const nth = TASKS.filter((t) => t.kind === kind).findIndex((t) => t.id === taskId) + 1
-  return kind === 'setoran' ? short : `${short} ${nth}`
+  return { majelis: 'MV', 'home-visit': 'HV', sosialisasi: 'Sos', 'follow-up': 'FU', setoran: 'Setor' }[kind]
 }
 
 /**
