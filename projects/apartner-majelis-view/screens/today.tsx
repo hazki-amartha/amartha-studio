@@ -77,7 +77,7 @@ const kindTint = (kind: Task['kind']): Tint => KIND_TINT[kind]
 const KIND_LABEL: Record<Task['kind'], string> = {
   majelis: 'MV',
   'home-visit': 'HV',
-  setoran: 'Setor',
+  setoran: 'Tutup',
   sosialisasi: 'Sos',
   'follow-up': 'FU',
 }
@@ -117,7 +117,7 @@ function KindTag({ kind }: { kind: Task['kind'] }) {
 const KIND_CTA: Record<Task['kind'], string> = {
   majelis: 'Mulai Pelayanan',
   'home-visit': 'Mulai Kunjungan',
-  setoran: 'Setor Sekarang',
+  setoran: 'Mulai Closing',
   sosialisasi: 'Mulai Sosialisasi',
   'follow-up': 'Mulai Follow Up',
 }
