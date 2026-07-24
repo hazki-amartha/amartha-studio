@@ -132,15 +132,7 @@ function KindTag({ kind }: { kind: Task['kind'] }) {
  * tap, which is what the button did — it was never a second gesture, only a
  * bigger one for whichever row the clock happened to favour.
  */
-function TaskRow({
-  task,
-  status,
-  onStart,
-}: {
-  task: Task
-  status: TaskStatus
-  onStart: () => void
-}) {
+function TaskRow({ task, onStart }: { task: Task; onStart: () => void }) {
   return (
     <AgendaRow time={task.time}>
       <button
@@ -155,11 +147,12 @@ function TaskRow({
             <PinMark />
             <span className="truncate">{task.place}</span>
           </span>
-          {/* Status is on every card now. With Sekarang/Berikutnya gone the
-              section narrows it to two possibilities — belum or dikerjakan,
-              selesai or terkirim — and the difference inside each pair is
-              exactly what a BP checks for at the end of a day. */}
-          <TaskLabels task={task} status={status} />
+          {/* No status badge. The section a row sits in already says whether
+              there is work left, and the sync widget above the list is what
+              tells her which finished rows have not gone — so a badge on every
+              card was a third telling of a fact already told twice, on the one
+              line the card had left for something new. */}
+          <TaskLabels task={task} />
         </div>
         <span className="shrink-0 text-disabled">
           <IconChevronRight size={20} />
@@ -182,20 +175,26 @@ function TaskRow({
  * reads it as a promise and finds an empty house twice stops believing the
  * next one.
  */
-function TaskLabels({ task, status }: { task: Task; status?: TaskStatus }) {
-  if (task.distanceKm === undefined && !task.payLikely && !status) return null
+function TaskLabels({ task }: { task: Task }) {
+  if (task.distanceKm === undefined && !task.payLikely) return null
   return (
-    <span className="flex flex-wrap items-center gap-4">
-      {/* The status badge rides HERE rather than at the end of the title line.
-          Beside the title it took ~90px off a row that has to hold "Follow Up:
-          Ibu Nia Kurniasih", and a task list whose every second title ends in an
-          ellipsis is a list you cannot scan. */}
-      {status ? <Badge intent={STATUS_BADGE[status].intent}>{STATUS_BADGE[status].label}</Badge> : null}
-      {task.payLikely ? <Badge intent="green">Kemungkinan bayar tinggi</Badge> : null}
+    <>
+      {/* Distance on its own line, directly under the address it qualifies —
+          they are one thought ("where, and how far"), and the two read as a
+          pair only when nothing sits between them. */}
       {task.distanceKm !== undefined ? (
         <span className="text-10 text-disabled">{km(task.distanceKm)}</span>
       ) : null}
-    </span>
+      {/* Last, and the only badge left on the card. Everything above it is a
+          fact about the stop; this is a prediction about the person, and it
+          earns the bottom line by being the one thing here that is not simply
+          true yet. */}
+      {task.payLikely ? (
+        <span className="flex">
+          <Badge intent="green">Kemungkinan bayar tinggi</Badge>
+        </span>
+      ) : null}
+    </>
   )
 }
 
@@ -219,13 +218,14 @@ const STATUS_OPTIONS: { label: string; value: TaskStatus | null }[] = [
   { label: 'Terkirim', value: 'terkirim' },
 ]
 
-const STATUS_BADGE: Record<TaskStatus, { label: string; intent: 'neutral' | 'orange' | 'blue' | 'green' }> = {
-  belum: { label: 'Belum mulai', intent: 'neutral' },
-  dikerjakan: { label: 'Dikerjakan', intent: 'orange' },
-  // Blue, not green: it is finished but still on the handset, and green is the
-  // colour this app uses for "settled". Only Terkirim has actually settled.
-  selesai: { label: 'Selesai', intent: 'blue' },
-  terkirim: { label: 'Terkirim', intent: 'green' },
+// Only the filter chip reads these now — the cards carry no status badge. Kept
+// as a map rather than inlined so the chip and the sheet cannot drift apart on
+// the wording of a state.
+const STATUS_LABEL: Record<TaskStatus, string> = {
+  belum: 'Belum mulai',
+  dikerjakan: 'Dikerjakan',
+  selesai: 'Selesai',
+  terkirim: 'Terkirim',
 }
 
 /**
@@ -461,7 +461,7 @@ export function TodayScreen() {
           onClick={() => setMenu('kind')}
         />
         <FilterChip
-          label={status ? STATUS_BADGE[status].label : 'Status tugas'}
+          label={status ? STATUS_LABEL[status] : 'Status tugas'}
           active={Boolean(status)}
           open={menu === 'status'}
           onClick={() => setMenu('status')}
@@ -486,12 +486,7 @@ export function TodayScreen() {
               <EmptyState title="Tidak ada tugas" body="Coba tipe atau status lain." />
             ) : null}
             {matches.map((task) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                status={taskStatus(s, task.id)}
-                onStart={() => start(task)}
-              />
+              <TaskRow key={task.id} task={task} onStart={() => start(task)} />
             ))}
           </div>
         </>
@@ -509,12 +504,7 @@ export function TodayScreen() {
           <Overline>Belum selesai</Overline>
           <div className="flex flex-col gap-8">
             {open.map((task) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                status={taskStatus(s, task.id)}
-                onStart={() => start(task)}
-              />
+              <TaskRow key={task.id} task={task} onStart={() => start(task)} />
             ))}
           </div>
         </>
@@ -538,12 +528,7 @@ export function TodayScreen() {
           <Overline>Selesai</Overline>
           <div className="flex flex-col gap-8 pb-16">
             {closed.map((task) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                status={taskStatus(s, task.id)}
-                onStart={() => start(task)}
-              />
+              <TaskRow key={task.id} task={task} onStart={() => start(task)} />
             ))}
           </div>
         </>
