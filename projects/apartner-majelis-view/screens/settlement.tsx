@@ -45,18 +45,7 @@ import {
   unsettledTotal,
   useApp,
 } from '../lib/store'
-import { Chip, ChipGroup, IconTile, ProofTile, SectionTitle, StickyBar } from '../lib/ui'
-
-// Why her figure and the app's disagree. Fixed list for the same reason every
-// other reason list in this direction is fixed: ops needs a column it can sort,
-// and the BP is standing at a counter, not writing a report.
-const DIFF_REASONS = [
-  'Salah catat nominal',
-  'Mitra bayar kurang dari yang dicatat',
-  'Uang terpakai dulu',
-  'Ada setoran susulan',
-  'Belum tahu — akan dicek',
-]
+import { IconTile, ProofTile, SectionTitle, StickyBar } from '../lib/ui'
 
 export function SettlementScreen() {
   const flow = useFlow()
@@ -79,8 +68,12 @@ export function SettlementScreen() {
   // Typing is opt-in. The default gesture is agreeing with the app.
   const [editing, setEditing] = useState(false)
 
-  const needsReason = diff !== 0 && !s.depositDiffReason
-  const ready = amount > 0 && s.depositProof && !needsReason
+  // Only the proof gates it now. A difference used to demand a reason from a
+  // fixed list before she could send — but she is standing at a counter having
+  // already transferred, and the five options were guesses the app offered on
+  // her behalf. The GAP is still recorded; what it was for is a conversation
+  // the branch has with her, not a dropdown.
+  const ready = amount > 0 && s.depositProof
 
   // --- Nothing left to hand over. Either she has settled everything already,
   // or the day has not banked any cash yet. Both are honest empty states, and
@@ -214,19 +207,6 @@ export function SettlementScreen() {
             }
             state={diff === 0 ? 'valid' : 'default'}
           />
-          {diff !== 0 ? (
-            <ChipGroup label="Alasan selisih">
-              {DIFF_REASONS.map((reason) => (
-                <Chip
-                  key={reason}
-                  selected={s.depositDiffReason === reason}
-                  onClick={() => store.setDepositDiffReason(reason)}
-                >
-                  {reason}
-                </Chip>
-              ))}
-            </ChipGroup>
-          ) : null}
         </>
       ) : (
         <Card>
@@ -255,7 +235,10 @@ export function SettlementScreen() {
       </div>
 
       <StickyBar>
-        {diff !== 0 && s.depositDiffReason ? (
+        {/* The difference, stated without asking for anything. It is the last
+            thing she sees before sending an amount that disagrees with the
+            app — worth naming, not worth blocking on. */}
+        {diff !== 0 ? (
           <div className="flex justify-center">
             <Badge intent="orange">
               Selisih {diff > 0 ? 'lebih' : 'kurang'} {rupiah(Math.abs(diff))}
@@ -264,15 +247,11 @@ export function SettlementScreen() {
         ) : null}
         {!ready ? (
           <span className="text-center text-12 font-bold text-orange-500">
-            {amount <= 0
-              ? 'Belum ada jumlah yang disetor'
-              : needsReason
-                ? 'Pilih alasan selisih dulu'
-                : 'Foto bukti transfer belum diambil'}
+            {amount <= 0 ? 'Belum ada jumlah yang disetor' : 'Foto bukti transfer belum diambil'}
           </span>
         ) : null}
         <Button size="lg" className="w-full" disabled={!ready} onClick={() => store.settle(closing)}>
-          Saya Sudah Setor {rupiah(expected)}
+          Saya Sudah Setor {rupiah(amount)}
         </Button>
       </StickyBar>
     </Screen>

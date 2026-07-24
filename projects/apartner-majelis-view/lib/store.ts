@@ -139,7 +139,13 @@ export interface Settlement {
    * longer derivable from anything on screen.
    */
   expected: number
-  /** Why the two differ. Null when they agree. */
+  /**
+   * Why the two differ. Nothing sets this from the settlement screen any more —
+   * the reason list came off, because a BP at a counter who has already
+   * transferred was being asked to pick from five guesses the app made on her
+   * behalf. The DIFFERENCE is still recorded, and that is what ops chases; the
+   * why is a conversation, and the field stays for whatever records one.
+   */
   diffReason: string | null
   /** The finished tasks whose cash this covered. */
   taskIds: string[]
