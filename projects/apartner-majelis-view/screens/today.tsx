@@ -56,7 +56,6 @@ import {
 } from '../lib/store'
 import { TabBar } from '../lib/tabs'
 import {
-  AgendaRow,
   EmptyState,
   FilterBar,
   FilterChip,
@@ -146,37 +145,39 @@ function TaskRow({
   onStart: () => void
 }) {
   return (
-    <AgendaRow time={task.time}>
-      <button
-        type="button"
-        onClick={onStart}
-        className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
-      >
-        <KindTag kind={task.kind} />
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {/* The status rides on the title line as small coloured text, not a
-              pill. The section says whether work is left and the sync widget
-              says what has not gone, so this is the refinement inside each —
-              belum vs dikerjakan, selesai vs terkirim — and a refinement should
-              not be the loudest object on the row. `shrink-0` keeps it whole
-              and lets the name take the truncation. */}
-          <span className="flex min-w-0 items-baseline gap-8">
-            <span className="truncate text-14 font-bold text-default">{task.title}</span>
-            <span className={`shrink-0 text-10 ${STATUS_META[status].tone}`}>
-              {STATUS_META[status].label}
-            </span>
-          </span>
-          <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
-            <PinMark />
-            <span className="truncate">{task.place}</span>
-          </span>
-          <TaskLabels task={task} />
-        </div>
-        <span className="shrink-0 text-disabled">
-          <IconChevronRight size={20} />
+    <button
+      type="button"
+      onClick={onStart}
+      className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
+    >
+      <KindTag kind={task.kind} />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        {/* The time comes INSIDE the card, in front of the title. It used to
+            live in a gutter outside — a clock rail running down the page — and
+            that rail was the last thing on this screen still arguing the day
+            runs in order. Beside the name it is one fact among several about
+            the stop, which is what it is. */}
+        <span className="flex min-w-0 items-baseline gap-8">
+          <span className="shrink-0 text-14 font-bold text-caption">{task.time}</span>
+          <span className="truncate text-14 font-bold text-default">{task.title}</span>
         </span>
-      </button>
-    </AgendaRow>
+        <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+          <PinMark />
+          <span className="truncate">{task.place}</span>
+        </span>
+        <TaskLabels task={task} />
+      </div>
+      {/* The status moves to the right edge, above the chevron, so every card
+          reads the same way whatever its title length: what and where on the
+          left, where it stands on the right. On the title line it pushed a
+          long name into an ellipsis to say a word that never changes width. */}
+      <span className={`shrink-0 text-10 ${STATUS_META[status].tone}`}>
+        {STATUS_META[status].label}
+      </span>
+      <span className="shrink-0 text-disabled">
+        <IconChevronRight size={20} />
+      </span>
+    </button>
   )
 }
 
@@ -408,28 +409,30 @@ export function TodayScreen() {
     </header>
   )
 
-  // --- Besok: a preview, not a workspace. No focus card, no launchers — just
-  // the day's shape on the same clock rail.
+  // --- Besok: a preview, not a workspace. No focus card, no launchers — the
+  // day's shape in the same card as today's, minus the status and the chevron,
+  // because tomorrow has neither a state nor anywhere to go.
   if (s.day === 'tomorrow') {
     return (
       <Screen topBar={header}>
         <Overline>Jadwal besok</Overline>
         <div className="flex flex-col gap-8">
           {tomorrow.map((task) => (
-            <AgendaRow key={task.id} time={task.time}>
-              <Card>
-                <div className="flex items-center gap-12">
-                  <KindTag kind={task.kind} />
-                  <div className="flex min-w-0 flex-1 flex-col">
+            <Card key={task.id}>
+              <div className="flex items-center gap-12">
+                <KindTag kind={task.kind} />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <span className="flex min-w-0 items-baseline gap-8">
+                    <span className="shrink-0 text-14 font-bold text-caption">{task.time}</span>
                     <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                    <span className="flex items-center gap-4 text-12 text-caption">
-                      <PinMark />
-                      <span className="truncate">{task.place}</span>
-                    </span>
-                  </div>
+                  </span>
+                  <span className="flex items-center gap-4 text-12 text-caption">
+                    <PinMark />
+                    <span className="truncate">{task.place}</span>
+                  </span>
                 </div>
-              </Card>
-            </AgendaRow>
+              </div>
+            </Card>
           ))}
         </div>
         <DayPicker open={picking} onClose={() => setPicking(false)} />

@@ -256,7 +256,21 @@ export function SettlementScreen() {
             {amount <= 0 ? 'Belum ada jumlah yang disetor' : 'Foto bukti transfer belum diambil'}
           </span>
         ) : null}
-        <Button size="lg" className="w-full" disabled={!ready} onClick={() => store.settle(closing)}>
+        {/* Straight back to the schedule, whether or not it cleared the bag.
+            Staying here after a short handover left her on a page that had
+            silently reloaded itself with the remainder — the same screen, a
+            different number, no event to explain it. The day is where a
+            settlement ends; if there is still cash, the widget is waiting
+            there saying so. */}
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={!ready}
+          onClick={() => {
+            store.settle(closing)
+            flow.go('today')
+          }}
+        >
           Saya Sudah Setor {rupiah(amount)}
         </Button>
       </StickyBar>
