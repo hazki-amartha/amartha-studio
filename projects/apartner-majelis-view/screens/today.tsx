@@ -47,6 +47,7 @@ import {
   store,
   taskStatus,
   useApp,
+  type TaskStatus,
 } from '../lib/store'
 import { TabBar } from '../lib/tabs'
 import {
@@ -131,7 +132,15 @@ function KindTag({ kind }: { kind: Task['kind'] }) {
  * tap, which is what the button did — it was never a second gesture, only a
  * bigger one for whichever row the clock happened to favour.
  */
-function TaskRow({ task, onStart }: { task: Task; onStart: () => void }) {
+function TaskRow({
+  task,
+  status,
+  onStart,
+}: {
+  task: Task
+  status: TaskStatus
+  onStart: () => void
+}) {
   return (
     <AgendaRow time={task.time}>
       <button
@@ -141,16 +150,22 @@ function TaskRow({ task, onStart }: { task: Task; onStart: () => void }) {
       >
         <KindTag kind={task.kind} />
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <span className="truncate text-14 font-bold text-default">{task.title}</span>
+          {/* The status rides on the title line as small coloured text, not a
+              pill. The section says whether work is left and the sync widget
+              says what has not gone, so this is the refinement inside each —
+              belum vs dikerjakan, selesai vs terkirim — and a refinement should
+              not be the loudest object on the row. `shrink-0` keeps it whole
+              and lets the name take the truncation. */}
+          <span className="flex min-w-0 items-baseline gap-8">
+            <span className="truncate text-14 font-bold text-default">{task.title}</span>
+            <span className={`shrink-0 text-10 ${STATUS_META[status].tone}`}>
+              {STATUS_META[status].label}
+            </span>
+          </span>
           <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
             <PinMark />
             <span className="truncate">{task.place}</span>
           </span>
-          {/* No status badge. The section a row sits in already says whether
-              there is work left, and the sync widget above the list is what
-              tells her which finished rows have not gone — so a badge on every
-              card was a third telling of a fact already told twice, on the one
-              line the card had left for something new. */}
           <TaskLabels task={task} />
         </div>
         <span className="shrink-0 text-disabled">
@@ -196,6 +211,30 @@ function TaskLabels({ task }: { task: Task }) {
     </>
   )
 }
+
+/**
+ * The four states, once. The filter sheet, the chip and the mark on the card
+ * all read this, so none of them can drift on the wording of a state.
+ *
+ * Tones, not pills: on the card this is a MARK beside a name, and a badge there
+ * takes ~90px off a line that has to hold "Follow Up: Ibu Nia Kurniasih". Blue
+ * for Selesai and green only for Terkirim, because green is this app's colour
+ * for settled and work still sitting on the handset has not settled.
+ */
+const STATUS_META: Record<TaskStatus, { label: string; tone: string }> = {
+  belum: { label: 'Belum mulai', tone: 'text-disabled' },
+  dikerjakan: { label: 'Dikerjakan', tone: 'text-orange-500' },
+  selesai: { label: 'Selesai', tone: 'text-blue-500' },
+  terkirim: { label: 'Terkirim', tone: 'text-green-500' },
+}
+
+const STATUS_OPTIONS: { label: string; value: TaskStatus | null }[] = [
+  { label: 'Semua status', value: null },
+  ...(Object.keys(STATUS_META) as TaskStatus[]).map((k) => ({
+    label: STATUS_META[k].label,
+    value: k,
+  })),
+]
 
 const KIND_OPTIONS: { label: string; value: Task['kind'] | null }[] = [
   { label: 'Semua tipe', value: null },
@@ -257,7 +296,8 @@ export function TodayScreen() {
   const s = useApp()
   const [picking, setPicking] = useState(false)
   const [kind, setKind] = useState<Task['kind'] | null>(null)
-  const [menu, setMenu] = useState<'kind' | null>(null)
+  const [status, setStatus] = useState<TaskStatus | null>(null)
+  const [menu, setMenu] = useState<'kind' | 'status' | null>(null)
   const day = findDay(s.day)
   const collected = collectedToday(s)
   const progress = Math.round((collected / TARGET_HARIAN) * 100)
@@ -267,8 +307,10 @@ export function TodayScreen() {
   // Selesai is a shape built around WHEN, and a BP filtering by type has
   // stopped asking that question — leaving two headings over a filtered day
   // would make her read one short list in two pieces.
-  const filtering = Boolean(kind)
-  const matches = TASKS.filter((t) => !kind || t.kind === kind)
+  const filtering = Boolean(kind || status)
+  const matches = TASKS.filter(
+    (t) => (!kind || t.kind === kind) && (!status || taskStatus(s, t.id) === status),
+  )
 
   // Two buckets, split on the only line that matters to a BP looking at her
   // day: is there still something to do here. "Dikerjakan" belongs with "belum
@@ -440,7 +482,20 @@ export function TodayScreen() {
           open={menu === 'kind'}
           onClick={() => setMenu('kind')}
         />
-        {filtering ? <ResetLink onClick={() => setKind(null)} /> : null}
+        <FilterChip
+          label={status ? STATUS_META[status].label : 'Status tugas'}
+          active={Boolean(status)}
+          open={menu === 'status'}
+          onClick={() => setMenu('status')}
+        />
+        {filtering ? (
+          <ResetLink
+            onClick={() => {
+              setKind(null)
+              setStatus(null)
+            }}
+          />
+        ) : null}
       </FilterBar>
 
       {filtering ? (
@@ -450,10 +505,15 @@ export function TodayScreen() {
           </span>
           <div className="flex flex-col gap-8 pb-16">
             {matches.length === 0 ? (
-              <EmptyState title="Tidak ada tugas" body="Coba tipe tugas lain." />
+              <EmptyState title="Tidak ada tugas" body="Coba tipe atau status lain." />
             ) : null}
             {matches.map((task) => (
-              <TaskRow key={task.id} task={task} onStart={() => start(task)} />
+              <TaskRow
+                key={task.id}
+                task={task}
+                status={taskStatus(s, task.id)}
+                onStart={() => start(task)}
+              />
             ))}
           </div>
         </>
@@ -471,7 +531,12 @@ export function TodayScreen() {
           <Overline>Belum selesai</Overline>
           <div className="flex flex-col gap-8">
             {open.map((task) => (
-              <TaskRow key={task.id} task={task} onStart={() => start(task)} />
+              <TaskRow
+                key={task.id}
+                task={task}
+                status={taskStatus(s, task.id)}
+                onStart={() => start(task)}
+              />
             ))}
           </div>
         </>
@@ -495,7 +560,12 @@ export function TodayScreen() {
           <Overline>Selesai</Overline>
           <div className="flex flex-col gap-8 pb-16">
             {closed.map((task) => (
-              <TaskRow key={task.id} task={task} onStart={() => start(task)} />
+              <TaskRow
+                key={task.id}
+                task={task}
+                status={taskStatus(s, task.id)}
+                onStart={() => start(task)}
+              />
             ))}
           </div>
         </>
@@ -512,6 +582,18 @@ export function TodayScreen() {
         value={kind}
         onPick={(v) => {
           setKind(v)
+          setMenu(null)
+        }}
+        onClose={() => setMenu(null)}
+      />
+      <OptionSheet
+        open={menu === 'status'}
+        title="Status tugas"
+        name="status-tugas"
+        options={STATUS_OPTIONS}
+        value={status}
+        onPick={(v) => {
+          setStatus(v)
           setMenu(null)
         }}
         onClose={() => setMenu(null)}
