@@ -21,8 +21,10 @@ import { Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { HomeMitraCard } from '../lib/home-card'
+import { JanjiBayarCard } from '../lib/mitra-card'
 import { IconPhone } from '../lib/icons'
 import { profileOf } from '../lib/profile'
+import { DAYS } from '../lib/schedule'
 import { openHomeMitra, openHomeTask, store, useApp, type MetWith } from '../lib/store'
 import {
   Chip,
@@ -51,6 +53,11 @@ const WHO: { value: MetWith; title: string; description: string }[] = [
 // no revisit date.
 const ABSENT_REASONS = ['Sedang bekerja', 'Pergi tanpa kabar', 'Pindah rumah', 'Meninggal dunia']
 
+// Why the mitra herself was out when the PJ answered. No "pindah"/"meninggal"
+// here: someone from the household is standing at the door, so the case is a
+// titipan, not a relocation.
+const PJ_ABSENCE_REASONS = ['Sedang bekerja', 'Sedang berdagang', 'Sakit', 'Sedang bepergian']
+
 const PTP_OPTIONS: { label: string; value: string | null }[] = [
   { label: 'Besok, 22 Juli', value: '22 Juli' },
   { label: 'Lusa, 23 Juli', value: '23 Juli' },
@@ -67,7 +74,15 @@ export function HomeBriefScreen() {
 
   const met = s.metWith[mitra.id]
   const absent = met === 'nobody'
+  const metPj = met === 'pj'
   const note = s.nonPayments[mitra.id]
+  const pjReason = s.mitraAbsence[mitra.id]
+  // The janji bayar falls due on the visit day, so the promise is dated today.
+  const visitDate = DAYS[0].date
+
+  // Meeting the PJ or finding nobody home both require a reason before she can
+  // move on — the record has to say why the borrower was absent.
+  const canContinue = met === 'mitra' ? true : metPj ? !!pjReason : absent ? !!note?.reason : false
 
   function pickReason(value: string) {
     store.setNonPayment(mitra, { reason: value, ptp: note?.ptp ?? null })
@@ -106,6 +121,9 @@ export function HomeBriefScreen() {
         }}
       />
 
+      {/* --- The promise that put this door on the day. ------------------- */}
+      <JanjiBayarCard mitra={mitra} date={visitDate} />
+
       {/* --- Who answers for her when the door is locked. ------------------ */}
       <SectionTitle>Penanggung jawab</SectionTitle>
       <Card>
@@ -143,6 +161,27 @@ export function HomeBriefScreen() {
           />
         ))}
       </div>
+
+      {/* --- Met the PJ: the mitra herself was out, so capture why before the
+          titipan is collected on the next step. --------------------------- */}
+      {metPj ? (
+        <>
+          <SectionTitle>Kenapa mitra tidak ada?</SectionTitle>
+          <Card>
+            <ChipGroup label="Alasan mitra tidak di tempat">
+              {PJ_ABSENCE_REASONS.map((option) => (
+                <Chip
+                  key={option}
+                  selected={pjReason === option}
+                  onClick={() => store.setMitraAbsence(mitra.id, option)}
+                >
+                  {option}
+                </Chip>
+              ))}
+            </ChipGroup>
+          </Card>
+        </>
+      ) : null}
 
       {/* --- Nobody home: the whole visit note is taken here, because there is
           nothing to tagih from a locked door and the next step is skipped. --- */}
@@ -198,7 +237,7 @@ export function HomeBriefScreen() {
         <Button
           size="lg"
           className="w-full"
-          disabled={!met}
+          disabled={!canContinue}
           onClick={() => flow.go(absent ? 'home-proof' : 'home-visit')}
         >
           Lanjut

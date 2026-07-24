@@ -27,6 +27,8 @@ import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
 import { TagihanCard } from '../lib/home-card'
+import { JanjiBayarCard } from '../lib/mitra-card'
+import { DAYS } from '../lib/schedule'
 import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
 import {
   Chip,
@@ -105,6 +107,10 @@ export function HomeVisitScreen() {
           to her with the amount she is asking for off-screen. */}
       <WeekStrip weeks={mitra.weeks} />
       <TagihanCard mitra={mitra} />
+
+      {/* The promise she is being held to — dated the visit day. Sits with the
+          bill because it is the figure the BP negotiates against. */}
+      <JanjiBayarCard mitra={mitra} date={DAYS[0].date} />
 
       {/* --- The outcome, inline. Same three results the majelis collect page
           offers, in the same order — and the same controls whether it was her

@@ -15,7 +15,8 @@ import type { ReactNode } from 'react'
 import { Badge, Card } from '@/design-system/components'
 import { User } from '@/design-system/icons'
 import { outstandingOf, rupiah, type Mitra } from './data'
-import { IconChevronRight } from './icons'
+import { IconCalendar, IconChevronRight, IconHome } from './icons'
+import { PinMark } from './ui'
 
 /**
  * What she owes, and what it is made of. ONE component, used by the mitra page
@@ -104,6 +105,79 @@ export function MitraPhoto({ size = 40 }: { size?: 32 | 40 }) {
     >
       <User size={size === 32 ? 16 : 20} />
     </span>
+  )
+}
+
+/**
+ * A stand-in for the photo of the house. Real prototypes have no image asset,
+ * so this is the same honest placeholder as MitraPhoto — a tinted tile with a
+ * house glyph — rather than a stock picture pretending to be her door.
+ */
+export function HousePhoto({ size = 40 }: { size?: 40 | 48 }) {
+  const box = size === 48 ? 'h-48 w-48' : 'h-40 w-40'
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-8 bg-neutral-200 text-neutral-500 ${box}`}
+      aria-label="Foto rumah"
+    >
+      <IconHome size={size === 48 ? 24 : 20} />
+    </span>
+  )
+}
+
+/** A Google Maps search link for an address string. */
+export function mapsUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+}
+
+/**
+ * The house, its address, and a route out to maps — one tappable block. The
+ * photo says which door before she reads the words, and the "Lihat di peta"
+ * link plus the whole tile being an anchor is what makes the address something
+ * she taps rather than reads. Used at the doorstep and on the mitra page.
+ */
+export function HouseLocation({ address }: { address: string }) {
+  return (
+    <a
+      href={mapsUrl(address)}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white p-8"
+    >
+      <HousePhoto />
+      <span className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="break-words text-12 text-default">{address}</span>
+        <span className="flex items-center gap-4 text-12 font-bold text-link">
+          <PinMark size={16} /> Lihat di peta
+        </span>
+      </span>
+      <span className="shrink-0 text-link">
+        <IconChevronRight size={20} />
+      </span>
+    </a>
+  )
+}
+
+/**
+ * The promise already on file — the reason the door is on today's list. Renders
+ * only when the mitra carries both a date and an amount, so it stays a home-visit
+ * fact rather than a badge on every card. Reads the visit day for the date,
+ * because "janji bayar" on a home visit means the promise falls due today.
+ */
+export function JanjiBayarCard({ mitra, date }: { mitra: Mitra; date: string }) {
+  if (!mitra.ptp || mitra.ptpAmount === undefined) return null
+  return (
+    <div className="flex items-center gap-12 rounded-12 border border-primary-200 bg-primary-50 p-12">
+      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-primary-500">
+        <IconCalendar size={20} />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="text-12 text-caption">Janji bayar</span>
+        <span className="break-words text-14 font-bold text-default">
+          {date} · {rupiah(mitra.ptpAmount)}
+        </span>
+      </div>
+    </div>
   )
 }
 

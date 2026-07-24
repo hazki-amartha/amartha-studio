@@ -21,8 +21,8 @@ import { Card } from '@/design-system/components'
 import { type Mitra } from './data'
 import { IconChevronRight, IconPhone } from './icons'
 import { profileOf } from './profile'
-import { MitraPhoto } from './mitra-card'
-import { ContactButton, PinMark, WaMark } from './ui'
+import { HouseLocation, MitraPhoto } from './mitra-card'
+import { ContactButton, WaMark } from './ui'
 
 export function HomeMitraCard({
   mitra,
@@ -69,10 +69,7 @@ export function HomeMitraCard({
           </div>
         </div>
 
-        <span className="flex items-start gap-4 text-12 text-caption">
-          <PinMark />
-          {address}
-        </span>
+        <HouseLocation address={address} />
       </div>
     </Card>
   )

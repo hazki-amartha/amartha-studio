@@ -26,7 +26,7 @@ import { findMitra, outstandingOf, rupiah } from '../lib/data'
 import { IconChevronRight, IconTrendUp } from '../lib/icons'
 import { ladderOf } from '../lib/ladder'
 import { profileOf } from '../lib/profile'
-import { DpdBadge, TagihanBreakdown } from '../lib/mitra-card'
+import { DpdBadge, HouseLocation, TagihanBreakdown } from '../lib/mitra-card'
 import { openMajelisEntry, store, useApp } from '../lib/store'
 import { HeaderAction, Overline, PinMark, WaMark, WeekStrip } from '../lib/ui'
 
@@ -159,6 +159,14 @@ export function MitraScreen() {
         </span>
       </button>
 
+      {/* --- Where she lives, as a place rather than a line of text. -------
+          A photo of the house to recognise the door, and the whole tile taps
+          out to maps — the address the BP rides to, not just reads. */}
+      <section className="flex flex-col gap-8">
+        <Overline>Lokasi rumah</Overline>
+        <HouseLocation address={profile.address} />
+      </section>
+
       {/* --- Everything else on file. Last, because it is looked up. -------- */}
       {/* These were five tappable rows called "Data mitra". Four of them opened
           nothing that isn't now a header button, so what survives is the
@@ -173,7 +181,6 @@ export function MitraScreen() {
               { label: 'Produk', value: mitra.product },
               { label: 'Mitra sejak', value: profile.joined },
               { label: 'Nomor HP', value: profile.phone },
-              { label: 'Alamat rumah', value: profile.address },
               { label: 'Tempat usaha', value: profile.business },
               { label: 'Penanggung jawab', value: `${profile.pjName} · ${profile.pjPhone}` },
             ].map((row, i) => (
