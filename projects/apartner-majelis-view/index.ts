@@ -17,6 +17,7 @@ import { LadderScreen } from './screens/ladder'
 import { TodayScreen } from './screens/today'
 import { MajelisListScreen } from './screens/majelis-list'
 import { KpiScreen } from './screens/kpi'
+import { HomeBriefScreen } from './screens/home-brief'
 import { HomeVisitScreen } from './screens/home-visit'
 import { HomeProofScreen } from './screens/home-proof'
 import { DepositScreen } from './screens/deposit'
@@ -62,7 +63,7 @@ export const project: ProjectModule = {
       ],
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Pelayanan 1' },
-        { to: 'home-visit', label: 'Mulai Kunjungan (home visit)' },
+        { to: 'home-brief', label: 'Mulai Kunjungan (home visit)' },
         { to: 'sosialisasi', label: 'Mulai Sosialisasi — cari prospek baru' },
         { to: 'follow-up', label: 'Mulai Follow Up — telepon prospek' },
         { to: 'deposit', label: 'Setor Setoran Harian — tugas penutup' },
@@ -119,27 +120,33 @@ export const project: ProjectModule = {
       ],
     },
     {
-      id: 'home-visit',
-      title: 'Home Visit 1 — Temui & Tagih',
-      component: HomeVisitScreen,
-      notes: [
-        'A home visit is one door, not a group, and it branches: did she meet the mitra, the penanggung jawab, a neighbour, or nobody — and then, was there money, a partial, or only a promise. The page asks that whole tree in one place, growing as she answers.',
-        'Who she met and what was collected are separate facts, so the same outcome controls appear whether the money came from the mitra or her PJ. If nobody was home, the payment options never appear at all — she goes straight to the reason and when she will return.',
-      ],
+      id: 'home-brief',
+      title: 'Home Visit 1 — Persiapan',
+      component: HomeBriefScreen,
       flowsTo: [
-        { to: 'home-proof', label: 'Lanjut — butuh jawaban "siapa ditemui"' },
+        { to: 'home-visit', label: 'Lanjut — mitra / PJ ditemui' },
+        { to: 'home-proof', label: 'Lanjut — jika tidak ada orang (lewati Tagih)' },
         { to: 'mitra', label: 'ketuk nama mitra' },
       ],
     },
     {
+      id: 'home-visit',
+      title: 'Home Visit 2 — Tagih',
+      component: HomeVisitScreen,
+      notes: [
+        'The money step. Who she met was answered on Persiapan, so this page opens straight on the ledger and the bill — the ten-week strip and the total tagihan, the same components the mitra and collect pages draw — then the payment outcome: full, partial, or a recorded no.',
+        'Whether the money came from the mitra or her PJ does not change what gets recorded — the amount and the promise — so who handed it over is a tag, not a branch. "Nobody home" never reaches this step: a locked door has nothing to tagih, so that case takes its visit note on Persiapan and skips straight to Bukti & Kirim.',
+      ],
+      flowsTo: [{ to: 'home-proof', label: 'Lanjut' }],
+    },
+    {
       id: 'home-proof',
-      title: 'Home Visit 2 — Bukti & Kirim',
+      title: 'Home Visit 3 — Bukti & Kirim',
       component: HomeProofScreen,
       notes: [
-        'The close of a home visit: a photo and a recorded location, both required before it can be submitted. Location carries more weight here than at a majelis — a balai has a fixed address everyone knows, a doorstep is the visit that gets questioned.',
-        'The recap is scaled to one mitra: who was met, what she paid, and whether there is a promise to come back for. A balance with a promise is work closed for today; a balance with nothing recorded is the one to worry about.',
+        'The close of a home visit: a photo of the door, required before it can be submitted. What she recorded on the two steps before — who was met, what was paid — is not read back here; this step is the paperwork that closes the visit, not a second review of it.',
       ],
-      flowsTo: [{ to: 'today', label: 'Selesaikan Tugas — butuh foto + lokasi' }],
+      flowsTo: [{ to: 'today', label: 'Selesaikan Tugas — butuh foto' }],
     },
     {
       id: 'deposit',

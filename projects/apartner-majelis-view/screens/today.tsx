@@ -195,7 +195,7 @@ export function TodayScreen() {
     }
     if (task.kind === 'home-visit') {
       store.startHomeVisit(task.id)
-      flow.go('home-visit')
+      flow.go('home-brief')
       return
     }
     if (task.kind === 'sosialisasi') {

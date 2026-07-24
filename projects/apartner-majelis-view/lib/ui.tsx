@@ -83,9 +83,11 @@ export function Avatar({ name, size = 40 }: { name: string; size?: 32 | 40 }) {
 export const STAGE_LABELS = ['Kehadiran', 'Penagihan', 'Penawaran']
 
 // A home visit is one mitra, so there is no queue to clear and no cross-sell
-// tail: meet her and settle the money, then prove it. Two stages, same bar —
-// the sequence is the same shape, it is just shorter.
-export const HOME_STAGE_LABELS = ['Temui & Tagih', 'Bukti & Kirim']
+// tail. Persiapan reviews who she is, records who was met, and — when nobody was
+// home — takes the visit note right there and skips straight to Bukti & Kirim,
+// since there is nothing to tagih from a locked door. Otherwise the Tagih step
+// settles the money against the ledger, then Bukti & Kirim proves the visit.
+export const HOME_STAGE_LABELS = ['Persiapan', 'Tagih', 'Bukti & Kirim']
 
 export function StageBar({
   current,
