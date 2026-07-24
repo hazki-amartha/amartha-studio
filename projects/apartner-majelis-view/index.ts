@@ -506,12 +506,13 @@ export const project: ProjectModule = {
       title: 'Tagih Pembayaran',
       component: CollectScreen,
       notes: [
-        'The moment of negotiation. It opens on who she is over what she owes — the recent cycle on grey, the bill on white, the same Angsuran card the mitra page uses — and every follow-up a choice needs is drawn inside the option that caused it, rather than parked at the bottom of the page where the BP has to connect it back up. The “Jumlah lain” field reads back the shortfall as she types, so the figure she is about to be held to stays in her eyeline without a second summary pinned over the button.',
-        '“Tidak Bayar” is a full fourth option, not an escape hatch, and it does not save until it carries BOTH the reason and the janji bayar — a no with no date is unchaseable, and “tidak ada janji” is a real answer rather than something you express by skipping the question. The same rule now covers money: any payment short of the bill has to say why it was short, because a balance nobody wrote a reason against is the same unchaseable gap.',
+        'The moment of negotiation. It opens on who she is over what she owes, drawn flat with no cards — the identity, the week-grid history and the bill read as one block — over the week grid carrying the date, outcome and amount of each recent week. Under it, the four ways she can pay as a menu.',
+        'Two levels, told apart by ground rather than a rule: the identity and bill on white up top, the choice on a lightest-grey floor below. Every option opens a bottom sheet carrying only what it needs — a reason, a promise, an amount, or for a full payment nothing but a confirm — because the bill it is against is still on the page behind the sheet. A payment short of the bill still cannot save without both a reason and a date for the rest, exactly as a “tidak bayar” cannot.',
       ],
       flowsTo: [
         { to: 'collection', label: 'Terima Tunai' },
         { to: 'collection', label: 'Simpan Catatan — tidak bayar' },
+        { to: 'mitra', label: 'ketuk nama mitra' },
       ],
     },
     {

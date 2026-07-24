@@ -261,45 +261,57 @@ export function WeekStrip({
   )
 }
 
-// --- RepaymentStrip --------------------------------------------------------
-// The recent cycle as a FIXED row — the last eight weeks, sized to the card
-// width and not scrollable. It replaces the horizontal rail on every
-// payment-related page: a swipe hides the weeks it doesn't open on, and the
-// question a BP brings to this strip ("how has the last month or two gone?") is
-// answered by what fits on screen, not by what she can reach.
+// --- WeekGrid ---------------------------------------------------------------
+// The recent cycle as a bordered grid of cells — the AngsuranCard's history
+// panel. Each cell stacks three things: the week's date on top, its outcome as a
+// filled or hollow status circle, and the rupiah actually received that week.
 //
-// Eight, because that is what sits comfortably across a phone at a legible mark
-// size — a season of payments, the same span the reference draws on its
-// overview card. The amounts are gone from under each cell (they live behind
-// "Lihat Semua"); here a week is only its outcome, so the mark carries the whole
-// meaning: green paid, orange part-paid, red missed, and a hollow primary ring
-// for the week that has not closed yet.
-const MARK_TONE: Record<Week['status'], string> = {
+// The amount under each cell is what makes the grid worth more than a row of
+// dots. A red Rp0 and an orange Rp100rb are two different failures — a miss and a
+// shortfall — and only one of them is a sentence the BP can say without being
+// contradicted. The circle carries the same split by colour so the pattern reads
+// at a glance before the amounts are even scanned.
+//
+// A fixed six-cell row, not a scroll rail: the question this grid answers — "how
+// has the last month and a half gone?" — is answered by what fits on screen, and
+// the whole ledger is one tap away behind "Lihat Semua". Six recent weeks sit
+// legibly across a phone with the amount under each still readable.
+const GRID_TONE: Record<Week['status'], string> = {
   lunas: 'border-green-500 bg-green-500 text-neutral-white',
   sebagian: 'border-orange-500 bg-orange-500 text-neutral-white',
   lewat: 'border-red-500 bg-red-500 text-neutral-white',
   'jatuh-tempo': 'border-2 border-primary-500 text-primary-500',
 }
 
-export function RepaymentStrip({ weeks }: { weeks: Week[] }) {
-  const shown = weeks.slice(-STRIP_WEEKS_STATIC)
+/** Six recent weeks fit across a phone with the date and amount still legible. */
+const GRID_WEEKS = 6
+
+export function WeekGrid({ weeks }: { weeks: Week[] }) {
+  const shown = weeks.slice(-GRID_WEEKS)
   return (
-    <div className="flex items-start justify-between">
+    // One lightest-grey panel, no dividers and no outer border: the cells are
+    // told apart by their spacing on a single ground, so the row reads as one
+    // calendar band rather than six boxed cells. The grey is what carries the
+    // history's edge on a page that has dropped its cards.
+    <div className="flex overflow-hidden rounded-8 bg-neutral-50 p-4">
       {shown.map((w) => {
         const current = w.status === 'jatuh-tempo'
         return (
-          <div key={w.no} className="flex flex-col items-center gap-4">
+          <div key={w.no} className="flex flex-1 flex-col items-center gap-8 px-4 py-8">
+            <span className={`text-10 ${current ? 'font-bold text-primary-500' : 'text-caption'}`}>
+              {w.date}
+            </span>
             <span
-              className={`flex h-20 w-20 items-center justify-center rounded-full border ${MARK_TONE[w.status]}`}
+              className={`flex h-20 w-20 items-center justify-center rounded-full border ${GRID_TONE[w.status]}`}
             >
-              {w.status === 'lunas' || w.status === 'sebagian' ? (
+              {w.status === 'lunas' ? (
                 <IconCheck size={16} />
-              ) : w.status === 'lewat' ? (
+              ) : w.status === 'lewat' || w.status === 'sebagian' ? (
                 <IconX size={16} />
               ) : null}
             </span>
-            <span className={`text-10 ${current ? 'font-bold text-primary-500' : 'text-disabled'}`}>
-              {w.date}
+            <span className={`text-10 font-bold ${current ? 'text-primary-500' : 'text-disabled'}`}>
+              {ringkas(w.paid)}
             </span>
           </div>
         )
@@ -307,9 +319,6 @@ export function RepaymentStrip({ weeks }: { weeks: Week[] }) {
     </div>
   )
 }
-
-/** Eight weeks fit across a phone at a legible mark size without scrolling. */
-const STRIP_WEEKS_STATIC = 8
 
 // --- ProductBadge ----------------------------------------------------------
 // The lending product, wherever it appears — on a group in the directory or on
