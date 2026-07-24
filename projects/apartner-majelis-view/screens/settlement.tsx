@@ -35,11 +35,10 @@ import { Badge, Button, Card, Input, NavigationHeader } from '@/design-system/co
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { DEPOSIT, taskCode, vaFor } from '../lib/schedule'
-import { IconCamera, IconCheck, IconWallet } from '../lib/icons'
+import { DEPOSIT, TASKS, taskCode, vaFor } from '../lib/schedule'
+import { IconCamera, IconCheck, IconInfo, IconWallet } from '../lib/icons'
 import {
-  depositDigital,
-  midDayUsed,
+  freeSettlementsLeft,
   settledTotal,
   store,
   unsettledEntries,
@@ -65,7 +64,6 @@ export function SettlementScreen() {
 
   const entries = unsettledEntries(s)
   const expected = unsettledTotal(s)
-  const digital = depositDigital(s)
   const amount = s.depositAmount ?? expected
   const diff = amount - expected
 
@@ -73,7 +71,9 @@ export function SettlementScreen() {
   const no = s.settlements.length + 1
   // The last available handover: both mid-day slots spent, so this one is
   // the third and it belongs to the day's close.
-  const closing = midDayUsed(s) >= DEPOSIT.maxMidDay
+  // The last handover of the day, in the only sense left now that the count is
+  // uncapped: nothing on the schedule can still take cash.
+  const closing = TASKS.every((t) => s.doneTasks.includes(t.id))
   const va = vaFor(no)
 
   // Typing is opt-in. The default gesture is agreeing with the app.
@@ -104,8 +104,6 @@ export function SettlementScreen() {
           </div>
         </Card>
 
-        {s.settlements.length > 0 ? <Riwayat /> : null}
-
         <StickyBar>
           <Button
             size="lg"
@@ -126,6 +124,22 @@ export function SettlementScreen() {
 
   return (
     <Screen topBar={<NavigationHeader title={`Setoran ${no}`} onBack={() => flow.back()} />}>
+      {/* The fee, said once and up front. It is the only thing left that makes
+          the COUNT matter now that there is no cap: settling often is the whole
+          point, and this is the cost of doing it a fourth time — a fact to
+          weigh, not a rule to obey. */}
+      <div className="flex items-start gap-8 rounded-8 border border-blue-200 bg-blue-50 px-12 py-8">
+        <span className="shrink-0 text-blue-500">
+          <IconInfo size={16} />
+        </span>
+        <span className="min-w-0 flex-1 text-12 text-default">
+          Admin fee settlement hanya gratis {DEPOSIT.freePerDay}x per hari.
+          {freeSettlementsLeft(s) > 0
+            ? ` Sisa ${freeSettlementsLeft(s)}x gratis hari ini.`
+            : ' Setoran ini kena biaya admin.'}
+        </span>
+      </div>
+
       {/* --- What she is handing over. One number, not a choice. */}
       <Card>
         <div className="flex items-center gap-12">
@@ -140,11 +154,6 @@ export function SettlementScreen() {
             {closing ? 'Setoran terakhir' : `Setoran ke-${no}`}
           </Badge>
         </div>
-        {digital > 0 ? (
-          <p className="mt-8 rounded-8 bg-neutral-50 px-12 py-8 text-12 text-caption">
-            {rupiah(digital)} sudah masuk lewat aplikasi mitra — tidak perlu kamu setor.
-          </p>
-        ) : null}
         <p className="mt-8 text-right text-10 text-disabled">Batas setor {DEPOSIT.due}</p>
       </Card>
 
@@ -186,8 +195,6 @@ export function SettlementScreen() {
           </span>
         </div>
       </Card>
-
-      {s.settlements.length > 0 ? <Riwayat /> : null}
 
       {/* --- What she actually handed over. Agreeing is a tap; disagreeing is
           deliberate, and carries a reason. */}
@@ -269,41 +276,5 @@ export function SettlementScreen() {
         </Button>
       </StickyBar>
     </Screen>
-  )
-}
-
-/**
- * What has already gone today. It is on this screen rather than only on the
- * schedule because the question it answers is asked HERE — "did I already send
- * the morning's?" — at the moment she is about to send more, and because two
- * transfers to two VAs are two things she may have to prove separately.
- */
-function Riwayat() {
-  const s = useApp()
-  return (
-    <>
-      <SectionTitle>Setoran hari ini</SectionTitle>
-      <div className="rounded-12 bg-neutral-white">
-        {s.settlements.map((x, i) => (
-          <div
-            key={x.no}
-            className={`flex items-center gap-12 px-12 py-12 ${i === 0 ? '' : 'border-t border-default'}`}
-          >
-            <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-500">
-              <IconCheck size={16} />
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-14 font-bold text-default">
-                Setoran {x.no} · {x.at}
-              </span>
-              <span className="truncate text-12 text-caption">
-                {x.taskIds.map(taskCode).join(', ')} · VA {x.va}
-              </span>
-            </div>
-            <span className="shrink-0 text-14 font-bold text-default">{rupiah(x.amount)}</span>
-          </div>
-        ))}
-      </div>
-    </>
   )
 }

@@ -43,7 +43,7 @@ import { CloudArrowUp, Door, Medal } from '@/design-system/icons'
 import {
   canCloseDay,
   canSettle,
-  settleHeld,
+  freeSettlementsLeft,
   pendingSync,
   rescheduledTasks,
   settledTotal,
@@ -509,7 +509,9 @@ export function TodayScreen() {
                 itself, and it is the number that decides whether she puts the
                 money down now or carries it to the next stop. */}
             <span className="truncate text-12 text-caption">
-              Belum disetor · {s.settlements.length} dari maks {DEPOSIT.maxSettlements} setoran
+              {freeSettlementsLeft(s) > 0
+                ? `Belum disetor · ${freeSettlementsLeft(s)} setoran gratis tersisa`
+                : 'Belum disetor · setoran berikutnya kena biaya admin'}
             </span>
           </div>
           <Button
@@ -525,37 +527,12 @@ export function TodayScreen() {
         </div>
       ) : null}
 
-      {/* The last settlement exists but is held until the collecting is done.
-          Stated rather than hidden: she is carrying money, and an app that
-          simply stopped mentioning it would leave her to remember on her own.
-          The line says WHY it is shut, which is the difference between a rule
-          and a bug. */}
-      {settleHeld(s) ? (
-        <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
-          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-50 text-neutral-600">
-            <IconWallet size={20} />
-          </span>
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <span className="flex flex-wrap items-baseline gap-8">
-              <span className="text-16 font-bold text-default">{rupiah(toSettle)}</span>
-              <span className="text-12 text-caption">Belum disetor</span>
-            </span>
-            {/* Wraps rather than truncates. It is the only place the rule is
-                stated, and a rule that ends in an ellipsis is a rule she has to
-                guess at — the card can afford the second line. */}
-            <span className="text-12 text-caption">
-              Setoran terakhir dibuka setelah semua kunjungan selesai
-            </span>
-          </div>
-        </div>
-      ) : null}
-
       {/* Nothing left to hand over, but something went. The card stays and
           shrinks to its one fact: a settled bag is worth confirming — she is
           carrying nothing, which is the answer to a question she asks herself
           all afternoon — but it has no button and no breakdown, so it has no
           business taking three lines to say so. */}
-      {!canSettle(s) && !settleHeld(s) && settledTotal(s) > 0 ? (
+      {!canSettle(s) && settledTotal(s) > 0 ? (
         <DoneLine>Sudah disetor hari ini: {rupiah(settledTotal(s))}</DoneLine>
       ) : null}
 

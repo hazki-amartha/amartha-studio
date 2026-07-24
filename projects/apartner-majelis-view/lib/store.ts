@@ -130,7 +130,17 @@ export interface LastCollect {
 export interface Settlement {
   /** 1-based. Also picks the VA, so each transfer reconciles on its own. */
   no: number
+  /** What she says she actually transferred. */
   amount: number
+  /**
+   * What the app's ledger said she was carrying. Kept beside `amount` rather
+   * than recomputed, because the whole point of the pair is that they can
+   * disagree — and once the entries are settled the expected figure is no
+   * longer derivable from anything on screen.
+   */
+  expected: number
+  /** Why the two differ. Null when they agree. */
+  diffReason: string | null
   /** The finished tasks whose cash this covered. */
   taskIds: string[]
   va: string
@@ -958,13 +968,22 @@ export const store = {
     const entries = unsettledEntries(state)
     if (entries.length === 0) return
     const no = state.settlements.length + 1
-    const at = closing ? '17.45' : ['11.40', '15.10'][state.settlements.length] ?? '15.10'
+    const expected = entries.reduce((sum, e) => sum + e.cash, 0)
+    // What she SAYS she transferred, which is the whole point of the confirm
+    // step. This used to record `expected` regardless, so a BP who declared
+    // Rp15.000 short — and picked a reason for it — was written down as having
+    // handed over the full amount, with the reason attached to nothing. The
+    // gap is the record ops chases; losing it is losing the only trace of it.
+    const amount = state.depositAmount ?? expected
+    const at = closing ? '17.45' : ['11.40', '15.10'][state.settlements.length] ?? '16.20'
     store.set({
       settlements: [
         ...state.settlements,
         {
           no,
-          amount: entries.reduce((sum, e) => sum + e.cash, 0),
+          amount,
+          expected,
+          diffReason: amount === expected ? null : state.depositDiffReason,
           taskIds: entries.map((e) => e.taskId),
           va: vaFor(no),
           at,
@@ -1121,42 +1140,22 @@ export const unsettledTotal = (s: AppState): number =>
 export const settledTotal = (s: AppState): number =>
   s.settlements.reduce((sum, x) => sum + x.amount, 0)
 
-/** Mid-day handovers used. The third is the closing task and is not hers to spend. */
-export const midDayUsed = (s: AppState): number => s.settlements.filter((x) => !x.closing).length
-
-/** Every stop that can take cash. Sosialisasi and follow-up collect nothing. */
-const COLLECTING = TASKS.filter((t) => t.kind === 'majelis' || t.kind === 'home-visit')
-
-/** No door left un-knocked: every majelis and doorstep on the day is finished. */
-export const collectionDone = (s: AppState): boolean =>
-  COLLECTING.every((t) => s.doneTasks.includes(t.id))
-
 /**
- * Whether the schedule should offer to settle right now.
+ * Whether the schedule should offer to settle right now. One condition: she is
+ * carrying something.
  *
- * Three settlements a day. The first two are hers to time — that is the whole
- * point of putting cash down before 17.45. The THIRD is the last one there is,
- * so it stays shut until every collecting stop is finished: spend it at 14.00
- * and the afternoon's money has nowhere to go.
- *
- * Nothing to hand over hides it too. A widget that stays visible while refusing
- * to work is a control that teaches her to distrust it.
+ * There is no cap. Capping the count made the app hold an opinion about how
+ * often a BP should be allowed to put cash down, which is the opposite of what
+ * the feature is for — the risk being managed is money on a motorbike, and
+ * every handover reduces it. What the count still decides is the FEE: the
+ * first three are free, and the settlement page says so. A cost is a reason to
+ * think; a lock is a reason to carry cash you wanted to be rid of.
  */
-export const canSettle = (s: AppState): boolean => {
-  if (unsettledTotal(s) === 0) return false
-  if (s.settlements.length >= DEPOSIT.maxSettlements) return false
-  return s.settlements.length < DEPOSIT.maxMidDay || collectionDone(s)
-}
+export const canSettle = (s: AppState): boolean => unsettledTotal(s) > 0
 
-/**
- * The last settlement is available but held back until the collecting is done.
- * A distinct state from "cannot settle", because the answer is different: not
- * "you have used them all" but "finish the day's stops first".
- */
-export const settleHeld = (s: AppState): boolean =>
-  unsettledTotal(s) > 0 &&
-  s.settlements.length === DEPOSIT.maxMidDay &&
-  !collectionDone(s)
+/** Handovers that cost nothing. Beyond this the branch charges admin. */
+export const freeSettlementsLeft = (s: AppState): number =>
+  Math.max(0, DEPOSIT.freePerDay - s.settlements.length)
 
 /**
  * Whether the day can be closed. Everything done, everything SENT, and nothing

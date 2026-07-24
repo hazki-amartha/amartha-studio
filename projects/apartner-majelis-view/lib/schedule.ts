@@ -211,10 +211,12 @@ export const DEPOSIT = {
   bank: 'BCA Virtual Account',
   holder: 'Amartha Cabang Ciseeng',
   due: '18.00',
-  /** How many times a day's cash can be handed over. */
-  maxSettlements: 3,
-  /** How many of those she can do herself, mid-day. The last is the closing task. */
-  maxMidDay: 2,
+  /**
+   * Handovers that cost nothing. Not a cap — she can settle as often as she
+   * likes, and should; past this the branch charges an admin fee, which is a
+   * reason to think rather than a door that is shut.
+   */
+  freePerDay: 3,
 }
 
 /**
