@@ -162,6 +162,22 @@ export interface AppState {
   /** Task ids finished today. Drives the focus card and the KPI count. */
   doneTasks: string[]
   /**
+   * Task ids she has OPENED but not finished. Without this, a visit abandoned
+   * halfway — she started the register, the group scattered, she rode on — is
+   * indistinguishable from one never touched, and "Dikerjakan" is exactly the
+   * state a BP needs to find again at the end of the day.
+   */
+  startedTasks: string[]
+  /**
+   * Task ids whose record has reached the server. Finishing and SENDING are
+   * different events here for the reason they are different in the field: she
+   * closes a visit standing in a balai with no signal, and the record sits on
+   * the handset until it can go. A day that shows work as "selesai" while
+   * nothing has left the phone is how a BP finds out on Friday that Tuesday
+   * never landed.
+   */
+  sentTasks: string[]
+  /**
    * The task the open pelayanan belongs to, so submitting the recap closes the
    * right row on the schedule. Null when the roster was opened from the Majelis
    * tab instead, where the task is recovered from the group itself.
@@ -310,6 +326,8 @@ const initial: AppState = {
   geo: false,
   day: 'today',
   doneTasks: [],
+  startedTasks: [],
+  sentTasks: [],
   activeTask: null,
   openMajelis: 'mawar',
   majelisDay: null,
@@ -411,6 +429,10 @@ function scheduleFollowUp(current: Task[], lead: Lead, tomorrow: boolean): Task[
   ]
 }
 
+/** Adds a task to the started list once, ignoring a null id. */
+const withStarted = (started: string[], taskId: string | null): string[] =>
+  !taskId || started.includes(taskId) ? started : [...started, taskId]
+
 export const store = {
   get: () => state,
   set(patch: Partial<AppState>) {
@@ -446,6 +468,7 @@ export const store = {
       geo: false,
       openMajelis: majelisId,
       activeTask: taskId,
+      startedTasks: withStarted(state.startedTasks, taskId),
     })
   },
   /** Opens a group's roster from the Majelis tab, without starting any work. */
@@ -471,11 +494,18 @@ export const store = {
       activeTask: taskId,
       depositAmount: depositExpected(state),
       depositDiffReason: null,
+      startedTasks: withStarted(state.startedTasks, taskId),
     })
   },
   /** Opens a home visit from the schedule. */
   startHomeVisit(taskId: string) {
-    store.set({ openHome: taskId, activeTask: taskId, photo: false, geo: false })
+    store.set({
+      openHome: taskId,
+      activeTask: taskId,
+      photo: false,
+      geo: false,
+      startedTasks: withStarted(state.startedTasks, taskId),
+    })
   },
   setMetWith(mitraId: string, value: MetWith) {
     store.set({ metWith: { ...state.metWith, [mitraId]: value } })
@@ -520,12 +550,21 @@ export const store = {
 
   /** Opens a sosialisasi from the schedule. */
   startSosialisasi(taskId: string) {
-    store.set({ activeTask: taskId, openEvent: findTask(taskId)?.eventId ?? 'e1' })
+    store.set({
+      activeTask: taskId,
+      openEvent: findTask(taskId)?.eventId ?? 'e1',
+      startedTasks: withStarted(state.startedTasks, taskId),
+    })
   },
   /** Opens a follow-up from the schedule — the rostered call. */
   startFollowUp(taskId: string) {
     const leadId = findTask(taskId)?.leadId ?? 'l1'
-    store.set({ activeTask: taskId, openLead: leadId, followUp: emptyFollowUp(leadId) })
+    store.set({
+      activeTask: taskId,
+      openLead: leadId,
+      followUp: emptyFollowUp(leadId),
+      startedTasks: withStarted(state.startedTasks, taskId),
+    })
   },
   /**
    * Opens a follow-up from the prospect's own record.
@@ -760,6 +799,16 @@ export const store = {
       growthFollowUps,
     })
   },
+  /**
+   * Sends every finished task that hasn't gone yet. One button for the batch
+   * rather than a send per row: they queued because there was no signal, and
+   * signal returns for all of them at once.
+   */
+  sendPending() {
+    const pending = state.doneTasks.filter((id) => !state.sentTasks.includes(id))
+    if (pending.length === 0) return
+    store.set({ sentTasks: [...state.sentTasks, ...pending] })
+  },
   setDepositAmount(depositAmount: number | null) {
     // Agreeing with the app clears any difference already explained — there is
     // no longer a gap for the reason to be about.
@@ -913,6 +962,24 @@ export const laterTasks = (s: AppState): Task[] => {
   if (!now) return []
   return TASKS.filter((t) => !s.doneTasks.includes(t.id) && t.id !== now.id)
 }
+
+/**
+ * Where one task stands. Four states, and the last two are the pair this
+ * direction cares about: finishing a visit and getting it off the handset are
+ * different events, and a day that calls both "selesai" hides the gap.
+ */
+export type TaskStatus = 'belum' | 'dikerjakan' | 'selesai' | 'terkirim'
+
+export function taskStatus(s: AppState, taskId: string): TaskStatus {
+  if (s.sentTasks.includes(taskId)) return 'terkirim'
+  if (s.doneTasks.includes(taskId)) return 'selesai'
+  if (s.startedTasks.includes(taskId)) return 'dikerjakan'
+  return 'belum'
+}
+
+/** Finished today, still on the handset — what the sync widget counts. */
+export const pendingSync = (s: AppState): Task[] =>
+  TASKS.filter((t) => s.doneTasks.includes(t.id) && !s.sentTasks.includes(t.id))
 
 export const doneTaskList = (s: AppState): Task[] =>
   TASKS.filter((t) => s.doneTasks.includes(t.id))
