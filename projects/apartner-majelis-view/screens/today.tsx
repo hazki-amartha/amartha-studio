@@ -34,27 +34,37 @@ import {
   TASKS,
   TOMORROW_TASKS,
   findDay,
+  km,
   withScheduled,
   type Task,
 } from '../lib/schedule'
 import { IconCheck, IconChevronDown, IconChevronRight, IconInbox } from '../lib/icons'
+import { CloudArrowUp } from '@/design-system/icons'
 import {
   collectedToday,
   doneTaskList,
   laterTasks,
   nowTask,
+  pendingSync,
   scheduledFor,
   store,
+  taskStatus,
   useApp,
+  type TaskStatus,
 } from '../lib/store'
 import { TabBar } from '../lib/tabs'
 import {
   AgendaRow,
   Collapsible,
+  EmptyState,
+  FilterBar,
+  FilterChip,
   HeaderAction,
   Meter,
+  OptionSheet,
   Overline,
   PinMark,
+  ResetLink,
   type Tint,
 } from '../lib/ui'
 
@@ -123,6 +133,60 @@ const KIND_CTA: Record<Task['kind'], string> = {
 }
 
 /**
+ * The two labels a task row can wear under its title.
+ *
+ * Distance is on every stop, because the order of a day is decided by geography
+ * as much as by the clock — two stops in one kampung get done together whatever
+ * their slots say. "Kemungkinan bayar tinggi" is only ever on a home visit: a
+ * majelis is 22 women with 22 answers, so one propensity flag on a group
+ * describes nobody in it.
+ *
+ * The prediction stays a small green label rather than a headline. A BP who
+ * reads it as a promise and finds an empty house twice stops believing the
+ * next one.
+ */
+function TaskLabels({ task }: { task: Task }) {
+  if (task.distanceKm === undefined && !task.payLikely) return null
+  return (
+    <span className="flex flex-wrap items-center gap-4">
+      {task.distanceKm !== undefined ? (
+        <span className="text-10 text-disabled">{km(task.distanceKm)}</span>
+      ) : null}
+      {task.payLikely ? <Badge intent="green">Kemungkinan bayar tinggi</Badge> : null}
+    </span>
+  )
+}
+
+const KIND_OPTIONS: { label: string; value: Task['kind'] | null }[] = [
+  { label: 'Semua tipe', value: null },
+  { label: 'Pelayanan Majelis (MV)', value: 'majelis' },
+  { label: 'Home Visit (HV)', value: 'home-visit' },
+  { label: 'Sosialisasi (Sos)', value: 'sosialisasi' },
+  { label: 'Follow Up (FU)', value: 'follow-up' },
+  // Setoran is on the list even though it was not asked for: it is a task on
+  // the day, and a "Tipe tugas" filter that cannot name one of the five kinds
+  // is a filter that lies about what the day contains.
+  { label: 'Setoran', value: 'setoran' },
+]
+
+const STATUS_OPTIONS: { label: string; value: TaskStatus | null }[] = [
+  { label: 'Semua status', value: null },
+  { label: 'Belum mulai', value: 'belum' },
+  { label: 'Dikerjakan', value: 'dikerjakan' },
+  { label: 'Selesai', value: 'selesai' },
+  { label: 'Terkirim', value: 'terkirim' },
+]
+
+const STATUS_BADGE: Record<TaskStatus, { label: string; intent: 'neutral' | 'orange' | 'blue' | 'green' }> = {
+  belum: { label: 'Belum mulai', intent: 'neutral' },
+  dikerjakan: { label: 'Dikerjakan', intent: 'orange' },
+  // Blue, not green: it is finished but still on the handset, and green is the
+  // colour this app uses for "settled". Only Terkirim has actually settled.
+  selesai: { label: 'Selesai', intent: 'blue' },
+  terkirim: { label: 'Terkirim', intent: 'green' },
+}
+
+/**
  * The day switcher. Two options, so a sheet rather than a floating menu: the
  * date lives in a top bar the Screen pins, and a popover anchored inside pinned
  * chrome fights the frame's clipping for no benefit at this size.
@@ -167,12 +231,25 @@ export function TodayScreen() {
   const flow = useFlow()
   const s = useApp()
   const [picking, setPicking] = useState(false)
+  const [kind, setKind] = useState<Task['kind'] | null>(null)
+  const [status, setStatus] = useState<TaskStatus | null>(null)
+  const [menu, setMenu] = useState<'kind' | 'status' | null>(null)
   const now = nowTask(s)
   const later = laterTasks(s)
   const done = doneTaskList(s)
   const day = findDay(s.day)
   const collected = collectedToday(s)
   const progress = Math.round((collected / TARGET_HARIAN) * 100)
+  const pending = pendingSync(s)
+
+  // A filter replaces the whole agenda with one flat list. Sekarang/Berikutnya/
+  // Selesai is a shape built around WHEN, and a BP filtering by type or status
+  // has stopped asking that question — leaving three headings over a filtered
+  // day would make her read the same list in three pieces to find two rows.
+  const filtering = Boolean(kind || status)
+  const matches = TASKS.filter(
+    (t) => (!kind || t.kind === kind) && (!status || taskStatus(s, t.id) === status),
+  )
 
   // Tomorrow is the rostered day PLUS whatever the BP promised today. A
   // follow-up she committed to on a call at 11.45 is a real appointment, and
@@ -293,6 +370,104 @@ export function TodayScreen() {
         </div>
       </Card>
 
+      {/* --- Belum terkirim: the day's work that hasn't left the handset.
+          It sits directly above the task list because that is what it is ABOUT
+          — those rows, and the fact that finishing them was not the last step.
+          A BP closes a visit standing in a balai with no signal; without this
+          she finds out on Friday that Tuesday never landed.
+
+          It disappears the moment nothing is pending. A sync widget that stays
+          on screen saying "0" is a permanent reminder of a problem she does not
+          have, and the empty state of a queue is no queue. */}
+      {pending.length > 0 ? (
+        <div className="flex items-center gap-12 rounded-12 border border-orange-200 bg-orange-50 p-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-orange-500">
+            <CloudArrowUp size={20} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-14 font-bold text-default">
+              {pending.length} tugas belum terkirim
+            </span>
+            <span className="truncate text-12 text-caption">
+              Sudah selesai, masih tersimpan di HP
+            </span>
+          </div>
+          <Button size="sm" className="h-40 shrink-0 px-16" onClick={() => store.sendPending()}>
+            Kirim
+          </Button>
+        </div>
+      ) : null}
+
+      {/* Two filters, and they answer the two questions a day gets asked when
+          it stops running in order: "what home visits do I still have" and
+          "what have I not sent". */}
+      <FilterBar>
+        <FilterChip
+          label={
+            kind
+              ? (KIND_OPTIONS.find((o) => o.value === kind)?.label.replace(/ \(.*\)/, '') ??
+                'Tipe tugas')
+              : 'Tipe tugas'
+          }
+          active={Boolean(kind)}
+          open={menu === 'kind'}
+          onClick={() => setMenu('kind')}
+        />
+        <FilterChip
+          label={status ? STATUS_BADGE[status].label : 'Status tugas'}
+          active={Boolean(status)}
+          open={menu === 'status'}
+          onClick={() => setMenu('status')}
+        />
+        {filtering ? (
+          <ResetLink
+            onClick={() => {
+              setKind(null)
+              setStatus(null)
+            }}
+          />
+        ) : null}
+      </FilterBar>
+
+      {filtering ? (
+        <>
+          <span className="text-12 text-caption">
+            {matches.length} dari {TASKS.length} tugas
+          </span>
+          <div className="flex flex-col gap-8 pb-16">
+            {matches.length === 0 ? (
+              <EmptyState title="Tidak ada tugas" body="Coba tipe atau status lain." />
+            ) : null}
+            {matches.map((task) => (
+              <AgendaRow key={task.id} time={task.time}>
+                <button
+                  type="button"
+                  onClick={() => start(task)}
+                  className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
+                >
+                  <KindTag kind={task.kind} />
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <span className="truncate text-14 font-bold text-default">{task.title}</span>
+                    <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+                      <PinMark />
+                      <span className="truncate">{task.place}</span>
+                    </span>
+                    <TaskLabels task={task} />
+                  </div>
+                  {/* The status badge earns its place ONLY here. On the normal
+                      agenda the section a row sits in already says where it
+                      stands; in a flat filtered list there are no sections. */}
+                  <Badge intent={STATUS_BADGE[taskStatus(s, task.id)].intent}>
+                    {STATUS_BADGE[taskStatus(s, task.id)].label}
+                  </Badge>
+                </button>
+              </AgendaRow>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+
       {/* --- Sekarang: the only card that grows a button. */}
       {now ? (
         <>
@@ -308,6 +483,7 @@ export function TodayScreen() {
                       <PinMark />
                       {now.place}
                     </span>
+                    <TaskLabels task={now} />
                   </div>
                 </div>
 
@@ -356,12 +532,13 @@ export function TodayScreen() {
                       argued for, and the schedule already made that call by
                       putting the stop on the day. Where she has to ride is the
                       fact she reads a row for. */}
-                  <div className="flex min-w-0 flex-1 flex-col">
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <span className="truncate text-14 font-bold text-default">{task.title}</span>
                     <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
                       <PinMark />
                       <span className="truncate">{task.place}</span>
                     </span>
+                    <TaskLabels task={task} />
                   </div>
                   <span className="shrink-0 text-disabled">
                     <IconChevronRight size={20} />
@@ -382,15 +559,48 @@ export function TodayScreen() {
                   gutter, so the clock rail runs unbroken through the day. */}
               <span className="w-40 shrink-0 text-right text-12 text-disabled">{task.time}</span>
               <span className="flex-1 text-14 text-caption line-through">{task.title}</span>
-              <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                Selesai
-              </Badge>
+              {/* Selesai and Terkirim are told apart here too, or the section
+                  the sync widget is about would be the one place that hides
+                  which rows it means. */}
+              {s.sentTasks.includes(task.id) ? (
+                <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
+                  Terkirim
+                </Badge>
+              ) : (
+                <Badge intent="blue">Selesai</Badge>
+              )}
             </div>
           ))}
         </Collapsible>
       ) : null}
+        </>
+      )}
 
       <DayPicker open={picking} onClose={() => setPicking(false)} />
+      <OptionSheet
+        open={menu === 'kind'}
+        title="Tipe tugas"
+        name="tipe-tugas"
+        options={KIND_OPTIONS}
+        value={kind}
+        onPick={(v) => {
+          setKind(v)
+          setMenu(null)
+        }}
+        onClose={() => setMenu(null)}
+      />
+      <OptionSheet
+        open={menu === 'status'}
+        title="Status tugas"
+        name="status-tugas"
+        options={STATUS_OPTIONS}
+        value={status}
+        onPick={(v) => {
+          setStatus(v)
+          setMenu(null)
+        }}
+        onClose={() => setMenu(null)}
+      />
       <TabBar active="today" />
     </Screen>
   )

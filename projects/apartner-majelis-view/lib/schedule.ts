@@ -40,6 +40,22 @@ export interface Task {
   eventId?: string
   /** Set on a follow-up — the prospect being called (a `Lead` id). */
   leadId?: string
+  /**
+   * How far she has to ride, from where she is now. On the card because the
+   * order of a day is decided by geography as much as by the clock: two stops
+   * in the same kampung get done together whatever their slots say.
+   */
+  distanceKm?: number
+  /**
+   * Scored likely to pay if visited today. Only ever set on a HOME VISIT: a
+   * majelis is 22 women with 22 different answers, so a single propensity flag
+   * on a group is a number that describes nobody in it.
+   *
+   * It is a PREDICTION, and the card says so by keeping it a small green label
+   * rather than a headline — a BP who reads it as a promise and finds an empty
+   * house twice stops believing the next one.
+   */
+  payLikely?: boolean
 }
 
 export const TASKS: Task[] = [
@@ -52,6 +68,7 @@ export const TASKS: Task[] = [
     place: 'Balai RW 04, Ciseeng',
     reason: '3 mitra menunggak · pelayanan rutin',
     majelisId: 'mawar',
+    distanceKm: 1.2,
   },
   {
     id: 't2',
@@ -62,6 +79,7 @@ export const TASKS: Task[] = [
     place: 'Rumah Bu Yanti, Putat Nutug',
     reason: '1 mitra menunggak · pelayanan rutin',
     majelisId: 'melati',
+    distanceKm: 3.8,
   },
   // A phone call, slotted into the gap between the 10.00 balai and the 13.00
   // door rather than given a room of its own. That is where follow-up actually
@@ -86,6 +104,7 @@ export const TASKS: Task[] = [
     place: 'Kp. Cibeuteung RT 02',
     reason: 'Menunggak 63 hari · Rp 1.500.000',
     mitraId: 'h1',
+    distanceKm: 2.4,
   },
   // The one stop on the day that is not about a woman who already borrows.
   {
@@ -97,6 +116,7 @@ export const TASKS: Task[] = [
     place: 'Warung Bu Ipah, Kp. Cibeuteung RT 03',
     reason: 'Target 10 prospek · desa baru, belum ada majelis',
     eventId: 'e1',
+    distanceKm: 2.9,
   },
   {
     id: 't4',
@@ -107,6 +127,10 @@ export const TASKS: Task[] = [
     place: 'Kp. Putat Nutug RT 05',
     reason: 'Janji bayar hari ini · Rp 250.000',
     mitraId: 'h2',
+    distanceKm: 5.1,
+    // She named today herself on last week's call — the strongest signal the
+    // score has, and the reason this one carries the label and Wati does not.
+    payLikely: true,
   },
   {
     id: 't5',
@@ -117,6 +141,7 @@ export const TASKS: Task[] = [
     place: 'Balai Desa Ciseeng',
     reason: '4 mitra menunggak · pelayanan rutin',
     majelisId: 'kenanga',
+    distanceKm: 4.3,
   },
   // The close. Last on the day by construction, so `nowTask` only surfaces it
   // once every visit is submitted — the deposit cannot be right while there is
@@ -130,6 +155,7 @@ export const TASKS: Task[] = [
     title: 'Setor Setoran Harian',
     place: 'Transfer ke VA cabang Ciseeng',
     reason: 'Batas setor 18.00 · uang tunai hasil penagihan hari ini',
+    distanceKm: 0,
   },
 ]
 
@@ -159,6 +185,8 @@ export const TOMORROW_TASKS: Task[] = [
     place: 'Kp. Putat Nutug RT 03',
     reason: 'Janji bayar · Rp 125.000',
     mitraId: 'h2',
+    distanceKm: 3.2,
+    payLikely: true,
   },
   {
     id: 'w3',
@@ -214,6 +242,10 @@ export const DAYS: { key: DayKey; label: string; date: string }[] = [
   { key: 'today', label: 'Hari ini', date: 'Selasa, 21 Juli' },
   { key: 'tomorrow', label: 'Besok', date: 'Rabu, 22 Juli' },
 ]
+
+/** "2,4 km" — Indonesian decimal comma, one place, and 0 reads as "di sini". */
+export const km = (v: number): string =>
+  v === 0 ? 'Di lokasi Anda' : `${v.toFixed(1).replace('.', ',')} km dari lokasi Anda`
 
 export const findDay = (key: DayKey) => DAYS.find((d) => d.key === key) ?? DAYS[0]
 
