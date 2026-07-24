@@ -15,6 +15,7 @@
 
 import { MAJELIS, PREPAID, isSelfServe, outstandingOf } from './data'
 import { INTEREST_ORDER, SEED_LEADS, type Lead } from './leads'
+import { vaFor } from './schedule'
 import { store, type Attendance, type DepositEntry, type FollowUpDraft } from './store'
 
 const collectible = MAJELIS.members.filter((m) => !isSelfServe(m))
@@ -114,11 +115,46 @@ export const scheduleMajelis = () => store.set({ day: 'today', doneTasks: [] })
 
 /** Everything before the 13.00 door is done — a home visit is now "Sekarang". */
 export const scheduleHomeVisit = () =>
-  store.set({ day: 'today', doneTasks: ['t1', 't2', 't2b'] })
+  store.set({
+    day: 'today',
+    doneTasks: ['t1', 't2', 't2b'],
+    // The finished visits BANK their cash, or the settlement widget on this
+    // screen has nothing to be about. Two majelis in the bag by midday is
+    // exactly the moment the mid-day handover exists for.
+    deposits: depositsFor(['t1', 't2']),
+    settlements: [],
+    depositAmount: null,
+    depositProof: false,
+  })
 
 /** Every visit submitted — the closing deposit is the only task left. */
 export const scheduleClosing = () =>
-  store.set({ day: 'today', doneTasks: ['t1', 't2', 't2b', 't3', 't3b', 't4', 't5'] })
+  store.set({
+    day: 'today',
+    doneTasks: ['t1', 't2', 't2b', 't3', 't3b', 't4', 't5'],
+    deposits: bankedDay,
+    settlements: [],
+    depositAmount: null,
+    depositProof: false,
+  })
+
+/**
+ * Both mid-day handovers spent, with an afternoon still to bank. The state the
+ * cap exists for: the widget is gone and the remaining cash rides to the
+ * closing task.
+ */
+export const scheduleCapped = () =>
+  store.set({
+    day: 'today',
+    doneTasks: ['t1', 't2', 't2b', 't3', 't4'],
+    deposits: bankedDay,
+    settlements: [
+      { no: 1, amount: bankedDay.t1.cash, taskIds: ['t1'], va: vaFor(1), at: '11.40', closing: false },
+      { no: 2, amount: bankedDay.t2.cash, taskIds: ['t2'], va: vaFor(2), at: '15.10', closing: false },
+    ],
+    depositAmount: null,
+    depositProof: false,
+  })
 
 // --- The daily close -------------------------------------------------------
 

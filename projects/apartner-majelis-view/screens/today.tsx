@@ -30,19 +30,24 @@ import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
 import {
   DAYS,
-  TARGET_HARIAN,
+  DEPOSIT,
   TASKS,
   TOMORROW_TASKS,
   findDay,
   km,
+  taskCode,
   withScheduled,
   type Task,
 } from '../lib/schedule'
-import { IconCheck, IconChevronDown, IconChevronRight, IconInbox } from '../lib/icons'
+import { IconCheck, IconChevronDown, IconChevronRight, IconInbox, IconWallet } from '../lib/icons'
 import { CloudArrowUp } from '@/design-system/icons'
 import {
-  collectedToday,
+  canSettleMidDay,
+  midDayUsed,
   pendingSync,
+  settledTotal,
+  unsettledEntries,
+  unsettledTotal,
   scheduledFor,
   store,
   taskStatus,
@@ -56,7 +61,6 @@ import {
   FilterBar,
   FilterChip,
   HeaderAction,
-  Meter,
   OptionSheet,
   Overline,
   PinMark,
@@ -299,9 +303,9 @@ export function TodayScreen() {
   const [status, setStatus] = useState<TaskStatus | null>(null)
   const [menu, setMenu] = useState<'kind' | 'status' | null>(null)
   const day = findDay(s.day)
-  const collected = collectedToday(s)
-  const progress = Math.round((collected / TARGET_HARIAN) * 100)
   const pending = pendingSync(s)
+  const settleEntries = unsettledEntries(s)
+  const toSettle = unsettledTotal(s)
 
   // A filter replaces the whole agenda with one flat list. Sekarang/Berikutnya/
   // Selesai is a shape built around WHEN, and a BP filtering by type has
@@ -421,23 +425,83 @@ export function TodayScreen() {
 
   return (
     <Screen topBar={header}>
-      {/* --- Terkumpul hari ini: the same card apartner-homepage-ia opens on.
-          It is the one number a BP is asked for by her BM before the day is
-          over, and it belongs above the work rather than at the deposit, where
-          it would arrive too late to change how she works the afternoon.
-          Without homepage-ia's "Lihat semua": there is no collection ledger to
-          send her to here, and a link that opens a list of what she just did is
-          a link back to the page she is on. */}
-      <Overline>Terkumpul hari ini</Overline>
-      <Card>
-        <div className="flex flex-col gap-8">
-          <div className="flex items-baseline justify-between gap-8">
-            <span className="text-16 font-bold text-default">{rupiah(collected)}</span>
-            <span className="text-10 text-disabled">Target {rupiah(TARGET_HARIAN)}</span>
+      {/* --- Setoran: what is in her bag right now, and the button that puts
+          it down. It replaced "Terkumpul hari ini", which was a progress bar
+          against a target — a number to feel something about rather than act
+          on. This one is the same money phrased as a decision, and it is the
+          larger risk: cash on a motorbike, not a percentage.
+
+          It offers no amount. A settlement takes everything outstanding, so
+          the only thing she picks is when.
+
+          It DISAPPEARS after two mid-day handovers. The third is the closing
+          task, which is hers to reach on the schedule below — a widget that
+          stayed visible and refused to work would teach her to distrust it. */}
+      {canSettleMidDay(s) ? (
+        <div className="flex flex-col gap-12 rounded-12 border border-green-200 bg-green-50 p-12">
+          <div className="flex items-center gap-12">
+            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-green-500">
+              <IconWallet size={20} />
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="text-12 text-caption">Uang tunai belum disetor</span>
+              <span className="text-20 font-bold text-default">{rupiah(toSettle)}</span>
+            </div>
           </div>
-          <Meter progress={progress} tone={progress >= 100 ? 'green' : 'primary'} />
+
+          {/* What the money is made of, in the codes she thinks in. At this
+              moment she is not thinking "Majelis Mawar", she is thinking "the
+              first two majelis and the doorstep". */}
+          <div className="flex flex-wrap items-center gap-4">
+            {settleEntries.map((e) => (
+              <span
+                key={e.taskId}
+                className="rounded-8 bg-neutral-white px-8 py-4 text-10 font-bold text-neutral-700"
+              >
+                {taskCode(e.taskId)}
+              </span>
+            ))}
+            <span className="text-10 text-caption">
+              {settleEntries.length} tugas · sisa {DEPOSIT.maxMidDay - midDayUsed(s)} setoran
+              di tengah hari
+            </span>
+          </div>
+
+          <Button
+            size="md"
+            className="w-full"
+            onClick={() => {
+              store.openSettlement()
+              flow.go('deposit')
+            }}
+          >
+            Setor Sekarang
+          </Button>
         </div>
-      </Card>
+      ) : null}
+
+      {/* Once both mid-day slots are spent, what is left is a statement rather
+          than a control: this much is still on her, and the closing task is
+          where it goes. Saying nothing at all would leave her carrying money
+          the app had stopped mentioning. */}
+      {!canSettleMidDay(s) && toSettle > 0 ? (
+        <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-50 text-neutral-600">
+            <IconWallet size={20} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-12 text-caption">Uang tunai belum disetor</span>
+            <span className="text-16 font-bold text-default">{rupiah(toSettle)}</span>
+          </div>
+          <span className="shrink-0 text-10 text-disabled">Setor di tugas penutup</span>
+        </div>
+      ) : null}
+
+      {settledTotal(s) > 0 ? (
+        <span className="text-10 text-disabled">
+          Sudah disetor hari ini: {rupiah(settledTotal(s))} dalam {s.settlements.length} kali
+        </span>
+      ) : null}
 
       {/* --- Belum terkirim: the day's work that hasn't left the handset.
           It sits directly above the task list because that is what it is ABOUT

@@ -38,7 +38,9 @@ export const project: ProjectModule = {
         'The BP opens her day here, as one list of equal cards under two headings: Belum selesai and Selesai. There is no focus card and no “Sekarang”. The page used to draw one stop larger with the verb on a button, which answers “what next” on a day that does not run in clock order — she arrives early, a group is late, the 13.00 door is on the way back from the 10.00 balai — so the biggest thing on screen was regularly the row she was not doing. Every row starts its task on tap, which is all the button ever did.',
         'The split is on the only line that matters when she looks at her day: is there still something to do here. Dikerjakan sits with Belum mulai because a half-finished visit is unfinished work; Terkirim sits with Selesai because both are off her plate, and which of the two it is belongs to the sync widget rather than to a section heading.',
         'Every row wears its kind as a short code — MV, HV, Sos, FU — the same shorthand she and her BM already speak.',
-        'Terkumpul hari ini sits above the work, the same card apartner-homepage-ia opens on, minus its “Lihat semua”: the figure is what a BM asks for before the day is out, and at the deposit screen it would arrive too late to change how she works the afternoon. It counts cash AND app payments — on-track is a different question from what is in the bag.',
+'Setoran replaced Terkumpul hari ini at the top of the page. That card was a progress bar against a target — a number to feel something about rather than act on. This one is the same money phrased as a decision, and it is the larger risk: cash on a motorbike, not a percentage. It names the amount, the tasks it came from as codes (MV 1, MV 2, HV 1), and offers one button.',
+        'A settlement takes EVERYTHING outstanding — there is no amount to choose. Partial handovers would need the app to hold an opinion about which rupiah in her bag belongs to which pelayanan, which it cannot check and she cannot separate, and a BP free to pick the number is a BP who can be asked why she picked it. What she chooses is when.',
+        'Three settlements a day, two of them mid-day. After the second the widget DISAPPEARS and the remaining cash rides to the closing task, which is the third — a widget that stayed visible while refusing to work would teach her to distrust it. What survives is a quiet line saying how much is still on her and where it goes. Each settlement gets its own VA, because a virtual account is what the branch reconciles against and three transfers to one number are three deposits nobody can tell apart at the other end.',
         'Every card is now title + address and nothing else. The “why now” line is off both the focus card and the Berikutnya rows: a row that carries a reason is a row being argued for, and the schedule already made that call by putting the stop on the day. Where she has to ride is the fact a row gets read for.',
         'One inbox in the header, no bell. They were two senders — the business talking TO the BP, and the system reporting what happened — but a notification is something that already happened, and this page is for what has not.',
         'Belum terkirim sits directly above the task list, because that is what it is ABOUT: those rows, and the fact that finishing them was not the last step. A BP closes a visit standing in a balai with no signal; without this she finds out on Friday that Tuesday never landed. It disappears the moment nothing is pending — a sync widget saying “0” is a permanent reminder of a problem she does not have.',
@@ -66,6 +68,12 @@ export const project: ProjectModule = {
           label: 'Sekarang: Setoran',
           description: 'Semua kunjungan selesai — tinggal setor tutup hari',
           apply: demo.scheduleClosing,
+        },
+        {
+          id: 'capped',
+          label: 'Setoran habis',
+          description: 'Dua setoran tengah hari terpakai — widget hilang',
+          apply: demo.scheduleCapped,
         },
       ],
       flowsTo: [
