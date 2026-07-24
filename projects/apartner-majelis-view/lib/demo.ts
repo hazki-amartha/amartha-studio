@@ -152,41 +152,60 @@ const bankedDay: Record<string, DepositEntry> = {
   },
 }
 
-const bankedTotal = Object.values(bankedDay).reduce((sum, e) => sum + e.cash, 0)
+// Every task on the day except the closing itself — what check 1 counts.
+const CLOSING_DONE = ['t1', 't2', 't2b', 't3', 't3b', 't4', 't5']
 
-export const dayEmpty = () =>
+/** The banked lines for a set of finished tasks — only the ones that took cash. */
+const depositsFor = (ids: string[]): Record<string, DepositEntry> => {
+  const out: Record<string, DepositEntry> = {}
+  ids.forEach((id) => {
+    if (bankedDay[id]) out[id] = bankedDay[id]
+  })
+  return out
+}
+
+/** Nothing started: every task still open, nothing to deposit. */
+export const closingFresh = () =>
+  store.set({ day: 'today', doneTasks: [], deposits: {}, depositProof: false, depositDone: false })
+
+/** Mid-day: four stops done, three still open — the incomplete checklist. */
+export const closingPartial = () => {
+  const done = ['t1', 't2', 't2b', 't3']
   store.set({
-    deposits: {},
-    depositAmount: 0,
-    depositDiffReason: null,
+    day: 'today',
+    doneTasks: done,
+    deposits: depositsFor(done),
+    depositProof: false,
+    depositDone: false,
+  })
+}
+
+/** Every task done, titipan not yet deposited — the state the CTA waits on. */
+export const closingReady = () =>
+  store.set({
+    day: 'today',
+    doneTasks: CLOSING_DONE,
+    deposits: bankedDay,
     depositProof: false,
     depositDone: false,
   })
 
-export const dayCollected = () =>
+/** Both checks pass — every task done AND the titipan deposited. Ready to close. */
+export const closingSettled = () =>
   store.set({
+    day: 'today',
+    doneTasks: CLOSING_DONE,
     deposits: bankedDay,
-    depositAmount: bankedTotal,
-    depositDiffReason: null,
-    depositProof: false,
-    depositDone: false,
-  })
-
-/** The case the screen exists for: the bag and the app disagree. */
-export const daySelisih = () =>
-  store.set({
-    deposits: bankedDay,
-    depositAmount: bankedTotal - 15_000,
-    depositDiffReason: 'Mitra bayar kurang dari yang dicatat',
     depositProof: true,
     depositDone: false,
   })
 
-export const daySubmitted = () =>
+/** Closed and sent — waiting on branch verification. */
+export const closingSent = () =>
   store.set({
+    day: 'today',
+    doneTasks: CLOSING_DONE,
     deposits: bankedDay,
-    depositAmount: bankedTotal,
-    depositDiffReason: null,
     depositProof: true,
     depositDone: true,
   })

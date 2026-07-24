@@ -9,7 +9,7 @@
 // not reaching her, and the BP's actual next move at a locked gate is to phone
 // — which until now meant leaving the app for a number the app already had.
 //
-//   [avatar] Nama  ›            [WA] [Telepon]
+//   [avatar] Nama  ›            [Peta] [WA]
 //   📍 alamat
 //
 // The amount gets a card of its own rather than a footnote on this one, because
@@ -19,9 +19,8 @@
 
 import { Card } from '@/design-system/components'
 import { type Mitra } from './data'
-import { IconChevronRight, IconPhone } from './icons'
-import { profileOf } from './profile'
-import { MitraPhoto } from './mitra-card'
+import { IconChevronRight } from './icons'
+import { HouseLocation, MitraPhoto, mapsUrl } from './mitra-card'
 import { ContactButton, PinMark, WaMark } from './ui'
 
 export function HomeMitraCard({
@@ -34,8 +33,6 @@ export function HomeMitraCard({
   /** Opens her mitra page, from the name. */
   onOpen: () => void
 }) {
-  const phone = profileOf(mitra).phone
-
   return (
     <Card>
       <div className="flex flex-col gap-12">
@@ -56,23 +53,23 @@ export function HomeMitraCard({
           </button>
 
           {/* Two circular controls on the same 40px rhythm as every other mitra
-              card. Icon-only: WhatsApp and a handset are the two most legible
-              glyphs a field app has, and keeping them silent leaves the name
-              the loudest thing in the row. */}
+              card: the route to her house, then WhatsApp. Map first, because at
+              the door the first move is getting there. */}
           <div className="flex shrink-0 gap-8">
+            <ContactButton
+              label={`Buka lokasi rumah ${mitra.name} di peta`}
+              tone="red"
+              href={mapsUrl(address)}
+            >
+              <PinMark size={20} />
+            </ContactButton>
             <ContactButton label={`WhatsApp ${mitra.name}`} tone="green">
               <WaMark size={20} />
-            </ContactButton>
-            <ContactButton label={`Telepon ${mitra.name} — ${phone}`} tone="primary">
-              <IconPhone size={20} />
             </ContactButton>
           </div>
         </div>
 
-        <span className="flex items-start gap-4 text-12 text-caption">
-          <PinMark />
-          {address}
-        </span>
+        <HouseLocation address={address} />
       </div>
     </Card>
   )

@@ -1,20 +1,15 @@
 'use client'
 
-// Home visit, step 1 of 2 — Temui & Tagih.
+// Home visit, step 2 of 3 — Tagih.
 //
-// A home visit branches more than a majelis stop: the team's flowchart runs
-// met-mitra? → can-pay? → full/partial → reason → PTP, and in parallel
-// not-present → met-PJ? → titipan?. This direction asks that same tree in one
-// page that grows as she answers, with three collapses doing the work:
+// Who was met is already answered on Persiapan, and "nobody home" never reaches
+// this step — a locked door has nothing to tagih, so that branch takes its note
+// on Persiapan and skips straight to Bukti & Kirim. This page is only ever shown
+// when the mitra or her PJ was there, so it opens straight on the money.
 //
-// * "met mitra? → met PJ? → met neighbour?" is ONE question with three answers.
-//   All three ask who the BP talked to; nesting them made her answer the same
-//   question repeatedly to reach "nobody was home".
-// * Mitra and PJ take the SAME outcome controls. Whether the money came from
-//   her or from her husband does not change what gets recorded — the amount and
-//   the promise — so who handed it over is a tag, not a branch.
-// * "Nobody home" cannot produce a payment, so the three-way outcome list is
-//   not drawn at all; the page opens straight on the reason and the revisit.
+// Mitra and PJ take the SAME outcome controls. Whether the money came from her
+// or from her husband does not change what gets recorded — the amount and the
+// promise — so who handed it over is a tag, not a branch.
 //
 // Everything is ON THE PAGE, not in a sheet — the opposite of this direction's
 // majelis collect step, and deliberately so. The majelis flow opens a full page
@@ -31,27 +26,17 @@ import { Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
-import { HomeMitraCard } from '../lib/home-card'
-import { AngsuranCard } from '../lib/mitra-card'
+import { AngsuranCard, JanjiBayarCard } from '../lib/mitra-card'
+import { DAYS } from '../lib/schedule'
+import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
 import {
-  openHomeMitra,
-  openHomeTask,
-  paidOf,
-  store,
-  useApp,
-  type MetWith,
-} from '../lib/store'
-import { Chip, ChipGroup, HOME_STAGE_LABELS, SectionTitle, StageBar, StickyBar } from '../lib/ui'
-
-const WHO: { value: MetWith; title: string; description: string }[] = [
-  { value: 'mitra', title: 'Mitra sendiri', description: 'Bisa langsung menagih' },
-  {
-    value: 'pj',
-    title: 'Keluarga / penanggung jawab',
-    description: 'Titipan dan janji bayar tetap dicatat atas nama mitra',
-  },
-  { value: 'nobody', title: 'Tidak ada orang', description: 'Tidak ada pembayaran hari ini' },
-]
+  Chip,
+  ChipGroup,
+  HOME_STAGE_LABELS,
+  SectionTitle,
+  StageBar,
+  StickyBar,
+} from '../lib/ui'
 
 // Why she can't pay, when someone was reached.
 const PAY_REASONS = [
@@ -60,11 +45,6 @@ const PAY_REASONS = [
   'Sakit / keluarga sakit',
   'Menolak bayar',
 ]
-
-// Why nobody was there. These are the ones that change what ops does next —
-// relocation and death both open a different case entirely, which is why
-// "pindah" asks for a new address.
-const ABSENT_REASONS = ['Sedang bekerja', 'Pergi tanpa kabar', 'Pindah rumah', 'Meninggal dunia']
 
 const PTP_OPTIONS: { label: string; value: string | null }[] = [
   { label: 'Besok, 22 Juli', value: '22 Juli' },
@@ -84,11 +64,7 @@ export function HomeVisitScreen() {
   const paid = paidOf(s, mitra)
   const owed = outstandingOf(mitra)
 
-  // Nobody home means no money changed hands, so there is nothing to choose
-  // between: the mode list is not drawn and the outcome is a recorded no.
-  const absent = met === 'nobody'
   const mode = s.payMode[mitra.id]
-  const reasons = absent ? ABSENT_REASONS : PAY_REASONS
   const shortfall = owed.total - paid
 
   function pick(next: 'penuh' | 'sebagian' | 'tidak') {
@@ -117,52 +93,27 @@ export function HomeVisitScreen() {
               </span>
             </span>
           }
-          onBack={() => flow.go('today')}
+          onBack={() => flow.back()}
         />
       }
     >
-      <StageBar current={1} labels={HOME_STAGE_LABELS} />
+      <StageBar current={2} labels={HOME_STAGE_LABELS} />
 
-      <HomeMitraCard
-        mitra={mitra}
-        address={task?.place ?? ''}
-        onOpen={() => {
-          store.openMitraPage(mitra.id)
-          flow.go('mitra')
-        }}
-      />
-
-      {/* Always on screen, from the moment the step opens — the BP should never
-          be talking to her with the amount she is asking for off-screen.
-
-          The same card the mitra page and the majelis tagih flow open on: the
-          recent cycle on grey over the bill on white. A doorstep collection is
-          the same reading as a majelis one, so it gets the same drawing. No
-          "Lihat Semua" here, for the reason the collect page omits it — with a
-          mitra in front of her the full ledger is not a place to wander off to. */}
+      {/* The recent cycle on grey over the bill on white — the same AngsuranCard
+          the mitra page and the majelis tagih flow open on, so a doorstep
+          collection reads the same as a majelis one. No "Lihat Semua" here: with
+          a mitra in front of her the full ledger is not a place to wander off. */}
       <AngsuranCard mitra={mitra} />
 
-      {/* --- The one question that replaces three nested ones. */}
-      <SectionTitle>Siapa yang ditemui?</SectionTitle>
-      <div className="flex flex-col gap-8">
-        {WHO.map((option) => (
-          <SelectableCard
-            key={option.value}
-            name="ditemui"
-            inputType="radio"
-            title={option.title}
-            description={option.description}
-            checked={met === option.value}
-            onChange={() => store.setMetWith(mitra.id, option.value)}
-          />
-        ))}
-      </div>
+      {/* The promise she is being held to — dated the visit day. Sits with the
+          bill because it is the figure the BP negotiates against. */}
+      <JanjiBayarCard mitra={mitra} date={DAYS[0].date} />
 
       {/* --- The outcome, inline. Same three results the majelis collect page
           offers, in the same order — and the same controls whether it was her
           or her family, since what gets recorded is the money and the promise,
           not who handed them over. */}
-      {met && !absent ? (
+      {met ? (
         <>
           <SectionTitle>Pembayaran</SectionTitle>
           <div className="flex flex-col gap-8">
@@ -195,7 +146,7 @@ export function HomeVisitScreen() {
       ) : null}
 
       {/* The amount is typed straight into the record — no draft, no Simpan. */}
-      {met && !absent && mode === 'sebagian' ? (
+      {met && mode === 'sebagian' ? (
         <Card>
           <div className="flex flex-col gap-12">
             <Input
@@ -239,15 +190,15 @@ export function HomeVisitScreen() {
         </Card>
       ) : null}
 
-      {/* --- Nobody home, or a recorded no. Either way the remaining questions
-          are the same two: why, and when to come back. */}
-      {(absent || mode === 'tidak') && met ? (
+      {/* --- A recorded no: she was reached but did not pay. The two remaining
+          questions are why, and when she promises to. */}
+      {met && mode === 'tidak' ? (
         <>
-          <SectionTitle>{absent ? 'Catatan kunjungan' : 'Alasan belum bayar'}</SectionTitle>
+          <SectionTitle>Alasan belum bayar</SectionTitle>
           <Card>
             <div className="flex flex-col gap-12">
-              <ChipGroup label={absent ? 'Kenapa tidak ada di rumah?' : 'Alasan'}>
-                {reasons.map((option) => (
+              <ChipGroup label="Alasan">
+                {PAY_REASONS.map((option) => (
                   <Chip
                     key={option}
                     selected={refusal?.reason === option}
@@ -258,22 +209,10 @@ export function HomeVisitScreen() {
                 ))}
               </ChipGroup>
 
-              {/* Relocation is the one reason that needs more than a label — an
-                  address is what turns "pindah" into something ops can act on
-                  rather than a dead end. */}
-              {refusal?.reason === 'Pindah rumah' ? (
-                <Input
-                  label="Alamat baru (jika diketahui)"
-                  value={s.newAddress[mitra.id] ?? ''}
-                  onChange={(e) => store.setNewAddress(mitra.id, e.target.value)}
-                  helperText="Kosongkan jika belum tahu — akan dibuat tugas pelacakan."
-                />
-              ) : null}
-
-              {/* Asked only once there is a reason: a revisit date with nothing
+              {/* Asked only once there is a reason: a promise with nothing
                   attached to it is not a record of anything. */}
-              {refusal?.reason && refusal.reason !== 'Meninggal dunia' ? (
-                <ChipGroup label={absent ? 'Kunjungan ulang' : 'Janji bayar'}>
+              {refusal?.reason ? (
+                <ChipGroup label="Janji bayar">
                   {PTP_OPTIONS.map((option) => (
                     <Chip
                       key={option.label}

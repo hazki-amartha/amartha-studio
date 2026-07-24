@@ -220,6 +220,13 @@ export interface AppState {
   partialPtp: Record<string, string | null>
   /** mitraId → her new address, when the reason given is "Pindah rumah". */
   newAddress: Record<string, string>
+  /**
+   * mitraId → why the mitra herself was not present at a home visit. Recorded
+   * when the BP met the PJ or found nobody home: the outcome of the visit turns
+   * on who she dealt with, but the record ops reads later has to say why the
+   * borrower was absent, not only that someone else answered.
+   */
+  mitraAbsence: Record<string, string>
 
   // --- The daily close -----------------------------------------------------
 
@@ -337,6 +344,7 @@ const initial: AppState = {
   payMode: {},
   partialPtp: {},
   newAddress: {},
+  mitraAbsence: {},
   deposits: {},
   depositAmount: null,
   depositDiffReason: null,
@@ -518,6 +526,9 @@ export const store = {
   },
   setNewAddress(mitraId: string, value: string) {
     store.set({ newAddress: { ...state.newAddress, [mitraId]: value } })
+  },
+  setMitraAbsence(mitraId: string, value: string) {
+    store.set({ mitraAbsence: { ...state.mitraAbsence, [mitraId]: value } })
   },
   setDay(day: DayKey) {
     store.set({ day })

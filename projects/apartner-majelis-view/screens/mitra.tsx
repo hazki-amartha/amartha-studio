@@ -27,7 +27,7 @@ import { findMitra, rupiah } from '../lib/data'
 import { IconCheck, IconChevronRight, IconTrendUp } from '../lib/icons'
 import { ladderOf } from '../lib/ladder'
 import { profileOf } from '../lib/profile'
-import { AngsuranCard, MitraBadges, MitraPhoto } from '../lib/mitra-card'
+import { AngsuranCard, MitraBadges, MitraPhoto, mapsUrl } from '../lib/mitra-card'
 import { openMajelisEntry, useApp } from '../lib/store'
 import { PinMark, WaMark } from '../lib/ui'
 
@@ -73,7 +73,7 @@ export function MitraScreen() {
       <CircleButton label={`Chat WhatsApp ${mitra.name}`} tone="green">
         <WaMark size={20} />
       </CircleButton>
-      <PinButton label={`Rute ke rumah ${mitra.name}`} />
+      <PinButton label={`Rute ke rumah ${mitra.name}`} query={profile.address} />
     </header>
   )
 
@@ -161,13 +161,13 @@ export function MitraScreen() {
             label="Alamat rumah mitra"
             value={profile.address}
             footer={<PhotoLink label="Foto Rumah" />}
-            trailing={<PinButton label={`Rute ke rumah ${mitra.name}`} />}
+            trailing={<PinButton label={`Rute ke rumah ${mitra.name}`} query={profile.address} />}
           />
           <LabeledRow
             label="Alamat tempat usaha mitra"
             value={profile.business}
             footer={<PhotoLink label="Foto Usaha" />}
-            trailing={<PinButton label={`Rute ke usaha ${mitra.name}`} />}
+            trailing={<PinButton label={`Rute ke usaha ${mitra.name}`} query={profile.business} />}
           />
         </div>
       </Card>
@@ -195,7 +195,7 @@ export function MitraScreen() {
             <LabeledRow
               label="Alamat rumah penanggung jawab"
               value={profile.address}
-              trailing={<PinButton label={`Rute ke rumah ${profile.pjName}`} />}
+              trailing={<PinButton label={`Rute ke rumah ${profile.pjName}`} query={profile.address} />}
             />
             <LabeledRow label="Hubungan dengan mitra" value={profile.pjRelation} />
           </div>
@@ -314,31 +314,40 @@ function CircleButton({
   label,
   tone = 'default',
   onClick,
+  href,
   children,
 }: {
   label: string
   tone?: 'default' | 'green' | 'red'
   onClick?: () => void
+  /** When set, renders as a link — used by the route pin to open maps. */
+  href?: string
   children: ReactNode
 }) {
   const toneClass =
     tone === 'green' ? 'text-green-500' : tone === 'red' ? 'text-red-500' : 'text-default'
+  const shared = `flex h-40 w-40 shrink-0 items-center justify-center rounded-full border border-default bg-neutral-white ${toneClass}`
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" aria-label={label} className={shared}>
+        {children}
+      </a>
+    )
+  }
   return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-full border border-default bg-neutral-white ${toneClass}`}
-    >
+    <button type="button" aria-label={label} onClick={onClick} className={shared}>
       {children}
     </button>
   )
 }
 
-/** A route pin in a circle — red, because a pin that opens a route is red everywhere. */
-function PinButton({ label }: { label: string }) {
+/**
+ * A route pin in a circle — red, because a pin that opens a route is red
+ * everywhere. Given a `query` (an address), it opens Google Maps.
+ */
+function PinButton({ label, query }: { label: string; query?: string }) {
   return (
-    <CircleButton label={label} tone="red">
+    <CircleButton label={label} tone="red" href={query ? mapsUrl(query) : undefined}>
       <PinMark size={20} />
     </CircleButton>
   )

@@ -17,6 +17,7 @@ import { MajelisListScreen } from './screens/majelis-list'
 import { MitraListScreen } from './screens/mitra-list'
 import { ProfileScreen } from './screens/profile'
 import { KpiScreen } from './screens/kpi'
+import { HomeBriefScreen } from './screens/home-brief'
 import { HomeVisitScreen } from './screens/home-visit'
 import { HomeProofScreen } from './screens/home-proof'
 import { DepositScreen } from './screens/deposit'
@@ -69,7 +70,7 @@ export const project: ProjectModule = {
       ],
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Pelayanan 1' },
-        { to: 'home-visit', label: 'Mulai Kunjungan (home visit)' },
+        { to: 'home-brief', label: 'Mulai Kunjungan (home visit)' },
         { to: 'sosialisasi', label: 'Mulai Sosialisasi — cari prospek baru' },
         { to: 'follow-up', label: 'Mulai Follow Up — telepon prospek' },
         { to: 'deposit', label: 'Setor Setoran Harian — tugas penutup' },
@@ -165,64 +166,76 @@ export const project: ProjectModule = {
       ],
     },
     {
-      id: 'home-visit',
-      title: 'Home Visit 1 — Temui & Tagih',
-      component: HomeVisitScreen,
-      notes: [
-        'A home visit is one door, not a group, and it branches: did she meet the mitra, the penanggung jawab, a neighbour, or nobody — and then, was there money, a partial, or only a promise. The page asks that whole tree in one place, growing as she answers.',
-        'Who she met and what was collected are separate facts, so the same outcome controls appear whether the money came from the mitra or her PJ. If nobody was home, the payment options never appear at all — she goes straight to the reason and when she will return.',
-      ],
+      id: 'home-brief',
+      title: 'Home Visit 1 — Persiapan',
+      component: HomeBriefScreen,
       flowsTo: [
-        { to: 'home-proof', label: 'Lanjut — butuh jawaban "siapa ditemui"' },
+        { to: 'home-visit', label: 'Lanjut — mitra / PJ ditemui' },
+        { to: 'home-proof', label: 'Lanjut — jika tidak ada orang (lewati Tagih)' },
         { to: 'mitra', label: 'ketuk nama mitra' },
       ],
     },
     {
+      id: 'home-visit',
+      title: 'Home Visit 2 — Tagih',
+      component: HomeVisitScreen,
+      notes: [
+        'The money step. Who she met was answered on Persiapan, so this page opens straight on the ledger and the bill — the ten-week strip and the total tagihan, the same components the mitra and collect pages draw — then the payment outcome: full, partial, or a recorded no.',
+        'Whether the money came from the mitra or her PJ does not change what gets recorded — the amount and the promise — so who handed it over is a tag, not a branch. "Nobody home" never reaches this step: a locked door has nothing to tagih, so that case takes its visit note on Persiapan and skips straight to Bukti & Kirim.',
+      ],
+      flowsTo: [{ to: 'home-proof', label: 'Lanjut' }],
+    },
+    {
       id: 'home-proof',
-      title: 'Home Visit 2 — Bukti & Kirim',
+      title: 'Home Visit 3 — Bukti & Kirim',
       component: HomeProofScreen,
       notes: [
-        'The close of a home visit: a photo and a recorded location, both required before it can be submitted. Location carries more weight here than at a majelis — a balai has a fixed address everyone knows, a doorstep is the visit that gets questioned.',
-        'The recap is scaled to one mitra: who was met, what she paid, and whether there is a promise to come back for. A balance with a promise is work closed for today; a balance with nothing recorded is the one to worry about.',
+        'The close of a home visit: a photo of the door, required before it can be submitted. What she recorded on the two steps before — who was met, what was paid — is not read back here; this step is the paperwork that closes the visit, not a second review of it.',
       ],
-      flowsTo: [{ to: 'today', label: 'Selesaikan Tugas — butuh foto + lokasi' }],
+      flowsTo: [{ to: 'today', label: 'Selesaikan Tugas — butuh foto' }],
     },
     {
       id: 'deposit',
-      title: 'Setoran Harian',
+      title: 'Closing',
       component: DepositScreen,
       notes: [
-        'The close of the day, and the only task that is not a visit: the cash the BP collected leaves her hands here, transferred to the branch VA and self-reported, exactly as it is in the field where the app cannot see a bank transfer either.',
-        'The amount is derived, not typed. Every rupiah was recorded against a named mitra in a named pelayanan, so the deposit is built from the day’s work — and it counts CASH only. A mitra who settled through the app paid the company directly, and folding her in is how a BP ends up short at the counter.',
-        'The selisih is the part worth judging. The app’s figure and the money in the bag disagree more often than a happy-path screen admits, so the BP confirms or edits the amount, and any difference must carry a reason before it can be sent. Same rule as “tidak bayar”: a gap with a reason is a record ops can chase, a gap with nowhere to put it becomes a phone call.',
+        'The close of the day, rebuilt as a two-item checklist over one CTA. Closing is exactly two obligations: every task on the day finished, and the collected cash handed back — so the screen is those two checks and nothing else, and the CTA unlocks only when both pass.',
+        'Check 1 counts the day’s stops. When any are still open it names them — “5 dari 7 selesai”, then the list — so the BP knows what to go back to rather than only that she cannot close yet; when all are done it collapses to a single ticked line.',
+        'Check 2 is the titip bayar: every rupiah she collected is money she is holding for the company, and closing means transferring it to the branch VA. It shows what is still owed and where it goes, gated behind the tasks being done — you settle the bag once, at the end — and self-reported, exactly as it is in the field where the app cannot see a bank transfer. The figure is derived from the day’s collections, so there is nothing to type.',
       ],
       states: [
         {
-          id: 'empty',
+          id: 'awal',
           label: 'Hari belum jalan',
-          description: 'Belum ada pelayanan selesai — tidak ada yang bisa disetor',
-          apply: demo.dayEmpty,
+          description: 'Semua tugas masih terbuka — belum ada yang bisa disetor',
+          apply: demo.closingFresh,
         },
         {
-          id: 'collected',
-          label: 'Sudah 3 tugas',
-          description: '2 pelayanan + 1 kunjungan rumah, siap disetor',
-          apply: demo.dayCollected,
+          id: 'separuh',
+          label: 'Sebagian tugas selesai',
+          description: '4 dari 7 selesai — daftar tugas yang belum tuntas',
+          apply: demo.closingPartial,
         },
         {
-          id: 'selisih',
-          label: 'Ada selisih',
-          description: 'Kurang Rp 15.000 dari catatan aplikasi, alasan terisi',
-          apply: demo.daySelisih,
+          id: 'perlu-setor',
+          label: 'Perlu setor titipan',
+          description: 'Semua tugas selesai, titip bayar belum disetor',
+          apply: demo.closingReady,
         },
         {
-          id: 'sent',
-          label: 'Sudah dikirim',
-          description: 'Menunggu verifikasi cabang',
-          apply: demo.daySubmitted,
+          id: 'siap',
+          label: 'Siap ditutup',
+          description: 'Semua tugas selesai & titip bayar sudah disetor — dua-duanya tercentang',
+          apply: demo.closingSettled,
+        },
+        {
+          id: 'terkirim',
+          label: 'Sudah ditutup',
+          description: 'Closing terkirim — menunggu verifikasi cabang',
+          apply: demo.closingSent,
         },
       ],
-      flowsTo: [{ to: 'today', label: 'Selesai — setelah setoran terkirim' }],
+      flowsTo: [{ to: 'today', label: 'Selesai — setelah closing terkirim' }],
     },
     {
       id: 'sosialisasi',

@@ -1,102 +1,77 @@
 'use client'
 
-// Setoran Harian — the close of the day, and the only task that is not a visit.
+// Closing — the end of the day, and the only task that is not a visit.
 //
-// The BP has spent the day taking physical money from women in their homes and
-// at balai. This screen is where it leaves her: she transfers the day's cash to
-// the branch VA and records that she did. Nothing here is a payment rail — the
-// confirmation is self-reported, exactly as it is in the field, where the app
-// cannot see a bank transfer either.
+// It is a two-item checklist over one CTA, because closing the day is exactly
+// two obligations and nothing else:
 //
-// Two things this direction can do that a mocked-up deposit screen cannot, and
-// they are the reason it is worth building here at all:
+// 1. EVERY TASK DONE. The day's visits have to be finished before the day can be
+//    closed — a closing submitted with a pelayanan still open is a day reported
+//    as over while there is still cash uncollected. So the check counts the
+//    day's stops and, when any are still open, names them: X dari Y, then the
+//    list, so the BP knows what to go back to rather than just that she cannot
+//    close yet.
 //
-// 1. THE AMOUNT IS DERIVED. Every rupiah was recorded against a named mitra in a
-//    named pelayanan, so the total is built from the day's work rather than
-//    typed from a notebook. And it counts only CASH: a mitra who settled through
-//    the app paid the company directly, and folding her into the deposit is how
-//    a BP ends up short at the counter with nothing to show for it.
+// 2. TITIP BAYAR SETTLED. Every rupiah she collected is money she is holding for
+//    the company — a titipan she has to hand back by transferring it to the
+//    branch VA. The check shows what is still owed and where it goes; once she
+//    has transferred it she marks it settled, self-reported exactly as it is in
+//    the field, where the app cannot see a bank transfer either. Depositing is
+//    gated behind the tasks being done: you settle the bag once, at the end.
 //
-// 2. THE SELISIH IS A FIRST-CLASS OUTCOME. The app's figure and the money in the
-//    bag disagree more often than a happy-path screen admits — a mitra was
-//    Rp 5.000 short, an amount was mistyped, something got spent. So the BP
-//    confirms or edits, and a difference must carry a reason before it can be
-//    submitted. Same rule as "tidak bayar" in the collection stage: a gap with a
-//    reason is a record ops can chase, and a gap with nowhere to put it becomes
-//    a phone call.
+// The submit CTA unlocks only when both are true. There is no amount to type —
+// the figure is derived from the day's collections, the same lines the pelayanan
+// and doorsteps recorded — so closing is a confirmation, not data entry.
 
-import { useState } from 'react'
-import { Badge, Button, Card, Input, NavigationHeader } from '@/design-system/components'
+import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { DEPOSIT } from '../lib/schedule'
-import { IconCamera, IconCheck, IconWallet } from '../lib/icons'
-import {
-  depositDiff,
-  depositDigital,
-  depositEntries,
-  depositExpected,
-  store,
-  useApp,
-} from '../lib/store'
-import { Chip, ChipGroup, IconTile, ProofTile, SectionTitle, StickyBar } from '../lib/ui'
-
-// Why her figure and the app's disagree. Fixed list for the same reason every
-// other reason list in this direction is fixed: ops needs a column it can sort,
-// and the BP is standing at a counter, not writing a report.
-const DIFF_REASONS = [
-  'Salah catat nominal',
-  'Mitra bayar kurang dari yang dicatat',
-  'Uang terpakai dulu',
-  'Ada setoran susulan',
-  'Belum tahu — akan dicek',
-]
+import { DEPOSIT, TASKS } from '../lib/schedule'
+import { IconCheck } from '../lib/icons'
+import { depositExpected, store, useApp } from '../lib/store'
+import { SectionTitle, StickyBar } from '../lib/ui'
 
 export function DepositScreen() {
   const flow = useFlow()
   const s = useApp()
 
-  const entries = depositEntries(s)
-  const expected = depositExpected(s)
-  const digital = depositDigital(s)
-  const amount = s.depositAmount ?? expected
-  const diff = depositDiff(s)
+  // --- Check 1: every task on the day except this closing itself. ---------
+  const dayTasks = TASKS.filter((t) => t.kind !== 'setoran')
+  const doneIds = new Set(s.doneTasks)
+  const pending = dayTasks.filter((t) => !doneIds.has(t.id))
+  const doneCount = dayTasks.length - pending.length
+  const allDone = pending.length === 0
 
-  // Typing is opt-in. The default gesture is agreeing with the app.
-  const [editing, setEditing] = useState(false)
+  // --- Check 2: the titipan tunai she has to hand back to the branch. -----
+  const toDeposit = depositExpected(s)
+  // A closing with nothing to deposit is settled by definition; otherwise she
+  // marks it settled once she has transferred (reusing the transfer flag).
+  const depositSettled = toDeposit === 0 || s.depositProof
 
-  const needsReason = diff !== 0 && !s.depositDiffReason
-  const ready = amount > 0 && s.depositProof && !needsReason
+  const ready = allDone && depositSettled
 
   // --- Submitted. Deliberately not "Selesai": she has handed over cash and
   // cannot prove it landed. The branch confirms, and that is tomorrow.
   if (s.depositDone) {
     return (
-      <Screen topBar={<NavigationHeader title="Setoran Harian" hideBack />}>
+      <Screen topBar={<NavigationHeader title="Closing" hideBack />}>
         <Card>
           <div className="flex flex-col items-center gap-8 py-24 text-center">
             <span className="flex h-48 w-48 items-center justify-center rounded-full bg-green-50 text-green-500">
               <IconCheck size={24} />
             </span>
-            <span className="text-20 font-bold text-default">Setoran terkirim</span>
-            <span className="text-24 font-bold text-default">{rupiah(amount)}</span>
+            <span className="text-20 font-bold text-default">Hari ditutup</span>
+            {toDeposit > 0 ? (
+              <span className="text-24 font-bold text-default">{rupiah(toDeposit)}</span>
+            ) : null}
             <span className="text-12 text-caption">
-              Sedang diverifikasi cabang. Kamu akan dapat notifikasi begitu masuk.
+              {toDeposit > 0
+                ? 'Setoran sedang diverifikasi cabang. Kamu akan dapat notifikasi begitu masuk.'
+                : 'Tidak ada titipan tunai hari ini. Semua tugas selesai.'}
             </span>
           </div>
         </Card>
-
-        {diff !== 0 ? (
-          <div className="flex flex-col gap-2 rounded-12 border border-orange-200 bg-orange-50 p-12">
-            <span className="text-14 font-bold text-orange-500">
-              Selisih {diff > 0 ? 'lebih' : 'kurang'} {rupiah(Math.abs(diff))}
-            </span>
-            <span className="text-12 text-caption">
-              {s.depositDiffReason} · cabang akan menghubungi kamu untuk mencocokkan.
-            </span>
-          </div>
-        ) : null}
 
         <StickyBar>
           <Button
@@ -115,156 +90,116 @@ export function DepositScreen() {
   }
 
   return (
-    <Screen
-      topBar={<NavigationHeader title="Setoran Harian" onBack={() => flow.back()} />}
-    >
-      {/* --- What she is carrying. One number, and what it is NOT. */}
-      <Card>
-        <div className="flex items-center gap-12">
-          <IconTile tint="green">
-            <IconWallet size={20} />
-          </IconTile>
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-12 text-caption">Uang tunai yang harus disetor</span>
-            <span className="text-24 font-bold text-default">{rupiah(expected)}</span>
-          </div>
-        </div>
-        {digital > 0 ? (
-          <p className="mt-8 rounded-8 bg-neutral-50 px-12 py-8 text-12 text-caption">
-            {rupiah(digital)} sudah masuk lewat aplikasi mitra — tidak perlu kamu setor.
-          </p>
-        ) : null}
-        <p className="mt-8 text-right text-10 text-disabled">Batas setor {DEPOSIT.due}</p>
-      </Card>
+    <Screen topBar={<NavigationHeader title="Closing" onBack={() => flow.back()} />}>
+      <SectionTitle>Sebelum tutup hari</SectionTitle>
 
-      {/* --- Where it came from. Every line traces back to a pelayanan the BP
-          ran today, which is what makes disagreeing with the total actionable:
-          she knows which group to re-open. */}
-      <SectionTitle>Rincian</SectionTitle>
-      {entries.length > 0 ? (
-        <div className="rounded-12 bg-neutral-white">
-          {entries.map((e, i) => (
-            <div
-              key={e.taskId}
-              className={`flex items-center gap-12 px-12 py-12 ${i === 0 ? '' : 'border-t border-default'}`}
-            >
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-14 font-bold text-default">{e.label}</span>
-                <span className="truncate text-12 text-caption">{e.detail}</span>
-              </div>
-              <span className="shrink-0 text-14 font-bold text-default">{rupiah(e.cash)}</span>
+      {/* --- Check 1: tasks done. ----------------------------------------- */}
+      <Card>
+        <div className="flex items-start gap-12">
+          <StatusIcon done={allDone} />
+          <div className="flex min-w-0 flex-1 flex-col gap-8">
+            <div className="flex items-center gap-8">
+              <span className="flex-1 text-14 font-bold text-default">Tugas hari ini</span>
+              <span className={`text-12 font-bold ${allDone ? 'text-green-500' : 'text-caption'}`}>
+                {doneCount} dari {dayTasks.length} selesai
+              </span>
             </div>
-          ))}
-          <div className="flex items-center gap-12 border-t border-default bg-neutral-50 px-12 py-12">
-            <span className="flex-1 text-14 font-bold text-default">Total</span>
-            <span className="text-18 font-bold text-default">{rupiah(expected)}</span>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2 rounded-12 bg-neutral-white p-12">
-          <span className="text-14 font-bold text-default">Belum ada penagihan tunai</span>
-          <span className="text-12 text-caption">
-            Selesaikan pelayanan hari ini dulu — setoran dihitung dari hasilnya.
-          </span>
-        </div>
-      )}
-
-      {/* --- Where it goes. */}
-      <SectionTitle>Tujuan Setoran</SectionTitle>
-      <Card>
-        <div className="flex items-center gap-12">
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-12 text-caption">{DEPOSIT.bank}</span>
-            <span className="truncate text-18 font-bold text-default">{DEPOSIT.va}</span>
-            <span className="truncate text-12 text-caption">{DEPOSIT.holder}</span>
+            {allDone ? (
+              <span className="text-12 text-caption">Semua tugas hari ini sudah selesai.</span>
+            ) : (
+              <>
+                <span className="text-12 text-caption">
+                  Selesaikan dulu sebelum menutup hari:
+                </span>
+                <div className="flex flex-col gap-8 border-t border-default pt-8">
+                  {pending.map((t) => (
+                    <div key={t.id} className="flex items-center gap-8">
+                      <span className="w-40 shrink-0 text-12 font-bold text-default">{t.time}</span>
+                      <span className="min-w-0 flex-1 truncate text-12 text-default">{t.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </Card>
 
-      {/* --- What she actually handed over. Agreeing is a tap; disagreeing is
-          deliberate, and carries a reason. */}
-      <SectionTitle>Jumlah yang Disetor</SectionTitle>
-      {editing ? (
-        <>
-          <Input
-            label="Jumlah disetor"
-            prefix="Rp"
-            inputMode="numeric"
-            value={amount ? String(amount) : ''}
-            onChange={(e) => store.setDepositAmount(Number(e.target.value.replace(/\D/g, '')) || 0)}
-            helperText={
-              diff === 0
-                ? 'Sama dengan catatan aplikasi'
-                : `${diff > 0 ? 'Lebih' : 'Kurang'} ${rupiah(Math.abs(diff))} dari catatan aplikasi`
-            }
-            state={diff === 0 ? 'valid' : 'default'}
-          />
-          {diff !== 0 ? (
-            <ChipGroup label="Alasan selisih">
-              {DIFF_REASONS.map((reason) => (
-                <Chip
-                  key={reason}
-                  selected={s.depositDiffReason === reason}
-                  onClick={() => store.setDepositDiffReason(reason)}
-                >
-                  {reason}
-                </Chip>
-              ))}
-            </ChipGroup>
-          ) : null}
-        </>
-      ) : (
-        <Card>
-          <div className="flex items-center gap-12">
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="text-18 font-bold text-default">{rupiah(amount)}</span>
-              <span className="text-12 text-caption">Sesuai catatan aplikasi</span>
-            </div>
-            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-              Ubah
-            </Button>
-          </div>
-        </Card>
-      )}
+      {/* --- Check 2: titip bayar settled. -------------------------------- */}
+      <Card>
+        <div className="flex items-start gap-12">
+          <StatusIcon done={depositSettled} />
+          <div className="flex min-w-0 flex-1 flex-col gap-8">
+            <span className="text-14 font-bold text-default">Titip bayar</span>
 
-      {/* --- Proof, the same gesture as every visit today. */}
-      <SectionTitle>Bukti Transfer</SectionTitle>
-      <div className="flex gap-8">
-        <ProofTile
-          done={s.depositProof}
-          label="Foto Bukti Transfer"
-          doneLabel="Bukti tersimpan"
-          icon={<IconCamera size={24} />}
-          onClick={() => store.setDepositProof(!s.depositProof)}
-        />
-      </div>
+            {depositSettled ? (
+              <span className="text-12 text-caption">
+                {toDeposit > 0
+                  ? `Titipan tunai ${rupiah(toDeposit)} sudah disetor ke VA cabang.`
+                  : 'Tidak ada titipan tunai untuk disetor hari ini.'}
+              </span>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  <span className="text-12 text-caption">Belum disetor</span>
+                  <span className="text-24 font-bold text-default">{rupiah(toDeposit)}</span>
+                </div>
+
+                {/* Where it goes — the VA, so she can transfer without leaving to
+                    look the number up. */}
+                <div className="flex flex-col gap-2 rounded-8 bg-neutral-50 px-12 py-8">
+                  <span className="text-10 text-disabled">Setor ke</span>
+                  <span className="text-12 text-caption">{DEPOSIT.bank}</span>
+                  <span className="break-words text-16 font-bold text-default">{DEPOSIT.va}</span>
+                  <span className="text-12 text-caption">{DEPOSIT.holder}</span>
+                  <span className="text-10 text-disabled">Batas setor {DEPOSIT.due}</span>
+                </div>
+
+                {allDone ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => store.setDepositProof(true)}
+                  >
+                    Saya Sudah Setor
+                  </Button>
+                ) : (
+                  <span className="text-12 text-caption">
+                    Selesaikan semua tugas dulu, lalu setor titipan sekaligus.
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </Card>
 
       <StickyBar>
-        {diff !== 0 && s.depositDiffReason ? (
-          <div className="flex justify-center">
-            <Badge intent="orange">
-              Selisih {diff > 0 ? 'lebih' : 'kurang'} {rupiah(Math.abs(diff))}
-            </Badge>
-          </div>
-        ) : null}
         {!ready ? (
           <span className="text-center text-12 font-bold text-orange-500">
-            {amount <= 0
-              ? 'Belum ada jumlah yang disetor'
-              : needsReason
-                ? 'Pilih alasan selisih dulu'
-                : 'Foto bukti transfer belum diambil'}
+            {!allDone ? 'Masih ada tugas yang belum selesai' : 'Setor titipan tunai dulu'}
           </span>
         ) : null}
-        <Button
-          size="lg"
-          className="w-full"
-          disabled={!ready}
-          onClick={() => store.submitDeposit()}
-        >
-          Saya Sudah Setor
+        <Button size="lg" className="w-full" disabled={!ready} onClick={() => store.submitDeposit()}>
+          Selesaikan Closing
         </Button>
       </StickyBar>
     </Screen>
+  )
+}
+
+/**
+ * The check/pending marker for a checklist row. Done is the system's settled
+ * pairing — a tick on a green tint; pending is a dotted ring, the same "still
+ * open" mark the week strip uses for a due-but-unanswered instalment.
+ */
+function StatusIcon({ done }: { done: boolean }) {
+  return done ? (
+    <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-500">
+      <IconCheck size={20} />
+    </span>
+  ) : (
+    <span className="h-32 w-32 shrink-0 rounded-full border border-dotted border-neutral-400 bg-neutral-white" />
   )
 }

@@ -83,7 +83,7 @@ const kindTint = (kind: Task['kind']): Tint => KIND_TINT[kind]
 const KIND_LABEL: Record<Task['kind'], string> = {
   majelis: 'MV',
   'home-visit': 'HV',
-  setoran: 'Setor',
+  setoran: 'Tutup',
   sosialisasi: 'Sos',
   'follow-up': 'FU',
 }
@@ -341,7 +341,7 @@ export function TodayScreen() {
     }
     if (task.kind === 'home-visit') {
       store.startHomeVisit(task.id)
-      flow.go('home-visit')
+      flow.go('home-brief')
       return
     }
     if (task.kind === 'sosialisasi') {

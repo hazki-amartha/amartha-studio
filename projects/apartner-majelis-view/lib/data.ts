@@ -71,6 +71,8 @@ export interface Mitra {
    * asks for the whole amount and gets the argument that follows.
    */
   ptp?: string
+  /** The rupiah she promised on that janji bayar — what the visit expects. */
+  ptpAmount?: number
   /** Approved relief — rescheduled or reduced. Says "do not press her". */
   keringanan?: boolean
   /**
@@ -419,6 +421,8 @@ export const HOME_MITRA: Mitra[] = [
     id: 'h1',
     name: 'Wati Nurhasanah',
     product: 'Modal',
+    ptp: 'hari ini',
+    ptpAmount: 500_000,
     loan: 6_000_000,
     weekly: 150_000,
     dpd: 63,
@@ -433,6 +437,7 @@ export const HOME_MITRA: Mitra[] = [
     name: 'Elin Herlina',
     product: 'GL',
     ptp: 'hari ini',
+    ptpAmount: 250_000,
     loan: 5_000_000,
     weekly: 125_000,
     dpd: 7,

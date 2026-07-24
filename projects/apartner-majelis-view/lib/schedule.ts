@@ -152,9 +152,9 @@ export const TASKS: Task[] = [
     kind: 'setoran',
     time: '17.45',
     until: '18.00',
-    title: 'Setor Setoran Harian',
+    title: 'Closing',
     place: 'Transfer ke VA cabang Ciseeng',
-    reason: 'Batas setor 18.00 · uang tunai hasil penagihan hari ini',
+    reason: 'Batas setor 18.00 · tutup hari & setor titipan tunai',
     distanceKm: 0,
   },
 ]
