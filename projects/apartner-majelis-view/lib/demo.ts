@@ -118,6 +118,7 @@ export const scheduleHomeVisit = () =>
   store.set({
     day: 'today',
     doneTasks: ['t1', 't2', 't2b'],
+    sentTasks: [],
     // The finished visits BANK their cash, or the settlement widget on this
     // screen has nothing to be about. Two majelis in the bag by midday is
     // exactly the moment the mid-day handover exists for.
@@ -127,26 +128,56 @@ export const scheduleHomeVisit = () =>
     depositProof: false,
   })
 
-/** Every visit submitted — the closing deposit is the only task left. */
+/** Every visit submitted, cash still in the bag — the last settlement is open. */
 export const scheduleClosing = () =>
   store.set({
     day: 'today',
-    doneTasks: ['t1', 't2', 't2b', 't3', 't3b', 't4', 't5'],
+    doneTasks: CLOSING_DONE,
+    sentTasks: CLOSING_DONE,
     deposits: bankedDay,
     settlements: [],
     depositAmount: null,
     depositProof: false,
+    depositDone: false,
   })
 
 /**
- * Both mid-day handovers spent, with an afternoon still to bank. The state the
- * cap exists for: the widget is gone and the remaining cash rides to the
- * closing task.
+ * Nothing left at all: every task done AND sent, every rupiah handed over. The
+ * only state where Tutup Hari Ini appears.
+ */
+export const scheduleCloseable = () =>
+  store.set({
+    day: 'today',
+    doneTasks: CLOSING_DONE,
+    sentTasks: CLOSING_DONE,
+    deposits: bankedDay,
+    settlements: [
+      { no: 1, amount: bankedDay.t1.cash, taskIds: ['t1'], va: vaFor(1), at: '11.40', closing: false },
+      {
+        no: 2,
+        amount: bankedDay.t2.cash + bankedDay.t4.cash,
+        taskIds: ['t2', 't4'],
+        va: vaFor(2),
+        at: '16.20',
+        closing: false,
+      },
+    ],
+    depositAmount: null,
+    depositProof: false,
+    depositDone: false,
+  })
+
+/**
+ * Two settlements spent with a majelis still to run. The state the third-slot
+ * rule exists for: she is carrying cash, the last handover is the only one
+ * left, and it stays shut until the 16.30 group is done — spend it now and the
+ * afternoon's money has nowhere to go.
  */
 export const scheduleCapped = () =>
   store.set({
     day: 'today',
     doneTasks: ['t1', 't2', 't2b', 't3', 't4'],
+    sentTasks: ['t1', 't2', 't2b', 't3'],
     deposits: bankedDay,
     settlements: [
       { no: 1, amount: bankedDay.t1.cash, taskIds: ['t1'], va: vaFor(1), at: '11.40', closing: false },

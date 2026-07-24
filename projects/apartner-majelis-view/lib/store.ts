@@ -1124,17 +1124,49 @@ export const settledTotal = (s: AppState): number =>
 /** Mid-day handovers used. The third is the closing task and is not hers to spend. */
 export const midDayUsed = (s: AppState): number => s.settlements.filter((x) => !x.closing).length
 
+/** Every stop that can take cash. Sosialisasi and follow-up collect nothing. */
+const COLLECTING = TASKS.filter((t) => t.kind === 'majelis' || t.kind === 'home-visit')
+
+/** No door left un-knocked: every majelis and doorstep on the day is finished. */
+export const collectionDone = (s: AppState): boolean =>
+  COLLECTING.every((t) => s.doneTasks.includes(t.id))
+
 /**
  * Whether the schedule should offer to settle right now.
  *
- * Two conditions, and they fail for different reasons: nothing to hand over
- * (the widget would be an empty queue), or both mid-day slots spent (the money
- * rides with her to the closing task, which is the third and last). Hiding it
- * in the second case is the point of the cap — a widget that stays visible
- * while refusing to work is a control that teaches her to distrust it.
+ * Three settlements a day. The first two are hers to time — that is the whole
+ * point of putting cash down before 17.45. The THIRD is the last one there is,
+ * so it stays shut until every collecting stop is finished: spend it at 14.00
+ * and the afternoon's money has nowhere to go.
+ *
+ * Nothing to hand over hides it too. A widget that stays visible while refusing
+ * to work is a control that teaches her to distrust it.
  */
-export const canSettleMidDay = (s: AppState): boolean =>
-  unsettledTotal(s) > 0 && midDayUsed(s) < DEPOSIT.maxMidDay
+export const canSettle = (s: AppState): boolean => {
+  if (unsettledTotal(s) === 0) return false
+  if (s.settlements.length >= DEPOSIT.maxSettlements) return false
+  return s.settlements.length < DEPOSIT.maxMidDay || collectionDone(s)
+}
+
+/**
+ * The last settlement is available but held back until the collecting is done.
+ * A distinct state from "cannot settle", because the answer is different: not
+ * "you have used them all" but "finish the day's stops first".
+ */
+export const settleHeld = (s: AppState): boolean =>
+  unsettledTotal(s) > 0 &&
+  s.settlements.length === DEPOSIT.maxMidDay &&
+  !collectionDone(s)
+
+/**
+ * Whether the day can be closed. Everything done, everything SENT, and nothing
+ * left in the bag — the three obligations that used to be a closing task's
+ * checklist, now the condition for the widget appearing at all.
+ */
+export const canCloseDay = (s: AppState): boolean =>
+  TASKS.length > 0 &&
+  TASKS.every((t) => s.sentTasks.includes(t.id)) &&
+  unsettledTotal(s) === 0
 
 /** Money that reached the company without her. Stated so it isn't asked about. */
 export const depositDigital = (s: AppState): number =>
