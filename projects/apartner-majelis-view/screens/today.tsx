@@ -23,7 +23,7 @@
 // So the schedule is a list of tasks and a tap begins one. Reading a group
 // without starting anything is still there — it is what the Majelis tab is.
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, Card } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
@@ -39,10 +39,11 @@ import {
   type Task,
 } from '../lib/schedule'
 import { IconCheck, IconChevronDown, IconChevronRight, IconInbox, IconWallet } from '../lib/icons'
-import { CloudArrowUp } from '@/design-system/icons'
+import { CloudArrowUp, Door, Medal } from '@/design-system/icons'
 import {
-  canSettleMidDay,
-  midDayUsed,
+  canCloseDay,
+  canSettle,
+  freeSettlementsLeft,
   pendingSync,
   rescheduledTasks,
   settledTotal,
@@ -55,7 +56,6 @@ import {
 } from '../lib/store'
 import { TabBar } from '../lib/tabs'
 import {
-  AgendaRow,
   EmptyState,
   FilterBar,
   FilterChip,
@@ -145,37 +145,55 @@ function TaskRow({
   onStart: () => void
 }) {
   return (
-    <AgendaRow time={task.time}>
-      <button
-        type="button"
-        onClick={onStart}
-        className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
-      >
-        <KindTag kind={task.kind} />
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {/* The status rides on the title line as small coloured text, not a
-              pill. The section says whether work is left and the sync widget
-              says what has not gone, so this is the refinement inside each —
-              belum vs dikerjakan, selesai vs terkirim — and a refinement should
-              not be the loudest object on the row. `shrink-0` keeps it whole
-              and lets the name take the truncation. */}
-          <span className="flex min-w-0 items-baseline gap-8">
-            <span className="truncate text-14 font-bold text-default">{task.title}</span>
-            <span className={`shrink-0 text-10 ${STATUS_META[status].tone}`}>
-              {STATUS_META[status].label}
-            </span>
-          </span>
-          <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
-            <PinMark />
-            <span className="truncate">{task.place}</span>
-          </span>
-          <TaskLabels task={task} />
-        </div>
-        <span className="shrink-0 text-disabled">
-          <IconChevronRight size={20} />
+    <button
+      type="button"
+      onClick={onStart}
+      className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
+    >
+      <KindTag kind={task.kind} />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="truncate text-14 font-bold text-default">{task.title}</span>
+        {/* Time and place on one line, in that order. They are the same fact
+            in two parts — when and where she has to be — and reading them
+            together is how a stop gets planned. The title keeps the first line
+            to itself, which is the only line she scans to find a row. */}
+        <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+          <span className="shrink-0">{task.time}</span>
+          <span className="shrink-0">·</span>
+          <PinMark />
+          <span className="truncate">{task.place}</span>
         </span>
-      </button>
-    </AgendaRow>
+        <TaskLabels task={task} />
+      </div>
+      {/* The status moves to the right edge, above the chevron, so every card
+          reads the same way whatever its title length: what and where on the
+          left, where it stands on the right. On the title line it pushed a
+          long name into an ellipsis to say a word that never changes width. */}
+      <span className={`shrink-0 text-10 ${STATUS_META[status].tone}`}>
+        {STATUS_META[status].label}
+      </span>
+      <span className="shrink-0 text-disabled">
+        <IconChevronRight size={20} />
+      </span>
+    </button>
+  )
+}
+
+/**
+ * A settled widget, collapsed. Same card, one line, no tile and no control —
+ * the two things above the list keep their place in the stack when their work
+ * is done, because "nothing to send" and "nothing to settle" are answers a BP
+ * wants to SEE rather than infer from an absence. They just stop taking the
+ * room they needed while there was something to do.
+ */
+function DoneLine({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-8 rounded-12 bg-neutral-white px-12 py-8">
+      <span className="shrink-0 text-green-500">
+        <IconCheck size={16} />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-12 text-caption">{children}</span>
+    </div>
   )
 }
 
@@ -245,10 +263,6 @@ const KIND_OPTIONS: { label: string; value: Task['kind'] | null }[] = [
   { label: 'Home Visit (HV)', value: 'home-visit' },
   { label: 'Sosialisasi (Sos)', value: 'sosialisasi' },
   { label: 'Follow Up (FU)', value: 'follow-up' },
-  // Setoran is on the list even though it was not asked for: it is a task on
-  // the day, and a "Tipe tugas" filter that cannot name one of the five kinds
-  // is a filter that lies about what the day contains.
-  { label: 'Setoran', value: 'setoran' },
 ]
 
 
@@ -343,11 +357,6 @@ export function TodayScreen() {
   // step 1. The task id rides along either way, so submitting closes this row
   // rather than leaving finished work on the day.
   function start(task: Task) {
-    if (task.kind === 'setoran') {
-      store.startDeposit(task.id)
-      flow.go('deposit')
-      return
-    }
     if (task.kind === 'home-visit') {
       store.startHomeVisit(task.id)
       flow.go('home-brief')
@@ -398,28 +407,29 @@ export function TodayScreen() {
     </header>
   )
 
-  // --- Besok: a preview, not a workspace. No focus card, no launchers — just
-  // the day's shape on the same clock rail.
+  // --- Besok: a preview, not a workspace. No focus card, no launchers — the
+  // day's shape in the same card as today's, minus the status and the chevron,
+  // because tomorrow has neither a state nor anywhere to go.
   if (s.day === 'tomorrow') {
     return (
       <Screen topBar={header}>
         <Overline>Jadwal besok</Overline>
         <div className="flex flex-col gap-8">
           {tomorrow.map((task) => (
-            <AgendaRow key={task.id} time={task.time}>
-              <Card>
-                <div className="flex items-center gap-12">
-                  <KindTag kind={task.kind} />
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                    <span className="flex items-center gap-4 text-12 text-caption">
-                      <PinMark />
-                      <span className="truncate">{task.place}</span>
-                    </span>
-                  </div>
+            <Card key={task.id}>
+              <div className="flex items-center gap-12">
+                <KindTag kind={task.kind} />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <span className="truncate text-14 font-bold text-default">{task.title}</span>
+                  <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+                    <span className="shrink-0">{task.time}</span>
+                    <span className="shrink-0">·</span>
+                    <PinMark />
+                    <span className="truncate">{task.place}</span>
+                  </span>
                 </div>
-              </Card>
-            </AgendaRow>
+              </div>
+            </Card>
           ))}
         </div>
         <DayPicker open={picking} onClose={() => setPicking(false)} />
@@ -442,7 +452,48 @@ export function TodayScreen() {
           It DISAPPEARS after two mid-day handovers. The third is the closing
           task, which is hers to reach on the schedule below — a widget that
           stayed visible and refused to work would teach her to distrust it. */}
-      {canSettleMidDay(s) ? (
+      {/* --- Tutup Hari Ini: the day's paperwork, as a widget rather than a
+          row. It used to be the last task on the schedule — a stop with a time
+          and a place, sitting among six rows it had nothing in common with:
+          every other one is a woman to see, this one is a form.
+
+          It appears only when there is nothing left to do: every task finished
+          AND sent, and nothing left in the bag. Those were the checks inside
+          the closing screen; making them the condition for the widget existing
+          means she never opens a page to be told she cannot use it. */}
+      {/* Closed. The one card on this page that is not work — it replaces the
+          Tutup widget rather than joining it, because the day has exactly one
+          end and two cards about it would be one too many. Green and filled,
+          the only place on the schedule that colour is used at full strength:
+          everything else is a thing to do, and this is the absence of one. */}
+      {s.depositDone ? (
+        <div className="flex items-center gap-12 rounded-12 border border-green-200 bg-green-50 p-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-green-500">
+            <Medal size={20} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-14 font-bold text-green-500">Terima kasih!</span>
+            <span className="text-12 text-caption">Hari ini sudah selesai</span>
+          </div>
+        </div>
+      ) : null}
+
+      {canCloseDay(s) ? (
+        <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-primary-500">
+            <Door size={20} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-14 font-bold text-default">Tutup Hari Ini</span>
+            <span className="truncate text-12 text-caption">Semua tugas sudah dilakukan</span>
+          </div>
+          <Button size="sm" className="h-40 shrink-0 px-16" onClick={() => flow.go('deposit')}>
+            Tutup
+          </Button>
+        </div>
+      ) : null}
+
+      {canSettle(s) ? (
         // Same shape as the sync widget below it: tile, two lines, one small
         // button pinned right. They are the two things on this page that are
         // not tasks, and giving them one shape says so — a full-width button
@@ -458,7 +509,9 @@ export function TodayScreen() {
                 itself, and it is the number that decides whether she puts the
                 money down now or carries it to the next stop. */}
             <span className="truncate text-12 text-caption">
-              Belum disetor · {midDayUsed(s)} dari maks {DEPOSIT.maxMidDay} setoran tengah hari
+              {freeSettlementsLeft(s) > 0
+                ? `Belum disetor · ${freeSettlementsLeft(s)} setoran gratis tersisa`
+                : 'Belum disetor · setoran berikutnya kena biaya admin'}
             </span>
           </div>
           <Button
@@ -474,27 +527,13 @@ export function TodayScreen() {
         </div>
       ) : null}
 
-      {/* Once both mid-day slots are spent, what is left is a statement rather
-          than a control: this much is still on her, and the closing task is
-          where it goes. Saying nothing at all would leave her carrying money
-          the app had stopped mentioning. */}
-      {!canSettleMidDay(s) && toSettle > 0 ? (
-        <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
-          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-50 text-neutral-600">
-            <IconWallet size={20} />
-          </span>
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-12 text-caption">Uang tunai belum disetor</span>
-            <span className="text-16 font-bold text-default">{rupiah(toSettle)}</span>
-          </div>
-          <span className="shrink-0 text-10 text-disabled">Setor di tugas penutup</span>
-        </div>
-      ) : null}
-
-      {settledTotal(s) > 0 ? (
-        <span className="text-10 text-disabled">
-          Sudah disetor hari ini: {rupiah(settledTotal(s))} dalam {s.settlements.length} kali
-        </span>
+      {/* Nothing left to hand over, but something went. The card stays and
+          shrinks to its one fact: a settled bag is worth confirming — she is
+          carrying nothing, which is the answer to a question she asks herself
+          all afternoon — but it has no button and no breakdown, so it has no
+          business taking three lines to say so. */}
+      {!canSettle(s) && settledTotal(s) > 0 ? (
+        <DoneLine>Sudah disetor hari ini: {rupiah(settledTotal(s))}</DoneLine>
       ) : null}
 
       {/* --- Belum terkirim: the day's work that hasn't left the handset.
@@ -523,6 +562,10 @@ export function TodayScreen() {
             Kirim
           </Button>
         </div>
+      ) : null}
+
+      {pending.length === 0 && s.sentTasks.length > 0 ? (
+        <DoneLine>Semua tugas selesai sudah dikirim</DoneLine>
       ) : null}
 
       {/* Two filters, and they answer the two questions a day gets asked when
@@ -598,16 +641,7 @@ export function TodayScreen() {
             ))}
           </div>
         </>
-      ) : (
-        <Card>
-          <div className="flex flex-col items-center gap-8 py-24 text-center">
-            <span className="text-20 font-bold text-default">Tugas hari ini selesai</span>
-            <span className="text-12 text-caption">
-              Semua {closed.length} kunjungan sudah dituntaskan. Sampai jumpa besok.
-            </span>
-          </div>
-        </Card>
-      )}
+      ) : null}
 
       {/* --- Selesai: same card, still on the rail. It stays a full section
           rather than the collapsed strip it was — the sync widget points at
@@ -640,19 +674,27 @@ export function TodayScreen() {
             {rescheduled.map((task) => {
               const moved = s.reschedules[task.id]
               return (
-                <AgendaRow key={task.id} time={task.time} muted>
-                  <div className="flex w-full items-center gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12">
-                    <KindTag kind={task.kind} />
-                    <div className="flex min-w-0 flex-1 flex-col gap-2">
-                      <span className="flex min-w-0 items-baseline gap-8">
-                        <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                        <span className="shrink-0 text-10 text-caption">Dijadwalkan ulang</span>
-                      </span>
-                      <span className="text-12 text-caption">Dipindah ke {moved.date}</span>
-                      <span className="text-10 text-disabled">{moved.reason}</span>
-                    </div>
+                // Same card as every other row, on a dashed border: title,
+                // then when-and-where — except "when" is the day it moved TO,
+                // because the time it was booked for today stopped being a fact
+                // about it the moment she moved it.
+                <div
+                  key={task.id}
+                  className="flex w-full items-center gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12"
+                >
+                  <KindTag kind={task.kind} />
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <span className="truncate text-14 font-bold text-default">{task.title}</span>
+                    <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+                      <span className="shrink-0">Dipindah ke {moved.date}</span>
+                      <span className="shrink-0">·</span>
+                      <PinMark />
+                      <span className="truncate">{task.place}</span>
+                    </span>
+                    <span className="text-10 text-disabled">{moved.reason}</span>
                   </div>
-                </AgendaRow>
+                  <span className="shrink-0 text-10 text-caption">Dijadwalkan ulang</span>
+                </div>
               )
             })}
           </div>

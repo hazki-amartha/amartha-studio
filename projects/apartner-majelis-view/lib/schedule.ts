@@ -143,20 +143,6 @@ export const TASKS: Task[] = [
     majelisId: 'kenanga',
     distanceKm: 4.3,
   },
-  // The close. Last on the day by construction, so `nowTask` only surfaces it
-  // once every visit is submitted — the deposit cannot be right while there is
-  // still cash to collect. It stays reachable early from Berikutnya, where it
-  // reads back the running total rather than pretending the day is over.
-  {
-    id: 't6',
-    kind: 'setoran',
-    time: '17.45',
-    until: '18.00',
-    title: 'Closing',
-    place: 'Transfer ke VA cabang Ciseeng',
-    reason: 'Batas setor 18.00 · tutup hari & setor titipan tunai',
-    distanceKm: 0,
-  },
 ]
 
 // Tomorrow, for the date switcher. Two days is the whole range on purpose: a BP
@@ -215,14 +201,22 @@ export const TARGET_HARIAN = 6_200_000
  * being a place the BP has to reach before it closes, which is the only reason
  * a 17.30 deposit is possible at all after a 16.00 majelis.
  */
+// Closing is no longer a TASK. It was the last row on the schedule — a stop
+// with a time and a place, sitting among six visits it had nothing in common
+// with: every other row is a woman to see, and this one is the day's paperwork.
+// It became a widget above the list instead, which is also what let the third
+// settlement move to the widget: with no closing row to reach, the schedule had
+// to be able to hand over the last of the cash itself.
 export const DEPOSIT = {
   bank: 'BCA Virtual Account',
   holder: 'Amartha Cabang Ciseeng',
   due: '18.00',
-  /** How many times a day's cash can be handed over. */
-  maxSettlements: 3,
-  /** How many of those she can do herself, mid-day. The last is the closing task. */
-  maxMidDay: 2,
+  /**
+   * Handovers that cost nothing. Not a cap — she can settle as often as she
+   * likes, and should; past this the branch charges an admin fee, which is a
+   * reason to think rather than a door that is shut.
+   */
+  freePerDay: 3,
 }
 
 /**

@@ -37,7 +37,8 @@ export function DepositScreen() {
   const s = useApp()
 
   // --- Check 1: every task on the day except this closing itself. ---------
-  const dayTasks = TASKS.filter((t) => t.kind !== 'setoran')
+  // Every task on the day is a visit now — closing left the list.
+  const dayTasks = TASKS
   const doneIds = new Set(s.doneTasks)
   const pending = dayTasks.filter((t) => !doneIds.has(t.id))
   const doneCount = dayTasks.length - pending.length
@@ -82,10 +83,7 @@ export function DepositScreen() {
           <Button
             size="lg"
             className="w-full"
-            onClick={() => {
-              store.finishTask()
-              flow.go('today')
-            }}
+            onClick={() => flow.go('today')}
           >
             Selesai
           </Button>
