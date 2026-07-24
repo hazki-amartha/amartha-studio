@@ -163,15 +163,6 @@ export function MitraCard({
         )}
         {labels ? <span className="flex flex-wrap items-center gap-4">{labels}</span> : null}
       </div>
-      {/* The chevron sits at the far RIGHT of the row, not against her name. Next
-          to the name it read as decoration on the text; at the edge it is where
-          every "this opens" mark in the app lives, and the name is left to be
-          the name. */}
-      {onOpen ? (
-        <span className="shrink-0 text-disabled">
-          <IconChevronRight size={20} />
-        </span>
-      ) : null}
     </>
   )
 
@@ -195,6 +186,16 @@ export function MitraCard({
             identity
           )}
           {trailing ? <div className="shrink-0">{trailing}</div> : null}
+          {/* LAST in the row, after the status badge. The chevron is the mark
+              that says "this opens", and everywhere else in the app it sits at
+              the very edge of its row — put a badge outside it and the chevron
+              stops reading as the row's own affordance and starts looking like
+              punctuation between two pieces of content. */}
+          {onOpen ? (
+            <span className="shrink-0 text-disabled">
+              <IconChevronRight size={20} />
+            </span>
+          ) : null}
         </div>
         {action ? <div className="border-t border-default pt-12">{action}</div> : null}
       </div>
