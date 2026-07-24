@@ -13,9 +13,18 @@
 
 import type { ReactNode } from 'react'
 import { Badge, Card } from '@/design-system/components'
-import { User } from '@/design-system/icons'
+import {
+  ArrowsClockwise,
+  CheckCircle,
+  Coins,
+  HandCoins,
+  LogoModal,
+  User,
+  Warning,
+} from '@/design-system/icons'
 import { outstandingOf, rupiah, type Mitra } from './data'
 import { IconCalendar, IconChevronRight, IconHome } from './icons'
+import { RepaymentStrip } from './ui'
 
 /**
  * What she owes, and what it is made of. ONE component, used by the mitra page
@@ -64,11 +73,95 @@ export function TagihanBreakdown({ mitra, bare }: { mitra: Mitra; bare?: boolean
   return bare ? body : <Card>{body}</Card>
 }
 
-function TagihanLine({ label, value, red }: { label: string; value: string; red?: boolean }) {
+function TagihanLine({
+  label,
+  value,
+  red,
+  /**
+   * The parts of a bill are set regular where a total sits beneath them — bold
+   * on every line leaves nothing for the total to be louder than. `TagihanBreakdown`
+   * keeps them bold, because there the total LEADS and the lines are its detail.
+   */
+  bold = true,
+}: {
+  label: string
+  value: string
+  red?: boolean
+  bold?: boolean
+}) {
   return (
     <div className="flex items-center gap-12">
       <span className="flex-1 text-14 text-caption">{label}</span>
-      <span className={`text-14 font-bold ${red ? 'text-red-500' : 'text-default'}`}>{value}</span>
+      <span
+        className={`text-14 ${bold ? 'font-bold' : 'font-regular'} ${red ? 'text-red-500' : 'text-default'}`}
+      >
+        {value}
+      </span>
+    </div>
+  )
+}
+
+/**
+ * The one payment card the mitra page and the collect page both open on: the
+ * recent cycle as a fixed eight-week strip, then what she owes, in one bordered
+ * box. It merges the week rail and the tagihan breakdown that used to be two
+ * stacked cards — they are read together, in one glance, before the BP asks for
+ * money, so they are one card.
+ *
+ * `onSeeAll` renders the "Lihat Semua" link into the full ledger; the collect
+ * page omits it, because the whole history is not a place to wander off to with
+ * a mitra waiting to hand over cash.
+ */
+export function AngsuranCard({ mitra, onSeeAll }: { mitra: Mitra; onSeeAll?: () => void }) {
+  const owed = outstandingOf(mitra)
+  const overdue = owed.missed + owed.partial
+  return (
+    // Two stacked panels in one bordered card, told apart by fill rather than a
+    // rule: the recent cycle on a lightest-grey ground up top, and what it leaves
+    // owed on white beneath. The colour change IS the division — the strip is the
+    // history, the white block is the money to collect against it.
+    <div className="overflow-hidden rounded-12 border border-default">
+      <div className="flex flex-col gap-12 bg-neutral-50 p-12">
+        <div className="flex items-center gap-8">
+          <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">
+            Riwayat Angsuran
+          </span>
+          {onSeeAll ? (
+            <button
+              type="button"
+              onClick={onSeeAll}
+              className="flex shrink-0 items-center gap-2 text-12 font-bold text-link"
+            >
+              Lihat Semua
+              <IconChevronRight size={16} />
+            </button>
+          ) : null}
+        </div>
+
+        <RepaymentStrip weeks={mitra.weeks} />
+      </div>
+
+      <div className="flex flex-col gap-8 bg-neutral-white p-12">
+        {/* Always shown, even at Rp0: a mitra reads "Tunggakan Rp0" as the good
+            news it is, and a line that appears only when she is behind makes its
+            absence do the talking — which a BP scanning the card can't rely on.
+            Red only when there is something to be red about. */}
+        <TagihanLine
+          label={owed.missedWeeks > 0 ? `Tunggakan ${owed.missedWeeks} minggu` : 'Tunggakan'}
+          value={rupiah(overdue)}
+          red={overdue > 0}
+          bold={false}
+        />
+        <TagihanLine label="Angsuran minggu ini" value={rupiah(owed.thisWeek)} bold={false} />
+        {/* The total is the only bold figure here, and it is ruled off from the
+            two parts above it: they are what it is MADE of, not three items in a
+            list. Its label goes bold with it — a grey caption beside a 20px
+            figure read as the amount having escaped its own row. */}
+        <div className="flex items-center gap-12 border-t border-default pt-12">
+          <span className="flex-1 text-16 font-bold text-default">Total tagihan</span>
+          <span className="text-20 font-bold text-default">{rupiah(owed.total)}</span>
+        </div>
+      </div>
     </div>
   )
 }
@@ -86,6 +179,86 @@ export function DpdBadge({ dpd, format = 'long' }: { dpd: number; format?: 'long
   if (dpd === 0) return <Badge intent="green">Lancar</Badge>
   const intent = dpd >= 30 ? 'red' : 'orange'
   return <Badge intent={intent}>{format === 'short' ? `DPD ${dpd}` : `Menunggak ${dpd} hari`}</Badge>
+}
+
+/**
+ * An outlined status pill with a leading glyph — the flatter, icon-led chip the
+ * mitra page's header uses, where a whole ROW of standing facts sits under her
+ * name and each one needs to be told apart at a glance. The filled `Badge` is
+ * still right where a single status is scanned down a column (the roster, the
+ * queue); this is for the place where product, bucket and any relief line up
+ * together and the icon is what the eye lands on first.
+ */
+const CHIP_TONE = {
+  blue: 'border-blue-200 text-blue-500',
+  primary: 'border-primary-200 text-primary-500',
+  orange: 'border-orange-200 text-orange-500',
+  red: 'border-red-200 text-red-500',
+  green: 'border-green-200 text-green-500',
+  neutral: 'border-neutral-200 text-neutral-700',
+} as const
+
+function StatusChip({
+  tone,
+  icon,
+  children,
+}: {
+  tone: keyof typeof CHIP_TONE
+  icon: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-4 rounded-full border bg-neutral-white px-8 py-4 text-12 font-bold ${CHIP_TONE[tone]}`}
+    >
+      {icon}
+      {children}
+    </span>
+  )
+}
+
+/**
+ * Her standing facts as a wrapping row of chips: the product she is on, her DPD
+ * bucket, and whichever exception applies — approved relief, or a loan approved
+ * but not yet disbursed. New labels drop in here rather than crowding the top
+ * bar, which is why the name and badges moved off the nav and onto the page.
+ *
+ * A pre-disbursement mitra has no bucket to show, so her DPD chip is replaced by
+ * the disbursement she is waiting on rather than sitting beside it.
+ */
+export function MitraBadges({ mitra }: { mitra: Mitra }) {
+  return (
+    <>
+      {/* Modal carries its own product mark from the design system; GL has no
+          logo of its own, so it falls back to the generic coins glyph. */}
+      <StatusChip
+        tone={mitra.product === 'Modal' ? 'blue' : 'primary'}
+        icon={mitra.product === 'Modal' ? <LogoModal size={16} /> : <Coins size={16} />}
+      >
+        {mitra.product}
+      </StatusChip>
+
+      {mitra.predisburse ? (
+        <StatusChip tone="blue" icon={<HandCoins size={16} />}>
+          Ready to Disburse
+        </StatusChip>
+      ) : mitra.dpd === 0 ? (
+        <StatusChip tone="green" icon={<CheckCircle size={16} />}>
+          Lancar
+        </StatusChip>
+      ) : (
+        <StatusChip tone={mitra.dpd >= 30 ? 'red' : 'orange'} icon={<Warning size={16} />}>
+          DPD {mitra.dpd}
+        </StatusChip>
+      )}
+
+      {mitra.keringanan ? (
+        <StatusChip tone="neutral" icon={<ArrowsClockwise size={16} />}>
+          Dapat Keringanan
+        </StatusChip>
+      ) : null}
+    </>
+  )
 }
 
 /**
@@ -231,15 +404,6 @@ export function MitraCard({
         )}
         {labels ? <span className="flex flex-wrap items-center gap-4">{labels}</span> : null}
       </div>
-      {/* The chevron sits at the far RIGHT of the row, not against her name. Next
-          to the name it read as decoration on the text; at the edge it is where
-          every "this opens" mark in the app lives, and the name is left to be
-          the name. */}
-      {onOpen ? (
-        <span className="shrink-0 text-disabled">
-          <IconChevronRight size={20} />
-        </span>
-      ) : null}
     </>
   )
 
@@ -263,6 +427,16 @@ export function MitraCard({
             identity
           )}
           {trailing ? <div className="shrink-0">{trailing}</div> : null}
+          {/* LAST in the row, after the status badge. The chevron is the mark
+              that says "this opens", and everywhere else in the app it sits at
+              the very edge of its row — put a badge outside it and the chevron
+              stops reading as the row's own affordance and starts looking like
+              punctuation between two pieces of content. */}
+          {onOpen ? (
+            <span className="shrink-0 text-disabled">
+              <IconChevronRight size={20} />
+            </span>
+          ) : null}
         </div>
         {action ? <div className="border-t border-default pt-12">{action}</div> : null}
       </div>

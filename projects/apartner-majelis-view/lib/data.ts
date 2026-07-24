@@ -30,16 +30,26 @@ export interface Week {
  * becoming a second queue.
  */
 export interface Growth {
-  /** What is on offer — "Naik plafon", "Celengan", "PPOB". */
-  label: string
-  /** Where she stands on it. A FACT, not a pitch; the BP draws the conclusion. */
-  status: string
   /**
-   * The headline of the offer, printed bold in the card's action row — the one
-   * figure the BP says out loud when she opens the subject. It sits where the
-   * bill sits on the collection stage, because the card keeps one shape across
-   * all three stages and only what is at stake in the row changes.
+   * Which of the two opportunities this is — "Celengan" or "Pembiayaan Baru"
+   * (renewal / additional disbursement). Deliberately only two: PPOB and "naik
+   * plafon" were a third and fourth thing to explain in a room the BP is trying
+   * to leave, and neither is what a majelis visit is the moment for.
+   *
+   * It names the offer on the OFFER page and on a card that has already been
+   * answered — a record of what was put to her. The card that has not been
+   * answered yet leads with `status` instead; see below.
    */
+  label: string
+  /**
+   * Where SHE stands — "Siap cair Rp5.000.000", "Belum pernah menabung". A fact
+   * about the mitra, not a pitch, and it is what the stage-3 card leads with.
+   * The card used to lead with the product being sold, which told the BP what
+   * the app wanted rather than what she was looking at; the state is the thing
+   * she can actually open a conversation from.
+   */
+  status: string
+  /** The headline figure, said out loud when the subject is opened. */
   value: string
   /** Past tense, for once it has been done. */
   done: string
@@ -65,6 +75,12 @@ export interface Mitra {
   ptpAmount?: number
   /** Approved relief — rescheduled or reduced. Says "do not press her". */
   keringanan?: boolean
+  /**
+   * A new mitra whose loan is approved but not yet disbursed. She has no DPD and
+   * no ledger to press against — the standing label is the disbursement waiting
+   * to happen, not a bucket.
+   */
+  predisburse?: boolean
   /** The contract's principal — "Pinjaman Rp8.000.000" in the page header. */
   loan: number
   /** The weekly instalment. Constant across the cycle. */
@@ -222,6 +238,7 @@ const ACTIVE: Mitra[] = [
     id: 'm1',
     name: 'Rina Marlina',
     product: 'Modal',
+    keringanan: true,
     loan: 8_000_000,
     weekly: 200_000,
     dpd: 34,
@@ -229,10 +246,10 @@ const ACTIVE: Mitra[] = [
     totalWeeks: 50,
     weeks: ledger(200_000, 9, [6, 8], { 7: 150_000 }),
     growth: {
-      label: 'Naik plafon',
-      status: 'Layak naik ke Rp10.000.000',
-      value: 'Rp10.000.000',
-      done: 'Sudah didiskusikan',
+      label: 'Celengan',
+      status: 'Belum pernah menabung',
+      value: 'Mulai Rp10.000/minggu',
+      done: 'Celengan dibuka',
     },
   },
   {
@@ -248,9 +265,9 @@ const ACTIVE: Mitra[] = [
     weeks: ledger(150_000, 9, [8]),
     growth: {
       label: 'Celengan',
-      status: 'Belum pernah menabung',
+      status: 'Celengan berhenti 3 minggu',
       value: 'Mulai Rp10.000/minggu',
-      done: 'Celengan dibuka',
+      done: 'Celengan dilanjutkan',
     },
   },
   {
@@ -264,10 +281,10 @@ const ACTIVE: Mitra[] = [
     totalWeeks: 50,
     weeks: ledger(125_000, 9),
     growth: {
-      label: 'PPOB',
-      status: 'Belum ada transaksi digital',
-      value: 'Pulsa, listrik, BPJS',
-      done: 'PPOB diaktifkan',
+      label: 'Pembiayaan Baru',
+      status: 'Siap cair Rp5.000.000',
+      value: 'Rp5.000.000',
+      done: 'Pengajuan dikirim',
     },
   },
   {
@@ -281,10 +298,10 @@ const ACTIVE: Mitra[] = [
     totalWeeks: 50,
     weeks: ledger(175_000, 9),
     growth: {
-      label: 'Naik plafon',
-      status: 'Layak naik ke Rp9.000.000',
+      label: 'Pembiayaan Baru',
+      status: 'Siap cair Rp9.000.000',
       value: 'Rp9.000.000',
-      done: 'Sudah didiskusikan',
+      done: 'Pengajuan dikirim',
     },
   },
   {

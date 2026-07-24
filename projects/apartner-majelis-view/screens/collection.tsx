@@ -30,9 +30,9 @@ import { majelisWhen } from '../lib/schedule'
 import { IconCheck } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import {
-  billableTotal,
+  cashBillableTotal,
+  cashCollectedTotal,
   collectStatus,
-  collectedTotal,
   paidOf,
   pendingMembers,
   remainingOf,
@@ -44,6 +44,7 @@ import {
   ActionRow,
   ProductBadge,
   ProgressCard,
+  ResultRow,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -56,8 +57,10 @@ export function CollectionScreen() {
   const group = openMajelisEntry(s)
 
   const pending = pendingMembers(s)
-  const collected = collectedTotal(s)
-  const billable = billableTotal()
+  // Cash only, on both sides of the bar — the self-serve mitra settled through
+  // the app and were never hers to collect. See store.ts.
+  const cashCollected = cashCollectedTotal(s)
+  const cashBillable = cashBillableTotal()
 
   function openCollect(mitraId: string) {
     store.openMitraPage(mitraId)
@@ -73,15 +76,24 @@ export function CollectionScreen() {
         />
       }
     >
-      <StageBar current={2} />
+      {/* The stage's chrome — where she is in the visit, and how the cash is
+          going — as one flat white band running the full width, with the roster
+          below it on the grey canvas. Two stacked cards floating on grey made
+          the top of the page read as more content to get through; as a band it
+          reads as the header it is. */}
+      <div className="-mx-16 -mt-16 flex flex-col gap-12 border-b border-default bg-neutral-white px-16 pb-12 pt-16">
+        <StageBar current={2} />
 
-      <ProgressCard
-        title="Terkumpul"
-        value={rupiah(collected)}
-        of={rupiah(billable)}
-        percent={Math.round((collected / billable) * 100)}
-        tone="green"
-      />
+        <ProgressCard
+          flat
+          showPercent={false}
+          title="Cash Terkumpul"
+          value={rupiah(cashCollected)}
+          of={rupiah(cashBillable)}
+          percent={cashBillable > 0 ? Math.round((cashCollected / cashBillable) * 100) : 0}
+          tone="green"
+        />
+      </div>
 
       <SectionTitle>Daftar Mitra</SectionTitle>
 
@@ -115,11 +127,15 @@ export function CollectionScreen() {
               }}
               action={
                 selfPaid ? (
-                  <ActionRow label="Dibayar mandiri" value={rupiah(paid)}>
-                    <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                      Lunas
-                    </Badge>
-                  </ActionRow>
+                  <ResultRow
+                    label="Dibayar mandiri"
+                    amount={rupiah(paid)}
+                    badge={
+                      <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
+                        Lunas
+                      </Badge>
+                    }
+                  />
                 ) : status === 'belum' ? (
                   <ActionRow label="Tagihan" value={rupiah(owed.total)}>
                     {/* Default size, not sm: sm sets 12px type and the pills on
@@ -131,37 +147,54 @@ export function CollectionScreen() {
                     </Button>
                   </ActionRow>
                 ) : (
-                  <ActionRow
-                    label={status === 'tidak' ? 'Tidak bayar' : 'Dibayar hari ini'}
-                    value={
-                      status === 'tidak'
-                        ? `${refusal?.reason ?? ''}${refusal?.ptp ? ` · janji ${refusal.ptp}` : ''}`
-                        : // A part-payment says why it was short, the same way a
-                          // refusal says why it was a refusal.
-                          `${rupiah(paid)}${
-                            status === 'sebagian' && s.shortfallReasons[mitra.id]
-                              ? ` · ${s.shortfallReasons[mitra.id]}`
-                              : ''
-                          }`
-                    }
-                  >
-                    <div className="flex items-center gap-8">
-                      {status === 'lunas' ? (
+                  // The figure leads, its status sits beside it, and whatever is
+                  // left to say drops to a second row rather than being crushed
+                  // into the first. "Ubah" reopens the page that produced the
+                  // outcome, so a recorded entry is never trapped.
+                  <ResultRow
+                    label="Dibayar hari ini"
+                    amount={rupiah(status === 'tidak' ? 0 : paid)}
+                    badge={
+                      status === 'lunas' ? (
                         <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
                           Lunas
                         </Badge>
                       ) : status === 'sebagian' ? (
-                        <Badge intent="orange">Kurang {rupiah(remainingOf(s, mitra))}</Badge>
+                        <Badge intent="orange">Sebagian</Badge>
                       ) : (
                         <Badge intent="red">Tidak bayar</Badge>
-                      )}
-                      {/* "Ubah" reopens the same page that produced the outcome,
-                          so a recorded entry is never trapped. */}
-                      <Button size="xs" variant="ghost" onClick={() => openCollect(mitra.id)}>
-                        Ubah
-                      </Button>
-                    </div>
-                  </ActionRow>
+                      )
+                    }
+                    onEdit={() => openCollect(mitra.id)}
+                    detail={
+                      status === 'tidak'
+                        ? {
+                            label: 'Alasan',
+                            value: refusal?.reason ?? '—',
+                            note: refusal?.ptp
+                              ? `Janji bayar ${refusal.ptp}`
+                              : 'Tidak ada janji bayar',
+                          }
+                        : status === 'sebagian'
+                          ? {
+                              label: 'Kurang',
+                              value: rupiah(remainingOf(s, mitra)),
+                              tone: 'red',
+                              // The reason AND the date she gave for the rest: a
+                              // shortfall with no promise against it is the same
+                              // unchaseable gap as a refusal with no date.
+                              note: [
+                                s.shortfallReasons[mitra.id],
+                                s.partialPtp[mitra.id]
+                                  ? `Janji ${s.partialPtp[mitra.id]}`
+                                  : 'Tanpa janji',
+                              ]
+                                .filter(Boolean)
+                                .join(' · '),
+                            }
+                          : undefined
+                    }
+                  />
                 )
               }
             />

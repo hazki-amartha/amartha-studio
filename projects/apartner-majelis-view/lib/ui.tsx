@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, SelectableCard } from '@/design-system/components'
-import { MagnifyingGlass, WhatsappLogo } from '@/design-system/icons'
+import { MagnifyingGlass, NotePencil, WhatsappLogo } from '@/design-system/icons'
 import { ringkas, type Week } from './data'
 import { IconCheck, IconChevronDown, IconChevronUp, IconPin, IconX } from './icons'
 
@@ -261,6 +261,56 @@ export function WeekStrip({
   )
 }
 
+// --- RepaymentStrip --------------------------------------------------------
+// The recent cycle as a FIXED row — the last eight weeks, sized to the card
+// width and not scrollable. It replaces the horizontal rail on every
+// payment-related page: a swipe hides the weeks it doesn't open on, and the
+// question a BP brings to this strip ("how has the last month or two gone?") is
+// answered by what fits on screen, not by what she can reach.
+//
+// Eight, because that is what sits comfortably across a phone at a legible mark
+// size — a season of payments, the same span the reference draws on its
+// overview card. The amounts are gone from under each cell (they live behind
+// "Lihat Semua"); here a week is only its outcome, so the mark carries the whole
+// meaning: green paid, orange part-paid, red missed, and a hollow primary ring
+// for the week that has not closed yet.
+const MARK_TONE: Record<Week['status'], string> = {
+  lunas: 'border-green-500 bg-green-500 text-neutral-white',
+  sebagian: 'border-orange-500 bg-orange-500 text-neutral-white',
+  lewat: 'border-red-500 bg-red-500 text-neutral-white',
+  'jatuh-tempo': 'border-2 border-primary-500 text-primary-500',
+}
+
+export function RepaymentStrip({ weeks }: { weeks: Week[] }) {
+  const shown = weeks.slice(-STRIP_WEEKS_STATIC)
+  return (
+    <div className="flex items-start justify-between">
+      {shown.map((w) => {
+        const current = w.status === 'jatuh-tempo'
+        return (
+          <div key={w.no} className="flex flex-col items-center gap-4">
+            <span
+              className={`flex h-20 w-20 items-center justify-center rounded-full border ${MARK_TONE[w.status]}`}
+            >
+              {w.status === 'lunas' || w.status === 'sebagian' ? (
+                <IconCheck size={16} />
+              ) : w.status === 'lewat' ? (
+                <IconX size={16} />
+              ) : null}
+            </span>
+            <span className={`text-10 ${current ? 'font-bold text-primary-500' : 'text-disabled'}`}>
+              {w.date}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Eight weeks fit across a phone at a legible mark size without scrolling. */
+const STRIP_WEEKS_STATIC = 8
+
 // --- ProductBadge ----------------------------------------------------------
 // The lending product, wherever it appears — on a group in the directory or on
 // a mitra in the roster. One component so the colours cannot drift between the
@@ -275,7 +325,10 @@ export function WeekStrip({
 
 export function ProductBadge({ product }: { product: 'Modal' | 'GL' | 'Hybrid' }) {
   const intent = product === 'Modal' ? 'blue' : product === 'GL' ? 'primary' : 'neutral'
-  return <Badge intent={intent}>{product}</Badge>
+  // "Hybrid" is the internal word; "GL Modal Mix" is what it actually means and
+  // names both products in it, which is the whole reason a BP looks at this
+  // badge before she opens the group.
+  return <Badge intent={intent}>{product === 'Hybrid' ? 'GL Modal Mix' : product}</Badge>
 }
 
 // --- Finding things in a list ----------------------------------------------
@@ -515,6 +568,84 @@ export function ActionRow({
   )
 }
 
+// --- ResultRow -------------------------------------------------------------
+// What a card says once its outcome is RECORDED — the collection stage's other
+// half, and deliberately not `ActionRow`.
+//
+// ActionRow is one line with one control on the right, which is right while the
+// card still asks for something ("Tagihan Rp650.000 · [Tagih]"). The moment an
+// outcome exists there are three or four facts to carry — the amount, what kind
+// of outcome it was, what is still short, why — and squeezing them into one row
+// meant the amount, a badge and "Ubah" fought over the same 340px, with the
+// shortfall reduced to text inside a badge.
+//
+// So: the figure gets its own line at reading size with its status beside it,
+// "Ubah" sits out at the edge as a link rather than a button, and anything
+// further — what is still owed, the reason, the promise — drops to a SECOND row
+// under a rule. The row only appears when there is something to put in it, so a
+// clean "Lunas" stays exactly one row tall.
+
+export function ResultRow({
+  label,
+  amount,
+  badge,
+  onEdit,
+  detail,
+}: {
+  label: string
+  /** The figure, at reading size. */
+  amount: string
+  /** What kind of outcome it was, set beside the figure rather than opposite it. */
+  badge?: ReactNode
+  /** Reopens whatever produced the outcome. Omitted renders no "Ubah". */
+  onEdit?: () => void
+  /** The second row. Omitted renders no rule and no row. */
+  detail?: { label: string; value: string; tone?: 'red' | 'default'; note?: string }
+}) {
+  return (
+    <div className="flex flex-col gap-12">
+      <div className="flex items-center gap-12">
+        {/* Same caption-over-figure at the same size as the "Tagihan Rp650.000"
+            this row replaces. The amount used to jump to 20px once it was
+            collected, so one card changed type size the moment it was answered. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="truncate text-12 text-caption">{label}</span>
+          <span className="truncate text-16 font-bold text-default">{amount}</span>
+        </div>
+        {/* Status and the way to change it, together at the edge — where the
+            "Tagih" button sat before the outcome existed. "Ubah" as a word cost
+            a whole label for a control the pencil says in an icon. */}
+        <div className="flex shrink-0 items-center gap-8">
+          {badge}
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label="Ubah hasil"
+              className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-neutral-50 text-default"
+            >
+              <NotePencil size={20} />
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {detail ? (
+        <div className="flex flex-col gap-2 border-t border-default pt-12">
+          <span className="text-12 text-caption">{detail.label}</span>
+          {/* Not bold. The figure above it is the one that was collected; this
+              is what is still missing, and setting both bold made the card
+              argue with itself about which number it was about. */}
+          <span className={`text-16 ${detail.tone === 'red' ? 'text-red-500' : 'text-default'}`}>
+            {detail.value}
+          </span>
+          {detail.note ? <span className="text-12 text-caption">{detail.note}</span> : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 // --- OptionCard ------------------------------------------------------------
 // A radio card that can HOLD the thing its option needs — an amount field, a
 // reason list — inside itself.
@@ -713,6 +844,15 @@ export function ProgressCard({
   of,
   percent,
   tone = 'primary',
+  /**
+   * The percentage is a THIRD way of saying what the value, the denominator and
+   * the bar already say. On the money stages it was the least useful of the
+   * four — a BP chases rupiah, not a ratio — so those turn it off and let the
+   * denominator take the right-hand slot instead.
+   */
+  showPercent = true,
+  /** Drops the card chrome for a block already sitting on its own white panel. */
+  flat = false,
 }: {
   title: string
   value: string
@@ -720,24 +860,34 @@ export function ProgressCard({
   of?: string
   percent: number
   tone?: 'primary' | 'green'
+  showPercent?: boolean
+  flat?: boolean
 }) {
-  return (
-    <div className="flex flex-col gap-8 rounded-12 bg-neutral-white p-12">
+  const body = (
+    <div className="flex flex-col gap-8">
       <div className="flex items-end gap-8">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <span className="text-12 text-caption">{title}</span>
           <span className="flex items-baseline gap-4">
             <span className="text-24 font-bold text-default">{value}</span>
-            {of ? <span className="text-14 text-caption">dari {of}</span> : null}
+            {of && showPercent ? <span className="text-14 text-caption">dari {of}</span> : null}
           </span>
         </div>
-        <span className={`text-18 font-bold ${tone === 'green' ? 'text-green-500' : 'text-primary-500'}`}>
-          {percent}%
-        </span>
+        {showPercent ? (
+          <span
+            className={`text-18 font-bold ${tone === 'green' ? 'text-green-500' : 'text-primary-500'}`}
+          >
+            {percent}%
+          </span>
+        ) : of ? (
+          <span className="shrink-0 text-14 text-caption">dari {of}</span>
+        ) : null}
       </div>
       <Meter progress={percent} tone={tone} />
     </div>
   )
+
+  return flat ? body : <div className="rounded-12 bg-neutral-white p-12">{body}</div>
 }
 
 // --- ProofTile -------------------------------------------------------------

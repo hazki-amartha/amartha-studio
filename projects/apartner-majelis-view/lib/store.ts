@@ -61,6 +61,14 @@ export interface NonPayment {
 export type GrowthResult = 'ya' | 'tidak'
 
 /**
+ * What happened to a YES. "Tertarik" is not an outcome on its own — a celengan
+ * she agreed to and one that was actually opened are the same record until this
+ * says otherwise, and the difference is whether next week's BP has to bring it
+ * up again.
+ */
+export type GrowthFollowUp = 'selesai' | 'lanjut'
+
+/**
  * What one finished task contributed to the day's cash, banked at the moment it
  * was submitted.
  *
@@ -125,6 +133,11 @@ export interface AppState {
    * blindly or dropped for good. Absent = interested, or not yet answered.
    */
   growthReasons: Record<string, string>
+  /**
+   * mitraId → whether her YES was finished on the spot or carried to the next
+   * kumpulan. Absent = she said no, or nothing recorded.
+   */
+  growthFollowUps: Record<string, GrowthFollowUp>
   /** Which mitra the mitra page and collect page render. */
   openMitra: string
   /** The receipt the success screen prints. Null before any collection. */
@@ -148,6 +161,22 @@ export interface AppState {
   day: DayKey
   /** Task ids finished today. Drives the focus card and the KPI count. */
   doneTasks: string[]
+  /**
+   * Task ids she has OPENED but not finished. Without this, a visit abandoned
+   * halfway — she started the register, the group scattered, she rode on — is
+   * indistinguishable from one never touched, and "Dikerjakan" is exactly the
+   * state a BP needs to find again at the end of the day.
+   */
+  startedTasks: string[]
+  /**
+   * Task ids whose record has reached the server. Finishing and SENDING are
+   * different events here for the reason they are different in the field: she
+   * closes a visit standing in a balai with no signal, and the record sits on
+   * the handset until it can go. A day that shows work as "selesai" while
+   * nothing has left the phone is how a BP finds out on Friday that Tuesday
+   * never landed.
+   */
+  sentTasks: string[]
   /**
    * The task the open pelayanan belongs to, so submitting the recap closes the
    * right row on the schedule. Null when the roster was opened from the Majelis
@@ -297,12 +326,15 @@ const initial: AppState = {
   shortfallReasons: {},
   growthResults: {},
   growthReasons: {},
+  growthFollowUps: {},
   openMitra: 'm1',
   lastCollect: null,
   photo: false,
   geo: false,
   day: 'today',
   doneTasks: [],
+  startedTasks: [],
+  sentTasks: [],
   activeTask: null,
   openMajelis: 'mawar',
   majelisDay: null,
@@ -405,6 +437,10 @@ function scheduleFollowUp(current: Task[], lead: Lead, tomorrow: boolean): Task[
   ]
 }
 
+/** Adds a task to the started list once, ignoring a null id. */
+const withStarted = (started: string[], taskId: string | null): string[] =>
+  !taskId || started.includes(taskId) ? started : [...started, taskId]
+
 export const store = {
   get: () => state,
   set(patch: Partial<AppState>) {
@@ -434,11 +470,13 @@ export const store = {
       shortfallReasons: {},
       growthResults: {},
       growthReasons: {},
+      growthFollowUps: {},
       lastCollect: null,
       photo: false,
       geo: false,
       openMajelis: majelisId,
       activeTask: taskId,
+      startedTasks: withStarted(state.startedTasks, taskId),
     })
   },
   /** Opens a group's roster from the Majelis tab, without starting any work. */
@@ -464,11 +502,18 @@ export const store = {
       activeTask: taskId,
       depositAmount: depositExpected(state),
       depositDiffReason: null,
+      startedTasks: withStarted(state.startedTasks, taskId),
     })
   },
   /** Opens a home visit from the schedule. */
   startHomeVisit(taskId: string) {
-    store.set({ openHome: taskId, activeTask: taskId, photo: false, geo: false })
+    store.set({
+      openHome: taskId,
+      activeTask: taskId,
+      photo: false,
+      geo: false,
+      startedTasks: withStarted(state.startedTasks, taskId),
+    })
   },
   setMetWith(mitraId: string, value: MetWith) {
     store.set({ metWith: { ...state.metWith, [mitraId]: value } })
@@ -516,12 +561,21 @@ export const store = {
 
   /** Opens a sosialisasi from the schedule. */
   startSosialisasi(taskId: string) {
-    store.set({ activeTask: taskId, openEvent: findTask(taskId)?.eventId ?? 'e1' })
+    store.set({
+      activeTask: taskId,
+      openEvent: findTask(taskId)?.eventId ?? 'e1',
+      startedTasks: withStarted(state.startedTasks, taskId),
+    })
   },
   /** Opens a follow-up from the schedule — the rostered call. */
   startFollowUp(taskId: string) {
     const leadId = findTask(taskId)?.leadId ?? 'l1'
-    store.set({ activeTask: taskId, openLead: leadId, followUp: emptyFollowUp(leadId) })
+    store.set({
+      activeTask: taskId,
+      openLead: leadId,
+      followUp: emptyFollowUp(leadId),
+      startedTasks: withStarted(state.startedTasks, taskId),
+    })
   },
   /**
    * Opens a follow-up from the prospect's own record.
@@ -733,11 +787,38 @@ export const store = {
    * `tidak` carries the reason she gave; a `ya` clears any reason left behind
    * by a corrected no — she's interested now, so the old refusal isn't true.
    */
-  setGrowthResult(mitraId: string, result: GrowthResult, reason?: string) {
+  setGrowthResult(
+    mitraId: string,
+    result: GrowthResult,
+    reason?: string,
+    followUp?: GrowthFollowUp,
+  ) {
     const growthReasons = { ...state.growthReasons }
     if (result === 'tidak' && reason) growthReasons[mitraId] = reason
     else delete growthReasons[mitraId]
-    store.set({ growthResults: { ...state.growthResults, [mitraId]: result }, growthReasons })
+
+    // The two branches are exclusive: a no has a reason, a yes has a follow-up,
+    // and re-answering has to clear whichever no longer applies or the card
+    // reads back the previous answer's tail.
+    const growthFollowUps = { ...state.growthFollowUps }
+    if (result === 'ya' && followUp) growthFollowUps[mitraId] = followUp
+    else delete growthFollowUps[mitraId]
+
+    store.set({
+      growthResults: { ...state.growthResults, [mitraId]: result },
+      growthReasons,
+      growthFollowUps,
+    })
+  },
+  /**
+   * Sends every finished task that hasn't gone yet. One button for the batch
+   * rather than a send per row: they queued because there was no signal, and
+   * signal returns for all of them at once.
+   */
+  sendPending() {
+    const pending = state.doneTasks.filter((id) => !state.sentTasks.includes(id))
+    if (pending.length === 0) return
+    store.set({ sentTasks: [...state.sentTasks, ...pending] })
   },
   setDepositAmount(depositAmount: number | null) {
     // Agreeing with the app clears any difference already explained — there is
@@ -839,9 +920,26 @@ export const recordedMembers = (s: AppState): Mitra[] =>
 export const billableTotal = (): number =>
   MAJELIS.members.reduce((sum, m) => sum + outstandingOf(m).total, 0)
 
-/** Everything actually collected so far. */
+/** Everything actually collected so far, cash and app alike. */
 export const collectedTotal = (s: AppState): number =>
   MAJELIS.members.reduce((sum, m) => sum + paidOf(s, m), 0)
+
+// The two figures the stage-2 meter runs on. They exclude the self-serve mitra
+// on BOTH sides, because that money was never the BP's to collect: it arrived
+// through the app before she got there. Measuring her against a denominator
+// that includes it makes the bar start part-full for work she didn't do, and
+// makes 100% unreachable in the other direction if any of them hadn't paid.
+// What the bar is for is the cash in her bag against the cash she came for.
+
+/** What the BP has to collect in cash this visit. */
+export const cashBillableTotal = (): number =>
+  MAJELIS.members
+    .filter((m) => !isSelfServe(m))
+    .reduce((sum, m) => sum + outstandingOf(m).total, 0)
+
+/** Cash actually in her hands so far. */
+export const cashCollectedTotal = (s: AppState): number =>
+  MAJELIS.members.filter((m) => !isSelfServe(m)).reduce((sum, m) => sum + paidOf(s, m), 0)
 
 // --- Stage 3: growth -------------------------------------------------------
 
@@ -892,6 +990,24 @@ export const laterTasks = (s: AppState): Task[] => {
   if (!now) return []
   return TASKS.filter((t) => !s.doneTasks.includes(t.id) && t.id !== now.id)
 }
+
+/**
+ * Where one task stands. Four states, and the last two are the pair this
+ * direction cares about: finishing a visit and getting it off the handset are
+ * different events, and a day that calls both "selesai" hides the gap.
+ */
+export type TaskStatus = 'belum' | 'dikerjakan' | 'selesai' | 'terkirim'
+
+export function taskStatus(s: AppState, taskId: string): TaskStatus {
+  if (s.sentTasks.includes(taskId)) return 'terkirim'
+  if (s.doneTasks.includes(taskId)) return 'selesai'
+  if (s.startedTasks.includes(taskId)) return 'dikerjakan'
+  return 'belum'
+}
+
+/** Finished today, still on the handset — what the sync widget counts. */
+export const pendingSync = (s: AppState): Task[] =>
+  TASKS.filter((t) => s.doneTasks.includes(t.id) && !s.sentTasks.includes(t.id))
 
 export const doneTaskList = (s: AppState): Task[] =>
   TASKS.filter((t) => s.doneTasks.includes(t.id))

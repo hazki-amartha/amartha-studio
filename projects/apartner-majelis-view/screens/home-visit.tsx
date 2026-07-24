@@ -26,8 +26,7 @@ import { Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
-import { TagihanCard } from '../lib/home-card'
-import { JanjiBayarCard } from '../lib/mitra-card'
+import { AngsuranCard, JanjiBayarCard } from '../lib/mitra-card'
 import { DAYS } from '../lib/schedule'
 import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
 import {
@@ -37,7 +36,6 @@ import {
   SectionTitle,
   StageBar,
   StickyBar,
-  WeekStrip,
 } from '../lib/ui'
 
 // Why she can't pay, when someone was reached.
@@ -101,12 +99,11 @@ export function HomeVisitScreen() {
     >
       <StageBar current={2} labels={HOME_STAGE_LABELS} />
 
-      {/* The ledger and the bill, drawn exactly as the mitra page draws them:
-          the ten-week strip, then the total tagihan and its parts. Always on
-          screen from the moment the step opens — the BP should never be talking
-          to her with the amount she is asking for off-screen. */}
-      <WeekStrip weeks={mitra.weeks} />
-      <TagihanCard mitra={mitra} />
+      {/* The recent cycle on grey over the bill on white — the same AngsuranCard
+          the mitra page and the majelis tagih flow open on, so a doorstep
+          collection reads the same as a majelis one. No "Lihat Semua" here: with
+          a mitra in front of her the full ledger is not a place to wander off. */}
+      <AngsuranCard mitra={mitra} />
 
       {/* The promise she is being held to — dated the visit day. Sits with the
           bill because it is the figure the BP negotiates against. */}

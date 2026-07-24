@@ -31,25 +31,46 @@ import { PaperPlaneTilt, Sort, WhatsappLogo } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, type Mitra } from '../lib/data'
-import { IconArrowRight, IconCalendar, IconChevronRight, IconPin, IconUsers } from '../lib/icons'
+import { IconArrowRight, IconCalendar, IconChevronRight, IconUsers } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import { taskForMajelis } from '../lib/schedule'
 import { openMajelisEntry, store, useApp } from '../lib/store'
-import { PinMark, ProductBadge, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
+import {
+  EmptyState,
+  OptionSheet,
+  PinMark,
+  ProductBadge,
+  SearchField,
+  SectionTitle,
+  StickyBar,
+  VisitTitle,
+} from '../lib/ui'
 
 type Sort = 'tunggakan' | 'nama'
-type Sheet = 'edit' | 'reminder' | null
+type Sheet = 'edit' | 'reminder' | 'sort' | null
+
+const SORT_OPTIONS: { label: string; value: Sort }[] = [
+  { label: 'Tunggakan terbanyak', value: 'tunggakan' },
+  { label: 'Nama A–Z', value: 'nama' },
+]
+
+const sortLabel = (sort: Sort) =>
+  SORT_OPTIONS.find((o) => o.value === sort)?.label ?? SORT_OPTIONS[0].label
 
 export function MajelisScreen() {
   const flow = useFlow()
   const s = useApp()
   const group = openMajelisEntry(s)
   const [sort, setSort] = useState<Sort>('tunggakan')
+  const [query, setQuery] = useState('')
   const [sheet, setSheet] = useState<Sheet>(null)
 
-  const members = [...MAJELIS.members].sort((a, b) =>
-    sort === 'nama' ? a.name.localeCompare(b.name) : b.dpd - a.dpd || a.name.localeCompare(b.name),
-  )
+  const q = query.trim().toLowerCase()
+  const members = MAJELIS.members
+    .filter((m) => !q || m.name.toLowerCase().includes(q))
+    .sort((a, b) =>
+      sort === 'nama' ? a.name.localeCompare(b.name) : b.dpd - a.dpd || a.name.localeCompare(b.name),
+    )
 
   // Whether the day's schedule actually sends her here. Everything about the
   // footer hangs off this one fact.
@@ -97,15 +118,15 @@ export function MajelisScreen() {
       <div className="flex items-center gap-8">
         <SectionTitle>Daftar Mitra</SectionTitle>
         <span className="flex-1" />
-        {/* A two-state toggle rather than a menu: there are exactly two useful
-            orders, and a dropdown for two options is a menu that exists to look
-            like a feature. It carries a SORT mark now — the chevron it used to
-            wear is the universal "this opens a list of options", and this one
-            opens nothing. */}
+        {/* It opens a sheet now rather than flipping between two orders on tap.
+            A control that changes state when touched has to be tapped to be
+            read, and on a roster of 22 that means re-sorting the list under the
+            BP's thumb to find out what order it was already in. It names the
+            current order and asks. */}
         <button
           type="button"
-          onClick={() => setSort(sort === 'tunggakan' ? 'nama' : 'tunggakan')}
-          aria-label={`Urutkan — sekarang ${sort === 'tunggakan' ? 'tunggakan' : 'nama'}`}
+          onClick={() => setSheet('sort')}
+          aria-label={`Urutkan — sekarang ${sortLabel(sort)}`}
           className="flex items-center gap-4 rounded-full border border-default bg-neutral-white px-12 py-4 text-12 font-bold text-default"
         >
           <Sort size={16} />
@@ -113,7 +134,26 @@ export function MajelisScreen() {
         </button>
       </div>
 
+      {/* By NAME only. The directory searches place as well, because a group is
+          somewhere; a mitra is a person the BP is looking for by the name she
+          is about to say out loud. */}
+      <SearchField
+        value={query}
+        onChange={setQuery}
+        placeholder="Cari nama mitra"
+        label="Cari mitra di majelis ini"
+      />
+
+      {q ? (
+        <span className="text-12 text-caption">
+          {members.length} dari {MAJELIS.members.length} mitra
+        </span>
+      ) : null}
+
       <div className="flex flex-col gap-8 pb-16">
+        {members.length === 0 ? (
+          <EmptyState title="Mitra tidak ditemukan" body="Coba nama atau ejaan lain." />
+        ) : null}
         {members.map((mitra) => (
           <MitraCard
             key={mitra.id}
@@ -164,6 +204,18 @@ export function MajelisScreen() {
         group={group}
         onClose={() => setSheet(null)}
       />
+      <OptionSheet
+        open={sheet === 'sort'}
+        title="Urutkan mitra"
+        name="urutan-mitra"
+        options={SORT_OPTIONS}
+        value={sort}
+        onPick={(v) => {
+          setSort(v)
+          setSheet(null)
+        }}
+        onClose={() => setSheet(null)}
+      />
     </Screen>
   )
 }
@@ -208,13 +260,7 @@ function EditSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
           subtitle="Pilih mitra lain sebagai KM"
           onClick={onClose}
         />
-        <EditRow
-          icon={<IconPin size={20} />}
-          title="Ubah lokasi kumpulan"
-          subtitle="Alamat tempat majelis berkumpul"
-          onClick={onClose}
-        />
-        {/* The only one of the four that changes another group as well as this
+        {/* The only one of the three that changes another group as well as this
             one, which is why it says "pindahkan" rather than "hapus": a mitra
             does not leave a majelis, she arrives at a different one. */}
         <EditRow

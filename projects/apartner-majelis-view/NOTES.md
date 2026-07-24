@@ -6,11 +6,16 @@
 - `AgendaRow`, `HeaderAction` — the schedule's clock gutter and its top-bar icon buttons. Ported from `apartner-task-first`.
 - `HomeMitraCard` / `TagihanCard` — the home visit's doorstep card (identity + WhatsApp/call + address) and the ledger-derived amount card beneath it.
 - `StageBar` — three numbered stages with rails; a cleared stage turns green and swaps its number for a tick. Used on attendance, collection, growth, recap.
-- `WeekStrip` — horizontal 50-week repayment rail carrying the amount inside each week. Used on the mitra page. The direction's centrepiece.
-- `ProgressCard` — headline value + denominator + percent over a meter. Used on attendance and collection.
+- `WeekStrip` — horizontal repayment rail carrying the amount inside each week. Superseded on payment pages by `RepaymentStrip` + `AngsuranCard`; kept for any surface that still wants the scrollable, amount-per-week form.
+- `RepaymentStrip` — the recent cycle as a FIXED, non-scrolling row of the last 8 weeks. Marks only (green paid / orange part-paid / red missed / hollow primary ring for the open week); the amounts moved behind "Lihat Semua". Replaces the horizontal scroll on every payment-related page — a swipe hid the weeks it didn't open on.
+- `AngsuranCard` — `RepaymentStrip` + the tagihan breakdown in one bordered card, titled "Riwayat Angsuran", with an optional "Lihat Semua" link. Two panels told apart by fill, not a rule: the strip on lightest-grey, the bill on white. Only the total is bold — the tunggakan and weekly lines are set regular so the sum has something to be louder than — and it is ruled off from the two parts it is made of. The one payment card the mitra page and the collect page both open on, so the bill is drawn one way everywhere it's read. Lives in `mitra-card.tsx` beside `TagihanBreakdown`.
+- `ResultRow` — what a stage card says once its outcome is RECORDED, as opposed to `ActionRow`, which is right while the card still asks for something. Same caption-over-figure at the same 16px as the "Tagihan" it replaces, so a card doesn't change type size the moment it's answered. Status badge and a round `NotePencil` button sit together at the edge, where "Tagih" was — the word "Ubah" cost a whole label for what the pencil says in an icon. Anything further — what is still short, the reason, the janji bayar — drops to a SECOND row under a rule, set regular rather than bold so it doesn't argue with the collected figure above it. The second row only renders when there is something to put in it, so a clean "Lunas" stays one row tall. Used on the collection stage.
+- `MitraBadges` / `StatusChip` — her standing facts as a wrapping row of outlined, icon-led chips (product · DPD bucket · relief or pre-disbursement), used under the name on the mitra detail page. Supports the new labels the top bar couldn't hold: `keringanan` → "Dapat Keringanan", `predisburse` → "Ready to Disburse" (which replaces the DPD chip, a new mitra having no bucket). The filled `Badge` / `DpdBadge` stay where a single status is scanned down a column (roster, queue); this is for the header row where several line up and the icon is the anchor. `predisburse` added to the `Mitra` type.
+- `ProdukCard` / `LabeledRow` / `PhotoLink` / `CircleButton` / `PinButton` — the mitra page's lower detail cards (Produk chips, Detail with majelis + addresses, Penanggung Jawab). `LabeledRow` is a label-over-value card row with an optional right-pinned control and an under-value link; `CircleButton` the round bordered icon button the reference puts every route pin and WhatsApp in. Local to `mitra.tsx`.
+- `ProgressCard` — headline value + denominator over a meter. `showPercent={false}` drops the percentage, which was a third way of saying what the value, the denominator and the bar already said, and let the denominator take the right-hand slot; all three majelis-visit stages now use it that way. `flat` drops the card chrome for the white header band those stages sit it in. Stage 2 runs on CASH only (`cashCollectedTotal` / `cashBillableTotal`) — the self-serve mitra settled through the app and were never the BP's to collect, so counting them would start the bar part-full for work she didn't do.
 - `StickyBar` — pinned footer holding a summary above its button. Used on all six action screens; the collect page needs the summary inside the sticky region or "sisa setelah ini" scrolls away from the button it qualifies.
 - `PinMark` / `WaMark` — the two glyphs that are never neutral in this project: a location pin is red, WhatsApp is green, in a header, on a card, or inside a line of caption text. Components rather than a convention, because a convention is what drifts — one screen tints the pin, the next inherits `text-caption`, and the BP is left wondering whether the grey one means something else. The only pins left untinted are the ones inside tinted tiles (`ProofTile`'s "Rekam lokasi", the edit sheet's "Ubah lokasi"), where the container already carries the colour.
-- `TagihanBreakdown` — total tagihan and its two parts, shared by the mitra page, the home visit and (with `bare`, under the identity block in one card) the collect page. They were two drawings of the same three facts read at the same moment, with different wording and different type; the home visit's `TagihanCard` is now just this component under its old name.
+- `TagihanBreakdown` / `TagihanCard` — total tagihan and its two parts. Superseded everywhere by `AngsuranCard`, which the mitra page, the collect page and now the home visit all open on; kept for any surface that wants the bill without the week strip.
 - `MitraCard` / `DpdBadge` / `MitraPhoto` — the one member card, shared by roster, attendance, collection and growth. `MitraPhoto` replaced the initials `Avatar` on every MITRA surface (roster, collect, doorstep): a BP in a room of 22 women recognises a face, and "SH" is something she has to decode into a name and then match to a person. It is a silhouette placeholder — the prototype has no photos — but it says what the real thing is. Leads keep `Avatar`: a prospect genuinely has no photo on file.
 - `ActionRow` — the bottom half of a stage card: caption + bold figure left, one control right. Used by all three visit stages, which is what keeps the card one object as the BP moves through them.
 - `ChoicePill` — the two-outcome pill pair (Tidak/Hadir, Tidak/Tertarik), selected in primary. Replaces `AttendancePill`'s green/red selection: the pills record what was said, and a red "Tidak hadir" beside a red DPD badge puts two alarms in one colour. Used on attendance and growth.
@@ -20,10 +25,11 @@
 - `LeadRow` / `LeadIdentityCard` — a prospect as a list row and as the identity block on her own record. Both lead with the interest grade, because a list of leads has no other ranking.
 - `ContactButton` — the round WhatsApp/handset pair, lifted out of `home-card.tsx` into `ui.tsx`: reaching someone is now the whole job on two screens, not one.
 - `IconTile` gained `blue` and `orange` tints for the two NTB task kinds, and `IconMegaphone` / `IconUserPlus` were added to `icons.tsx`.
+- `ProductBadge` — the lending product wherever it appears, on a group or on a mitra. One component so the colours cannot drift between screens, which is the only way a colour code is worth having: Modal blue, GL purple, Hybrid neutral. The palette avoids the green/orange/yellow the status badges own. "Hybrid" is the internal word; the badge prints **GL Modal Mix**, which names both products in it.
 - `SearchField`, `FilterBar`, `FilterChip`, `OptionSheet`, `ResetLink`, `EmptyState` — the Majelis tab's find-a-group layer, lifted shape-for-shape from `apartner-homepage-ia` (which solves the same problem on the same tab). Strong promotion candidates: three projects now want a filter chip over a bottom sheet, and two of them have written it independently. `SearchField` uses the shared `MagnifyingGlass` from `@/design-system/icons` rather than a local icon.
 - `h-40` on a default-size `Button` — FunDS button sizes step 28 (xs) → 36 (sm) → 38 (md), so none lands on the 40px avatar rhythm the cards use. `h-40` is a token class, not an arbitrary value. The in-card actions (Tagih, Tawarkan) use the DEFAULT size rather than `sm`: `sm` sets 12px type and the attendance pills are 14px, so the same card was read at two sizes from one stage to the next.
 
-## The L0 layer (Jadwal / Majelis / KPI)
+## The L0 layer (Jadwal / Majelis / Mitra / KPI / Profil)
 
 Ported from `apartner-task-first` so the two directions share a front door and
 what gets compared is the pelayanan itself, not the way in to it. Two routes,
@@ -49,8 +55,24 @@ each opening on what it is for:
   instead of a sheet. What changes here: the doorstep amount is derived from her
   ledger, so the Tagihan card names the three debts it is made of (this week,
   the missed weeks, any shortfall) instead of printing one fused figure.
+- **Majelis tab → the roster; Mitra tab → the borrower.** The two look-up
+  surfaces answer different questions. "Who is in Kenanga" is a group; "where is
+  Ibu Rina" is a person, and a directory of groups cannot take it — the woman
+  phoning the BP does not open with which balai she attends. The Mitra card is
+  the roster's card with one line added under the name for her majelis, which is
+  the only difference the two lists need: on the roster, the group is the page
+  you are already on.
+- **Profil** is ported from `apartner-homepage-ia` unchanged except for one cut:
+  that version carried a KPI card as a second route into the scoreboard, which
+  made sense when Profil sat behind an avatar in a header. Here KPI is its own
+  tab one thumb away, so the card would be a shortcut to the thing beside it.
 - **Prototype edge:** only Majelis Mawar has a real roster — every task and every
-  directory row opens Mawar's 22 mitra under the name of the group tapped.
+  directory row opens Mawar's 22 mitra under the name of the group tapped. The
+  Mitra tab handles this differently: the other groups borrow Mawar's LEDGERS,
+  so every card carries a real DPD, product and repayment record, but each takes
+  a distinct name from a pool of 100. A list whose whole purpose is search cannot
+  show the same woman five times — that does not read as a shared fixture, it
+  reads as a bug, and it makes the one gesture the screen exists for useless.
 
 ## Where this departs from the reference
 

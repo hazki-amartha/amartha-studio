@@ -32,6 +32,8 @@ export interface Profile {
   /** Her penanggung jawab — who the BP calls when the mitra doesn't answer. */
   pjName: string
   pjPhone: string
+  /** How the PJ is related to her — the husband, most often (see PJ_NAMES). */
+  pjRelation: string
   /** How long she has been a mitra — the thing that earns patience. */
   joined: string
 }
@@ -46,6 +48,8 @@ const PJ_NAMES = [
   'Bapak Ujang Suryana',
   'Bapak Endang Sutisna',
 ]
+// Almost always the husband; occasionally a grown child or sibling stands in.
+const PJ_RELATIONS = ['Suami', 'Suami', 'Suami', 'Anak', 'Saudara']
 
 function phoneFrom(h: number): string {
   return `0812-${String(3000 + (h % 6000))}-${String(1000 + (h % 8999))}`
@@ -59,6 +63,7 @@ export function profileOf(mitra: Mitra): Profile {
     business: `${TRADES[h % TRADES.length]} — Pasar Ciseeng blok ${String.fromCharCode(65 + (h % 4))}`,
     pjName: PJ_NAMES[h % PJ_NAMES.length],
     pjPhone: phoneFrom(h * 7 + 13),
+    pjRelation: PJ_RELATIONS[h % PJ_RELATIONS.length],
     joined: JOINED[h % JOINED.length],
   }
 }

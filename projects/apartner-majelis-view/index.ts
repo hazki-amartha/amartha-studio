@@ -8,14 +8,14 @@ import { CollectionScreen } from './screens/collection'
 import { MitraScreen } from './screens/mitra'
 import { LoansScreen } from './screens/loans'
 import { CollectScreen } from './screens/collect'
-import { CollectDoneScreen } from './screens/collect-done'
 import { GrowthScreen } from './screens/growth'
 import { OfferScreen } from './screens/offer'
 import { ProofScreen } from './screens/proof'
-import { RecapScreen } from './screens/recap'
 import { LadderScreen } from './screens/ladder'
 import { TodayScreen } from './screens/today'
 import { MajelisListScreen } from './screens/majelis-list'
+import { MitraListScreen } from './screens/mitra-list'
+import { ProfileScreen } from './screens/profile'
 import { KpiScreen } from './screens/kpi'
 import { HomeBriefScreen } from './screens/home-brief'
 import { HomeVisitScreen } from './screens/home-visit'
@@ -35,10 +35,17 @@ export const project: ProjectModule = {
       component: TodayScreen,
       entry: true,
       notes: [
-        'The BP opens her day here. The page commits to one answer: the single visit she should be doing right now. Every row wears its kind as a short code — MV, HV, Sos, FU — the same shorthand she and her BM already speak.',
+        'The BP opens her day here, as one list of equal cards under two headings: Belum selesai and Selesai. There is no focus card and no “Sekarang”. The page used to draw one stop larger with the verb on a button, which answers “what next” on a day that does not run in clock order — she arrives early, a group is late, the 13.00 door is on the way back from the 10.00 balai — so the biggest thing on screen was regularly the row she was not doing. Every row starts its task on tap, which is all the button ever did.',
+        'The split is on the only line that matters when she looks at her day: is there still something to do here. Dikerjakan sits with Belum mulai because a half-finished visit is unfinished work; Terkirim sits with Selesai because both are off her plate, and which of the two it is belongs to the sync widget rather than to a section heading.',
+        'Every row wears its kind as a short code — MV, HV, Sos, FU — the same shorthand she and her BM already speak.',
         'Terkumpul hari ini sits above the work, the same card apartner-homepage-ia opens on, minus its “Lihat semua”: the figure is what a BM asks for before the day is out, and at the deposit screen it would arrive too late to change how she works the afternoon. It counts cash AND app payments — on-track is a different question from what is in the bag.',
         'Every card is now title + address and nothing else. The “why now” line is off both the focus card and the Berikutnya rows: a row that carries a reason is a row being argued for, and the schedule already made that call by putting the stop on the day. Where she has to ride is the fact a row gets read for.',
         'One inbox in the header, no bell. They were two senders — the business talking TO the BP, and the system reporting what happened — but a notification is something that already happened, and this page is for what has not.',
+        'Belum terkirim sits directly above the task list, because that is what it is ABOUT: those rows, and the fact that finishing them was not the last step. A BP closes a visit standing in a balai with no signal; without this she finds out on Friday that Tuesday never landed. It disappears the moment nothing is pending — a sync widget saying “0” is a permanent reminder of a problem she does not have.',
+'One filter: Tipe tugas. A status filter went with it — the page already answers that question twice, once with the Belum selesai / Selesai split and once with the sync widget, and a third control for the same fact is a control nobody reaches for. Filtering replaces the agenda with a flat list, because the two headings are a shape built around whether work is left, and a BP filtering by type has stopped asking that.',
+        'A card reads top to bottom in one order: name, address, distance, and — on a home visit only — “Kemungkinan bayar tinggi”. Distance sits directly under the address it qualifies, because “where, and how far” is one thought and the two read as a pair only when nothing comes between them. The order of a day is decided by geography as much as by the clock: two stops in one kampung get done together whatever their slots say.',
+        'The propensity label is last, and it is the only badge left on the card. Everything above it is a fact about the stop; this is a prediction about the person. It goes on home visits only — a majelis is 22 women with 22 answers, so one flag on a group describes nobody in it — and stays a small label rather than a headline, because a BP who reads a prediction as a promise and finds an empty house twice stops believing the next one.',
+        'No status badge on the card. The section already says whether there is work left, and the sync widget says which finished rows have not gone — a badge on every row was a third telling of a fact told twice, on the one line the card had left for something new.',
         'Berikutnya is the rest of the day, and tapping a row starts that task too. A day does not run in clock order — she arrives early, a group is late, a doorstep is on the way back — so the schedule stays a list of things she can begin, not a queue that only hands her the top row.',
       ],
       states: [
@@ -68,7 +75,9 @@ export const project: ProjectModule = {
         { to: 'follow-up', label: 'Mulai Follow Up — telepon prospek' },
         { to: 'deposit', label: 'Setor Setoran Harian — tugas penutup' },
         { to: 'majelis-list', label: 'tab Majelis' },
+        { to: 'mitra-list', label: 'tab Mitra' },
         { to: 'kpi', label: 'tab KPI' },
+        { to: 'profile', label: 'tab Profil' },
       ],
     },
     {
@@ -84,7 +93,9 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'majelis', label: 'ketuk majelis → Majelis View' },
         { to: 'today', label: 'tab Jadwal' },
+        { to: 'mitra-list', label: 'tab Mitra' },
         { to: 'kpi', label: 'tab KPI' },
+        { to: 'profile', label: 'tab Profil' },
       ],
     },
     {
@@ -100,6 +111,41 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'today', label: 'tab Jadwal' },
         { to: 'majelis-list', label: 'tab Majelis' },
+        { to: 'mitra-list', label: 'tab Mitra' },
+        { to: 'profile', label: 'tab Profil' },
+      ],
+    },
+    {
+      id: 'mitra-list',
+      title: 'Mitra',
+      component: MitraListScreen,
+      notes: [
+        'Every borrower the BP carries, across every group. The Majelis tab answers “who is in this group”; this answers “where is Ibu Rina” — a question a directory of groups cannot take, because the woman phoning her does not open with which balai she attends.',
+        'The card is the roster’s card unchanged, with one line added under the name: her majelis and when it meets. That line is the only reason this list is not the roster — on the roster, the group is the page you are already on.',
+        'Search finds a woman she can name; the two filters find a set she can only describe — “everyone past 30 days”, “everyone in Kenanga”. DPD is filtered by BUCKET rather than by day count, because a bucket is a question someone actually asks.',
+        'Prototype edge, and an honest version of one this project already has: only Majelis Mawar has an authored roster, so the other groups draw their members from it under their own names. Every card is real — a ledger, a DPD, a product — without inventing six more week-by-week records to fill a list that exists to be searched.',
+      ],
+      flowsTo: [
+        { to: 'mitra', label: 'ketuk mitra → Detail Mitra' },
+        { to: 'today', label: 'tab Jadwal' },
+        { to: 'majelis-list', label: 'tab Majelis' },
+        { to: 'kpi', label: 'tab KPI' },
+        { to: 'profile', label: 'tab Profil' },
+      ],
+    },
+    {
+      id: 'profile',
+      title: 'Profil',
+      component: ProfileScreen,
+      notes: [
+        'Ported from apartner-homepage-ia, the same way the L0 tabs were: the two directions should differ on the pelayanan, not on where “Keluar” lives, and a second invention of a settings page is noise in that comparison.',
+        'One change from the source. That version carried a KPI card here as a second route into the scoreboard, which made sense when Profil sat behind an avatar in a header. Here KPI is its own tab one thumb away, so the card would be a shortcut to the thing beside it.',
+      ],
+      flowsTo: [
+        { to: 'today', label: 'tab Jadwal' },
+        { to: 'majelis-list', label: 'tab Majelis' },
+        { to: 'mitra-list', label: 'tab Mitra' },
+        { to: 'kpi', label: 'tab KPI' },
       ],
     },
     {
@@ -387,17 +433,7 @@ export const project: ProjectModule = {
         'A photo and a recorded location, both required before the visit can be submitted. A photo alone proves she photographed something; a location alone proves she was in the right place but not that a majelis happened. Only the pair makes a visit verifiable afterwards.',
         'They sit as two equal tiles rather than a big photo drop-zone with location as a footnote, and outside the three-stage bar — attendance, collection and growth are the work, this is the paperwork that closes it.',
       ],
-      flowsTo: [{ to: 'recap', label: 'Lanjut — butuh foto + lokasi' }],
-    },
-    {
-      id: 'recap',
-      title: 'Ringkasan & Kirim',
-      component: RecapScreen,
-      notes: [
-        'The close. Submitting is final, so the page reads back all three stages first — the BP’s last chance to catch a majelis she half-finished before it becomes someone else’s problem.',
-        'It also states what the visit means for the group: how the majelis’ collective repayment shapes its credit limit. That is the only reason a BP can give a mitra for why her neighbour’s late payment is any of her business.',
-      ],
-      flowsTo: [{ to: 'today', label: 'Kirim Tugas' }],
+      flowsTo: [{ to: 'today', label: 'Kirim Laporan — butuh foto + lokasi' }],
     },
     {
       id: 'mitra',
@@ -432,23 +468,13 @@ export const project: ProjectModule = {
       title: 'Tagih Pembayaran',
       component: CollectScreen,
       notes: [
-        'The moment of negotiation. It opens on one card — who she is over what she owes, in the same breakdown the mitra page and the doorstep card use — and every follow-up a choice needs is drawn inside the option that caused it, rather than parked at the bottom of the page where the BP has to connect it back up. As she types, the “sisa setelah ini” sits pinned above the button so the figure she is about to be held to stays in her eyeline.',
+        'The moment of negotiation. It opens on who she is over what she owes — the recent cycle on grey, the bill on white, the same Angsuran card the mitra page uses — and every follow-up a choice needs is drawn inside the option that caused it, rather than parked at the bottom of the page where the BP has to connect it back up. The “Jumlah lain” field reads back the shortfall as she types, so the figure she is about to be held to stays in her eyeline without a second summary pinned over the button.',
         '“Tidak Bayar” is a full fourth option, not an escape hatch, and it does not save until it carries BOTH the reason and the janji bayar — a no with no date is unchaseable, and “tidak ada janji” is a real answer rather than something you express by skipping the question. The same rule now covers money: any payment short of the bill has to say why it was short, because a balance nobody wrote a reason against is the same unchaseable gap.',
       ],
       flowsTo: [
-        { to: 'collect-done', label: 'Terima Tunai' },
+        { to: 'collection', label: 'Terima Tunai' },
         { to: 'collection', label: 'Simpan Catatan — tidak bayar' },
       ],
-    },
-    {
-      id: 'collect-done',
-      title: 'Pembayaran Diterima',
-      component: CollectDoneScreen,
-      notes: [
-        'A receipt, and it earns the extra tap for one reason: cash. The BP has just taken physical money from a woman standing in front of her, and both of them need a moment where the amount is stated and agreed.',
-        'It reads back three numbers and nothing else — owed, paid, left. The remaining balance is not softened: a mitra who just handed over Rp300.000 against Rp650.000 should see the Rp350.000 now, not discover it next week.',
-      ],
-      flowsTo: [{ to: 'collection', label: 'Kembali ke Daftar' }],
     },
     {
       id: 'ladder',

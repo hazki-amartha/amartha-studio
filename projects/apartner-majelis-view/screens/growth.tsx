@@ -58,19 +58,25 @@ export function GrowthScreen() {
         />
       }
     >
-      <StageBar current={3} />
+      {/* Same flat white band as the two stages before it — stage bar over the
+          stage's own progress, full width, with the list below on grey. */}
+      <div className="-mx-16 -mt-16 flex flex-col gap-12 border-b border-default bg-neutral-white px-16 pb-12 pt-16">
+        <StageBar current={3} />
 
-      {/* The same progress card as the two stages before it, rather than a
-          standalone "peluang" banner: all three stages are a count of work done
-          out of work in front of her, and the third one saying it differently
-          made it read as a different kind of screen. */}
-      <ProgressCard
-        title="Sudah ditawarkan"
-        value={`${done}`}
-        of={`${members.length} mitra`}
-        percent={members.length > 0 ? Math.round((done / members.length) * 100) : 0}
-        tone="green"
-      />
+        {/* The same progress block as the two stages before it, rather than a
+            standalone "peluang" banner: all three stages are a count of work done
+            out of work in front of her, and the third one saying it differently
+            made it read as a different kind of screen. */}
+        <ProgressCard
+          flat
+          showPercent={false}
+          title="Sudah ditawarkan"
+          value={`${done}`}
+          of={`${members.length} mitra`}
+          percent={members.length > 0 ? Math.round((done / members.length) * 100) : 0}
+          tone="green"
+        />
+      </div>
 
       <SectionTitle>Rekomendasi</SectionTitle>
 
@@ -80,6 +86,7 @@ export function GrowthScreen() {
           if (!growth) return null
           const result = s.growthResults[mitra.id]
           const reason = s.growthReasons[mitra.id]
+          const followUp = s.growthFollowUps[mitra.id]
 
           return (
             <MitraCard
@@ -99,7 +106,12 @@ export function GrowthScreen() {
               }}
               action={
                 result === undefined ? (
-                  <ActionRow label={growth.label} value={growth.value}>
+                  // Her STATE, not the product. "Siap cair Rp5.000.000" and
+                  // "Belum pernah menabung" are things the BP can see and open a
+                  // sentence from; "Pembiayaan Baru · Rp5.000.000" told her what
+                  // the app wanted to sell. The offer page still names the
+                  // product — that is where the pitch belongs.
+                  <ActionRow label="Peluang" value={growth.status}>
                     {/* Default size, matching the attendance pills and Tagih —
                         see collection.tsx. */}
                     <Button className="h-40 px-24" onClick={() => openOffer(mitra.id)}>
@@ -107,14 +119,22 @@ export function GrowthScreen() {
                     </Button>
                   </ActionRow>
                 ) : (
+                  // Once answered the card is a RECORD, so it names what was put
+                  // to her and how it landed.
                   <ActionRow
                     label={result === 'ya' ? growth.label : 'Tidak tertarik'}
-                    value={result === 'ya' ? growth.value : (reason ?? 'Tanpa alasan')}
+                    value={result === 'ya' ? growth.done : (reason ?? 'Tanpa alasan')}
                   >
                     <div className="flex items-center gap-8">
-                      {result === 'ya' ? (
+                      {/* A yes that was finished in the room and one that was
+                          not are different states on this queue: the second is
+                          work the next kumpulan inherits, and badging both
+                          "Tertarik" hides it. */}
+                      {result === 'ya' && followUp === 'lanjut' ? (
+                        <Badge intent="orange">Lanjut kumpulan depan</Badge>
+                      ) : result === 'ya' ? (
                         <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                          Tertarik
+                          Selesai
                         </Badge>
                       ) : (
                         <Badge intent="neutral">Ditolak</Badge>
