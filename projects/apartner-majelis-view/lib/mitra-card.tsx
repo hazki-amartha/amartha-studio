@@ -18,6 +18,7 @@ import {
   CheckCircle,
   Coins,
   HandCoins,
+  LogoModal,
   User,
   Warning,
 } from '@/design-system/icons'
@@ -72,11 +73,30 @@ export function TagihanBreakdown({ mitra, bare }: { mitra: Mitra; bare?: boolean
   return bare ? body : <Card>{body}</Card>
 }
 
-function TagihanLine({ label, value, red }: { label: string; value: string; red?: boolean }) {
+function TagihanLine({
+  label,
+  value,
+  red,
+  /**
+   * The parts of a bill are set regular where a total sits beneath them — bold
+   * on every line leaves nothing for the total to be louder than. `TagihanBreakdown`
+   * keeps them bold, because there the total LEADS and the lines are its detail.
+   */
+  bold = true,
+}: {
+  label: string
+  value: string
+  red?: boolean
+  bold?: boolean
+}) {
   return (
     <div className="flex items-center gap-12">
       <span className="flex-1 text-14 text-caption">{label}</span>
-      <span className={`text-14 font-bold ${red ? 'text-red-500' : 'text-default'}`}>{value}</span>
+      <span
+        className={`text-14 ${bold ? 'font-bold' : 'font-regular'} ${red ? 'text-red-500' : 'text-default'}`}
+      >
+        {value}
+      </span>
     </div>
   )
 }
@@ -104,7 +124,7 @@ export function AngsuranCard({ mitra, onSeeAll }: { mitra: Mitra; onSeeAll?: () 
       <div className="flex flex-col gap-12 bg-neutral-50 p-12">
         <div className="flex items-center gap-8">
           <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">
-            Angsuran {mitra.product}
+            Riwayat Angsuran
           </span>
           {onSeeAll ? (
             <button
@@ -130,10 +150,15 @@ export function AngsuranCard({ mitra, onSeeAll }: { mitra: Mitra; onSeeAll?: () 
           label={owed.missedWeeks > 0 ? `Tunggakan ${owed.missedWeeks} minggu` : 'Tunggakan'}
           value={rupiah(overdue)}
           red={overdue > 0}
+          bold={false}
         />
-        <TagihanLine label="Angsuran minggu ini" value={rupiah(owed.thisWeek)} />
-        <div className="flex items-center gap-12 pt-4">
-          <span className="flex-1 text-14 text-caption">Total tagihan</span>
+        <TagihanLine label="Angsuran minggu ini" value={rupiah(owed.thisWeek)} bold={false} />
+        {/* The total is the only bold figure here, and it is ruled off from the
+            two parts above it: they are what it is MADE of, not three items in a
+            list. Its label goes bold with it — a grey caption beside a 20px
+            figure read as the amount having escaped its own row. */}
+        <div className="flex items-center gap-12 border-t border-default pt-12">
+          <span className="flex-1 text-16 font-bold text-default">Total tagihan</span>
           <span className="text-20 font-bold text-default">{rupiah(owed.total)}</span>
         </div>
       </div>
@@ -204,7 +229,12 @@ function StatusChip({
 export function MitraBadges({ mitra }: { mitra: Mitra }) {
   return (
     <>
-      <StatusChip tone={mitra.product === 'Modal' ? 'blue' : 'primary'} icon={<Coins size={16} />}>
+      {/* Modal carries its own product mark from the design system; GL has no
+          logo of its own, so it falls back to the generic coins glyph. */}
+      <StatusChip
+        tone={mitra.product === 'Modal' ? 'blue' : 'primary'}
+        icon={mitra.product === 'Modal' ? <LogoModal size={16} /> : <Coins size={16} />}
+      >
         {mitra.product}
       </StatusChip>
 

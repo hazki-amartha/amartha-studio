@@ -288,7 +288,7 @@ export function RepaymentStrip({ weeks }: { weeks: Week[] }) {
         return (
           <div key={w.no} className="flex flex-col items-center gap-4">
             <span
-              className={`flex h-24 w-24 items-center justify-center rounded-full border ${MARK_TONE[w.status]}`}
+              className={`flex h-20 w-20 items-center justify-center rounded-full border ${MARK_TONE[w.status]}`}
             >
               {w.status === 'lunas' || w.status === 'sebagian' ? (
                 <IconCheck size={16} />
