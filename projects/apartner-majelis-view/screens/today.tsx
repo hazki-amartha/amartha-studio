@@ -44,6 +44,7 @@ import {
   canSettleMidDay,
   midDayUsed,
   pendingSync,
+  rescheduledTasks,
   settledTotal,
   unsettledTotal,
   scheduledFor,
@@ -308,9 +309,16 @@ export function TodayScreen() {
   // Selesai is a shape built around WHEN, and a BP filtering by type has
   // stopped asking that question — leaving two headings over a filtered day
   // would make her read one short list in two pieces.
+  // A visit moved to another day is off today's plate entirely — not to-do, not
+  // done, and not counted against the day — so it drops out of every bucket
+  // below and gets its own section at the foot of the list.
+  const rescheduled = rescheduledTasks(s)
+  const onToday = (t: Task) => !s.reschedules[t.id]
+  const todayCount = TASKS.length - rescheduled.length
+
   const filtering = Boolean(kind || status)
   const matches = TASKS.filter(
-    (t) => (!kind || t.kind === kind) && (!status || taskStatus(s, t.id) === status),
+    (t) => onToday(t) && (!kind || t.kind === kind) && (!status || taskStatus(s, t.id) === status),
   )
 
   // Two buckets, split on the only line that matters to a BP looking at her
@@ -318,8 +326,8 @@ export function TodayScreen() {
   // mulai" because a half-finished visit is unfinished work; "terkirim" belongs
   // with "selesai" because both are off her plate, and which of the two it is
   // is the sync widget's business, not the section's.
-  const open = TASKS.filter((t) => ['belum', 'dikerjakan'].includes(taskStatus(s, t.id)))
-  const closed = TASKS.filter((t) => ['selesai', 'terkirim'].includes(taskStatus(s, t.id)))
+  const open = TASKS.filter((t) => onToday(t) && ['belum', 'dikerjakan'].includes(taskStatus(s, t.id)))
+  const closed = TASKS.filter((t) => onToday(t) && ['selesai', 'terkirim'].includes(taskStatus(s, t.id)))
 
   // Tomorrow is the rostered day PLUS whatever the BP promised today. A
   // follow-up she committed to on a call at 11.45 is a real appointment, and
@@ -329,7 +337,7 @@ export function TodayScreen() {
   const subtitle =
     s.day === 'tomorrow'
       ? `${tomorrow.length} kunjungan terjadwal`
-      : `${closed.length} dari ${TASKS.length} selesai`
+      : `${closed.length} dari ${todayCount} selesai`
 
   // Straight into the work. A majelis goes to stage 1, a home visit to its own
   // step 1. The task id rides along either way, so submitting closes this row
@@ -551,7 +559,7 @@ export function TodayScreen() {
       {filtering ? (
         <>
           <span className="text-12 text-caption">
-            {matches.length} dari {TASKS.length} tugas
+            {matches.length} dari {todayCount} tugas
           </span>
           <div className="flex flex-col gap-8 pb-16">
             {matches.length === 0 ? (
@@ -617,6 +625,36 @@ export function TodayScreen() {
                 onStart={() => start(task)}
               />
             ))}
+          </div>
+        </>
+      ) : null}
+
+      {/* --- Dijadwalkan ulang: visits the BP moved to another day. On a dashed
+          card and not tappable — it is no longer today's work, it is a record
+          that the door was handled by being postponed, with why and when it
+          lands so the day doesn't read as if she skipped it. */}
+      {rescheduled.length > 0 ? (
+        <>
+          <Overline>Dijadwalkan ulang</Overline>
+          <div className="flex flex-col gap-8 pb-16">
+            {rescheduled.map((task) => {
+              const moved = s.reschedules[task.id]
+              return (
+                <AgendaRow key={task.id} time={task.time} muted>
+                  <div className="flex w-full items-center gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12">
+                    <KindTag kind={task.kind} />
+                    <div className="flex min-w-0 flex-1 flex-col gap-2">
+                      <span className="flex min-w-0 items-baseline gap-8">
+                        <span className="truncate text-14 font-bold text-default">{task.title}</span>
+                        <span className="shrink-0 text-10 text-caption">Dijadwalkan ulang</span>
+                      </span>
+                      <span className="text-12 text-caption">Dipindah ke {moved.date}</span>
+                      <span className="text-10 text-disabled">{moved.reason}</span>
+                    </div>
+                  </div>
+                </AgendaRow>
+              )
+            })}
           </div>
         </>
       ) : null}
