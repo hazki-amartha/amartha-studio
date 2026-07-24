@@ -152,16 +152,14 @@ function TaskRow({
     >
       <KindTag kind={task.kind} />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        {/* The time comes INSIDE the card, in front of the title. It used to
-            live in a gutter outside — a clock rail running down the page — and
-            that rail was the last thing on this screen still arguing the day
-            runs in order. Beside the name it is one fact among several about
-            the stop, which is what it is. */}
-        <span className="flex min-w-0 items-baseline gap-8">
-          <span className="shrink-0 text-14 font-bold text-caption">{task.time}</span>
-          <span className="truncate text-14 font-bold text-default">{task.title}</span>
-        </span>
+        <span className="truncate text-14 font-bold text-default">{task.title}</span>
+        {/* Time and place on one line, in that order. They are the same fact
+            in two parts — when and where she has to be — and reading them
+            together is how a stop gets planned. The title keeps the first line
+            to itself, which is the only line she scans to find a row. */}
         <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+          <span className="shrink-0">{task.time}</span>
+          <span className="shrink-0">·</span>
           <PinMark />
           <span className="truncate">{task.place}</span>
         </span>
@@ -422,11 +420,10 @@ export function TodayScreen() {
               <div className="flex items-center gap-12">
                 <KindTag kind={task.kind} />
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <span className="flex min-w-0 items-baseline gap-8">
-                    <span className="shrink-0 text-14 font-bold text-caption">{task.time}</span>
-                    <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                  </span>
-                  <span className="flex items-center gap-4 text-12 text-caption">
+                  <span className="truncate text-14 font-bold text-default">{task.title}</span>
+                  <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+                    <span className="shrink-0">{task.time}</span>
+                    <span className="shrink-0">·</span>
                     <PinMark />
                     <span className="truncate">{task.place}</span>
                   </span>
