@@ -23,7 +23,7 @@
 // So the schedule is a list of tasks and a tap begins one. Reading a group
 // without starting anything is still there — it is what the Majelis tab is.
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, Card } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
@@ -177,6 +177,24 @@ function TaskRow({
         </span>
       </button>
     </AgendaRow>
+  )
+}
+
+/**
+ * A settled widget, collapsed. Same card, one line, no tile and no control —
+ * the two things above the list keep their place in the stack when their work
+ * is done, because "nothing to send" and "nothing to settle" are answers a BP
+ * wants to SEE rather than infer from an absence. They just stop taking the
+ * room they needed while there was something to do.
+ */
+function DoneLine({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-8 rounded-12 bg-neutral-white px-12 py-8">
+      <span className="shrink-0 text-green-500">
+        <IconCheck size={16} />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-12 text-caption">{children}</span>
+    </div>
   )
 }
 
@@ -509,10 +527,13 @@ export function TodayScreen() {
         </div>
       ) : null}
 
-      {settledTotal(s) > 0 ? (
-        <span className="text-10 text-disabled">
-          Sudah disetor hari ini: {rupiah(settledTotal(s))} dalam {s.settlements.length} kali
-        </span>
+      {/* Nothing left to hand over, but something went. The card stays and
+          shrinks to its one fact: a settled bag is worth confirming — she is
+          carrying nothing, which is the answer to a question she asks herself
+          all afternoon — but it has no button and no breakdown, so it has no
+          business taking three lines to say so. */}
+      {!canSettle(s) && !settleHeld(s) && settledTotal(s) > 0 ? (
+        <DoneLine>Sudah disetor hari ini: {rupiah(settledTotal(s))}</DoneLine>
       ) : null}
 
       {/* --- Belum terkirim: the day's work that hasn't left the handset.
@@ -541,6 +562,10 @@ export function TodayScreen() {
             Kirim
           </Button>
         </div>
+      ) : null}
+
+      {pending.length === 0 && s.sentTasks.length > 0 ? (
+        <DoneLine>Semua tugas selesai sudah dikirim</DoneLine>
       ) : null}
 
       {/* Two filters, and they answer the two questions a day gets asked when
@@ -616,16 +641,7 @@ export function TodayScreen() {
             ))}
           </div>
         </>
-      ) : (
-        <Card>
-          <div className="flex flex-col items-center gap-8 py-24 text-center">
-            <span className="text-20 font-bold text-default">Tugas hari ini selesai</span>
-            <span className="text-12 text-caption">
-              Semua {closed.length} kunjungan sudah dituntaskan. Sampai jumpa besok.
-            </span>
-          </div>
-        </Card>
-      )}
+      ) : null}
 
       {/* --- Selesai: same card, still on the rail. It stays a full section
           rather than the collapsed strip it was — the sync widget points at
