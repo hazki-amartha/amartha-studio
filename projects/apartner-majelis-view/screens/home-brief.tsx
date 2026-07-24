@@ -29,6 +29,7 @@ import {
   ChipGroup,
   ContactButton,
   HOME_STAGE_LABELS,
+  PinMark,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -111,7 +112,10 @@ export function HomeBriefScreen() {
         <div className="flex items-center gap-12">
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <span className="break-words text-14 font-bold text-default">{profile.pjName}</span>
-            <span className="text-12 text-caption">{profile.pjPhone}</span>
+            <span className="flex items-start gap-4 text-12 text-caption">
+              <PinMark />
+              {task?.place ?? profile.address}
+            </span>
           </div>
           <div className="flex shrink-0 gap-8">
             <ContactButton label={`WhatsApp ${profile.pjName}`} tone="green">
