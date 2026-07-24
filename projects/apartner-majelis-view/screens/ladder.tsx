@@ -12,9 +12,9 @@
 // Ported from apartner-task-first with one thing removed: the "tandai sudah
 // disampaikan" button. In that direction the mitra page was where follow-ups got
 // recorded, so the briefing had to close its own loop. Here the growth stage
-// does that job — Rina's recommendation is literally "Naik plafon · Diskusikan"
-// — and a second place to record the same conversation is how two sources of
-// truth quietly appear. This screen is now purely the briefing; the outcome is
+// does that job — it carries her recommendation and the answer she gave — and a
+// second place to record the same conversation is how two sources of truth
+// quietly appear. This screen is now purely the briefing; the outcome is
 // recorded where the BP is already being asked for it.
 
 import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'

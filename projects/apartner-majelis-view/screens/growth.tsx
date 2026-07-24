@@ -100,7 +100,12 @@ export function GrowthScreen() {
               }}
               action={
                 result === undefined ? (
-                  <ActionRow label={growth.label} value={growth.value}>
+                  // Her STATE, not the product. "Siap cair Rp5.000.000" and
+                  // "Belum pernah menabung" are things the BP can see and open a
+                  // sentence from; "Pembiayaan Baru · Rp5.000.000" told her what
+                  // the app wanted to sell. The offer page still names the
+                  // product — that is where the pitch belongs.
+                  <ActionRow label="Peluang" value={growth.status}>
                     {/* Default size, matching the attendance pills and Tagih —
                         see collection.tsx. */}
                     <Button className="h-40 px-24" onClick={() => openOffer(mitra.id)}>
@@ -108,9 +113,11 @@ export function GrowthScreen() {
                     </Button>
                   </ActionRow>
                 ) : (
+                  // Once answered the card is a RECORD, so it names what was put
+                  // to her and how it landed.
                   <ActionRow
                     label={result === 'ya' ? growth.label : 'Tidak tertarik'}
-                    value={result === 'ya' ? growth.value : (reason ?? 'Tanpa alasan')}
+                    value={result === 'ya' ? growth.done : (reason ?? 'Tanpa alasan')}
                   >
                     <div className="flex items-center gap-8">
                       {/* A yes that was finished in the room and one that was
