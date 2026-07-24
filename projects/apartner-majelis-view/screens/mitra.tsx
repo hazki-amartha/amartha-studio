@@ -19,7 +19,7 @@
 // rather than read — everything else on file about her.
 
 import type { ReactNode } from 'react'
-import { Badge, Card } from '@/design-system/components'
+import { Card } from '@/design-system/components'
 import { ArrowLeft, Image as ImageIcon } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
@@ -45,15 +45,14 @@ export function MitraScreen() {
   // card two blocks up already prints — so the one row on this page that exists
   // to open a conversation about growth was spending its line on the debt.
   //
-  // Now it names what is on the other side of the arrears and when she reaches
-  // it. The badge carries the caveat: a mitra who is at risk still hears the
-  // offer, because the offer is the reason to clear the arrears.
-  const ladderLine =
+  // Phrased as the GOAL now — what she can reach and how long it takes — so the
+  // card reads as the next thing to aim at rather than a status on a programme.
+  const goalLine =
     ladder.reward === null || ladder.weeksLeft === null
       ? 'Siklus selesai — bisa ajukan pembiayaan baru'
       : ladder.reward.amount === null
-        ? `${ladder.weeksLeft} minggu lagi bisa melunasi lebih awal`
-        : `${ladder.weeksLeft} minggu lagi bisa cairkan ${rupiah(ladder.reward.amount)}`
+        ? `Bisa melunasi lebih awal dalam ${ladder.weeksLeft} minggu`
+        : `Bisa cairkan ${rupiah(ladder.reward.amount)} dalam ${ladder.weeksLeft} minggu`
 
   // The nav carries the PAGE, not the mitra: a generic "Detail Mitra" title and
   // the two things a BP does WITH her — chat and route — as pinned buttons. Her
@@ -87,7 +86,7 @@ export function MitraScreen() {
       <div className="flex items-center gap-12">
         <MitraPhoto />
         <div className="flex min-w-0 flex-1 flex-col gap-8">
-          <span className="truncate text-20 font-bold text-default">{mitra.name}</span>
+          <span className="truncate text-18 font-bold text-default">{mitra.name}</span>
           <span className="flex flex-wrap items-center gap-4">
             <MitraBadges mitra={mitra} />
           </span>
@@ -121,31 +120,14 @@ export function MitraScreen() {
         <span className="flex h-48 w-48 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-primary-500">
           <IconTrendUp size={24} />
         </span>
-        {/* The badge rides on the TITLE line and the promise gets the full
-            width beneath it. Sharing one line, the badge and the chevron left
-            the sentence about 130px, which truncated the amount — and an offer
-            that ends in an ellipsis is not an offer. */}
+        {/* A quiet label over the thing itself. The card used to lead with its
+            own name ("Jalur Naik Modal") and an On Track / At risk badge, which
+            spent the loudest line on what the PROGRAMME is called; what the BP
+            actually opens the conversation with is the prize and the date. So
+            the name becomes a caption and the offer becomes the sentence. */}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <span className="flex min-w-0 items-center gap-8">
-            <span className="truncate text-16 font-bold text-default">Jalur Naik Modal</span>
-            {/* Named in both directions. A row that badges only the bad state
-                leaves "no badge" meaning two things — she is fine, or nobody
-                checked.
-
-                "At risk" rather than "Tertahan" because the row now leads with
-                the prize: the badge has to say whether that prize is in danger,
-                which is a judgement about the FUTURE. "Tertahan" describes the
-                ladder's state, and beside "3 minggu lagi bisa cairkan" that
-                reads as a contradiction rather than a caveat. */}
-            {ladder.status === 'tertahan' ? (
-              <Badge intent="orange">At risk</Badge>
-            ) : (
-              <Badge intent="green">On Track</Badge>
-            )}
-          </span>
-          {/* text-default, not caption: this line IS the offer. Grey it and the
-              card is a heading with a footnote. */}
-          <span className="text-14 text-default">{ladderLine}</span>
+          <span className="text-12 text-caption">Goal berikutnya</span>
+          <span className="text-14 font-bold text-default">{goalLine}</span>
         </div>
         <span className="shrink-0 text-primary-500">
           <IconChevronRight size={24} />
