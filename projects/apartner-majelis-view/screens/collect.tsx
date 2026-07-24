@@ -58,7 +58,13 @@ const SHORTFALL_REASONS = [
 
 // Discrete options rather than a date picker: a BP negotiates a rough date at
 // the majelis, and "no promise at all" has to be expressible.
+//
+// "Nanti hari ini" leads because it is the most common answer in the room and
+// the only one the BP can still act on before she rides home — a mitra fetching
+// the rest from the warung is a different plan from one paying next week, and
+// without it that promise was being recorded as tomorrow.
 const PTP_OPTIONS: { label: string; value: string | null }[] = [
+  { label: 'Nanti hari ini', value: 'hari ini' },
   { label: 'Besok, 22 Juli', value: '22 Juli' },
   { label: 'Lusa, 23 Juli', value: '23 Juli' },
   { label: 'Minggu depan, 28 Juli', value: '28 Juli' },
@@ -84,7 +90,12 @@ export function CollectScreen() {
   )
   const [draft, setDraft] = useState(String(existing > 0 ? existing : ''))
   const [reason, setReason] = useState<string | null>(refusal?.reason ?? null)
-  const [ptp, setPtp] = useState<string | null | undefined>(refusal ? refusal.ptp : undefined)
+  // One promise field for every outcome that leaves money on the table, whether
+  // she paid nothing or paid short — reopened from "Ubah" it comes back holding
+  // whichever of the two was recorded.
+  const [ptp, setPtp] = useState<string | null | undefined>(
+    refusal ? refusal.ptp : (s.partialPtp[mitra.id] ?? undefined),
+  )
   const [shortfall, setShortfall] = useState<string | null>(s.shortfallReasons[mitra.id] ?? null)
 
   // When she is current, "bayar penuh" and "minggu ini saja" collect the same
@@ -95,13 +106,17 @@ export function CollectScreen() {
   const amount =
     mode === 'penuh' ? owed.total : mode === 'minggu' ? owed.thisWeek : mode === 'lain' ? typed : 0
 
-  // A payment that leaves a balance needs its reason; a payment that clears the
-  // bill does not. `mode === 'minggu'` on a mitra with arrears is always short.
+  // A payment that leaves a balance needs BOTH its reason and a date, exactly
+  // as a refusal does. The two used to be asked different questions: a "tidak
+  // bayar" had to carry a janji bayar, but a mitra who handed over half the
+  // bill walked away with no date on the rest — which is the same unchaseable
+  // gap, just harder to spot because money did change hands.
+  // `mode === 'minggu'` on a mitra with arrears is always short.
   const short = amount > 0 && amount < owed.total
   const canSave =
     mode === 'tidak'
       ? reason !== null && ptp !== undefined
-      : amount > 0 && (!short || shortfall !== null)
+      : amount > 0 && (!short || (shortfall !== null && ptp !== undefined))
 
   function save() {
     if (!canSave) return
@@ -111,10 +126,16 @@ export function CollectScreen() {
       return
     }
     store.collect(mitra, amount, short ? (shortfall as string) : undefined)
+    // The promise rides with the shortfall, and is cleared when there isn't one.
+    store.setPartialPtp(mitra.id, short ? (ptp ?? null) : null)
     flow.go('collection')
   }
 
   const ptpLabel = PTP_OPTIONS.find((o) => ptp !== undefined && o.value === ptp)?.label
+
+  function pickPtp(picked: string) {
+    setPtp(PTP_OPTIONS.find((o) => o.label === picked)?.value ?? null)
+  }
 
   return (
     // A white canvas rather than the neutral-50 one every other screen uses:
@@ -163,12 +184,18 @@ export function CollectScreen() {
             onSelect={() => setMode('minggu')}
           >
             {/* Paying this week only on a mitra with arrears IS paying short,
-                so the same question follows it as follows a smaller amount. */}
+                so the same two questions follow it as follow a smaller amount. */}
             <ChoiceList
               label={`Alasan kurang bayar — sisa ${rupiah(owed.total - owed.thisWeek)}`}
               options={SHORTFALL_REASONS}
               value={shortfall ?? undefined}
               onPick={setShortfall}
+            />
+            <ChoiceList
+              label="Janji bayar sisanya"
+              options={PTP_OPTIONS.map((o) => o.label)}
+              value={ptpLabel}
+              onPick={pickPtp}
             />
           </OptionCard>
         ) : null}
@@ -197,12 +224,20 @@ export function CollectScreen() {
           {/* Only once there is a shortfall to explain — asking why she paid
               less before she has typed anything is a question about nothing. */}
           {mode === 'lain' && short ? (
-            <ChoiceList
-              label={`Alasan kurang bayar — sisa ${rupiah(owed.total - typed)}`}
-              options={SHORTFALL_REASONS}
-              value={shortfall ?? undefined}
-              onPick={setShortfall}
-            />
+            <>
+              <ChoiceList
+                label={`Alasan kurang bayar — sisa ${rupiah(owed.total - typed)}`}
+                options={SHORTFALL_REASONS}
+                value={shortfall ?? undefined}
+                onPick={setShortfall}
+              />
+              <ChoiceList
+                label="Janji bayar sisanya"
+                options={PTP_OPTIONS.map((o) => o.label)}
+                value={ptpLabel}
+                onPick={pickPtp}
+              />
+            </>
           ) : null}
         </OptionCard>
 
@@ -226,9 +261,7 @@ export function CollectScreen() {
             label="Janji bayar"
             options={PTP_OPTIONS.map((o) => o.label)}
             value={ptpLabel}
-            onPick={(picked) =>
-              setPtp(PTP_OPTIONS.find((o) => o.label === picked)?.value ?? null)
-            }
+            onPick={pickPtp}
           />
         </OptionCard>
       </div>

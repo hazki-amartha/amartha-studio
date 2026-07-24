@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, SelectableCard } from '@/design-system/components'
-import { MagnifyingGlass, WhatsappLogo } from '@/design-system/icons'
+import { MagnifyingGlass, NotePencil, WhatsappLogo } from '@/design-system/icons'
 import { ringkas, type Week } from './data'
 import { IconCheck, IconChevronDown, IconChevronUp, IconPin, IconX } from './icons'
 
@@ -603,33 +603,38 @@ export function ResultRow({
   return (
     <div className="flex flex-col gap-12">
       <div className="flex items-center gap-12">
+        {/* Same caption-over-figure at the same size as the "Tagihan Rp650.000"
+            this row replaces. The amount used to jump to 20px once it was
+            collected, so one card changed type size the moment it was answered. */}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <span className="truncate text-12 text-caption">{label}</span>
-          {/* Wraps rather than truncates: on a narrow card the badge drops under
-              the figure instead of shortening it, and a half-printed amount is
-              the one thing this row must never do. */}
-          <span className="flex flex-wrap items-center gap-8">
-            <span className="text-20 font-bold text-default">{amount}</span>
-            {badge}
-          </span>
+          <span className="truncate text-16 font-bold text-default">{amount}</span>
         </div>
-        {onEdit ? (
-          <button
-            type="button"
-            onClick={onEdit}
-            className="shrink-0 text-14 font-bold text-primary-500"
-          >
-            Ubah
-          </button>
-        ) : null}
+        {/* Status and the way to change it, together at the edge — where the
+            "Tagih" button sat before the outcome existed. "Ubah" as a word cost
+            a whole label for a control the pencil says in an icon. */}
+        <div className="flex shrink-0 items-center gap-8">
+          {badge}
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label="Ubah hasil"
+              className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-neutral-50 text-default"
+            >
+              <NotePencil size={20} />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {detail ? (
         <div className="flex flex-col gap-2 border-t border-default pt-12">
           <span className="text-12 text-caption">{detail.label}</span>
-          <span
-            className={`text-16 font-bold ${detail.tone === 'red' ? 'text-red-500' : 'text-default'}`}
-          >
+          {/* Not bold. The figure above it is the one that was collected; this
+              is what is still missing, and setting both bold made the card
+              argue with itself about which number it was about. */}
+          <span className={`text-16 ${detail.tone === 'red' ? 'text-red-500' : 'text-default'}`}>
             {detail.value}
           </span>
           {detail.note ? <span className="text-12 text-caption">{detail.note}</span> : null}
@@ -837,6 +842,15 @@ export function ProgressCard({
   of,
   percent,
   tone = 'primary',
+  /**
+   * The percentage is a THIRD way of saying what the value, the denominator and
+   * the bar already say. On the money stages it was the least useful of the
+   * four — a BP chases rupiah, not a ratio — so those turn it off and let the
+   * denominator take the right-hand slot instead.
+   */
+  showPercent = true,
+  /** Drops the card chrome for a block already sitting on its own white panel. */
+  flat = false,
 }: {
   title: string
   value: string
@@ -844,24 +858,34 @@ export function ProgressCard({
   of?: string
   percent: number
   tone?: 'primary' | 'green'
+  showPercent?: boolean
+  flat?: boolean
 }) {
-  return (
-    <div className="flex flex-col gap-8 rounded-12 bg-neutral-white p-12">
+  const body = (
+    <div className="flex flex-col gap-8">
       <div className="flex items-end gap-8">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <span className="text-12 text-caption">{title}</span>
           <span className="flex items-baseline gap-4">
             <span className="text-24 font-bold text-default">{value}</span>
-            {of ? <span className="text-14 text-caption">dari {of}</span> : null}
+            {of && showPercent ? <span className="text-14 text-caption">dari {of}</span> : null}
           </span>
         </div>
-        <span className={`text-18 font-bold ${tone === 'green' ? 'text-green-500' : 'text-primary-500'}`}>
-          {percent}%
-        </span>
+        {showPercent ? (
+          <span
+            className={`text-18 font-bold ${tone === 'green' ? 'text-green-500' : 'text-primary-500'}`}
+          >
+            {percent}%
+          </span>
+        ) : of ? (
+          <span className="shrink-0 text-14 text-caption">dari {of}</span>
+        ) : null}
       </div>
       <Meter progress={percent} tone={tone} />
     </div>
   )
+
+  return flat ? body : <div className="rounded-12 bg-neutral-white p-12">{body}</div>
 }
 
 // --- ProofTile -------------------------------------------------------------

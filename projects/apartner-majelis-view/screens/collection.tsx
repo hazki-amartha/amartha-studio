@@ -30,9 +30,9 @@ import { majelisWhen } from '../lib/schedule'
 import { IconCheck } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import {
-  billableTotal,
+  cashBillableTotal,
+  cashCollectedTotal,
   collectStatus,
-  collectedTotal,
   paidOf,
   pendingMembers,
   remainingOf,
@@ -57,8 +57,10 @@ export function CollectionScreen() {
   const group = openMajelisEntry(s)
 
   const pending = pendingMembers(s)
-  const collected = collectedTotal(s)
-  const billable = billableTotal()
+  // Cash only, on both sides of the bar — the self-serve mitra settled through
+  // the app and were never hers to collect. See store.ts.
+  const cashCollected = cashCollectedTotal(s)
+  const cashBillable = cashBillableTotal()
 
   function openCollect(mitraId: string) {
     store.openMitraPage(mitraId)
@@ -74,15 +76,24 @@ export function CollectionScreen() {
         />
       }
     >
-      <StageBar current={2} />
+      {/* The stage's chrome — where she is in the visit, and how the cash is
+          going — as one flat white band running the full width, with the roster
+          below it on the grey canvas. Two stacked cards floating on grey made
+          the top of the page read as more content to get through; as a band it
+          reads as the header it is. */}
+      <div className="-mx-16 -mt-16 flex flex-col gap-12 border-b border-default bg-neutral-white px-16 pb-12 pt-16">
+        <StageBar current={2} />
 
-      <ProgressCard
-        title="Terkumpul"
-        value={rupiah(collected)}
-        of={rupiah(billable)}
-        percent={Math.round((collected / billable) * 100)}
-        tone="green"
-      />
+        <ProgressCard
+          flat
+          showPercent={false}
+          title="Cash Terkumpul"
+          value={rupiah(cashCollected)}
+          of={rupiah(cashBillable)}
+          percent={cashBillable > 0 ? Math.round((cashCollected / cashBillable) * 100) : 0}
+          tone="green"
+        />
+      </div>
 
       <SectionTitle>Daftar Mitra</SectionTitle>
 
@@ -169,7 +180,17 @@ export function CollectionScreen() {
                               label: 'Kurang',
                               value: rupiah(remainingOf(s, mitra)),
                               tone: 'red',
-                              note: s.shortfallReasons[mitra.id],
+                              // The reason AND the date she gave for the rest: a
+                              // shortfall with no promise against it is the same
+                              // unchaseable gap as a refusal with no date.
+                              note: [
+                                s.shortfallReasons[mitra.id],
+                                s.partialPtp[mitra.id]
+                                  ? `Janji ${s.partialPtp[mitra.id]}`
+                                  : 'Tanpa janji',
+                              ]
+                                .filter(Boolean)
+                                .join(' · '),
                             }
                           : undefined
                     }

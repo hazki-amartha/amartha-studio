@@ -87,18 +87,25 @@ export function AttendanceScreen() {
         />
       }
     >
-      <StageBar current={1} />
+      {/* Stage bar over the stage's progress, as one flat white band running the
+          full width, with the roster below on the grey canvas. Same header shape
+          on all three stages. */}
+      <div className="-mx-16 -mt-16 flex flex-col gap-12 border-b border-default bg-neutral-white px-16 pb-12 pt-16">
+        <StageBar current={1} />
 
-      {/* The count is of RECORDED, not present. The stage's job is to finish the
-          register, and a bar that filled up as people arrived would sit at 80%
-          on a complete register with four absentees — reading as unfinished work
-          when the work is done. */}
-      <ProgressCard
-        title="Sudah dicatat"
-        value={`${settled}`}
-        of={`${total} mitra`}
-        percent={Math.round((settled / total) * 100)}
-      />
+        {/* The count is of RECORDED, not present. The stage's job is to finish the
+            register, and a bar that filled up as people arrived would sit at 80%
+            on a complete register with four absentees — reading as unfinished work
+            when the work is done. */}
+        <ProgressCard
+          flat
+          showPercent={false}
+          title="Sudah dicatat"
+          value={`${settled}`}
+          of={`${total} mitra`}
+          percent={Math.round((settled / total) * 100)}
+        />
+      </div>
 
       <SectionTitle>Daftar Mitra</SectionTitle>
 
