@@ -235,14 +235,20 @@ export function SettlementScreen() {
       </div>
 
       <StickyBar>
-        {/* The difference, stated without asking for anything. It is the last
-            thing she sees before sending an amount that disagrees with the
-            app — worth naming, not worth blocking on. */}
+        {/* The difference, and — when she is sending less than she holds —
+            what it LEAVES. A short handover is not a discrepancy to explain
+            afterwards, it is cash still in her bag, and the honest thing to
+            say before she taps is that it will still be there. */}
         {diff !== 0 ? (
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-4">
             <Badge intent="orange">
               Selisih {diff > 0 ? 'lebih' : 'kurang'} {rupiah(Math.abs(diff))}
             </Badge>
+            {diff < 0 ? (
+              <span className="text-10 text-caption">
+                Sisa {rupiah(-diff)} tetap tercatat belum disetor
+              </span>
+            ) : null}
           </div>
         ) : null}
         {!ready ? (

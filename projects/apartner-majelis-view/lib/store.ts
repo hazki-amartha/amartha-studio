@@ -1126,25 +1126,46 @@ export const depositExpected = (s: AppState): number =>
 
 // --- Settlement ------------------------------------------------------------
 
-/** Task ids whose cash has already gone to the branch. */
-const settledTaskIds = (s: AppState): string[] => s.settlements.flatMap((x) => x.taskIds)
-
-/**
- * What is still in her bag: banked lines from finished tasks that no settlement
- * has covered yet. This is the ONLY figure a settlement is ever about — there
- * is no path in this flow that hands over part of it.
- */
-export const unsettledEntries = (s: AppState): DepositEntry[] => {
-  const gone = settledTaskIds(s)
-  return depositEntries(s).filter((e) => !gone.includes(e.taskId) && e.cash > 0)
-}
-
-export const unsettledTotal = (s: AppState): number =>
-  unsettledEntries(s).reduce((sum, e) => sum + e.cash, 0)
-
 /** Everything handed over so far today, across settlements. */
 export const settledTotal = (s: AppState): number =>
   s.settlements.reduce((sum, x) => sum + x.amount, 0)
+
+/** Every rupiah of cash the day's finished tasks have banked. */
+const bankedTotal = (s: AppState): number =>
+  depositEntries(s).reduce((sum, e) => sum + e.cash, 0)
+
+/**
+ * What is still in her bag: banked, minus everything handed over.
+ *
+ * An AMOUNT, not a set of tasks. It used to be "the entries no settlement has
+ * touched", which quietly assumed a settlement always covers its lines in
+ * full — so a BP who confirmed Rp3.500.000 against a Rp3.700.000 ledger had
+ * the missing Rp200.000 disappear: the tasks were marked gone, the widget
+ * emptied, and she was left holding money the app had stopped counting. Money
+ * does not settle by the task, it settles by the rupiah.
+ */
+export const unsettledTotal = (s: AppState): number =>
+  Math.max(0, bankedTotal(s) - settledTotal(s))
+
+/**
+ * The outstanding balance broken back down into the lines it came from, oldest
+ * first, with the covered part drained off. A partly-covered pelayanan appears
+ * with only its remainder — which is what she is still carrying from it.
+ */
+export const unsettledEntries = (s: AppState): DepositEntry[] => {
+  let covered = settledTotal(s)
+  const out: DepositEntry[] = []
+  depositEntries(s).forEach((e) => {
+    if (e.cash <= 0) return
+    if (covered >= e.cash) {
+      covered -= e.cash
+      return
+    }
+    out.push({ ...e, cash: e.cash - covered })
+    covered = 0
+  })
+  return out
+}
 
 /**
  * Whether the schedule should offer to settle right now. One condition: she is
