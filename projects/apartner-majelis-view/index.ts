@@ -8,7 +8,6 @@ import { CollectionScreen } from './screens/collection'
 import { MitraScreen } from './screens/mitra'
 import { LoansScreen } from './screens/loans'
 import { CollectScreen } from './screens/collect'
-import { CollectDoneScreen } from './screens/collect-done'
 import { GrowthScreen } from './screens/growth'
 import { OfferScreen } from './screens/offer'
 import { ProofScreen } from './screens/proof'
@@ -460,23 +459,13 @@ export const project: ProjectModule = {
       title: 'Tagih Pembayaran',
       component: CollectScreen,
       notes: [
-        'The moment of negotiation. It opens on one card — who she is over what she owes, in the same breakdown the mitra page and the doorstep card use — and every follow-up a choice needs is drawn inside the option that caused it, rather than parked at the bottom of the page where the BP has to connect it back up. As she types, the “sisa setelah ini” sits pinned above the button so the figure she is about to be held to stays in her eyeline.',
+        'The moment of negotiation. It opens on who she is over what she owes — the recent cycle on grey, the bill on white, the same Angsuran card the mitra page uses — and every follow-up a choice needs is drawn inside the option that caused it, rather than parked at the bottom of the page where the BP has to connect it back up. The “Jumlah lain” field reads back the shortfall as she types, so the figure she is about to be held to stays in her eyeline without a second summary pinned over the button.',
         '“Tidak Bayar” is a full fourth option, not an escape hatch, and it does not save until it carries BOTH the reason and the janji bayar — a no with no date is unchaseable, and “tidak ada janji” is a real answer rather than something you express by skipping the question. The same rule now covers money: any payment short of the bill has to say why it was short, because a balance nobody wrote a reason against is the same unchaseable gap.',
       ],
       flowsTo: [
-        { to: 'collect-done', label: 'Terima Tunai' },
+        { to: 'collection', label: 'Terima Tunai' },
         { to: 'collection', label: 'Simpan Catatan — tidak bayar' },
       ],
-    },
-    {
-      id: 'collect-done',
-      title: 'Pembayaran Diterima',
-      component: CollectDoneScreen,
-      notes: [
-        'A receipt, and it earns the extra tap for one reason: cash. The BP has just taken physical money from a woman standing in front of her, and both of them need a moment where the amount is stated and agreed.',
-        'It reads back three numbers and nothing else — owed, paid, left. The remaining balance is not softened: a mitra who just handed over Rp300.000 against Rp650.000 should see the Rp350.000 now, not discover it next week.',
-      ],
-      flowsTo: [{ to: 'collection', label: 'Kembali ke Daftar' }],
     },
     {
       id: 'ladder',

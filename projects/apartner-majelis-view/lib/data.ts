@@ -63,6 +63,12 @@ export interface Mitra {
   ptp?: string
   /** Approved relief — rescheduled or reduced. Says "do not press her". */
   keringanan?: boolean
+  /**
+   * A new mitra whose loan is approved but not yet disbursed. She has no DPD and
+   * no ledger to press against — the standing label is the disbursement waiting
+   * to happen, not a bucket.
+   */
+  predisburse?: boolean
   /** The contract's principal — "Pinjaman Rp8.000.000" in the page header. */
   loan: number
   /** The weekly instalment. Constant across the cycle. */
@@ -220,6 +226,7 @@ const ACTIVE: Mitra[] = [
     id: 'm1',
     name: 'Rina Marlina',
     product: 'Modal',
+    keringanan: true,
     loan: 8_000_000,
     weekly: 200_000,
     dpd: 34,
