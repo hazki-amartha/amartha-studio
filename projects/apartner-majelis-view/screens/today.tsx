@@ -42,9 +42,6 @@ import { IconCheck, IconChevronDown, IconChevronRight, IconInbox } from '../lib/
 import { CloudArrowUp } from '@/design-system/icons'
 import {
   collectedToday,
-  doneTaskList,
-  laterTasks,
-  nowTask,
   pendingSync,
   scheduledFor,
   store,
@@ -55,7 +52,6 @@ import {
 import { TabBar } from '../lib/tabs'
 import {
   AgendaRow,
-  Collapsible,
   EmptyState,
   FilterBar,
   FilterChip,
@@ -122,14 +118,55 @@ function KindTag({ kind }: { kind: Task['kind'] }) {
   )
 }
 
-// The verb on the focus card. A sosialisasi is not "started" the way a
-// pelayanan is and a follow-up is a call, not a journey.
-const KIND_CTA: Record<Task['kind'], string> = {
-  majelis: 'Mulai Pelayanan',
-  'home-visit': 'Mulai Kunjungan',
-  setoran: 'Setor Sekarang',
-  sosialisasi: 'Mulai Sosialisasi',
-  'follow-up': 'Mulai Follow Up',
+/**
+ * ONE card, every task, every section.
+ *
+ * The page used to open on a focus card — one stop drawn larger, with the verb
+ * on a button, under a heading that said "Sekarang". It was answering "what do
+ * I do next" on a day that does not run in clock order: she arrives early, a
+ * group is late, the 13.00 door is on the way back from the 10.00 balai. The
+ * app picked a row, the road picked another, and the biggest thing on screen
+ * was the one she wasn't doing.
+ *
+ * So the day is a list of equals and she picks. Every row starts its task on
+ * tap, which is what the button did — it was never a second gesture, only a
+ * bigger one for whichever row the clock happened to favour.
+ */
+function TaskRow({
+  task,
+  status,
+  onStart,
+}: {
+  task: Task
+  status: TaskStatus
+  onStart: () => void
+}) {
+  return (
+    <AgendaRow time={task.time}>
+      <button
+        type="button"
+        onClick={onStart}
+        className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
+      >
+        <KindTag kind={task.kind} />
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="truncate text-14 font-bold text-default">{task.title}</span>
+          <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+            <PinMark />
+            <span className="truncate">{task.place}</span>
+          </span>
+          {/* Status is on every card now. With Sekarang/Berikutnya gone the
+              section narrows it to two possibilities — belum or dikerjakan,
+              selesai or terkirim — and the difference inside each pair is
+              exactly what a BP checks for at the end of a day. */}
+          <TaskLabels task={task} status={status} />
+        </div>
+        <span className="shrink-0 text-disabled">
+          <IconChevronRight size={20} />
+        </span>
+      </button>
+    </AgendaRow>
+  )
 }
 
 /**
@@ -145,14 +182,19 @@ const KIND_CTA: Record<Task['kind'], string> = {
  * reads it as a promise and finds an empty house twice stops believing the
  * next one.
  */
-function TaskLabels({ task }: { task: Task }) {
-  if (task.distanceKm === undefined && !task.payLikely) return null
+function TaskLabels({ task, status }: { task: Task; status?: TaskStatus }) {
+  if (task.distanceKm === undefined && !task.payLikely && !status) return null
   return (
     <span className="flex flex-wrap items-center gap-4">
+      {/* The status badge rides HERE rather than at the end of the title line.
+          Beside the title it took ~90px off a row that has to hold "Follow Up:
+          Ibu Nia Kurniasih", and a task list whose every second title ends in an
+          ellipsis is a list you cannot scan. */}
+      {status ? <Badge intent={STATUS_BADGE[status].intent}>{STATUS_BADGE[status].label}</Badge> : null}
+      {task.payLikely ? <Badge intent="green">Kemungkinan bayar tinggi</Badge> : null}
       {task.distanceKm !== undefined ? (
         <span className="text-10 text-disabled">{km(task.distanceKm)}</span>
       ) : null}
-      {task.payLikely ? <Badge intent="green">Kemungkinan bayar tinggi</Badge> : null}
     </span>
   )
 }
@@ -234,9 +276,6 @@ export function TodayScreen() {
   const [kind, setKind] = useState<Task['kind'] | null>(null)
   const [status, setStatus] = useState<TaskStatus | null>(null)
   const [menu, setMenu] = useState<'kind' | 'status' | null>(null)
-  const now = nowTask(s)
-  const later = laterTasks(s)
-  const done = doneTaskList(s)
   const day = findDay(s.day)
   const collected = collectedToday(s)
   const progress = Math.round((collected / TARGET_HARIAN) * 100)
@@ -251,6 +290,14 @@ export function TodayScreen() {
     (t) => (!kind || t.kind === kind) && (!status || taskStatus(s, t.id) === status),
   )
 
+  // Two buckets, split on the only line that matters to a BP looking at her
+  // day: is there still something to do here. "Dikerjakan" belongs with "belum
+  // mulai" because a half-finished visit is unfinished work; "terkirim" belongs
+  // with "selesai" because both are off her plate, and which of the two it is
+  // is the sync widget's business, not the section's.
+  const open = TASKS.filter((t) => ['belum', 'dikerjakan'].includes(taskStatus(s, t.id)))
+  const closed = TASKS.filter((t) => ['selesai', 'terkirim'].includes(taskStatus(s, t.id)))
+
   // Tomorrow is the rostered day PLUS whatever the BP promised today. A
   // follow-up she committed to on a call at 11.45 is a real appointment, and
   // the only place it can be honoured is the day it falls on.
@@ -259,7 +306,7 @@ export function TodayScreen() {
   const subtitle =
     s.day === 'tomorrow'
       ? `${tomorrow.length} kunjungan terjadwal`
-      : `${done.length} dari ${TASKS.length} selesai`
+      : `${closed.length} dari ${TASKS.length} selesai`
 
   // Straight into the work. A majelis goes to stage 1, a home visit to its own
   // step 1. The task id rides along either way, so submitting closes this row
@@ -439,139 +486,67 @@ export function TodayScreen() {
               <EmptyState title="Tidak ada tugas" body="Coba tipe atau status lain." />
             ) : null}
             {matches.map((task) => (
-              <AgendaRow key={task.id} time={task.time}>
-                <button
-                  type="button"
-                  onClick={() => start(task)}
-                  className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
-                >
-                  <KindTag kind={task.kind} />
-                  <div className="flex min-w-0 flex-1 flex-col gap-2">
-                    <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                    <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
-                      <PinMark />
-                      <span className="truncate">{task.place}</span>
-                    </span>
-                    <TaskLabels task={task} />
-                  </div>
-                  {/* The status badge earns its place ONLY here. On the normal
-                      agenda the section a row sits in already says where it
-                      stands; in a flat filtered list there are no sections. */}
-                  <Badge intent={STATUS_BADGE[taskStatus(s, task.id)].intent}>
-                    {STATUS_BADGE[taskStatus(s, task.id)].label}
-                  </Badge>
-                </button>
-              </AgendaRow>
+              <TaskRow
+                key={task.id}
+                task={task}
+                status={taskStatus(s, task.id)}
+                onStart={() => start(task)}
+              />
             ))}
           </div>
         </>
       ) : (
         <>
 
-      {/* --- Sekarang: the only card that grows a button. */}
-      {now ? (
+      {/* --- Belum selesai: everything still owed, in clock order.
+          No focus card and no "Sekarang". The page used to draw one stop
+          larger with the verb on a button, which answered "what next" on a day
+          that does not run in clock order — and the biggest thing on screen was
+          regularly the row she was not doing. Now every card is the same card
+          and she picks. */}
+      {open.length > 0 ? (
         <>
-          <Overline>Sekarang</Overline>
-          <AgendaRow time={now.time} until={now.until}>
-            <Card>
-              <div className="flex flex-col gap-12">
-                <div className="flex items-start gap-12">
-                  <KindTag kind={now.kind} />
-                  <div className="flex min-w-0 flex-1 flex-col gap-2">
-                    <span className="text-18 font-bold text-default">{now.title}</span>
-                    <span className="flex items-start gap-4 text-12 text-caption">
-                      <PinMark />
-                      {now.place}
-                    </span>
-                    <TaskLabels task={now} />
-                  </div>
-                </div>
-
-                {/* The "why this task exists" line used to sit here, in a tinted
-                    box of its own. It is gone from the focus card: the card is
-                    for the stop she is standing at, and a reason is an argument
-                    for choosing it — which she is not doing. It still leads
-                    every row under Berikutnya, where choosing IS the job. */}
-
-                {/* The only control on this page that starts anything. */}
-                <Button size="md" className="w-full" onClick={() => start(now)}>
-                  {KIND_CTA[now.kind]}
-                </Button>
-              </div>
-            </Card>
-          </AgendaRow>
+          <Overline>Belum selesai</Overline>
+          <div className="flex flex-col gap-8">
+            {open.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                status={taskStatus(s, task.id)}
+                onStart={() => start(task)}
+              />
+            ))}
+          </div>
         </>
       ) : (
         <Card>
           <div className="flex flex-col items-center gap-8 py-24 text-center">
             <span className="text-20 font-bold text-default">Tugas hari ini selesai</span>
             <span className="text-12 text-caption">
-              Semua {done.length} kunjungan sudah dituntaskan. Sampai jumpa besok.
+              Semua {closed.length} kunjungan sudah dituntaskan. Sampai jumpa besok.
             </span>
           </div>
         </Card>
       )}
 
-      {/* --- Berikutnya: the rest of the day, and every row starts its task —
-          the same thing the button above does, just for a stop she is reaching
-          out of order. The chevron is the tappable tell. */}
-      {later.length > 0 ? (
+      {/* --- Selesai: same card, still on the rail. It stays a full section
+          rather than the collapsed strip it was — the sync widget points at
+          these rows, and a Selesai that has not been sent is something she
+          needs to be able to SEE, not something behind a disclosure. */}
+      {closed.length > 0 ? (
         <>
-          <Overline>Berikutnya</Overline>
-          <div className="flex flex-col gap-8">
-            {later.map((task) => (
-              <AgendaRow key={task.id} time={task.time}>
-                <button
-                  type="button"
-                  onClick={() => start(task)}
-                  className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
-                >
-                  <KindTag kind={task.kind} />
-                  {/* Title and where it is. The "why now" line used to be the
-                      subtitle here; a row that carries a reason is a row being
-                      argued for, and the schedule already made that call by
-                      putting the stop on the day. Where she has to ride is the
-                      fact she reads a row for. */}
-                  <div className="flex min-w-0 flex-1 flex-col gap-2">
-                    <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                    <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
-                      <PinMark />
-                      <span className="truncate">{task.place}</span>
-                    </span>
-                    <TaskLabels task={task} />
-                  </div>
-                  <span className="shrink-0 text-disabled">
-                    <IconChevronRight size={20} />
-                  </span>
-                </button>
-              </AgendaRow>
+          <Overline>Selesai</Overline>
+          <div className="flex flex-col gap-8 pb-16">
+            {closed.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                status={taskStatus(s, task.id)}
+                onStart={() => start(task)}
+              />
             ))}
           </div>
         </>
-      ) : null}
-
-      {/* --- Sudah selesai: out of the way. */}
-      {done.length > 0 ? (
-        <Collapsible title="Sudah selesai" hint={`${done.length} tugas`}>
-          {done.map((task) => (
-            <div key={task.id} className="flex items-center gap-8">
-              {/* Right-aligned in the same 40px column as the live agenda's
-                  gutter, so the clock rail runs unbroken through the day. */}
-              <span className="w-40 shrink-0 text-right text-12 text-disabled">{task.time}</span>
-              <span className="flex-1 text-14 text-caption line-through">{task.title}</span>
-              {/* Selesai and Terkirim are told apart here too, or the section
-                  the sync widget is about would be the one place that hides
-                  which rows it means. */}
-              {s.sentTasks.includes(task.id) ? (
-                <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                  Terkirim
-                </Badge>
-              ) : (
-                <Badge intent="blue">Selesai</Badge>
-              )}
-            </div>
-          ))}
-        </Collapsible>
       ) : null}
         </>
       )}
