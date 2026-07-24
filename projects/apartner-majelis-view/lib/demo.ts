@@ -187,6 +187,29 @@ export const scheduleCapped = () =>
     depositProof: false,
   })
 
+/** Closing submitted — the schedule's thank-you banner, and nothing to do. */
+export const scheduleClosed = () =>
+  store.set({
+    day: 'today',
+    doneTasks: CLOSING_DONE,
+    sentTasks: CLOSING_DONE,
+    deposits: bankedDay,
+    settlements: [
+      { no: 1, amount: bankedDay.t1.cash, taskIds: ['t1'], va: vaFor(1), at: '11.40', closing: false },
+      {
+        no: 2,
+        amount: bankedDay.t2.cash + bankedDay.t4.cash,
+        taskIds: ['t2', 't4'],
+        va: vaFor(2),
+        at: '16.20',
+        closing: false,
+      },
+    ],
+    depositAmount: null,
+    depositProof: true,
+    depositDone: true,
+  })
+
 // --- The daily close -------------------------------------------------------
 
 // A day that has already happened. The amounts are computed from the same

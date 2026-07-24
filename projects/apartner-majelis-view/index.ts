@@ -42,6 +42,7 @@ export const project: ProjectModule = {
 'Setoran replaced Terkumpul hari ini at the top of the page. That card was a progress bar against a target — a number to feel something about rather than act on. This one is the same money phrased as a decision, and it is the larger risk: cash on a motorbike, not a percentage. It names the amount, says how many of the two mid-day handovers she has used, and offers one button. The count reads as used-of-allowed rather than as remaining: “sisa 2” makes her subtract to learn where she is, “0 dari maks 2” is the state itself.',
         'A settlement takes EVERYTHING outstanding — there is no amount to choose. Partial handovers would need the app to hold an opinion about which rupiah in her bag belongs to which pelayanan, which it cannot check and she cannot separate, and a BP free to pick the number is a BP who can be asked why she picked it. What she chooses is when.',
 'Three settlements a day, all three from this widget. The first two are hers to time — that is the point of putting cash down before the evening. The THIRD is the last one there is, so it stays shut until every majelis and doorstep is finished: spend it at 14.00 and the afternoon’s money has nowhere to go. While it is held the widget states the amount and says WHY it is shut, which is the difference between a rule and a bug. Each settlement gets its own VA, because a virtual account is what the branch reconciles against and three transfers to one number are three deposits nobody can tell apart at the other end.',
+'Once Closing is submitted the Tutup widget is replaced by a green thank-you banner — the one card on this page that is not work, and the only place the schedule uses that colour at full strength. It replaces rather than joins: a day has exactly one end, and two cards about it would be one too many.',
         'Closing left the task list. It was the last row on the schedule — a stop with a time and a place, sitting among six rows it had nothing in common with: every other one is a woman to see, this one is the day’s paperwork. It is a widget above the list now, appearing only when there is nothing left to do — every task finished AND sent, and nothing left in the bag. Those were the checks inside the closing screen; making them the condition for the widget existing means she never opens a page to be told she cannot use it.',
         'Every card is now title + address and nothing else. The “why now” line is off both the focus card and the Berikutnya rows: a row that carries a reason is a row being argued for, and the schedule already made that call by putting the stop on the day. Where she has to ride is the fact a row gets read for.',
         'One inbox in the header, no bell. They were two senders — the business talking TO the BP, and the system reporting what happened — but a notification is something that already happened, and this page is for what has not.',
@@ -82,6 +83,12 @@ export const project: ProjectModule = {
           label: 'Siap tutup hari',
           description: 'Semua tugas terkirim, semua uang disetor',
           apply: demo.scheduleCloseable,
+        },
+        {
+          id: 'closed',
+          label: 'Hari sudah ditutup',
+          description: 'Closing terkirim — tinggal ucapan terima kasih',
+          apply: demo.scheduleClosed,
         },
       ],
       flowsTo: [

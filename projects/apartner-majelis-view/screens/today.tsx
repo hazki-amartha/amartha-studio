@@ -39,7 +39,7 @@ import {
   type Task,
 } from '../lib/schedule'
 import { IconCheck, IconChevronDown, IconChevronRight, IconInbox, IconWallet } from '../lib/icons'
-import { CloudArrowUp, Door } from '@/design-system/icons'
+import { CloudArrowUp, Door, Medal } from '@/design-system/icons'
 import {
   canCloseDay,
   canSettle,
@@ -461,6 +461,23 @@ export function TodayScreen() {
           AND sent, and nothing left in the bag. Those were the checks inside
           the closing screen; making them the condition for the widget existing
           means she never opens a page to be told she cannot use it. */}
+      {/* Closed. The one card on this page that is not work — it replaces the
+          Tutup widget rather than joining it, because the day has exactly one
+          end and two cards about it would be one too many. Green and filled,
+          the only place on the schedule that colour is used at full strength:
+          everything else is a thing to do, and this is the absence of one. */}
+      {s.depositDone ? (
+        <div className="flex items-center gap-12 rounded-12 border border-green-200 bg-green-50 p-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-green-500">
+            <Medal size={20} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-14 font-bold text-green-500">Terima kasih!</span>
+            <span className="text-12 text-caption">Hari ini sudah selesai</span>
+          </div>
+        </div>
+      ) : null}
+
       {canCloseDay(s) ? (
         <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
           <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-primary-500">
@@ -518,10 +535,16 @@ export function TodayScreen() {
           <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-50 text-neutral-600">
             <IconWallet size={20} />
           </span>
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-16 font-bold text-default">{rupiah(toSettle)}</span>
-            <span className="truncate text-12 text-caption">
-              Belum disetor · setoran terakhir setelah semua kunjungan selesai
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <span className="flex flex-wrap items-baseline gap-8">
+              <span className="text-16 font-bold text-default">{rupiah(toSettle)}</span>
+              <span className="text-12 text-caption">Belum disetor</span>
+            </span>
+            {/* Wraps rather than truncates. It is the only place the rule is
+                stated, and a rule that ends in an ellipsis is a rule she has to
+                guess at — the card can afford the second line. */}
+            <span className="text-12 text-caption">
+              Setoran terakhir dibuka setelah semua kunjungan selesai
             </span>
           </div>
         </div>

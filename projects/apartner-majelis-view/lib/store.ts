@@ -1164,6 +1164,7 @@ export const settleHeld = (s: AppState): boolean =>
  * checklist, now the condition for the widget appearing at all.
  */
 export const canCloseDay = (s: AppState): boolean =>
+  !s.depositDone &&
   TASKS.length > 0 &&
   TASKS.every((t) => s.sentTasks.includes(t.id)) &&
   unsettledTotal(s) === 0
