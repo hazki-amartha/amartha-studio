@@ -30,7 +30,7 @@ import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
 import {
   DAYS,
-  TARGET_HARIAN,
+  DEPOSIT,
   TASKS,
   TOMORROW_TASKS,
   findDay,
@@ -38,11 +38,14 @@ import {
   withScheduled,
   type Task,
 } from '../lib/schedule'
-import { IconCheck, IconChevronDown, IconChevronRight, IconInbox } from '../lib/icons'
+import { IconCheck, IconChevronDown, IconChevronRight, IconInbox, IconWallet } from '../lib/icons'
 import { CloudArrowUp } from '@/design-system/icons'
 import {
-  collectedToday,
+  canSettleMidDay,
+  midDayUsed,
   pendingSync,
+  settledTotal,
+  unsettledTotal,
   scheduledFor,
   store,
   taskStatus,
@@ -56,7 +59,6 @@ import {
   FilterBar,
   FilterChip,
   HeaderAction,
-  Meter,
   OptionSheet,
   Overline,
   PinMark,
@@ -299,9 +301,8 @@ export function TodayScreen() {
   const [status, setStatus] = useState<TaskStatus | null>(null)
   const [menu, setMenu] = useState<'kind' | 'status' | null>(null)
   const day = findDay(s.day)
-  const collected = collectedToday(s)
-  const progress = Math.round((collected / TARGET_HARIAN) * 100)
   const pending = pendingSync(s)
+  const toSettle = unsettledTotal(s)
 
   // A filter replaces the whole agenda with one flat list. Sekarang/Berikutnya/
   // Selesai is a shape built around WHEN, and a BP filtering by type has
@@ -421,23 +422,72 @@ export function TodayScreen() {
 
   return (
     <Screen topBar={header}>
-      {/* --- Terkumpul hari ini: the same card apartner-homepage-ia opens on.
-          It is the one number a BP is asked for by her BM before the day is
-          over, and it belongs above the work rather than at the deposit, where
-          it would arrive too late to change how she works the afternoon.
-          Without homepage-ia's "Lihat semua": there is no collection ledger to
-          send her to here, and a link that opens a list of what she just did is
-          a link back to the page she is on. */}
-      <Overline>Terkumpul hari ini</Overline>
-      <Card>
-        <div className="flex flex-col gap-8">
-          <div className="flex items-baseline justify-between gap-8">
-            <span className="text-16 font-bold text-default">{rupiah(collected)}</span>
-            <span className="text-10 text-disabled">Target {rupiah(TARGET_HARIAN)}</span>
+      {/* --- Setoran: what is in her bag right now, and the button that puts
+          it down. It replaced "Terkumpul hari ini", which was a progress bar
+          against a target — a number to feel something about rather than act
+          on. This one is the same money phrased as a decision, and it is the
+          larger risk: cash on a motorbike, not a percentage.
+
+          It offers no amount. A settlement takes everything outstanding, so
+          the only thing she picks is when.
+
+          It DISAPPEARS after two mid-day handovers. The third is the closing
+          task, which is hers to reach on the schedule below — a widget that
+          stayed visible and refused to work would teach her to distrust it. */}
+      {canSettleMidDay(s) ? (
+        // Same shape as the sync widget below it: tile, two lines, one small
+        // button pinned right. They are the two things on this page that are
+        // not tasks, and giving them one shape says so — a full-width button
+        // made this the loudest object on a page whose subject is the day.
+        <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-green-50 text-green-500">
+            <IconWallet size={20} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-16 font-bold text-default">{rupiah(toSettle)}</span>
+            {/* The count as USED of allowed, not as remaining. "Sisa 2" makes
+                her subtract to learn where she is; "0 dari maks 2" is the state
+                itself, and it is the number that decides whether she puts the
+                money down now or carries it to the next stop. */}
+            <span className="truncate text-12 text-caption">
+              Belum disetor · {midDayUsed(s)} dari maks {DEPOSIT.maxMidDay} setoran tengah hari
+            </span>
           </div>
-          <Meter progress={progress} tone={progress >= 100 ? 'green' : 'primary'} />
+          <Button
+            size="sm"
+            className="h-40 shrink-0 px-16"
+            onClick={() => {
+              store.openSettlement()
+              flow.go('settlement')
+            }}
+          >
+            Setor
+          </Button>
         </div>
-      </Card>
+      ) : null}
+
+      {/* Once both mid-day slots are spent, what is left is a statement rather
+          than a control: this much is still on her, and the closing task is
+          where it goes. Saying nothing at all would leave her carrying money
+          the app had stopped mentioning. */}
+      {!canSettleMidDay(s) && toSettle > 0 ? (
+        <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-50 text-neutral-600">
+            <IconWallet size={20} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-12 text-caption">Uang tunai belum disetor</span>
+            <span className="text-16 font-bold text-default">{rupiah(toSettle)}</span>
+          </div>
+          <span className="shrink-0 text-10 text-disabled">Setor di tugas penutup</span>
+        </div>
+      ) : null}
+
+      {settledTotal(s) > 0 ? (
+        <span className="text-10 text-disabled">
+          Sudah disetor hari ini: {rupiah(settledTotal(s))} dalam {s.settlements.length} kali
+        </span>
+      ) : null}
 
       {/* --- Belum terkirim: the day's work that hasn't left the handset.
           It sits directly above the task list because that is what it is ABOUT
@@ -449,8 +499,8 @@ export function TodayScreen() {
           on screen saying "0" is a permanent reminder of a problem she does not
           have, and the empty state of a queue is no queue. */}
       {pending.length > 0 ? (
-        <div className="flex items-center gap-12 rounded-12 border border-orange-200 bg-orange-50 p-12">
-          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-orange-500">
+        <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-orange-50 text-orange-500">
             <CloudArrowUp size={20} />
           </span>
           <div className="flex min-w-0 flex-1 flex-col">

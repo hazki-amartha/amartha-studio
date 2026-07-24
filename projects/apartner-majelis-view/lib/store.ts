@@ -21,10 +21,12 @@ import {
   type SosialisasiEvent,
 } from './leads'
 import {
+  DEPOSIT,
   TASKS,
   findMajelisEntry,
   findTask,
   taskForMajelis,
+  vaFor,
   type DayKey,
   type MajelisEntry,
   type MajelisStatus,
@@ -100,6 +102,32 @@ export interface LastCollect {
   owed: number
   /** What she just handed over. */
   paid: number
+}
+
+/**
+ * One handover of cash to the branch.
+ *
+ * A day can have up to three. That is not a convenience — it is the shape of
+ * the risk: a BP carrying six hours of collections on a motorbike is the single
+ * largest exposure in this flow, and the fix is to let her put it down twice
+ * before the day ends rather than once at 17.45.
+ *
+ * Each one takes EVERYTHING outstanding. Partial settlement would mean the app
+ * holding an opinion about which rupiah in her bag belongs to which pelayanan,
+ * which it cannot check and she cannot separate — and a BP who can choose the
+ * amount is a BP who can be asked to explain why she chose it.
+ */
+export interface Settlement {
+  /** 1-based. Also picks the VA, so each transfer reconciles on its own. */
+  no: number
+  amount: number
+  /** The finished tasks whose cash this covered. */
+  taskIds: string[]
+  va: string
+  /** "13.20" — when she sent it. */
+  at: string
+  /** Done from the closing task rather than mid-day from the schedule. */
+  closing: boolean
 }
 
 export interface AppState {
@@ -233,6 +261,11 @@ export interface AppState {
   /** taskId → what that finished task put in her bag. Written by `finishTask`. */
   deposits: Record<string, DepositEntry>
   /**
+   * Every handover so far today, oldest first. Up to three: two she can time
+   * herself from the schedule, and a third that is the closing task.
+   */
+  settlements: Settlement[]
+  /**
    * What she actually handed over, in rupiah. Null until she confirms — it is
    * seeded from the computed total the moment she opens the closing task, so
    * agreeing is a tap and disagreeing is the deliberate act.
@@ -346,6 +379,7 @@ const initial: AppState = {
   newAddress: {},
   mitraAbsence: {},
   deposits: {},
+  settlements: [],
   depositAmount: null,
   depositDiffReason: null,
   depositProof: false,
@@ -497,6 +531,20 @@ export const store = {
    * the BP's first act is to agree or disagree with a figure, never to type one
    * from memory — she has just carried this money through five stops.
    */
+  /**
+   * Opens the settlement screen from the SCHEDULE rather than from the closing
+   * task. No `activeTask`, deliberately: a mid-day handover must not be able to
+   * tick the day's closing row, which is still ahead of her with an afternoon's
+   * collections to go.
+   */
+  openSettlement() {
+    store.set({
+      activeTask: null,
+      depositAmount: null,
+      depositDiffReason: null,
+      depositProof: false,
+    })
+  },
   startDeposit(taskId: string) {
     store.set({
       activeTask: taskId,
@@ -834,6 +882,35 @@ export const store = {
   setDepositProof(depositProof: boolean) {
     store.set({ depositProof })
   },
+  /**
+   * Hands over everything outstanding. There is no amount argument on purpose:
+   * a settlement takes the whole bag, and the only thing the BP chooses is
+   * WHEN. `closing` says which door she came through, because the third one is
+   * the closing task and the first two are hers to time.
+   */
+  settle(closing: boolean) {
+    const entries = unsettledEntries(state)
+    if (entries.length === 0) return
+    const no = state.settlements.length + 1
+    const at = closing ? '17.45' : ['11.40', '15.10'][state.settlements.length] ?? '15.10'
+    store.set({
+      settlements: [
+        ...state.settlements,
+        {
+          no,
+          amount: entries.reduce((sum, e) => sum + e.cash, 0),
+          taskIds: entries.map((e) => e.taskId),
+          va: vaFor(no),
+          at,
+          closing,
+        },
+      ],
+      // The next settlement starts clean — its own proof, its own agreement.
+      depositProof: false,
+      depositAmount: null,
+      depositDiffReason: null,
+    })
+  },
   submitDeposit() {
     store.set({ depositDone: true })
   },
@@ -955,6 +1032,43 @@ export const depositEntries = (s: AppState): DepositEntry[] =>
 /** Physical money she is carrying — the figure the deposit is about. */
 export const depositExpected = (s: AppState): number =>
   depositEntries(s).reduce((sum, e) => sum + e.cash, 0)
+
+// --- Settlement ------------------------------------------------------------
+
+/** Task ids whose cash has already gone to the branch. */
+const settledTaskIds = (s: AppState): string[] => s.settlements.flatMap((x) => x.taskIds)
+
+/**
+ * What is still in her bag: banked lines from finished tasks that no settlement
+ * has covered yet. This is the ONLY figure a settlement is ever about — there
+ * is no path in this flow that hands over part of it.
+ */
+export const unsettledEntries = (s: AppState): DepositEntry[] => {
+  const gone = settledTaskIds(s)
+  return depositEntries(s).filter((e) => !gone.includes(e.taskId) && e.cash > 0)
+}
+
+export const unsettledTotal = (s: AppState): number =>
+  unsettledEntries(s).reduce((sum, e) => sum + e.cash, 0)
+
+/** Everything handed over so far today, across settlements. */
+export const settledTotal = (s: AppState): number =>
+  s.settlements.reduce((sum, x) => sum + x.amount, 0)
+
+/** Mid-day handovers used. The third is the closing task and is not hers to spend. */
+export const midDayUsed = (s: AppState): number => s.settlements.filter((x) => !x.closing).length
+
+/**
+ * Whether the schedule should offer to settle right now.
+ *
+ * Two conditions, and they fail for different reasons: nothing to hand over
+ * (the widget would be an empty queue), or both mid-day slots spent (the money
+ * rides with her to the closing task, which is the third and last). Hiding it
+ * in the second case is the point of the cap — a widget that stays visible
+ * while refusing to work is a control that teaches her to distrust it.
+ */
+export const canSettleMidDay = (s: AppState): boolean =>
+  unsettledTotal(s) > 0 && midDayUsed(s) < DEPOSIT.maxMidDay
 
 /** Money that reached the company without her. Stated so it isn't asked about. */
 export const depositDigital = (s: AppState): number =>

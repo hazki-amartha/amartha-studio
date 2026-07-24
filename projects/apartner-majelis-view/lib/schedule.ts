@@ -217,9 +217,36 @@ export const TARGET_HARIAN = 6_200_000
  */
 export const DEPOSIT = {
   bank: 'BCA Virtual Account',
-  va: '8808 2145 7790 1123',
   holder: 'Amartha Cabang Ciseeng',
   due: '18.00',
+  /** How many times a day's cash can be handed over. */
+  maxSettlements: 3,
+  /** How many of those she can do herself, mid-day. The last is the closing task. */
+  maxMidDay: 2,
+}
+
+/**
+ * A fresh VA per settlement.
+ *
+ * Not decoration: a virtual account is what the branch reconciles against, and
+ * reusing one number for three transfers in a day makes three deposits
+ * indistinguishable at the other end. The BP transfers to the number on the
+ * screen in front of her, and that number is the receipt.
+ */
+export const vaFor = (no: number): string => `8808 2145 77${90 + no} ${1123 + no * 7}`
+
+/**
+ * "MV", "HV" — the KIND of a task, in the shorthand a BP and her BM speak.
+ *
+ * Not numbered. The settlement breakdown puts this beside the group's own name
+ * ("MV · Majelis Mawar"), so an ordinal would be a second identifier for a row
+ * that is already named — and "MV 1" invites the question of what happened to
+ * an MV 2 that may not be in this settlement at all.
+ */
+export const taskCode = (taskId: string): string => {
+  const kind = TASKS.find((t) => t.id === taskId)?.kind
+  if (!kind) return ''
+  return { majelis: 'MV', 'home-visit': 'HV', sosialisasi: 'Sos', 'follow-up': 'FU', setoran: 'Setor' }[kind]
 }
 
 /**

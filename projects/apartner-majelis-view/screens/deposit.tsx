@@ -29,7 +29,7 @@ import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
 import { DEPOSIT, TASKS } from '../lib/schedule'
 import { IconCheck } from '../lib/icons'
-import { depositExpected, store, useApp } from '../lib/store'
+import { store, unsettledTotal, useApp } from '../lib/store'
 import { SectionTitle, StickyBar } from '../lib/ui'
 
 export function DepositScreen() {
@@ -44,10 +44,15 @@ export function DepositScreen() {
   const allDone = pending.length === 0
 
   // --- Check 2: the titipan tunai she has to hand back to the branch. -----
-  const toDeposit = depositExpected(s)
-  // A closing with nothing to deposit is settled by definition; otherwise she
-  // marks it settled once she has transferred (reusing the transfer flag).
-  const depositSettled = toDeposit === 0 || s.depositProof
+  //
+  // What is STILL in her bag, not everything the day banked: she may have put
+  // money down twice already from the schedule, and a closing check that
+  // ignored those would ask her to settle cash she is no longer carrying.
+  const toDeposit = unsettledTotal(s)
+  // Settled means the bag is empty. There is no separate flag to tick — the
+  // settlement screen is what empties it, and a check that could be marked done
+  // without one is a check that can disagree with the ledger behind it.
+  const depositSettled = toDeposit === 0
 
   const ready = allDone && depositSettled
 
@@ -145,24 +150,23 @@ export function DepositScreen() {
                   <span className="text-24 font-bold text-default">{rupiah(toDeposit)}</span>
                 </div>
 
-                {/* Where it goes — the VA, so she can transfer without leaving to
-                    look the number up. */}
-                <div className="flex flex-col gap-2 rounded-8 bg-neutral-50 px-12 py-8">
-                  <span className="text-10 text-disabled">Setor ke</span>
-                  <span className="text-12 text-caption">{DEPOSIT.bank}</span>
-                  <span className="break-words text-16 font-bold text-default">{DEPOSIT.va}</span>
-                  <span className="text-12 text-caption">{DEPOSIT.holder}</span>
-                  <span className="text-10 text-disabled">Batas setor {DEPOSIT.due}</span>
-                </div>
+                {/* The VA is no longer printed here. Each settlement gets its
+                    OWN account number, so a fixed one on this card would be the
+                    wrong number as often as the right one — the settlement
+                    screen issues it along with the breakdown and the proof. */}
+                <span className="text-10 text-disabled">Batas setor {DEPOSIT.due}</span>
 
                 {allDone ? (
                   <Button
                     size="sm"
                     variant="outline"
                     className="w-full"
-                    onClick={() => store.setDepositProof(true)}
+                    onClick={() => {
+                      store.openSettlement()
+                      flow.go('settlement')
+                    }}
                   >
-                    Saya Sudah Setor
+                    Setor Sekarang
                   </Button>
                 ) : (
                   <span className="text-12 text-caption">
