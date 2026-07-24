@@ -62,6 +62,9 @@ export function CollectionScreen() {
   const cashCollected = cashCollectedTotal(s)
   const cashBillable = cashBillableTotal()
 
+  // Both "Tagih" and "Ubah" land on the collect menu. A fresh tagih opens it with
+  // every sheet closed; an ubah opens it with the sheet that produced the
+  // outcome already open and prefilled — the menu reads that from what is on file.
   function openCollect(mitraId: string) {
     store.openMitraPage(mitraId)
     flow.go('collect')

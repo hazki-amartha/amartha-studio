@@ -24,7 +24,7 @@ import {
 } from '@/design-system/icons'
 import { outstandingOf, rupiah, type Mitra } from './data'
 import { IconCalendar, IconChevronRight, IconHome } from './icons'
-import { RepaymentStrip } from './ui'
+import { WeekGrid } from './ui'
 
 /**
  * What she owes, and what it is made of. ONE component, used by the mitra page
@@ -103,25 +103,40 @@ function TagihanLine({
 
 /**
  * The one payment card the mitra page and the collect page both open on: the
- * recent cycle as a fixed eight-week strip, then what she owes, in one bordered
- * box. It merges the week rail and the tagihan breakdown that used to be two
- * stacked cards — they are read together, in one glance, before the BP asks for
- * money, so they are one card.
+ * recent cycle as a bordered week-grid, then what she owes, in one card. It
+ * merges the week history and the tagihan breakdown that used to be two stacked
+ * cards — they are read together, in one glance, before the BP asks for money,
+ * so they are one card.
+ *
+ * The history is a `WeekGrid` — a bordered row of cells, each carrying its date,
+ * its outcome and the amount received that week — rather than a bare mark strip,
+ * because the amount under a cell is what tells a shortfall apart from a miss.
  *
  * `onSeeAll` renders the "Lihat Semua" link into the full ledger; the collect
  * page omits it, because the whole history is not a place to wander off to with
  * a mitra waiting to hand over cash.
+ *
+ * `flat` strips the card — no border, no padding, and no "Riwayat Angsuran"
+ * heading — so the grid and the breakdown sit straight on the page. The collect
+ * page uses it to read its identity, its history and its bill as ONE unified
+ * block rather than a stack of bordered boxes; the mitra page keeps the card,
+ * where the breakdown is one section among several and its edge earns its place.
  */
-export function AngsuranCard({ mitra, onSeeAll }: { mitra: Mitra; onSeeAll?: () => void }) {
+export function AngsuranCard({
+  mitra,
+  onSeeAll,
+  flat,
+}: {
+  mitra: Mitra
+  onSeeAll?: () => void
+  flat?: boolean
+}) {
   const owed = outstandingOf(mitra)
   const overdue = owed.missed + owed.partial
-  return (
-    // Two stacked panels in one bordered card, told apart by fill rather than a
-    // rule: the recent cycle on a lightest-grey ground up top, and what it leaves
-    // owed on white beneath. The colour change IS the division — the strip is the
-    // history, the white block is the money to collect against it.
-    <div className="overflow-hidden rounded-12 border border-default">
-      <div className="flex flex-col gap-12 bg-neutral-50 p-12">
+
+  const inner = (
+    <>
+      {!flat ? (
         <div className="flex items-center gap-8">
           <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">
             Riwayat Angsuran
@@ -137,11 +152,11 @@ export function AngsuranCard({ mitra, onSeeAll }: { mitra: Mitra; onSeeAll?: () 
             </button>
           ) : null}
         </div>
+      ) : null}
 
-        <RepaymentStrip weeks={mitra.weeks} />
-      </div>
+      <WeekGrid weeks={mitra.weeks} />
 
-      <div className="flex flex-col gap-8 bg-neutral-white p-12">
+      <div className="flex flex-col gap-8">
         {/* Always shown, even at Rp0: a mitra reads "Tunggakan Rp0" as the good
             news it is, and a line that appears only when she is behind makes its
             absence do the talking — which a BP scanning the card can't rely on.
@@ -162,6 +177,14 @@ export function AngsuranCard({ mitra, onSeeAll }: { mitra: Mitra; onSeeAll?: () 
           <span className="text-20 font-bold text-default">{rupiah(owed.total)}</span>
         </div>
       </div>
+    </>
+  )
+
+  return flat ? (
+    <div className="flex flex-col gap-12">{inner}</div>
+  ) : (
+    <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-12">
+      {inner}
     </div>
   )
 }
@@ -356,6 +379,7 @@ export function MitraCard({
   trailing,
   action,
   onOpen,
+  flat,
 }: {
   mitra: Mitra
   /**
@@ -383,6 +407,13 @@ export function MitraCard({
    * control would cost a row on every one of 22 cards. The chevron is the tell.
    */
   onOpen?: () => void
+  /**
+   * Drops the Card so the identity row sits straight on the page. The collect
+   * flow uses it to make the header, the history and the bill read as one
+   * unified block; the rosters keep the card, where each mitra is a tappable
+   * object in a list and needs its own edge.
+   */
+  flat?: boolean
 }) {
   const identity = (
     <>
@@ -407,29 +438,38 @@ export function MitraCard({
     </>
   )
 
-  return (
-    <Card>
-      <div className="flex flex-col gap-12">
-        {/* Centred, not top-aligned: the identity block is now a name over its
+  const body = (
+    <div className="flex flex-col gap-12">
+      {/* Centred, not top-aligned: the identity block is now a name over its
             two badges and nothing taller, so hanging the photo and the chevron
             off the top edge left both sitting high of everything beside them. */}
-        <div className="flex items-center gap-12">
-          {onOpen ? (
-            <button
-              type="button"
-              onClick={onOpen}
-              aria-label={`Buka halaman ${mitra.name}`}
-              className="flex min-w-0 flex-1 items-center gap-12 text-left"
-            >
-              {identity}
-            </button>
-          ) : (
-            identity
-          )}
-          {trailing ? <div className="shrink-0">{trailing}</div> : null}
-        </div>
-        {action ? <div className="border-t border-default pt-12">{action}</div> : null}
+      <div className="flex items-center gap-12">
+        {onOpen ? (
+          <button
+            type="button"
+            onClick={onOpen}
+            aria-label={`Buka halaman ${mitra.name}`}
+            className="flex min-w-0 flex-1 items-center gap-12 text-left"
+          >
+            {identity}
+          </button>
+        ) : (
+          identity
+        )}
+        {trailing ? <div className="shrink-0">{trailing}</div> : null}
+        {/* The chevron only in flat mode — the collect page's identity row
+            opens her page and wants the tell, per the flat header design. The
+            carded rosters dropped it, so a chevron here would put one back on
+            every one of 22 cards. */}
+        {flat && onOpen ? (
+          <span className="shrink-0 text-disabled">
+            <IconChevronRight size={20} />
+          </span>
+        ) : null}
       </div>
-    </Card>
+      {action ? <div className="border-t border-default pt-12">{action}</div> : null}
+    </div>
   )
+
+  return flat ? body : <Card>{body}</Card>
 }
