@@ -31,7 +31,8 @@ import { Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
-import { HomeMitraCard, TagihanCard } from '../lib/home-card'
+import { HomeMitraCard } from '../lib/home-card'
+import { AngsuranCard } from '../lib/mitra-card'
 import {
   openHomeMitra,
   openHomeTask,
@@ -132,8 +133,14 @@ export function HomeVisitScreen() {
       />
 
       {/* Always on screen, from the moment the step opens — the BP should never
-          be talking to her with the amount she is asking for off-screen. */}
-      <TagihanCard mitra={mitra} />
+          be talking to her with the amount she is asking for off-screen.
+
+          The same card the mitra page and the majelis tagih flow open on: the
+          recent cycle on grey over the bill on white. A doorstep collection is
+          the same reading as a majelis one, so it gets the same drawing. No
+          "Lihat Semua" here, for the reason the collect page omits it — with a
+          mitra in front of her the full ledger is not a place to wander off to. */}
+      <AngsuranCard mitra={mitra} />
 
       {/* --- The one question that replaces three nested ones. */}
       <SectionTitle>Siapa yang ditemui?</SectionTitle>

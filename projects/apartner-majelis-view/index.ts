@@ -11,7 +11,6 @@ import { CollectScreen } from './screens/collect'
 import { GrowthScreen } from './screens/growth'
 import { OfferScreen } from './screens/offer'
 import { ProofScreen } from './screens/proof'
-import { RecapScreen } from './screens/recap'
 import { LadderScreen } from './screens/ladder'
 import { TodayScreen } from './screens/today'
 import { MajelisListScreen } from './screens/majelis-list'
@@ -421,17 +420,7 @@ export const project: ProjectModule = {
         'A photo and a recorded location, both required before the visit can be submitted. A photo alone proves she photographed something; a location alone proves she was in the right place but not that a majelis happened. Only the pair makes a visit verifiable afterwards.',
         'They sit as two equal tiles rather than a big photo drop-zone with location as a footnote, and outside the three-stage bar — attendance, collection and growth are the work, this is the paperwork that closes it.',
       ],
-      flowsTo: [{ to: 'recap', label: 'Lanjut — butuh foto + lokasi' }],
-    },
-    {
-      id: 'recap',
-      title: 'Ringkasan & Kirim',
-      component: RecapScreen,
-      notes: [
-        'The close. Submitting is final, so the page reads back all three stages first — the BP’s last chance to catch a majelis she half-finished before it becomes someone else’s problem.',
-        'It also states what the visit means for the group: how the majelis’ collective repayment shapes its credit limit. That is the only reason a BP can give a mitra for why her neighbour’s late payment is any of her business.',
-      ],
-      flowsTo: [{ to: 'today', label: 'Kirim Tugas' }],
+      flowsTo: [{ to: 'today', label: 'Kirim Laporan — butuh foto + lokasi' }],
     },
     {
       id: 'mitra',

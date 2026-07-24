@@ -909,9 +909,26 @@ export const recordedMembers = (s: AppState): Mitra[] =>
 export const billableTotal = (): number =>
   MAJELIS.members.reduce((sum, m) => sum + outstandingOf(m).total, 0)
 
-/** Everything actually collected so far. */
+/** Everything actually collected so far, cash and app alike. */
 export const collectedTotal = (s: AppState): number =>
   MAJELIS.members.reduce((sum, m) => sum + paidOf(s, m), 0)
+
+// The two figures the stage-2 meter runs on. They exclude the self-serve mitra
+// on BOTH sides, because that money was never the BP's to collect: it arrived
+// through the app before she got there. Measuring her against a denominator
+// that includes it makes the bar start part-full for work she didn't do, and
+// makes 100% unreachable in the other direction if any of them hadn't paid.
+// What the bar is for is the cash in her bag against the cash she came for.
+
+/** What the BP has to collect in cash this visit. */
+export const cashBillableTotal = (): number =>
+  MAJELIS.members
+    .filter((m) => !isSelfServe(m))
+    .reduce((sum, m) => sum + outstandingOf(m).total, 0)
+
+/** Cash actually in her hands so far. */
+export const cashCollectedTotal = (s: AppState): number =>
+  MAJELIS.members.filter((m) => !isSelfServe(m)).reduce((sum, m) => sum + paidOf(s, m), 0)
 
 // --- Stage 3: growth -------------------------------------------------------
 

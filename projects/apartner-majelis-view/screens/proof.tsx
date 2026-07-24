@@ -38,6 +38,11 @@ export function ProofScreen() {
   const ready = s.photo && s.geo
   const pending = pendingMembers(s)
 
+  function submit() {
+    store.finishTask()
+    flow.go('today')
+  }
+
   // Read-back of the three stages, borrowed from apartner-task-first's proof
   // step. It sits BEFORE the capture, not after it: this is the last point where
   // the BP is still doing the visit rather than filing it, so "I forgot to mark
@@ -124,8 +129,13 @@ export function ProofScreen() {
                 : 'Foto belum diambil'}
           </span>
         ) : null}
-        <Button size="lg" className="w-full" disabled={!ready} onClick={() => flow.go('recap')}>
-          Lanjut
+        {/* Submitting IS the end of the visit. There used to be a "Ringkasan &
+            Kirim" page after this one, which re-read numbers this screen already
+            reads back and put a second confirmation between the BP and a task
+            she has finished. The read-back above is the summary; this button
+            files it and returns her to the day. */}
+        <Button size="lg" className="w-full" disabled={!ready} onClick={submit}>
+          Kirim Laporan
         </Button>
       </StickyBar>
     </Screen>

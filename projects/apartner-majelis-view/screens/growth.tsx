@@ -58,19 +58,25 @@ export function GrowthScreen() {
         />
       }
     >
-      <StageBar current={3} />
+      {/* Same flat white band as the two stages before it — stage bar over the
+          stage's own progress, full width, with the list below on grey. */}
+      <div className="-mx-16 -mt-16 flex flex-col gap-12 border-b border-default bg-neutral-white px-16 pb-12 pt-16">
+        <StageBar current={3} />
 
-      {/* The same progress card as the two stages before it, rather than a
-          standalone "peluang" banner: all three stages are a count of work done
-          out of work in front of her, and the third one saying it differently
-          made it read as a different kind of screen. */}
-      <ProgressCard
-        title="Sudah ditawarkan"
-        value={`${done}`}
-        of={`${members.length} mitra`}
-        percent={members.length > 0 ? Math.round((done / members.length) * 100) : 0}
-        tone="green"
-      />
+        {/* The same progress block as the two stages before it, rather than a
+            standalone "peluang" banner: all three stages are a count of work done
+            out of work in front of her, and the third one saying it differently
+            made it read as a different kind of screen. */}
+        <ProgressCard
+          flat
+          showPercent={false}
+          title="Sudah ditawarkan"
+          value={`${done}`}
+          of={`${members.length} mitra`}
+          percent={members.length > 0 ? Math.round((done / members.length) * 100) : 0}
+          tone="green"
+        />
+      </div>
 
       <SectionTitle>Rekomendasi</SectionTitle>
 
