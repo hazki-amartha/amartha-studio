@@ -47,7 +47,6 @@ import {
   store,
   taskStatus,
   useApp,
-  type TaskStatus,
 } from '../lib/store'
 import { TabBar } from '../lib/tabs'
 import {
@@ -210,23 +209,7 @@ const KIND_OPTIONS: { label: string; value: Task['kind'] | null }[] = [
   { label: 'Setoran', value: 'setoran' },
 ]
 
-const STATUS_OPTIONS: { label: string; value: TaskStatus | null }[] = [
-  { label: 'Semua status', value: null },
-  { label: 'Belum mulai', value: 'belum' },
-  { label: 'Dikerjakan', value: 'dikerjakan' },
-  { label: 'Selesai', value: 'selesai' },
-  { label: 'Terkirim', value: 'terkirim' },
-]
 
-// Only the filter chip reads these now — the cards carry no status badge. Kept
-// as a map rather than inlined so the chip and the sheet cannot drift apart on
-// the wording of a state.
-const STATUS_LABEL: Record<TaskStatus, string> = {
-  belum: 'Belum mulai',
-  dikerjakan: 'Dikerjakan',
-  selesai: 'Selesai',
-  terkirim: 'Terkirim',
-}
 
 /**
  * The day switcher. Two options, so a sheet rather than a floating menu: the
@@ -274,21 +257,18 @@ export function TodayScreen() {
   const s = useApp()
   const [picking, setPicking] = useState(false)
   const [kind, setKind] = useState<Task['kind'] | null>(null)
-  const [status, setStatus] = useState<TaskStatus | null>(null)
-  const [menu, setMenu] = useState<'kind' | 'status' | null>(null)
+  const [menu, setMenu] = useState<'kind' | null>(null)
   const day = findDay(s.day)
   const collected = collectedToday(s)
   const progress = Math.round((collected / TARGET_HARIAN) * 100)
   const pending = pendingSync(s)
 
   // A filter replaces the whole agenda with one flat list. Sekarang/Berikutnya/
-  // Selesai is a shape built around WHEN, and a BP filtering by type or status
-  // has stopped asking that question — leaving three headings over a filtered
-  // day would make her read the same list in three pieces to find two rows.
-  const filtering = Boolean(kind || status)
-  const matches = TASKS.filter(
-    (t) => (!kind || t.kind === kind) && (!status || taskStatus(s, t.id) === status),
-  )
+  // Selesai is a shape built around WHEN, and a BP filtering by type has
+  // stopped asking that question — leaving two headings over a filtered day
+  // would make her read one short list in two pieces.
+  const filtering = Boolean(kind)
+  const matches = TASKS.filter((t) => !kind || t.kind === kind)
 
   // Two buckets, split on the only line that matters to a BP looking at her
   // day: is there still something to do here. "Dikerjakan" belongs with "belum
@@ -460,20 +440,7 @@ export function TodayScreen() {
           open={menu === 'kind'}
           onClick={() => setMenu('kind')}
         />
-        <FilterChip
-          label={status ? STATUS_LABEL[status] : 'Status tugas'}
-          active={Boolean(status)}
-          open={menu === 'status'}
-          onClick={() => setMenu('status')}
-        />
-        {filtering ? (
-          <ResetLink
-            onClick={() => {
-              setKind(null)
-              setStatus(null)
-            }}
-          />
-        ) : null}
+        {filtering ? <ResetLink onClick={() => setKind(null)} /> : null}
       </FilterBar>
 
       {filtering ? (
@@ -483,7 +450,7 @@ export function TodayScreen() {
           </span>
           <div className="flex flex-col gap-8 pb-16">
             {matches.length === 0 ? (
-              <EmptyState title="Tidak ada tugas" body="Coba tipe atau status lain." />
+              <EmptyState title="Tidak ada tugas" body="Coba tipe tugas lain." />
             ) : null}
             {matches.map((task) => (
               <TaskRow key={task.id} task={task} onStart={() => start(task)} />
@@ -545,18 +512,6 @@ export function TodayScreen() {
         value={kind}
         onPick={(v) => {
           setKind(v)
-          setMenu(null)
-        }}
-        onClose={() => setMenu(null)}
-      />
-      <OptionSheet
-        open={menu === 'status'}
-        title="Status tugas"
-        name="status-tugas"
-        options={STATUS_OPTIONS}
-        value={status}
-        onPick={(v) => {
-          setStatus(v)
           setMenu(null)
         }}
         onClose={() => setMenu(null)}
