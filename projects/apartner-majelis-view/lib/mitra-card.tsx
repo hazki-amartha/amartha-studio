@@ -285,14 +285,16 @@ export function MitraPhoto({ size = 40 }: { size?: 32 | 40 }) {
  * so this is the same honest placeholder as MitraPhoto — a tinted tile with a
  * house glyph — rather than a stock picture pretending to be her door.
  */
-export function HousePhoto({ size = 40 }: { size?: 40 | 48 }) {
-  const box = size === 48 ? 'h-48 w-48' : 'h-40 w-40'
+export function HousePhoto({ size = 40 }: { size?: 24 | 32 | 40 | 48 }) {
+  const box =
+    size === 48 ? 'h-48 w-48' : size === 32 ? 'h-32 w-32' : size === 24 ? 'h-24 w-24' : 'h-40 w-40'
+  const glyph = size === 48 ? 24 : size === 24 ? 16 : 20
   return (
     <span
       className={`flex shrink-0 items-center justify-center rounded-8 bg-neutral-200 text-neutral-500 ${box}`}
       aria-label="Foto rumah"
     >
-      <IconHome size={size === 48 ? 24 : 20} />
+      <IconHome size={glyph} />
     </span>
   )
 }
