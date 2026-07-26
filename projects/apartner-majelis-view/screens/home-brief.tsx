@@ -18,13 +18,18 @@
 // Kirim. Meeting the mitra or her PJ instead carries on to Tagih as normal.
 
 import { useState } from 'react'
-import { Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
+import {
+  BottomSheet,
+  Button,
+  Input,
+  NavigationHeader,
+  SelectableCard,
+} from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { HomeMitraCard } from '../lib/home-card'
-import { JanjiBayarCard, mapsUrl } from '../lib/mitra-card'
+import { mapsUrl } from '../lib/mitra-card'
 import { profileOf } from '../lib/profile'
-import { DAYS } from '../lib/schedule'
 import { openHomeMitra, openHomeTask, store, useApp, type MetWith } from '../lib/store'
 import {
   Chip,
@@ -87,12 +92,18 @@ export function HomeBriefScreen() {
   }
   const note = s.nonPayments[mitra.id]
   const pjReason = s.mitraAbsence[mitra.id]
-  // The janji bayar falls due on the visit day, so the promise is dated today.
-  const visitDate = DAYS[0].date
+
+  // The follow-up ("kenapa mitra tidak ada") opens in a bottom sheet the moment
+  // she picks PJ or nobody, rather than growing the page under the options.
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   // Meeting the PJ or finding nobody home both require a reason before she can
   // move on — the record has to say why the borrower was absent.
   const canContinue = met === 'mitra' ? true : metPj ? !!pjReason : absent ? !!note?.reason : false
+
+  const revisitLabel =
+    note?.ptp !== undefined ? (PTP_OPTIONS.find((o) => o.value === note?.ptp)?.label ?? null) : null
+  const captured = metPj ? pjReason : absent ? note?.reason : undefined
 
   function pickReason(value: string) {
     store.setNonPayment(mitra, { reason: value, ptp: note?.ptp ?? null })
@@ -104,6 +115,7 @@ export function HomeBriefScreen() {
 
   return (
     <Screen
+      className="bg-neutral-white"
       topBar={
         <NavigationHeader
           title={
@@ -122,68 +134,117 @@ export function HomeBriefScreen() {
     >
       <StageBar current={1} labels={HOME_STAGE_LABELS} />
 
-      {/* Who she is and how to reach her — the doorstep card the meeting step
-          opens on too, so the woman she rode to is visibly the same one. */}
-      <HomeMitraCard
-        mitra={mitra}
-        address={task?.place ?? ''}
-        onOpen={() => {
-          store.openMitraPage(mitra.id)
-          flow.go('mitra')
-        }}
-      />
+      {/* --- Mitra info: who she is and who answers for her. Flat on white,
+          with room under the stepper, and the penanggung jawab grouped tight
+          under its own label so the two read as one block. ----------------- */}
+      <section className="flex flex-col gap-16 pt-8">
+        <HomeMitraCard
+          mitra={mitra}
+          address={task?.place ?? ''}
+          onOpen={() => {
+            store.openMitraPage(mitra.id)
+            flow.go('mitra')
+          }}
+        />
 
-      {/* --- The promise that put this door on the day. ------------------- */}
-      <JanjiBayarCard mitra={mitra} date={visitDate} />
-
-      {/* --- Who answers for her when the door is locked. ------------------ */}
-      <SectionTitle>Penanggung jawab</SectionTitle>
-      <Card>
-        <div className="flex items-center gap-12">
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <span className="break-words text-14 font-bold text-default">{profile.pjName}</span>
-            <span className="flex items-start gap-4 text-12 text-caption">
-              <PinMark />
-              {task?.place ?? profile.address}
-            </span>
-          </div>
-          <div className="flex shrink-0 gap-8">
-            <ContactButton
-              label={`Buka lokasi ${profile.pjName} di peta`}
-              tone="red"
-              href={mapsUrl(task?.place ?? profile.address)}
-            >
-              <PinMark size={20} />
-            </ContactButton>
-            <ContactButton label={`WhatsApp ${profile.pjName}`} tone="green">
-              <WaMark size={20} />
-            </ContactButton>
+        <div className="flex flex-col gap-8">
+          <SectionTitle>Penanggung jawab</SectionTitle>
+          <div className="flex items-center gap-12">
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <span className="break-words text-14 font-bold text-default">{profile.pjName}</span>
+              <span className="flex items-start gap-4 text-12 text-caption">
+                <PinMark />
+                {task?.place ?? profile.address}
+              </span>
+            </div>
+            <div className="flex shrink-0 gap-8">
+              <ContactButton
+                label={`Buka lokasi ${profile.pjName} di peta`}
+                tone="red"
+                href={mapsUrl(task?.place ?? profile.address)}
+              >
+                <PinMark size={20} />
+              </ContactButton>
+              <ContactButton label={`WhatsApp ${profile.pjName}`} tone="green">
+                <WaMark size={20} />
+              </ContactButton>
+            </div>
           </div>
         </div>
-      </Card>
+      </section>
 
-      {/* --- The one question that replaces three nested ones. ------------- */}
-      <SectionTitle>Siapa yang ditemui?</SectionTitle>
-      <div className="flex flex-col gap-8">
-        {WHO.map((option) => (
-          <SelectableCard
-            key={option.value}
-            name="ditemui"
-            inputType="radio"
-            title={option.title}
-            description={option.description}
-            checked={met === option.value}
-            onChange={() => store.setMetWith(mitra.id, option.value)}
-          />
-        ))}
-      </div>
+      {/* --- The choice, on its own greyish panel that bleeds to the screen
+          edges — the shift from reading about her to recording the visit.
+          Grows to fill, so the input zone owns the lower screen. Picking PJ or
+          nobody opens the follow-up in a bottom sheet, not inline. ---------- */}
+      <section className="-mx-16 flex flex-1 flex-col gap-12 bg-neutral-50 px-16 py-16">
+        <div className="flex flex-col gap-8">
+          <SectionTitle>Siapa yang ditemui?</SectionTitle>
+          <div className="flex flex-col gap-8">
+            {WHO.map((option) => (
+              <SelectableCard
+                key={option.value}
+                name="ditemui"
+                inputType="radio"
+                title={option.title}
+                description={option.description}
+                checked={met === option.value}
+                onChange={() => {
+                  store.setMetWith(mitra.id, option.value)
+                  setSheetOpen(option.value !== 'mitra')
+                }}
+              />
+            ))}
+          </div>
+        </div>
 
-      {/* --- Met the PJ: the mitra herself was out, so capture why before the
-          titipan is collected on the next step. --------------------------- */}
-      {metPj ? (
-        <>
-          <SectionTitle>Kenapa mitra tidak ada?</SectionTitle>
-          <Card>
+        {/* What the sheet captured, and a way back into it. */}
+        {met && met !== 'mitra' ? (
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left"
+          >
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <span className="text-12 text-caption">
+                {absent ? 'Catatan kunjungan' : 'Alasan mitra tidak ada'}
+              </span>
+              {captured ? (
+                <span className="break-words text-14 font-bold text-default">
+                  {captured}
+                  {absent && revisitLabel ? ` · ${revisitLabel}` : ''}
+                </span>
+              ) : (
+                <span className="text-14 text-placeholder">Belum diisi — ketuk untuk mengisi</span>
+              )}
+            </div>
+            <span className="shrink-0 text-12 font-bold text-primary-500">
+              {captured ? 'Ubah' : 'Isi'}
+            </span>
+          </button>
+        ) : null}
+      </section>
+
+      <StickyBar>
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={!canContinue}
+          onClick={() => flow.go(absent ? 'home-proof' : 'home-visit')}
+        >
+          Lanjut
+        </Button>
+      </StickyBar>
+
+      {/* --- The follow-up, in a sheet. PJ asks only why she was out; nobody
+          also asks for a new address (if she moved) and when to come back. --- */}
+      <BottomSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        title={absent ? 'Catatan kunjungan' : 'Kenapa mitra tidak ada?'}
+      >
+        <div className="flex flex-col gap-16">
+          {metPj ? (
             <ChipGroup label="Alasan mitra tidak di tempat">
               {PJ_ABSENCE_REASONS.map((option) => (
                 <Chip
@@ -195,17 +256,10 @@ export function HomeBriefScreen() {
                 </Chip>
               ))}
             </ChipGroup>
-          </Card>
-        </>
-      ) : null}
+          ) : null}
 
-      {/* --- Nobody home: the whole visit note is taken here, because there is
-          nothing to tagih from a locked door and the next step is skipped. --- */}
-      {absent ? (
-        <>
-          <SectionTitle>Catatan kunjungan</SectionTitle>
-          <Card>
-            <div className="flex flex-col gap-12">
+          {absent ? (
+            <>
               <ChipGroup label="Kenapa tidak ada di rumah?">
                 {ABSENT_REASONS.map((option) => (
                   <Chip
@@ -244,21 +298,14 @@ export function HomeBriefScreen() {
                   ))}
                 </ChipGroup>
               ) : null}
-            </div>
-          </Card>
-        </>
-      ) : null}
+            </>
+          ) : null}
 
-      <StickyBar>
-        <Button
-          size="lg"
-          className="w-full"
-          disabled={!canContinue}
-          onClick={() => flow.go(absent ? 'home-proof' : 'home-visit')}
-        >
-          Lanjut
-        </Button>
-      </StickyBar>
+          <Button size="lg" className="w-full" onClick={() => setSheetOpen(false)}>
+            Simpan
+          </Button>
+        </div>
+      </BottomSheet>
 
       <RescheduleSheet
         open={rescheduling}
