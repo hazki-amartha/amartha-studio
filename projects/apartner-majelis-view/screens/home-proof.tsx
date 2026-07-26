@@ -17,7 +17,7 @@ import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { profileOf } from '../lib/profile'
-import { openHomeMitra, openHomeTask, store, useApp } from '../lib/store'
+import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
 import {
   HOME_STAGE_LABELS,
   PinMark,
@@ -36,10 +36,13 @@ export function HomeProofScreen() {
   const task = openHomeTask(s)
   const houseLocation = task?.place ?? profileOf(mitra).address
   const [rescheduling, setRescheduling] = useState(false)
+  // Cash collected at the door → offer a WhatsApp receipt to the mitra before
+  // returning to the schedule. A no-payment visit skips straight back.
+  const collectedCash = paidOf(s, mitra) > 0
 
   function submit() {
     store.finishTask()
-    flow.go('today')
+    flow.go(collectedCash ? 'home-wa-confirm' : 'today')
   }
 
   function reschedule(reason: string, date: string) {

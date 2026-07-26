@@ -855,6 +855,42 @@ export function ChipGroup({ label, children }: { label: string; children: ReactN
   )
 }
 
+/**
+ * A labelled vertical list of single-select rows — one tap-target per line
+ * rather than chips that wrap. Selected rows carry the brand tint; the rest are
+ * plain cards. Used by the home-visit steps for reasons and revisit dates.
+ */
+export function SelectList({
+  label,
+  items,
+}: {
+  label: string
+  items: { key: string; label: string; selected: boolean; onClick: () => void }[]
+}) {
+  return (
+    <div className="flex flex-col gap-8">
+      <span className="text-12 font-bold text-default">{label}</span>
+      <div className="flex flex-col gap-8">
+        {items.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            aria-pressed={item.selected}
+            onClick={item.onClick}
+            className={`rounded-12 border px-16 py-12 text-left text-14 font-bold ${
+              item.selected
+                ? 'border-primary-500 bg-primary-50 text-primary-500'
+                : 'border-default bg-neutral-white text-default'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // --- ProgressCard ----------------------------------------------------------
 // The stage's own progress, as a headline pair over a meter. Stage 1 counts
 // people, stage 2 counts money, and both want the same shape: what has been
