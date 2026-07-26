@@ -2,6 +2,7 @@
 
 ## Project-local components (§4)
 
+- `BannerTag` — a pill for a tag sitting ON the inbox detail's coloured hero; `Badge`'s tints all assume a light ground. Used in `banner-detail.tsx`. Ported from `apartner-homepage-ia`.
 - `TabBar` — the three L0 destinations (Jadwal / Majelis / KPI), hidden inside a pelayanan. Ported from `apartner-task-first`.
 - `AgendaRow`, `HeaderAction` — the schedule's clock gutter and its top-bar icon buttons. Ported from `apartner-task-first`.
 - `HomeMitraCard` / `TagihanCard` — the home visit's doorstep card (identity + WhatsApp/call + address) and the ledger-derived amount card beneath it.

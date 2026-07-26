@@ -468,6 +468,19 @@ export function OptionSheet<T>({
   )
 }
 
+/**
+ * A tag that sits ON a coloured hero rather than on white — Badge's tints all
+ * assume a light ground, so on the inbox detail's block of colour it reads as a
+ * patch rather than a label.
+ */
+export function BannerTag({ children }: { children: ReactNode }) {
+  return (
+    <span className="self-start rounded-full bg-neutral-white/20 px-12 py-2 text-12 font-regular text-neutral-white">
+      {children}
+    </span>
+  )
+}
+
 export function EmptyState({ title, body }: { title: string; body: string }) {
   return (
     <div className="flex flex-col items-center gap-4 rounded-12 bg-neutral-white p-24 text-center">
