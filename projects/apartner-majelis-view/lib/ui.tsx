@@ -746,15 +746,23 @@ export function ChoiceList({
   options,
   value,
   onPick,
+  hideLabel,
 }: {
   label: string
   options: string[]
   value?: string
   onPick: (option: string) => void
+  /**
+   * Drops the printed caption, keeping it as the group's spoken label. For a
+   * sheet whose TITLE already says what is being picked — "Alasan Kurang
+   * Bayar" over a list captioned "Alasan kurang bayar" is the same sentence
+   * twice, one of them in grey.
+   */
+  hideLabel?: boolean
 }) {
   return (
     <div className="flex flex-col gap-8">
-      <span className="text-12 text-caption">{label}</span>
+      {hideLabel ? null : <span className="text-12 text-caption">{label}</span>}
       <div role="radiogroup" aria-label={label} className="flex flex-col gap-8">
         {options.map((option) => {
           const selected = option === value
