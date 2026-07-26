@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, type HTMLAttributes, type ReactNode } from 'react'
+import { ArrowLeft } from '../icons'
 
 export type BottomSheetSize = 'sm' | 'md' | 'fullscreen'
 
@@ -15,6 +16,13 @@ export type BottomSheetProps = Omit<HTMLAttributes<HTMLDivElement>, 'title' | 's
   primaryAction?: ReactNode
   secondaryAction?: ReactNode
   hideClose?: boolean
+  /**
+   * A sheet that is step 2+ of a flow inside one sheet. When set, the head's
+   * close glyph becomes a back arrow and taps call this instead of `onClose` —
+   * the sheet's own history, so a multi-step sheet doesn't have to be closed
+   * and reopened to correct the answer given a step earlier.
+   */
+  onBack?: () => void
 }
 
 const sizeClass: Record<BottomSheetSize, string> = {
@@ -34,6 +42,7 @@ export function BottomSheet({
   primaryAction,
   secondaryAction,
   hideClose,
+  onBack,
   className,
   children,
   ...props
@@ -66,13 +75,21 @@ export function BottomSheet({
   return (
     <div className="ds-sheet-overlay" role="dialog" aria-modal="true" onClick={onClose}>
       <div className={sheetClasses} onClick={(e) => e.stopPropagation()} {...props}>
-        <div className="ds-sheet-grip" aria-hidden />
         <div className="ds-sheet-head">
           {!hideClose ? (
-            <button type="button" className="ds-sheet-close" aria-label="Close" onClick={onClose}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-                <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
+            <button
+              type="button"
+              className="ds-sheet-close"
+              aria-label={onBack ? 'Back' : 'Close'}
+              onClick={onBack ?? onClose}
+            >
+              {onBack ? (
+                <ArrowLeft size={20} />
+              ) : (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              )}
             </button>
           ) : null}
           {size === 'fullscreen' && title ? <h3 className="ds-sheet-title ds-sheet-title-inline">{title}</h3> : null}

@@ -118,6 +118,43 @@
 .ds-inp-suffix { border-left: none; border-radius: 0 8px 8px 0; }
 .ds-inp-prefix + .ds-inp { border-radius: 0 8px 8px 0; }
 .ds-inp-pre-suffix { border-radius: 8px 0 0 8px; }
+/* FunDS Input Nominal — the large amount field. A bordered tile rather than a
+   row: the label sits inside it, the figure is the biggest thing on the screen
+   at 24px/700, and the helper hangs under both. */
+.ds-nominal {
+  display: flex; flex-direction: column; gap: 4px; width: 100%;
+  padding: 12px; border: 1px solid var(--neutral-200); border-radius: 12px;
+  background: var(--neutral-white); font-family: var(--font);
+  transition: border-color .15s;
+}
+.ds-nominal-focus { border-color: var(--primary-500); }
+.ds-nominal-error { border-color: var(--red-500); }
+.ds-nominal-disabled { background: var(--neutral-50); cursor: not-allowed; }
+.ds-nominal-label { font-size: 14px; font-weight: 700; color: var(--neutral-900); }
+.ds-nominal-row { display: flex; align-items: center; }
+.ds-nominal-currency,
+.ds-nominal-input {
+  font-family: var(--font); font-size: 24px; font-weight: 700;
+  letter-spacing: -0.02em; line-height: 1.4; color: var(--neutral-900);
+}
+.ds-nominal-input {
+  flex: 1; min-width: 0; padding: 0;
+  border: none; outline: none; background: transparent;
+}
+.ds-nominal-input::placeholder { color: var(--neutral-400); }
+.ds-nominal-disabled .ds-nominal-label,
+.ds-nominal-disabled .ds-nominal-currency,
+.ds-nominal-disabled .ds-nominal-input { color: var(--neutral-500); }
+.ds-nominal-action {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-left: 8px; padding: 0;
+  border: none; background: transparent; cursor: pointer;
+  color: var(--primary-500);
+}
+.ds-nominal-clear { color: var(--neutral-500); }
+.ds-nominal-helper { font-size: 12px; font-weight: 500; color: var(--neutral-600); }
+.ds-nominal-helper-error { color: var(--red-500); }
+
 .ds-tap-area {
   width: 100%;
   text-align: left;
@@ -334,10 +371,6 @@
 }
 .ds-sheet-md { max-width: 560px; }
 .ds-sheet-fullscreen { max-width: 420px; height: 100vh; border-radius: 0; }
-.ds-sheet-grip {
-  width: 32px; height: 4px; border-radius: 9999px;
-  background: var(--neutral-200); margin: 0 auto; flex-shrink: 0;
-}
 .ds-sheet-head { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .ds-sheet-close {
   width: 24px; height: 24px; border-radius: 9999px;

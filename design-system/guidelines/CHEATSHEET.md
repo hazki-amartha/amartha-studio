@@ -66,6 +66,11 @@ All props below are optional except where marked **required**.
        prefix suffix prefixInteractive suffixInteractive
        prefixButtonProps suffixButtonProps />
 
+// InputNominal — the large one-amount tile (payment sheet, top-up).
+// value is raw digits; grouped for display. NOT a size of Input.
+<InputNominal label value onValueChange currency="Rp"
+              state="default|error" helperText disabled />
+
 // Badge — children required
 <Badge intent="primary|blue|green|orange|red|yellow|neutral"
        variant="solid|subtle|outline|inverted" size="sm|md"
@@ -85,7 +90,8 @@ All props below are optional except where marked **required**.
 // BottomSheet — open required
 <BottomSheet open onClose size="sm|md|fullscreen"
              title description slot slotPosition="above|below"
-             primaryAction secondaryAction hideClose />
+             primaryAction secondaryAction hideClose
+             onBack /* step 2+ of a one-sheet flow: X becomes a back arrow */ />
 
 // NavigationBar — items required
 <NavigationBar items={[{ id, label, icon, badge, active, onClick, feature }]} />
