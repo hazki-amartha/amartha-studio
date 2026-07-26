@@ -11,32 +11,33 @@
 // or from her husband does not change what gets recorded — the amount and the
 // promise — so who handed it over is a tag, not a branch.
 //
-// Everything is ON THE PAGE, not in a sheet — the opposite of this direction's
-// majelis collect step, and deliberately so. The majelis flow opens a full page
-// per mitra because it is working a queue of 22 and the screen behind it has to
-// stay scannable. A home visit is ONE mitra: there is no queue to protect, so
-// the page can simply grow, and every answer writes straight to the record.
-// There is no "Simpan" — with the options inline, what is on screen IS the
-// record, and a save button would imply the page might not be keeping up.
+// The bill and her standing promise sit flat on white up top; the payment
+// outcome is the one selection, on a grey panel below. Picking "Bayar sebagian"
+// or "Tidak bayar" opens the follow-up in a bottom sheet — the amount and the
+// janji, or the reason and the janji — the same move Persiapan makes, so the
+// page stays a clean choice rather than growing a form under each option. Bayar
+// Penuh needs no follow-up. The chosen row carries a one-line recap.
 //
 // What is gone: the growth stage. A home visit happens BECAUSE a mitra is far
 // behind, so there is nothing to upsell at that door.
 
-import { Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
+import { useState } from 'react'
+import { BottomSheet, Button, Input, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
 import { AngsuranCard, JanjiBayarCard } from '../lib/mitra-card'
 import { DAYS } from '../lib/schedule'
 import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
-import {
-  Chip,
-  ChipGroup,
-  HOME_STAGE_LABELS,
-  SectionTitle,
-  StageBar,
-  StickyBar,
-} from '../lib/ui'
+import { HOME_STAGE_LABELS, SectionTitle, SelectList, StageBar, StickyBar } from '../lib/ui'
+
+type PayMode = 'penuh' | 'sebagian' | 'tidak'
+
+const MODES: { value: PayMode; title: string; description: string }[] = [
+  { value: 'penuh', title: 'Bayar Penuh', description: 'Terima seluruh tagihan' },
+  { value: 'sebagian', title: 'Bayar Sebagian', description: 'Terima sebagian, sisanya dijanjikan' },
+  { value: 'tidak', title: 'Tidak Bayar', description: 'Catat alasan dan janji bayar' },
+]
 
 // Why she can't pay, when someone was reached.
 const PAY_REASONS = [
@@ -67,10 +68,18 @@ export function HomeVisitScreen() {
   const mode = s.payMode[mitra.id]
   const shortfall = owed.total - paid
 
-  function pick(next: 'penuh' | 'sebagian' | 'tidak') {
+  // The follow-up opens in a sheet the moment she picks sebagian or tidak.
+  const [sheetOpen, setSheetOpen] = useState(false)
+
+  const ptpLabel = (v: string | null | undefined) =>
+    v === undefined ? null : (PTP_OPTIONS.find((o) => o.value === v)?.label ?? null)
+
+  function pick(next: PayMode) {
     store.setPayMode(mitra.id, next)
     if (next === 'penuh') store.collect(mitra, owed.total)
     if (next === 'tidak') store.setNonPayment(mitra, { reason: refusal?.reason ?? '', ptp: null })
+    // Bayar Penuh is complete on its own; the other two need the sheet.
+    setSheetOpen(next !== 'penuh')
   }
 
   function pickReason(value: string) {
@@ -81,8 +90,24 @@ export function HomeVisitScreen() {
     store.setNonPayment(mitra, { reason: refusal?.reason ?? '', ptp: value })
   }
 
+  // The one-line recap printed on the chosen row.
+  function summaryFor(m: PayMode): string | null {
+    if (m !== mode) return null
+    if (m === 'penuh') return `Lunas · ${rupiah(owed.total)}`
+    if (m === 'sebagian') {
+      if (paid <= 0) return null
+      return shortfall > 0
+        ? `${rupiah(paid)} diterima · sisa ${rupiah(shortfall)}`
+        : `${rupiah(paid)} diterima`
+    }
+    if (!refusal?.reason) return null
+    const rev = ptpLabel(refusal.ptp)
+    return rev ? `${refusal.reason} · ${rev}` : refusal.reason
+  }
+
   return (
     <Screen
+      className="bg-neutral-white"
       topBar={
         <NavigationHeader
           title={
@@ -99,134 +124,48 @@ export function HomeVisitScreen() {
     >
       <StageBar current={2} labels={HOME_STAGE_LABELS} />
 
-      {/* The recent cycle on grey over the bill on white — the same AngsuranCard
-          the mitra page and the majelis tagih flow open on, so a doorstep
-          collection reads the same as a majelis one. No "Lihat Semua" here: with
-          a mitra in front of her the full ledger is not a place to wander off. */}
-      <AngsuranCard mitra={mitra} />
+      {/* The bill and the promise she is being held to — one flat info block on
+          white, a hairline between them, cards saved for the selection below. */}
+      <div className="flex flex-col gap-12">
+        <AngsuranCard mitra={mitra} flat />
+        <div className="border-t border-default" />
+        <JanjiBayarCard mitra={mitra} date={DAYS[0].date} flat />
+      </div>
 
-      {/* The promise she is being held to — dated the visit day. Sits with the
-          bill because it is the figure the BP negotiates against. */}
-      <JanjiBayarCard mitra={mitra} date={DAYS[0].date} />
-
-      {/* --- The outcome, inline. Same three results the majelis collect page
-          offers, in the same order — and the same controls whether it was her
-          or her family, since what gets recorded is the money and the promise,
-          not who handed them over. */}
+      {/* --- The outcome: one selection on a grey panel that bleeds to the edges
+          and grows to fill. Picking sebagian or tidak opens the follow-up in a
+          sheet; the chosen row keeps a one-line recap. */}
       {met ? (
-        <>
+        <section className="-mx-16 flex flex-1 flex-col gap-8 bg-neutral-50 px-16 py-16">
           <SectionTitle>Pembayaran</SectionTitle>
           <div className="flex flex-col gap-8">
-            <SelectableCard
-              name="mode-tagih"
-              inputType="radio"
-              title="Bayar Penuh"
-              description={rupiah(owed.total)}
-              checked={mode === 'penuh'}
-              onChange={() => pick('penuh')}
-            />
-            <SelectableCard
-              name="mode-tagih"
-              inputType="radio"
-              title="Bayar Sebagian"
-              description="Terima sebagian, sisanya dijanjikan"
-              checked={mode === 'sebagian'}
-              onChange={() => pick('sebagian')}
-            />
-            <SelectableCard
-              name="mode-tagih"
-              inputType="radio"
-              title="Tidak Bayar"
-              description="Catat alasan dan janji bayar"
-              checked={mode === 'tidak'}
-              onChange={() => pick('tidak')}
-            />
+            {MODES.map((m) => {
+              const selected = mode === m.value
+              const summary = summaryFor(m.value)
+              return (
+                <button
+                  key={m.value}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => pick(m.value)}
+                  className={`rounded-12 border p-16 text-left ${
+                    selected ? 'border-primary-500 bg-primary-50' : 'border-default bg-neutral-white'
+                  }`}
+                >
+                  <div className="text-14 font-bold text-default">{m.title}</div>
+                  <div className="mt-2 text-12 text-caption">
+                    {m.value === 'penuh' ? rupiah(owed.total) : m.description}
+                  </div>
+                  {summary ? (
+                    <div className="mt-8 border-t border-primary-200 pt-8 text-12 text-primary-500">
+                      {summary}
+                    </div>
+                  ) : null}
+                </button>
+              )
+            })}
           </div>
-        </>
-      ) : null}
-
-      {/* The amount is typed straight into the record — no draft, no Simpan. */}
-      {met && mode === 'sebagian' ? (
-        <Card>
-          <div className="flex flex-col gap-12">
-            <Input
-              label="Jumlah diterima"
-              prefix="Rp"
-              inputMode="numeric"
-              value={paid > 0 ? String(paid) : ''}
-              onChange={(e) =>
-                store.collect(mitra, Number(e.target.value.replace(/\D/g, '')) || 0)
-              }
-              helperText={
-                paid === 0
-                  ? 'Masukkan jumlah yang diterima'
-                  : shortfall > 0
-                    ? `Sisa ${rupiah(shortfall)} — buat janji bayar untuk sisanya di bawah.`
-                    : shortfall < 0
-                      ? `Lebih ${rupiah(-shortfall)} dari tagihan`
-                      : 'Sama dengan tagihan penuh'
-              }
-              state={paid > 0 && shortfall <= 0 ? 'valid' : 'default'}
-            />
-
-            {/* A balance is only a record once it has a date. Asked only once
-                money is actually on file — an empty field has no sisa. */}
-            {paid > 0 && shortfall > 0 ? (
-              <ChipGroup label="Janji bayar sisanya">
-                {PTP_OPTIONS.map((option) => (
-                  <Chip
-                    key={option.label}
-                    selected={
-                      s.partialPtp[mitra.id] !== undefined && s.partialPtp[mitra.id] === option.value
-                    }
-                    onClick={() => store.setPartialPtp(mitra.id, option.value)}
-                  >
-                    {option.label}
-                  </Chip>
-                ))}
-              </ChipGroup>
-            ) : null}
-          </div>
-        </Card>
-      ) : null}
-
-      {/* --- A recorded no: she was reached but did not pay. The two remaining
-          questions are why, and when she promises to. */}
-      {met && mode === 'tidak' ? (
-        <>
-          <SectionTitle>Alasan belum bayar</SectionTitle>
-          <Card>
-            <div className="flex flex-col gap-12">
-              <ChipGroup label="Alasan">
-                {PAY_REASONS.map((option) => (
-                  <Chip
-                    key={option}
-                    selected={refusal?.reason === option}
-                    onClick={() => pickReason(option)}
-                  >
-                    {option}
-                  </Chip>
-                ))}
-              </ChipGroup>
-
-              {/* Asked only once there is a reason: a promise with nothing
-                  attached to it is not a record of anything. */}
-              {refusal?.reason ? (
-                <ChipGroup label="Janji bayar">
-                  {PTP_OPTIONS.map((option) => (
-                    <Chip
-                      key={option.label}
-                      selected={refusal.ptp === option.value}
-                      onClick={() => pickPtp(option.value)}
-                    >
-                      {option.label}
-                    </Chip>
-                  ))}
-                </ChipGroup>
-              ) : null}
-            </div>
-          </Card>
-        </>
+        </section>
       ) : null}
 
       <StickyBar>
@@ -234,6 +173,84 @@ export function HomeVisitScreen() {
           Lanjut
         </Button>
       </StickyBar>
+
+      {/* --- The follow-up, in a sheet. Sebagian asks the amount and a date for
+          the balance; tidak asks why and when she promises to. --------------- */}
+      <BottomSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        title={mode === 'sebagian' ? 'Bayar sebagian' : 'Tidak bayar'}
+      >
+        <div className="flex flex-col gap-16">
+          {mode === 'sebagian' ? (
+            <>
+              <Input
+                label="Jumlah diterima"
+                prefix="Rp"
+                inputMode="numeric"
+                value={paid > 0 ? String(paid) : ''}
+                onChange={(e) =>
+                  store.collect(mitra, Number(e.target.value.replace(/\D/g, '')) || 0)
+                }
+                helperText={
+                  paid === 0
+                    ? 'Masukkan jumlah yang diterima'
+                    : shortfall > 0
+                      ? `Sisa ${rupiah(shortfall)} — buat janji bayar untuk sisanya.`
+                      : shortfall < 0
+                        ? `Lebih ${rupiah(-shortfall)} dari tagihan`
+                        : 'Sama dengan tagihan penuh'
+                }
+                state={paid > 0 && shortfall <= 0 ? 'valid' : 'default'}
+              />
+
+              {paid > 0 && shortfall > 0 ? (
+                <SelectList
+                  label="Janji bayar sisanya"
+                  items={PTP_OPTIONS.map((option) => ({
+                    key: option.label,
+                    label: option.label,
+                    selected:
+                      s.partialPtp[mitra.id] !== undefined &&
+                      s.partialPtp[mitra.id] === option.value,
+                    onClick: () => store.setPartialPtp(mitra.id, option.value),
+                  }))}
+                />
+              ) : null}
+            </>
+          ) : null}
+
+          {mode === 'tidak' ? (
+            <>
+              <SelectList
+                label="Alasan belum bayar"
+                items={PAY_REASONS.map((option) => ({
+                  key: option,
+                  label: option,
+                  selected: refusal?.reason === option,
+                  onClick: () => pickReason(option),
+                }))}
+              />
+
+              {refusal?.reason ? (
+                <SelectList
+                  label="Janji bayar"
+                  items={PTP_OPTIONS.map((option) => ({
+                    key: option.label,
+                    label: option.label,
+                    selected: refusal.ptp === option.value,
+                    onClick: () => pickPtp(option.value),
+                  }))}
+                />
+              ) : null}
+            </>
+          ) : null}
+
+          <Button size="lg" className="w-full" onClick={() => setSheetOpen(false)}>
+            Simpan
+          </Button>
+        </div>
+      </BottomSheet>
     </Screen>
   )
 }

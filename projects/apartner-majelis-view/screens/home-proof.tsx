@@ -16,7 +16,7 @@ import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { profileOf } from '../lib/profile'
-import { openHomeMitra, openHomeTask, store, useApp } from '../lib/store'
+import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
 import { HOME_STAGE_LABELS, PinMark, ProofTile, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 import { IconCamera } from '../lib/icons'
 
@@ -26,10 +26,13 @@ export function HomeProofScreen() {
   const mitra = openHomeMitra(s)
   const task = openHomeTask(s)
   const houseLocation = task?.place ?? profileOf(mitra).address
+  // Cash collected at the door → offer a WhatsApp receipt to the mitra before
+  // returning to the schedule. A no-payment visit skips straight back.
+  const collectedCash = paidOf(s, mitra) > 0
 
   function submit() {
     store.finishTask()
-    flow.go('today')
+    flow.go(collectedCash ? 'home-wa-confirm' : 'today')
   }
 
   return (

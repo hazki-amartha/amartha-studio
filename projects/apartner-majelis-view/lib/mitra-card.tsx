@@ -23,7 +23,7 @@ import {
   Warning,
 } from '@/design-system/icons'
 import { outstandingOf, rupiah, type Mitra } from './data'
-import { IconCalendar, IconChevronRight, IconHome } from './icons'
+import { IconCalendar, IconChevronRight, IconHome, IconStore } from './icons'
 import { RepaymentStrip } from './ui'
 
 /**
@@ -112,16 +112,27 @@ function TagihanLine({
  * page omits it, because the whole history is not a place to wander off to with
  * a mitra waiting to hand over cash.
  */
-export function AngsuranCard({ mitra, onSeeAll }: { mitra: Mitra; onSeeAll?: () => void }) {
+export function AngsuranCard({
+  mitra,
+  onSeeAll,
+  flat,
+}: {
+  mitra: Mitra
+  onSeeAll?: () => void
+  /** Drop the card chrome and panel fills — stacked flat on the page, for
+   * screens that reserve cards for selections. */
+  flat?: boolean
+}) {
   const owed = outstandingOf(mitra)
   const overdue = owed.missed + owed.partial
   return (
-    // Two stacked panels in one bordered card, told apart by fill rather than a
-    // rule: the recent cycle on a lightest-grey ground up top, and what it leaves
-    // owed on white beneath. The colour change IS the division — the strip is the
-    // history, the white block is the money to collect against it.
-    <div className="overflow-hidden rounded-12 border border-default">
-      <div className="flex flex-col gap-12 bg-neutral-50 p-12">
+    // Two stacked panels, normally in one bordered card and told apart by fill
+    // rather than a rule: the recent cycle on a lightest-grey ground up top, and
+    // what it leaves owed on white beneath. The colour change IS the division —
+    // the strip is the history, the block is the money to collect against it.
+    // Flat drops the border and the fills and lets the page ground show through.
+    <div className={flat ? 'flex flex-col gap-12' : 'overflow-hidden rounded-12 border border-default'}>
+      <div className={`flex flex-col gap-12 ${flat ? '' : 'bg-neutral-50 p-12'}`}>
         <div className="flex items-center gap-8">
           <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">
             Riwayat Angsuran
@@ -141,7 +152,7 @@ export function AngsuranCard({ mitra, onSeeAll }: { mitra: Mitra; onSeeAll?: () 
         <RepaymentStrip weeks={mitra.weeks} />
       </div>
 
-      <div className="flex flex-col gap-8 bg-neutral-white p-12">
+      <div className={`flex flex-col gap-8 ${flat ? '' : 'bg-neutral-white p-12'}`}>
         {/* Always shown, even at Rp0: a mitra reads "Tunggakan Rp0" as the good
             news it is, and a line that appears only when she is behind makes its
             absence do the talking — which a BP scanning the card can't rely on.
@@ -268,8 +279,37 @@ export function MitraBadges({ mitra }: { mitra: Mitra }) {
  * placeholder for a photo the prototype does not have; this one at least says
  * what the real thing is.
  */
-export function MitraPhoto({ size = 40 }: { size?: 32 | 40 }) {
+export function MitraPhoto({
+  size = 40,
+  src,
+  onClick,
+}: {
+  size?: 32 | 40
+  src?: string
+  /** When set (with a photo), the photo becomes a button that enlarges it. */
+  onClick?: () => void
+}) {
   const box = size === 32 ? 'h-32 w-32' : 'h-40 w-40'
+  if (src) {
+    const img = (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt="" className={`h-full w-full rounded-full object-cover`} />
+    )
+    return onClick ? (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Perbesar foto"
+        className={`shrink-0 overflow-hidden rounded-full bg-neutral-200 ${box}`}
+      >
+        {img}
+      </button>
+    ) : (
+      <span className={`block shrink-0 overflow-hidden rounded-full bg-neutral-200 ${box}`}>
+        {img}
+      </span>
+    )
+  }
   return (
     <span
       className={`flex shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500 ${box}`}
@@ -285,9 +325,36 @@ export function MitraPhoto({ size = 40 }: { size?: 32 | 40 }) {
  * so this is the same honest placeholder as MitraPhoto — a tinted tile with a
  * house glyph — rather than a stock picture pretending to be her door.
  */
-export function HousePhoto({ size = 40 }: { size?: 24 | 32 | 40 | 48 }) {
+export function HousePhoto({
+  size = 40,
+  src,
+  onClick,
+}: {
+  size?: 24 | 32 | 40 | 48
+  src?: string
+  /** When set (with a photo), the photo becomes a button that enlarges it. */
+  onClick?: () => void
+}) {
   const box =
     size === 48 ? 'h-48 w-48' : size === 32 ? 'h-32 w-32' : size === 24 ? 'h-24 w-24' : 'h-40 w-40'
+  if (src) {
+    const img = (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt="Foto rumah" className="h-full w-full rounded-8 object-cover" />
+    )
+    return onClick ? (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Perbesar foto rumah"
+        className={`shrink-0 overflow-hidden rounded-8 bg-neutral-200 ${box}`}
+      >
+        {img}
+      </button>
+    ) : (
+      <span className={`block shrink-0 overflow-hidden rounded-8 bg-neutral-200 ${box}`}>{img}</span>
+    )
+  }
   const glyph = size === 48 ? 24 : size === 24 ? 16 : 20
   return (
     <span
@@ -295,6 +362,25 @@ export function HousePhoto({ size = 40 }: { size?: 24 | 32 | 40 | 48 }) {
       aria-label="Foto rumah"
     >
       <IconHome size={glyph} />
+    </span>
+  )
+}
+
+/**
+ * The same honest placeholder as HousePhoto, for her tempat usaha — a tinted
+ * tile with a storefront glyph. A home visit shows both places, because the
+ * house and the warung are rarely the same door.
+ */
+export function BusinessPhoto({ size = 40 }: { size?: 24 | 32 | 40 | 48 }) {
+  const box =
+    size === 48 ? 'h-48 w-48' : size === 32 ? 'h-32 w-32' : size === 24 ? 'h-24 w-24' : 'h-40 w-40'
+  const glyph = size === 48 ? 24 : size === 24 ? 16 : 20
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-8 bg-neutral-200 text-neutral-500 ${box}`}
+      aria-label="Foto tempat usaha"
+    >
+      <IconStore size={glyph} />
     </span>
   )
 }
@@ -333,11 +419,29 @@ export function HouseLocation({ address }: { address: string }) {
  * fact rather than a badge on every card. Reads the visit day for the date,
  * because "janji bayar" on a home visit means the promise falls due today.
  */
-export function JanjiBayarCard({ mitra, date }: { mitra: Mitra; date: string }) {
+export function JanjiBayarCard({
+  mitra,
+  date,
+  flat,
+}: {
+  mitra: Mitra
+  date: string
+  /** Drop the card chrome — stacked flat on the page, for screens that reserve
+   * cards for selections. */
+  flat?: boolean
+}) {
   if (!mitra.ptp || mitra.ptpAmount === undefined) return null
   return (
-    <div className="flex items-center gap-12 rounded-12 border border-primary-200 bg-primary-50 p-12">
-      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-primary-500">
+    <div
+      className={`flex items-center gap-12 ${
+        flat ? '' : 'rounded-12 border border-primary-200 bg-primary-50 p-12'
+      }`}
+    >
+      <span
+        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-8 text-primary-500 ${
+          flat ? 'bg-primary-50' : 'bg-neutral-white'
+        }`}
+      >
         <IconCalendar size={20} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2">

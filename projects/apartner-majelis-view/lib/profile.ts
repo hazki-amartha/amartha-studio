@@ -36,6 +36,11 @@ export interface Profile {
   pjRelation: string
   /** How long she has been a mitra — the thing that earns patience. */
   joined: string
+  /** Placeholder portrait/house photos — external stock imagery, deterministic
+   * per mitra, standing in until the real captured photos exist. */
+  photo: string
+  pjPhoto: string
+  housePhoto: string
 }
 
 const JOINED = ['Maret 2023', 'Agustus 2023', 'Januari 2024', 'Juni 2024', 'Oktober 2024']
@@ -65,5 +70,8 @@ export function profileOf(mitra: Mitra): Profile {
     pjPhone: phoneFrom(h * 7 + 13),
     pjRelation: PJ_RELATIONS[h % PJ_RELATIONS.length],
     joined: JOINED[h % JOINED.length],
+    photo: `https://loremflickr.com/240/240/elderly,asian,woman/all?lock=${1 + (h % 12)}`,
+    pjPhoto: `https://loremflickr.com/240/240/elderly,asian,man/all?lock=${1 + (h % 12)}`,
+    housePhoto: `https://loremflickr.com/240/240/house,village/all?lock=${1 + (h % 12)}`,
   }
 }
