@@ -37,6 +37,7 @@ import {
   ContactButton,
   HOME_STAGE_LABELS,
   PinMark,
+  RescheduleSheet,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -77,9 +78,18 @@ export function HomeBriefScreen() {
   const task = openHomeTask(s)
   const profile = profileOf(mitra)
 
+  const [rescheduling, setRescheduling] = useState(false)
   const met = s.metWith[mitra.id]
   const absent = met === 'nobody'
   const metPj = met === 'pj'
+
+  // Moving the visit off today, from any of its three steps. Recorded, then
+  // straight back to the schedule where the moved door now reads as such.
+  function reschedule(reason: string, date: string) {
+    store.rescheduleTask(s.openHome, reason, date)
+    setRescheduling(false)
+    flow.go('today')
+  }
   const note = s.nonPayments[mitra.id]
   const pjReason = s.mitraAbsence[mitra.id]
 
@@ -116,6 +126,8 @@ export function HomeBriefScreen() {
               </span>
             </span>
           }
+          link="Jadwal ulang"
+          onLinkClick={() => setRescheduling(true)}
           onBack={() => flow.back()}
         />
       }
@@ -294,6 +306,13 @@ export function HomeBriefScreen() {
           </Button>
         </div>
       </BottomSheet>
+
+      <RescheduleSheet
+        open={rescheduling}
+        onClose={() => setRescheduling(false)}
+        subject={mitra.name}
+        onConfirm={reschedule}
+      />
     </Screen>
   )
 }

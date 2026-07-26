@@ -33,7 +33,6 @@ import {
   type MajelisEntry,
   type MajelisStatus,
 } from '../lib/schedule'
-import { IconChevronRight } from '../lib/icons'
 import { store, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
 import {
@@ -202,9 +201,6 @@ function Row({ entry, onOpen }: { entry: MajelisEntry; onOpen: () => void }) {
         ) : null}
       </div>
       <StatusBadge entry={entry} />
-      <span className="shrink-0 text-disabled">
-        <IconChevronRight size={20} />
-      </span>
     </button>
   )
 }

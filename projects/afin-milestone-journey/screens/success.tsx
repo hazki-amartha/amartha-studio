@@ -5,10 +5,10 @@
 // timestamp on it, not confetti.
 
 import { NavigationHeader } from '@/design-system/components'
+import { Check } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { methodName, rupiah } from '../lib/data'
-import { IconCheck } from '../lib/icons'
 import { useApp } from '../lib/store'
 import { FullWidthButton, ResultHeader, StatRow, StickyBar } from '../lib/ui'
 
@@ -21,7 +21,7 @@ export function SuccessScreen() {
     <Screen topBar={<NavigationHeader title="Pembayaran" hideBack />}>
       <ResultHeader
         tint="green"
-        icon={<IconCheck size={24} />}
+        icon={<Check size={24} />}
         title="Pembayaran berhasil"
         description="Angsuran Ibu Siti sudah masuk. Terima kasih!"
       />

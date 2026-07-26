@@ -10,6 +10,7 @@
 // which is the outcome this whole direction is built to record properly.
 
 import { useSyncExternalStore } from 'react'
+import { COMMS_SEED, type Comm } from './comms'
 import { MAJELIS, PREPAID, findMitra, isSelfServe, outstandingOf, type Mitra } from './data'
 import {
   SEED_LEADS,
@@ -36,8 +37,18 @@ import {
 /** Who actually answered the door on a home visit. */
 export type MetWith = 'mitra' | 'pj' | 'nobody'
 
-/** The payment outcome picked inline on a home visit. */
-export type PayMode = 'penuh' | 'sebagian' | 'tidak'
+/**
+ * The outcome picked inline on a home visit.
+ * - `penuh`    — she cleared the whole bill herself.
+ * - `sebagian` — a part-payment, with a promise for the rest.
+ * - `tanggung` — the group covered her under tanggung renteng (joint liability):
+ *                a full settlement funded by the majelis, not by the mitra. The
+ *                "PAR payment" a collections door exists to reach.
+ * - `tidak`    — reached, but did not pay: a reason and maybe a promise.
+ * - `keluar`   — she is dropping out of the program. A flag with a reason, not a
+ *                payment — recorded here so ops can pick the case up.
+ */
+export type PayMode = 'penuh' | 'sebagian' | 'tanggung' | 'tidak' | 'keluar'
 
 export type Attendance = 'hadir' | 'tidak'
 
@@ -120,7 +131,23 @@ export interface LastCollect {
 export interface Settlement {
   /** 1-based. Also picks the VA, so each transfer reconciles on its own. */
   no: number
+  /** What she says she actually transferred. */
   amount: number
+  /**
+   * What the app's ledger said she was carrying. Kept beside `amount` rather
+   * than recomputed, because the whole point of the pair is that they can
+   * disagree — and once the entries are settled the expected figure is no
+   * longer derivable from anything on screen.
+   */
+  expected: number
+  /**
+   * Why the two differ. Nothing sets this from the settlement screen any more —
+   * the reason list came off, because a BP at a counter who has already
+   * transferred was being asked to pick from five guesses the app made on her
+   * behalf. The DIFFERENCE is still recorded, and that is what ops chases; the
+   * why is a conversation, and the field stays for whatever records one.
+   */
+  diffReason: string | null
   /** The finished tasks whose cash this covered. */
   taskIds: string[]
   va: string
@@ -255,6 +282,19 @@ export interface AppState {
    * borrower was absent, not only that someone else answered.
    */
   mitraAbsence: Record<string, string>
+  /**
+   * mitraId → why she is dropping out of the program. Presence IS the drop-out:
+   * a `keluar` outcome is not a payment and not a promise, so it carries only a
+   * reason, and recording one retracts any money or refusal left on her.
+   */
+  dropOut: Record<string, string>
+  /**
+   * taskId → the visit the BP moved to another day, with why and when. A home
+   * visit she can't or won't work today doesn't vanish and isn't "done" — it is
+   * rescheduled, and the schedule has to say so rather than leave a locked door
+   * looking like unfinished work.
+   */
+  reschedules: Record<string, { reason: string; date: string }>
 
   // --- The daily close -----------------------------------------------------
 
@@ -307,6 +347,17 @@ export interface AppState {
    * be wiped by exactly the navigation the screen invites.
    */
   followUp: FollowUpDraft
+
+  // --- The inbox -----------------------------------------------------------
+
+  /**
+   * What the business has sent the BP. Read state lives here rather than in
+   * the screen because the unread count sits in the schedule header, two
+   * navigations away from the list that clears it.
+   */
+  comms: Comm[]
+  /** Which message the detail page renders. Null before anything is opened. */
+  openComm: string | null
 }
 
 /** What the BP is recording about one call, before she saves it. */
@@ -378,6 +429,8 @@ const initial: AppState = {
   partialPtp: {},
   newAddress: {},
   mitraAbsence: {},
+  dropOut: {},
+  reschedules: {},
   deposits: {},
   settlements: [],
   depositAmount: null,
@@ -390,6 +443,8 @@ const initial: AppState = {
   openEvent: 'e1',
   scheduled: [],
   followUp: emptyFollowUp('l1'),
+  comms: COMMS_SEED,
+  openComm: null,
 }
 
 let state: AppState = initial
@@ -487,6 +542,18 @@ export const store = {
   },
 
   /**
+   * Opens one message. Reading IS the act that clears it — there is no separate
+   * "tandai dibaca", because a BP who has read the announcement and still sees
+   * the badge learns to ignore the badge.
+   */
+  openMessage(id: string) {
+    store.set({
+      openComm: id,
+      comms: state.comms.map((c) => (c.id === id ? { ...c, read: true } : c)),
+    })
+  },
+
+  /**
    * Starts the pelayanan over — the schedule's "Mulai Pelayanan", which jumps
    * straight past the roster into stage 1, and the roster's own button.
    *
@@ -577,6 +644,47 @@ export const store = {
   },
   setMitraAbsence(mitraId: string, value: string) {
     store.set({ mitraAbsence: { ...state.mitraAbsence, [mitraId]: value } })
+  },
+  /**
+   * Records a drop-out. It is neither a payment nor a promise, so it retracts
+   * both — a mitra leaving the program cannot also be carrying a part-payment or
+   * a janji bayar in the same record.
+   */
+  setDropOut(mitra: Mitra, reason: string) {
+    const payments = { ...state.payments }
+    delete payments[mitra.id]
+    const nonPayments = { ...state.nonPayments }
+    delete nonPayments[mitra.id]
+    const shortfallReasons = { ...state.shortfallReasons }
+    delete shortfallReasons[mitra.id]
+    const partialPtp = { ...state.partialPtp }
+    delete partialPtp[mitra.id]
+    store.set({
+      payments,
+      nonPayments,
+      shortfallReasons,
+      partialPtp,
+      dropOut: { ...state.dropOut, [mitra.id]: reason },
+      lastCollect: null,
+    })
+  },
+  /** Reverses a drop-out — picked when the BP switches to another outcome. */
+  clearDropOut(mitraId: string) {
+    if (state.dropOut[mitraId] === undefined) return
+    const dropOut = { ...state.dropOut }
+    delete dropOut[mitraId]
+    store.set({ dropOut })
+  },
+  /**
+   * Moves a visit to another day. It leaves `doneTasks` untouched — a
+   * rescheduled visit is not finished — and clears any half-started state, since
+   * a door the BP rode away from is no longer in progress today.
+   */
+  rescheduleTask(taskId: string, reason: string, date: string) {
+    store.set({
+      reschedules: { ...state.reschedules, [taskId]: { reason, date } },
+      startedTasks: state.startedTasks.filter((id) => id !== taskId),
+    })
   },
   setDay(day: DayKey) {
     store.set({ day })
@@ -892,13 +1000,22 @@ export const store = {
     const entries = unsettledEntries(state)
     if (entries.length === 0) return
     const no = state.settlements.length + 1
-    const at = closing ? '17.45' : ['11.40', '15.10'][state.settlements.length] ?? '15.10'
+    const expected = entries.reduce((sum, e) => sum + e.cash, 0)
+    // What she SAYS she transferred, which is the whole point of the confirm
+    // step. This used to record `expected` regardless, so a BP who declared
+    // Rp15.000 short — and picked a reason for it — was written down as having
+    // handed over the full amount, with the reason attached to nothing. The
+    // gap is the record ops chases; losing it is losing the only trace of it.
+    const amount = state.depositAmount ?? expected
+    const at = closing ? '17.45' : ['11.40', '15.10'][state.settlements.length] ?? '16.20'
     store.set({
       settlements: [
         ...state.settlements,
         {
           no,
-          amount: entries.reduce((sum, e) => sum + e.cash, 0),
+          amount,
+          expected,
+          diffReason: amount === expected ? null : state.depositDiffReason,
           taskIds: entries.map((e) => e.taskId),
           va: vaFor(no),
           at,
@@ -1035,40 +1152,74 @@ export const depositExpected = (s: AppState): number =>
 
 // --- Settlement ------------------------------------------------------------
 
-/** Task ids whose cash has already gone to the branch. */
-const settledTaskIds = (s: AppState): string[] => s.settlements.flatMap((x) => x.taskIds)
-
-/**
- * What is still in her bag: banked lines from finished tasks that no settlement
- * has covered yet. This is the ONLY figure a settlement is ever about — there
- * is no path in this flow that hands over part of it.
- */
-export const unsettledEntries = (s: AppState): DepositEntry[] => {
-  const gone = settledTaskIds(s)
-  return depositEntries(s).filter((e) => !gone.includes(e.taskId) && e.cash > 0)
-}
-
-export const unsettledTotal = (s: AppState): number =>
-  unsettledEntries(s).reduce((sum, e) => sum + e.cash, 0)
-
 /** Everything handed over so far today, across settlements. */
 export const settledTotal = (s: AppState): number =>
   s.settlements.reduce((sum, x) => sum + x.amount, 0)
 
-/** Mid-day handovers used. The third is the closing task and is not hers to spend. */
-export const midDayUsed = (s: AppState): number => s.settlements.filter((x) => !x.closing).length
+/** Every rupiah of cash the day's finished tasks have banked. */
+const bankedTotal = (s: AppState): number =>
+  depositEntries(s).reduce((sum, e) => sum + e.cash, 0)
 
 /**
- * Whether the schedule should offer to settle right now.
+ * What is still in her bag: banked, minus everything handed over.
  *
- * Two conditions, and they fail for different reasons: nothing to hand over
- * (the widget would be an empty queue), or both mid-day slots spent (the money
- * rides with her to the closing task, which is the third and last). Hiding it
- * in the second case is the point of the cap — a widget that stays visible
- * while refusing to work is a control that teaches her to distrust it.
+ * An AMOUNT, not a set of tasks. It used to be "the entries no settlement has
+ * touched", which quietly assumed a settlement always covers its lines in
+ * full — so a BP who confirmed Rp3.500.000 against a Rp3.700.000 ledger had
+ * the missing Rp200.000 disappear: the tasks were marked gone, the widget
+ * emptied, and she was left holding money the app had stopped counting. Money
+ * does not settle by the task, it settles by the rupiah.
  */
-export const canSettleMidDay = (s: AppState): boolean =>
-  unsettledTotal(s) > 0 && midDayUsed(s) < DEPOSIT.maxMidDay
+export const unsettledTotal = (s: AppState): number =>
+  Math.max(0, bankedTotal(s) - settledTotal(s))
+
+/**
+ * The outstanding balance broken back down into the lines it came from, oldest
+ * first, with the covered part drained off. A partly-covered pelayanan appears
+ * with only its remainder — which is what she is still carrying from it.
+ */
+export const unsettledEntries = (s: AppState): DepositEntry[] => {
+  let covered = settledTotal(s)
+  const out: DepositEntry[] = []
+  depositEntries(s).forEach((e) => {
+    if (e.cash <= 0) return
+    if (covered >= e.cash) {
+      covered -= e.cash
+      return
+    }
+    out.push({ ...e, cash: e.cash - covered })
+    covered = 0
+  })
+  return out
+}
+
+/**
+ * Whether the schedule should offer to settle right now. One condition: she is
+ * carrying something.
+ *
+ * There is no cap. Capping the count made the app hold an opinion about how
+ * often a BP should be allowed to put cash down, which is the opposite of what
+ * the feature is for — the risk being managed is money on a motorbike, and
+ * every handover reduces it. What the count still decides is the FEE: the
+ * first three are free, and the settlement page says so. A cost is a reason to
+ * think; a lock is a reason to carry cash you wanted to be rid of.
+ */
+export const canSettle = (s: AppState): boolean => unsettledTotal(s) > 0
+
+/** Handovers that cost nothing. Beyond this the branch charges admin. */
+export const freeSettlementsLeft = (s: AppState): number =>
+  Math.max(0, DEPOSIT.freePerDay - s.settlements.length)
+
+/**
+ * Whether the day can be closed. Everything done, everything SENT, and nothing
+ * left in the bag — the three obligations that used to be a closing task's
+ * checklist, now the condition for the widget appearing at all.
+ */
+export const canCloseDay = (s: AppState): boolean =>
+  !s.depositDone &&
+  TASKS.length > 0 &&
+  TASKS.every((t) => s.sentTasks.includes(t.id)) &&
+  unsettledTotal(s) === 0
 
 /** Money that reached the company without her. Stated so it isn't asked about. */
 export const depositDigital = (s: AppState): number =>
@@ -1135,6 +1286,10 @@ export const openHomeMitra = (s: AppState): Mitra =>
 
 export const openHomeTask = (s: AppState): Task | undefined => findTask(s.openHome)
 
+/** Visits the BP moved to another day — off today's plate, not done. */
+export const rescheduledTasks = (s: AppState): Task[] =>
+  TASKS.filter((t) => s.reschedules[t.id])
+
 // --- NTB: prospects --------------------------------------------------------
 
 export const allLeads = (s: AppState): Lead[] => s.leadOrder.map((id) => s.leads[id])
@@ -1161,3 +1316,16 @@ export const eventProgress = (s: AppState, event: SosialisasiEvent) => {
 /** Follow-ups the BP booked today, for a day the schedule can show. */
 export const scheduledFor = (s: AppState, day: DayKey): Task[] =>
   day === 'tomorrow' ? s.scheduled : []
+
+// --- The inbox -------------------------------------------------------------
+
+/** The badge on the schedule header. */
+export const unreadComms = (s: AppState): number => s.comms.filter((c) => !c.read).length
+
+/**
+ * The message the detail page renders. Falls back to the newest one so the
+ * screen still draws when it is opened straight from the flow view rather than
+ * by tapping a row.
+ */
+export const openedComm = (s: AppState): Comm =>
+  s.comms.find((c) => c.id === s.openComm) ?? s.comms[0]

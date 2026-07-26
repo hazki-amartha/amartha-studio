@@ -11,10 +11,10 @@
 // "copy a number" would be inventing a step that doesn't exist.
 
 import { NavigationHeader } from '@/design-system/components'
+import { Bank, MapPin, PaperPlaneTilt, Storefront } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { IconBank, IconPin, IconSend, IconStore } from '../lib/icons'
 import { store, useApp } from '../lib/store'
 import {
   CopyBlock,
@@ -55,7 +55,7 @@ export function InstructionScreen() {
       {isVa ? (
         <>
           <Hero
-            icon={<IconBank size={24} />}
+            icon={<Bank size={24} />}
             name={`Virtual Account ${bank}`}
             amount={amt}
           />
@@ -81,7 +81,7 @@ export function InstructionScreen() {
         </>
       ) : s.method === 'transfer' ? (
         <>
-          <Hero icon={<IconSend size={24} />} name="Transfer ke rekening Amartha" amount={amt} />
+          <Hero icon={<PaperPlaneTilt size={24} />} name="Transfer ke rekening Amartha" amount={amt} />
           <InfoBlock label="Bank tujuan">
             <div className="text-16 font-bold text-default">BCA</div>
           </InfoBlock>
@@ -96,7 +96,7 @@ export function InstructionScreen() {
         </>
       ) : s.method === 'indomaret' ? (
         <>
-          <Hero icon={<IconStore size={24} />} name="Indomaret / Alfamart" amount={amt} />
+          <Hero icon={<Storefront size={24} />} name="Indomaret / Alfamart" amount={amt} />
           <CopyBlock label="Kode pembayaran" display="9908 1234 5678" raw="990812345678" />
           <Notice tone="red">Berlaku 24 jam</Notice>
           <Steps
@@ -117,7 +117,7 @@ export function InstructionScreen() {
         </>
       ) : (
         <>
-          <Hero icon={<IconPin size={24} />} name="Agen Amartha Link" amount={amt} tint="green" />
+          <Hero icon={<MapPin size={24} />} name="Agen Amartha Link" amount={amt} tint="green" />
           <Notice tone="green">
             Bayar langsung ke agen. Tidak perlu kode atau transfer.
           </Notice>

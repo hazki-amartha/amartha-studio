@@ -8,10 +8,10 @@
 // diagnosis without a treatment. The roster sits underneath as the evidence.
 
 import { NavigationHeader } from '@/design-system/components'
+import { WhatsappLogo } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MEMBERS } from '../lib/data'
-import { IconWhatsApp } from '../lib/icons'
 import { store } from '../lib/store'
 import { SectionTitle, StatRow } from '../lib/ui'
 
@@ -145,7 +145,7 @@ function ActionRow({
         onClick={onRemind}
         className="flex shrink-0 items-center gap-4 rounded-full border border-green-500 bg-green-50 px-12 py-8 text-12 font-bold text-green-600"
       >
-        <IconWhatsApp size={16} /> Ingatkan
+        <WhatsappLogo size={16} /> Ingatkan
       </button>
     </div>
   )

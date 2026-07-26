@@ -6,9 +6,9 @@
 
 import { useState } from 'react'
 import { NavigationHeader } from '@/design-system/components'
+import { WhatsappLogo } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { IconWhatsApp } from '../lib/icons'
 import { useApp } from '../lib/store'
 import { FullWidthButton, StickyBar } from '../lib/ui'
 
@@ -27,7 +27,7 @@ export function WhatsAppReminderScreen() {
     <Screen topBar={<NavigationHeader title="Kirim pengingat" onBack={() => flow.go('majelis')} />}>
       <div className="flex items-center gap-12 rounded-12 border border-green-200 bg-green-50 p-12">
         <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-neutral-white text-green-500">
-          <IconWhatsApp size={20} />
+          <WhatsappLogo size={20} />
         </span>
         <div className="min-w-0">
           <p className="text-12 text-green-600">Kirim ke</p>

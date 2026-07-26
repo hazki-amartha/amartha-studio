@@ -9,7 +9,7 @@
 // actually introduces.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Badge, BottomSheet, SelectableCard } from '@/design-system/components'
+import { Badge, BottomSheet, Button, SelectableCard } from '@/design-system/components'
 import { MagnifyingGlass, NotePencil, WhatsappLogo } from '@/design-system/icons'
 import { ringkas, type Week } from './data'
 import { IconCheck, IconChevronDown, IconChevronUp, IconPin, IconX } from './icons'
@@ -261,45 +261,57 @@ export function WeekStrip({
   )
 }
 
-// --- RepaymentStrip --------------------------------------------------------
-// The recent cycle as a FIXED row — the last eight weeks, sized to the card
-// width and not scrollable. It replaces the horizontal rail on every
-// payment-related page: a swipe hides the weeks it doesn't open on, and the
-// question a BP brings to this strip ("how has the last month or two gone?") is
-// answered by what fits on screen, not by what she can reach.
+// --- WeekGrid ---------------------------------------------------------------
+// The recent cycle as a bordered grid of cells — the AngsuranCard's history
+// panel. Each cell stacks three things: the week's date on top, its outcome as a
+// filled or hollow status circle, and the rupiah actually received that week.
 //
-// Eight, because that is what sits comfortably across a phone at a legible mark
-// size — a season of payments, the same span the reference draws on its
-// overview card. The amounts are gone from under each cell (they live behind
-// "Lihat Semua"); here a week is only its outcome, so the mark carries the whole
-// meaning: green paid, orange part-paid, red missed, and a hollow primary ring
-// for the week that has not closed yet.
-const MARK_TONE: Record<Week['status'], string> = {
+// The amount under each cell is what makes the grid worth more than a row of
+// dots. A red Rp0 and an orange Rp100rb are two different failures — a miss and a
+// shortfall — and only one of them is a sentence the BP can say without being
+// contradicted. The circle carries the same split by colour so the pattern reads
+// at a glance before the amounts are even scanned.
+//
+// A fixed six-cell row, not a scroll rail: the question this grid answers — "how
+// has the last month and a half gone?" — is answered by what fits on screen, and
+// the whole ledger is one tap away behind "Lihat Semua". Six recent weeks sit
+// legibly across a phone with the amount under each still readable.
+const GRID_TONE: Record<Week['status'], string> = {
   lunas: 'border-green-500 bg-green-500 text-neutral-white',
   sebagian: 'border-orange-500 bg-orange-500 text-neutral-white',
   lewat: 'border-red-500 bg-red-500 text-neutral-white',
   'jatuh-tempo': 'border-2 border-primary-500 text-primary-500',
 }
 
-export function RepaymentStrip({ weeks }: { weeks: Week[] }) {
-  const shown = weeks.slice(-STRIP_WEEKS_STATIC)
+/** Six recent weeks fit across a phone with the date and amount still legible. */
+const GRID_WEEKS = 6
+
+export function WeekGrid({ weeks }: { weeks: Week[] }) {
+  const shown = weeks.slice(-GRID_WEEKS)
   return (
-    <div className="flex items-start justify-between">
+    // One lightest-grey panel, no dividers and no outer border: the cells are
+    // told apart by their spacing on a single ground, so the row reads as one
+    // calendar band rather than six boxed cells. The grey is what carries the
+    // history's edge on a page that has dropped its cards.
+    <div className="flex overflow-hidden rounded-8 bg-neutral-50 p-4">
       {shown.map((w) => {
         const current = w.status === 'jatuh-tempo'
         return (
-          <div key={w.no} className="flex flex-col items-center gap-4">
+          <div key={w.no} className="flex flex-1 flex-col items-center gap-8 px-4 py-8">
+            <span className={`text-10 ${current ? 'font-bold text-primary-500' : 'text-caption'}`}>
+              {w.date}
+            </span>
             <span
-              className={`flex h-20 w-20 items-center justify-center rounded-full border ${MARK_TONE[w.status]}`}
+              className={`flex h-20 w-20 items-center justify-center rounded-full border ${GRID_TONE[w.status]}`}
             >
-              {w.status === 'lunas' || w.status === 'sebagian' ? (
+              {w.status === 'lunas' ? (
                 <IconCheck size={16} />
-              ) : w.status === 'lewat' ? (
+              ) : w.status === 'lewat' || w.status === 'sebagian' ? (
                 <IconX size={16} />
               ) : null}
             </span>
-            <span className={`text-10 ${current ? 'font-bold text-primary-500' : 'text-disabled'}`}>
-              {w.date}
+            <span className={`text-10 font-bold ${current ? 'text-primary-500' : 'text-disabled'}`}>
+              {ringkas(w.paid)}
             </span>
           </div>
         )
@@ -307,9 +319,6 @@ export function RepaymentStrip({ weeks }: { weeks: Week[] }) {
     </div>
   )
 }
-
-/** Eight weeks fit across a phone at a legible mark size without scrolling. */
-const STRIP_WEEKS_STATIC = 8
 
 // --- ProductBadge ----------------------------------------------------------
 // The lending product, wherever it appears — on a group in the directory or on
@@ -456,6 +465,19 @@ export function OptionSheet<T>({
         ))}
       </div>
     </BottomSheet>
+  )
+}
+
+/**
+ * A tag that sits ON a coloured hero rather than on white — Badge's tints all
+ * assume a light ground, so on the inbox detail's block of colour it reads as a
+ * patch rather than a label.
+ */
+export function BannerTag({ children }: { children: ReactNode }) {
+  return (
+    <span className="self-start rounded-full bg-neutral-white/20 px-12 py-2 text-12 font-regular text-neutral-white">
+      {children}
+    </span>
   )
 }
 
@@ -1184,5 +1206,94 @@ export function StickyBar({ children }: { children: ReactNode }) {
     <div className="sticky bottom-0 -mx-16 mt-auto flex flex-col gap-12 border-t border-default bg-neutral-white p-16">
       {children}
     </div>
+  )
+}
+
+// --- RescheduleSheet -------------------------------------------------------
+// Moving a home visit to another day, from the top bar of any of its three
+// steps. A bottom sheet rather than an inline block or its own screen: it is a
+// meta-action on the TASK, not a step in the visit, and it has to be reachable
+// mid-visit — the BP who opens the door, finds the mitra can't talk now, and
+// decides to come back should not have to unwind the flow to do it.
+//
+// Two questions, both required: why it is moving (the record ops reads) and
+// when to (the day it lands on). The draft is local and resets each time the
+// sheet opens, so a cancelled reschedule leaves nothing behind on the next door.
+
+/** Why a visit gets moved — BP-side reasons, distinct from a mitra's absence. */
+const RESCHEDULE_REASONS = [
+  'Mitra minta waktu lain',
+  'Waktu tidak cukup hari ini',
+  'Rumah sulit dijangkau',
+  'Menunggu koordinasi PJ',
+]
+
+/** When to move it to. A reschedule needs a date, so there is no "no date". */
+const RESCHEDULE_DATES = ['Besok, 22 Juli', 'Lusa, 23 Juli', 'Minggu depan, 28 Juli']
+
+export function RescheduleSheet({
+  open,
+  onClose,
+  subject,
+  onConfirm,
+}: {
+  open: boolean
+  onClose: () => void
+  /** Whose visit is being moved — named in the sheet so it can't be mis-tapped. */
+  subject: string
+  onConfirm: (reason: string, date: string) => void
+}) {
+  const [reason, setReason] = useState('')
+  const [date, setDate] = useState('')
+  const ready = Boolean(reason && date)
+
+  // Fresh every time it opens: a reschedule cancelled on one door must not
+  // pre-fill its answers on the next.
+  useEffect(() => {
+    if (open) {
+      setReason('')
+      setDate('')
+    }
+  }, [open])
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="Jadwalkan ulang kunjungan"
+      description={`Kunjungan ${subject} dipindah ke hari lain.`}
+      secondaryAction={
+        <Button variant="outline" size="lg" className="w-full" onClick={onClose}>
+          Batal
+        </Button>
+      }
+      primaryAction={
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={!ready}
+          onClick={() => onConfirm(reason, date)}
+        >
+          Jadwalkan ulang
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-16">
+        <ChipGroup label="Alasan">
+          {RESCHEDULE_REASONS.map((option) => (
+            <Chip key={option} selected={reason === option} onClick={() => setReason(option)}>
+              {option}
+            </Chip>
+          ))}
+        </ChipGroup>
+        <ChipGroup label="Jadwal baru">
+          {RESCHEDULE_DATES.map((option) => (
+            <Chip key={option} selected={date === option} onClick={() => setDate(option)}>
+              {option}
+            </Chip>
+          ))}
+        </ChipGroup>
+      </div>
+    </BottomSheet>
   )
 }

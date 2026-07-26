@@ -35,29 +35,17 @@ import { Badge, Button, Card, Input, NavigationHeader } from '@/design-system/co
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { DEPOSIT, taskCode, vaFor } from '../lib/schedule'
-import { IconCamera, IconCheck, IconWallet } from '../lib/icons'
+import { DEPOSIT, TASKS, taskCode, vaFor } from '../lib/schedule'
+import { IconCamera, IconCheck, IconInfo, IconWallet } from '../lib/icons'
 import {
-  depositDigital,
-  midDayUsed,
+  freeSettlementsLeft,
   settledTotal,
   store,
   unsettledEntries,
   unsettledTotal,
   useApp,
 } from '../lib/store'
-import { Chip, ChipGroup, IconTile, ProofTile, SectionTitle, StickyBar } from '../lib/ui'
-
-// Why her figure and the app's disagree. Fixed list for the same reason every
-// other reason list in this direction is fixed: ops needs a column it can sort,
-// and the BP is standing at a counter, not writing a report.
-const DIFF_REASONS = [
-  'Salah catat nominal',
-  'Mitra bayar kurang dari yang dicatat',
-  'Uang terpakai dulu',
-  'Ada setoran susulan',
-  'Belum tahu — akan dicek',
-]
+import { IconTile, ProofTile, SectionTitle, StickyBar } from '../lib/ui'
 
 export function SettlementScreen() {
   const flow = useFlow()
@@ -65,7 +53,6 @@ export function SettlementScreen() {
 
   const entries = unsettledEntries(s)
   const expected = unsettledTotal(s)
-  const digital = depositDigital(s)
   const amount = s.depositAmount ?? expected
   const diff = amount - expected
 
@@ -73,14 +60,20 @@ export function SettlementScreen() {
   const no = s.settlements.length + 1
   // The last available handover: both mid-day slots spent, so this one is
   // the third and it belongs to the day's close.
-  const closing = midDayUsed(s) >= DEPOSIT.maxMidDay
+  // The last handover of the day, in the only sense left now that the count is
+  // uncapped: nothing on the schedule can still take cash.
+  const closing = TASKS.every((t) => s.doneTasks.includes(t.id))
   const va = vaFor(no)
 
   // Typing is opt-in. The default gesture is agreeing with the app.
   const [editing, setEditing] = useState(false)
 
-  const needsReason = diff !== 0 && !s.depositDiffReason
-  const ready = amount > 0 && s.depositProof && !needsReason
+  // Only the proof gates it now. A difference used to demand a reason from a
+  // fixed list before she could send — but she is standing at a counter having
+  // already transferred, and the five options were guesses the app offered on
+  // her behalf. The GAP is still recorded; what it was for is a conversation
+  // the branch has with her, not a dropdown.
+  const ready = amount > 0 && s.depositProof
 
   // --- Nothing left to hand over. Either she has settled everything already,
   // or the day has not banked any cash yet. Both are honest empty states, and
@@ -104,8 +97,6 @@ export function SettlementScreen() {
           </div>
         </Card>
 
-        {s.settlements.length > 0 ? <Riwayat /> : null}
-
         <StickyBar>
           <Button
             size="lg"
@@ -126,6 +117,22 @@ export function SettlementScreen() {
 
   return (
     <Screen topBar={<NavigationHeader title={`Setoran ${no}`} onBack={() => flow.back()} />}>
+      {/* The fee, said once and up front. It is the only thing left that makes
+          the COUNT matter now that there is no cap: settling often is the whole
+          point, and this is the cost of doing it a fourth time — a fact to
+          weigh, not a rule to obey. */}
+      <div className="flex items-start gap-8 rounded-8 border border-blue-200 bg-blue-50 px-12 py-8">
+        <span className="shrink-0 text-blue-500">
+          <IconInfo size={16} />
+        </span>
+        <span className="min-w-0 flex-1 text-12 text-default">
+          Admin fee settlement hanya gratis {DEPOSIT.freePerDay}x per hari.
+          {freeSettlementsLeft(s) > 0
+            ? ` Sisa ${freeSettlementsLeft(s)}x gratis hari ini.`
+            : ' Setoran ini kena biaya admin.'}
+        </span>
+      </div>
+
       {/* --- What she is handing over. One number, not a choice. */}
       <Card>
         <div className="flex items-center gap-12">
@@ -140,11 +147,6 @@ export function SettlementScreen() {
             {closing ? 'Setoran terakhir' : `Setoran ke-${no}`}
           </Badge>
         </div>
-        {digital > 0 ? (
-          <p className="mt-8 rounded-8 bg-neutral-50 px-12 py-8 text-12 text-caption">
-            {rupiah(digital)} sudah masuk lewat aplikasi mitra — tidak perlu kamu setor.
-          </p>
-        ) : null}
         <p className="mt-8 text-right text-10 text-disabled">Batas setor {DEPOSIT.due}</p>
       </Card>
 
@@ -187,8 +189,6 @@ export function SettlementScreen() {
         </div>
       </Card>
 
-      {s.settlements.length > 0 ? <Riwayat /> : null}
-
       {/* --- What she actually handed over. Agreeing is a tap; disagreeing is
           deliberate, and carries a reason. */}
       <SectionTitle>Jumlah yang Disetor</SectionTitle>
@@ -207,19 +207,6 @@ export function SettlementScreen() {
             }
             state={diff === 0 ? 'valid' : 'default'}
           />
-          {diff !== 0 ? (
-            <ChipGroup label="Alasan selisih">
-              {DIFF_REASONS.map((reason) => (
-                <Chip
-                  key={reason}
-                  selected={s.depositDiffReason === reason}
-                  onClick={() => store.setDepositDiffReason(reason)}
-                >
-                  {reason}
-                </Chip>
-              ))}
-            </ChipGroup>
-          ) : null}
         </>
       ) : (
         <Card>
@@ -248,62 +235,45 @@ export function SettlementScreen() {
       </div>
 
       <StickyBar>
-        {diff !== 0 && s.depositDiffReason ? (
-          <div className="flex justify-center">
+        {/* The difference, and — when she is sending less than she holds —
+            what it LEAVES. A short handover is not a discrepancy to explain
+            afterwards, it is cash still in her bag, and the honest thing to
+            say before she taps is that it will still be there. */}
+        {diff !== 0 ? (
+          <div className="flex flex-col items-center gap-4">
             <Badge intent="orange">
               Selisih {diff > 0 ? 'lebih' : 'kurang'} {rupiah(Math.abs(diff))}
             </Badge>
+            {diff < 0 ? (
+              <span className="text-10 text-caption">
+                Sisa {rupiah(-diff)} tetap tercatat belum disetor
+              </span>
+            ) : null}
           </div>
         ) : null}
         {!ready ? (
           <span className="text-center text-12 font-bold text-orange-500">
-            {amount <= 0
-              ? 'Belum ada jumlah yang disetor'
-              : needsReason
-                ? 'Pilih alasan selisih dulu'
-                : 'Foto bukti transfer belum diambil'}
+            {amount <= 0 ? 'Belum ada jumlah yang disetor' : 'Foto bukti transfer belum diambil'}
           </span>
         ) : null}
-        <Button size="lg" className="w-full" disabled={!ready} onClick={() => store.settle(closing)}>
-          Saya Sudah Setor {rupiah(expected)}
+        {/* Straight back to the schedule, whether or not it cleared the bag.
+            Staying here after a short handover left her on a page that had
+            silently reloaded itself with the remainder — the same screen, a
+            different number, no event to explain it. The day is where a
+            settlement ends; if there is still cash, the widget is waiting
+            there saying so. */}
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={!ready}
+          onClick={() => {
+            store.settle(closing)
+            flow.go('today')
+          }}
+        >
+          Saya Sudah Setor {rupiah(amount)}
         </Button>
       </StickyBar>
     </Screen>
-  )
-}
-
-/**
- * What has already gone today. It is on this screen rather than only on the
- * schedule because the question it answers is asked HERE — "did I already send
- * the morning's?" — at the moment she is about to send more, and because two
- * transfers to two VAs are two things she may have to prove separately.
- */
-function Riwayat() {
-  const s = useApp()
-  return (
-    <>
-      <SectionTitle>Setoran hari ini</SectionTitle>
-      <div className="rounded-12 bg-neutral-white">
-        {s.settlements.map((x, i) => (
-          <div
-            key={x.no}
-            className={`flex items-center gap-12 px-12 py-12 ${i === 0 ? '' : 'border-t border-default'}`}
-          >
-            <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-500">
-              <IconCheck size={16} />
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-14 font-bold text-default">
-                Setoran {x.no} · {x.at}
-              </span>
-              <span className="truncate text-12 text-caption">
-                {x.taskIds.map(taskCode).join(', ')} · VA {x.va}
-              </span>
-            </div>
-            <span className="shrink-0 text-14 font-bold text-default">{rupiah(x.amount)}</span>
-          </div>
-        ))}
-      </div>
-    </>
   )
 }

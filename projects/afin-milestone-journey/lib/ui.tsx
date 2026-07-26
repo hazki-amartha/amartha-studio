@@ -5,7 +5,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { Button } from '@/design-system/components'
-import { IconAlert, IconCheck, IconClock, IconCopy, IconX } from './icons'
+import { Check, Copy, Cross, Hourglass, WarningCircle } from '@/design-system/icons'
 
 // --- StickyBar -------------------------------------------------------------
 // The pinned footer eight screens end with. FunDS Lite has no footer primitive
@@ -181,7 +181,7 @@ export function CopyBlock({
             copied ? 'text-green-500' : 'text-primary-500'
           }`}
         >
-          {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+          {copied ? <Check size={16} /> : <Copy size={16} />}
           {copied ? 'Tersalin' : 'Salin'}
         </button>
       </div>
@@ -208,7 +208,7 @@ export function Notice({
   return (
     <div className={`flex items-center gap-8 rounded-12 p-12 text-12 ${toneClass}`}>
       <span className="shrink-0">
-        {tone === 'red' ? <IconClock size={16} /> : <IconAlert size={16} />}
+        {tone === 'red' ? <Hourglass size={16} /> : <WarningCircle size={16} />}
       </span>
       <span>{children}</span>
     </div>
@@ -404,7 +404,7 @@ export function StatusMark({
           ok ? 'bg-green-500' : 'bg-red-500'
         }`}
       >
-        {ok ? <IconCheck size={16} /> : <IconX size={16} />}
+        {ok ? <Check size={16} /> : <Cross size={16} />}
       </span>
       {ok ? okLabel : failLabel}
     </span>
