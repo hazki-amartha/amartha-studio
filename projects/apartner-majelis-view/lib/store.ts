@@ -10,6 +10,7 @@
 // which is the outcome this whole direction is built to record properly.
 
 import { useSyncExternalStore } from 'react'
+import { COMMS_SEED, type Comm } from './comms'
 import { MAJELIS, PREPAID, findMitra, isSelfServe, outstandingOf, type Mitra } from './data'
 import {
   SEED_LEADS,
@@ -346,6 +347,17 @@ export interface AppState {
    * be wiped by exactly the navigation the screen invites.
    */
   followUp: FollowUpDraft
+
+  // --- The inbox -----------------------------------------------------------
+
+  /**
+   * What the business has sent the BP. Read state lives here rather than in
+   * the screen because the unread count sits in the schedule header, two
+   * navigations away from the list that clears it.
+   */
+  comms: Comm[]
+  /** Which message the detail page renders. Null before anything is opened. */
+  openComm: string | null
 }
 
 /** What the BP is recording about one call, before she saves it. */
@@ -431,6 +443,8 @@ const initial: AppState = {
   openEvent: 'e1',
   scheduled: [],
   followUp: emptyFollowUp('l1'),
+  comms: COMMS_SEED,
+  openComm: null,
 }
 
 let state: AppState = initial
@@ -525,6 +539,18 @@ export const store = {
   subscribe(listener: () => void) {
     listeners.add(listener)
     return () => listeners.delete(listener)
+  },
+
+  /**
+   * Opens one message. Reading IS the act that clears it — there is no separate
+   * "tandai dibaca", because a BP who has read the announcement and still sees
+   * the badge learns to ignore the badge.
+   */
+  openMessage(id: string) {
+    store.set({
+      openComm: id,
+      comms: state.comms.map((c) => (c.id === id ? { ...c, read: true } : c)),
+    })
   },
 
   /**
@@ -1290,3 +1316,16 @@ export const eventProgress = (s: AppState, event: SosialisasiEvent) => {
 /** Follow-ups the BP booked today, for a day the schedule can show. */
 export const scheduledFor = (s: AppState, day: DayKey): Task[] =>
   day === 'tomorrow' ? s.scheduled : []
+
+// --- The inbox -------------------------------------------------------------
+
+/** The badge on the schedule header. */
+export const unreadComms = (s: AppState): number => s.comms.filter((c) => !c.read).length
+
+/**
+ * The message the detail page renders. Falls back to the newest one so the
+ * screen still draws when it is opened straight from the flow view rather than
+ * by tapping a row.
+ */
+export const openedComm = (s: AppState): Comm =>
+  s.comms.find((c) => c.id === s.openComm) ?? s.comms[0]

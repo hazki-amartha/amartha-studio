@@ -25,6 +25,8 @@ import { SettlementScreen } from './screens/settlement'
 import { SosialisasiScreen } from './screens/sosialisasi'
 import { LeadScreen } from './screens/lead'
 import { FollowUpScreen } from './screens/follow-up'
+import { CommsScreen } from './screens/comms'
+import { BannerDetailScreen } from './screens/banner-detail'
 import * as demo from './lib/demo'
 
 export const project: ProjectModule = {
@@ -88,7 +90,8 @@ export const project: ProjectModule = {
         },
       ],
       flowsTo: [
-        { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Pelayanan 1' },
+        { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Majelis Visit 1' },
+        { to: 'comms', label: 'kotak masuk di header' },
         { to: 'home-brief', label: 'Mulai Kunjungan (home visit)' },
         { to: 'sosialisasi', label: 'Mulai Sosialisasi — cari prospek baru' },
         { to: 'follow-up', label: 'Mulai Follow Up — telepon prospek' },
@@ -168,6 +171,18 @@ export const project: ProjectModule = {
       ],
     },
     {
+      id: 'comms',
+      title: 'Informasi & Program',
+      component: CommsScreen,
+      flowsTo: [{ to: 'banner-detail', label: 'ketuk kartu' }],
+    },
+    {
+      id: 'banner-detail',
+      title: 'Detail Banner',
+      component: BannerDetailScreen,
+      flowsTo: [{ to: 'comms', label: 'kembali' }],
+    },
+    {
       id: 'majelis',
       title: 'Majelis View',
       component: MajelisScreen,
@@ -183,6 +198,100 @@ export const project: ProjectModule = {
         { to: 'mitra', label: 'ketuk nama mitra' },
         { to: 'majelis-list', label: 'kembali' },
       ],
+    },
+    {
+      id: 'attendance',
+      title: 'Majelis Visit 1 — Kehadiran',
+      component: AttendanceScreen,
+      notes: [
+        'Attendance is asked first and on its own, and collection does not open until every mitra is marked. The register is a record other people read later, and a half-marked one cannot be trusted or audited.',
+        'Nothing on this screen mentions money — that is the next stage’s question, and asking both at once is what this split exists to avoid. The 15 who already paid before the visit come pre-marked present, so the BP confirms 7 rather than all 22.',
+      ],
+      states: [
+        {
+          id: 'fresh',
+          label: 'Baru dibuka',
+          description: '15 mitra bayar mandiri sudah terisi, 7 belum diabsen',
+          apply: demo.registerFresh,
+        },
+        {
+          id: 'almost',
+          label: 'Tinggal 2 mitra',
+          description: '20 mitra sudah tercatat, 2 belum dijawab',
+          apply: demo.registerAlmost,
+        },
+        {
+          id: 'done',
+          label: 'Register lengkap',
+          description: '20 hadir · 2 tidak hadir dengan alasannya',
+          apply: demo.registerDone,
+        },
+      ],
+      flowsTo: [{ to: 'collection', label: 'Simpan & Lanjut — butuh 22/22' }],
+    },
+    {
+      id: 'collection',
+      title: 'Majelis Visit 2 — Penagihan',
+      component: CollectionScreen,
+      notes: [
+        'The same roster in the same order as the register before it, and the same card — only the row under the rule changes, from a register question to a bill. The list is static: recording an outcome updates the card where it stands instead of moving it to a “sudah ditagih” section, so the woman the BP is standing in front of stays where she was.',
+        'The stage’s job is to record an outcome for everyone, not to make everyone lunas — any recorded result counts, including “tidak bayar”. Tagih opens a page rather than a sheet; the 15 who settled before the visit carry the fact and no button, because there is nothing to tagih from them and offering the control would invite a double entry.',
+      ],
+      states: [
+        {
+          id: 'full',
+          label: 'Antrean penuh',
+          description: '7 mitra belum ditagih, 15 sudah bayar mandiri',
+          apply: demo.queueFull,
+        },
+        {
+          id: 'half',
+          label: 'Setengah jalan',
+          description: 'Separuh sudah ada hasilnya, separuh belum',
+          apply: demo.queueHalf,
+        },
+        {
+          id: 'done',
+          label: 'Semua ada hasilnya',
+          description: 'Termasuk 1 bayar sebagian dan 1 tidak bayar dengan janji',
+          apply: demo.queueDone,
+        },
+      ],
+      flowsTo: [
+        { to: 'collect', label: 'Tagih' },
+        { to: 'mitra', label: 'ketuk nama mitra' },
+        { to: 'growth', label: 'Lanjut' },
+      ],
+    },
+    {
+      id: 'growth',
+      title: 'Majelis Visit 3 — Penawaran',
+      component: GrowthScreen,
+      notes: [
+        'Offers come last, after the money. Pitching a savings product before collecting would mean asking a woman to open an account with the instalment she has not handed over yet.',
+        'Only mitra with a real recommendation appear — four rows out of 22, not a list for everyone — in the same order and the same card as the two stages before. Tawarkan opens a page, exactly as Tagih does, so both actions on a visit card behave the same way. The whole stage can be skipped: a tail that blocks the close of a visit has stopped being a tail.',
+      ],
+      flowsTo: [
+        { to: 'offer', label: 'Tawarkan' },
+        { to: 'proof', label: 'Lanjut' },
+        { to: 'mitra', label: 'ketuk nama mitra' },
+      ],
+    },
+    {
+      id: 'offer',
+      title: 'Tawarkan Produk',
+      component: OfferScreen,
+      flowsTo: [{ to: 'growth', label: 'Simpan Hasil' }],
+    },
+    {
+      id: 'proof',
+      title: 'Bukti Pelayanan',
+      component: ProofScreen,
+      notes: [
+        'A photo and a recorded location, both required before the visit can be submitted. A photo alone proves she photographed something; a location alone proves she was in the right place but not that a majelis happened. Only the pair makes a visit verifiable afterwards.',
+        'They sit as two equal tiles rather than a big photo drop-zone with location as a footnote, and outside the three-stage bar — attendance, collection and growth are the work, this is the paperwork that closes it.',
+      ],
+      flowsTo: [{ to: 'today', label: 'Kirim Laporan — butuh foto + lokasi' }],
     },
     {
       id: 'home-brief',
@@ -371,100 +480,6 @@ export const project: ProjectModule = {
         { to: 'lead', label: 'Lengkapi Data Prospek' },
         { to: 'today', label: 'Simpan & Selesai — dari jadwal' },
       ],
-    },
-    {
-      id: 'attendance',
-      title: 'Pelayanan 1 — Kehadiran',
-      component: AttendanceScreen,
-      notes: [
-        'Attendance is asked first and on its own, and collection does not open until every mitra is marked. The register is a record other people read later, and a half-marked one cannot be trusted or audited.',
-        'Nothing on this screen mentions money — that is the next stage’s question, and asking both at once is what this split exists to avoid. The 15 who already paid before the visit come pre-marked present, so the BP confirms 7 rather than all 22.',
-      ],
-      states: [
-        {
-          id: 'fresh',
-          label: 'Baru dibuka',
-          description: '15 mitra bayar mandiri sudah terisi, 7 belum diabsen',
-          apply: demo.registerFresh,
-        },
-        {
-          id: 'almost',
-          label: 'Tinggal 2 mitra',
-          description: '20 mitra sudah tercatat, 2 belum dijawab',
-          apply: demo.registerAlmost,
-        },
-        {
-          id: 'done',
-          label: 'Register lengkap',
-          description: '20 hadir · 2 tidak hadir dengan alasannya',
-          apply: demo.registerDone,
-        },
-      ],
-      flowsTo: [{ to: 'collection', label: 'Simpan & Lanjut — butuh 22/22' }],
-    },
-    {
-      id: 'collection',
-      title: 'Pelayanan 2 — Penagihan',
-      component: CollectionScreen,
-      notes: [
-        'The same roster in the same order as the register before it, and the same card — only the row under the rule changes, from a register question to a bill. The list is static: recording an outcome updates the card where it stands instead of moving it to a “sudah ditagih” section, so the woman the BP is standing in front of stays where she was.',
-        'The stage’s job is to record an outcome for everyone, not to make everyone lunas — any recorded result counts, including “tidak bayar”. Tagih opens a page rather than a sheet; the 15 who settled before the visit carry the fact and no button, because there is nothing to tagih from them and offering the control would invite a double entry.',
-      ],
-      states: [
-        {
-          id: 'full',
-          label: 'Antrean penuh',
-          description: '7 mitra belum ditagih, 15 sudah bayar mandiri',
-          apply: demo.queueFull,
-        },
-        {
-          id: 'half',
-          label: 'Setengah jalan',
-          description: 'Separuh sudah ada hasilnya, separuh belum',
-          apply: demo.queueHalf,
-        },
-        {
-          id: 'done',
-          label: 'Semua ada hasilnya',
-          description: 'Termasuk 1 bayar sebagian dan 1 tidak bayar dengan janji',
-          apply: demo.queueDone,
-        },
-      ],
-      flowsTo: [
-        { to: 'collect', label: 'Tagih' },
-        { to: 'mitra', label: 'ketuk nama mitra' },
-        { to: 'growth', label: 'Lanjut' },
-      ],
-    },
-    {
-      id: 'growth',
-      title: 'Pelayanan 3 — Penawaran',
-      component: GrowthScreen,
-      notes: [
-        'Offers come last, after the money. Pitching a savings product before collecting would mean asking a woman to open an account with the instalment she has not handed over yet.',
-        'Only mitra with a real recommendation appear — four rows out of 22, not a list for everyone — in the same order and the same card as the two stages before. Tawarkan opens a page, exactly as Tagih does, so both actions on a visit card behave the same way. The whole stage can be skipped: a tail that blocks the close of a visit has stopped being a tail.',
-      ],
-      flowsTo: [
-        { to: 'offer', label: 'Tawarkan' },
-        { to: 'proof', label: 'Lanjut' },
-        { to: 'mitra', label: 'ketuk nama mitra' },
-      ],
-    },
-    {
-      id: 'offer',
-      title: 'Tawarkan Produk',
-      component: OfferScreen,
-      flowsTo: [{ to: 'growth', label: 'Simpan Hasil' }],
-    },
-    {
-      id: 'proof',
-      title: 'Bukti Pelayanan',
-      component: ProofScreen,
-      notes: [
-        'A photo and a recorded location, both required before the visit can be submitted. A photo alone proves she photographed something; a location alone proves she was in the right place but not that a majelis happened. Only the pair makes a visit verifiable afterwards.',
-        'They sit as two equal tiles rather than a big photo drop-zone with location as a footnote, and outside the three-stage bar — attendance, collection and growth are the work, this is the paperwork that closes it.',
-      ],
-      flowsTo: [{ to: 'today', label: 'Kirim Laporan — butuh foto + lokasi' }],
     },
     {
       id: 'mitra',

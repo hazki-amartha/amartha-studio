@@ -51,6 +51,7 @@ import {
   scheduledFor,
   store,
   taskStatus,
+  unreadComms,
   useApp,
   type TaskStatus,
 } from '../lib/store'
@@ -398,7 +399,7 @@ export function TodayScreen() {
         </span>
         <span className="text-12 font-regular text-caption">{subtitle}</span>
       </button>
-      <HeaderAction label="Kotak masuk" count={2} onClick={() => {}}>
+      <HeaderAction label="Kotak masuk" count={unreadComms(s)} onClick={() => flow.go('comms')}>
         <IconInbox size={20} />
       </HeaderAction>
     </header>
