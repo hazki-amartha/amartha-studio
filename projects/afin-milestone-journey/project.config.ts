@@ -2,7 +2,7 @@ import type { ProjectConfig } from '@/platform/types'
 
 export const config: ProjectConfig = {
   slug: 'afin-milestone-journey',
-  name: 'Bayar & Milestone Journey',
+  name: 'AFin for Borrowers Concept',
   platform: 'AFIN',
   owner: 'Patricia',
   description:

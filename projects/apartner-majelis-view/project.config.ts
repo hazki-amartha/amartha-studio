@@ -2,7 +2,7 @@ import type { ProjectConfig } from '@/platform/types'
 
 export const config: ProjectConfig = {
   slug: 'apartner-majelis-view',
-  name: 'Majelis View Concept',
+  name: 'A-Partner New Concept',
   platform: 'APartner',
   owner: ['Chandra', 'Hazki', 'Patricia'],
   description:
