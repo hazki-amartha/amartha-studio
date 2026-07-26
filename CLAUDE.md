@@ -283,6 +283,16 @@ not "ship", not "deploy". Commit and push are the whole vocabulary:
 
   Leave them on a clean, synced `main` when it's done.
 
+**The preview link is always a localhost link — never a Vercel URL.** Start the
+dev server (`npm run dev`, in the background) and give them the `localhost` link
+it prints, or surface it in the agent runtime's preview window. Never hand a
+designer a `*.vercel.app` deployment or preview URL: those are auth-gated behind
+a Vercel account with team access, which designers here do not have, so the link
+shows them a login wall instead of their prototype. Read the port off the dev
+server's own output rather than assuming `3000` — it moves when the port is
+taken. This is the *only* thing that changes about the push flow; everything
+above still applies, and you still call it the "preview link".
+
 **How to speak.** The only words are "commit", "committed", "push", "pushed",
 "live", "preview link", and — for shared changes — "pending review". **Never say
 "PR"** (or "pull request", "merge", "auto-merge", "branch", "mergeStateStatus")
