@@ -6,14 +6,14 @@ export const config: ProjectConfig = {
   platform: 'APartner',
   owner: ['Chandra', 'Hazki', 'Patricia'],
   description:
-    'A third direction on the majelis visit, taking its flow from the Majelis View reference: a visit is a gated three-stage sequence — attendance, then collection, then growth — and collecting from a mitra opens a full page built around a week-by-week repayment strip rather than a bottom sheet. Forked from apartner-task-first, which instead records attendance and payment together in one pass.',
+    "The A-Partner field-officer app built around the majelis visit: a gated three-stage sequence — attendance, then collection, then growth. Collecting from a mitra opens a full page carrying her week-by-week repayment history, so the amount is negotiated against a visible ledger. Around it sits the BP's whole day: the task schedule, the majelis and mitra directories, home visits, prospecting, KPI, and the cash settlement and closing flows.",
   device: 'mobile',
   status: 'in-review',
   createdAt: '2026-07-20',
   updatedAt: '2026-07-23',
   notes: [
-    'Sibling to apartner-task-first, not a replacement. That one puts attendance and payment on one card so the BP makes a single pass; this one gates collection behind a completed attendance step, which is what the reference direction specifies.',
-    'The bet being tested: does a full collect PAGE — week strip, outstanding split into this-week / missed / partial balance, and a live "remaining after this" — beat a bottom sheet at the moment the BP is negotiating an amount in front of the mitra?',
-    'Only the majelis branch exists here. There is no schedule, KPI, or home-visit flow — the majelis roster itself is the entry point.',
+    'Attendance is a gate, not a step to skip: collection does not open until every mitra in the group is marked, because the register is a record other people read and audit later.',
+    'Collection opens a full page rather than a sheet — the week strip, the outstanding split into this-week and missed, and a live "remaining after this" — because that is the moment the BP is negotiating an amount face to face with the mitra.',
+    'The day is a flat list of tasks the BP can start in any order. A day does not run in clock order: she arrives early, a group is late, a doorstep is on the way back from the balai.',
   ],
 }
