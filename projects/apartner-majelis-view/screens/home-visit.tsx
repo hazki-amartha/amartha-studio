@@ -179,15 +179,20 @@ export function HomeVisitScreen() {
             />
             {/* The group covering her arrears — the outcome a collections door
                 exists to reach. Full settlement, funded by tanggung renteng
-                rather than by the mitra, so it sits between paying and not. */}
-            <SelectableCard
-              name="mode-tagih"
-              inputType="radio"
-              title="Tanggung Renteng"
-              description="Tunggakan ditanggung kelompok"
-              checked={mode === 'tanggung'}
-              onChange={() => pick('tanggung')}
-            />
+                rather than by the mitra, so it sits between paying and not.
+                GL only: joint liability is what the G in GL is. A Modal loan is
+                hers alone, and offering the group as a payer on her door would
+                record a settlement no group ever agreed to. */}
+            {mitra.product === 'GL' ? (
+              <SelectableCard
+                name="mode-tagih"
+                inputType="radio"
+                title="Tanggung Renteng"
+                description="Tunggakan ditanggung kelompok"
+                checked={mode === 'tanggung'}
+                onChange={() => pick('tanggung')}
+              />
+            ) : null}
             <SelectableCard
               name="mode-tagih"
               inputType="radio"
