@@ -31,7 +31,7 @@
 // while a gap with nowhere to put it becomes a phone call.
 
 import { useState } from 'react'
-import { Badge, Button, Card, Input, NavigationHeader } from '@/design-system/components'
+import { Badge, Button, Card, InputNominal, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
@@ -194,18 +194,18 @@ export function SettlementScreen() {
       <SectionTitle>Jumlah yang Disetor</SectionTitle>
       {editing ? (
         <>
-          <Input
+          {/* The corrected figure IS the screen at this point — the VA above it
+              is a destination and everything below is confirmation — so it takes
+              the nominal tile rather than a labelled row. */}
+          <InputNominal
             label="Jumlah disetor"
-            prefix="Rp"
-            inputMode="numeric"
             value={amount ? String(amount) : ''}
-            onChange={(e) => store.setDepositAmount(Number(e.target.value.replace(/\D/g, '')) || 0)}
+            onValueChange={(digits) => store.setDepositAmount(Number(digits) || 0)}
             helperText={
               diff === 0
                 ? 'Sama dengan catatan aplikasi'
                 : `${diff > 0 ? 'Lebih' : 'Kurang'} ${rupiah(Math.abs(diff))} dari catatan aplikasi`
             }
-            state={diff === 0 ? 'valid' : 'default'}
           />
         </>
       ) : (
