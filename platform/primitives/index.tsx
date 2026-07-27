@@ -8,18 +8,31 @@
 
 import type { HTMLAttributes, ReactNode } from 'react'
 
+/** How the 32px device status-bar strip above the top bar is painted. */
+export type ScreenStatusBar = 'light' | 'none'
+
 export interface ScreenProps extends HTMLAttributes<HTMLDivElement> {
   /** Fixed chrome pinned to the top of the screen (e.g. a NavigationHeader or TopBar). */
   topBar?: ReactNode
+  /**
+   * `'light'` (default) — an opaque white strip, which is how the device frame
+   * has always drawn it. `'none'` — the strip paints nothing, so a screen whose
+   * own chrome is coloured can extend into it (pull the first element up by
+   * `-mt-48`: 32px of strip plus the 16px page padding-top).
+   */
+  statusBar?: ScreenStatusBar
   children: ReactNode
 }
+
+/** Device status-bar height. Content clears the notch area by this much. */
+const STATUS_BAR_H = 'h-32'
 
 /**
  * The frame a project screen renders inside. Provides the neutral-50 canvas,
  * an optional pinned top bar, and the standard content padding + section gap.
  * The content area scrolls; the top bar stays put.
  */
-export function Screen({ topBar, children, className, ...props }: ScreenProps) {
+export function Screen({ topBar, statusBar = 'light', children, className, ...props }: ScreenProps) {
   const classes = ['flex', 'min-h-full', 'flex-col', 'bg-neutral-50', className]
     .filter(Boolean)
     .join(' ')
@@ -39,9 +52,18 @@ export function Screen({ topBar, children, className, ...props }: ScreenProps) {
           This resolves against the same containing block that already makes
           screens' `sticky bottom-0` chrome work (see ScreenThumb's load-bearing
           overflow-hidden), so it holds in the flow view as well as the device. */}
-      {topBar ? (
-        <div className="sticky top-0 z-10 shrink-0">{topBar}</div>
-      ) : null}
+      {/* The status-bar strip belongs to the screen, not to the device frame:
+          it is the only way a screen with coloured chrome (a brand band, a dark
+          header) can reach the top of the display instead of stopping under a
+          white bar it cannot paint. Default 'light' keeps it exactly as the
+          frame used to draw it, so screens that don't ask are unchanged. */}
+      <div className="sticky top-0 z-10 shrink-0">
+        <div
+          className={`${STATUS_BAR_H} ${statusBar === 'none' ? '' : 'bg-neutral-white'}`}
+          aria-hidden
+        />
+        {topBar}
+      </div>
       <div className="flex flex-1 flex-col gap-12 px-16 pt-16">{children}</div>
     </div>
   )

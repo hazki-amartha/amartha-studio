@@ -51,7 +51,7 @@ const initial: AppState = {
   amount: 0,
   method: null,
   paidAmount: 0,
-  poketBalance: 80000,
+  poketBalance: 151000,
   billState: 'idle',
   attendState: 'idle',
   attendMsg: '',

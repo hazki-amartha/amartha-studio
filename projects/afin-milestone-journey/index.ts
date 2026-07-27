@@ -4,6 +4,7 @@ import type { ProjectModule } from '@/platform/types'
 import { config } from './project.config'
 import * as demo from './lib/demo'
 import { HomeScreen } from './screens/home'
+import { HomeV2Screen } from './screens/home-v2'
 import { ProgressScreen } from './screens/progress'
 import { RiwayatScreen } from './screens/riwayat'
 import { MajelisScreen } from './screens/majelis'
@@ -20,59 +21,78 @@ import { TopupScreen } from './screens/topup'
 import { PendingScreen } from './screens/pending'
 import { SuccessScreen } from './screens/success'
 
+/** Shared by both home options, so a state control means the same thing on
+ *  whichever of the two is on screen. */
+const homeStates = [
+  {
+    id: 'mitra-aktif',
+    label: 'Mitra aktif',
+    description: 'Week 14 of the tenor — a bill to pay and a kumpulan to attend.',
+    apply: demo.mitraAktif,
+  },
+  {
+    id: 'mitra-baru',
+    label: 'Mitra baru',
+    description: 'No repayment history yet, so the nearest goal is the first pencairan.',
+    apply: demo.mitraBaru,
+  },
+  {
+    id: 'sudah-lunas',
+    label: 'Angsuran lunas',
+    description: 'Paid in full — the task shows Lunas and the amount is struck through.',
+    apply: demo.sudahLunas,
+  },
+  {
+    id: 'menunggu-konfirmasi',
+    label: 'Menunggu konfirmasi',
+    description: 'Paid off-app via VA — the task turns amber and offers Cek status.',
+    apply: demo.menungguKonfirmasi,
+  },
+  {
+    id: 'sisa-tunggakan',
+    label: 'Sisa tunggakan',
+    description: 'A Rp50.000 part-payment landed, so Rp100.000 is now arrears.',
+    apply: demo.sisaTunggakan,
+  },
+  {
+    id: 'absen-gagal',
+    label: 'Absen gagal 2x',
+    description: 'The location check has failed twice — the Hubungi BP escape is showing.',
+    apply: demo.absenGagal,
+  },
+  {
+    id: 'absen-berhasil',
+    label: 'Absen berhasil',
+    description: 'Attendance confirmed for the week.',
+    apply: demo.absenBerhasil,
+  },
+]
+
 export const project: ProjectModule = {
   config,
   screens: [
     {
       id: 'home',
-      title: 'Home',
+      title: 'Home — opsi 1',
       component: HomeScreen,
       entry: true,
-      states: [
-        {
-          id: 'mitra-aktif',
-          label: 'Mitra aktif',
-          description: 'Week 14 of the tenor — a bill to pay and a kumpulan to attend.',
-          apply: demo.mitraAktif,
-        },
-        {
-          id: 'mitra-baru',
-          label: 'Mitra baru',
-          description: 'No repayment history yet, so the nearest goal is the first pencairan.',
-          apply: demo.mitraBaru,
-        },
-        {
-          id: 'sudah-lunas',
-          label: 'Angsuran lunas',
-          description: 'Paid in full — the task shows Lunas and the amount is struck through.',
-          apply: demo.sudahLunas,
-        },
-        {
-          id: 'menunggu-konfirmasi',
-          label: 'Menunggu konfirmasi',
-          description: 'Paid off-app via VA — the task turns amber and offers Cek status.',
-          apply: demo.menungguKonfirmasi,
-        },
-        {
-          id: 'sisa-tunggakan',
-          label: 'Sisa tunggakan',
-          description: 'A Rp50.000 part-payment landed, so Rp100.000 is now arrears.',
-          apply: demo.sisaTunggakan,
-        },
-        {
-          id: 'absen-gagal',
-          label: 'Absen gagal 2x',
-          description: 'The location check has failed twice — the Hubungi BP escape is showing.',
-          apply: demo.absenGagal,
-        },
-        {
-          id: 'absen-berhasil',
-          label: 'Absen berhasil',
-          description: 'Attendance confirmed for the week.',
-          apply: demo.absenBerhasil,
-        },
-      ],
+      states: homeStates,
       flowsTo: [
+        { to: 'amount', label: 'bayar angsuran' },
+        { to: 'pending', label: 'cek status' },
+        { to: 'progress', label: 'lihat perjalanan / tab progress' },
+        { to: 'majelis', label: 'tab majelis' },
+        { to: 'riwayat', label: 'tab transaksi' },
+        { to: 'disburse-amount', label: 'cairkan (mitra baru)' },
+      ],
+    },
+    {
+      id: 'home-v2',
+      title: 'Home — opsi 2',
+      component: HomeV2Screen,
+      states: homeStates,
+      flowsTo: [
+        { to: 'topup', label: 'isi saldo poket' },
         { to: 'amount', label: 'bayar angsuran' },
         { to: 'pending', label: 'cek status' },
         { to: 'progress', label: 'lihat perjalanan / tab progress' },
@@ -229,7 +249,10 @@ export const project: ProjectModule = {
       id: 'topup',
       title: 'Isi Saldo Poket',
       component: TopupScreen,
-      flowsTo: [{ to: 'poket-confirm', label: 'isi saldo' }],
+      flowsTo: [
+        { to: 'poket-confirm', label: 'isi saldo (menutup kekurangan)' },
+        { to: 'home-v2', label: 'isi saldo (dari Poket)' },
+      ],
     },
     {
       id: 'pending',
