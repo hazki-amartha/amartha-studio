@@ -4,9 +4,8 @@
 //
 // The page is two levels, told apart by ground rather than by a rule. The top,
 // on white, is who she is over what she owes — identity, history and bill read
-// as one flat block. The bottom, on the lightest grey, is the choice: the ways
-// she can pay. A GL mitra gets one more than a Modal one — the group can cover
-// her under tanggung renteng, and a Modal loan has no group to cover it.
+// as one flat block. The bottom, on the lightest grey, is the choice: the four
+// ways she can pay.
 //
 // Tapping an option opens a bottom sheet, not a page. The sheet carries ONLY the
 // thing that option needs — a reason, a promise, an amount, or for a full
@@ -27,8 +26,7 @@
 // Step 2 gets a back arrow instead of a close, so a wrong reason costs one tap
 // rather than the whole sheet.
 //
-// There are only THREE sheets behind the rows: an amount, a refusal, and the
-// one-tap tanggung renteng confirm. The
+// There are only TWO sheets behind the four rows: an amount, and a refusal. The
 // three paying rows — penuh, minggu ini, jumlah lain — all open the same sheet,
 // prefilled to their own figure and editable from there, because they were never
 // different transactions: they are the same "how much did she hand over", asked
@@ -55,15 +53,8 @@ import {
   ptpValueOf,
 } from '../lib/collect-options'
 
-/**
- * The three sheets: money changed hands, the GROUP covered her, or neither.
- *
- * `tanggung` is GL only — joint liability is what the G in GL is. On a Modal
- * loan the debt is hers alone, so offering the group as a payer would record a
- * settlement no group ever agreed to. Same rule, same wording, as the home
- * visit's Tagih step.
- */
-type Mode = 'bayar' | 'tidak' | 'tanggung'
+/** The two sheets: money changed hands, or it didn't. */
+type Mode = 'bayar' | 'tidak'
 
 export function CollectScreen() {
   const flow = useFlow()
@@ -82,9 +73,8 @@ export function CollectScreen() {
   // has no outcome yet, so it opens on the menu with every sheet closed.
   const existing = paidOf(s, mitra)
   const refusal = s.nonPayments[mitra.id]
-  const settledByGroup = s.payMode[mitra.id] === 'tanggung' && existing > 0
   const [sheet, setSheet] = useState<Mode | null>(
-    refusal ? 'tidak' : settledByGroup ? 'tanggung' : existing > 0 ? 'bayar' : null,
+    refusal ? 'tidak' : existing > 0 ? 'bayar' : null,
   )
   // Every sheet opens on its first step, including a reopened one: the answer to
   // correct is usually the one given first.
@@ -106,8 +96,7 @@ export function CollectScreen() {
   const short = sheet === 'bayar' && typed > 0 && typed < owed.total
 
   // A janji bayar is asked for on its own step, and only where a balance is
-  // being left behind: a shortfall, or a refusal. Tanggung renteng leaves none —
-  // the group closed the whole bill.
+  // being left behind: a shortfall, or a refusal.
   const hasPtpStep = sheet === 'tidak' || short
 
   // What step 1 has to carry before "Lanjut" (or, with no step 2, the save)
@@ -117,9 +106,7 @@ export function CollectScreen() {
       ? reason !== null
       : sheet === 'bayar'
         ? typed > 0 && (!short || shortfall !== null)
-        : // Tanggung renteng has nothing to fill in: the amount is the whole
-          // bill and the payer is the group. One tap is the whole record.
-          sheet === 'tanggung'
+        : false
 
   const onLastStep = !hasPtpStep || step === 2
   const canAdvance = step === 1 ? step1Done : ptp !== undefined
@@ -145,17 +132,8 @@ export function CollectScreen() {
   function save() {
     if (!canSave || sheet === null) return
     if (sheet === 'tidak') {
-      store.setPayMode(mitra.id, 'tidak')
       store.setNonPayment(mitra, { reason: reason as string, ptp: ptp ?? null })
-    } else if (sheet === 'tanggung') {
-      // Settled in full, funded by the group rather than by her. The two facts
-      // are recorded separately — the money on the ledger, the payer on the
-      // mode — because the collection card has to be able to say which it was.
-      store.setPayMode(mitra.id, 'tanggung')
-      store.collect(mitra, owed.total)
-      store.setPartialPtp(mitra.id, null)
     } else {
-      store.setPayMode(mitra.id, short ? 'sebagian' : 'penuh')
       store.collect(mitra, typed, short ? (shortfall as string) : undefined)
       // The promise rides with a shortfall, and is cleared when there isn't one.
       store.setPartialPtp(mitra.id, short ? (ptp ?? null) : null)
@@ -216,19 +194,6 @@ export function CollectScreen() {
           ) : null}
 
           <NavRow title="Jumlah lain" onOpen={() => openSheet('bayar')} />
-
-          {/* GL only. The group covering her arrears is a real outcome of a
-              kumpulan — it is decided in the room, out loud, by the women
-              sitting in it — and without a row for it the BP records the money
-              as a payment from a mitra who did not make it. */}
-          {mitra.product === 'GL' ? (
-            <NavRow
-              title="Tanggung renteng"
-              amount={rupiah(owed.total)}
-              onOpen={() => openSheet('tanggung')}
-            />
-          ) : null}
-
           <NavRow title="Tidak bayar" onOpen={() => openSheet('tidak')} />
         </div>
       </div>
@@ -251,9 +216,7 @@ export function CollectScreen() {
               ? 'Janji Bayar'
               : sheet === 'tidak'
                 ? 'Alasan Tidak Bayar'
-                : sheet === 'tanggung'
-                  ? 'Tanggung Renteng'
-                  : undefined
+                : undefined
         }
         primaryAction={
           <Button
@@ -262,13 +225,7 @@ export function CollectScreen() {
             disabled={!canAdvance}
             onClick={() => (onLastStep ? save() : setStep(2))}
           >
-            {!onLastStep
-              ? 'Lanjut'
-              : sheet === 'tidak'
-                ? 'Simpan Catatan'
-                : sheet === 'tanggung'
-                  ? 'Catat Tanggung Renteng'
-                  : 'Terima Tunai'}
+            {!onLastStep ? 'Lanjut' : sheet === 'tidak' ? 'Simpan Catatan' : 'Terima Tunai'}
           </Button>
         }
       >
@@ -304,18 +261,6 @@ export function CollectScreen() {
               />
             ) : null}
           </>
-        ) : null}
-
-        {/* Nothing to fill in — a read-back of what the one tap will record,
-            the same card the home visit shows when this outcome is picked. */}
-        {sheet === 'tanggung' ? (
-          <div className="flex flex-col gap-4 rounded-12 bg-neutral-50 p-12">
-            <span className="text-12 text-caption">Ditanggung kelompok</span>
-            <span className="text-20 font-bold text-default">{rupiah(owed.total)}</span>
-            <span className="text-12 text-caption">
-              Tanggung renteng menutup seluruh tagihan {mitra.name} hari ini.
-            </span>
-          </div>
         ) : null}
 
         {sheet === 'tidak' && step === 1 ? (

@@ -110,9 +110,6 @@ export function CollectionScreen() {
           // and no button: there is nothing to tagih from her, and offering the
           // control would invite a double entry.
           const selfPaid = isSelfServe(mitra) && status === 'lunas'
-          // The group closed her bill under joint liability — GL only, and the
-          // card says so rather than reading as money she handed over.
-          const byGroup = s.payMode[mitra.id] === 'tanggung' && paid > 0
           const refusal = s.nonPayments[mitra.id]
 
           return (
@@ -158,18 +155,10 @@ export function CollectionScreen() {
                   // into the first. "Ubah" reopens the page that produced the
                   // outcome, so a recorded entry is never trapped.
                   <ResultRow
-                    // Who paid it is part of the record: a bill closed by the
-                    // group under tanggung renteng is not the same fact as a
-                    // mitra who handed over the money herself, and the card is
-                    // where the BP re-reads what she entered.
-                    label={byGroup ? 'Ditanggung kelompok' : 'Dibayar hari ini'}
+                    label="Dibayar hari ini"
                     amount={rupiah(status === 'tidak' ? 0 : paid)}
                     badge={
-                      byGroup ? (
-                        <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                          Tanggung renteng
-                        </Badge>
-                      ) : status === 'lunas' ? (
+                      status === 'lunas' ? (
                         <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
                           Lunas
                         </Badge>
