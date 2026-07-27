@@ -434,6 +434,39 @@ export const PREPAID: Mitra[] = PREPAID_NAMES.map((name, i) => {
  */
 export const isSelfServe = (mitra: Mitra): boolean => mitra.id.startsWith('p')
 
+/**
+ * The roster order, and the one rule behind it: **payment status must not touch
+ * it.** The list used to be `[...ACTIVE, ...PREPAID]`, which is not a sort — it
+ * is just how the fixture was written — but it had exactly the effect of one:
+ * every mitra who had already paid sat in a block at the bottom of all three
+ * stages. A register read in a room is ordered by membership; the moment it
+ * groups by who has settled, the BP is reading a different list on stage 2 than
+ * the one she marked attendance on, and the woman in front of her has moved.
+ *
+ * So the two groups are interleaved by SHARE — each list gives up its next
+ * member whenever it has fallen behind its proportion of the roster — which
+ * spreads the 15 pre-paid through the 7 the BP has to collect from, in a fixed
+ * order that never changes as outcomes are recorded. Ties go to the active
+ * list, so Rina (the hero case) stays first.
+ */
+function rosterOrder(active: Mitra[], prepaid: Mitra[]): Mitra[] {
+  const out: Mitra[] = []
+  let i = 0
+  let j = 0
+  while (i < active.length || j < prepaid.length) {
+    const activeShare = active.length ? i / active.length : 1
+    const prepaidShare = prepaid.length ? j / prepaid.length : 1
+    if (i < active.length && (activeShare <= prepaidShare || j >= prepaid.length)) {
+      out.push(active[i])
+      i += 1
+    } else {
+      out.push(prepaid[j])
+      j += 1
+    }
+  }
+  return out
+}
+
 export const MAJELIS: Majelis = {
   id: 'mawar',
   name: 'Majelis Mawar',
@@ -442,7 +475,7 @@ export const MAJELIS: Majelis = {
   // Sari is the chair: current, mid-tenure, and the one the BP calls when the
   // group needs telling something. A KM in arrears is a different prototype.
   ketuaId: 'm3',
-  members: [...ACTIVE, ...PREPAID],
+  members: rosterOrder(ACTIVE, PREPAID),
 }
 
 // --- Home visits -----------------------------------------------------------
