@@ -749,6 +749,14 @@ export function OptionCard({
 // card is a record, and a record does not need to keep showing the four things
 // it could have said instead.
 
+/**
+ * One option. A bare string where the label is the whole answer — which is
+ * every reason list — and the object form where the answer needs a second line
+ * to say what taking it means. `value` is always the label, so a caller that
+ * adds a description changes nothing about what it stores.
+ */
+export type Choice = string | { label: string; description?: string }
+
 export function ChoiceList({
   label,
   options,
@@ -757,7 +765,7 @@ export function ChoiceList({
   hideLabel,
 }: {
   label: string
-  options: string[]
+  options: Choice[]
   value?: string
   onPick: (option: string) => void
   /**
@@ -773,22 +781,29 @@ export function ChoiceList({
       {hideLabel ? null : <span className="text-12 text-caption">{label}</span>}
       <div role="radiogroup" aria-label={label} className="flex flex-col gap-8">
         {options.map((option) => {
-          const selected = option === value
+          const text = typeof option === 'string' ? option : option.label
+          const description = typeof option === 'string' ? undefined : option.description
+          const selected = text === value
           return (
             <button
-              key={option}
+              key={text}
               type="button"
               role="radio"
               aria-checked={selected}
-              onClick={() => onPick(option)}
+              onClick={() => onPick(text)}
               className={`flex items-center gap-12 rounded-8 border p-12 text-left ${
                 selected ? 'border-primary-500 bg-primary-50' : 'border-default bg-neutral-white'
               }`}
             >
-              <span
-                className={`min-w-0 flex-1 truncate text-14 ${selected ? 'font-bold text-primary-500' : 'text-default'}`}
-              >
-                {option}
+              <span className="flex min-w-0 flex-1 flex-col gap-2">
+                <span
+                  className={`truncate text-14 ${selected ? 'font-bold text-primary-500' : 'text-default'}`}
+                >
+                  {text}
+                </span>
+                {description ? (
+                  <span className="truncate text-12 text-caption">{description}</span>
+                ) : null}
               </span>
               <span
                 className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full border ${

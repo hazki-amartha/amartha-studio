@@ -118,6 +118,14 @@ export function CollectionScreen() {
           // up. Not money the BP collected, so the card says which it was.
           const byPoket = paidViaPoket(s, mitra)
           const refusal = s.nonPayments[mitra.id]
+          // What stage 1 recorded about her, carried onto the card that asks
+          // for money. The BP looking at an empty seat is deciding whether to
+          // chase, and the reason she is not there is most of that decision —
+          // "sedang bekerja" is a collection that happens next week,
+          // "meninggal dunia" is not a collection at all. Without it the
+          // absence is on the register two taps away and the bill is here.
+          const absence =
+            s.attendance[mitra.id] === 'tidak' ? (s.absenceReasons[mitra.id] ?? null) : null
 
           return (
             <MitraCard
@@ -129,6 +137,14 @@ export function CollectionScreen() {
                 <>
                   <ProductBadge product={mitra.product} />
                   <DpdBadge dpd={mitra.dpd} format="short" />
+                  {/* Red only for the absence that ends the membership — the
+                      rest are this week's news and read as neutral facts, and
+                      a row where every chip is loud has no loud chip. */}
+                  {absence ? (
+                    <Badge intent={absence === 'Meninggal dunia' ? 'red' : 'neutral'}>
+                      Tidak hadir · {absence}
+                    </Badge>
+                  ) : null}
                 </>
               }
               onOpen={() => {
