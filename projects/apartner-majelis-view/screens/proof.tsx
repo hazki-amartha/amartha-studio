@@ -14,10 +14,12 @@
 // showed the running count while she worked, and the recap that follows says
 // what those numbers MEAN.
 //
-// It sits outside the three-stage bar deliberately. Attendance, collection and
-// growth are the WORK; proof is the paperwork that closes it, and giving it a
-// numbered stage of its own would imply the visit is four things when the
-// reference — and the recap that follows — treat it as three.
+// It is the visit's FOURTH step, in the same bar as the three before it, exactly
+// as Bukti & Kirim is the home visit's third. It used to sit outside the bar —
+// attendance, collection and offers are the work, proof is the paperwork — which
+// left a BP two taps from finishing looking at a bar that already read as
+// complete, and made the same visit a 3-step flow at the balai and a 3-step flow
+// with a loose ending at the door.
 
 import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
@@ -25,7 +27,7 @@ import { useFlow } from '@/platform/runtime'
 import { majelisWhen } from '../lib/schedule'
 import { IconCamera } from '../lib/icons'
 import { pendingMembers, store, useApp, openMajelisEntry } from '../lib/store'
-import { PinMark, ProofTile, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
+import { PinMark, ProofTile, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
 
 export function ProofScreen() {
   const flow = useFlow()
@@ -48,6 +50,12 @@ export function ProofScreen() {
         />
       }
     >
+      {/* The same flat white band the three stages before it carry, so the bar
+          does not move or change ground on the last step. */}
+      <div className="-mx-16 -mt-16 flex flex-col gap-12 border-b border-default bg-neutral-white px-16 pb-12 pt-16">
+        <StageBar current={4} />
+      </div>
+
       <SectionTitle>Bukti Pelayanan</SectionTitle>
       <div className="flex">
         <ProofTile

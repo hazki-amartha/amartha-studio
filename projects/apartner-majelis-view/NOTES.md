@@ -88,7 +88,7 @@ each opening on what it is for:
 - **Dewi Lestari sits at week 44 of 50; everyone else is at week 9.** A group takes its loan together, which is right for the collection stages and left the offer stage with no honest renewal case — at week 9 the only thing worth putting to a mitra is a top-up. One member six weeks from the end is what makes "Tawarkan renewal" a real sentence. Her ledger, ladder and loan history all derive from the same `week`, so nothing else needed authoring.
 - **MV Bukti Pelayanan follows the home visit's Bukti & Kirim.** One tile — take the photo — with the geotag read back underneath. The "Rekam Lokasi" tile asked the BP to perform a step the phone does anyway, and the stage read-back above it ("Yang sudah dicatat") reviewed a visit she had just finished recording, on a screen whose job is to close it.
 - **The stage lists are static.** One roster, one order, on all three stages — answering a card updates the card in place and never moves it. The "Belum/Sudah Diabsen" and "Belum/Sudah Ditagih" sections are gone: they re-sorted the list under the BP's thumb on every tap, and the woman she is standing in front of has to stay where she was.
-- **Proof and recap sit outside the stage bar.** Three stages are the work; proof is the paperwork that closes it.
+- **Bukti is the fourth step, not a coda.** It used to sit outside the stage bar — three stages are the work, proof is the paperwork — which showed a BP two taps from finishing a bar that already read as complete, and made a majelis visit's ending a different shape from the home visit's, where Bukti & Kirim has always been a numbered step. Same bar, same white band, `current={4}`.
 
 ## The NTB layer (Sosialisasi / Follow Up)
 

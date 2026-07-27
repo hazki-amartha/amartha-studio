@@ -68,7 +68,7 @@ export function Avatar({ name, size = 40 }: { name: string; size?: 32 | 40 }) {
 }
 
 // --- StageBar --------------------------------------------------------------
-// The three stages of a visit, as numbered circles joined by rails. This
+// The stages of a visit, as numbered circles joined by rails. This
 // replaces the flat progress bars of apartner-task-first for one reason: in that
 // direction the steps were a sequence you moved through, while here stage 1 is a
 // GATE — collection genuinely cannot open until attendance is complete — and a
@@ -82,7 +82,13 @@ export function Avatar({ name, size = 40 }: { name: string; size?: 32 | 40 }) {
 // could jump to Collection by tapping "2" would walk straight past the gate the
 // direction exists to test.
 
-export const STAGE_LABELS = ['Kehadiran', 'Penagihan', 'Penawaran']
+// Four, not three. Bukti used to sit OUTSIDE the bar on the argument that
+// attendance, collection and offers are the work while proof is the paperwork
+// that closes it — true of the job, and wrong for the screen: a BP three taps
+// from finishing was shown a bar that said she was already done, and the same
+// visit ran on a 3-step bar in the majelis flow and a 4th-step-shaped one at the
+// door. The home visit counts its own Bukti & Kirim as a step; this now matches.
+export const STAGE_LABELS = ['Kehadiran', 'Penagihan', 'Penawaran', 'Bukti']
 
 // A home visit is one mitra, so there is no queue to clear and no cross-sell
 // tail. Persiapan reviews who she is, records who was met, and — when nobody was
