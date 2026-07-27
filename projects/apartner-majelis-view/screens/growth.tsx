@@ -21,7 +21,7 @@
 import { Badge, Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { growthMembers } from '../lib/data'
+import { growthMembers, growthStat } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
 import { IconCheck } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
@@ -94,12 +94,13 @@ export function GrowthScreen() {
               }}
               action={
                 result === undefined ? (
-                  // Her STATE, not the product. "Siap cair Rp5.000.000" and
-                  // "Belum pernah menabung" are things the BP can see and open a
-                  // sentence from; "Pembiayaan Baru · Rp5.000.000" told her what
-                  // the app wanted to sell. The offer page still names the
-                  // product — that is where the pitch belongs.
-                  <ActionRow label="Peluang" value={growth.status}>
+                  // Caption states the FACT, value states the MOVE. It used to
+                  // read "Peluang" over her status — the loud line spent on a
+                  // label that was the same word on every card, leaving the BP
+                  // to work out what to do about it. Now the caption is where
+                  // she stands (minggu 44/50, limit tersedia, belum pernah
+                  // menabung) and the bold line is the sentence to say.
+                  <ActionRow label={growthStat(mitra)} value={growth.suggestion}>
                     {/* Default size, matching the attendance pills and Tagih —
                         see collection.tsx. */}
                     <Button className="h-40 px-24" onClick={() => openOffer(mitra.id)}>

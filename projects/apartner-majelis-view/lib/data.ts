@@ -31,28 +31,48 @@ export interface Week {
  */
 export interface Growth {
   /**
-   * Which of the two opportunities this is — "Celengan" or "Pembiayaan Baru"
-   * (renewal / additional disbursement). Deliberately only two: PPOB and "naik
-   * plafon" were a third and fourth thing to explain in a room the BP is trying
-   * to leave, and neither is what a majelis visit is the moment for.
-   *
-   * It names the offer on the OFFER page and on a card that has already been
-   * answered — a record of what was put to her. The card that has not been
-   * answered yet leads with `status` instead; see below.
+   * Which kind of opportunity this is. Three, and the split matters on the
+   * stage-3 card: a RENEWAL rests on how far through her current loan she is, a
+   * top-up (`disburse`) on limit she has not drawn, a `celengan` on whether she
+   * saves at all. Each one's caption is a different fact.
+   */
+  kind: 'celengan' | 'disburse' | 'renewal'
+  /**
+   * What the offer is called. It names the offer on the OFFER page and on a card
+   * that has already been answered — a record of what was put to her.
    */
   label: string
   /**
-   * Where SHE stands — "Siap cair Rp5.000.000", "Belum pernah menabung". A fact
-   * about the mitra, not a pitch, and it is what the stage-3 card leads with.
-   * The card used to lead with the product being sold, which told the BP what
-   * the app wanted rather than what she was looking at; the state is the thing
-   * she can actually open a conversation from.
+   * Where SHE stands, as the stage-3 card's CAPTION — the fact the suggestion
+   * rests on. A renewal leaves this off: its standing is her position in the
+   * current loan, which `growthStat` derives from the ledger so the card and her
+   * repayment history can never disagree.
    */
-  status: string
+  status?: string
+  /**
+   * What to SAY — the suggestion, set bold under the caption. The card used to
+   * print "Peluang" over her status, which spent the loud line on a label that
+   * was the same word on all four cards and left the BP to work out what to do
+   * about it. Caption states the fact, value states the move.
+   */
+  suggestion: string
   /** The headline figure, said out loud when the subject is opened. */
   value: string
   /** Past tense, for once it has been done. */
   done: string
+}
+
+/**
+ * The caption on a stage-3 card: where she stands, in her own numbers. A
+ * renewal reads it off the ledger — "Pinjaman ke-1 · minggu 44/50" is the whole
+ * argument for renewing, and hardcoding it would let it drift from the
+ * repayment history her mitra page draws from the same weeks.
+ */
+export function growthStat(mitra: Mitra): string {
+  const g = mitra.growth
+  if (!g) return ''
+  if (g.status) return g.status
+  return `Pinjaman ke-1 · minggu ${mitra.week}/${mitra.totalWeeks}`
 }
 
 export interface Mitra {
@@ -246,8 +266,10 @@ const ACTIVE: Mitra[] = [
     totalWeeks: 50,
     weeks: ledger(200_000, 9, [6, 8], { 7: 150_000 }),
     growth: {
+      kind: 'celengan',
       label: 'Celengan',
       status: 'Belum pernah menabung',
+      suggestion: 'Tawarkan celengan Rp10.000/minggu',
       value: 'Mulai Rp10.000/minggu',
       done: 'Celengan dibuka',
     },
@@ -264,8 +286,10 @@ const ACTIVE: Mitra[] = [
     totalWeeks: 50,
     weeks: ledger(150_000, 9, [8]),
     growth: {
+      kind: 'celengan',
       label: 'Celengan',
       status: 'Celengan berhenti 3 minggu',
+      suggestion: 'Lanjutkan celengan Rp10.000/minggu',
       value: 'Mulai Rp10.000/minggu',
       done: 'Celengan dilanjutkan',
     },
@@ -281,8 +305,10 @@ const ACTIVE: Mitra[] = [
     totalWeeks: 50,
     weeks: ledger(125_000, 9),
     growth: {
-      label: 'Pembiayaan Baru',
-      status: 'Siap cair Rp5.000.000',
+      kind: 'disburse',
+      label: 'Tambahan Pembiayaan',
+      status: 'Limit tersedia Rp5.000.000',
+      suggestion: 'Tawarkan disburse Rp5.000.000',
       value: 'Rp5.000.000',
       done: 'Pengajuan dikirim',
     },
@@ -294,12 +320,19 @@ const ACTIVE: Mitra[] = [
     loan: 7_000_000,
     weekly: 175_000,
     dpd: 0,
-    week: 9,
+    // The one mitra late in her cycle. Everyone else on this roster is at week
+    // 9, which is right for the collection stages — a group takes a loan
+    // together — but it left the offer stage with no honest renewal case: at
+    // week 9 the only thing worth putting to her is a top-up. Dewi is six weeks
+    // from the end, which is what makes "Tawarkan renewal" a real sentence.
+    week: 44,
     totalWeeks: 50,
-    weeks: ledger(175_000, 9),
+    weeks: ledger(175_000, 44),
     growth: {
-      label: 'Pembiayaan Baru',
-      status: 'Siap cair Rp9.000.000',
+      kind: 'renewal',
+      label: 'Perpanjangan Pinjaman',
+      // No `status`: her standing IS her position in the loan, derived.
+      suggestion: 'Tawarkan renewal Rp9.000.000',
       value: 'Rp9.000.000',
       done: 'Pengajuan dikirim',
     },
