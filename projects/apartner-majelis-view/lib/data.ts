@@ -236,6 +236,20 @@ export function outstandingBalanceOf(mitra: Mitra): number {
   return Math.max(0, mitra.loan - paid)
 }
 
+/**
+ * The last instalment that actually landed — the most recent week she paid
+ * anything on, with the date it fell on and the rupiah received. Read straight
+ * off the ledger, so it can never disagree with the week strip above it. Returns
+ * null for a mitra who has paid nothing yet.
+ */
+export function lastPaymentOf(mitra: Mitra): { date: string; amount: number } | null {
+  for (let i = mitra.weeks.length - 1; i >= 0; i -= 1) {
+    const w = mitra.weeks[i]
+    if (w.paid > 0) return { date: w.date, amount: w.paid }
+  }
+  return null
+}
+
 export function outstandingOf(mitra: Mitra): Outstanding {
   let missed = 0
   let missedWeeks = 0

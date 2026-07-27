@@ -14,8 +14,8 @@
 import type { ReactNode } from 'react'
 import { Badge, Card } from '@/design-system/components'
 import { User } from '@/design-system/icons'
-import { isKetua, outstandingOf, rupiah, type Mitra } from './data'
-import { IconCalendar, IconChevronRight, IconHome, IconStore } from './icons'
+import { isKetua, lastPaymentOf, outstandingOf, rupiah, type Mitra } from './data'
+import { IconCalendar, IconChevronRight, IconHome, IconStore, IconWallet } from './icons'
 import { ProductBadge, WeekGrid } from './ui'
 
 /**
@@ -419,6 +419,40 @@ export function JanjiBayarCard({
         <span className="text-12 text-caption">Janji bayar</span>
         <span className="break-words text-14 font-bold text-default">
           {date} · {rupiah(mitra.ptpAmount)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The last instalment that actually landed — its date and amount, read straight
+ * off the ledger so it can never disagree with the week strip. Drawn as the same
+ * icon-tile fact-row as `JanjiBayarCard` and stacked beside it, but in neutral
+ * tones: the janji is the promise the visit is chasing, this is history behind
+ * it, so it sits parallel without competing for the purple. Renders nothing for
+ * a mitra who has paid nothing yet.
+ */
+export function LastPaymentCard({ mitra, flat }: { mitra: Mitra; flat?: boolean }) {
+  const last = lastPaymentOf(mitra)
+  if (!last) return null
+  return (
+    <div
+      className={`flex items-center gap-12 ${
+        flat ? '' : 'rounded-12 border border-default bg-neutral-white p-12'
+      }`}
+    >
+      <span
+        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-8 text-neutral-500 ${
+          flat ? 'bg-neutral-100' : 'bg-neutral-50'
+        }`}
+      >
+        <IconWallet size={20} />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="text-12 text-caption">Pembayaran terakhir</span>
+        <span className="break-words text-14 font-bold text-default">
+          {last.date} · {rupiah(last.amount)}
         </span>
       </div>
     </div>
