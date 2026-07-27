@@ -853,6 +853,57 @@ export function ChosenRow({
 
 // --- Chip ------------------------------------------------------------------
 
+/**
+ * The quick filter over a roster: one row of pills, each carrying its count.
+ *
+ * Its own component rather than a row of `Chip`s, for one reason that matters
+ * on a 360px phone — it must stay on ONE LINE. `Chip` is built for the reason
+ * lists, where a wrapping group of full sentences is right; here a chip that
+ * breaks in two turns a control strip into a paragraph and pushes the roster
+ * down the page. So the pills never shrink and never wrap: the row scrolls
+ * sideways if it has to, and each label holds its line.
+ *
+ * A FILTER, not a sort. The roster underneath keeps its order whatever is
+ * selected — the woman the BP is standing in front of has to stay where she
+ * was — this only hides the cards she is not asking about.
+ */
+export function RosterFilter<T extends string>({
+  options,
+  value,
+  onPick,
+}: {
+  options: { id: T; label: string; count: number }[]
+  value: T
+  onPick: (id: T) => void
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Filter daftar mitra"
+      className="-mx-16 flex gap-8 overflow-x-auto px-16 pb-2"
+    >
+      {options.map((option) => {
+        const selected = option.id === value
+        const tone = selected
+          ? 'border-primary-500 bg-primary-50 text-primary-500'
+          : 'border-default bg-neutral-white text-neutral-700'
+        return (
+          <button
+            key={option.id}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onPick(option.id)}
+            className={`shrink-0 whitespace-nowrap rounded-full border px-12 py-8 text-12 font-bold ${tone}`}
+          >
+            {option.label} ({option.count})
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export function Chip({
   selected,
   onClick,
