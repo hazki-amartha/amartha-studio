@@ -183,6 +183,15 @@ export function InspectorPanel({
       >
         {copied ? 'Copied' : 'Copy for agent'}
       </button>
+
+      {/* The same thing Escape does, for anyone who doesn't know Escape does it. */}
+      <button
+        type="button"
+        onClick={() => onPin(null)}
+        className="rounded-full px-16 py-8 text-12 text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50"
+      >
+        Clear selection
+      </button>
     </aside>
   )
 }
