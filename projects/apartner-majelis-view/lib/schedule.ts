@@ -203,12 +203,6 @@ export const TARGET_HARIAN = 6_200_000
  * being a place the BP has to reach before it closes, which is the only reason
  * a 17.30 deposit is possible at all after a 16.00 majelis.
  */
-// Closing is no longer a TASK. It was the last row on the schedule — a stop
-// with a time and a place, sitting among six visits it had nothing in common
-// with: every other row is a woman to see, and this one is the day's paperwork.
-// It became a widget above the list instead, which is also what let the third
-// settlement move to the widget: with no closing row to reach, the schedule had
-// to be able to hand over the last of the cash itself.
 export const DEPOSIT = {
   bank: 'BCA Virtual Account',
   holder: 'Amartha Cabang Ciseeng',
@@ -219,6 +213,29 @@ export const DEPOSIT = {
    * reason to think rather than a door that is shut.
    */
   freePerDay: 3,
+}
+
+/**
+ * "Tutup Hari Ini" — the closing task, and the last ROW on the day's schedule.
+ * The BP does it like any other task: it sits at the foot of the list with a
+ * time and a place, she taps it, and the closing screen is where the "every
+ * visit done, bag empty" gate actually lives.
+ *
+ * Kept OUT of the TASKS array on purpose, though. TASKS drives the visit-based
+ * logic — the done/sent counts, the sync queue, whether the day can be closed —
+ * and closing is not a visit and must not be counted as one (a closing that the
+ * day-can-close check waited on could never let the day be closed). So it is a
+ * standalone task object the schedule renders after the visits, and its state
+ * is `depositDone`, not the done/sent arrays.
+ */
+export const CLOSING_TASK: Task = {
+  id: 'closing',
+  kind: 'setoran',
+  time: '17.45',
+  until: '18.00',
+  title: 'Tutup Hari Ini',
+  place: 'Setor titipan tunai lalu tutup hari',
+  reason: 'Setor semua titipan tunai lalu tutup hari',
 }
 
 /**
