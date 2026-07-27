@@ -35,7 +35,6 @@ import {
 import { InspectLayer, InspectorPanel } from '@/platform/inspect'
 import { ChevronLeftIcon, ChevronRightIcon } from '@/platform/chrome/icons'
 import { DeviceFrame } from './DeviceFrame'
-import { StatusBar } from './StatusBar'
 import styles from './prototype.module.css'
 
 const DESKTOP_QUERY = '(min-width: 768px)' // Tailwind `md` breakpoint
@@ -73,7 +72,8 @@ function BridgePublisher({ slug }: { slug: string }) {
   return null
 }
 
-/** The running app: status bar + the active screen stage.
+/** The running app: the active screen stage, which now carries the device
+ *  status-bar strip itself (see `Screen` in platform/primitives).
  *  In inspect mode it also carries the pick layer, which sits inside the device
  *  screen so it inherits the frame's scale. Mobile passes nothing, so the layer
  *  never mounts there. */
@@ -88,7 +88,6 @@ function AppViewport({
 } = {}) {
   return (
     <div className={styles.viewport} data-inspect={inspect ? 'on' : undefined}>
-      <StatusBar />
       <ScreenStage />
       {inspect && onPin ? <InspectLayer pinned={pinned ?? null} onPin={onPin} /> : null}
     </div>
