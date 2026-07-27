@@ -19,11 +19,13 @@
 // of a visit has stopped being a tail.
 
 import { Badge, Button, NavigationHeader } from '@/design-system/components'
+import { useState } from 'react'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
+import { KumpulanSheet } from '../lib/kumpulan-sheet'
 import { growthMembers } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
-import { IconCheck } from '../lib/icons'
+import { IconCheck, IconInfo } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import { growthDoneCount, store, useApp, openMajelisEntry } from '../lib/store'
 import {
@@ -40,6 +42,7 @@ export function GrowthScreen() {
   const flow = useFlow()
   const s = useApp()
   const group = openMajelisEntry(s)
+  const [info, setInfo] = useState(false)
 
   const members = growthMembers()
   const done = growthDoneCount(s)
@@ -55,6 +58,8 @@ export function GrowthScreen() {
         <NavigationHeader
           title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
           onBack={() => flow.back()}
+          link={<IconInfo size={20} />}
+          onLinkClick={() => setInfo(true)}
         />
       }
     >
@@ -161,6 +166,10 @@ export function GrowthScreen() {
           Lanjut
         </Button>
       </StickyBar>
+      {/* The same doorstep sheet the schedule opened on the way here. Mid-
+          visit it is the KM's number she is after — the group has not
+          gathered, or half of it is at the other balai. */}
+      <KumpulanSheet open={info} entry={group} onClose={() => setInfo(false)} />
     </Screen>
   )
 }
