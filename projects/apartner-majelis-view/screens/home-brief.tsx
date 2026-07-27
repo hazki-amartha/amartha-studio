@@ -294,8 +294,17 @@ export function HomeBriefScreen() {
             </>
           ) : null}
 
-          <Button size="lg" className="w-full" onClick={() => setSheetOpen(false)}>
-            Simpan
+          {/* The sheet carries the Lanjut itself — fill the reason (and revisit
+              date) and move on, without a trip back to the page for a second
+              button. The page's own Lanjut stays for the "Mitra sendiri" path,
+              which never opens this sheet. */}
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={!canContinue}
+            onClick={() => flow.go(absent ? 'home-proof' : 'home-visit')}
+          >
+            Lanjut
           </Button>
         </div>
       </BottomSheet>

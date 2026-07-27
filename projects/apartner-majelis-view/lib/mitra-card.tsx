@@ -375,11 +375,29 @@ export function HouseLocation({ address }: { address: string }) {
  * fact rather than a badge on every card. Reads the visit day for the date,
  * because "janji bayar" on a home visit means the promise falls due today.
  */
-export function JanjiBayarCard({ mitra, date }: { mitra: Mitra; date: string }) {
+export function JanjiBayarCard({
+  mitra,
+  date,
+  flat,
+}: {
+  mitra: Mitra
+  date: string
+  /** Drop the card chrome — stacked flat on the page, for screens that reserve
+   * cards for selections. */
+  flat?: boolean
+}) {
   if (!mitra.ptp || mitra.ptpAmount === undefined) return null
   return (
-    <div className="flex items-center gap-12 rounded-12 border border-primary-200 bg-primary-50 p-12">
-      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-primary-500">
+    <div
+      className={`flex items-center gap-12 ${
+        flat ? '' : 'rounded-12 border border-primary-200 bg-primary-50 p-12'
+      }`}
+    >
+      <span
+        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-8 text-primary-500 ${
+          flat ? 'bg-primary-50' : 'bg-neutral-white'
+        }`}
+      >
         <IconCalendar size={20} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
