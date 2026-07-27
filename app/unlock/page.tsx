@@ -17,7 +17,7 @@ export default function UnlockPage({
     <main className="flex min-h-screen items-center justify-center bg-neutral-50 px-16 py-48">
       <div className="flex w-full max-w-screen-sm flex-col gap-24 rounded-16 border border-default bg-neutral-white p-24">
         <div className="flex flex-col gap-8">
-          <h1 className="text-24 font-bold text-default">Prototype Studio</h1>
+          <h1 className="text-24 font-bold text-default">Amartha Studio</h1>
           <p className="text-14 text-caption">
             This studio is private. Enter the shared password to continue.
           </p>

@@ -27,7 +27,7 @@ import { useEffect, useState } from 'react'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { KumpulanCard } from '../lib/kumpulan-card'
-import { MAJELIS } from '../lib/data'
+import { MAJELIS, type Mitra } from '../lib/data'
 import { majelisWhen, taskForMajelis, type MajelisEntry } from '../lib/schedule'
 import { IconCamera, IconCheck, IconX } from '../lib/icons'
 import { DpdBadge, KetuaBadge, MitraCard } from '../lib/mitra-card'
@@ -46,6 +46,7 @@ import {
   PinMark,
   ProductBadge,
   ProofTile,
+  RosterFilter,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -75,11 +76,34 @@ const ABSENCE_REASONS = [
   'Tanpa kabar',
 ]
 
+type FilterId = 'semua' | 'sudah' | 'belum'
+
+// The same three chips stage 2 carries, asking the same question of the same
+// roster — only the verb changes, from tagih to dicatat.
+const FILTERS: { id: FilterId; label: string }[] = [
+  { id: 'semua', label: 'Semua' },
+  { id: 'sudah', label: 'Sudah dicatat' },
+  { id: 'belum', label: 'Belum dicatat' },
+]
+
 export function AttendanceScreen() {
   const flow = useFlow()
   const s = useApp()
   const group = openMajelisEntry(s)
   const [skipping, setSkipping] = useState(false)
+
+  const [filter, setFilter] = useState<FilterId>('semua')
+
+  // Recorded, not present: a mitra marked "tidak hadir" has been answered, and
+  // the stage's job is to finish the register, not to fill the room.
+  const isMarked = (mitra: Mitra) => Boolean(s.attendance[mitra.id])
+  const countOf = (id: FilterId) =>
+    id === 'semua'
+      ? MAJELIS.members.length
+      : MAJELIS.members.filter((m) => (id === 'sudah' ? isMarked(m) : !isMarked(m))).length
+  const visible = MAJELIS.members.filter((m) =>
+    filter === 'semua' ? true : filter === 'sudah' ? isMarked(m) : !isMarked(m),
+  )
 
   const total = MAJELIS.members.length
   const settled = settledCount(s)
@@ -128,8 +152,20 @@ export function AttendanceScreen() {
 
       <SectionTitle>Daftar Mitra</SectionTitle>
 
+      {/* "Who is left" — the same question, the same chips, as stage 2. */}
+      <RosterFilter
+        value={filter}
+        onPick={setFilter}
+        options={FILTERS.map((f) => ({ ...f, count: countOf(f.id) }))}
+      />
+
       <div className="flex flex-col gap-8 pb-16">
-        {MAJELIS.members.map((mitra) => {
+        {visible.length === 0 ? (
+          <p className="py-16 text-center text-12 text-caption">
+            Tidak ada mitra di filter ini.
+          </p>
+        ) : null}
+        {visible.map((mitra) => {
           const mark = s.attendance[mitra.id]
           const reason = s.absenceReasons[mitra.id]
           return (
