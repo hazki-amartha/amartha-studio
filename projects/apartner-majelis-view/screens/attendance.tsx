@@ -70,7 +70,6 @@ import {
 const ABSENCE_REASONS = [
   'Sedang bekerja',
   'Sakit',
-  'Diwakilkan',
   'Salah majelis',
   'Meninggal dunia',
   'Tanpa kabar',
