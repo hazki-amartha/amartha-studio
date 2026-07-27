@@ -47,8 +47,7 @@ export const project: ProjectModule = {
 'From the widget she picks WHEN to settle; the Setoran screen is where she picks how much and by which road. She can put the whole bag down or part of it — a short handover leaves the remainder recorded as still in the bag, and the widget comes straight back with it.',
         'There is no cap on how many times she can settle — every handover reduces the cash she is carrying, which is the point of the feature. What the count decides is the FEE: the first three are free, and the settlement page says so. A cost is a reason to think; a lock is a reason to keep carrying cash she wanted to be rid of.',
         'Belum terkirim sits directly above the task list, because that is what it is about: those rows, and the fact that finishing them was not the last step. A BP closes a visit standing in a balai with no signal; without this she finds out on Friday that Tuesday never landed. It disappears the moment nothing is pending.',
-        'Closing is a widget above the list rather than a row in it — every other row is a woman to see, this one is the day’s paperwork. It appears only when there is nothing left to do: every task finished AND sent, and nothing left in the bag. Those are the conditions inside the closing screen, so she never opens a page to be told she cannot use it.',
-        'Once Closing is submitted the widget is replaced by a green thank-you banner — the one card on this page that is not work. It replaces rather than joins: a day has exactly one end.',
+        'Closing — Tutup Hari Ini — is a task ROW at the foot of the list, tapped like any other task. The "every visit done, bag empty" gate lives inside the closing screen, not on the row, so it stays tappable throughout: an early tap just shows her what is still left to do. Once the day is closed the same row moves to Selesai reading Terkirim — a day has one end, and this is it.',
         'One filter, Tipe tugas, and one inbox in the header. Filtering replaces the agenda with a flat list, because the two headings are a shape built around whether work is left, and a BP filtering by type has stopped asking that.',
       ],
       states: [
@@ -85,7 +84,7 @@ export const project: ProjectModule = {
         {
           id: 'closed',
           label: 'Day already closed',
-          description: 'Closing submitted — only the thank-you banner is left',
+          description: 'Closing submitted — the Tutup Hari Ini row now reads Terkirim in Selesai',
           apply: demo.scheduleClosed,
         },
       ],
@@ -96,7 +95,7 @@ export const project: ProjectModule = {
         { to: 'sosialisasi', label: 'Mulai Sosialisasi — cari prospek baru' },
         { to: 'follow-up', label: 'Mulai Follow Up — telepon prospek' },
         { to: 'settlement', label: 'Setor Sekarang — dari widget setoran' },
-        { to: 'deposit', label: 'Tutup — dari widget tutup hari' },
+        { to: 'deposit', label: 'Tutup Hari Ini — baris tugas terakhir' },
         { to: 'majelis-list', label: 'tab Majelis' },
         { to: 'mitra-list', label: 'tab Mitra' },
         { to: 'kpi', label: 'tab KPI' },

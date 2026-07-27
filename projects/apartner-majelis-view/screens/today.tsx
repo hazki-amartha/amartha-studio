@@ -30,6 +30,7 @@ import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
 import {
+  CLOSING_TASK,
   DAYS,
   DEPOSIT,
   TASKS,
@@ -40,9 +41,8 @@ import {
   type Task,
 } from '../lib/schedule'
 import { IconCheck, IconChevronDown, IconInbox, IconWallet } from '../lib/icons'
-import { CloudArrowUp, Door, Medal } from '@/design-system/icons'
+import { CloudArrowUp } from '@/design-system/icons'
 import {
-  canCloseDay,
   canSettle,
   freeSettlementsLeft,
   pendingSync,
@@ -397,6 +397,14 @@ export function TodayScreen() {
   const open = TASKS.filter((t) => onToday(t) && ['belum', 'dikerjakan'].includes(taskStatus(s, t.id)))
   const closed = TASKS.filter((t) => onToday(t) && ['selesai', 'terkirim'].includes(taskStatus(s, t.id)))
 
+  // The closing task's own state. It is not a visit, so it lives outside the
+  // done/sent arrays taskStatus reads — its one completion is depositDone. Until
+  // then it sits in Belum selesai; after, it reads Terkirim in Selesai like any
+  // finished task. It stays tappable throughout: the closing screen is where the
+  // "all visits done, bag empty" gate is enforced, so an early tap just shows
+  // her what is still left.
+  const closingStatus: TaskStatus = s.depositDone ? 'terkirim' : 'belum'
+
   // Tomorrow is the rostered day PLUS whatever the BP promised today. A
   // follow-up she committed to on a call at 11.45 is a real appointment, and
   // the only place it can be honoured is the day it falls on.
@@ -434,6 +442,12 @@ export function TodayScreen() {
     if (task.kind === 'follow-up') {
       store.startFollowUp(task.id)
       flow.go('follow-up')
+      return
+    }
+    if (task.kind === 'setoran') {
+      // The closing task. No store setup — the closing screen reads the day's
+      // state directly and runs its own two-check gate.
+      flow.go('deposit')
       return
     }
   }
@@ -498,55 +512,12 @@ export function TodayScreen() {
           it down. It replaced "Terkumpul hari ini", which was a progress bar
           against a target — a number to feel something about rather than act
           on. This one is the same money phrased as a decision, and it is the
-          larger risk: cash on a motorbike, not a percentage.
+          larger risk: cash on a motorbike, not a percentage. It shows while
+          there is anything unsettled; once the bag is empty a single settled
+          line takes its place.
 
-          It offers no amount. A settlement takes everything outstanding, so
-          the only thing she picks is when.
-
-          It DISAPPEARS after two mid-day handovers. The third is the closing
-          task, which is hers to reach on the schedule below — a widget that
-          stayed visible and refused to work would teach her to distrust it. */}
-      {/* --- Tutup Hari Ini: the day's paperwork, as a widget rather than a
-          row. It used to be the last task on the schedule — a stop with a time
-          and a place, sitting among six rows it had nothing in common with:
-          every other one is a woman to see, this one is a form.
-
-          It appears only when there is nothing left to do: every task finished
-          AND sent, and nothing left in the bag. Those were the checks inside
-          the closing screen; making them the condition for the widget existing
-          means she never opens a page to be told she cannot use it. */}
-      {/* Closed. The one card on this page that is not work — it replaces the
-          Tutup widget rather than joining it, because the day has exactly one
-          end and two cards about it would be one too many. Green and filled,
-          the only place on the schedule that colour is used at full strength:
-          everything else is a thing to do, and this is the absence of one. */}
-      {s.depositDone ? (
-        <div className="flex items-center gap-12 rounded-12 border border-green-200 bg-green-50 p-12">
-          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-neutral-white text-green-500">
-            <Medal size={20} />
-          </span>
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-14 font-bold text-green-500">Terima kasih!</span>
-            <span className="text-12 text-caption">Hari ini sudah selesai</span>
-          </div>
-        </div>
-      ) : null}
-
-      {canCloseDay(s) ? (
-        <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
-          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-primary-500">
-            <Door size={20} />
-          </span>
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-14 font-bold text-default">Tutup Hari Ini</span>
-            <span className="truncate text-12 text-caption">Semua tugas sudah dilakukan</span>
-          </div>
-          <Button size="sm" className="h-40 shrink-0 px-16" onClick={() => flow.go('deposit')}>
-            Tutup
-          </Button>
-        </div>
-      ) : null}
-
+          Closing is no longer up here as a widget — it is a task ROW at the
+          foot of the list (Tutup Hari Ini), tapped like any other. */}
       {canSettle(s) ? (
         // Same shape as the sync widget below it: tile, two lines, one small
         // button pinned right. They are the two things on this page that are
@@ -694,7 +665,7 @@ export function TodayScreen() {
           that does not run in clock order — and the biggest thing on screen was
           regularly the row she was not doing. Now every card is the same card
           and she picks. */}
-      {open.length > 0 ? (
+      {open.length > 0 || !s.depositDone ? (
         <>
           <Overline>Belum selesai</Overline>
           <div className="flex flex-col gap-8">
@@ -706,6 +677,16 @@ export function TodayScreen() {
                 onStart={() => start(task)}
               />
             ))}
+            {/* Tutup Hari Ini — the last row of the day, a task like the rest.
+                Tapping it opens the closing checklist, where the real gate is;
+                it holds this spot until the day is actually closed. */}
+            {!s.depositDone ? (
+              <TaskRow
+                task={CLOSING_TASK}
+                status={closingStatus}
+                onStart={() => start(CLOSING_TASK)}
+              />
+            ) : null}
           </div>
         </>
       ) : null}
@@ -714,7 +695,7 @@ export function TodayScreen() {
           rather than the collapsed strip it was — the sync widget points at
           these rows, and a Selesai that has not been sent is something she
           needs to be able to SEE, not something behind a disclosure. */}
-      {closed.length > 0 ? (
+      {closed.length > 0 || s.depositDone ? (
         <>
           <Overline>Selesai</Overline>
           <div className="flex flex-col gap-8 pb-16">
@@ -726,6 +707,15 @@ export function TodayScreen() {
                 onStart={() => start(task)}
               />
             ))}
+            {/* Once the day is closed the same row lands here, reading Terkirim
+                like any finished task — the day has one end, and this is it. */}
+            {s.depositDone ? (
+              <TaskRow
+                task={CLOSING_TASK}
+                status={closingStatus}
+                onStart={() => start(CLOSING_TASK)}
+              />
+            ) : null}
           </div>
         </>
       ) : null}
