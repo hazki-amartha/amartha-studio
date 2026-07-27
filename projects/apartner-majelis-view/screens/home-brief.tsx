@@ -18,31 +18,14 @@
 // Kirim. Meeting the mitra or her PJ instead carries on to Tagih as normal.
 
 import { useState } from 'react'
-import {
-  BottomSheet,
-  Button,
-  Input,
-  NavigationHeader,
-  SelectableCard,
-} from '@/design-system/components'
+import { BottomSheet, Button, Input, Modal, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { HomeMitraCard } from '../lib/home-card'
-import { mapsUrl } from '../lib/mitra-card'
+import { ContactRow, HomeMitraCard } from '../lib/home-card'
+import { MitraPhoto, mapsUrl } from '../lib/mitra-card'
 import { profileOf } from '../lib/profile'
 import { openHomeMitra, openHomeTask, store, useApp, type MetWith } from '../lib/store'
-import {
-  Chip,
-  ChipGroup,
-  ContactButton,
-  HOME_STAGE_LABELS,
-  PinMark,
-  RescheduleSheet,
-  SectionTitle,
-  StageBar,
-  StickyBar,
-  WaMark,
-} from '../lib/ui'
+import { HOME_STAGE_LABELS, SectionTitle, SelectList, StageBar, StickyBar } from '../lib/ui'
 
 const WHO: { value: MetWith; title: string; description: string }[] = [
   { value: 'mitra', title: 'Mitra sendiri', description: 'Bisa langsung menagih' },
@@ -77,33 +60,24 @@ export function HomeBriefScreen() {
   const mitra = openHomeMitra(s)
   const task = openHomeTask(s)
   const profile = profileOf(mitra)
+  // Shown without the "Bapak" honorific — the name alone is enough on the card.
+  const pjName = profile.pjName.replace(/^Bapak\s+/, '')
 
-  const [rescheduling, setRescheduling] = useState(false)
   const met = s.metWith[mitra.id]
   const absent = met === 'nobody'
   const metPj = met === 'pj'
-
-  // Moving the visit off today, from any of its three steps. Recorded, then
-  // straight back to the schedule where the moved door now reads as such.
-  function reschedule(reason: string, date: string) {
-    store.rescheduleTask(s.openHome, reason, date)
-    setRescheduling(false)
-    flow.go('today')
-  }
   const note = s.nonPayments[mitra.id]
   const pjReason = s.mitraAbsence[mitra.id]
 
   // The follow-up ("kenapa mitra tidak ada") opens in a bottom sheet the moment
   // she picks PJ or nobody, rather than growing the page under the options.
   const [sheetOpen, setSheetOpen] = useState(false)
+  // A tapped photo (mitra, house, or PJ) enlarges in a lightbox.
+  const [lightbox, setLightbox] = useState<string | null>(null)
 
   // Meeting the PJ or finding nobody home both require a reason before she can
   // move on — the record has to say why the borrower was absent.
   const canContinue = met === 'mitra' ? true : metPj ? !!pjReason : absent ? !!note?.reason : false
-
-  const revisitLabel =
-    note?.ptp !== undefined ? (PTP_OPTIONS.find((o) => o.value === note?.ptp)?.label ?? null) : null
-  const captured = metPj ? pjReason : absent ? note?.reason : undefined
 
   function pickReason(value: string) {
     store.setNonPayment(mitra, { reason: value, ptp: note?.ptp ?? null })
@@ -126,51 +100,47 @@ export function HomeBriefScreen() {
               </span>
             </span>
           }
-          link="Jadwal ulang"
-          onLinkClick={() => setRescheduling(true)}
           onBack={() => flow.back()}
         />
       }
     >
       <StageBar current={1} labels={HOME_STAGE_LABELS} />
 
-      {/* --- Mitra info: who she is and who answers for her. Flat on white,
-          with room under the stepper, and the penanggung jawab grouped tight
-          under its own label so the two read as one block. ----------------- */}
+      {/* --- Who's at this door: the mitra with her two places (house and
+          warung, each with a photo, an address, and its own route), then her
+          penanggung jawab on the flat ContactRow below — his portrait, relation,
+          the house address, a map and WhatsApp. -------- */}
       <section className="flex flex-col gap-16 pt-8">
         <HomeMitraCard
           mitra={mitra}
-          address={task?.place ?? ''}
+          address={task?.place ?? profile.address}
+          business={profile.business}
+          photo={profile.photo}
+          housePhoto={profile.housePhoto}
+          onEnlarge={setLightbox}
           onOpen={() => {
             store.openMitraPage(mitra.id)
             flow.go('mitra')
           }}
         />
 
-        <div className="flex flex-col gap-8">
-          <SectionTitle>Penanggung jawab</SectionTitle>
-          <div className="flex items-center gap-12">
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <span className="break-words text-14 font-bold text-default">{profile.pjName}</span>
-              <span className="flex items-start gap-4 text-12 text-caption">
-                <PinMark />
-                {task?.place ?? profile.address}
-              </span>
-            </div>
-            <div className="flex shrink-0 gap-8">
-              <ContactButton
-                label={`Buka lokasi ${profile.pjName} di peta`}
-                tone="red"
-                href={mapsUrl(task?.place ?? profile.address)}
-              >
-                <PinMark size={20} />
-              </ContactButton>
-              <ContactButton label={`WhatsApp ${profile.pjName}`} tone="green">
-                <WaMark size={20} />
-              </ContactButton>
-            </div>
-          </div>
-        </div>
+        <div className="border-t border-default" />
+
+        <ContactRow
+          avatar={
+            <MitraPhoto src={profile.pjPhoto} onClick={() => setLightbox(profile.pjPhoto)} />
+          }
+          name={pjName}
+          subtitle={
+            <span className="flex flex-col gap-2 text-caption">
+              <span>Penanggung jawab · {profile.pjRelation}</span>
+              <span className="break-words">{task?.place ?? profile.address}</span>
+            </span>
+          }
+          mapHref={mapsUrl(task?.place ?? profile.address)}
+          mapLabel={`Buka lokasi ${pjName} di peta`}
+          waLabel={`WhatsApp ${pjName}`}
+        />
       </section>
 
       {/* --- The choice, on its own greyish panel that bleeds to the screen
@@ -181,48 +151,47 @@ export function HomeBriefScreen() {
         <div className="flex flex-col gap-8">
           <SectionTitle>Siapa yang ditemui?</SectionTitle>
           <div className="flex flex-col gap-8">
-            {WHO.map((option) => (
-              <SelectableCard
-                key={option.value}
-                name="ditemui"
-                inputType="radio"
-                title={option.title}
-                description={option.description}
-                checked={met === option.value}
-                onChange={() => {
-                  store.setMetWith(mitra.id, option.value)
-                  setSheetOpen(option.value !== 'mitra')
-                }}
-              />
-            ))}
+            {WHO.map((option) => {
+              const selected = met === option.value
+              // A one-line recap of what the sheet captured, shown on the chosen
+              // row: the reason, plus the revisit date when nobody was home.
+              let summary: string | null = null
+              if (selected && option.value === 'pj') {
+                summary = pjReason ?? null
+              } else if (selected && option.value === 'nobody' && note?.reason) {
+                const revisit =
+                  note.ptp !== undefined
+                    ? (PTP_OPTIONS.find((o) => o.value === note.ptp)?.label ?? null)
+                    : null
+                summary = revisit ? `${note.reason} · ${revisit}` : note.reason
+              }
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => {
+                    store.setMetWith(mitra.id, option.value)
+                    setSheetOpen(option.value !== 'mitra')
+                  }}
+                  className={`rounded-12 border p-16 text-left ${
+                    selected
+                      ? 'border-primary-500 bg-primary-50'
+                      : 'border-default bg-neutral-white'
+                  }`}
+                >
+                  <div className="text-14 font-bold text-default">{option.title}</div>
+                  <div className="mt-2 text-12 text-caption">{option.description}</div>
+                  {summary ? (
+                    <div className="mt-8 border-t border-primary-200 pt-8 text-12 text-primary-500">
+                      {summary}
+                    </div>
+                  ) : null}
+                </button>
+              )
+            })}
           </div>
         </div>
-
-        {/* What the sheet captured, and a way back into it. */}
-        {met && met !== 'mitra' ? (
-          <button
-            type="button"
-            onClick={() => setSheetOpen(true)}
-            className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left"
-          >
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <span className="text-12 text-caption">
-                {absent ? 'Catatan kunjungan' : 'Alasan mitra tidak ada'}
-              </span>
-              {captured ? (
-                <span className="break-words text-14 font-bold text-default">
-                  {captured}
-                  {absent && revisitLabel ? ` · ${revisitLabel}` : ''}
-                </span>
-              ) : (
-                <span className="text-14 text-placeholder">Belum diisi — ketuk untuk mengisi</span>
-              )}
-            </div>
-            <span className="shrink-0 text-12 font-bold text-primary-500">
-              {captured ? 'Ubah' : 'Isi'}
-            </span>
-          </button>
-        ) : null}
       </section>
 
       <StickyBar>
@@ -245,32 +214,28 @@ export function HomeBriefScreen() {
       >
         <div className="flex flex-col gap-16">
           {metPj ? (
-            <ChipGroup label="Alasan mitra tidak di tempat">
-              {PJ_ABSENCE_REASONS.map((option) => (
-                <Chip
-                  key={option}
-                  selected={pjReason === option}
-                  onClick={() => store.setMitraAbsence(mitra.id, option)}
-                >
-                  {option}
-                </Chip>
-              ))}
-            </ChipGroup>
+            <SelectList
+              label="Alasan mitra tidak di tempat"
+              items={PJ_ABSENCE_REASONS.map((option) => ({
+                key: option,
+                label: option,
+                selected: pjReason === option,
+                onClick: () => store.setMitraAbsence(mitra.id, option),
+              }))}
+            />
           ) : null}
 
           {absent ? (
             <>
-              <ChipGroup label="Kenapa tidak ada di rumah?">
-                {ABSENT_REASONS.map((option) => (
-                  <Chip
-                    key={option}
-                    selected={note?.reason === option}
-                    onClick={() => pickReason(option)}
-                  >
-                    {option}
-                  </Chip>
-                ))}
-              </ChipGroup>
+              <SelectList
+                label="Kenapa tidak ada di rumah?"
+                items={ABSENT_REASONS.map((option) => ({
+                  key: option,
+                  label: option,
+                  selected: note?.reason === option,
+                  onClick: () => pickReason(option),
+                }))}
+              />
 
               {/* Relocation needs more than a label — an address is what turns
                   "pindah" into something ops can act on rather than a dead end. */}
@@ -286,17 +251,15 @@ export function HomeBriefScreen() {
               {/* Asked only once there is a reason: a revisit date with nothing
                   attached to it is not a record of anything. */}
               {note?.reason && note.reason !== 'Meninggal dunia' ? (
-                <ChipGroup label="Kunjungan ulang">
-                  {PTP_OPTIONS.map((option) => (
-                    <Chip
-                      key={option.label}
-                      selected={note.ptp === option.value}
-                      onClick={() => pickPtp(option.value)}
-                    >
-                      {option.label}
-                    </Chip>
-                  ))}
-                </ChipGroup>
+                <SelectList
+                  label="Kunjungan ulang"
+                  items={PTP_OPTIONS.map((option) => ({
+                    key: option.label,
+                    label: option.label,
+                    selected: note.ptp === option.value,
+                    onClick: () => pickPtp(option.value),
+                  }))}
+                />
               ) : null}
             </>
           ) : null}
@@ -307,12 +270,13 @@ export function HomeBriefScreen() {
         </div>
       </BottomSheet>
 
-      <RescheduleSheet
-        open={rescheduling}
-        onClose={() => setRescheduling(false)}
-        subject={mitra.name}
-        onConfirm={reschedule}
-      />
+      {/* A tapped photo, enlarged. */}
+      <Modal open={!!lightbox} onClose={() => setLightbox(null)} size="md">
+        {lightbox ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={lightbox} alt="" className="w-full rounded-12 object-contain" />
+        ) : null}
+      </Modal>
     </Screen>
   )
 }

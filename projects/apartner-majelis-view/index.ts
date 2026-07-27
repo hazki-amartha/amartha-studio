@@ -20,6 +20,7 @@ import { KpiScreen } from './screens/kpi'
 import { HomeBriefScreen } from './screens/home-brief'
 import { HomeVisitScreen } from './screens/home-visit'
 import { HomeProofScreen } from './screens/home-proof'
+import { HomeWaConfirmScreen } from './screens/home-wa-confirm'
 import { DepositScreen } from './screens/deposit'
 import { SettlementScreen } from './screens/settlement'
 import { SosialisasiScreen } from './screens/sosialisasi'
@@ -320,7 +321,19 @@ export const project: ProjectModule = {
       notes: [
         'The close of a home visit: a photo of the door, required before it can be submitted. What she recorded on the two steps before — who was met, what was paid — is not read back here; this step is the paperwork that closes the visit, not a second review of it.',
       ],
-      flowsTo: [{ to: 'today', label: 'Selesaikan Tugas — butuh foto' }],
+      flowsTo: [
+        { to: 'home-wa-confirm', label: 'Selesaikan Tugas — jika ada uang tunai' },
+        { to: 'today', label: 'Selesaikan Tugas — jika tidak bayar' },
+      ],
+    },
+    {
+      id: 'home-wa-confirm',
+      title: 'Home Visit — Konfirmasi WhatsApp',
+      component: HomeWaConfirmScreen,
+      notes: [
+        'Shown only when cash was collected at the door. A doorstep collection leaves no slip and sends nothing to the mitra’s phone, so this hands the BP a ready-made WhatsApp receipt — amount, date, any balance promised — to review, edit, and send to that one mitra before returning to the schedule.',
+      ],
+      flowsTo: [{ to: 'today', label: 'Kirim / Lewati — kembali ke jadwal' }],
     },
     {
       id: 'settlement',

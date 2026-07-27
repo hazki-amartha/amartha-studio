@@ -15,7 +15,7 @@ import type { ReactNode } from 'react'
 import { Badge, Card } from '@/design-system/components'
 import { User } from '@/design-system/icons'
 import { outstandingOf, rupiah, type Mitra } from './data'
-import { IconCalendar, IconChevronRight, IconHome } from './icons'
+import { IconCalendar, IconChevronRight, IconHome, IconStore } from './icons'
 import { ProductBadge, WeekGrid } from './ui'
 
 /**
@@ -235,8 +235,37 @@ export function MitraBadges({ mitra }: { mitra: Mitra }) {
  * placeholder for a photo the prototype does not have; this one at least says
  * what the real thing is.
  */
-export function MitraPhoto({ size = 40 }: { size?: 32 | 40 }) {
+export function MitraPhoto({
+  size = 40,
+  src,
+  onClick,
+}: {
+  size?: 32 | 40
+  src?: string
+  /** When set (with a photo), the photo becomes a button that enlarges it. */
+  onClick?: () => void
+}) {
   const box = size === 32 ? 'h-32 w-32' : 'h-40 w-40'
+  if (src) {
+    const img = (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt="" className="h-full w-full rounded-full object-cover" />
+    )
+    return onClick ? (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Perbesar foto"
+        className={`shrink-0 overflow-hidden rounded-full bg-neutral-200 ${box}`}
+      >
+        {img}
+      </button>
+    ) : (
+      <span className={`block shrink-0 overflow-hidden rounded-full bg-neutral-200 ${box}`}>
+        {img}
+      </span>
+    )
+  }
   return (
     <span
       className={`flex shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500 ${box}`}
@@ -252,9 +281,36 @@ export function MitraPhoto({ size = 40 }: { size?: 32 | 40 }) {
  * so this is the same honest placeholder as MitraPhoto — a tinted tile with a
  * house glyph — rather than a stock picture pretending to be her door.
  */
-export function HousePhoto({ size = 40 }: { size?: 24 | 32 | 40 | 48 }) {
+export function HousePhoto({
+  size = 40,
+  src,
+  onClick,
+}: {
+  size?: 24 | 32 | 40 | 48
+  src?: string
+  /** When set (with a photo), the photo becomes a button that enlarges it. */
+  onClick?: () => void
+}) {
   const box =
     size === 48 ? 'h-48 w-48' : size === 32 ? 'h-32 w-32' : size === 24 ? 'h-24 w-24' : 'h-40 w-40'
+  if (src) {
+    const img = (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt="Foto rumah" className="h-full w-full rounded-8 object-cover" />
+    )
+    return onClick ? (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Perbesar foto rumah"
+        className={`shrink-0 overflow-hidden rounded-8 bg-neutral-200 ${box}`}
+      >
+        {img}
+      </button>
+    ) : (
+      <span className={`block shrink-0 overflow-hidden rounded-8 bg-neutral-200 ${box}`}>{img}</span>
+    )
+  }
   const glyph = size === 48 ? 24 : size === 24 ? 16 : 20
   return (
     <span
@@ -262,6 +318,25 @@ export function HousePhoto({ size = 40 }: { size?: 24 | 32 | 40 | 48 }) {
       aria-label="Foto rumah"
     >
       <IconHome size={glyph} />
+    </span>
+  )
+}
+
+/**
+ * The same honest placeholder as HousePhoto, for her tempat usaha — a tinted
+ * tile with a storefront glyph. A home visit shows both places, because the
+ * house and the warung are rarely the same door.
+ */
+export function BusinessPhoto({ size = 40 }: { size?: 24 | 32 | 40 | 48 }) {
+  const box =
+    size === 48 ? 'h-48 w-48' : size === 32 ? 'h-32 w-32' : size === 24 ? 'h-24 w-24' : 'h-40 w-40'
+  const glyph = size === 48 ? 24 : size === 24 ? 16 : 20
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-8 bg-neutral-200 text-neutral-500 ${box}`}
+      aria-label="Foto tempat usaha"
+    >
+      <IconStore size={glyph} />
     </span>
   )
 }
