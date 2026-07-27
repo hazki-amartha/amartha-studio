@@ -44,10 +44,10 @@ import {
 } from '../lib/store'
 import {
   ActionRow,
-  Chip,
   ProductBadge,
   ProgressCard,
   ResultRow,
+  RosterFilter,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -124,18 +124,13 @@ export function CollectionScreen() {
 
       <SectionTitle>Daftar Mitra</SectionTitle>
 
-      {/* A filter, not a sort. The list itself never re-orders — the woman the
-          BP is standing in front of has to stay where she was — but with 22
-          cards on one page, "who is left" is a question she asks constantly and
-          was answering by scrolling the whole roster looking for buttons. The
-          counts are on the chips so the answer is legible before she taps. */}
-      <div className="-mx-16 flex gap-8 overflow-x-auto px-16 pb-2">
-        {FILTERS.map((f) => (
-          <Chip key={f.id} selected={filter === f.id} onClick={() => setFilter(f.id)}>
-            {f.label} ({countOf(f.id)})
-          </Chip>
-        ))}
-      </div>
+      {/* "Who is left" is the question this stage is asked constantly, and it
+          was being answered by scrolling 22 cards looking for buttons. */}
+      <RosterFilter
+        value={filter}
+        onPick={setFilter}
+        options={FILTERS.map((f) => ({ ...f, count: countOf(f.id) }))}
+      />
 
       <div className="flex flex-col gap-8 pb-16">
         {visible.length === 0 ? (
