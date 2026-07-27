@@ -92,6 +92,21 @@ click-through is the cheap default, and most prototypes want exactly that. When
 in doubt, build the click-through and offer the fancier version rather than
 assuming it.
 
+**Nothing leaves the prototype.** A button that really opens WhatsApp, launches
+Google Maps, dials a number, or sends mail is not a prototype — it's an
+integration. It throws the viewer out of the device frame mid-demo with no way
+back, and it can't be shown at all on a laptop with no WhatsApp installed. So:
+no `wa.me` / `maps.google.com` / `tel:` / `mailto:` hrefs, no `window.open`, no
+`fetch` to a live service, no embedded map or video. Draw the affordance and
+have it `go()` to a screen that shows the *result* — a sent-message state, a
+map placeholder, a call sheet. That is what the designer is reviewing; the
+handoff to a real app is the engineer's problem, not the prototype's.
+
+Wire the real thing **only when the designer asks for it in words, this
+session** — same bar as `notes` below. Realism nobody requested is the most
+expensive kind of overengineering here: it costs build time, it can't be
+demoed, and it makes the prototype look finished when it isn't.
+
 A new project = **copy `projects/_template/` → `projects/<slug>/`**, then:
 
 1. Fill `project.config.ts` — every field. `slug` must match the folder name and
