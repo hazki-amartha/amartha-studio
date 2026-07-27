@@ -23,21 +23,46 @@ export interface KpiRowDef {
   baseLabel?: string
   /** Lower-is-better row (the DPD buckets past 0). */
   lower?: boolean
-  /** Flat Rp bonus earned when this parameter's target is met. */
+  /** Flat Rp bonus earned when this parameter's target is met — the v1 model. */
   bonus: number
+  /**
+   * The v2 model: this parameter's share of the whole scoreboard, in percent.
+   * A parameter no longer carries its own rupiah — it carries WEIGHT, and the
+   * seven weights sum to 100. Overall completion is the weighted roll-up of how
+   * far each parameter has come, and the bonus hangs off that one number at the
+   * three tiers below.
+   */
+  weight: number
 }
 
 export const KPI_DEF: KpiRowDef[] = [
-  { k: 'dpd0', n: 'Mitra DPD 0', unit: '%', target: 80, base: 225, baseLabel: 'mitra', bonus: 400000 },
-  { k: 'dpd30', n: 'Mitra DPD 1–30', unit: '%', target: 15, base: 225, baseLabel: 'mitra', lower: true, bonus: 300000 },
-  { k: 'dpd90', n: 'Mitra DPD 31–90', unit: '%', target: 5, base: 225, baseLabel: 'mitra', lower: true, bonus: 200000 },
-  { k: 'mitraNew', n: 'Pencairan mitra baru per bulan', unit: 'mitra', target: 15, bonus: 500000 },
-  { k: 'renewal', n: 'Pencairan mitra lama per bulan', unit: '%', target: 80, base: 27, baseLabel: 'mitra jatuh tempo', bonus: 500000 },
-  { k: 'celengan', n: 'Mitra saldo Celengan', unit: '%', target: 50, base: 225, baseLabel: 'mitra', bonus: 300000 },
-  { k: 'ppob', n: 'Mitra transaksi PPOB', unit: '%', target: 50, base: 225, baseLabel: 'mitra', bonus: 300000 },
+  { k: 'dpd0', n: 'Mitra DPD 0', unit: '%', target: 80, base: 225, baseLabel: 'mitra', bonus: 400000, weight: 16 },
+  { k: 'dpd30', n: 'Mitra DPD 1–30', unit: '%', target: 15, base: 225, baseLabel: 'mitra', lower: true, bonus: 300000, weight: 12 },
+  { k: 'dpd90', n: 'Mitra DPD 31–90', unit: '%', target: 5, base: 225, baseLabel: 'mitra', lower: true, bonus: 200000, weight: 8 },
+  { k: 'mitraNew', n: 'Pencairan mitra baru per bulan', unit: 'mitra', target: 15, bonus: 500000, weight: 20 },
+  { k: 'renewal', n: 'Pencairan mitra lama per bulan', unit: '%', target: 80, base: 27, baseLabel: 'mitra jatuh tempo', bonus: 500000, weight: 20 },
+  { k: 'celengan', n: 'Mitra saldo Celengan', unit: '%', target: 50, base: 225, baseLabel: 'mitra', bonus: 300000, weight: 12 },
+  { k: 'ppob', n: 'Mitra transaksi PPOB', unit: '%', target: 50, base: 225, baseLabel: 'mitra', bonus: 300000, weight: 12 },
 ]
 
 export const KPI_MAX_BONUS = KPI_DEF.reduce((s, r) => s + r.bonus, 0) // Rp2.500.000
+
+/**
+ * The v2 bonus ladder — three tiers hung off overall completion, not off any one
+ * parameter. Reach 50% of the weighted score and Rp500.000 is banked; 75% lifts
+ * it to Rp1.500.000; a full 100% pays Rp2.000.000. The amounts are the tier's
+ * total, not additive — landing at 80% pays the 75% tier, nothing more.
+ */
+export interface KpiTier {
+  at: number
+  bonus: number
+}
+
+export const KPI_TIERS: KpiTier[] = [
+  { at: 50, bonus: 500000 },
+  { at: 75, bonus: 1500000 },
+  { at: 100, bonus: 2000000 },
+]
 
 export const KPI_PERIODS = ['Juli 2026', 'Juni 2026', 'Mei 2026']
 
@@ -56,6 +81,13 @@ export interface KpiRow extends KpiRowDef {
   targetCount: number
   met: boolean
   earned: number
+  /**
+   * How far this parameter has come toward its target, 0–100 — the graded
+   * version of `met`, and what the v2 roll-up weighs. A met parameter is 100;
+   * a lagging one is the fraction of the way there (target/val for the
+   * lower-is-better DPD buckets, val/target everywhere else).
+   */
+  progress: number
 }
 
 export interface KpiView {
@@ -66,6 +98,12 @@ export interface KpiView {
   totalParams: number
   totalMitra: number
   totalMajelis: number
+  /** v2: the weighted roll-up of every row's progress, 0–100. */
+  completion: number
+  /** v2: the tier the completion currently pays, or null below the first. */
+  currentTier: KpiTier | null
+  /** v2: the next tier still to reach, or null once every tier is cleared. */
+  nextTier: KpiTier | null
 }
 
 /** Build the KPI view for a period. */
@@ -80,8 +118,20 @@ export const buildKpi = (period: string): KpiView => {
     const targetCount =
       r.unit === '%' && r.base != null ? Math.round((r.target / 100) * r.base) : r.target
     const met = r.lower ? val <= r.target : val >= r.target
-    return { ...r, val, count, targetCount, met, earned: met ? r.bonus : 0 }
+    const progress = met
+      ? 100
+      : r.lower
+        ? Math.round((r.target / val) * 100)
+        : Math.round((val / r.target) * 100)
+    return { ...r, val, count, targetCount, met, earned: met ? r.bonus : 0, progress }
   })
+
+  // The weighted roll-up: each row contributes its progress scaled by its
+  // weight, and the weights sum to 100, so the total is itself a percentage.
+  const completion = Math.round(rows.reduce((s, r) => s + r.weight * r.progress, 0) / 100)
+
+  const currentTier = [...KPI_TIERS].reverse().find((t) => completion >= t.at) ?? null
+  const nextTier = KPI_TIERS.find((t) => completion < t.at) ?? null
 
   return {
     rows,
@@ -91,5 +141,8 @@ export const buildKpi = (period: string): KpiView => {
     totalParams: rows.length,
     totalMitra: 225,
     totalMajelis: 15,
+    completion,
+    currentTier,
+    nextTier,
   }
 }
