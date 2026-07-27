@@ -529,14 +529,20 @@ export const findMitra = (id: string): Mitra =>
 /** Everyone with something to offer — the third stage's list. */
 export const growthMembers = (): Mitra[] => MAJELIS.members.filter((m) => m.growth)
 
-/** "Rp 1.400.000" — the format everywhere the number is the subject. */
+/**
+ * "Rp1.400.000" — the format everywhere the number is the subject.
+ *
+ * No space after the prefix. It is how Amartha writes an amount, and it is the
+ * same shape the short form has always used ("Rp200rb"), so the two stopped
+ * agreeing the moment one of them carried a gap.
+ */
 export function rupiah(value: number): string {
-  return `Rp ${value.toLocaleString('id-ID')}`
+  return `Rp${value.toLocaleString('id-ID')}`
 }
 
 /**
  * "Rp200rb" — the short form, used ONLY inside the week strip, where a 48px
- * cell cannot hold "Rp 200.000" and 50 of them sit side by side. Everywhere the
+ * cell cannot hold "Rp200.000" and 50 of them sit side by side. Everywhere the
  * amount is something the BP says out loud or types, it is printed in full.
  */
 export function ringkas(value: number): string {
