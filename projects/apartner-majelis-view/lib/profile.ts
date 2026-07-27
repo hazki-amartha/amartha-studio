@@ -70,8 +70,8 @@ export function profileOf(mitra: Mitra): Profile {
     pjPhone: phoneFrom(h * 7 + 13),
     pjRelation: PJ_RELATIONS[h % PJ_RELATIONS.length],
     joined: JOINED[h % JOINED.length],
-    photo: `https://loremflickr.com/240/240/elderly,asian,woman/all?lock=${1 + (h % 12)}`,
-    pjPhoto: `https://loremflickr.com/240/240/elderly,asian,man/all?lock=${1 + (h % 12)}`,
-    housePhoto: `https://loremflickr.com/240/240/house,village/all?lock=${1 + (h % 12)}`,
+    photo: `https://randomuser.me/api/portraits/women/${h % 100}.jpg`,
+    pjPhoto: `https://randomuser.me/api/portraits/men/${h % 100}.jpg`,
+    housePhoto: `https://picsum.photos/seed/rumah${h}/240/240`,
   }
 }
