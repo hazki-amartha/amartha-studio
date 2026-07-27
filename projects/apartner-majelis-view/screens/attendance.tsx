@@ -23,13 +23,12 @@
 // not its place, and the same roster in the same order carries all three stages.
 
 import { Button, NavigationHeader } from '@/design-system/components'
-import { useState } from 'react'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { KumpulanSheet } from '../lib/kumpulan-sheet'
+import { KumpulanCard } from '../lib/kumpulan-card'
 import { MAJELIS } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
-import { IconCheck, IconInfo, IconX } from '../lib/icons'
+import { IconCheck, IconX } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import {
   attendanceComplete,
@@ -44,7 +43,6 @@ import {
   ChoicePill,
   ChosenRow,
   ProductBadge,
-  ProgressCard,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -73,7 +71,6 @@ export function AttendanceScreen() {
   const flow = useFlow()
   const s = useApp()
   const group = openMajelisEntry(s)
-  const [info, setInfo] = useState(false)
 
   const total = MAJELIS.members.length
   const settled = settledCount(s)
@@ -87,29 +84,25 @@ export function AttendanceScreen() {
         <NavigationHeader
           title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
           onBack={() => flow.back()}
-          link={<IconInfo size={20} />}
-          onLinkClick={() => setInfo(true)}
         />
       }
     >
-      {/* Stage bar over the stage's progress, as one flat white band running the
-          full width, with the roster below on the grey canvas. Same header shape
-          on all three stages. */}
+      {/* Stage bar over where she is standing, as one flat white band running
+          the full width, with the roster below on the grey canvas.
+          
+          The band used to carry a "Sudah dicatat" progress bar here. It said the
+          same thing as the sticky footer's "N mitra belum dicatat" — twice on one
+          screen, once at each end — and the footer's version is the one attached
+          to the button it gates. What replaces it is the thing the stage HAD no
+          room for: the balai's address and the KM, which used to arrive in a
+          sheet before the roster and be re-openable from an info button up here.
+          Both pieces of chrome are gone; the two facts stayed. */}
       <div className="-mx-16 -mt-16 flex flex-col gap-12 border-b border-default bg-neutral-white px-16 pb-12 pt-16">
         <StageBar current={1} />
 
-        {/* The count is of RECORDED, not present. The stage's job is to finish the
-            register, and a bar that filled up as people arrived would sit at 80%
-            on a complete register with four absentees — reading as unfinished work
-            when the work is done. */}
-        <ProgressCard
-          flat
-          showPercent={false}
-          title="Sudah dicatat"
-          value={`${settled}`}
-          of={`${total} mitra`}
-          percent={Math.round((settled / total) * 100)}
-        />
+        <div className="border-t border-default pt-12">
+          <KumpulanCard entry={group} />
+        </div>
       </div>
 
       <SectionTitle>Daftar Mitra</SectionTitle>
@@ -212,10 +205,6 @@ export function AttendanceScreen() {
           Simpan &amp; Lanjut
         </Button>
       </StickyBar>
-      {/* The same doorstep sheet the schedule opened on the way here. Mid-
-          visit it is the KM's number she is after — the group has not
-          gathered, or half of it is at the other balai. */}
-      <KumpulanSheet open={info} entry={group} onClose={() => setInfo(false)} />
     </Screen>
   )
 }
