@@ -29,6 +29,7 @@ import {
   NavigationHeader,
   SelectableCard,
 } from '@/design-system/components'
+import { Image as ImageIcon } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
@@ -46,6 +47,7 @@ import {
   Chip,
   ChipGroup,
   HOME_STAGE_LABELS,
+  ProofTile,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -95,16 +97,21 @@ export function HomeVisitScreen() {
   // on. Penuh and tanggung renteng are done on the tap; the other three each
   // carry a follow-up — an amount, a reason — that the record isn't whole
   // without. No mode picked at all is not a recorded outcome either.
+  // A payment made before she arrived is a CLAIM until the screenshot is
+  // attached — the money is real, but nothing in the system has seen it yet.
+  const poketProven = Boolean(s.poketProof[mitra.id])
   const outcomeDone =
     mode === 'penuh' || mode === 'tanggung'
       ? true
-      : mode === 'sebagian'
-        ? paid > 0
-        : mode === 'tidak'
-          ? Boolean(refusal?.reason)
-          : mode === 'keluar'
-            ? Boolean(dropReason)
-            : false
+      : mode === 'poket'
+        ? poketProven
+        : mode === 'sebagian'
+          ? paid > 0
+          : mode === 'tidak'
+            ? Boolean(refusal?.reason)
+            : mode === 'keluar'
+              ? Boolean(dropReason)
+              : false
 
   function pick(next: PayMode) {
     store.setPayMode(mitra.id, next)
@@ -113,6 +120,9 @@ export function HomeVisitScreen() {
     // Penuh and tanggung renteng both settle the whole bill; they differ only in
     // who funded it, which the mode itself records.
     if (next === 'penuh' || next === 'tanggung') store.collect(mitra, owed.total)
+    // Already settled through Poket: the ledger takes the whole bill, the mode
+    // keeps it out of the day's cash, and the proof is asked for below.
+    if (next === 'poket') store.recordPoket(mitra)
     if (next === 'tidak') store.setNonPayment(mitra, { reason: refusal?.reason ?? '', ptp: null })
     if (next === 'keluar') store.setDropOut(mitra, dropReason ?? '')
   }
@@ -193,6 +203,19 @@ export function HomeVisitScreen() {
                 onChange={() => pick('tanggung')}
               />
             ) : null}
+            {/* Not a payment she is taking — one she is catching up with. The
+                mitra paid through Poket days ago and the system has not
+                updated, which happens often enough that without this row the BP
+                either books cash she never received or leaves a woman in the
+                queue owing money she has already handed over. */}
+            <SelectableCard
+              name="mode-tagih"
+              inputType="radio"
+              title="Sudah Bayar via Poket"
+              description="Sudah dibayar, sistem belum ter-update"
+              checked={mode === 'poket'}
+              onChange={() => pick('poket')}
+            />
             <SelectableCard
               name="mode-tagih"
               inputType="radio"
@@ -227,6 +250,35 @@ export function HomeVisitScreen() {
             </span>
           </div>
         </Card>
+      ) : null}
+
+      {/* What the claim covers, and the one thing that backs it. No amount
+          field: a Poket payment settled the bill, and a figure the BP types
+          herself is a number nobody's system agrees with. */}
+      {met && mode === 'poket' ? (
+        <>
+          <SectionTitle>Bukti pembayaran</SectionTitle>
+          <Card>
+            <div className="flex flex-col gap-12">
+              <div className="flex flex-col gap-4">
+                <span className="text-12 text-caption">Dibayar lewat Poket</span>
+                <span className="text-20 font-bold text-default">{rupiah(owed.total)}</span>
+                <span className="text-12 text-caption">
+                  Pembayaran sudah masuk tapi belum tercatat di sistem.
+                </span>
+              </div>
+              <div className="flex">
+                <ProofTile
+                  done={poketProven}
+                  label="Unggah bukti"
+                  doneLabel="Bukti terlampir"
+                  icon={<ImageIcon size={24} />}
+                  onClick={() => store.setPoketProof(mitra.id, !poketProven)}
+                />
+              </div>
+            </div>
+          </Card>
+        </>
       ) : null}
 
       {/* A drop-out carries only a reason — the flag ops picks the case up from.
