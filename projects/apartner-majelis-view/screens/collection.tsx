@@ -23,13 +23,11 @@
 // wearing a sheet's clothes.
 
 import { Badge, Button, NavigationHeader } from '@/design-system/components'
-import { useState } from 'react'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { KumpulanSheet } from '../lib/kumpulan-sheet'
 import { MAJELIS, isSelfServe, outstandingOf, rupiah } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
-import { IconCheck, IconInfo } from '../lib/icons'
+import { IconCheck } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import {
   cashBillableTotal,
@@ -57,7 +55,6 @@ export function CollectionScreen() {
   const flow = useFlow()
   const s = useApp()
   const group = openMajelisEntry(s)
-  const [info, setInfo] = useState(false)
 
   const pending = pendingMembers(s)
   // Cash only, on both sides of the bar — the self-serve mitra settled through
@@ -79,8 +76,6 @@ export function CollectionScreen() {
         <NavigationHeader
           title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
           onBack={() => flow.back()}
-          link={<IconInfo size={20} />}
-          onLinkClick={() => setInfo(true)}
         />
       }
     >
@@ -220,10 +215,6 @@ export function CollectionScreen() {
           Lanjut
         </Button>
       </StickyBar>
-      {/* The same doorstep sheet the schedule opened on the way here. Mid-
-          visit it is the KM's number she is after — the group has not
-          gathered, or half of it is at the other balai. */}
-      <KumpulanSheet open={info} entry={group} onClose={() => setInfo(false)} />
     </Screen>
   )
 }

@@ -25,7 +25,8 @@ import { type ReactNode } from 'react'
 import { type Mitra } from './data'
 import { IconChevronRight } from './icons'
 import { BusinessPhoto, HousePhoto, MitraPhoto, mapsUrl } from './mitra-card'
-import { ContactButton, PinMark, WaMark } from './ui'
+import { WhatsappLogo } from '@/design-system/icons'
+import { ContactButton, PinMark } from './ui'
 
 /**
  * One contact, one row: an avatar, a name (optionally a button that opens a
@@ -47,7 +48,7 @@ export function ContactRow({
   subtitle: ReactNode
   /** When set, the name becomes a button (with a chevron) that opens a page. */
   onOpen?: () => void
-  /** A red map button routes here. Omit for a contact with no separate location
+  /** A map button routes here. Omit for a contact with no separate location
       of their own — e.g. a PJ answering at the mitra's door. */
   mapHref?: string
   mapLabel?: string
@@ -84,7 +85,7 @@ export function ContactRow({
           </ContactButton>
         ) : null}
         <ContactButton label={waLabel} tone="green">
-          <WaMark size={20} />
+          <WhatsappLogo size={20} />
         </ContactButton>
       </div>
     </div>
@@ -131,7 +132,7 @@ export function HomeMitraCard({
             </span>
           </button>
           <ContactButton label={`WhatsApp ${mitra.name}`} tone="green">
-            <WaMark size={20} />
+            <WhatsappLogo size={20} />
           </ContactButton>
         </div>
 

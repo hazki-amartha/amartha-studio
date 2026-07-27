@@ -19,19 +19,16 @@
 // of a visit has stopped being a tail.
 
 import { Badge, Button, NavigationHeader } from '@/design-system/components'
-import { useState } from 'react'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { KumpulanSheet } from '../lib/kumpulan-sheet'
 import { growthMembers } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
-import { IconCheck, IconInfo } from '../lib/icons'
+import { IconCheck } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import { growthDoneCount, store, useApp, openMajelisEntry } from '../lib/store'
 import {
   ActionRow,
   ProductBadge,
-  ProgressCard,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -42,7 +39,6 @@ export function GrowthScreen() {
   const flow = useFlow()
   const s = useApp()
   const group = openMajelisEntry(s)
-  const [info, setInfo] = useState(false)
 
   const members = growthMembers()
   const done = growthDoneCount(s)
@@ -58,29 +54,16 @@ export function GrowthScreen() {
         <NavigationHeader
           title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
           onBack={() => flow.back()}
-          link={<IconInfo size={20} />}
-          onLinkClick={() => setInfo(true)}
         />
       }
     >
-      {/* Same flat white band as the two stages before it — stage bar over the
-          stage's own progress, full width, with the list below on grey. */}
+      {/* Same flat white band as the stages before it, carrying the stage bar
+          alone. It used to hold a "Sudah ditawarkan" progress block as well —
+          the same count the sticky footer prints above the button ("N dari M
+          sudah ditawarkan"), once at each end of the screen. The footer's is the
+          one attached to the thing it qualifies. */}
       <div className="-mx-16 -mt-16 flex flex-col gap-12 border-b border-default bg-neutral-white px-16 pb-12 pt-16">
         <StageBar current={3} />
-
-        {/* The same progress block as the two stages before it, rather than a
-            standalone "peluang" banner: all three stages are a count of work done
-            out of work in front of her, and the third one saying it differently
-            made it read as a different kind of screen. */}
-        <ProgressCard
-          flat
-          showPercent={false}
-          title="Sudah ditawarkan"
-          value={`${done}`}
-          of={`${members.length} mitra`}
-          percent={members.length > 0 ? Math.round((done / members.length) * 100) : 0}
-          tone="green"
-        />
       </div>
 
       <SectionTitle>Rekomendasi</SectionTitle>
@@ -166,10 +149,6 @@ export function GrowthScreen() {
           Lanjut
         </Button>
       </StickyBar>
-      {/* The same doorstep sheet the schedule opened on the way here. Mid-
-          visit it is the KM's number she is after — the group has not
-          gathered, or half of it is at the other balai. */}
-      <KumpulanSheet open={info} entry={group} onClose={() => setInfo(false)} />
     </Screen>
   )
 }

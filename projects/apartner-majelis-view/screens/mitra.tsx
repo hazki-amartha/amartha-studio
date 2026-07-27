@@ -20,7 +20,7 @@
 
 import type { ReactNode } from 'react'
 import { Card } from '@/design-system/components'
-import { ArrowLeft, Image as ImageIcon } from '@/design-system/icons'
+import { ArrowLeft, Image as ImageIcon, WhatsappLogo } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, rupiah } from '../lib/data'
@@ -29,7 +29,7 @@ import { ladderOf } from '../lib/ladder'
 import { profileOf } from '../lib/profile'
 import { AngsuranCard, MitraBadges, MitraPhoto, mapsUrl } from '../lib/mitra-card'
 import { openMajelisEntry, useApp } from '../lib/store'
-import { PinMark, WaMark } from '../lib/ui'
+import { PinMark } from '../lib/ui'
 
 export function MitraScreen() {
   const flow = useFlow()
@@ -71,7 +71,7 @@ export function MitraScreen() {
       </button>
       <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">Detail Mitra</span>
       <CircleButton label={`Chat WhatsApp ${mitra.name}`} tone="green">
-        <WaMark size={20} />
+        <WhatsappLogo size={20} />
       </CircleButton>
       <PinButton label={`Rute ke rumah ${mitra.name}`} query={profile.address} />
     </header>
@@ -188,7 +188,7 @@ export function MitraScreen() {
               value={profile.pjPhone}
               trailing={
                 <CircleButton label={`Chat WhatsApp ${profile.pjName}`} tone="green">
-                  <WaMark size={20} />
+                  <WhatsappLogo size={20} />
                 </CircleButton>
               }
             />
@@ -309,6 +309,10 @@ function PhotoLink({ label }: { label: string }) {
  * A round, bordered icon button — the shape the reference puts every address's
  * route pin and every contact's WhatsApp in. Bigger tap target than the header's
  * bare glyph, because in a card it stands alone rather than in a row of chrome.
+ *
+ * Neutral DISC, tinted GLYPH, like `ContactButton`: this page carries five of
+ * them, and five saturated discs down one column is a colour code that codes
+ * nothing — the icon alone carries the channel.
  */
 function CircleButton({
   label,
@@ -318,15 +322,16 @@ function CircleButton({
   children,
 }: {
   label: string
-  tone?: 'default' | 'green' | 'red'
+  /** Tints the GLYPH only — the disc and its hairline stay neutral. */
+  tone?: 'green' | 'red' | 'default'
   onClick?: () => void
   /** When set, renders as a link — used by the route pin to open maps. */
   href?: string
   children: ReactNode
 }) {
-  const toneClass =
+  const ink =
     tone === 'green' ? 'text-green-500' : tone === 'red' ? 'text-red-500' : 'text-default'
-  const shared = `flex h-40 w-40 shrink-0 items-center justify-center rounded-full border border-default bg-neutral-white ${toneClass}`
+  const shared = `flex h-40 w-40 shrink-0 items-center justify-center rounded-full border border-default bg-neutral-50 ${ink}`
   if (href) {
     return (
       <a href={href} target="_blank" rel="noreferrer" aria-label={label} className={shared}>
@@ -342,8 +347,8 @@ function CircleButton({
 }
 
 /**
- * A route pin in a circle — red, because a pin that opens a route is red
- * everywhere. Given a `query` (an address), it opens Google Maps.
+ * A route pin in a circle — red glyph on the same neutral disc every contact
+ * button uses. Given a `query` (an address), it opens Google Maps.
  */
 function PinButton({ label, query }: { label: string; query?: string }) {
   return (
