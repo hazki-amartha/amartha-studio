@@ -40,7 +40,6 @@ import {
   FilterBar,
   FilterChip,
   OptionSheet,
-  PinMark,
   ProductBadge,
   ResetLink,
   SearchField,
@@ -167,6 +166,20 @@ export function MajelisListScreen() {
   )
 }
 
+/**
+ * The directory row, wearing the schedule's card style — the hairline border,
+ * the 16 name over a 14 address, tags at 12 — but keeping the directory's own
+ * content and its order: name, place, when it meets, then what it is.
+ *
+ * No tile. On the schedule the tile carries the KIND of stop, which is the one
+ * thing that differs row to row there; here every row is a majelis, so a column
+ * of identical initials-squares would be decoration in front of the names.
+ *
+ * The two badges split. Lancar / N Mitra DPD is pinned top-right, because it is
+ * what a BP skims the column FOR and it has to sit at the same height on every
+ * row to be skimmable at all. The product badge stays at the foot: it is what
+ * the group IS, read once she has stopped on it.
+ */
 function Row({ entry, onOpen }: { entry: MajelisEntry; onOpen: () => void }) {
   const draft = entry.status === 'draft'
   const short = shortfallOf(entry)
@@ -175,32 +188,35 @@ function Row({ entry, onOpen }: { entry: MajelisEntry; onOpen: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      className="flex items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
+      className="flex w-full flex-col gap-4 rounded-12 border border-default bg-neutral-white p-12 text-left active:bg-neutral-50"
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="flex min-w-0 items-center gap-8">
-          <span className="truncate text-14 font-bold text-default">{entry.name}</span>
-          {/* The product the group runs on — colour-coded so the type is read
-              at a glance rather than word by word. See ProductBadge for why the
-              palette avoids the status badge's green/orange/yellow. */}
-          <ProductBadge product={entry.type} />
+      <span className="flex items-start gap-8">
+        <span className="min-w-0 flex-1 text-16 font-bold text-default">{entry.name}</span>
+        {/* Pinned top-right, on the name's line. It is the one thing on the card
+            a BP skims a whole column for — "which of these needs me" — and at
+            the foot of the card that answer sat at a different height on every
+            row, because the address above it is one line or two. */}
+        <span className="flex shrink-0">
+          <StatusBadge entry={entry} />
         </span>
-        <span className="flex items-center gap-4 text-12 text-caption">
-          <PinMark />
-          <span className="truncate">{entry.place}</span>
-        </span>
-        <span className="text-12 text-caption">
-          {entry.day}, {entry.time} ·{' '}
-          {draft ? `${entry.members} dari ${entry.members + short} mitra` : `${entry.members} mitra`}
-        </span>
-        {/* A draft's whole story is the gap. "Draft" alone tells the BP the
-            group isn't running; it doesn't tell her she is four women away
-            from disbursing it, which is the only actionable thing here. */}
-        {draft ? (
-          <span className="text-12 font-bold text-orange-500">Kurang {short} mitra untuk aktif</span>
-        ) : null}
-      </div>
-      <StatusBadge entry={entry} />
+      </span>
+      <span className="line-clamp-2 text-14 font-regular text-default">{entry.place}</span>
+      <span className="text-14 font-regular text-caption">
+        {entry.day}, {entry.time} ·{' '}
+        {draft ? `${entry.members} dari ${entry.members + short} mitra` : `${entry.members} mitra`}
+      </span>
+      <span className="flex flex-wrap items-center gap-4 pt-2">
+        {/* The product the group runs on — colour-coded so the type is read at
+            a glance rather than word by word. See ProductBadge for why the
+            palette avoids the status badge's green/orange/yellow. */}
+        <ProductBadge product={entry.type} />
+      </span>
+      {/* A draft's whole story is the gap. "Draft" alone tells the BP the group
+          isn't running; it doesn't tell her she is four women away from
+          disbursing it, which is the only actionable thing here. */}
+      {draft ? (
+        <span className="text-12 font-bold text-orange-500">Kurang {short} mitra untuk aktif</span>
+      ) : null}
     </button>
   )
 }

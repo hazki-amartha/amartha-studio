@@ -565,7 +565,7 @@ function scheduleFollowUp(current: Task[], lead: Lead, tomorrow: boolean): Task[
       kind: 'follow-up',
       time,
       until: time,
-      title: `Follow Up: Ibu ${lead.name}`,
+      title: `Ibu ${lead.name}`,
       place: 'WhatsApp / telepon',
       reason: lead.reason || 'Dijanjikan dihubungi kembali',
       leadId: lead.id,

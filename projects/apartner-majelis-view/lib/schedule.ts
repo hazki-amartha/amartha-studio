@@ -90,7 +90,9 @@ export const TASKS: Task[] = [
     kind: 'follow-up',
     time: '11.45',
     until: '12.15',
-    title: 'Follow Up: Ibu Nia Kurniasih',
+    // Named plainly. The card now says "Follow Up" on its own line above the
+    // title, so a "Follow Up:" prefix here would print the kind twice.
+    title: 'Ibu Nia Kurniasih',
     place: 'WhatsApp / telepon',
     reason: 'Minat tinggi · dijanjikan dihubungi hari ini',
     leadId: 'l1',
@@ -267,6 +269,11 @@ export const DAYS: { key: DayKey; label: string; date: string }[] = [
 /** "2,4 km" — Indonesian decimal comma, one place, and 0 reads as "di sini". */
 export const km = (v: number): string =>
   v === 0 ? 'Di lokasi Anda' : `${v.toFixed(1).replace('.', ',')} km dari lokasi Anda`
+
+/** The same distance as a chip — "1,2 km". The pill has no room for the rest of
+ *  the sentence, and beside an address it does not need it. */
+export const kmShort = (v: number): string =>
+  v === 0 ? 'Di lokasi' : `${v.toFixed(1).replace('.', ',')} km`
 
 export const findDay = (key: DayKey) => DAYS.find((d) => d.key === key) ?? DAYS[0]
 
