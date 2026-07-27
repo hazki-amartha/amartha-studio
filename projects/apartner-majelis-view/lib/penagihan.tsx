@@ -188,9 +188,6 @@ function breakdown(efforts: Effort[]): string {
     .join(' · ')
 }
 
-/** How many attempts show before "Lihat semua" — a visit's worth, not a log. */
-const SHOWN = 3
-
 /**
  * The collection record, under Riwayat Angsuran on the mitra page. Renders only
  * for a mitra with attempts on file — which is every mitra in DPD, and nobody
@@ -201,14 +198,18 @@ const SHOWN = 3
  * there is one, and then the attempts themselves with what she said each time.
  * The promise sits above the list rather than in it, because it is the only row
  * here about the future: everything below it has already happened.
+ *
+ * The attempts are CLOSED by default, and the card is the count plus the
+ * promise until they're asked for. Three entries with quoted notes ran taller
+ * than the ledger above them, which put the page's longest block on the thing a
+ * BP most often only needs the tally of — she says "sudah empat kali" from the
+ * summary and opens the log only when the mitra argues with it. The count is on
+ * the button too, so it's clear what's behind it without opening.
  */
 export function PenagihanCard({ mitra }: { mitra: Mitra }) {
-  const [all, setAll] = useState(false)
+  const [open, setOpen] = useState(false)
   const efforts = effortsOf(mitra)
   if (efforts.length === 0) return null
-
-  const shown = all ? efforts : efforts.slice(0, SHOWN)
-  const rest = efforts.length - shown.length
 
   return (
     <Card>
@@ -228,22 +229,24 @@ export function PenagihanCard({ mitra }: { mitra: Mitra }) {
 
         <PtpRow mitra={mitra} />
 
-        <div className="flex flex-col gap-12">
-          {shown.map((e, i) => (
-            <EffortRow key={`${e.date}-${e.kind}`} effort={e} first={i === 0} />
-          ))}
-        </div>
-
-        {rest > 0 ? (
-          <button
-            type="button"
-            onClick={() => setAll(true)}
-            className="-mx-12 -mb-12 flex items-center justify-center gap-2 border-t border-default px-12 py-12 text-12 font-bold text-link"
-          >
-            Lihat {rest} penagihan sebelumnya
-            <IconChevronRight size={16} />
-          </button>
+        {open ? (
+          <div className="flex flex-col gap-12">
+            {efforts.map((e, i) => (
+              <EffortRow key={`${e.date}-${e.kind}`} effort={e} first={i === 0} />
+            ))}
+          </div>
         ) : null}
+
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="-mx-12 -mb-12 flex items-center justify-center gap-2 border-t border-default px-12 py-12 text-12 font-bold text-link"
+        >
+          {open ? 'Sembunyikan penagihan' : `Lihat ${efforts.length} penagihan`}
+          <span className={open ? '-rotate-90' : 'rotate-90'}>
+            <IconChevronRight size={16} />
+          </span>
+        </button>
       </div>
     </Card>
   )
