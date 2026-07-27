@@ -13,14 +13,25 @@
 // here writes the same store the screens already read, so a demo state is
 // indistinguishable from having done the work by hand.
 
-import { MAJELIS, PREPAID, isSelfServe, outstandingOf } from './data'
+import {
+  HOME_MITRA,
+  MAJELIS,
+  PREPAID,
+  findMitra,
+  growthMembers,
+  isSelfServe,
+  outstandingOf,
+} from './data'
 import { INTEREST_ORDER, SEED_LEADS, type Lead } from './leads'
 import { vaFor } from './schedule'
 import {
   store,
+  type AppState,
   type Attendance,
   type DepositEntry,
   type FollowUpDraft,
+  type GrowthFollowUp,
+  type GrowthResult,
   type Settlement,
 } from './store'
 
@@ -489,3 +500,360 @@ export const followUpMissed = () =>
 
 export const followUpQualified = () =>
   draft({ contact: 'terhubung', interest: 'tinggi', next: 'siap' })
+
+// --- The roster, and which day it is ---------------------------------------
+//
+// What the majelis page OFFERS hangs off one fact: whether today's schedule
+// sends the BP to this group. Tapping to the other case means finding a group
+// that does not meet today, which is the one thing the schedule cannot hand her.
+
+/** A group whose kumpulan is today — the footer starts the pelayanan. */
+export const rosterOnSchedule = () => store.set({ openMajelis: 'mawar', activeTask: null })
+
+/** A group that meets on Wednesday — the footer sends the reminder instead. */
+export const rosterOffSchedule = () => store.set({ openMajelis: 'anggrek', activeTask: null })
+
+// --- The Majelis tab's filters ---------------------------------------------
+
+export const groupsUnfiltered = () => store.set({ majelisDay: null, majelisStatus: null })
+
+/** One day's groups — the "what am I doing Selasa" question. */
+export const groupsOneDay = () => store.set({ majelisDay: 'Selasa', majelisStatus: null })
+
+/** The two she is still assembling, each with its shortfall. */
+export const groupsDrafts = () => store.set({ majelisDay: null, majelisStatus: 'draft' })
+
+// --- Stage 3: the offers ---------------------------------------------------
+
+const clearGrowth = {
+  growthResults: {} as Record<string, GrowthResult>,
+  growthReasons: {} as Record<string, string>,
+  growthFollowUps: {} as Record<string, GrowthFollowUp>,
+}
+
+export const offersNone = () => store.set({ openMajelis: 'mawar', ...clearGrowth })
+
+/** Every outcome the stage can record, on one screen. */
+export const offersMixed = () => {
+  const [done, carried, declined] = growthMembers()
+  store.set({
+    openMajelis: 'mawar',
+    growthResults: { [done.id]: 'ya', [carried.id]: 'ya', [declined.id]: 'tidak' },
+    growthFollowUps: { [done.id]: 'selesai', [carried.id]: 'lanjut' },
+    growthReasons: { [declined.id]: 'Sudah punya di tempat lain' },
+  })
+}
+
+/** Nobody left to pitch — the stage as the BP leaves it. */
+export const offersAll = () => {
+  const growthResults: Record<string, GrowthResult> = {}
+  const growthFollowUps: Record<string, GrowthFollowUp> = {}
+  const growthReasons: Record<string, string> = {}
+  growthMembers().forEach((m, i) => {
+    if (i === 2) {
+      growthResults[m.id] = 'tidak'
+      growthReasons[m.id] = 'Belum butuh saat ini'
+      return
+    }
+    growthResults[m.id] = 'ya'
+    growthFollowUps[m.id] = i === 1 ? 'lanjut' : 'selesai'
+  })
+  store.set({ openMajelis: 'mawar', growthResults, growthFollowUps, growthReasons })
+}
+
+// --- One offer -------------------------------------------------------------
+
+export const offerFresh = () =>
+  store.set({ openMitra: growthMembers()[0].id, ...clearGrowth })
+
+/** A yes she agreed to but nobody had time to process — next kumpulan inherits it. */
+export const offerCarried = () => {
+  const mitra = growthMembers()[0]
+  store.set({
+    openMitra: mitra.id,
+    growthResults: { [mitra.id]: 'ya' },
+    growthFollowUps: { [mitra.id]: 'lanjut' },
+    growthReasons: {},
+  })
+}
+
+/** The no that is about the OFFER, not about her — she already has one. */
+export const offerDeclined = () => {
+  const mitra = growthMembers()[2]
+  store.set({
+    openMitra: mitra.id,
+    growthResults: { [mitra.id]: 'tidak' },
+    growthReasons: { [mitra.id]: 'Tidak sesuai — sudah punya / sudah renew' },
+    growthFollowUps: {},
+  })
+}
+
+// --- Stage 4: the proof ----------------------------------------------------
+
+export const visitProofEmpty = () => {
+  queueDone()
+  store.set({ openMajelis: 'mawar', photo: false, geo: false })
+}
+
+export const visitProofCaptured = () => {
+  queueDone()
+  store.set({ openMajelis: 'mawar', photo: true, geo: true })
+}
+
+/** Submittable, but seven mitra never got an outcome — the warning, not a block. */
+export const visitProofGaps = () => {
+  queueFull()
+  store.set({ openMajelis: 'mawar', photo: true, geo: true })
+}
+
+// --- The home visit --------------------------------------------------------
+//
+// Every branch of a door in one panel. Most of them are unreachable by tapping:
+// the outcome depends on who answered, and a walkthrough cannot make a house
+// empty or a group agree to cover a debt.
+
+/** Wati Nurhasanah, Modal, 63 days behind — task t3. */
+const WATI = HOME_MITRA[0]
+/** Elin Herlina, GL — task t4, the only door where tanggung renteng is offered. */
+const ELIN = HOME_MITRA[1]
+
+/** The door as she arrives: nothing recorded, nothing moved. */
+const atDoor = (taskId: string, patch: Partial<AppState> = {}) =>
+  store.set({
+    day: 'today',
+    openHome: taskId,
+    activeTask: taskId,
+    metWith: {},
+    payMode: {},
+    partialPtp: {},
+    mitraAbsence: {},
+    newAddress: {},
+    dropOut: {},
+    nonPayments: {},
+    shortfallReasons: {},
+    // The majelis roster keeps its pre-paid seed: a home-visit state should not
+    // leave the group screens looking as though nobody has paid anything.
+    payments: freshPayments(),
+    reschedules: {},
+    rejects: {},
+    photo: false,
+    geo: false,
+    ...patch,
+  })
+
+export const doorFresh = () => atDoor('t3')
+
+export const doorMetMitra = () => atDoor('t3', { metWith: { [WATI.id]: 'mitra' } })
+
+export const doorMetPj = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'pj' },
+    mitraAbsence: { [WATI.id]: 'Sedang berdagang' },
+  })
+
+/** A locked door: the visit takes its note here and skips the Tagih step. */
+export const doorNobody = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'nobody' },
+    nonPayments: { [WATI.id]: { reason: 'Pergi tanpa kabar', ptp: '23 Juli' } },
+  })
+
+/**
+ * Moved three times already. Only at this count does "Jadwal ulang" also offer
+ * to close the visit for good — a state no amount of tapping reaches, because
+ * the first two moves happened on days that are not today.
+ */
+export const doorStuck = () =>
+  atDoor('t3', {
+    reschedules: { t3: { reason: 'Mitra tidak di tempat', date: '23 Juli', count: 3 } },
+  })
+
+// --- The home visit's money step -------------------------------------------
+
+const WATI_OWED = outstandingOf(WATI).total
+const ELIN_OWED = outstandingOf(ELIN).total
+
+export const payFull = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'mitra' },
+    payMode: { [WATI.id]: 'penuh' },
+    payments: { ...freshPayments(), [WATI.id]: WATI_OWED },
+  })
+
+/** Part of the bill, and a date for the rest — a balance with nothing chasing it
+ *  is the gap this outcome exists to close. */
+export const payPartial = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'mitra' },
+    payMode: { [WATI.id]: 'sebagian' },
+    payments: { ...freshPayments(), [WATI.id]: Math.round(WATI_OWED / 3) },
+    partialPtp: { [WATI.id]: '23 Juli' },
+  })
+
+/** Reached, did not pay: a reason and a promise. An outcome, not a blank. */
+export const payRefused = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'mitra' },
+    payMode: { [WATI.id]: 'tidak' },
+    nonPayments: { [WATI.id]: { reason: 'Usaha sedang sepi', ptp: '28 Juli' } },
+  })
+
+/** She is leaving the programme — neither a payment nor a promise, so it carries
+ *  only a reason, and recording it retracts anything else on her. */
+export const payDropOut = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'mitra' },
+    payMode: { [WATI.id]: 'keluar' },
+    dropOut: { [WATI.id]: 'Pindah tanpa kabar' },
+  })
+
+/** The GL door, where the group can cover her — a full settlement nobody in the
+ *  household funded. Modal loans never see this option. */
+export const payGroupCovered = () =>
+  atDoor('t4', {
+    metWith: { [ELIN.id]: 'mitra' },
+    payMode: { [ELIN.id]: 'tanggung' },
+    payments: { ...freshPayments(), [ELIN.id]: ELIN_OWED },
+  })
+
+// --- Closing a home visit --------------------------------------------------
+
+export const doorProofEmpty = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'mitra' },
+    payMode: { [WATI.id]: 'penuh' },
+    payments: { ...freshPayments(), [WATI.id]: WATI_OWED },
+  })
+
+/** Photo taken and cash in her bag — submitting goes on to the WhatsApp receipt. */
+export const doorProofCash = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'mitra' },
+    payMode: { [WATI.id]: 'penuh' },
+    payments: { ...freshPayments(), [WATI.id]: WATI_OWED },
+    photo: true,
+    geo: true,
+  })
+
+/** Photo taken, nothing collected — submitting returns straight to the schedule. */
+export const doorProofNoCash = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'mitra' },
+    payMode: { [WATI.id]: 'tidak' },
+    nonPayments: { [WATI.id]: { reason: 'Usaha sedang sepi', ptp: '28 Juli' } },
+    photo: true,
+    geo: true,
+  })
+
+// --- The doorstep receipt --------------------------------------------------
+
+export const receiptFull = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'mitra' },
+    payMode: { [WATI.id]: 'penuh' },
+    payments: { ...freshPayments(), [WATI.id]: WATI_OWED },
+    photo: true,
+    geo: true,
+  })
+
+/** A part-payment, so the message carries the balance and the promised date. */
+export const receiptPartial = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'mitra' },
+    payMode: { [WATI.id]: 'sebagian' },
+    payments: { ...freshPayments(), [WATI.id]: Math.round(WATI_OWED / 3) },
+    partialPtp: { [WATI.id]: '23 Juli' },
+    photo: true,
+    geo: true,
+  })
+
+// --- The bag ---------------------------------------------------------------
+
+const MIDDAY_BANKED = bankedDay.t1.cash + bankedDay.t2.cash
+
+/** Two majelis in the bag by midday — the first handover, and it is free. */
+export const bagFirstHandover = () =>
+  store.set({
+    day: 'today',
+    doneTasks: ['t1', 't2', 't2b'],
+    sentTasks: ['t1', 't2', 't2b'],
+    deposits: depositsFor(['t1', 't2']),
+    settlements: [],
+    depositAmount: null,
+    depositDiffReason: null,
+    depositProof: false,
+    depositDone: false,
+  })
+
+/**
+ * She is about to declare Rp200.000 less than the app says she is carrying. The
+ * disagreement is the point: a gap with a record behind it is something ops can
+ * chase, and it cannot be reached by tapping without typing the wrong number.
+ */
+export const bagShort = () =>
+  store.set({
+    day: 'today',
+    doneTasks: ['t1', 't2', 't2b'],
+    sentTasks: ['t1', 't2', 't2b'],
+    deposits: depositsFor(['t1', 't2']),
+    settlements: [],
+    depositAmount: MIDDAY_BANKED - 200_000,
+    depositDiffReason: null,
+    depositProof: true,
+    depositDone: false,
+  })
+
+// --- One mitra's record ----------------------------------------------------
+
+/** 34 days behind — the ledger the collect page argues from. */
+export const mitraBehind = () => store.set({ openMitra: 'm1' })
+
+/** Nothing overdue — the same page with no arrears in it. */
+export const mitraCurrent = () => store.set({ openMitra: 'm3' })
+
+/** 63 days behind: the arrears deep enough to have earned a home visit. */
+export const mitraDeepArrears = () => store.set({ openMitra: WATI.id })
+
+// --- The collect page ------------------------------------------------------
+//
+// It opens on whatever is already recorded, so the sheet a BP lands on IS the
+// outcome she is correcting. Each of these is a different landing.
+
+const atCollect = (mitraId: string, patch: Partial<AppState> = {}) =>
+  store.set({
+    openMajelis: 'mawar',
+    openMitra: mitraId,
+    payments: freshPayments(),
+    nonPayments: {},
+    shortfallReasons: {},
+    payMode: {},
+    partialPtp: {},
+    lastCollect: null,
+    ...patch,
+  })
+
+export const collectFresh = () => atCollect('m1')
+
+/** Reopened on a part-payment: the amount, its reason, and the promised date. */
+export const collectPartial = () =>
+  atCollect('m1', {
+    payments: { ...freshPayments(), m1: Math.round(outstandingOf(findMitra('m1')).total / 2) },
+    shortfallReasons: { m1: 'Uang belum terkumpul semua' },
+    payMode: { m1: 'sebagian' },
+    partialPtp: { m1: '25 Juli' },
+  })
+
+/** Reopened on a recorded no — the refusal sheet, prefilled. */
+export const collectRefused = () =>
+  atCollect('m1', {
+    nonPayments: { m1: { reason: 'Usaha sedang sepi', ptp: 'Sabtu, 25 Juli' } },
+    payMode: { m1: 'tidak' },
+  })
+
+/** A GL mitra covered by her group. The option exists on GL only, so a Modal
+ *  card can never show it. */
+export const collectGroupCovered = () =>
+  atCollect('m2', {
+    payments: { ...freshPayments(), m2: outstandingOf(findMitra('m2')).total },
+    payMode: { m2: 'tanggung' },
+  })

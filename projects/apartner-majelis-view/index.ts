@@ -55,38 +55,38 @@ export const project: ProjectModule = {
       states: [
         {
           id: 'majelis',
-          label: 'Sekarang: Majelis',
-          description: 'Awal hari — pelayanan majelis jadi tugas aktif',
+          label: 'Start of day',
+          description: 'Nothing done yet — the first majelis visit is the open task',
           apply: demo.scheduleMajelis,
         },
         {
           id: 'home-visit',
-          label: 'Sekarang: Home Visit',
-          description: 'Dua majelis selesai — kunjungan rumah jadi tugas aktif',
+          label: 'Midday — a home visit next',
+          description: 'Two majelis done and banked, so the cash handover widget is live',
           apply: demo.scheduleHomeVisit,
         },
         {
           id: 'closing',
-          label: 'Sekarang: Setoran',
-          description: 'Semua kunjungan selesai — tinggal setor tutup hari',
+          label: 'Every visit finished',
+          description: 'All work submitted, the day’s cash still in her bag',
           apply: demo.scheduleClosing,
         },
         {
           id: 'capped',
-          label: 'Setoran gratis habis',
-          description: 'Tiga setoran terpakai — berikutnya kena biaya admin',
+          label: 'Free handovers used up',
+          description: 'Three settlements made — the next one carries an admin fee',
           apply: demo.scheduleCapped,
         },
         {
           id: 'closeable',
-          label: 'Siap tutup hari',
-          description: 'Semua tugas terkirim, semua uang disetor',
+          label: 'Ready to close the day',
+          description: 'Everything sent and every rupiah handed over',
           apply: demo.scheduleCloseable,
         },
         {
           id: 'closed',
-          label: 'Hari sudah ditutup',
-          description: 'Closing terkirim — tinggal ucapan terima kasih',
+          label: 'Day already closed',
+          description: 'Closing submitted — only the thank-you banner is left',
           apply: demo.scheduleClosed,
         },
       ],
@@ -113,6 +113,26 @@ export const project: ProjectModule = {
         'Each row states three things about the group: what product it runs on (Modal blue, GL purple, Hybrid neutral), when it meets, and one status badge — Draft, n Mitra DPD, or Lancar. The product palette deliberately avoids green/orange/yellow, which the status badges own; a hue that means two things on one card is worse than no hue at all. Hybrid is neutral because it is not a third product, it is a group carrying both.',
         'Draft groups are the reason the filters earn their space. A majelis being assembled has no kumpulan to send the BP anywhere, so without a way to ask for it, it only ever surfaces by scrolling — and the one thing she needs from it is the gap: “Kurang 4 mitra untuk aktif”, not the word “Draft”.',
         'Search and filter answer different questions. Search is for a group she can name; the filters are for a set she can only describe — “what am I doing Kamis”, “which ones am I still building”. The filters survive opening a group and coming back; the search box does not, because a query is a question already answered.',
+      ],
+      states: [
+        {
+          id: 'all',
+          label: 'Every group',
+          description: 'The directory unfiltered — all eight, active and draft',
+          apply: demo.groupsUnfiltered,
+        },
+        {
+          id: 'one-day',
+          label: 'One day’s groups',
+          description: 'Filtered to Selasa — the “what am I doing Tuesday” question',
+          apply: demo.groupsOneDay,
+        },
+        {
+          id: 'drafts',
+          label: 'Groups being assembled',
+          description: 'The two drafts, each stating how many more mitra it needs',
+          apply: demo.groupsDrafts,
+        },
       ],
       flowsTo: [
         { to: 'majelis', label: 'ketuk majelis → Majelis View' },
@@ -194,6 +214,20 @@ export const project: ProjectModule = {
         'What the footer OFFERS depends on the day. On the group’s kumpulan day it starts the pelayanan; on any other day there is no visit to start, so it becomes the thing a BP actually does from her sofa on a Thursday — send the group its reminder, already written, with this group’s day, time and place in it. It goes to the WhatsApp group, not to 22 numbers: that is where the group already talks, and a reminder arriving as 22 private messages is one the ketua cannot reinforce.',
         'The header’s trailing control is Edit, not Info. Changing a majelis is four routes rather than one form — its schedule lives with the BP’s week, its Ketua is a mitra, its location is a place, and moving a member changes another group as well as this one — so a combined form would be four unrelated fields sharing a Save button.',
       ],
+      states: [
+        {
+          id: 'kumpulan-day',
+          label: 'Meets today',
+          description: 'The day’s schedule sends her here — the footer starts the visit',
+          apply: demo.rosterOnSchedule,
+        },
+        {
+          id: 'other-day',
+          label: 'Meets another day',
+          description: 'No visit to start, so the footer sends the group its reminder instead',
+          apply: demo.rosterOffSchedule,
+        },
+      ],
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan' },
         { to: 'mitra', label: 'ketuk nama mitra' },
@@ -211,20 +245,20 @@ export const project: ProjectModule = {
       states: [
         {
           id: 'fresh',
-          label: 'Baru dibuka',
-          description: '15 mitra bayar mandiri sudah terisi, 7 belum diabsen',
+          label: 'Just opened',
+          description: 'The 15 who paid on their own are pre-marked; 7 still to record',
           apply: demo.registerFresh,
         },
         {
           id: 'almost',
-          label: 'Tinggal 2 mitra',
-          description: '20 mitra sudah tercatat, 2 belum dijawab',
+          label: 'Two mitra left to mark',
+          description: '20 recorded, 2 still unanswered',
           apply: demo.registerAlmost,
         },
         {
           id: 'done',
-          label: 'Register lengkap',
-          description: '20 hadir · 2 tidak hadir dengan alasannya',
+          label: 'Register complete',
+          description: '20 present · 2 absent, each with her reason',
           apply: demo.registerDone,
         },
       ],
@@ -241,20 +275,20 @@ export const project: ProjectModule = {
       states: [
         {
           id: 'full',
-          label: 'Antrean penuh',
-          description: '7 mitra belum ditagih, 15 sudah bayar mandiri',
+          label: 'Full queue',
+          description: '7 mitra still to collect from, 15 already paid on their own',
           apply: demo.queueFull,
         },
         {
           id: 'half',
-          label: 'Setengah jalan',
-          description: 'Separuh sudah ada hasilnya, separuh belum',
+          label: 'Halfway through',
+          description: 'Half the queue has an outcome, half has none yet',
           apply: demo.queueHalf,
         },
         {
           id: 'done',
-          label: 'Semua ada hasilnya',
-          description: 'Termasuk 1 bayar sebagian dan 1 tidak bayar dengan janji',
+          label: 'Every outcome recorded',
+          description: 'Including one part-payment and one refusal with a promise to pay',
           apply: demo.queueDone,
         },
       ],
@@ -272,6 +306,26 @@ export const project: ProjectModule = {
         'Offers come last, after the money. Pitching a savings product before collecting would mean asking a woman to open an account with the instalment she has not handed over yet.',
         'Only mitra with a real recommendation appear — four rows out of 22, not a list for everyone — in the same order and the same card as the two stages before. Tawarkan opens a page, exactly as Tagih does, so both actions on a visit card behave the same way. The whole stage can be skipped: a tail that blocks the close of a visit has stopped being a tail.',
       ],
+      states: [
+        {
+          id: 'none',
+          label: 'Nothing offered yet',
+          description: 'Four recommendations, none of them put to anyone',
+          apply: demo.offersNone,
+        },
+        {
+          id: 'mixed',
+          label: 'Every outcome at once',
+          description: 'One closed on the spot, one carried to next kumpulan, one declined',
+          apply: demo.offersMixed,
+        },
+        {
+          id: 'all',
+          label: 'Everyone answered',
+          description: 'The stage as the BP leaves it — no card still offering',
+          apply: demo.offersAll,
+        },
+      ],
       flowsTo: [
         { to: 'offer', label: 'Tawarkan' },
         { to: 'proof', label: 'Lanjut' },
@@ -282,6 +336,26 @@ export const project: ProjectModule = {
       id: 'offer',
       title: 'Tawarkan Produk',
       component: OfferScreen,
+      states: [
+        {
+          id: 'fresh',
+          label: 'Nothing answered',
+          description: 'The page as “Tawarkan” opens it — the offer, and no result yet',
+          apply: demo.offerFresh,
+        },
+        {
+          id: 'carried',
+          label: 'Yes, but not processed',
+          description: 'She agreed; there was no time to open it — next kumpulan inherits it',
+          apply: demo.offerCarried,
+        },
+        {
+          id: 'declined',
+          label: 'No, with her reason',
+          description: 'Declined because she already has one — a note about the offer, not her',
+          apply: demo.offerDeclined,
+        },
+      ],
       flowsTo: [{ to: 'growth', label: 'Simpan Hasil' }],
     },
     {
@@ -292,12 +366,64 @@ export const project: ProjectModule = {
         'A photo and a recorded location, both required before the visit can be submitted. A photo alone proves she photographed something; a location alone proves she was in the right place but not that a majelis happened. Only the pair makes a visit verifiable afterwards.',
         'They sit as two equal tiles rather than a big photo drop-zone with location as a footnote, and outside the three-stage bar — attendance, collection and growth are the work, this is the paperwork that closes it.',
       ],
+      states: [
+        {
+          id: 'empty',
+          label: 'No photo yet',
+          description: 'Submission blocked until the geotagged photo is taken',
+          apply: demo.visitProofEmpty,
+        },
+        {
+          id: 'captured',
+          label: 'Photo and location captured',
+          description: 'Every mitra has an outcome — the visit is ready to send',
+          apply: demo.visitProofCaptured,
+        },
+        {
+          id: 'gaps',
+          label: 'Sending with mitra unrecorded',
+          description: 'Seven never got an outcome — a warning, not a block',
+          apply: demo.visitProofGaps,
+        },
+      ],
       flowsTo: [{ to: 'today', label: 'Kirim Laporan — butuh foto + lokasi' }],
     },
     {
       id: 'home-brief',
       title: 'Home Visit 1 — Persiapan',
       component: HomeBriefScreen,
+      states: [
+        {
+          id: 'fresh',
+          label: 'At the door',
+          description: 'Nothing recorded — the one question the whole visit turns on',
+          apply: demo.doorFresh,
+        },
+        {
+          id: 'mitra',
+          label: 'Met the mitra',
+          description: 'She answered herself — the visit carries straight on to Tagih',
+          apply: demo.doorMetMitra,
+        },
+        {
+          id: 'pj',
+          label: 'Met her guarantor',
+          description: 'Someone from the household, plus why the borrower was out',
+          apply: demo.doorMetPj,
+        },
+        {
+          id: 'nobody',
+          label: 'Nobody home',
+          description: 'The visit note and a revisit date here; Tagih is skipped entirely',
+          apply: demo.doorNobody,
+        },
+        {
+          id: 'stuck',
+          label: 'Moved three times already',
+          description: 'Only now does “Jadwal ulang” also offer to close the visit for good',
+          apply: demo.doorStuck,
+        },
+      ],
       flowsTo: [
         { to: 'home-visit', label: 'Lanjut — mitra / PJ ditemui' },
         { to: 'home-proof', label: 'Lanjut — jika tidak ada orang (lewati Tagih)' },
@@ -312,6 +438,38 @@ export const project: ProjectModule = {
         'The money step. Who she met was answered on Persiapan, so this page opens straight on the ledger and the bill — the ten-week strip and the total tagihan, the same components the mitra and collect pages draw — then the payment outcome: full, partial, or a recorded no.',
         'Whether the money came from the mitra or her PJ does not change what gets recorded — the amount and the promise — so who handed it over is a tag, not a branch. "Nobody home" never reaches this step: a locked door has nothing to tagih, so that case takes its visit note on Persiapan and skips straight to Bukti & Kirim.',
       ],
+      states: [
+        {
+          id: 'penuh',
+          label: 'Paid in full',
+          description: 'She cleared the whole bill herself — done on the tap',
+          apply: demo.payFull,
+        },
+        {
+          id: 'sebagian',
+          label: 'Part-payment',
+          description: 'Some of the bill, and a date for the rest — a balance nobody loses',
+          apply: demo.payPartial,
+        },
+        {
+          id: 'tanggung',
+          label: 'Covered by the group',
+          description: 'Tanggung renteng on a GL loan — a full settlement she did not fund',
+          apply: demo.payGroupCovered,
+        },
+        {
+          id: 'tidak',
+          label: 'Reached, did not pay',
+          description: 'A reason and a promise — an outcome, not an empty record',
+          apply: demo.payRefused,
+        },
+        {
+          id: 'keluar',
+          label: 'Dropping out',
+          description: 'Neither payment nor promise; recording it retracts everything else',
+          apply: demo.payDropOut,
+        },
+      ],
       flowsTo: [{ to: 'home-proof', label: 'Lanjut' }],
     },
     {
@@ -320,6 +478,26 @@ export const project: ProjectModule = {
       component: HomeProofScreen,
       notes: [
         'The close of a home visit: a photo of the door, required before it can be submitted. What she recorded on the two steps before — who was met, what was paid — is not read back here; this step is the paperwork that closes the visit, not a second review of it.',
+      ],
+      states: [
+        {
+          id: 'empty',
+          label: 'No photo yet',
+          description: 'The visit cannot be submitted until the door is photographed',
+          apply: demo.doorProofEmpty,
+        },
+        {
+          id: 'cash',
+          label: 'Cash collected at the door',
+          description: 'Submitting goes on to the WhatsApp receipt for that one mitra',
+          apply: demo.doorProofCash,
+        },
+        {
+          id: 'no-cash',
+          label: 'Nothing collected',
+          description: 'No receipt to send — submitting returns straight to the schedule',
+          apply: demo.doorProofNoCash,
+        },
       ],
       flowsTo: [
         { to: 'home-wa-confirm', label: 'Selesaikan Tugas — jika ada uang tunai' },
@@ -333,6 +511,20 @@ export const project: ProjectModule = {
       notes: [
         'Shown only when cash was collected at the door. A doorstep collection leaves no slip and sends nothing to the mitra’s phone, so this hands the BP a ready-made WhatsApp receipt — amount, date, any balance promised — to review, edit, and send to that one mitra before returning to the schedule.',
       ],
+      states: [
+        {
+          id: 'full',
+          label: 'Receipt for a full payment',
+          description: 'Amount and date, nothing outstanding to mention',
+          apply: demo.receiptFull,
+        },
+        {
+          id: 'partial',
+          label: 'Receipt with a balance',
+          description: 'A part-payment, so the message also carries the rest and the date promised',
+          apply: demo.receiptPartial,
+        },
+      ],
       flowsTo: [{ to: 'today', label: 'Kirim / Lewati — kembali ke jadwal' }],
     },
     {
@@ -344,6 +536,32 @@ export const project: ProjectModule = {
         'Cash settles by the RUPIAH, not by the task. What is outstanding is everything banked minus everything handed over, so a short handover leaves a remainder and the widget comes straight back with it — the breakdown attributes it to the pelayanan it came from, with the covered part drained off. A BP who confirms Rp3.500.000 against a Rp3.700.000 ledger must still see the missing Rp200.000 on the page whose whole job is to say what she is carrying.',
         'Each settlement gets its own VA, because a virtual account is what the branch reconciles against, and several transfers to one number are deposits nobody can tell apart at the other end.',
         'The selisih flow is for the disagreement that will happen: the app’s figure and the money in the bag differ. A gap with a reason attached is a record ops can chase; a gap with nowhere to put it becomes a phone call.',
+      ],
+      states: [
+        {
+          id: 'first',
+          label: 'First handover of the day',
+          description: 'Two majelis in the bag by midday, and this one is free',
+          apply: demo.bagFirstHandover,
+        },
+        {
+          id: 'short',
+          label: 'Short of the ledger',
+          description: 'She declares Rp200.000 less than the app says — the gap ops chases',
+          apply: demo.bagShort,
+        },
+        {
+          id: 'fee',
+          label: 'Free handovers used up',
+          description: 'Three already made and cash still coming in — the next one costs',
+          apply: demo.scheduleCapped,
+        },
+        {
+          id: 'empty',
+          label: 'Nothing left to hand over',
+          description: 'Everything already settled — an honest empty state, not a form',
+          apply: demo.scheduleCloseable,
+        },
       ],
       flowsTo: [{ to: 'today', label: 'Selesai — kembali ke jadwal' }],
     },
@@ -359,32 +577,32 @@ export const project: ProjectModule = {
       states: [
         {
           id: 'awal',
-          label: 'Hari belum jalan',
-          description: 'Semua tugas masih terbuka — belum ada yang bisa disetor',
+          label: 'Day not started',
+          description: 'Every task still open — nothing has been collected to hand over',
           apply: demo.closingFresh,
         },
         {
           id: 'separuh',
-          label: 'Sebagian tugas selesai',
-          description: '4 dari 7 selesai — daftar tugas yang belum tuntas',
+          label: 'Some tasks still open',
+          description: '4 of 7 done — the check names the three she has to go back to',
           apply: demo.closingPartial,
         },
         {
           id: 'perlu-setor',
-          label: 'Perlu setor titipan',
-          description: 'Semua tugas selesai, titip bayar belum disetor',
+          label: 'Cash still to hand over',
+          description: 'Every task done, the collected cash not yet transferred',
           apply: demo.closingReady,
         },
         {
           id: 'siap',
-          label: 'Siap ditutup',
-          description: 'Semua tugas selesai & titip bayar sudah disetor — dua-duanya tercentang',
+          label: 'Ready to close',
+          description: 'Tasks done and cash transferred — both checks pass',
           apply: demo.closingSettled,
         },
         {
           id: 'terkirim',
-          label: 'Sudah ditutup',
-          description: 'Closing terkirim — menunggu verifikasi cabang',
+          label: 'Already closed',
+          description: 'Closing submitted — waiting on branch verification',
           apply: demo.closingSent,
         },
       ],
@@ -402,20 +620,20 @@ export const project: ProjectModule = {
       states: [
         {
           id: 'awal',
-          label: 'Baru mulai',
-          description: 'Belum ada prospek dicatat — layar kosongnya',
+          label: 'Just started',
+          description: 'No prospects captured yet — the empty screen',
           apply: demo.eventEmpty,
         },
         {
           id: 'separuh',
-          label: 'Separuh target',
-          description: '5 dari 10, campuran sosialisasi dan referral',
+          label: 'Half the target',
+          description: '5 of 10, a mix of walk-ups and referrals',
           apply: demo.eventHalf,
         },
         {
           id: 'penuh',
-          label: 'Target tercapai',
-          description: '10 prospek, termasuk 1 yang menolak dengan alasan',
+          label: 'Target reached',
+          description: '10 prospects, including one refusal with her reason',
           apply: demo.eventFull,
         },
       ],
@@ -435,20 +653,20 @@ export const project: ProjectModule = {
       states: [
         {
           id: 'kosong',
-          label: 'Data belum lengkap',
-          description: 'Alamat, majelis dan pinjaman lain masih kosong',
+          label: 'Record still has gaps',
+          description: 'Address, majelis and other loans all still blank',
           apply: demo.leadIncomplete,
         },
         {
           id: 'lengkap',
-          label: 'Siap diajukan',
-          description: 'Semua terisi — gerbang “siap diajukan” terbuka',
+          label: 'Ready to submit',
+          description: 'Every field filled — the submission gate is open',
           apply: demo.leadComplete,
         },
         {
           id: 'menunggu',
-          label: 'Terganjal pinjaman lain',
-          description: 'Minat tinggi tapi masih terikat BRI sampai Oktober',
+          label: 'Blocked by another loan',
+          description: 'High interest, but tied to a BRI loan until October',
           apply: demo.leadBlocked,
         },
       ],
@@ -466,26 +684,26 @@ export const project: ProjectModule = {
       states: [
         {
           id: 'brief',
-          label: 'Sebelum menelepon',
-          description: 'Layar seperti yang dibuka dari jadwal, belum ada jawaban',
+          label: 'Before the call',
+          description: 'The screen as the schedule opens it — nothing answered yet',
           apply: demo.followUpFresh,
         },
         {
           id: 'terhubung',
-          label: 'Terhubung, minat turun',
-          description: 'Dari minat tinggi ke sedang — perubahan ditandai',
+          label: 'Reached, interest cooled',
+          description: 'High down to medium — the change between two calls is flagged',
           apply: demo.followUpCooled,
         },
         {
           id: 'tidak-diangkat',
-          label: 'Tidak diangkat',
-          description: 'Hanya satu pertanyaan tersisa: kapan coba lagi',
+          label: 'No answer',
+          description: 'One question left: when to try her again',
           apply: demo.followUpMissed,
         },
         {
           id: 'siap',
-          label: 'Siap diajukan',
-          description: 'Data lengkap, gerbang terbuka',
+          label: 'Ready to submit',
+          description: 'Record complete, the qualification gate is open',
           apply: demo.followUpQualified,
         },
       ],
@@ -504,6 +722,26 @@ export const project: ProjectModule = {
         'Under it, one figure and its parts: total tagihan, then minggu ini and terlewat. This is the only number she is about to act on, and the lines beneath it are the sentence she says when it gets argued with. The shortfall line appears only when there is one — but it does appear, because without it the parts do not add up to the total.',
         'The ladder is its own entry point. It is not a datum about her; it is a conversation, and the only thing on this page that leads somewhere she does something.',
         'Everything else on file drops to the bottom as Informasi tambahan, read-only: what a BP reads out when ops asks, or checks before she rides.',
+      ],
+      states: [
+        {
+          id: 'behind',
+          label: '34 days behind',
+          description: 'Arrears in the week strip and a shortfall line under the total',
+          apply: demo.mitraBehind,
+        },
+        {
+          id: 'current',
+          label: 'Nothing overdue',
+          description: 'The same page with no arrears in it — only this week to pay',
+          apply: demo.mitraCurrent,
+        },
+        {
+          id: 'deep',
+          label: '63 days behind',
+          description: 'The arrears deep enough to have earned a home visit',
+          apply: demo.mitraDeepArrears,
+        },
       ],
       flowsTo: [
         { to: 'loans', label: 'Lihat semua riwayat' },
@@ -529,6 +767,32 @@ export const project: ProjectModule = {
       notes: [
         'The moment of negotiation. It opens on who she is over what she owes, drawn flat with no cards — the identity, the week-grid history and the bill read as one block — over the week grid carrying the date, outcome and amount of each recent week. Under it, the four ways she can pay as a menu.',
         'Two levels, told apart by ground rather than a rule: the identity and bill on white up top, the choice on a lightest-grey floor below. Every option opens a bottom sheet carrying only what it needs — a reason, a promise, an amount, or for a full payment nothing but a confirm — because the bill it is against is still on the page behind the sheet. A payment short of the bill still cannot save without both a reason and a date for the rest, exactly as a “tidak bayar” cannot.',
+      ],
+      states: [
+        {
+          id: 'fresh',
+          label: 'Nothing recorded',
+          description: 'The page as “Tagih” opens it — the bill, and the menu of four ways to pay',
+          apply: demo.collectFresh,
+        },
+        {
+          id: 'partial',
+          label: 'Correcting a part-payment',
+          description: 'Reopens on the amount sheet, prefilled with what was taken and why',
+          apply: demo.collectPartial,
+        },
+        {
+          id: 'refused',
+          label: 'Correcting a recorded no',
+          description: 'Reopens on the refusal sheet, carrying the reason and the promised date',
+          apply: demo.collectRefused,
+        },
+        {
+          id: 'tanggung',
+          label: 'Covered by the group',
+          description: 'Tanggung renteng, offered on GL loans only — never on a Modal card',
+          apply: demo.collectGroupCovered,
+        },
       ],
       flowsTo: [
         { to: 'collection', label: 'Terima Tunai' },
