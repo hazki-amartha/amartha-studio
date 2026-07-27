@@ -28,8 +28,17 @@ export function Toggle({
   const inputId = id ?? autoId
   const switchClasses = ['ds-toggle', sizeClass[size], className].filter(Boolean).join(' ')
 
+  // Bare switch or labelled field — stamp whichever is the outer node, so a
+  // Toggle reads as one boundary either way.
+  const bare = !label && !helperText
+  const fds: Record<string, string | undefined> = {
+    'data-fds': 'Toggle',
+    'data-fds-size': size,
+  }
+  const unstamped: Record<string, string | undefined> = {}
+
   const control = (
-    <span className={switchClasses}>
+    <span className={switchClasses} {...(bare ? fds : unstamped)}>
       <input
         {...props}
         id={inputId}
@@ -52,7 +61,11 @@ export function Toggle({
   if (!label && !helperText) return control
 
   return (
-    <label htmlFor={inputId} className={`ds-toggle-field${disabled ? ' ds-toggle-field-disabled' : ''}`}>
+    <label
+      htmlFor={inputId}
+      className={`ds-toggle-field${disabled ? ' ds-toggle-field-disabled' : ''}`}
+      {...fds}
+    >
       {control}
       {(label || helperText) ? (
         <span className="ds-toggle-text">

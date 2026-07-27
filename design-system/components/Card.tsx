@@ -14,7 +14,7 @@ export function Card({ flush = false, className, children, ...props }: CardProps
   ].filter(Boolean).join(' ')
 
   return (
-    <div className={classes} {...props}>
+    <div className={classes} {...props} data-fds="Card" data-fds-flush={flush || undefined}>
       {children}
     </div>
   )

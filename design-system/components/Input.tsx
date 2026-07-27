@@ -78,18 +78,30 @@ export function Input({
     className,
   ].filter(Boolean).join(' ')
 
+  // Input renders one of three shapes. The inspect stamp goes on whichever ends
+  // up outermost, so a field is exactly one boundary rather than nested ones.
+  const hasAffix = Boolean(prefix || suffix)
+  const hasFieldChrome = Boolean(label || optionalText || description || helperText)
+  const fds: Record<string, string | undefined> = {
+    'data-fds': 'Input',
+    'data-fds-size': size,
+    'data-fds-state': state,
+  }
+  const unstamped: Record<string, string | undefined> = {}
+
   const input = (
     <input
       {...props}
       aria-invalid={state === 'error' ? true : props['aria-invalid']}
       className={inputClasses}
       disabled={disabled}
+      {...(!hasAffix && !hasFieldChrome ? fds : unstamped)}
     />
   )
 
-  const control = prefix || suffix
+  const control = hasAffix
     ? (
-      <div className="ds-inp-wrap">
+      <div className="ds-inp-wrap" {...(!hasFieldChrome ? fds : unstamped)}>
         {prefix ? renderAffix(prefix, 'prefix', prefixInteractive, prefixButtonProps) : null}
         {input}
         {suffix ? renderAffix(suffix, 'suffix', suffixInteractive, suffixButtonProps) : null}
@@ -97,11 +109,10 @@ export function Input({
     )
     : input
 
-  const hasFieldChrome = label || optionalText || description || helperText
   if (!hasFieldChrome) return control
 
   return (
-    <label className="ds-field">
+    <label className="ds-field" {...fds}>
       {label || optionalText ? (
         <div className="ds-field-head">
           {label ? (

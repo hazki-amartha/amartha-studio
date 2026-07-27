@@ -40,6 +40,13 @@
   height: 100%;
 }
 
+/* Inspect mode retargets the pointer from "use this app" to "pick this element".
+   The overlay itself is pointer-events:none, so the cursor has to be set on the
+   content underneath it. */
+.viewport[data-inspect='on'] * {
+  cursor: crosshair;
+}
+
 /* Phones don't show scrollbar tracks, so neither does the prototype. This covers
    every scroller inside the running app — the screen stage, sheet bodies, and any
    horizontal rail a project builds — in both the framed and full-page layouts.

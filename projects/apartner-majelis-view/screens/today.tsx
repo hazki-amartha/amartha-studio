@@ -25,6 +25,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, Card } from '@/design-system/components'
+import type { BadgeIntent } from '@/design-system/components/Badge'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
@@ -34,7 +35,7 @@ import {
   TASKS,
   TOMORROW_TASKS,
   findDay,
-  km,
+  kmShort,
   withScheduled,
   type Task,
 } from '../lib/schedule'
@@ -65,7 +66,6 @@ import {
   HeaderAction,
   OptionSheet,
   Overline,
-  PinMark,
   ResetLink,
   type Tint,
 } from '../lib/ui'
@@ -95,13 +95,29 @@ const KIND_LABEL: Record<Task['kind'], string> = {
 }
 
 /**
+ * The same five kinds spelled out, for the line above the title. The tile's
+ * code and this are one fact drawn twice on purpose: the code is what the eye
+ * sorts the agenda by at a glance, the words are what the card says out loud —
+ * and a BP new to the app learns the codes off this line rather than off a
+ * legend she has to go and find.
+ */
+const KIND_NAME: Record<Task['kind'], string> = {
+  majelis: 'Majelis Visit',
+  'home-visit': 'Home Visit',
+  setoran: 'Tutup Hari',
+  sosialisasi: 'Sosialisasi',
+  'follow-up': 'Follow Up',
+}
+
+/**
  * The tile at the head of every task, and it holds the CODE rather than a
  * pictogram. The icons were a second vocabulary to learn — a house, a group of
  * women, a megaphone — that resolved to the same five words the BP already has
  * names for, and at 20px a megaphone and a speech bubble are one blur apart.
  * The tint still does the pre-attentive work; the letters remove the guess.
  *
- * Fixed width, so titles start on one line down the agenda whatever the code.
+ * Square and fixed at 40, so the code sits in a tile rather than a slab and
+ * every card's text starts on the same left edge whatever the code.
  */
 function KindTag({ kind }: { kind: Task['kind'] }) {
   const tint = kindTint(kind)
@@ -117,7 +133,7 @@ function KindTag({ kind }: { kind: Task['kind'] }) {
             : 'bg-primary-50 text-primary-500'
   return (
     <span
-      className={`flex h-40 w-48 shrink-0 items-center justify-center rounded-8 text-12 font-bold ${tone}`}
+      className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-8 text-12 font-bold ${tone}`}
     >
       {KIND_LABEL[kind]}
     </span>
@@ -151,31 +167,63 @@ function TaskRow({
     <button
       type="button"
       onClick={onStart}
-      className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
+      className="flex w-full items-start gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left active:bg-neutral-50"
     >
       <KindTag kind={task.kind} />
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="truncate text-14 font-bold text-default">{task.title}</span>
-        {/* Time and place on one line, in that order. They are the same fact
-            in two parts — when and where she has to be — and reading them
-            together is how a stop gets planned. The title keeps the first line
-            to itself, which is the only line she scans to find a row. */}
-        <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
-          <span className="shrink-0">{task.time}</span>
-          <span className="shrink-0">·</span>
-          <PinMark />
-          <span className="truncate">{task.place}</span>
-        </span>
-        <TaskLabels task={task} />
-      </div>
-      {/* The status moves to the right edge, above the chevron, so every card
-          reads the same way whatever its title length: what and where on the
-          left, where it stands on the right. On the title line it pushed a
-          long name into an ellipsis to say a word that never changes width. */}
-      <span className={`shrink-0 text-10 ${STATUS_META[status].tone}`}>
-        {STATUS_META[status].label}
-      </span>
+      <TaskBody
+        task={task}
+        status={<Badge intent={STATUS_META[status].intent}>{STATUS_META[status].label}</Badge>}
+      />
     </button>
+  )
+}
+
+/**
+ * Everything on a task card except the tile: the kind and the time, the name,
+ * the address, and whatever labels the stop carries.
+ *
+ * The ORDER is the change. The card used to open on the title with the time
+ * buried in a grey line beneath it; now the kind and the clock sit on top as
+ * the card's own header — "Majelis Visit · 08.00" — and the name reads as the
+ * answer to it. That line is also where the state goes, at the right edge, so
+ * every card says what/when on the left and where-it-stands on the right
+ * regardless of how long the name underneath runs.
+ *
+ * The address wraps to two lines rather than truncating. A kampung address is
+ * where she is actually going, and "Kp. Cibeuteung RT 02, Ciseeng…" with the RT
+ * cut off is the one part she needed.
+ *
+ * Three sizes, and only three: the name is 16 bold — it is the one thing she
+ * is looking FOR — the two lines of prose around it are 14, and the tags stay
+ * at 12 because a label is not something you read, it is something you notice.
+ */
+function TaskBody({
+  task,
+  meta,
+  status,
+  note,
+}: {
+  task: Task
+  /** Overrides "kind · time" — a moved visit leads with the day it moved to. */
+  meta?: string
+  /** The state at the right of the header line. */
+  status?: ReactNode
+  /** A last line under the labels: why it moved, why it was closed. */
+  note?: string
+}) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-4">
+      <span className="flex items-center gap-8">
+        <span className="min-w-0 flex-1 truncate text-14 font-regular text-caption">
+          {meta ?? `${KIND_NAME[task.kind]} · ${task.time}`}
+        </span>
+        {status ? <span className="flex shrink-0">{status}</span> : null}
+      </span>
+      <span className="text-16 font-bold text-default">{task.title}</span>
+      <span className="line-clamp-2 text-14 font-regular text-default">{task.place}</span>
+      <TaskLabels task={task} />
+      {note ? <span className="text-12 font-regular text-caption">{note}</span> : null}
+    </div>
   )
 }
 
@@ -213,23 +261,20 @@ function DoneLine({ children }: { children: ReactNode }) {
 function TaskLabels({ task }: { task: Task }) {
   if (task.distanceKm === undefined && !task.payLikely) return null
   return (
-    <>
-      {/* Distance on its own line, directly under the address it qualifies —
-          they are one thought ("where, and how far"), and the two read as a
-          pair only when nothing sits between them. */}
+    // Both labels on one row of pills under the address, because they qualify
+    // the same stop and stacking them made a two-word fact take two lines. The
+    // distance drops to "1,2 km" here: beside the address it is going with,
+    // "dari lokasi Anda" is a sentence the pill has no room for and the BP does
+    // not need.
+    <span className="flex flex-wrap items-center gap-4 pt-2">
       {task.distanceKm !== undefined ? (
-        <span className="text-10 text-disabled">{km(task.distanceKm)}</span>
+        <Badge intent="neutral">{kmShort(task.distanceKm)}</Badge>
       ) : null}
-      {/* Last, and the only badge left on the card. Everything above it is a
-          fact about the stop; this is a prediction about the person, and it
-          earns the bottom line by being the one thing here that is not simply
-          true yet. */}
-      {task.payLikely ? (
-        <span className="flex">
-          <Badge intent="green">Kemungkinan bayar tinggi</Badge>
-        </span>
-      ) : null}
-    </>
+      {/* Last, and the only prediction on the card. Everything beside it is a
+          fact about the stop; this is a guess about the person, and it sits in
+          green at the end because it is the one thing here not simply true yet. */}
+      {task.payLikely ? <Badge intent="green">Kemungkinan bayar tinggi</Badge> : null}
+    </span>
   )
 }
 
@@ -237,16 +282,17 @@ function TaskLabels({ task }: { task: Task }) {
  * The four states, once. The filter sheet, the chip and the mark on the card
  * all read this, so none of them can drift on the wording of a state.
  *
- * Tones, not pills: on the card this is a MARK beside a name, and a badge there
- * takes ~90px off a line that has to hold "Follow Up: Ibu Nia Kurniasih". Blue
- * for Selesai and green only for Terkirim, because green is this app's colour
- * for settled and work still sitting on the handset has not settled.
+ * A badge now, not a bare tone. It sits on the card's header line — above the
+ * name rather than beside it — so it no longer competes with a long title for
+ * width, and a tinted pill is what every other state in this app is drawn as.
+ * Blue for Selesai and green only for Terkirim, because green is this app's
+ * colour for settled and work still sitting on the handset has not settled.
  */
-const STATUS_META: Record<TaskStatus, { label: string; tone: string }> = {
-  belum: { label: 'Belum mulai', tone: 'text-disabled' },
-  dikerjakan: { label: 'Dikerjakan', tone: 'text-orange-500' },
-  selesai: { label: 'Selesai', tone: 'text-blue-500' },
-  terkirim: { label: 'Terkirim', tone: 'text-green-500' },
+const STATUS_META: Record<TaskStatus, { label: string; intent: BadgeIntent }> = {
+  belum: { label: 'Belum mulai', intent: 'neutral' },
+  dikerjakan: { label: 'Dikerjakan', intent: 'orange' },
+  selesai: { label: 'Selesai', intent: 'blue' },
+  terkirim: { label: 'Terkirim', intent: 'green' },
 }
 
 const STATUS_OPTIONS: { label: string; value: TaskStatus | null }[] = [
@@ -430,17 +476,9 @@ export function TodayScreen() {
         <div className="flex flex-col gap-8">
           {tomorrow.map((task) => (
             <Card key={task.id}>
-              <div className="flex items-center gap-12">
+              <div className="flex items-start gap-12">
                 <KindTag kind={task.kind} />
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                  <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
-                    <span className="shrink-0">{task.time}</span>
-                    <span className="shrink-0">·</span>
-                    <PinMark />
-                    <span className="truncate">{task.place}</span>
-                  </span>
-                </div>
+                <TaskBody task={task} />
               </div>
             </Card>
           ))}
@@ -693,22 +731,19 @@ export function TodayScreen() {
                 // about it the moment she moved it.
                 <div
                   key={task.id}
-                  className="flex w-full items-center gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12"
+                  className="flex w-full items-start gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12"
                 >
                   <KindTag kind={task.kind} />
-                  <div className="flex min-w-0 flex-1 flex-col gap-2">
-                    <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                    <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
-                      <span className="shrink-0">Dipindah ke {moved.date}</span>
-                      <span className="shrink-0">·</span>
-                      <PinMark />
-                      <span className="truncate">{task.place}</span>
-                    </span>
-                    <span className="text-10 text-disabled">{moved.reason}</span>
-                  </div>
-                  <span className="shrink-0 text-10 text-caption">
-                    Dijadwalkan ulang{moved.count > 1 ? ` ${moved.count}×` : ''}
-                  </span>
+                  <TaskBody
+                    task={task}
+                    meta={`Dipindah ke ${moved.date}`}
+                    status={
+                      <Badge intent="neutral">
+                        Dijadwalkan ulang{moved.count > 1 ? ` ${moved.count}×` : ''}
+                      </Badge>
+                    }
+                    note={moved.reason}
+                  />
                 </div>
               )
             })}
@@ -727,20 +762,14 @@ export function TodayScreen() {
             {rejected.map((task) => (
               <div
                 key={task.id}
-                className="flex w-full items-center gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12"
+                className="flex w-full items-start gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12"
               >
                 <KindTag kind={task.kind} />
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                  <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
-                    <PinMark />
-                    <span className="truncate">{task.place}</span>
-                  </span>
-                  <span className="text-10 text-disabled">{s.rejects[task.id]}</span>
-                </div>
-                <Badge intent="red" size="sm">
-                  Ditolak
-                </Badge>
+                <TaskBody
+                  task={task}
+                  status={<Badge intent="red">Ditolak</Badge>}
+                  note={s.rejects[task.id]}
+                />
               </div>
             ))}
           </div>
@@ -757,20 +786,14 @@ export function TodayScreen() {
             {skipped.map((task) => (
               <div
                 key={task.id}
-                className="flex w-full items-center gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12"
+                className="flex w-full items-start gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12"
               >
                 <KindTag kind={task.kind} />
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <span className="truncate text-14 font-bold text-default">{task.title}</span>
-                  <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
-                    <PinMark />
-                    <span className="truncate">{task.place}</span>
-                  </span>
-                  <span className="text-10 text-disabled">Bukti foto & lokasi tersimpan</span>
-                </div>
-                <Badge intent="neutral" size="sm">
-                  Dilewati
-                </Badge>
+                <TaskBody
+                  task={task}
+                  status={<Badge intent="neutral">Dilewati</Badge>}
+                  note="Bukti foto & lokasi tersimpan"
+                />
               </div>
             ))}
           </div>

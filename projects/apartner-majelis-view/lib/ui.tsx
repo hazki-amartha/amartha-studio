@@ -280,10 +280,13 @@ export function WeekStrip({
 // contradicted. The circle carries the same split by colour so the pattern reads
 // at a glance before the amounts are even scanned.
 //
-// A fixed six-cell row, not a scroll rail: the question this grid answers — "how
-// has the last month and a half gone?" — is answered by what fits on screen, and
-// the whole ledger is one tap away behind "Lihat Semua". Six recent weeks sit
-// legibly across a phone with the amount under each still readable.
+// Six cells at a time, and the whole cycle behind them as a carousel: six recent
+// weeks sit legibly across a phone with the amount under each still readable,
+// which is why six is the page rather than a number of weeks the grid holds. It
+// pages rather than scrolls freely — each swipe lands on a clean set of six, so
+// a cell is never cut in half and the dates always read as one band. No stepper
+// and no dots: the row opens on the current week and swiping back is the only
+// gesture, so there is nothing for a control to say that the grid doesn't.
 const GRID_TONE: Record<Week['status'], string> = {
   lunas: 'border-green-500 bg-green-500 text-neutral-white',
   sebagian: 'border-orange-500 bg-orange-500 text-neutral-white',
@@ -295,35 +298,69 @@ const GRID_TONE: Record<Week['status'], string> = {
 const GRID_WEEKS = 6
 
 export function WeekGrid({ weeks }: { weeks: Week[] }) {
-  const shown = weeks.slice(-GRID_WEEKS)
+  // Paged from the RIGHT, so the newest page is always a full six and any short
+  // page is the oldest one. Chunking from week 1 instead would leave the current
+  // week stranded alone on a near-empty final page — the one page the BP opens
+  // on, and the one that has to look like the others.
+  const pages: Week[][] = []
+  for (let end = weeks.length; end > 0; end -= GRID_WEEKS) {
+    pages.unshift(weeks.slice(Math.max(0, end - GRID_WEEKS), end))
+  }
+
+  const rail = useRef<HTMLDivElement>(null)
+  // Opens on the current week at the right edge; the BP swipes back into the
+  // past. A carousel that opened on week 1 would put the cell she came for off
+  // screen and make "swipe" the first thing she has to do.
+  useEffect(() => {
+    const el = rail.current
+    if (el) el.scrollLeft = el.scrollWidth
+  }, [weeks])
+
   return (
     // One lightest-grey panel, no dividers and no outer border: the cells are
     // told apart by their spacing on a single ground, so the row reads as one
     // calendar band rather than six boxed cells. The grey is what carries the
     // history's edge on a page that has dropped its cards.
-    <div className="flex overflow-hidden rounded-8 bg-neutral-50 p-4">
-      {shown.map((w) => {
-        const current = w.status === 'jatuh-tempo'
-        return (
-          <div key={w.no} className="flex flex-1 flex-col items-center gap-8 px-4 py-8">
-            <span className={`text-10 ${current ? 'font-bold text-primary-500' : 'text-caption'}`}>
-              {w.date}
-            </span>
-            <span
-              className={`flex h-20 w-20 items-center justify-center rounded-full border ${GRID_TONE[w.status]}`}
-            >
-              {w.status === 'lunas' ? (
-                <IconCheck size={16} />
-              ) : w.status === 'lewat' || w.status === 'sebagian' ? (
-                <IconX size={16} />
-              ) : null}
-            </span>
-            <span className={`text-10 font-bold ${current ? 'text-primary-500' : 'text-disabled'}`}>
-              {ringkas(w.paid)}
-            </span>
-          </div>
-        )
-      })}
+    <div
+      ref={rail}
+      className="flex snap-x snap-mandatory overflow-x-auto rounded-8 bg-neutral-50 p-4"
+    >
+      {pages.map((page) => (
+        <div key={page[0]?.no} className="flex w-full shrink-0 snap-start">
+          {/* A short page is always the OLDEST one, and its empty slots sit at
+              the left — before its earliest week — so the six columns line up
+              page to page and the dates still run left-to-right unbroken. */}
+          {Array.from({ length: GRID_WEEKS - page.length }).map((_, i) => (
+            <div key={`pad-${i}`} className="flex-1" />
+          ))}
+          {page.map((w) => {
+            const current = w.status === 'jatuh-tempo'
+            return (
+              <div key={w.no} className="flex flex-1 flex-col items-center gap-8 px-4 py-8">
+                <span
+                  className={`text-10 ${current ? 'font-bold text-primary-500' : 'text-caption'}`}
+                >
+                  {w.date}
+                </span>
+                <span
+                  className={`flex h-20 w-20 items-center justify-center rounded-full border ${GRID_TONE[w.status]}`}
+                >
+                  {w.status === 'lunas' ? (
+                    <IconCheck size={16} />
+                  ) : w.status === 'lewat' || w.status === 'sebagian' ? (
+                    <IconX size={16} />
+                  ) : null}
+                </span>
+                <span
+                  className={`text-10 font-bold ${current ? 'text-primary-500' : 'text-disabled'}`}
+                >
+                  {ringkas(w.paid)}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      ))}
     </div>
   )
 }
