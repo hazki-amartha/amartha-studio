@@ -54,6 +54,12 @@ export interface Growth {
    * print "Peluang" over her status, which spent the loud line on a label that
    * was the same word on all four cards and left the BP to work out what to do
    * about it. Caption states the fact, value states the move.
+   *
+   * The MOVE only — no rupiah. It carried the figure ("Tawarkan renewal
+   * Rp9.000.000") and ran two lines deep on a card that already had a photo, a
+   * name, two badges and a button in it. The amount is not lost: it is the
+   * headline on the offer page one tap away, which is where it gets said out
+   * loud anyway, and where changing it is possible.
    */
   suggestion: string
   /** The headline figure, said out loud when the subject is opened. */
@@ -269,7 +275,7 @@ const ACTIVE: Mitra[] = [
       kind: 'celengan',
       label: 'Celengan',
       status: 'Belum pernah menabung',
-      suggestion: 'Tawarkan celengan Rp10.000/minggu',
+      suggestion: 'Tawarkan celengan',
       value: 'Mulai Rp10.000/minggu',
       done: 'Celengan dibuka',
     },
@@ -289,7 +295,7 @@ const ACTIVE: Mitra[] = [
       kind: 'celengan',
       label: 'Celengan',
       status: 'Celengan berhenti 3 minggu',
-      suggestion: 'Lanjutkan celengan Rp10.000/minggu',
+      suggestion: 'Lanjutkan celengan',
       value: 'Mulai Rp10.000/minggu',
       done: 'Celengan dilanjutkan',
     },
@@ -308,7 +314,7 @@ const ACTIVE: Mitra[] = [
       kind: 'disburse',
       label: 'Tambahan Pembiayaan',
       status: 'Limit tersedia Rp5.000.000',
-      suggestion: 'Tawarkan disburse Rp5.000.000',
+      suggestion: 'Tawarkan disbursement',
       value: 'Rp5.000.000',
       done: 'Pengajuan dikirim',
     },
@@ -332,7 +338,7 @@ const ACTIVE: Mitra[] = [
       kind: 'renewal',
       label: 'Perpanjangan Pinjaman',
       // No `status`: her standing IS her position in the loan, derived.
-      suggestion: 'Tawarkan renewal Rp9.000.000',
+      suggestion: 'Tawarkan renewal',
       value: 'Rp9.000.000',
       done: 'Pengajuan dikirim',
     },
