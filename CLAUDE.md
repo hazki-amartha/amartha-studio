@@ -153,7 +153,7 @@ navigation (an entered amount, a selected option), it goes in a **module store**
 in `projects/<slug>/lib/store.ts`, read via `useSyncExternalStore`. The
 template ships an **optional** stub at `projects/_template/lib/store.ts` —
 delete it if the prototype is a plain click-through; see
-`projects/apartner-homepage-ia/lib/store.ts` for a full flow using the pattern.
+`projects/apartner-majelis-view/lib/store.ts` for a full flow using the pattern.
 
 ---
 

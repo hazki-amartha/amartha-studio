@@ -9,7 +9,7 @@
 // below.
 //
 // Rename FlowState/useFlowState and the fields to fit your flow. See
-// projects/apartner-homepage-ia/lib/store.ts for a complete example.
+// projects/apartner-majelis-view/lib/store.ts for a complete example.
 
 import { useSyncExternalStore } from 'react'
 
