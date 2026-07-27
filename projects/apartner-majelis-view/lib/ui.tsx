@@ -9,10 +9,11 @@
 // actually introduces.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Badge, BottomSheet, Button, SelectableCard } from '@/design-system/components'
+import { Badge, BottomSheet, Button, Input, SelectableCard } from '@/design-system/components'
 import { MagnifyingGlass, NotePencil, WhatsappLogo } from '@/design-system/icons'
 import { ringkas, type Week } from './data'
 import { IconCheck, IconChevronDown, IconChevronUp, IconPin, IconX } from './icons'
+import { REJECT_AFTER } from './store'
 
 // --- The two marks ---------------------------------------------------------
 // Two glyphs get one treatment each, wherever they appear, because a glyph that
@@ -1254,15 +1255,23 @@ export function StickyBar({ children }: { children: ReactNode }) {
 }
 
 // --- RescheduleSheet -------------------------------------------------------
-// Moving a home visit to another day, from the top bar of any of its three
-// steps. A bottom sheet rather than an inline block or its own screen: it is a
-// meta-action on the TASK, not a step in the visit, and it has to be reachable
-// mid-visit — the BP who opens the door, finds the mitra can't talk now, and
-// decides to come back should not have to unwind the flow to do it.
+// Moving a task to another day, from the top bar of a home visit, a sosialisasi
+// or a follow-up. A bottom sheet rather than an inline block or its own screen:
+// it is a meta-action on the TASK, not a step in the work, and it has to be
+// reachable mid-flow — the BP who opens the door, finds the mitra can't talk
+// now, and decides to come back should not have to unwind the flow to do it.
 //
 // Two questions, both required: why it is moving (the record ops reads) and
-// when to (the day it lands on). The draft is local and resets each time the
-// sheet opens, so a cancelled reschedule leaves nothing behind on the next door.
+// when to (the day it lands on, anywhere from tomorrow to next week). The draft
+// is local and resets each time the sheet opens, so a cancelled reschedule
+// leaves nothing behind on the next task.
+//
+// After the THIRD move the sheet grows a second path: reject the task outright.
+// A task the BP has pushed three times is a task that isn't going to happen, and
+// forcing a fourth reschedule only launders "this won't happen" into a date
+// nobody believes. Rejection asks for one thing the reschedule reasons can't
+// give — an open-text reason in her own words — because by now none of the tidy
+// options fit, and ops needs to read what actually went wrong.
 
 /** Why a visit gets moved — BP-side reasons, distinct from a mitra's absence. */
 const RESCHEDULE_REASONS = [
@@ -1272,31 +1281,60 @@ const RESCHEDULE_REASONS = [
   'Menunggu koordinasi PJ',
 ]
 
-/** When to move it to. A reschedule needs a date, so there is no "no date". */
-const RESCHEDULE_DATES = ['Besok, 22 Juli', 'Lusa, 23 Juli', 'Minggu depan, 28 Juli']
+// When to move it to — tomorrow through next week, so a BP who can't get back
+// this week can still land the task somewhere real. A reschedule needs a date,
+// so there is no "no date". "Besok" and "Minggu depan" anchor the two ends; the
+// weekday is spelled on each so she isn't counting days off a bare number.
+const RESCHEDULE_DATES = [
+  'Besok, Rabu 22 Jul',
+  'Kamis, 23 Jul',
+  'Jumat, 24 Jul',
+  'Sabtu, 25 Jul',
+  'Senin, 27 Jul',
+  'Minggu depan, Selasa 28 Jul',
+]
 
 export function RescheduleSheet({
   open,
   onClose,
   subject,
+  subjectNoun = 'Kunjungan',
+  count = 0,
   onConfirm,
+  onReject,
 }: {
   open: boolean
   onClose: () => void
-  /** Whose visit is being moved — named in the sheet so it can't be mis-tapped. */
+  /** Whose task is being moved — named in the sheet so it can't be mis-tapped. */
   subject: string
+  /** How the task reads in the sentence — "Kunjungan", "Sosialisasi", "Follow up". */
+  subjectNoun?: string
+  /** How many times this task has already been moved. Unlocks reject at 3. */
+  count?: number
   onConfirm: (reason: string, date: string) => void
+  /** Closes the task for good. Omitting it keeps the reject path off entirely. */
+  onReject?: (reason: string) => void
 }) {
   const [reason, setReason] = useState('')
   const [date, setDate] = useState('')
-  const ready = Boolean(reason && date)
+  const [mode, setMode] = useState<'reschedule' | 'reject'>('reschedule')
+  const [rejectReason, setRejectReason] = useState('')
 
-  // Fresh every time it opens: a reschedule cancelled on one door must not
-  // pre-fill its answers on the next.
+  // Only offered once she has moved this task three times, and only if the
+  // caller wired up a way to record it.
+  const canReject = Boolean(onReject) && count >= REJECT_AFTER
+  const rejecting = mode === 'reject'
+
+  const ready = rejecting ? rejectReason.trim().length > 0 : Boolean(reason && date)
+
+  // Fresh every time it opens: a reschedule cancelled on one task must not
+  // pre-fill its answers on the next, and the mode always reopens on reschedule.
   useEffect(() => {
     if (open) {
       setReason('')
       setDate('')
+      setRejectReason('')
+      setMode('reschedule')
     }
   }, [open])
 
@@ -1304,8 +1342,12 @@ export function RescheduleSheet({
     <BottomSheet
       open={open}
       onClose={onClose}
-      title="Jadwalkan ulang kunjungan"
-      description={`Kunjungan ${subject} dipindah ke hari lain.`}
+      title={rejecting ? 'Tolak tugas' : 'Jadwalkan ulang tugas'}
+      description={
+        rejecting
+          ? `${subjectNoun} ${subject} ditutup dan tidak dijadwalkan lagi.`
+          : `${subjectNoun} ${subject} dipindah ke hari lain.`
+      }
       secondaryAction={
         <Button variant="outline" size="lg" className="w-full" onClick={onClose}>
           Batal
@@ -1316,27 +1358,61 @@ export function RescheduleSheet({
           size="lg"
           className="w-full"
           disabled={!ready}
-          onClick={() => onConfirm(reason, date)}
+          onClick={() => (rejecting ? onReject?.(rejectReason.trim()) : onConfirm(reason, date))}
         >
-          Jadwalkan ulang
+          {rejecting ? 'Tolak tugas' : 'Jadwalkan ulang'}
         </Button>
       }
     >
       <div className="flex flex-col gap-16">
-        <ChipGroup label="Alasan">
-          {RESCHEDULE_REASONS.map((option) => (
-            <Chip key={option} selected={reason === option} onClick={() => setReason(option)}>
-              {option}
-            </Chip>
-          ))}
-        </ChipGroup>
-        <ChipGroup label="Jadwal baru">
-          {RESCHEDULE_DATES.map((option) => (
-            <Chip key={option} selected={date === option} onClick={() => setDate(option)}>
-              {option}
-            </Chip>
-          ))}
-        </ChipGroup>
+        {/* The gate, and the choice it opens. Shown only after the third move:
+            she can move it again, or close it. Two pills rather than a second
+            button in the footer, so the primary action stays the one thing the
+            sheet does. */}
+        {canReject ? (
+          <div className="flex flex-col gap-8 rounded-8 bg-orange-50 p-12">
+            <span className="text-12 text-orange-500">
+              Tugas ini sudah dijadwalkan ulang {count}×. Kamu bisa menolaknya jika memang tidak
+              bisa dilanjutkan.
+            </span>
+            <div className="flex gap-8">
+              <Chip selected={!rejecting} onClick={() => setMode('reschedule')}>
+                Jadwalkan ulang
+              </Chip>
+              <Chip selected={rejecting} onClick={() => setMode('reject')}>
+                Tolak tugas
+              </Chip>
+            </div>
+          </div>
+        ) : null}
+
+        {rejecting ? (
+          <Input
+            label="Alasan penolakan"
+            required
+            placeholder="Tulis apa yang terjadi dengan tugas ini"
+            helperText="Ditulis dengan kata-katamu sendiri — dibaca ops untuk menutup tugas."
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+          />
+        ) : (
+          <>
+            <ChipGroup label="Alasan">
+              {RESCHEDULE_REASONS.map((option) => (
+                <Chip key={option} selected={reason === option} onClick={() => setReason(option)}>
+                  {option}
+                </Chip>
+              ))}
+            </ChipGroup>
+            <ChipGroup label="Jadwal baru">
+              {RESCHEDULE_DATES.map((option) => (
+                <Chip key={option} selected={date === option} onClick={() => setDate(option)}>
+                  {option}
+                </Chip>
+              ))}
+            </ChipGroup>
+          </>
+        )}
       </div>
     </BottomSheet>
   )

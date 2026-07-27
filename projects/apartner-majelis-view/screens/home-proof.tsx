@@ -12,7 +12,6 @@
 // alone cannot make. So the confirmation reads back the geotag — where the shot
 // was taken — rather than a filename.
 
-import { useState } from 'react'
 import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
@@ -22,7 +21,6 @@ import {
   HOME_STAGE_LABELS,
   PinMark,
   ProofTile,
-  RescheduleSheet,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -35,7 +33,6 @@ export function HomeProofScreen() {
   const mitra = openHomeMitra(s)
   const task = openHomeTask(s)
   const houseLocation = task?.place ?? profileOf(mitra).address
-  const [rescheduling, setRescheduling] = useState(false)
   // Cash collected at the door → offer a WhatsApp receipt to the mitra before
   // returning to the schedule. A no-payment visit skips straight back.
   const collectedCash = paidOf(s, mitra) > 0
@@ -45,19 +42,11 @@ export function HomeProofScreen() {
     flow.go(collectedCash ? 'home-wa-confirm' : 'today')
   }
 
-  function reschedule(reason: string, date: string) {
-    store.rescheduleTask(s.openHome, reason, date)
-    setRescheduling(false)
-    flow.go('today')
-  }
-
   return (
     <Screen
       topBar={
         <NavigationHeader
           title="Bukti & Kirim"
-          link="Jadwal ulang"
-          onLinkClick={() => setRescheduling(true)}
           onBack={() => flow.back()}
         />
       }
@@ -96,13 +85,6 @@ export function HomeProofScreen() {
           Selesaikan Tugas
         </Button>
       </StickyBar>
-
-      <RescheduleSheet
-        open={rescheduling}
-        onClose={() => setRescheduling(false)}
-        subject={mitra.name}
-        onConfirm={reschedule}
-      />
     </Screen>
   )
 }

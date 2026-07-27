@@ -22,7 +22,6 @@
 // What is gone: the growth stage. A home visit happens BECAUSE a mitra is far
 // behind, so there is nothing to upsell at that door.
 
-import { useState } from 'react'
 import {
   Button,
   Card,
@@ -35,12 +34,18 @@ import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
 import { AngsuranCard, JanjiBayarCard } from '../lib/mitra-card'
 import { DAYS } from '../lib/schedule'
-import { openHomeMitra, openHomeTask, paidOf, store, useApp, type PayMode } from '../lib/store'
+import {
+  openHomeMitra,
+  openHomeTask,
+  paidOf,
+  store,
+  useApp,
+  type PayMode,
+} from '../lib/store'
 import {
   Chip,
   ChipGroup,
   HOME_STAGE_LABELS,
-  RescheduleSheet,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -77,7 +82,6 @@ export function HomeVisitScreen() {
   const mitra = openHomeMitra(s)
   const task = openHomeTask(s)
 
-  const [rescheduling, setRescheduling] = useState(false)
   const met = s.metWith[mitra.id]
   const refusal = s.nonPayments[mitra.id]
   const paid = paidOf(s, mitra)
@@ -113,12 +117,6 @@ export function HomeVisitScreen() {
     if (next === 'keluar') store.setDropOut(mitra, dropReason ?? '')
   }
 
-  function reschedule(reason: string, date: string) {
-    store.rescheduleTask(s.openHome, reason, date)
-    setRescheduling(false)
-    flow.go('today')
-  }
-
   function pickReason(value: string) {
     store.setNonPayment(mitra, { reason: value, ptp: refusal?.ptp ?? null })
   }
@@ -139,8 +137,6 @@ export function HomeVisitScreen() {
               </span>
             </span>
           }
-          link="Jadwal ulang"
-          onLinkClick={() => setRescheduling(true)}
           onBack={() => flow.back()}
         />
       }
@@ -342,13 +338,6 @@ export function HomeVisitScreen() {
           Lanjut
         </Button>
       </StickyBar>
-
-      <RescheduleSheet
-        open={rescheduling}
-        onClose={() => setRescheduling(false)}
-        subject={mitra.name}
-        onConfirm={reschedule}
-      />
     </Screen>
   )
 }

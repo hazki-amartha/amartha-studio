@@ -22,6 +22,7 @@
 //   The gate names what's missing and offers the jump to fill it, which is the
 //   navigation the draft lives in the store to survive.
 
+import { useState } from 'react'
 import { Badge, Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
@@ -37,8 +38,8 @@ import {
 } from '../lib/leads'
 import { LeadIdentityCard } from '../lib/lead-card'
 import { findMajelisEntry } from '../lib/schedule'
-import { openLead, store, useApp } from '../lib/store'
-import { Chip, ChipGroup, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
+import { openLead, rescheduleCount, store, useApp } from '../lib/store'
+import { Chip, ChipGroup, RescheduleSheet, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
 
 const NEXT_STEPS: { value: 'siap' | 'lanjut' | 'tidak'; title: string; description: string }[] = [
   {
@@ -62,6 +63,19 @@ export function FollowUpScreen() {
   const gaps = missingFields(lead)
   const lastLog = lead.log[lead.log.length - 1]
   const rostered = s.activeTask !== null
+  const [rescheduling, setRescheduling] = useState(false)
+
+  function reschedule(reason: string, date: string) {
+    if (s.activeTask) store.rescheduleTask(s.activeTask, reason, date)
+    setRescheduling(false)
+    flow.go('today')
+  }
+
+  function reject(reason: string) {
+    if (s.activeTask) store.rejectTask(s.activeTask, reason)
+    setRescheduling(false)
+    flow.go('today')
+  }
 
   const set = (patch: Parameters<typeof store.setFollowUpDraft>[0]) => store.setFollowUpDraft(patch)
 
@@ -126,6 +140,8 @@ export function FollowUpScreen() {
       topBar={
         <NavigationHeader
           title={<VisitTitle title={lead.name} when="Follow up · Selasa, 11.45" />}
+          link={rostered ? 'Jadwal ulang' : undefined}
+          onLinkClick={rostered ? () => setRescheduling(true) : undefined}
           onBack={() => flow.go(rostered ? 'today' : 'lead')}
         />
       }
@@ -369,6 +385,16 @@ export function FollowUpScreen() {
           Simpan & Selesai
         </Button>
       </StickyBar>
+
+      <RescheduleSheet
+        open={rescheduling}
+        onClose={() => setRescheduling(false)}
+        subject={lead.name}
+        subjectNoun="Follow up"
+        count={s.activeTask ? rescheduleCount(s, s.activeTask) : 0}
+        onConfirm={reschedule}
+        onReject={reject}
+      />
     </Screen>
   )
 }

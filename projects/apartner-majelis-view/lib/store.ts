@@ -293,8 +293,27 @@ export interface AppState {
    * visit she can't or won't work today doesn't vanish and isn't "done" — it is
    * rescheduled, and the schedule has to say so rather than leave a locked door
    * looking like unfinished work.
+   *
+   * `count` is what gates rejection: a task the BP keeps pushing is a task that
+   * isn't going to happen, and after three moves she is allowed to close it for
+   * good instead — see `rejects`.
    */
-  reschedules: Record<string, { reason: string; date: string }>
+  reschedules: Record<string, { reason: string; date: string; count: number }>
+  /**
+   * taskId → why the BP rejected it. Only reachable once a task has been
+   * rescheduled three times: an open-text reason, because the whole point of a
+   * rejection at that stage is that none of the tidy reschedule reasons fit
+   * anymore, and ops needs to read what actually happened in her words.
+   */
+  rejects: Record<string, string>
+  /**
+   * taskId → a majelis visit the BP skipped from its first step, having recorded
+   * a geotagged photo as proof she was there. Distinct from a reschedule (no new
+   * date — the visit isn't moving) and from a rejection (it isn't being closed
+   * for good): the kumpulan didn't happen today, and the photo + location are
+   * what make "I went, it didn't gather" auditable rather than a gap.
+   */
+  skips: Record<string, boolean>
 
   // --- The daily close -----------------------------------------------------
 
@@ -431,6 +450,8 @@ const initial: AppState = {
   mitraAbsence: {},
   dropOut: {},
   reschedules: {},
+  rejects: {},
+  skips: {},
   deposits: {},
   settlements: [],
   depositAmount: null,
@@ -681,8 +702,32 @@ export const store = {
    * a door the BP rode away from is no longer in progress today.
    */
   rescheduleTask(taskId: string, reason: string, date: string) {
+    const count = (state.reschedules[taskId]?.count ?? 0) + 1
     store.set({
-      reschedules: { ...state.reschedules, [taskId]: { reason, date } },
+      reschedules: { ...state.reschedules, [taskId]: { reason, date, count } },
+      startedTasks: state.startedTasks.filter((id) => id !== taskId),
+    })
+  },
+  /**
+   * Closes a task for good, with the reason in the BP's own words. Only offered
+   * after three reschedules — see `rejects`. Leaves `doneTasks` untouched (a
+   * rejected task is not finished work) and clears any half-started state, since
+   * a task she has just given up on is no longer in progress.
+   */
+  rejectTask(taskId: string, reason: string) {
+    store.set({
+      rejects: { ...state.rejects, [taskId]: reason },
+      startedTasks: state.startedTasks.filter((id) => id !== taskId),
+    })
+  },
+  /**
+   * Skips a majelis visit from its first step, once the photo + location proof
+   * is captured. Like a reschedule it leaves `doneTasks` untouched — a skipped
+   * visit is not finished work — and clears any half-started state.
+   */
+  skipVisit(taskId: string) {
+    store.set({
+      skips: { ...state.skips, [taskId]: true },
       startedTasks: state.startedTasks.filter((id) => id !== taskId),
     })
   },
@@ -1288,7 +1333,20 @@ export const openHomeTask = (s: AppState): Task | undefined => findTask(s.openHo
 
 /** Visits the BP moved to another day — off today's plate, not done. */
 export const rescheduledTasks = (s: AppState): Task[] =>
-  TASKS.filter((t) => s.reschedules[t.id])
+  TASKS.filter((t) => s.reschedules[t.id] && !s.rejects[t.id])
+
+/** How many times a task has been moved. Gates the reject option at 3. */
+export const rescheduleCount = (s: AppState, taskId: string): number =>
+  s.reschedules[taskId]?.count ?? 0
+
+/** After how many reschedules the BP may reject a task instead of moving it. */
+export const REJECT_AFTER = 3
+
+/** Tasks the BP closed for good, with her reason — off today's plate, not done. */
+export const rejectedTasks = (s: AppState): Task[] => TASKS.filter((t) => s.rejects[t.id])
+
+/** Majelis visits the BP skipped with photo proof — off today's plate, not done. */
+export const skippedTasks = (s: AppState): Task[] => TASKS.filter((t) => s.skips[t.id])
 
 // --- NTB: prospects --------------------------------------------------------
 

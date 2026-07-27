@@ -35,12 +35,13 @@ import {
 } from '../lib/leads'
 import { LeadRow } from '../lib/lead-card'
 import { IconUserPlus } from '../lib/icons'
-import { eventProgress, leadsOfEvent, openEvent, store, useApp } from '../lib/store'
+import { eventProgress, leadsOfEvent, openEvent, rescheduleCount, store, useApp } from '../lib/store'
 import {
   Chip,
   ChipGroup,
   PinMark,
   ProgressCard,
+  RescheduleSheet,
   SectionTitle,
   StickyBar,
   VisitTitle,
@@ -58,9 +59,25 @@ export function SosialisasiScreen() {
   const leads = leadsOfEvent(s, event.id)
   const progress = eventProgress(s, event)
   const [adding, setAdding] = useState(false)
+  const [rescheduling, setRescheduling] = useState(false)
+  // Only a rostered sosialisasi has a task to move; opened without one, the
+  // reschedule entry point stays off.
+  const taskId = s.activeTask
 
   function finish() {
     store.finishTask()
+    flow.go('today')
+  }
+
+  function reschedule(reason: string, date: string) {
+    if (taskId) store.rescheduleTask(taskId, reason, date)
+    setRescheduling(false)
+    flow.go('today')
+  }
+
+  function reject(reason: string) {
+    if (taskId) store.rejectTask(taskId, reason)
+    setRescheduling(false)
     flow.go('today')
   }
 
@@ -69,6 +86,8 @@ export function SosialisasiScreen() {
       topBar={
         <NavigationHeader
           title={<VisitTitle title={event.title} when="Sosialisasi · Selasa, 14.00" />}
+          link={taskId ? 'Jadwal ulang' : undefined}
+          onLinkClick={taskId ? () => setRescheduling(true) : undefined}
           onBack={() => flow.go('today')}
         />
       }
@@ -148,6 +167,16 @@ export function SosialisasiScreen() {
       </StickyBar>
 
       <AddLeadSheet open={adding} onClose={() => setAdding(false)} />
+
+      <RescheduleSheet
+        open={rescheduling}
+        onClose={() => setRescheduling(false)}
+        subject={event.title}
+        subjectNoun="Sosialisasi"
+        count={taskId ? rescheduleCount(s, taskId) : 0}
+        onConfirm={reschedule}
+        onReject={reject}
+      />
     </Screen>
   )
 }
