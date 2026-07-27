@@ -45,7 +45,9 @@ import {
   canSettle,
   freeSettlementsLeft,
   pendingSync,
+  rejectedTasks,
   rescheduledTasks,
+  skippedTasks,
   settledTotal,
   unsettledTotal,
   scheduledFor,
@@ -324,9 +326,14 @@ export function TodayScreen() {
   // A visit moved to another day is off today's plate entirely — not to-do, not
   // done, and not counted against the day — so it drops out of every bucket
   // below and gets its own section at the foot of the list.
+  // A rejected task is gone the same way a rescheduled one is — off today's
+  // plate, not to-do and not done — but it landed there by being closed for
+  // good rather than moved, so it gets its own section and its own count.
   const rescheduled = rescheduledTasks(s)
-  const onToday = (t: Task) => !s.reschedules[t.id]
-  const todayCount = TASKS.length - rescheduled.length
+  const rejected = rejectedTasks(s)
+  const skipped = skippedTasks(s)
+  const onToday = (t: Task) => !s.reschedules[t.id] && !s.rejects[t.id] && !s.skips[t.id]
+  const todayCount = TASKS.length - rescheduled.length - rejected.length - skipped.length
 
   const filtering = Boolean(kind || status)
   const matches = TASKS.filter(
@@ -699,10 +706,73 @@ export function TodayScreen() {
                     </span>
                     <span className="text-10 text-disabled">{moved.reason}</span>
                   </div>
-                  <span className="shrink-0 text-10 text-caption">Dijadwalkan ulang</span>
+                  <span className="shrink-0 text-10 text-caption">
+                    Dijadwalkan ulang{moved.count > 1 ? ` ${moved.count}×` : ''}
+                  </span>
                 </div>
               )
             })}
+          </div>
+        </>
+      ) : null}
+
+      {/* --- Ditolak: tasks closed for good after three reschedules. Same dashed
+          card, but there is no future date to show — the point is that it has
+          none — so it carries the BP's own reason instead, which is the record
+          ops picks the closed task up from. */}
+      {rejected.length > 0 ? (
+        <>
+          <Overline>Ditolak</Overline>
+          <div className="flex flex-col gap-8 pb-16">
+            {rejected.map((task) => (
+              <div
+                key={task.id}
+                className="flex w-full items-center gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12"
+              >
+                <KindTag kind={task.kind} />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <span className="truncate text-14 font-bold text-default">{task.title}</span>
+                  <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+                    <PinMark />
+                    <span className="truncate">{task.place}</span>
+                  </span>
+                  <span className="text-10 text-disabled">{s.rejects[task.id]}</span>
+                </div>
+                <Badge intent="red" size="sm">
+                  Ditolak
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {/* --- Dilewati: majelis visits skipped from step 1 with photo + location
+          proof. On the same dashed card, tagged so a skipped kumpulan reads as
+          handled-with-evidence rather than as work she never got to. */}
+      {skipped.length > 0 ? (
+        <>
+          <Overline>Dilewati</Overline>
+          <div className="flex flex-col gap-8 pb-16">
+            {skipped.map((task) => (
+              <div
+                key={task.id}
+                className="flex w-full items-center gap-12 rounded-12 border border-dashed border-default bg-neutral-white p-12"
+              >
+                <KindTag kind={task.kind} />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <span className="truncate text-14 font-bold text-default">{task.title}</span>
+                  <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
+                    <PinMark />
+                    <span className="truncate">{task.place}</span>
+                  </span>
+                  <span className="text-10 text-disabled">Bukti foto & lokasi tersimpan</span>
+                </div>
+                <Badge intent="neutral" size="sm">
+                  Dilewati
+                </Badge>
+              </div>
+            ))}
           </div>
         </>
       ) : null}

@@ -24,8 +24,22 @@ import { useFlow } from '@/platform/runtime'
 import { ContactRow, HomeMitraCard } from '../lib/home-card'
 import { MitraPhoto, mapsUrl } from '../lib/mitra-card'
 import { profileOf } from '../lib/profile'
-import { openHomeMitra, openHomeTask, store, useApp, type MetWith } from '../lib/store'
-import { HOME_STAGE_LABELS, SectionTitle, SelectList, StageBar, StickyBar } from '../lib/ui'
+import {
+  openHomeMitra,
+  openHomeTask,
+  rescheduleCount,
+  store,
+  useApp,
+  type MetWith,
+} from '../lib/store'
+import {
+  HOME_STAGE_LABELS,
+  RescheduleSheet,
+  SectionTitle,
+  SelectList,
+  StageBar,
+  StickyBar,
+} from '../lib/ui'
 
 const WHO: { value: MetWith; title: string; description: string }[] = [
   { value: 'mitra', title: 'Mitra sendiri', description: 'Bisa langsung menagih' },
@@ -74,6 +88,20 @@ export function HomeBriefScreen() {
   const [sheetOpen, setSheetOpen] = useState(false)
   // A tapped photo (mitra, house, or PJ) enlarges in a lightbox.
   const [lightbox, setLightbox] = useState<string | null>(null)
+  // Moving the whole visit off today, from the first step's top bar.
+  const [rescheduling, setRescheduling] = useState(false)
+
+  function reschedule(reason: string, date: string) {
+    store.rescheduleTask(s.openHome, reason, date)
+    setRescheduling(false)
+    flow.go('today')
+  }
+
+  function reject(reason: string) {
+    store.rejectTask(s.openHome, reason)
+    setRescheduling(false)
+    flow.go('today')
+  }
 
   // Meeting the PJ or finding nobody home both require a reason before she can
   // move on — the record has to say why the borrower was absent.
@@ -100,6 +128,8 @@ export function HomeBriefScreen() {
               </span>
             </span>
           }
+          link="Jadwal ulang"
+          onLinkClick={() => setRescheduling(true)}
           onBack={() => flow.back()}
         />
       }
@@ -277,6 +307,15 @@ export function HomeBriefScreen() {
           <img src={lightbox} alt="" className="w-full rounded-12 object-contain" />
         ) : null}
       </Modal>
+
+      <RescheduleSheet
+        open={rescheduling}
+        onClose={() => setRescheduling(false)}
+        subject={mitra.name}
+        count={rescheduleCount(s, s.openHome)}
+        onConfirm={reschedule}
+        onReject={reject}
+      />
     </Screen>
   )
 }

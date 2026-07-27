@@ -22,13 +22,14 @@
 // worked through in person cannot afford. What changes is the STATE of the card,
 // not its place, and the same roster in the same order carries all three stages.
 
-import { Button, NavigationHeader } from '@/design-system/components'
+import { BottomSheet, Button, NavigationHeader } from '@/design-system/components'
+import { useEffect, useState } from 'react'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { KumpulanCard } from '../lib/kumpulan-card'
 import { MAJELIS } from '../lib/data'
-import { majelisWhen } from '../lib/schedule'
-import { IconCheck, IconX } from '../lib/icons'
+import { majelisWhen, taskForMajelis, type MajelisEntry } from '../lib/schedule'
+import { IconCamera, IconCheck, IconX } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import {
   attendanceComplete,
@@ -42,7 +43,9 @@ import {
   ChoiceList,
   ChoicePill,
   ChosenRow,
+  PinMark,
   ProductBadge,
+  ProofTile,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -71,6 +74,7 @@ export function AttendanceScreen() {
   const flow = useFlow()
   const s = useApp()
   const group = openMajelisEntry(s)
+  const [skipping, setSkipping] = useState(false)
 
   const total = MAJELIS.members.length
   const settled = settledCount(s)
@@ -78,12 +82,24 @@ export function AttendanceScreen() {
   const complete = attendanceComplete(s)
   const left = total - settled
 
+  // The task this visit belongs to — carried in from the schedule, or recovered
+  // from the group when the roster opened it. Skipping records against it.
+  const taskId = s.activeTask ?? taskForMajelis(group.id)?.id ?? null
+
+  function skip() {
+    if (taskId) store.skipVisit(taskId)
+    setSkipping(false)
+    flow.go('today')
+  }
+
   return (
     <Screen
       topBar={
         <NavigationHeader
           title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
           onBack={() => flow.back()}
+          link="Skip"
+          onLinkClick={() => setSkipping(true)}
         />
       }
     >
@@ -205,6 +221,87 @@ export function AttendanceScreen() {
           Simpan &amp; Lanjut
         </Button>
       </StickyBar>
+
+      {/* Skipping the whole visit from step 1: the kumpulan didn't gather, so
+          there is nothing to record — but a skip with nothing behind it is
+          indistinguishable from a BP who just went home. The photo + location
+          are the proof she was there, which is what makes the skip auditable. */}
+      <SkipSheet open={skipping} group={group} onClose={() => setSkipping(false)} onConfirm={skip} />
     </Screen>
+  )
+}
+
+/**
+ * Skip a majelis visit with proof. A bottom sheet rather than a screen: it is a
+ * meta-action on the TASK, reached from the top bar, and the whole interaction
+ * is two captures and a confirm.
+ *
+ * Just a photo, the same as the home visit's Bukti & Kirim step — the location
+ * rides along with it automatically, read back under the tile once the shot is
+ * taken. A photo proves she was there, the geotag proves it was HERE, and asking
+ * her to tap "record location" separately is a second gesture for a fact the
+ * camera already carries. The draft is local and resets on open, so a cancelled
+ * skip leaves nothing behind on the next group.
+ */
+function SkipSheet({
+  open,
+  group,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean
+  group: MajelisEntry
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  const [photo, setPhoto] = useState(false)
+
+  useEffect(() => {
+    if (open) setPhoto(false)
+  }, [open])
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="Lewati kunjungan majelis"
+      description={`Ambil foto sebagai bukti sebelum melewati kunjungan ${group.name}. Lokasi terekam otomatis.`}
+      secondaryAction={
+        <Button variant="outline" size="lg" className="w-full" onClick={onClose}>
+          Batal
+        </Button>
+      }
+      primaryAction={
+        <Button size="lg" className="w-full" disabled={!photo} onClick={onConfirm}>
+          Lewati Kunjungan
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-12">
+        <div className="flex">
+          <ProofTile
+            done={photo}
+            label="Ambil Foto"
+            doneLabel="Foto tersimpan"
+            icon={<IconCamera size={24} />}
+            onClick={() => setPhoto(!photo)}
+          />
+        </div>
+
+        {/* The geotag the photo carried, read back — the location is recorded
+            with the shot, not tapped for separately. */}
+        {photo ? (
+          <div className="flex items-center gap-8 rounded-12 bg-neutral-50 p-12">
+            <span className="shrink-0 text-caption">
+              <PinMark size={16} />
+            </span>
+            <span className="flex-1 text-12 text-caption">{group.place}</span>
+            <span className="shrink-0 text-12 text-caption">±8 m</span>
+          </div>
+        ) : (
+          <span className="text-12 text-caption">Ambil foto dulu untuk melewati kunjungan</span>
+        )}
+      </div>
+    </BottomSheet>
   )
 }
