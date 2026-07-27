@@ -18,7 +18,7 @@ import { useState } from 'react'
 import { Badge, Button, Card, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { findMitra, rupiah } from '../lib/data'
+import { findMitra, growthStat, rupiah } from '../lib/data'
 import { store, useApp, type GrowthFollowUp } from '../lib/store'
 import { MitraPhoto } from '../lib/mitra-card'
 import { ChoiceList, SectionTitle, StickyBar } from '../lib/ui'
@@ -103,7 +103,7 @@ export function OfferScreen() {
                 </div>
                 <Badge intent="primary">Rekomendasi</Badge>
               </div>
-              <span className="text-12 text-caption">{growth.status}</span>
+              <span className="text-12 text-caption">{growthStat(mitra)}</span>
             </div>
           </Card>
 
