@@ -1,6 +1,6 @@
 # Bottom Sheet
 
-Mobile sheet that slides up from the bottom. Always includes a grip handle. Use for contextual actions, selection, and summaries on mobile screens.
+Mobile sheet that slides up from the bottom. Use for contextual actions, selection, and summaries on mobile screens.
 
 ```tsx
 import { BottomSheet } from '@/design-system/components'
@@ -32,6 +32,7 @@ import { Button } from '@/design-system/components'
 | `primaryAction` | `ReactNode` | — | Full-width primary CTA |
 | `secondaryAction` | `ReactNode` | — | Full-width secondary action |
 | `hideClose` | `boolean` | `false` | Hides the X close button |
+| `onBack` | `() => void` | — | Marks this as step 2+ of a flow in one sheet: the close glyph becomes a back arrow and taps call this instead of `onClose` |
 
 ---
 
@@ -49,7 +50,7 @@ import { Button } from '@/design-system/components'
 
 - Closes on: Escape key, overlay click, or close button
 - Overlay: `rgba(17, 25, 40, 0.8)` backdrop
-- Grip handle: always present at top center
+- Head: one glyph, top left — an X that closes, or (with `onBack`) a back arrow that steps back. There is no grip handle: it said the same thing the close button says
 - Entrance animation: slide up from bottom
 - Surface: white, 12px top radius (0px when fullscreen), 16px padding
 - Actions: equal-width button row at the bottom
@@ -80,6 +81,17 @@ import { Button } from '@/design-system/components'
   secondaryAction={<Button variant="ghost">Kirim Ulang</Button>}
 />
 
+// Two steps in one sheet — step 2 gets a back arrow instead of an X
+<BottomSheet
+  open={open}
+  onClose={close}
+  onBack={() => setStep(1)}
+  title="Janji Bayar"
+  primaryAction={<Button onClick={save}>Simpan</Button>}
+>
+  <PtpOptions />
+</BottomSheet>
+
 // Fullscreen selection sheet
 <BottomSheet
   open={open}
@@ -99,3 +111,4 @@ import { Button } from '@/design-system/components'
 - Pick by content, not by name: a **content-bearing confirmation** (order summary, amount + payment method, anything worth reviewing) belongs in a bottom sheet; a **simple yes/no** with nothing to review belongs in `Modal` with the `dialog` variant. If a designer asks for a "confirmation bottom sheet", give the sheet real summary content rather than a bare question
 - Actions are always full-width and stacked in a row — do NOT place actions inline in the slot
 - Use `slotPosition="below"` when the visual should appear after the text (e.g., a summary card below a description)
+- A multi-step flow that stays inside one sheet passes `onBack` on every step after the first — never a second sheet stacked over the first

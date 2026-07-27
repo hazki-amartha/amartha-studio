@@ -13,18 +13,10 @@
 
 import type { ReactNode } from 'react'
 import { Badge, Card } from '@/design-system/components'
-import {
-  ArrowsClockwise,
-  CheckCircle,
-  Coins,
-  HandCoins,
-  LogoModal,
-  User,
-  Warning,
-} from '@/design-system/icons'
+import { User } from '@/design-system/icons'
 import { outstandingOf, rupiah, type Mitra } from './data'
 import { IconCalendar, IconChevronRight, IconHome, IconStore } from './icons'
-import { WeekGrid } from './ui'
+import { ProductBadge, WeekGrid } from './ui'
 
 /**
  * What she owes, and what it is made of. ONE component, used by the mitra page
@@ -205,81 +197,33 @@ export function DpdBadge({ dpd, format = 'long' }: { dpd: number; format?: 'long
 }
 
 /**
- * An outlined status pill with a leading glyph — the flatter, icon-led chip the
- * mitra page's header uses, where a whole ROW of standing facts sits under her
- * name and each one needs to be told apart at a glance. The filled `Badge` is
- * still right where a single status is scanned down a column (the roster, the
- * queue); this is for the place where product, bucket and any relief line up
- * together and the icon is what the eye lands on first.
- */
-const CHIP_TONE = {
-  blue: 'border-blue-200 text-blue-500',
-  primary: 'border-primary-200 text-primary-500',
-  orange: 'border-orange-200 text-orange-500',
-  red: 'border-red-200 text-red-500',
-  green: 'border-green-200 text-green-500',
-  neutral: 'border-neutral-200 text-neutral-700',
-} as const
-
-function StatusChip({
-  tone,
-  icon,
-  children,
-}: {
-  tone: keyof typeof CHIP_TONE
-  icon: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <span
-      className={`inline-flex items-center gap-4 rounded-full border bg-neutral-white px-8 py-4 text-12 font-bold ${CHIP_TONE[tone]}`}
-    >
-      {icon}
-      {children}
-    </span>
-  )
-}
-
-/**
- * Her standing facts as a wrapping row of chips: the product she is on, her DPD
- * bucket, and whichever exception applies — approved relief, or a loan approved
- * but not yet disbursed. New labels drop in here rather than crowding the top
- * bar, which is why the name and badges moved off the nav and onto the page.
+ * Her standing facts as a wrapping row: the product she is on, her DPD bucket,
+ * and whichever exception applies — approved relief, or a loan approved but not
+ * yet disbursed. New labels drop in here rather than crowding the top bar, which
+ * is why the name and badges moved off the nav and onto the page.
  *
- * A pre-disbursement mitra has no bucket to show, so her DPD chip is replaced by
- * the disbursement she is waiting on rather than sitting beside it.
+ * These are the SAME badges the majelis visit puts on every mitra card —
+ * `ProductBadge` and `DpdBadge`, filled, from the design system's `Badge`. They
+ * used to be a second family: outlined, icon-led chips built only for this page.
+ * Two drawings of "Modal" and "DPD 34" is how a mitra reads as a different
+ * person on her own page than she did in the queue that opened it, so the page
+ * gives up its own set and takes the one every other surface already uses.
+ *
+ * A pre-disbursement mitra has no bucket to show, so her DPD badge is replaced
+ * by the disbursement she is waiting on rather than sitting beside it.
  */
 export function MitraBadges({ mitra }: { mitra: Mitra }) {
   return (
     <>
-      {/* Modal carries its own product mark from the design system; GL has no
-          logo of its own, so it falls back to the generic coins glyph. */}
-      <StatusChip
-        tone={mitra.product === 'Modal' ? 'blue' : 'primary'}
-        icon={mitra.product === 'Modal' ? <LogoModal size={16} /> : <Coins size={16} />}
-      >
-        {mitra.product}
-      </StatusChip>
+      <ProductBadge product={mitra.product} />
 
       {mitra.predisburse ? (
-        <StatusChip tone="blue" icon={<HandCoins size={16} />}>
-          Ready to Disburse
-        </StatusChip>
-      ) : mitra.dpd === 0 ? (
-        <StatusChip tone="green" icon={<CheckCircle size={16} />}>
-          Lancar
-        </StatusChip>
+        <Badge intent="blue">Ready to Disburse</Badge>
       ) : (
-        <StatusChip tone={mitra.dpd >= 30 ? 'red' : 'orange'} icon={<Warning size={16} />}>
-          DPD {mitra.dpd}
-        </StatusChip>
+        <DpdBadge dpd={mitra.dpd} format="short" />
       )}
 
-      {mitra.keringanan ? (
-        <StatusChip tone="neutral" icon={<ArrowsClockwise size={16} />}>
-          Dapat Keringanan
-        </StatusChip>
-      ) : null}
+      {mitra.keringanan ? <Badge intent="neutral">Dapat Keringanan</Badge> : null}
     </>
   )
 }

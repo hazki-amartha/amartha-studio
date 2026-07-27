@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   Input,
+  InputNominal,
   ListRow,
   Modal,
   NavigationBar,
@@ -187,6 +188,30 @@ function SheetDemo() {
         </div>
       </BottomSheet>
     </>
+  )
+}
+
+function NominalDemo({
+  initial,
+  state,
+  helperText,
+  disabled,
+}: {
+  initial: string
+  state?: 'default' | 'error'
+  helperText?: string
+  disabled?: boolean
+}) {
+  const [value, setValue] = useState(initial)
+  return (
+    <InputNominal
+      label="Nominal"
+      value={value}
+      onValueChange={setValue}
+      state={state}
+      helperText={helperText}
+      disabled={disabled}
+    />
   )
 }
 
@@ -374,6 +399,13 @@ export function Manifest({ guidelines }: { guidelines: Guidelines }) {
               <Input label="OTP" state="error" defaultValue="123" helperText="Kode tidak sesuai" />
             </div>
             <CodeBlock code={'<Input label="Jumlah" prefix="Rp" placeholder="0" />'} copied={copied} copy={copy} />
+            <div className="grid grid-cols-1 gap-16 rounded-12 border border-default bg-neutral-white p-16 sm:grid-cols-2">
+              <NominalDemo initial="" />
+              <NominalDemo initial="500000" />
+              <NominalDemo initial="500" state="error" helperText="Minimum Rp 10.000" />
+              <NominalDemo initial="500000" disabled />
+            </div>
+            <CodeBlock code={'<InputNominal label="Jumlah diterima" value={digits} onValueChange={setDigits} />'} copied={copied} copy={copy} />
             <Guideline source={guidelines['components/input']} />
           </Section>
 
