@@ -191,10 +191,18 @@ export function CollectionScreen() {
                     }
                     amount={rupiah(status === 'tidak' ? 0 : paid)}
                     badge={
+                      // A Poket payment that covered the bill and one that fell
+                      // short are different outcomes, exactly as they are in
+                      // cash: the second leaves a balance, and a green tick on
+                      // it would file a part-payment as settled.
                       byPoket ? (
-                        <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                          Via Poket
-                        </Badge>
+                        status === 'lunas' ? (
+                          <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
+                            Via Poket
+                          </Badge>
+                        ) : (
+                          <Badge intent="orange">Sebagian via Poket</Badge>
+                        )
                       ) : byGroup ? (
                         <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
                           Tanggung renteng

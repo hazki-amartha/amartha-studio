@@ -32,6 +32,7 @@ import {
 import { Image as ImageIcon } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
+import { SHORTFALL_REASONS } from '../lib/collect-options'
 import { outstandingOf, rupiah } from '../lib/data'
 import { AngsuranCard, JanjiBayarCard } from '../lib/mitra-card'
 import { DAYS } from '../lib/schedule'
@@ -100,11 +101,17 @@ export function HomeVisitScreen() {
   // A payment made before she arrived is a CLAIM until the screenshot is
   // attached — the money is real, but nothing in the system has seen it yet.
   const poketProven = Boolean(s.poketProof[mitra.id])
+  const poketReason = s.shortfallReasons[mitra.id]
+  // A Poket payment short of the bill leaves the same balance a short cash one
+  // does, so it needs the same two answers before the visit moves on.
+  const poketShort = mode === 'poket' && paid > 0 && paid < owed.total
   const outcomeDone =
     mode === 'penuh' || mode === 'tanggung'
       ? true
       : mode === 'poket'
-        ? poketProven
+        ? poketProven &&
+          paid > 0 &&
+          (!poketShort || (Boolean(poketReason) && s.partialPtp[mitra.id] !== undefined))
         : mode === 'sebagian'
           ? paid > 0
           : mode === 'tidak'
@@ -120,9 +127,11 @@ export function HomeVisitScreen() {
     // Penuh and tanggung renteng both settle the whole bill; they differ only in
     // who funded it, which the mode itself records.
     if (next === 'penuh' || next === 'tanggung') store.collect(mitra, owed.total)
-    // Already settled through Poket: the ledger takes the whole bill, the mode
-    // keeps it out of the day's cash, and the proof is asked for below.
-    if (next === 'poket') store.recordPoket(mitra)
+    // Paid through Poket: the field OPENS on the full bill and is editable from
+    // there, because she pays what she has through the app. The mode keeps it
+    // out of the day's cash; the amount, the proof and — if it fell short — the
+    // reason and the janji are taken below.
+    if (next === 'poket') store.recordPoket(mitra, owed.total)
     if (next === 'tidak') store.setNonPayment(mitra, { reason: refusal?.reason ?? '', ptp: null })
     if (next === 'keluar') store.setDropOut(mitra, dropReason ?? '')
   }
@@ -252,21 +261,31 @@ export function HomeVisitScreen() {
         </Card>
       ) : null}
 
-      {/* What the claim covers, and the one thing that backs it. No amount
-          field: a Poket payment settled the bill, and a figure the BP types
-          herself is a number nobody's system agrees with. */}
+      {/* How much reached Poket, what backs it, and — if it did not cover the
+          bill — why and when the rest comes. The amount is TYPED, opening on the
+          full bill: she pays what she has through the app, and a locked figure
+          would make the BP record money that was never paid just to get the
+          transaction on file. */}
       {met && mode === 'poket' ? (
         <>
+          <InputNominal
+            label="Jumlah dibayar via Poket"
+            value={paid > 0 ? String(paid) : ''}
+            onValueChange={(digits) => store.collect(mitra, Number(digits) || 0, poketReason)}
+            helperText={
+              paid === 0
+                ? 'Masukkan jumlah yang sudah dibayar'
+                : shortfall > 0
+                  ? `Sisa ${rupiah(shortfall)} — catat alasan dan janji bayar di bawah.`
+                  : shortfall < 0
+                    ? `Lebih ${rupiah(-shortfall)} dari tagihan`
+                    : 'Lunas — sama dengan tagihan penuh'
+            }
+          />
+
           <SectionTitle>Bukti pembayaran</SectionTitle>
           <Card>
             <div className="flex flex-col gap-12">
-              <div className="flex flex-col gap-4">
-                <span className="text-12 text-caption">Dibayar lewat Poket</span>
-                <span className="text-20 font-bold text-default">{rupiah(owed.total)}</span>
-                <span className="text-12 text-caption">
-                  Pembayaran sudah masuk tapi belum tercatat di sistem.
-                </span>
-              </div>
               <div className="flex">
                 <ProofTile
                   done={poketProven}
@@ -276,8 +295,48 @@ export function HomeVisitScreen() {
                   onClick={() => store.setPoketProof(mitra.id, !poketProven)}
                 />
               </div>
+              <span className="text-12 text-caption">
+                Pembayaran sudah masuk tapi belum tercatat di sistem.
+              </span>
             </div>
           </Card>
+
+          {poketShort ? (
+            <Card>
+              <div className="flex flex-col gap-12">
+                <ChipGroup label="Alasan kurang bayar">
+                  {SHORTFALL_REASONS.map((option) => (
+                    <Chip
+                      key={option}
+                      selected={poketReason === option}
+                      onClick={() => store.collect(mitra, paid, option)}
+                    >
+                      {option}
+                    </Chip>
+                  ))}
+                </ChipGroup>
+
+                {/* Asked once there is a reason: a promise with nothing attached
+                    to it is not a record of anything. */}
+                {poketReason ? (
+                  <ChipGroup label="Janji bayar sisanya">
+                    {PTP_OPTIONS.map((option) => (
+                      <Chip
+                        key={option.label}
+                        selected={
+                          s.partialPtp[mitra.id] !== undefined &&
+                          s.partialPtp[mitra.id] === option.value
+                        }
+                        onClick={() => store.setPartialPtp(mitra.id, option.value)}
+                      >
+                        {option.label}
+                      </Chip>
+                    ))}
+                  </ChipGroup>
+                ) : null}
+              </div>
+            </Card>
+          ) : null}
         </>
       ) : null}
 

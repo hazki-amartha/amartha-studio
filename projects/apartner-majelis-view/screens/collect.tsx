@@ -69,6 +69,13 @@ import {
  * it the BP either books it as cash she never received or leaves the mitra in
  * the queue owing money she has already handed over. Both are worse than a
  * claim with a screenshot behind it.
+ *
+ * It takes a TYPED amount, like a cash payment, and when that amount falls
+ * short of the bill it asks the same two questions — the reason and the janji
+ * bayar. A Poket payment is not automatically the whole thing: she pays what
+ * she has, through the app, and the balance behind it is a balance like any
+ * other. What differs is only where the money went and that a screenshot backs
+ * it, not how much of the bill it closed.
  */
 type Mode = 'bayar' | 'tidak' | 'tanggung' | 'poket'
 
@@ -122,11 +129,13 @@ export function CollectScreen() {
   // Short is a fact about the FIGURE, not about which row was tapped: anything
   // under the bill leaves a balance behind, whether the BP started from "bayar
   // penuh" and edited it down or typed it from scratch.
-  const short = sheet === 'bayar' && typed > 0 && typed < owed.total
+  const short = (sheet === 'bayar' || sheet === 'poket') && typed > 0 && typed < owed.total
 
   // A janji bayar is asked for on its own step, and only where a balance is
-  // being left behind: a shortfall, or a refusal. Tanggung renteng leaves none —
-  // the group closed the whole bill.
+  // being left behind: a shortfall, or a refusal. That includes a SHORT Poket
+  // payment — she paid Rp200.000 of a Rp650.000 bill through the app, and the
+  // rest is a balance like any other. Tanggung renteng leaves none — the group
+  // closed the whole bill.
   const hasPtpStep = sheet === 'tidak' || short
 
   // What step 1 has to carry before "Lanjut" (or, with no step 2, the save)
@@ -137,9 +146,10 @@ export function CollectScreen() {
       : sheet === 'bayar'
         ? typed > 0 && (!short || shortfall !== null)
         : sheet === 'poket'
-          ? // The screenshot IS the record. Without it this is one person's word
-            // that a payment nobody's system has seen actually happened.
-            proof
+          ? // Same rules as a cash payment — an amount, and a reason if it fell
+            // short — plus the screenshot, which is what makes it more than one
+            // person's word that a payment nobody's system has seen happened.
+            typed > 0 && (!short || shortfall !== null) && proof
           : // Tanggung renteng has nothing to fill in: the amount is the whole
             // bill and the payer is the group. One tap is the whole record.
             sheet === 'tanggung'
@@ -157,7 +167,7 @@ export function CollectScreen() {
   function openSheet(mode: Mode, seed?: number) {
     setSheet(mode)
     setStep(1)
-    if (mode === 'bayar') setDraft(seed ? String(seed) : '')
+    if (mode === 'bayar' || mode === 'poket') setDraft(seed ? String(seed) : '')
   }
 
   function closeSheet() {
@@ -171,7 +181,8 @@ export function CollectScreen() {
       store.setPayMode(mitra.id, 'tidak')
       store.setNonPayment(mitra, { reason: reason as string, ptp: ptp ?? null })
     } else if (sheet === 'poket') {
-      store.recordPoket(mitra)
+      store.recordPoket(mitra, typed, short ? (shortfall as string) : undefined)
+      store.setPartialPtp(mitra.id, short ? (ptp ?? null) : null)
       store.setPoketProof(mitra.id, true)
     } else if (sheet === 'tanggung') {
       // Settled in full, funded by the group rather than by her. The two facts
@@ -261,7 +272,7 @@ export function CollectScreen() {
           <NavRow
             title="Sudah bayar via Poket"
             amount={rupiah(owed.total)}
-            onOpen={() => openSheet('poket')}
+            onOpen={() => openSheet('poket', owed.total)}
           />
 
           <NavRow title="Tidak bayar" onOpen={() => openSheet('tidak')} />
@@ -360,24 +371,50 @@ export function CollectScreen() {
         {/* What she is entering, and the one thing that backs it. No amount
             field: a Poket payment settled the bill, and letting the BP type a
             different figure would invite a number nobody's system agrees with. */}
-        {sheet === 'poket' ? (
+        {sheet === 'poket' && step === 1 ? (
           <div className="flex flex-col gap-12">
-            <div className="flex flex-col gap-4 rounded-12 bg-neutral-50 p-12">
-              <span className="text-12 text-caption">Dibayar lewat Poket</span>
-              <span className="text-20 font-bold text-default">{rupiah(owed.total)}</span>
-              <span className="text-12 text-caption">
-                Pembayaran sudah masuk tapi belum tercatat di sistem. Lampirkan bukti
-                transaksinya.
-              </span>
-            </div>
-            <div className="flex">
-              <ProofTile
-                done={proof}
-                label="Unggah bukti"
-                doneLabel="Bukti terlampir"
-                icon={<ImageIcon size={24} />}
-                onClick={() => setProof(!proof)}
+            {/* The figure is TYPED, seeded with the full bill rather than fixed
+                to it. A Poket payment is not always the whole thing — she pays
+                what she has, through the app, days before the BP arrives — and
+                a locked amount would make the BP record money that was never
+                paid just to get the transaction on file. */}
+            <InputNominal
+              label="Jumlah dibayar"
+              value={draft}
+              onValueChange={setDraft}
+              helperText={
+                typed > owed.total
+                  ? `Lebih ${rupiah(typed - owed.total)} dari total tagihan`
+                  : typed === owed.total
+                    ? 'Lunas — sama dengan total tagihan'
+                    : typed === 0
+                      ? 'Masukkan jumlah yang sudah dibayar'
+                      : `Sisa ${rupiah(owed.total - typed)} akan tercatat sebagai tunggakan`
+              }
+            />
+
+            {/* Short through Poket leaves the same balance a short cash payment
+                does, so it carries the same two answers: why, and when. */}
+            {short ? (
+              <ChoiceList
+                label="Alasan kurang bayar"
+                options={SHORTFALL_REASONS}
+                value={shortfall ?? undefined}
+                onPick={setShortfall}
               />
+            ) : null}
+
+            <div className="flex flex-col gap-8">
+              <span className="text-12 text-caption">Bukti transaksi</span>
+              <div className="flex">
+                <ProofTile
+                  done={proof}
+                  label="Unggah bukti"
+                  doneLabel="Bukti terlampir"
+                  icon={<ImageIcon size={24} />}
+                  onClick={() => setProof(!proof)}
+                />
+              </div>
             </div>
           </div>
         ) : null}

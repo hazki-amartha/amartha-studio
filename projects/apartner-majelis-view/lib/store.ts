@@ -685,15 +685,17 @@ export const store = {
     store.set({ payMode: { ...state.payMode, [mitraId]: value } })
   },
   /**
-   * Records a bill she already settled through Poket. The ledger takes the
-   * whole amount — she does not owe it twice — and the MODE is what keeps it
-   * out of the BP's cash, so the deposit at the end of the day expects only
-   * money she is actually carrying.
+   * Records money she already paid through Poket. The AMOUNT is passed in
+   * rather than assumed to be the whole bill: she pays what she has, through
+   * the app, and a short payment leaves a balance exactly as a short cash one
+   * does — which is why it carries a shortfall reason too.
+   *
+   * The MODE is what keeps it out of the BP's cash, so the deposit at the end
+   * of the day expects only money she is actually carrying.
    */
-  recordPoket(mitra: Mitra) {
+  recordPoket(mitra: Mitra, amount: number, shortfallReason?: string) {
     store.setPayMode(mitra.id, 'poket')
-    store.collect(mitra, outstandingOf(mitra).total)
-    store.setPartialPtp(mitra.id, null)
+    store.collect(mitra, amount, shortfallReason)
   },
   setPoketProof(mitraId: string, value: boolean) {
     store.set({ poketProof: { ...state.poketProof, [mitraId]: value } })
