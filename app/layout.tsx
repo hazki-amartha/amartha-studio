@@ -13,8 +13,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Prototype Studio',
-  description: 'Design-system-locked prototyping studio',
+  title: 'Amartha Studio',
+  description: 'Amartha internal rapid prototyping studio',
 }
 
 // Runs before paint so the shell never flashes light then dark. Reads the saved
