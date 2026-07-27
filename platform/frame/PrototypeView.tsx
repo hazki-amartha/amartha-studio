@@ -16,7 +16,7 @@
 // A single app instance is rendered in either mode (no duplicate screen state).
 // =============================================================================
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { ProjectConfig, ScreenDef } from '@/platform/types'
 import {
   PrototypeProvider,
@@ -26,6 +26,13 @@ import {
   useScreenStep,
 } from '@/platform/runtime'
 import { clearScreenBridge, publishScreenBridge } from '@/platform/runtime/bridge'
+import {
+  getInspectMode,
+  getInspectServerSnapshot,
+  setInspectMode,
+  subscribeInspectMode,
+} from '@/platform/runtime/inspectBridge'
+import { InspectLayer, InspectorPanel } from '@/platform/inspect'
 import { ChevronLeftIcon, ChevronRightIcon } from '@/platform/chrome/icons'
 import { DeviceFrame } from './DeviceFrame'
 import { StatusBar } from './StatusBar'
@@ -66,12 +73,24 @@ function BridgePublisher({ slug }: { slug: string }) {
   return null
 }
 
-/** The running app: status bar + the active screen stage. */
-function AppViewport() {
+/** The running app: status bar + the active screen stage.
+ *  In inspect mode it also carries the pick layer, which sits inside the device
+ *  screen so it inherits the frame's scale. Mobile passes nothing, so the layer
+ *  never mounts there. */
+function AppViewport({
+  inspect,
+  pinned,
+  onPin,
+}: {
+  inspect?: boolean
+  pinned?: Element | null
+  onPin?: (el: Element | null) => void
+} = {}) {
   return (
-    <div className={styles.viewport}>
+    <div className={styles.viewport} data-inspect={inspect ? 'on' : undefined}>
       <StatusBar />
       <ScreenStage />
+      {inspect && onPin ? <InspectLayer pinned={pinned ?? null} onPin={onPin} /> : null}
     </div>
   )
 }
@@ -260,6 +279,21 @@ function DeviceStepper({ children }: { children: ReactNode }) {
 }
 
 function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
+  const inspect = useSyncExternalStore(
+    subscribeInspectMode,
+    getInspectMode,
+    getInspectServerSnapshot,
+  )
+  const [pinned, setPinned] = useState<Element | null>(null)
+  const { current } = useFlow()
+
+  // Screens remount on every navigation, so a pin held across one would point
+  // at a node that is no longer in the document.
+  useEffect(() => setPinned(null), [current])
+  useEffect(() => {
+    if (!inspect) setPinned(null)
+  }, [inspect])
+
   return (
     <div
       className={`h-full min-h-0 w-full gap-32 overflow-hidden bg-neutral-50 px-16 py-24 dark:bg-ink-950 ${styles.desktop}`}
@@ -270,11 +304,23 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
       <DeviceStepper>
         <ScaledDevice>
           <DeviceFrame>
-            <AppViewport />
+            <AppViewport inspect={inspect} pinned={pinned} onPin={setPinned} />
           </DeviceFrame>
         </ScaledDevice>
       </DeviceStepper>
-      <AnnotationPanel screens={screens} projectNotes={config.notes} />
+      {/* Notes and the inspector answer different questions; nobody wants both
+          at once, so they share the column rather than competing for width. */}
+      {inspect ? (
+        <InspectorPanel
+          className={styles.annotations}
+          pinned={pinned}
+          onPin={setPinned}
+          slug={config.slug}
+          screenId={current}
+        />
+      ) : (
+        <AnnotationPanel screens={screens} projectNotes={config.notes} />
+      )}
     </div>
   )
 }
@@ -296,6 +342,10 @@ export interface PrototypeViewProps {
 
 export function PrototypeView({ config, screens, initialScreenId }: PrototypeViewProps) {
   const isDesktop = useIsDesktop()
+
+  // The mode flag outlives this route, so leaving for the gallery or the flow
+  // view would otherwise strand the toggle lit with nothing to inspect.
+  useEffect(() => () => setInspectMode(false), [])
 
   return (
     <PrototypeProvider screens={screens} initialScreenId={initialScreenId}>

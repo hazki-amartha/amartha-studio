@@ -1,0 +1,61 @@
+/* =============================================================================
+   Inspect · overlay styling.
+   A CSS module rather than Tailwind classes on purpose: the lint rule
+   `tailwindcss/no-custom-classname` only whitelists `ds-*`, so any literal
+   class name invented here would fail the build. Colours reference the design
+   system's CSS variables, exactly as prototype.module.css does.
+   ============================================================================= */
+
+/* Sits inside the device screen, so it inherits the frame's scale transform and
+   needs no geometry of its own. Above the 1000 that Modal and BottomSheet
+   overlays use, so elements inside an open sheet can still be highlighted. */
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1001;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.hover,
+.pin {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 2px;
+}
+
+.hover {
+  outline: 1px solid var(--primary-400);
+  /* --primary-500 at 6%. Literal because CSS variables can't carry an alpha
+     channel here, matching how prototype.module.css writes its shadows. */
+  background: rgba(133, 50, 145, 0.06);
+}
+
+.pin {
+  outline: 2px solid var(--primary-500);
+}
+
+/* Names the pinned component without covering it — flips below the box when
+   there isn't room above, which is the common case at the top of a screen. */
+.label {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 2px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--primary-500);
+  color: var(--neutral-white);
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.labelBelow {
+  bottom: auto;
+  top: 100%;
+  margin-bottom: 0;
+  margin-top: 2px;
+}

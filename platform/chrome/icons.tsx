@@ -101,3 +101,13 @@ export const FlowIcon = icon(
     <path d="M10 18h4" />
   </>,
 )
+
+// Inspect — a marquee with a cursor in it: pick an element, read its spec.
+export const InspectIcon = icon(
+  <>
+    <path d="M3 8V5.5A2.5 2.5 0 0 1 5.5 3H8" />
+    <path d="M16 3h2.5A2.5 2.5 0 0 1 21 5.5V8" />
+    <path d="M3 16v2.5A2.5 2.5 0 0 0 5.5 21H8" />
+    <path d="M11 11l7 2.6-3 1.2-1.2 3z" />
+  </>,
+)
