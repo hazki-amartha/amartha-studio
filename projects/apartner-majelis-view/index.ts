@@ -336,6 +336,26 @@ export const project: ProjectModule = {
       id: 'offer',
       title: 'Tawarkan Produk',
       component: OfferScreen,
+      states: [
+        {
+          id: 'fresh',
+          label: 'Nothing answered',
+          description: 'The page as “Tawarkan” opens it — the offer, and no result yet',
+          apply: demo.offerFresh,
+        },
+        {
+          id: 'carried',
+          label: 'Yes, but not processed',
+          description: 'She agreed; there was no time to open it — next kumpulan inherits it',
+          apply: demo.offerCarried,
+        },
+        {
+          id: 'declined',
+          label: 'No, with her reason',
+          description: 'Declined because she already has one — a note about the offer, not her',
+          apply: demo.offerDeclined,
+        },
+      ],
       flowsTo: [{ to: 'growth', label: 'Simpan Hasil' }],
     },
     {
@@ -346,12 +366,64 @@ export const project: ProjectModule = {
         'A photo and a recorded location, both required before the visit can be submitted. A photo alone proves she photographed something; a location alone proves she was in the right place but not that a majelis happened. Only the pair makes a visit verifiable afterwards.',
         'They sit as two equal tiles rather than a big photo drop-zone with location as a footnote, and outside the three-stage bar — attendance, collection and growth are the work, this is the paperwork that closes it.',
       ],
+      states: [
+        {
+          id: 'empty',
+          label: 'No photo yet',
+          description: 'Submission blocked until the geotagged photo is taken',
+          apply: demo.visitProofEmpty,
+        },
+        {
+          id: 'captured',
+          label: 'Photo and location captured',
+          description: 'Every mitra has an outcome — the visit is ready to send',
+          apply: demo.visitProofCaptured,
+        },
+        {
+          id: 'gaps',
+          label: 'Sending with mitra unrecorded',
+          description: 'Seven never got an outcome — a warning, not a block',
+          apply: demo.visitProofGaps,
+        },
+      ],
       flowsTo: [{ to: 'today', label: 'Kirim Laporan — butuh foto + lokasi' }],
     },
     {
       id: 'home-brief',
       title: 'Home Visit 1 — Persiapan',
       component: HomeBriefScreen,
+      states: [
+        {
+          id: 'fresh',
+          label: 'At the door',
+          description: 'Nothing recorded — the one question the whole visit turns on',
+          apply: demo.doorFresh,
+        },
+        {
+          id: 'mitra',
+          label: 'Met the mitra',
+          description: 'She answered herself — the visit carries straight on to Tagih',
+          apply: demo.doorMetMitra,
+        },
+        {
+          id: 'pj',
+          label: 'Met her guarantor',
+          description: 'Someone from the household, plus why the borrower was out',
+          apply: demo.doorMetPj,
+        },
+        {
+          id: 'nobody',
+          label: 'Nobody home',
+          description: 'The visit note and a revisit date here; Tagih is skipped entirely',
+          apply: demo.doorNobody,
+        },
+        {
+          id: 'stuck',
+          label: 'Moved three times already',
+          description: 'Only now does “Jadwal ulang” also offer to close the visit for good',
+          apply: demo.doorStuck,
+        },
+      ],
       flowsTo: [
         { to: 'home-visit', label: 'Lanjut — mitra / PJ ditemui' },
         { to: 'home-proof', label: 'Lanjut — jika tidak ada orang (lewati Tagih)' },
@@ -366,6 +438,38 @@ export const project: ProjectModule = {
         'The money step. Who she met was answered on Persiapan, so this page opens straight on the ledger and the bill — the ten-week strip and the total tagihan, the same components the mitra and collect pages draw — then the payment outcome: full, partial, or a recorded no.',
         'Whether the money came from the mitra or her PJ does not change what gets recorded — the amount and the promise — so who handed it over is a tag, not a branch. "Nobody home" never reaches this step: a locked door has nothing to tagih, so that case takes its visit note on Persiapan and skips straight to Bukti & Kirim.',
       ],
+      states: [
+        {
+          id: 'penuh',
+          label: 'Paid in full',
+          description: 'She cleared the whole bill herself — done on the tap',
+          apply: demo.payFull,
+        },
+        {
+          id: 'sebagian',
+          label: 'Part-payment',
+          description: 'Some of the bill, and a date for the rest — a balance nobody loses',
+          apply: demo.payPartial,
+        },
+        {
+          id: 'tanggung',
+          label: 'Covered by the group',
+          description: 'Tanggung renteng on a GL loan — a full settlement she did not fund',
+          apply: demo.payGroupCovered,
+        },
+        {
+          id: 'tidak',
+          label: 'Reached, did not pay',
+          description: 'A reason and a promise — an outcome, not an empty record',
+          apply: demo.payRefused,
+        },
+        {
+          id: 'keluar',
+          label: 'Dropping out',
+          description: 'Neither payment nor promise; recording it retracts everything else',
+          apply: demo.payDropOut,
+        },
+      ],
       flowsTo: [{ to: 'home-proof', label: 'Lanjut' }],
     },
     {
@@ -374,6 +478,26 @@ export const project: ProjectModule = {
       component: HomeProofScreen,
       notes: [
         'The close of a home visit: a photo of the door, required before it can be submitted. What she recorded on the two steps before — who was met, what was paid — is not read back here; this step is the paperwork that closes the visit, not a second review of it.',
+      ],
+      states: [
+        {
+          id: 'empty',
+          label: 'No photo yet',
+          description: 'The visit cannot be submitted until the door is photographed',
+          apply: demo.doorProofEmpty,
+        },
+        {
+          id: 'cash',
+          label: 'Cash collected at the door',
+          description: 'Submitting goes on to the WhatsApp receipt for that one mitra',
+          apply: demo.doorProofCash,
+        },
+        {
+          id: 'no-cash',
+          label: 'Nothing collected',
+          description: 'No receipt to send — submitting returns straight to the schedule',
+          apply: demo.doorProofNoCash,
+        },
       ],
       flowsTo: [
         { to: 'home-wa-confirm', label: 'Selesaikan Tugas — jika ada uang tunai' },
@@ -387,6 +511,20 @@ export const project: ProjectModule = {
       notes: [
         'Shown only when cash was collected at the door. A doorstep collection leaves no slip and sends nothing to the mitra’s phone, so this hands the BP a ready-made WhatsApp receipt — amount, date, any balance promised — to review, edit, and send to that one mitra before returning to the schedule.',
       ],
+      states: [
+        {
+          id: 'full',
+          label: 'Receipt for a full payment',
+          description: 'Amount and date, nothing outstanding to mention',
+          apply: demo.receiptFull,
+        },
+        {
+          id: 'partial',
+          label: 'Receipt with a balance',
+          description: 'A part-payment, so the message also carries the rest and the date promised',
+          apply: demo.receiptPartial,
+        },
+      ],
       flowsTo: [{ to: 'today', label: 'Kirim / Lewati — kembali ke jadwal' }],
     },
     {
@@ -398,6 +536,32 @@ export const project: ProjectModule = {
         'Cash settles by the RUPIAH, not by the task. What is outstanding is everything banked minus everything handed over, so a short handover leaves a remainder and the widget comes straight back with it — the breakdown attributes it to the pelayanan it came from, with the covered part drained off. A BP who confirms Rp3.500.000 against a Rp3.700.000 ledger must still see the missing Rp200.000 on the page whose whole job is to say what she is carrying.',
         'Each settlement gets its own VA, because a virtual account is what the branch reconciles against, and several transfers to one number are deposits nobody can tell apart at the other end.',
         'The selisih flow is for the disagreement that will happen: the app’s figure and the money in the bag differ. A gap with a reason attached is a record ops can chase; a gap with nowhere to put it becomes a phone call.',
+      ],
+      states: [
+        {
+          id: 'first',
+          label: 'First handover of the day',
+          description: 'Two majelis in the bag by midday, and this one is free',
+          apply: demo.bagFirstHandover,
+        },
+        {
+          id: 'short',
+          label: 'Short of the ledger',
+          description: 'She declares Rp200.000 less than the app says — the gap ops chases',
+          apply: demo.bagShort,
+        },
+        {
+          id: 'fee',
+          label: 'Free handovers used up',
+          description: 'Three already made and cash still coming in — the next one costs',
+          apply: demo.scheduleCapped,
+        },
+        {
+          id: 'empty',
+          label: 'Nothing left to hand over',
+          description: 'Everything already settled — an honest empty state, not a form',
+          apply: demo.scheduleCloseable,
+        },
       ],
       flowsTo: [{ to: 'today', label: 'Selesai — kembali ke jadwal' }],
     },
@@ -559,6 +723,26 @@ export const project: ProjectModule = {
         'The ladder is its own entry point. It is not a datum about her; it is a conversation, and the only thing on this page that leads somewhere she does something.',
         'Everything else on file drops to the bottom as Informasi tambahan, read-only: what a BP reads out when ops asks, or checks before she rides.',
       ],
+      states: [
+        {
+          id: 'behind',
+          label: '34 days behind',
+          description: 'Arrears in the week strip and a shortfall line under the total',
+          apply: demo.mitraBehind,
+        },
+        {
+          id: 'current',
+          label: 'Nothing overdue',
+          description: 'The same page with no arrears in it — only this week to pay',
+          apply: demo.mitraCurrent,
+        },
+        {
+          id: 'deep',
+          label: '63 days behind',
+          description: 'The arrears deep enough to have earned a home visit',
+          apply: demo.mitraDeepArrears,
+        },
+      ],
       flowsTo: [
         { to: 'loans', label: 'Lihat semua riwayat' },
         { to: 'ladder', label: 'Jalur Naik Modal' },
@@ -583,6 +767,32 @@ export const project: ProjectModule = {
       notes: [
         'The moment of negotiation. It opens on who she is over what she owes, drawn flat with no cards — the identity, the week-grid history and the bill read as one block — over the week grid carrying the date, outcome and amount of each recent week. Under it, the four ways she can pay as a menu.',
         'Two levels, told apart by ground rather than a rule: the identity and bill on white up top, the choice on a lightest-grey floor below. Every option opens a bottom sheet carrying only what it needs — a reason, a promise, an amount, or for a full payment nothing but a confirm — because the bill it is against is still on the page behind the sheet. A payment short of the bill still cannot save without both a reason and a date for the rest, exactly as a “tidak bayar” cannot.',
+      ],
+      states: [
+        {
+          id: 'fresh',
+          label: 'Nothing recorded',
+          description: 'The page as “Tagih” opens it — the bill, and the menu of four ways to pay',
+          apply: demo.collectFresh,
+        },
+        {
+          id: 'partial',
+          label: 'Correcting a part-payment',
+          description: 'Reopens on the amount sheet, prefilled with what was taken and why',
+          apply: demo.collectPartial,
+        },
+        {
+          id: 'refused',
+          label: 'Correcting a recorded no',
+          description: 'Reopens on the refusal sheet, carrying the reason and the promised date',
+          apply: demo.collectRefused,
+        },
+        {
+          id: 'tanggung',
+          label: 'Covered by the group',
+          description: 'Tanggung renteng, offered on GL loans only — never on a Modal card',
+          apply: demo.collectGroupCovered,
+        },
       ],
       flowsTo: [
         { to: 'collection', label: 'Terima Tunai' },
