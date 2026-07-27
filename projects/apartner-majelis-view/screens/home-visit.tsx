@@ -24,6 +24,7 @@
 
 import { useState } from 'react'
 import { BottomSheet, Button, InputNominal, NavigationHeader } from '@/design-system/components'
+import { Image as ImageIcon } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
@@ -34,6 +35,7 @@ import {
   ChoiceList,
   HOME_STAGE_LABELS,
   ProductBadge,
+  ProofTile,
   SectionTitle,
   StageBar,
   StickyBar,
@@ -72,25 +74,32 @@ export function HomeVisitScreen() {
   const dropReason = s.dropOut[mitra.id]
 
   // The Lanjut gate: a picked outcome must be COMPLETE before the visit moves
-  // on. Penuh and tanggung renteng settle on their own; the other three each
-  // carry a follow-up the record isn't whole without.
+  // on. Penuh and tanggung renteng settle on their own; the others each carry a
+  // follow-up the record isn't whole without. A Poket payment is a CLAIM until
+  // the screenshot is attached, and a short one owes the same reason + janji a
+  // short cash payment does.
   const outcomeDone =
     mode === 'penuh' || mode === 'tanggung'
       ? true
-      : mode === 'sebagian'
-        ? paid > 0
-        : mode === 'tidak'
-          ? Boolean(refusal?.reason)
-          : mode === 'keluar'
-            ? Boolean(dropReason)
-            : false
+      : mode === 'poket'
+        ? Boolean(s.poketProof[mitra.id]) &&
+          paid > 0 &&
+          (paid >= owed.total ||
+            (Boolean(s.shortfallReasons[mitra.id]) && s.partialPtp[mitra.id] !== undefined))
+        : mode === 'sebagian'
+          ? paid > 0
+          : mode === 'tidak'
+            ? Boolean(refusal?.reason)
+            : mode === 'keluar'
+              ? Boolean(dropReason)
+              : false
 
   // --- The outcome, the same shape as the majelis collect page: a menu of rows,
   // each opening ONE stepped sheet. `bayar` covers Bayar Penuh (seeded with the
   // full bill) and Bayar Sebagian (seeded blank); tanggung, tidak and keluar are
   // their own. Answers live in local draft state and are written on save, so
   // closing a sheet abandons an unfinished outcome rather than half-recording it.
-  type Sheet = 'bayar' | 'tanggung' | 'tidak' | 'keluar'
+  type Sheet = 'bayar' | 'poket' | 'tanggung' | 'tidak' | 'keluar'
   const [sheet, setSheet] = useState<Sheet | null>(null)
   const [step, setStep] = useState<1 | 2>(1)
   const [draft, setDraft] = useState(String(paid > 0 ? paid : ''))
@@ -100,24 +109,30 @@ export function HomeVisitScreen() {
     refusal ? refusal.ptp : (s.partialPtp[mitra.id] ?? undefined),
   )
   const [drop, setDrop] = useState<string | null>(dropReason ?? null)
+  // The Poket screenshot, held locally and written on save like every other
+  // answer in this sheet.
+  const [proofDraft, setProofDraft] = useState(Boolean(s.poketProof[mitra.id]))
 
   const typed = Number(draft.replace(/\D/g, '')) || 0
   // Short is a fact about the FIGURE, not which row was tapped: anything under
-  // the bill leaves a balance, whether edited down from the full amount or typed.
-  const short = sheet === 'bayar' && typed > 0 && typed < owed.total
+  // the bill leaves a balance, whether it was cash taken short or a Poket
+  // payment that never covered it.
+  const short = (sheet === 'bayar' || sheet === 'poket') && typed > 0 && typed < owed.total
   const hasPtpStep = sheet === 'tidak' || short
   const onLastStep = !hasPtpStep || step === 2
 
   const step1Done =
     sheet === 'bayar'
       ? typed > 0 && (!short || shortReason !== null)
-      : sheet === 'tidak'
-        ? reason !== null
-        : sheet === 'keluar'
-          ? drop !== null
-          : sheet === 'tanggung'
-            ? true
-            : false
+      : sheet === 'poket'
+        ? typed > 0 && proofDraft && (!short || shortReason !== null)
+        : sheet === 'tidak'
+          ? reason !== null
+          : sheet === 'keluar'
+            ? drop !== null
+            : sheet === 'tanggung'
+              ? true
+              : false
   const canAdvance = step === 1 ? step1Done : ptp !== undefined
   const canSave = onLastStep && step1Done && (!hasPtpStep || ptp !== undefined)
 
@@ -125,6 +140,12 @@ export function HomeVisitScreen() {
     setSheet(next)
     setStep(1)
     if (next === 'bayar') setDraft(seed !== undefined ? String(seed) : '')
+    // Poket opens on the full bill — she pays what she has through the app, and
+    // a blank field would make the BP type money that was never paid.
+    if (next === 'poket') {
+      setDraft(seed !== undefined ? String(seed) : String(owed.total))
+      setProofDraft(Boolean(s.poketProof[mitra.id]))
+    }
   }
   function closeSheet() {
     setSheet(null)
@@ -137,6 +158,11 @@ export function HomeVisitScreen() {
       store.collect(mitra, typed, short ? (shortReason as string) : undefined)
       store.setPartialPtp(mitra.id, short ? (ptp ?? null) : null)
       store.setPayMode(mitra.id, typed >= owed.total ? 'penuh' : 'sebagian')
+      store.clearDropOut(mitra.id)
+    } else if (sheet === 'poket') {
+      store.recordPoket(mitra, typed, short ? (shortReason as string) : undefined)
+      store.setPoketProof(mitra.id, proofDraft)
+      store.setPartialPtp(mitra.id, short ? (ptp ?? null) : null)
       store.clearDropOut(mitra.id)
     } else if (sheet === 'tanggung') {
       store.collect(mitra, owed.total)
@@ -234,10 +260,31 @@ export function HomeVisitScreen() {
               }
               onOpen={() => openSheet('bayar', paid > 0 ? paid : undefined)}
             />
+            {/* GL only: joint liability is what the G in GL is. A Modal loan is
+                hers alone, so offering the group as a payer on her door would
+                record a settlement no group ever agreed to. */}
+            {mitra.product === 'GL' ? (
+              <PayRow
+                title="Tanggung Renteng"
+                recap={mode === 'tanggung' ? `Ditanggung kelompok · ${rupiah(owed.total)}` : null}
+                onOpen={() => openSheet('tanggung')}
+              />
+            ) : null}
+            {/* Not a payment she is taking — one she is catching up with: the
+                mitra paid through Poket days ago and the system has not updated,
+                which happens often enough that without this row the BP either
+                books cash she never received or leaves her owing money she has
+                already handed over. */}
             <PayRow
-              title="Tanggung Renteng"
-              recap={mode === 'tanggung' ? `Ditanggung kelompok · ${rupiah(owed.total)}` : null}
-              onOpen={() => openSheet('tanggung')}
+              title="Sudah Bayar via Poket"
+              recap={
+                mode === 'poket' && paid > 0
+                  ? `Via Poket · ${rupiah(paid)}${
+                      paid < owed.total ? ` · sisa ${rupiah(owed.total - paid)}` : ''
+                    }`
+                  : null
+              }
+              onOpen={() => openSheet('poket', paid > 0 ? paid : undefined)}
             />
             <PayRow
               title="Tidak Bayar"
@@ -279,7 +326,9 @@ export function HomeVisitScreen() {
                   ? 'Alasan Drop Out'
                   : sheet === 'tanggung'
                     ? 'Tanggung Renteng'
-                    : undefined
+                    : sheet === 'poket'
+                      ? 'Sudah Bayar via Poket'
+                      : undefined
         }
         primaryAction={
           // The sheet carries the Lanjut: a middle step advances to the janji,
@@ -327,6 +376,48 @@ export function HomeVisitScreen() {
               />
             ) : null}
           </>
+        ) : null}
+
+        {sheet === 'poket' && step === 1 ? (
+          <div className="flex flex-col gap-16">
+            <InputNominal
+              label="Jumlah dibayar via Poket"
+              value={draft}
+              onValueChange={setDraft}
+              helperText={
+                typed > owed.total
+                  ? `Lebih ${rupiah(typed - owed.total)} dari total tagihan`
+                  : typed === owed.total
+                    ? 'Lunas — sama dengan total tagihan'
+                    : typed === 0
+                      ? 'Masukkan jumlah yang sudah dibayar'
+                      : `Sisa ${rupiah(owed.total - typed)} akan tercatat sebagai tunggakan`
+              }
+            />
+            <div className="flex flex-col gap-8">
+              <SectionTitle>Bukti pembayaran</SectionTitle>
+              <div className="flex">
+                <ProofTile
+                  done={proofDraft}
+                  label="Unggah bukti"
+                  doneLabel="Bukti terlampir"
+                  icon={<ImageIcon size={24} />}
+                  onClick={() => setProofDraft((v) => !v)}
+                />
+              </div>
+              <span className="text-12 text-caption">
+                Pembayaran sudah masuk tapi belum tercatat di sistem.
+              </span>
+            </div>
+            {short ? (
+              <ChoiceList
+                label="Alasan kurang bayar"
+                options={SHORTFALL_REASONS}
+                value={shortReason ?? undefined}
+                onPick={setShortReason}
+              />
+            ) : null}
+          </div>
         ) : null}
 
         {sheet === 'tanggung' ? (
