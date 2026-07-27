@@ -44,11 +44,16 @@ export type MetWith = 'mitra' | 'pj' | 'nobody'
  * - `tanggung` — the group covered her under tanggung renteng (joint liability):
  *                a full settlement funded by the majelis, not by the mitra. The
  *                "PAR payment" a collections door exists to reach.
+ * - `poket`    — she ALREADY paid, through Poket, and the system has not caught
+ *                up. Not a collection: the money reached the company days ago
+ *                and is not in the BP's bag, so it banks as digital and stays
+ *                out of the cash meter. What the BP records is the CLAIM plus
+ *                the transaction proof that backs it.
  * - `tidak`    — reached, but did not pay: a reason and maybe a promise.
  * - `keluar`   — she is dropping out of the program. A flag with a reason, not a
  *                payment — recorded here so ops can pick the case up.
  */
-export type PayMode = 'penuh' | 'sebagian' | 'tanggung' | 'tidak' | 'keluar'
+export type PayMode = 'penuh' | 'sebagian' | 'tanggung' | 'poket' | 'tidak' | 'keluar'
 
 export type Attendance = 'hadir' | 'tidak'
 
@@ -179,6 +184,13 @@ export interface AppState {
    * full, or nothing was recorded.
    */
   shortfallReasons: Record<string, string>
+  /**
+   * mitraId → the transaction proof is attached, for a payment recorded as
+   * already made through Poket. It is the whole substance of that outcome: the
+   * BP is entering money nobody's system has seen yet, on the mitra's word, and
+   * a claim with no screenshot behind it is what ops cannot reconcile.
+   */
+  poketProof: Record<string, boolean>
   /** mitraId → what she said to her growth offer. Absent = not pitched. */
   growthResults: Record<string, GrowthResult>
   /**
@@ -427,6 +439,7 @@ const initial: AppState = {
   payments: seedPayments,
   nonPayments: {},
   shortfallReasons: {},
+  poketProof: {},
   growthResults: {},
   growthReasons: {},
   growthFollowUps: {},
@@ -490,11 +503,21 @@ function snapshotDeposit(taskId: string): DepositEntry | null {
 
   if (task.kind === 'home-visit') {
     const mitra = findMitra(task.mitraId ?? 'h1')
-    const cash = state.payments[mitra.id] ?? 0
+    const paid = state.payments[mitra.id] ?? 0
+    // A doorstep bill she had already settled through Poket is not cash in the
+    // bag either — same rule as the majelis roster below.
+    const viaPoket = state.payMode[mitra.id] === 'poket'
+    const cash = viaPoket ? 0 : paid
     // Nothing collected is not a deposit line. A visit that ended in a promise
     // is finished work, and listing it at Rp0 would pad the receipt.
-    if (cash <= 0) return null
-    return { taskId, label: task.title, detail: mitra.name, cash, digital: 0 }
+    if (cash <= 0 && !viaPoket) return null
+    return {
+      taskId,
+      label: task.title,
+      detail: mitra.name,
+      cash,
+      digital: viaPoket ? paid : 0,
+    }
   }
 
   let cash = 0
@@ -503,7 +526,10 @@ function snapshotDeposit(taskId: string): DepositEntry | null {
   MAJELIS.members.forEach((m) => {
     const paid = state.payments[m.id] ?? 0
     if (paid <= 0) return
-    if (isSelfServe(m)) digital += paid
+    // Money that never passed through her hands banks as digital: the app
+    // payments she arrived to find already made, and the Poket payment a mitra
+    // made days ago that the system had not caught up with.
+    if (isSelfServe(m) || state.payMode[m.id] === 'poket') digital += paid
     else {
       cash += paid
       payers += 1
@@ -590,6 +616,7 @@ export const store = {
       payments: seedPayments,
       nonPayments: {},
       shortfallReasons: {},
+      poketProof: {},
       growthResults: {},
       growthReasons: {},
       growthFollowUps: {},
@@ -656,6 +683,20 @@ export const store = {
   },
   setPayMode(mitraId: string, value: PayMode) {
     store.set({ payMode: { ...state.payMode, [mitraId]: value } })
+  },
+  /**
+   * Records a bill she already settled through Poket. The ledger takes the
+   * whole amount — she does not owe it twice — and the MODE is what keeps it
+   * out of the BP's cash, so the deposit at the end of the day expects only
+   * money she is actually carrying.
+   */
+  recordPoket(mitra: Mitra) {
+    store.setPayMode(mitra.id, 'poket')
+    store.collect(mitra, outstandingOf(mitra).total)
+    store.setPartialPtp(mitra.id, null)
+  },
+  setPoketProof(mitraId: string, value: boolean) {
+    store.set({ poketProof: { ...state.poketProof, [mitraId]: value } })
   },
   setPartialPtp(mitraId: string, value: string | null) {
     store.set({ partialPtp: { ...state.partialPtp, [mitraId]: value } })
@@ -1170,15 +1211,29 @@ export const collectedTotal = (s: AppState): number =>
 // makes 100% unreachable in the other direction if any of them hadn't paid.
 // What the bar is for is the cash in her bag against the cash she came for.
 
+/**
+ * Whose money was never the BP's to collect in cash: the self-serve mitra who
+ * settled through the app before she arrived, and anyone found to have already
+ * paid through Poket. The second one is DISCOVERED mid-visit, so the meter's
+ * target drops as she records it — which is the honest depiction: that debt
+ * turned out to be settled, and it was never going to be cash in her bag.
+ */
+const noCashFrom = (s: AppState, mitra: Mitra): boolean =>
+  isSelfServe(mitra) || s.payMode[mitra.id] === 'poket'
+
 /** What the BP has to collect in cash this visit. */
-export const cashBillableTotal = (): number =>
+export const cashBillableTotal = (s: AppState): number =>
   MAJELIS.members
-    .filter((m) => !isSelfServe(m))
+    .filter((m) => !noCashFrom(s, m))
     .reduce((sum, m) => sum + outstandingOf(m).total, 0)
 
 /** Cash actually in her hands so far. */
 export const cashCollectedTotal = (s: AppState): number =>
-  MAJELIS.members.filter((m) => !isSelfServe(m)).reduce((sum, m) => sum + paidOf(s, m), 0)
+  MAJELIS.members.filter((m) => !noCashFrom(s, m)).reduce((sum, m) => sum + paidOf(s, m), 0)
+
+/** She had already paid through Poket, and the proof is on file. */
+export const paidViaPoket = (s: AppState, mitra: Mitra): boolean =>
+  s.payMode[mitra.id] === 'poket' && paidOf(s, mitra) > 0
 
 // --- Stage 3: growth -------------------------------------------------------
 

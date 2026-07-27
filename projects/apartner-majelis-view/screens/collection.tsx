@@ -31,6 +31,7 @@ import { IconCheck } from '../lib/icons'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import {
   cashBillableTotal,
+  paidViaPoket,
   cashCollectedTotal,
   collectStatus,
   paidOf,
@@ -60,7 +61,7 @@ export function CollectionScreen() {
   // Cash only, on both sides of the bar — the self-serve mitra settled through
   // the app and were never hers to collect. See store.ts.
   const cashCollected = cashCollectedTotal(s)
-  const cashBillable = cashBillableTotal()
+  const cashBillable = cashBillableTotal(s)
 
   // Both "Tagih" and "Ubah" land on the collect menu. A fresh tagih opens it with
   // every sheet closed; an ubah opens it with the sheet that produced the
@@ -113,6 +114,9 @@ export function CollectionScreen() {
           // The group closed her bill under joint liability — GL only, and the
           // card says so rather than reading as money she handed over.
           const byGroup = s.payMode[mitra.id] === 'tanggung' && paid > 0
+          // She had already paid through Poket and the system had not caught
+          // up. Not money the BP collected, so the card says which it was.
+          const byPoket = paidViaPoket(s, mitra)
           const refusal = s.nonPayments[mitra.id]
 
           return (
@@ -162,10 +166,20 @@ export function CollectionScreen() {
                     // group under tanggung renteng is not the same fact as a
                     // mitra who handed over the money herself, and the card is
                     // where the BP re-reads what she entered.
-                    label={byGroup ? 'Ditanggung kelompok' : 'Dibayar hari ini'}
+                    label={
+                      byPoket
+                        ? 'Sudah bayar via Poket'
+                        : byGroup
+                          ? 'Ditanggung kelompok'
+                          : 'Dibayar hari ini'
+                    }
                     amount={rupiah(status === 'tidak' ? 0 : paid)}
                     badge={
-                      byGroup ? (
+                      byPoket ? (
+                        <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
+                          Via Poket
+                        </Badge>
+                      ) : byGroup ? (
                         <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
                           Tanggung renteng
                         </Badge>

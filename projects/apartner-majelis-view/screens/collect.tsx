@@ -43,9 +43,10 @@ import { BottomSheet, Button, InputNominal, NavigationHeader } from '@/design-sy
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, outstandingOf, rupiah } from '../lib/data'
-import { paidOf, store, useApp } from '../lib/store'
+import { Image as ImageIcon } from '@/design-system/icons'
+import { paidOf, paidViaPoket, store, useApp } from '../lib/store'
 import { AngsuranCard, DpdBadge, MitraCard } from '../lib/mitra-card'
-import { ChoiceList, ProductBadge, SectionTitle } from '../lib/ui'
+import { ChoiceList, ProductBadge, ProofTile, SectionTitle } from '../lib/ui'
 import { IconChevronRight } from '../lib/icons'
 import {
   PTP_OPTIONS,
@@ -62,8 +63,14 @@ import {
  * loan the debt is hers alone, so offering the group as a payer would record a
  * settlement no group ever agreed to. Same rule, same wording, as the home
  * visit's Tagih step.
+ *
+ * `poket` is not a collection at all. She paid days ago through Poket and the
+ * system has not caught up — which happens often enough that without a row for
+ * it the BP either books it as cash she never received or leaves the mitra in
+ * the queue owing money she has already handed over. Both are worse than a
+ * claim with a screenshot behind it.
  */
-type Mode = 'bayar' | 'tidak' | 'tanggung'
+type Mode = 'bayar' | 'tidak' | 'tanggung' | 'poket'
 
 export function CollectScreen() {
   const flow = useFlow()
@@ -83,8 +90,17 @@ export function CollectScreen() {
   const existing = paidOf(s, mitra)
   const refusal = s.nonPayments[mitra.id]
   const settledByGroup = s.payMode[mitra.id] === 'tanggung' && existing > 0
+  const settledViaPoket = paidViaPoket(s, mitra)
   const [sheet, setSheet] = useState<Mode | null>(
-    refusal ? 'tidak' : settledByGroup ? 'tanggung' : existing > 0 ? 'bayar' : null,
+    refusal
+      ? 'tidak'
+      : settledByGroup
+        ? 'tanggung'
+        : settledViaPoket
+          ? 'poket'
+          : existing > 0
+            ? 'bayar'
+            : null,
   )
   // Every sheet opens on its first step, including a reopened one: the answer to
   // correct is usually the one given first.
@@ -98,6 +114,9 @@ export function CollectScreen() {
   const [ptp, setPtp] = useState<string | null | undefined>(
     refusal ? refusal.ptp : (s.partialPtp[mitra.id] ?? undefined),
   )
+  // The screenshot. Held on the page rather than written straight to the store,
+  // so backing out of the sheet leaves no half-recorded claim behind.
+  const [proof, setProof] = useState(s.poketProof[mitra.id] ?? false)
 
   const typed = Number(draft.replace(/\D/g, '')) || 0
   // Short is a fact about the FIGURE, not about which row was tapped: anything
@@ -117,9 +136,13 @@ export function CollectScreen() {
       ? reason !== null
       : sheet === 'bayar'
         ? typed > 0 && (!short || shortfall !== null)
-        : // Tanggung renteng has nothing to fill in: the amount is the whole
-          // bill and the payer is the group. One tap is the whole record.
-          sheet === 'tanggung'
+        : sheet === 'poket'
+          ? // The screenshot IS the record. Without it this is one person's word
+            // that a payment nobody's system has seen actually happened.
+            proof
+          : // Tanggung renteng has nothing to fill in: the amount is the whole
+            // bill and the payer is the group. One tap is the whole record.
+            sheet === 'tanggung'
 
   const onLastStep = !hasPtpStep || step === 2
   const canAdvance = step === 1 ? step1Done : ptp !== undefined
@@ -147,6 +170,9 @@ export function CollectScreen() {
     if (sheet === 'tidak') {
       store.setPayMode(mitra.id, 'tidak')
       store.setNonPayment(mitra, { reason: reason as string, ptp: ptp ?? null })
+    } else if (sheet === 'poket') {
+      store.recordPoket(mitra)
+      store.setPoketProof(mitra.id, true)
     } else if (sheet === 'tanggung') {
       // Settled in full, funded by the group rather than by her. The two facts
       // are recorded separately — the money on the ledger, the payer on the
@@ -229,6 +255,15 @@ export function CollectScreen() {
             />
           ) : null}
 
+          {/* Not a payment she is taking — one she is CATCHING UP with. It sits
+              with the paying rows because that is what it is to the mitra: her
+              bill is settled. */}
+          <NavRow
+            title="Sudah bayar via Poket"
+            amount={rupiah(owed.total)}
+            onOpen={() => openSheet('poket')}
+          />
+
           <NavRow title="Tidak bayar" onOpen={() => openSheet('tidak')} />
         </div>
       </div>
@@ -253,7 +288,9 @@ export function CollectScreen() {
                 ? 'Alasan Tidak Bayar'
                 : sheet === 'tanggung'
                   ? 'Tanggung Renteng'
-                  : undefined
+                  : sheet === 'poket'
+                    ? 'Sudah Bayar via Poket'
+                    : undefined
         }
         primaryAction={
           <Button
@@ -268,7 +305,9 @@ export function CollectScreen() {
                 ? 'Simpan Catatan'
                 : sheet === 'tanggung'
                   ? 'Catat Tanggung Renteng'
-                  : 'Terima Tunai'}
+                  : sheet === 'poket'
+                    ? 'Catat Pembayaran'
+                    : 'Terima Tunai'}
           </Button>
         }
       >
@@ -315,6 +354,31 @@ export function CollectScreen() {
             <span className="text-12 text-caption">
               Tanggung renteng menutup seluruh tagihan {mitra.name} hari ini.
             </span>
+          </div>
+        ) : null}
+
+        {/* What she is entering, and the one thing that backs it. No amount
+            field: a Poket payment settled the bill, and letting the BP type a
+            different figure would invite a number nobody's system agrees with. */}
+        {sheet === 'poket' ? (
+          <div className="flex flex-col gap-12">
+            <div className="flex flex-col gap-4 rounded-12 bg-neutral-50 p-12">
+              <span className="text-12 text-caption">Dibayar lewat Poket</span>
+              <span className="text-20 font-bold text-default">{rupiah(owed.total)}</span>
+              <span className="text-12 text-caption">
+                Pembayaran sudah masuk tapi belum tercatat di sistem. Lampirkan bukti
+                transaksinya.
+              </span>
+            </div>
+            <div className="flex">
+              <ProofTile
+                done={proof}
+                label="Unggah bukti"
+                doneLabel="Bukti terlampir"
+                icon={<ImageIcon size={24} />}
+                onClick={() => setProof(!proof)}
+              />
+            </div>
           </div>
         ) : null}
 
