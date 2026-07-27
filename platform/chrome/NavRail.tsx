@@ -6,7 +6,7 @@
 'use client'
 
 import Link from 'next/link'
-import { FundsIcon, StudioIcon } from './icons'
+import { FundsIcon, StudioIcon, StudioMark } from './icons'
 import { ThemeToggle } from './theme'
 
 export type RailSection = 'studio' | 'funds'
@@ -32,9 +32,9 @@ export function NavRail({
       <Link
         href="/"
         aria-label="Amartha Studio home"
-        className="flex size-32 items-center justify-center rounded-8 bg-primary-500 text-14 font-bold text-neutral-white"
+        className="flex size-32 items-center justify-center rounded-8 bg-primary-500 text-neutral-white"
       >
-        D
+        <StudioMark className="size-24" />
       </Link>
       <div className="mt-4 flex flex-col gap-4">
         {ITEMS.map(({ section, href, label, Icon }) => {

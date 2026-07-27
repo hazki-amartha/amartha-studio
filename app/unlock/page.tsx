@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { UnlockForm } from './UnlockForm'
 
 export const metadata: Metadata = {
-  title: 'Unlock · Prototype Studio',
-  description: 'Enter the shared password to view Prototype Studio prototypes.',
+  title: 'Unlock · Amartha Studio',
+  description: 'Enter the shared password to view Amartha Studio prototypes.',
 }
 
 export default function UnlockPage({
