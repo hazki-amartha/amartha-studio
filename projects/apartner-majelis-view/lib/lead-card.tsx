@@ -10,9 +10,10 @@
 // answered, and that has to be legible without reading.
 
 import { Badge, Card } from '@/design-system/components'
+import { WhatsappLogo } from '@/design-system/icons'
 import { IconChevronRight, IconPhone } from './icons'
 import { INTEREST_META, SOURCE_LABEL, leadSubtitle, type Lead } from './leads'
-import { Avatar, ContactButton, WaMark } from './ui'
+import { Avatar, ContactButton } from './ui'
 
 /** One prospect in the sosialisasi list. Tapping opens her record. */
 export function LeadRow({ lead, onOpen }: { lead: Lead; onOpen: () => void }) {
@@ -99,7 +100,7 @@ export function LeadIdentityCard({
               tone="green"
               onClick={() => onContact?.('wa')}
             >
-              <WaMark size={20} />
+              <WhatsappLogo size={20} />
             </ContactButton>
             <ContactButton
               label={`Telepon ${lead.name} — ${lead.phone}`}

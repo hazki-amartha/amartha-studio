@@ -10,28 +10,29 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, SelectableCard } from '@/design-system/components'
-import { MagnifyingGlass, NotePencil, WhatsappLogo } from '@/design-system/icons'
+import { MagnifyingGlass, MapPin, NotePencil, WhatsappLogo } from '@/design-system/icons'
 import { ringkas, type Week } from './data'
-import { IconCheck, IconChevronDown, IconChevronUp, IconPin, IconX } from './icons'
+import { IconCheck, IconChevronDown, IconChevronUp, IconX } from './icons'
 
 // --- The two marks ---------------------------------------------------------
 // Two glyphs get one treatment each, wherever they appear, because a glyph that
 // changes with context is a glyph the BP re-reads.
 //
-// WhatsApp is always green — every place it appears is a control, so there is
-// no second case to distinguish.
+// WhatsApp is always green. The PIN takes its colour from what it IS: red when
+// it is a control (inside a round `ContactButton`, which sets the tint on the
+// container), inherited when it is punctuation in front of an address. A page
+// with six red pins down it has spent the loudest colour it owns on labelling
+// text that was already labelled by being an address.
 //
-// The PIN takes its colour from what it IS. Red when it is the button — a tap
-// that opens a route — and inherited when it is punctuation in front of an
-// address. Colour is the affordance here: a page with six red pins down it has
-// spent the loudest colour it owns on labelling text that was already labelled
-// by being an address, and the one pin that actually does something stops
-// standing out.
+// Both draw from `@/design-system/icons` — the pin used to come from the
+// project-local `icons.tsx`, which strokes at 1.6 where FunDS strokes at 2, so
+// the pin and the WhatsApp glyph beside it in the same button were drawn at two
+// different weights.
 
 export function PinMark({ size = 16 }: { size?: 16 | 20 | 24 }) {
   return (
     <span className="flex shrink-0">
-      <IconPin size={size} />
+      <MapPin size={size} />
     </span>
   )
 }
@@ -1191,29 +1192,40 @@ export function IconTile({ tint, children }: { tint: Tint; children: ReactNode }
 // fails at a locked gate, and a follow-up call where the contact IS the task.
 //
 // Renders as an anchor when given `href` (the maps link) and as a button when
-// given `onClick`. Red is the route tone, matching the location-pin convention.
+// given `onClick`.
+//
+// The BUTTON is neutral, the GLYPH is not. These used to be tinted whole — a
+// green disc on a green ring, a red one, a purple one — which put three or four
+// saturated circles on every card that carried a contact, competing with content
+// that has real colour to spend (a red DPD bucket, a green paid week). Now the
+// container is a grey disc with a hairline everywhere, and only the icon keeps
+// its channel colour: WhatsApp green, a route pin red, a handset primary. The
+// colour still says which is which; it just stops shouting it.
 
 export function ContactButton({
   label,
-  tone,
+  tone = 'default',
   onClick,
   href,
   children,
 }: {
   label: string
-  tone: 'green' | 'primary' | 'red'
+  /** Tints the GLYPH only — the disc and its hairline stay neutral. */
+  tone?: 'green' | 'red' | 'primary' | 'default'
   onClick?: () => void
   /** When set, renders as a link (used for the maps route). */
   href?: string
   children: ReactNode
 }) {
-  const classes =
+  const ink =
     tone === 'green'
-      ? 'bg-green-50 text-green-500 border-green-500'
+      ? 'text-green-500'
       : tone === 'red'
-        ? 'bg-red-50 text-red-500 border-red-200'
-        : 'bg-primary-50 text-primary-500 border-primary-200'
-  const shared = `flex h-40 w-40 items-center justify-center rounded-full border ${classes}`
+        ? 'text-red-500'
+        : tone === 'primary'
+          ? 'text-primary-500'
+          : 'text-default'
+  const shared = `flex h-40 w-40 shrink-0 items-center justify-center rounded-full border border-default bg-neutral-50 ${ink}`
   if (href) {
     return (
       <a href={href} target="_blank" rel="noreferrer" aria-label={label} className={shared}>
