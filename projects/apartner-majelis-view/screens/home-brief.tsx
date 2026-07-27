@@ -34,6 +34,7 @@ import {
 } from '../lib/store'
 import {
   HOME_STAGE_LABELS,
+  ProductBadge,
   RescheduleSheet,
   SectionTitle,
   SelectList,
@@ -121,8 +122,15 @@ export function HomeBriefScreen() {
       topBar={
         <NavigationHeader
           title={
-            <span className="flex flex-col">
-              <span className="text-16 font-bold text-default">{mitra.name}</span>
+            <span className="flex min-w-0 flex-col">
+              <span className="flex min-w-0 items-center gap-8">
+                <span className="min-w-0 truncate text-16 font-bold text-default">
+                  {mitra.name}
+                </span>
+                <span className="shrink-0">
+                  <ProductBadge product={mitra.product} />
+                </span>
+              </span>
               <span className="text-12 font-regular text-caption">
                 Home visit · Selasa, {task?.time ?? '—'}
               </span>
