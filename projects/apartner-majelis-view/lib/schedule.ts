@@ -220,6 +220,40 @@ export const DEPOSIT = {
 }
 
 /**
+ * How the cash gets to the company. Two roads, and the BP has to pick before
+ * she can transfer: a VA she pays from her own mobile banking, or an agent she
+ * hands the physical notes to. They reconcile differently at the other end, so
+ * the choice is recorded on the settlement rather than assumed.
+ */
+export type SettleMethod = 'va' | 'agent'
+
+export const SETTLE_METHOD_LABEL: Record<SettleMethod, string> = {
+  va: 'Virtual Account',
+  agent: 'Agen AmarthaLink',
+}
+
+/**
+ * The agent counter, for the BP who would rather put cash across a desk than
+ * transfer it. It reconciles against a KODE UNIK she reads out — the agent
+ * keys it, the branch matches it — so it is the agent-road twin of the VA
+ * number: one identifier per settlement, printed on the screen in front of her.
+ */
+export const AGENT = {
+  name: 'AmarthaLink',
+  hint: 'Tunjukkan kode ini ke agen AmarthaLink terdekat, lalu serahkan uang tunainya.',
+}
+
+/**
+ * A fresh unique code per settlement, for the same reason the VA is fresh: two
+ * cash drops keyed under one code are two deposits the branch cannot tell
+ * apart. Derived from the settlement number so it is stable for one handover.
+ */
+export const agentCodeFor = (no: number): string => {
+  const n = 482100 + no * 1373
+  return `AL ${String(n).slice(0, 3)} ${String(n).slice(3)}`
+}
+
+/**
  * A fresh VA per settlement.
  *
  * Not decoration: a virtual account is what the branch reconciles against, and

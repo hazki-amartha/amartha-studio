@@ -11,9 +11,17 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, Input, SelectableCard } from '@/design-system/components'
 import { MagnifyingGlass, MapPin, NotePencil, WhatsappLogo } from '@/design-system/icons'
-import { ringkas, type Week } from './data'
+import { ringkas, rupiah, type Week } from './data'
+import { agentCodeFor, SETTLE_METHOD_LABEL, taskCode } from './schedule'
 import { IconCheck, IconChevronDown, IconChevronUp, IconX } from './icons'
-import { REJECT_AFTER } from './store'
+import {
+  depositEntries,
+  depositExpected,
+  REJECT_AFTER,
+  settledTotal,
+  unsettledTotal,
+  useApp,
+} from './store'
 
 // --- The two marks ---------------------------------------------------------
 // Two glyphs get one treatment each, wherever they appear, because a glyph that
@@ -1499,5 +1507,110 @@ export function RescheduleSheet({
         )}
       </div>
     </BottomSheet>
+  )
+}
+
+// --- SettlementHistorySheet ------------------------------------------------
+// The day's cash story in one sheet, reached from the schedule's settled line
+// and from the Setoran header. Two questions, stacked: what went OUT (each
+// handover, its road and its receipt) and then what came IN (the cash each
+// pelayanan and door banked) — out first, because "how much did I already put
+// down" is what the sheet is opened to answer. Read-only — it is a record, not
+// a step — so it carries no footer button and closes on the X.
+//
+// It answers the question a BP asks herself all afternoon: is the bag empty,
+// and if not, how much of it did I already put down. The summary trio at the
+// top says it in three numbers; the breakdowns are there for the transfer she
+// has to defend when the branch's figure and hers disagree.
+
+export function SettlementHistorySheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const s = useApp()
+  const collected = depositExpected(s)
+  const settled = settledTotal(s)
+  const left = unsettledTotal(s)
+  const entries = depositEntries(s).filter((e) => e.cash > 0)
+
+  return (
+    <BottomSheet open={open} onClose={onClose} title="Riwayat Setoran" size="md">
+      <div className="flex flex-col gap-16">
+        {/* The three numbers the whole sheet is about, so the breakdowns below
+            are evidence for a figure already stated rather than a sum the BP
+            has to do herself. */}
+        <div className="flex gap-8">
+          <SummaryTile label="Terkumpul" value={rupiah(collected)} />
+          <SummaryTile label="Sudah disetor" value={rupiah(settled)} tone="green" />
+          <SummaryTile label="Belum disetor" value={rupiah(left)} tone={left > 0 ? 'orange' : 'default'} />
+        </div>
+
+        {/* What went out — each handover, its road and the identifier the
+            branch reconciles it against. First, because "how much did I already
+            put down" is the question this sheet is opened to answer. */}
+        <div className="flex flex-col gap-8">
+          <SectionTitle>Setoran hari ini</SectionTitle>
+          {s.settlements.length === 0 ? (
+            <div className="rounded-12 bg-neutral-50 px-12 py-16 text-center text-12 text-caption">
+              Belum ada setoran hari ini.
+            </div>
+          ) : (
+            <div className="rounded-12 bg-neutral-50">
+              {s.settlements.map((x, i) => (
+                <div
+                  key={x.no}
+                  className={`flex items-center gap-12 px-12 py-12 ${i === 0 ? '' : 'border-t border-default'}`}
+                >
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <span className="truncate text-14 text-default">Setoran ke-{x.no}</span>
+                    <span className="truncate text-12 text-caption">
+                      {SETTLE_METHOD_LABEL[x.method]} · {x.method === 'agent' ? agentCodeFor(x.no) : x.va} ·{' '}
+                      {x.at}
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-14 font-bold text-default">{rupiah(x.amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* What came in — every task that banked cash, the same lines the
+            settlement breakdown draws from. */}
+        <div className="flex flex-col gap-8">
+          <SectionTitle>Uang tunai terkumpul</SectionTitle>
+          <div className="rounded-12 bg-neutral-50">
+            {entries.map((e, i) => (
+              <div
+                key={e.taskId}
+                className={`flex items-center gap-12 px-12 py-12 ${i === 0 ? '' : 'border-t border-default'}`}
+              >
+                <span className="shrink-0 rounded-8 bg-neutral-white px-8 py-4 text-10 font-bold text-neutral-600">
+                  {taskCode(e.taskId)}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-14 text-default">{e.label}</span>
+                <span className="shrink-0 text-14 font-bold text-default">{rupiah(e.cash)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </BottomSheet>
+  )
+}
+
+/** One of the three headline figures at the top of the history sheet. */
+function SummaryTile({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string
+  value: string
+  tone?: 'default' | 'green' | 'orange'
+}) {
+  const ink = tone === 'green' ? 'text-green-500' : tone === 'orange' ? 'text-orange-500' : 'text-default'
+  return (
+    <div className="flex flex-1 flex-col gap-2 rounded-12 bg-neutral-50 p-12">
+      <span className="truncate text-10 text-caption">{label}</span>
+      <span className={`truncate text-14 font-bold ${ink}`}>{value}</span>
+    </div>
   )
 }
