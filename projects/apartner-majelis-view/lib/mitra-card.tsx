@@ -117,10 +117,18 @@ function TagihanLine({
 export function AngsuranCard({
   mitra,
   onSeeAll,
+  onSeeHistory,
   flat,
 }: {
   mitra: Mitra
   onSeeAll?: () => void
+  /**
+   * A compact link into the full ledger, sitting directly UNDER the week grid
+   * and above the bill — where the flat home-visit header wants its entry point,
+   * tied to the history it expands rather than trailing the total as a footer.
+   * The carded surfaces use `onSeeAll` in the heading instead.
+   */
+  onSeeHistory?: () => void
   flat?: boolean
 }) {
   const owed = outstandingOf(mitra)
@@ -147,6 +155,16 @@ export function AngsuranCard({
       ) : null}
 
       <WeekGrid weeks={mitra.weeks} />
+
+      {onSeeHistory ? (
+        <button
+          type="button"
+          onClick={onSeeHistory}
+          className="self-center text-12 font-bold text-link"
+        >
+          Lihat Semua Riwayat Angsuran
+        </button>
+      ) : null}
 
       <div className="flex flex-col gap-8">
         {/* Always shown, even at Rp0: a mitra reads "Tunggakan Rp0" as the good
@@ -428,10 +446,9 @@ export function JanjiBayarCard({
 /**
  * The last instalment that actually landed — its date and amount, read straight
  * off the ledger so it can never disagree with the week strip. Drawn as the same
- * icon-tile fact-row as `JanjiBayarCard` and stacked beside it, but in neutral
- * tones: the janji is the promise the visit is chasing, this is history behind
- * it, so it sits parallel without competing for the purple. Renders nothing for
- * a mitra who has paid nothing yet.
+ * icon-tile fact-row as `JanjiBayarCard` and stacked beside it — same purple
+ * glyph on the same tinted tile — so the two facts read as one pair. Renders
+ * nothing for a mitra who has paid nothing yet.
  */
 export function LastPaymentCard({ mitra, flat }: { mitra: Mitra; flat?: boolean }) {
   const last = lastPaymentOf(mitra)
@@ -443,8 +460,8 @@ export function LastPaymentCard({ mitra, flat }: { mitra: Mitra; flat?: boolean 
       }`}
     >
       <span
-        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-8 text-neutral-500 ${
-          flat ? 'bg-neutral-100' : 'bg-neutral-50'
+        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-8 text-primary-500 ${
+          flat ? 'bg-primary-50' : 'bg-neutral-white'
         }`}
       >
         <IconWallet size={20} />

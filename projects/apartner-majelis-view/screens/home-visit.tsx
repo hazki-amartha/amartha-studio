@@ -28,7 +28,7 @@ import { Image as ImageIcon } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
-import { AngsuranCard, DpdBadge, JanjiBayarCard, LastPaymentCard, MitraCard } from '../lib/mitra-card'
+import { AngsuranCard, JanjiBayarCard, LastPaymentCard } from '../lib/mitra-card'
 import { DAYS } from '../lib/schedule'
 import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
 import {
@@ -205,27 +205,19 @@ export function HomeVisitScreen() {
     >
       <StageBar current={2} labels={HOME_STAGE_LABELS} />
 
-      {/* Who she is, what she has been paying, and what she owes — one flat block
-          with no cards, the same as the majelis collect header. The week grid's
-          grey fill carries the one edge that remains; the promise sits under it,
-          also flat. */}
-      <MitraCard
+      {/* The top bar already carries who she is, so this page opens straight on
+          what she has been paying and what she owes — the week grid and the bill
+          as one flat block. The entry point under the grid (via `onSeeHistory`)
+          opens her mitra page, where the full ledger lives. It seeds the mitra
+          that page reads before navigating. */}
+      <AngsuranCard
         mitra={mitra}
         flat
-        meta={null}
-        labels={
-          <>
-            <ProductBadge product={mitra.product} />
-            <DpdBadge dpd={mitra.dpd} format="short" />
-          </>
-        }
-        onOpen={() => {
+        onSeeHistory={() => {
           store.openMitraPage(mitra.id)
           flow.go('mitra')
         }}
       />
-
-      <AngsuranCard mitra={mitra} flat />
 
       {/* A hairline sets the promise apart from the bill above it — the total
           and the janji are two facts, not one running block. */}
