@@ -33,7 +33,7 @@ import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, type Mitra } from '../lib/data'
 import { IconArrowRight, IconCalendar, IconChevronRight, IconUsers } from '../lib/icons'
-import { DpdBadge, MitraCard } from '../lib/mitra-card'
+import { DpdBadge, KetuaBadge, MitraCard } from '../lib/mitra-card'
 import { taskForMajelis } from '../lib/schedule'
 import { openMajelisEntry, store, useApp } from '../lib/store'
 import {
@@ -230,6 +230,7 @@ export function MajelisScreen() {
 function MitraLabels({ mitra }: { mitra: Mitra }) {
   return (
     <>
+      <KetuaBadge mitra={mitra} />
       <ProductBadge product={mitra.product} />
       {mitra.ptp ? <Badge intent="blue">Janji bayar {mitra.ptp}</Badge> : null}
       {mitra.keringanan ? <Badge intent="yellow">Dapat keringanan</Badge> : null}

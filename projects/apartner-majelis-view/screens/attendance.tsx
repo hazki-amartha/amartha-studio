@@ -30,7 +30,7 @@ import { KumpulanCard } from '../lib/kumpulan-card'
 import { MAJELIS } from '../lib/data'
 import { majelisWhen, taskForMajelis, type MajelisEntry } from '../lib/schedule'
 import { IconCamera, IconCheck, IconX } from '../lib/icons'
-import { DpdBadge, MitraCard } from '../lib/mitra-card'
+import { DpdBadge, KetuaBadge, MitraCard } from '../lib/mitra-card'
 import {
   attendanceComplete,
   presentCount,
@@ -143,6 +143,7 @@ export function AttendanceScreen() {
               meta={null}
               labels={
                 <>
+                  <KetuaBadge mitra={mitra} />
                   <ProductBadge product={mitra.product} />
                   <DpdBadge dpd={mitra.dpd} format="short" />
                 </>

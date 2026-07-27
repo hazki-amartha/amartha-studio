@@ -467,16 +467,37 @@ function rosterOrder(active: Mitra[], prepaid: Mitra[]): Mitra[] {
   return out
 }
 
+// Sari is the chair: current, mid-tenure, and the one the BP calls when the
+// group needs telling something. A KM in arrears is a different prototype.
+const KETUA_ID = 'm3'
+
+/**
+ * The Ketua Majelis leads the roster, on every list that draws it.
+ *
+ * The one exception to "order by membership, never by outcome" — and it is not
+ * an exception to the rule behind it, which is that the order must not move
+ * under the BP's thumb. The KM is fixed for the whole cycle: she opens the
+ * kumpulan, she is who the BP checks in with on arrival, and she is who answers
+ * for anyone missing. Finding her by scrolling a list of 22 is a hunt the room
+ * never makes anyone do.
+ */
+function ketuaFirst(members: Mitra[], ketuaId: string): Mitra[] {
+  const ketua = members.find((m) => m.id === ketuaId)
+  if (!ketua) return members
+  return [ketua, ...members.filter((m) => m.id !== ketuaId)]
+}
+
 export const MAJELIS: Majelis = {
   id: 'mawar',
   name: 'Majelis Mawar',
   place: 'Balai RW 04, Ciseeng',
   schedule: 'Selasa, 08.00 · 21 Juli 2026',
-  // Sari is the chair: current, mid-tenure, and the one the BP calls when the
-  // group needs telling something. A KM in arrears is a different prototype.
-  ketuaId: 'm3',
-  members: rosterOrder(ACTIVE, PREPAID),
+  ketuaId: KETUA_ID,
+  members: ketuaFirst(rosterOrder(ACTIVE, PREPAID), KETUA_ID),
 }
+
+/** Is this the group's chair? Drawn as a badge wherever her card appears. */
+export const isKetua = (mitra: Mitra): boolean => mitra.id === KETUA_ID
 
 // --- Home visits -----------------------------------------------------------
 // The single-mitra counterpart to a pelayanan: the BP rides to ONE borrower's

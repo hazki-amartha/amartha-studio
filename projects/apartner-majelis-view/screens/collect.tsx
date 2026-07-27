@@ -45,7 +45,7 @@ import { useFlow } from '@/platform/runtime'
 import { findMitra, outstandingOf, rupiah } from '../lib/data'
 import { Image as ImageIcon } from '@/design-system/icons'
 import { paidOf, paidViaPoket, store, useApp } from '../lib/store'
-import { AngsuranCard, DpdBadge, MitraCard } from '../lib/mitra-card'
+import { AngsuranCard, DpdBadge, KetuaBadge, MitraCard } from '../lib/mitra-card'
 import { ChoiceList, ProductBadge, ProofTile, SectionTitle } from '../lib/ui'
 import { IconChevronRight } from '../lib/icons'
 import {
@@ -216,6 +216,7 @@ export function CollectScreen() {
         meta={null}
         labels={
           <>
+            <KetuaBadge mitra={mitra} />
             <ProductBadge product={mitra.product} />
             <DpdBadge dpd={mitra.dpd} format="short" />
           </>

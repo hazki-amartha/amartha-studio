@@ -270,6 +270,8 @@ export const project: ProjectModule = {
       notes: [
         'The same roster in the same order as the register before it, and the same card — only the row under the rule changes, from a register question to a bill. The list is static: recording an outcome updates the card where it stands instead of moving it to a “sudah ditagih” section, so the woman the BP is standing in front of stays where she was.',
         'The stage’s job is to record an outcome for everyone, not to make everyone lunas — any recorded result counts, including “tidak bayar”. Tagih opens a page rather than a sheet; the 15 who settled before the visit carry the fact and no button, because there is nothing to tagih from them and offering the control would invite a double entry.',
+        'It GATES the next stage: Lanjut stays disabled until every mitra has an outcome on file, with the count of who is left printed above it. A visit that moves on with four mitra unasked leaves a queue nobody comes back to, because the BP has left the balai.',
+        'Quick filters — Semua / Sudah ditagih / Belum ditagih, each with its count — answer “who is left” without scrolling 22 cards looking for buttons. A filter, not a sort: the underlying order never changes, so the woman in front of her stays where she was.',
       ],
       states: [
         {
