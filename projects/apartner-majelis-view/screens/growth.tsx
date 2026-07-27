@@ -24,7 +24,7 @@ import { useFlow } from '@/platform/runtime'
 import { growthMembers, growthStat } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
 import { IconCheck } from '../lib/icons'
-import { DpdBadge, MitraCard } from '../lib/mitra-card'
+import { DpdBadge, KetuaBadge, MitraCard } from '../lib/mitra-card'
 import { growthDoneCount, store, useApp, openMajelisEntry } from '../lib/store'
 import {
   ActionRow,
@@ -84,6 +84,7 @@ export function GrowthScreen() {
               meta={null}
               labels={
                 <>
+                  <KetuaBadge mitra={mitra} />
                   <ProductBadge product={mitra.product} />
                   <DpdBadge dpd={mitra.dpd} format="short" />
                 </>

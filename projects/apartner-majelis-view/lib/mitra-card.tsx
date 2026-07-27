@@ -14,7 +14,7 @@
 import type { ReactNode } from 'react'
 import { Badge, Card } from '@/design-system/components'
 import { User } from '@/design-system/icons'
-import { outstandingOf, rupiah, type Mitra } from './data'
+import { isKetua, outstandingOf, rupiah, type Mitra } from './data'
 import { IconCalendar, IconChevronRight, IconHome, IconStore } from './icons'
 import { ProductBadge, WeekGrid } from './ui'
 
@@ -190,6 +190,21 @@ export function AngsuranCard({
  * badge is being SCANNED down a column of 22 and the ops term is the shortest
  * thing that still sorts.
  */
+/**
+ * The chair, badged wherever her card is drawn. Neutral, not coloured: it is a
+ * ROLE, not a status, and it sits in a row that already spends colour on the
+ * two things that change (her product, her bucket). Renders nothing for
+ * everyone else, so it can be dropped into any label row unconditionally.
+ */
+export function KetuaBadge({ mitra }: { mitra: Mitra }) {
+  if (!isKetua(mitra)) return null
+  return (
+    <Badge intent="neutral" variant="outline">
+      Ketua Majelis
+    </Badge>
+  )
+}
+
 export function DpdBadge({ dpd, format = 'long' }: { dpd: number; format?: 'long' | 'short' }) {
   if (dpd === 0) return <Badge intent="green">Lancar</Badge>
   const intent = dpd >= 30 ? 'red' : 'orange'

@@ -22,13 +22,14 @@
 // that produced it. A sheet that grew to hold a 50-week strip would be a page
 // wearing a sheet's clothes.
 
+import { useState } from 'react'
 import { Badge, Button, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { MAJELIS, isSelfServe, outstandingOf, rupiah } from '../lib/data'
+import { MAJELIS, isSelfServe, outstandingOf, rupiah, type Mitra } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
 import { IconCheck } from '../lib/icons'
-import { DpdBadge, MitraCard } from '../lib/mitra-card'
+import { DpdBadge, KetuaBadge, MitraCard } from '../lib/mitra-card'
 import {
   cashBillableTotal,
   paidViaPoket,
@@ -43,6 +44,7 @@ import {
 } from '../lib/store'
 import {
   ActionRow,
+  Chip,
   ProductBadge,
   ProgressCard,
   ResultRow,
@@ -52,12 +54,33 @@ import {
   VisitTitle,
 } from '../lib/ui'
 
+type FilterId = 'semua' | 'sudah' | 'belum'
+
+const FILTERS: { id: FilterId; label: string }[] = [
+  { id: 'semua', label: 'Semua' },
+  { id: 'sudah', label: 'Sudah ditagih' },
+  { id: 'belum', label: 'Belum ditagih' },
+]
+
 export function CollectionScreen() {
   const flow = useFlow()
   const s = useApp()
   const group = openMajelisEntry(s)
 
   const pending = pendingMembers(s)
+  const [filter, setFilter] = useState<FilterId>('semua')
+
+  // "Sudah ditagih" means an outcome is ON FILE, whatever it says — a payment,
+  // a part-payment, a recorded no, or a bill that was already settled before
+  // she arrived. What is left is the work.
+  const isDone = (mitra: Mitra) => collectStatus(s, mitra) !== 'belum'
+  const countOf = (id: FilterId) =>
+    id === 'semua'
+      ? MAJELIS.members.length
+      : MAJELIS.members.filter((m) => (id === 'sudah' ? isDone(m) : !isDone(m))).length
+  const visible = MAJELIS.members.filter((m) =>
+    filter === 'semua' ? true : filter === 'sudah' ? isDone(m) : !isDone(m),
+  )
   // Cash only, on both sides of the bar — the self-serve mitra settled through
   // the app and were never hers to collect. See store.ts.
   const cashCollected = cashCollectedTotal(s)
@@ -101,8 +124,26 @@ export function CollectionScreen() {
 
       <SectionTitle>Daftar Mitra</SectionTitle>
 
+      {/* A filter, not a sort. The list itself never re-orders — the woman the
+          BP is standing in front of has to stay where she was — but with 22
+          cards on one page, "who is left" is a question she asks constantly and
+          was answering by scrolling the whole roster looking for buttons. The
+          counts are on the chips so the answer is legible before she taps. */}
+      <div className="-mx-16 flex gap-8 overflow-x-auto px-16 pb-2">
+        {FILTERS.map((f) => (
+          <Chip key={f.id} selected={filter === f.id} onClick={() => setFilter(f.id)}>
+            {f.label} ({countOf(f.id)})
+          </Chip>
+        ))}
+      </div>
+
       <div className="flex flex-col gap-8 pb-16">
-        {MAJELIS.members.map((mitra) => {
+        {visible.length === 0 ? (
+          <p className="py-16 text-center text-12 text-caption">
+            Tidak ada mitra di filter ini.
+          </p>
+        ) : null}
+        {visible.map((mitra) => {
           const status = collectStatus(s, mitra)
           const owed = outstandingOf(mitra)
           const paid = paidOf(s, mitra)
@@ -135,6 +176,7 @@ export function CollectionScreen() {
               meta={null}
               labels={
                 <>
+                  <KetuaBadge mitra={mitra} />
                   <ProductBadge product={mitra.product} />
                   <DpdBadge dpd={mitra.dpd} format="short" />
                   {/* Red only for the absence that ends the membership — the
@@ -255,12 +297,23 @@ export function CollectionScreen() {
       </div>
 
       <StickyBar>
+        {/* A gate now, not a warning. Stage 2 is the money, and a visit that
+            moves on with four mitra unasked leaves a queue nobody will come back
+            to — the BP has left the balai. Same shape as the attendance gate one
+            stage up: the button says nothing, the line above it says what is
+            missing, because a disabled button with no reason attached is the
+            most common way a blocking step becomes a support ticket. */}
         {pending.length > 0 ? (
-          <span className="text-center text-12 text-caption">
-            {pending.length} mitra belum ditagih — bisa dilanjut nanti
+          <span className="text-center text-12 font-bold text-orange-500">
+            {pending.length} mitra belum ditagih
           </span>
         ) : null}
-        <Button size="lg" className="w-full" onClick={() => flow.go('growth')}>
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={pending.length > 0}
+          onClick={() => flow.go('growth')}
+        >
           Lanjut
         </Button>
       </StickyBar>
