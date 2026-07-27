@@ -28,6 +28,7 @@ import { IconCheck, IconChevronRight, IconTrendUp } from '../lib/icons'
 import { ladderOf } from '../lib/ladder'
 import { profileOf } from '../lib/profile'
 import { AngsuranCard, MitraBadges, MitraPhoto, mapsUrl } from '../lib/mitra-card'
+import { PenagihanCard } from '../lib/penagihan'
 import { openMajelisEntry, useApp } from '../lib/store'
 import { PinMark } from '../lib/ui'
 
@@ -100,6 +101,15 @@ export function MitraScreen() {
           ledger, which is where the week-by-week amounts live now that the strip
           carries only outcomes. */}
       <AngsuranCard mitra={mitra} onSeeAll={() => flow.go('loans')} />
+
+      {/* --- What has already been tried. -----------------------------------
+          Directly under the ledger, and only for a mitra who is behind: the
+          money card says what she owes, this one says how many times somebody
+          has already asked for it, who asked, and what she said. It sits here
+          rather than among the read-only details because it is the argument the
+          BP makes at the door — and because a mitra handed over from another BP
+          arrives with a DPD number and no story otherwise. */}
+      <PenagihanCard mitra={mitra} />
 
       {/* --- The ladder, on its own. --------------------------------------- */}
       {/* It used to be the first row inside a "Data mitra" card, sharing a
