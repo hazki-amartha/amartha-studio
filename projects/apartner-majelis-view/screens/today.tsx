@@ -34,10 +34,12 @@ import {
   TASKS,
   TOMORROW_TASKS,
   findDay,
+  findMajelisEntry,
   km,
   withScheduled,
   type Task,
 } from '../lib/schedule'
+import { KumpulanSheet } from '../lib/kumpulan-sheet'
 import { IconCheck, IconChevronDown, IconInbox, IconWallet } from '../lib/icons'
 import { CloudArrowUp, Door, Medal } from '@/design-system/icons'
 import {
@@ -313,6 +315,9 @@ export function TodayScreen() {
   const [kind, setKind] = useState<Task['kind'] | null>(null)
   const [status, setStatus] = useState<TaskStatus | null>(null)
   const [menu, setMenu] = useState<'kind' | 'status' | null>(null)
+  // The majelis task whose doorstep sheet is open — held rather than a boolean,
+  // because the sheet's button has to start THAT group's visit.
+  const [heading, setHeading] = useState<Task | null>(null)
   const day = findDay(s.day)
   const pending = pendingSync(s)
   const toSettle = unsettledTotal(s)
@@ -351,10 +356,19 @@ export function TodayScreen() {
       ? `${tomorrow.length} kunjungan terjadwal`
       : `${closed.length} dari ${todayCount} selesai`
 
-  // Straight into the work. A majelis goes to stage 1, a home visit to its own
-  // step 1. The task id rides along either way, so submitting closes this row
-  // rather than leaving finished work on the day.
+  // Straight into the work — except a majelis, which stops at the doorstep
+  // sheet first. A tap on a group used to open the roster, which assumes she has
+  // already arrived; she has not, and the address and the KM's number are what
+  // the ride there needs. Every other kind goes straight in: a home visit, a
+  // sosialisasi and a call all carry their destination on the row itself.
+  //
+  // The task id rides along either way, so submitting closes this row rather
+  // than leaving finished work on the day.
   function start(task: Task) {
+    if (task.kind === 'majelis') {
+      setHeading(task)
+      return
+    }
     if (task.kind === 'home-visit') {
       store.startHomeVisit(task.id)
       flow.go('home-brief')
@@ -370,6 +384,11 @@ export function TodayScreen() {
       flow.go('follow-up')
       return
     }
+  }
+
+  // The sheet's "Mulai Kumpulan" — the gesture that actually opens the visit.
+  function beginMajelis(task: Task) {
+    setHeading(null)
     store.startVisit(task.majelisId ?? 'mawar', task.id)
     flow.go('attendance')
   }
@@ -700,6 +719,17 @@ export function TodayScreen() {
       ) : null}
         </>
       )}
+
+      {/* Where she is going and who to call when the group isn't there —
+          before the roster, which assumes she has already arrived. */}
+      {heading ? (
+        <KumpulanSheet
+          open
+          entry={findMajelisEntry(heading.majelisId ?? 'mawar')}
+          onClose={() => setHeading(null)}
+          onStart={() => beginMajelis(heading)}
+        />
+      ) : null}
 
       <DayPicker open={picking} onClose={() => setPicking(false)} />
       <OptionSheet

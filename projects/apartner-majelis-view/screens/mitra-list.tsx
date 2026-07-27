@@ -17,8 +17,8 @@
 // describe — "everyone past 30 days", "everyone in Kenanga".
 
 import { useState } from 'react'
-import { Badge } from '@/design-system/components'
-import { Screen, TopBar } from '@/platform/primitives'
+import { Badge, NavigationHeader } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import { DPD_BUCKETS, bucketOf, portfolio, sourceMitraId, type DpdBucket } from '../lib/portfolio'
@@ -33,6 +33,7 @@ import {
   ProductBadge,
   ResetLink,
   SearchField,
+  VisitTitle,
 } from '../lib/ui'
 
 type MenuId = 'dpd' | 'majelis' | null
@@ -76,10 +77,14 @@ export function MitraListScreen() {
   return (
     <Screen
       topBar={
-        <TopBar>
-          <span className="flex-1">Mitra</span>
-          <span className="text-12 font-regular text-caption">{all.length} mitra</span>
-        </TopBar>
+        // Same header as the Majelis tab: title with the count as its subtitle
+        // on the left. The count used to sit pinned to the far edge, which read
+        // as a second competing fact rather than as what the title is ABOUT —
+        // and put the two directory tabs on two different headers.
+        <NavigationHeader
+          hideBack
+          title={<VisitTitle title="Mitra" when={`${all.length} mitra`} />}
+        />
       }
     >
       <SearchField

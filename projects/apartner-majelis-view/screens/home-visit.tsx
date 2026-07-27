@@ -23,7 +23,13 @@
 // behind, so there is nothing to upsell at that door.
 
 import { useState } from 'react'
-import { Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
+import {
+  Button,
+  Card,
+  InputNominal,
+  NavigationHeader,
+  SelectableCard,
+} from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
@@ -243,33 +249,32 @@ export function HomeVisitScreen() {
         </>
       ) : null}
 
-      {/* The amount is typed straight into the record — no draft, no Simpan. */}
+      {/* The amount is typed straight into the record — no draft, no Simpan.
+          It sits on the page rather than inside a Card: `InputNominal` is a
+          tile with its own border, and a bordered tile inside a bordered card
+          is the same edge drawn twice. The janji keeps its card below, where
+          it is a separate question rather than part of the figure. */}
       {met && mode === 'sebagian' ? (
-        <Card>
-          <div className="flex flex-col gap-12">
-            <Input
-              label="Jumlah diterima"
-              prefix="Rp"
-              inputMode="numeric"
-              value={paid > 0 ? String(paid) : ''}
-              onChange={(e) =>
-                store.collect(mitra, Number(e.target.value.replace(/\D/g, '')) || 0)
-              }
-              helperText={
-                paid === 0
-                  ? 'Masukkan jumlah yang diterima'
-                  : shortfall > 0
-                    ? `Sisa ${rupiah(shortfall)} — buat janji bayar untuk sisanya di bawah.`
-                    : shortfall < 0
-                      ? `Lebih ${rupiah(-shortfall)} dari tagihan`
-                      : 'Sama dengan tagihan penuh'
-              }
-              state={paid > 0 && shortfall <= 0 ? 'valid' : 'default'}
-            />
+        <>
+          <InputNominal
+            label="Jumlah diterima"
+            value={paid > 0 ? String(paid) : ''}
+            onValueChange={(digits) => store.collect(mitra, Number(digits) || 0)}
+            helperText={
+              paid === 0
+                ? 'Masukkan jumlah yang diterima'
+                : shortfall > 0
+                  ? `Sisa ${rupiah(shortfall)} — buat janji bayar untuk sisanya di bawah.`
+                  : shortfall < 0
+                    ? `Lebih ${rupiah(-shortfall)} dari tagihan`
+                    : 'Sama dengan tagihan penuh'
+            }
+          />
 
-            {/* A balance is only a record once it has a date. Asked only once
-                money is actually on file — an empty field has no sisa. */}
-            {paid > 0 && shortfall > 0 ? (
+          {/* A balance is only a record once it has a date. Asked only once
+              money is actually on file — an empty field has no sisa. */}
+          {paid > 0 && shortfall > 0 ? (
+            <Card>
               <ChipGroup label="Janji bayar sisanya">
                 {PTP_OPTIONS.map((option) => (
                   <Chip
@@ -283,9 +288,9 @@ export function HomeVisitScreen() {
                   </Chip>
                 ))}
               </ChipGroup>
-            ) : null}
-          </div>
-        </Card>
+            </Card>
+          ) : null}
+        </>
       ) : null}
 
       {/* --- A recorded no: she was reached but did not pay. The two remaining
