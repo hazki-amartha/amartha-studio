@@ -28,7 +28,7 @@ import { Image as ImageIcon } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
-import { AngsuranCard, DpdBadge, JanjiBayarCard, MitraCard } from '../lib/mitra-card'
+import { AngsuranCard, DpdBadge, JanjiBayarCard, LastPaymentCard, MitraCard } from '../lib/mitra-card'
 import { DAYS } from '../lib/schedule'
 import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
 import {
@@ -230,6 +230,8 @@ export function HomeVisitScreen() {
       {/* A hairline sets the promise apart from the bill above it — the total
           and the janji are two facts, not one running block. */}
       <div className="border-t border-default" />
+
+      <LastPaymentCard mitra={mitra} flat />
 
       <JanjiBayarCard mitra={mitra} date={DAYS[0].date} flat />
 
