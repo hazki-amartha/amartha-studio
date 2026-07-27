@@ -62,7 +62,7 @@ export function KpiScreen() {
           {/* The one control on the page: swap the whole scoreboard between the
               per-parameter rupiah model and the weighted-tier model. */}
           <Toggle
-            label="Tier"
+            label="Alt version"
             checked={tiered}
             onChange={(e) => setTiered(e.target.checked)}
           />
