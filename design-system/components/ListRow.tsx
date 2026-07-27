@@ -48,13 +48,20 @@ export function ListRow({
 
   if (interactive) {
     return (
-      <button type="button" className={classes} onClick={onClick} {...props}>
+      <button
+        type="button"
+        className={classes}
+        onClick={onClick}
+        {...props}
+        data-fds="ListRow"
+        data-fds-interactive="true"
+      >
         {content}
       </button>
     )
   }
   return (
-    <div className={classes} {...props}>
+    <div className={classes} {...props} data-fds="ListRow">
       {content}
     </div>
   )

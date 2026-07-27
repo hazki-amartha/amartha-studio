@@ -44,7 +44,12 @@ export function NavigationHeader({
   }
 
   return (
-    <header className={classes} {...props}>
+    <header
+      className={classes}
+      {...props}
+      data-fds="NavigationHeader"
+      data-fds-variant={variant}
+    >
       {showStatusBar ? (
         <div className="ds-navhdr-statusbar" aria-hidden>
           <span className="ds-navhdr-clock">9:41</span>

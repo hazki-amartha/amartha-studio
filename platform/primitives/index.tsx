@@ -25,7 +25,7 @@ export function Screen({ topBar, children, className, ...props }: ScreenProps) {
     .join(' ')
 
   return (
-    <div className={classes} {...props}>
+    <div className={classes} {...props} data-fds="Screen">
       {/* Stickiness lives on the SLOT, not on the bar. Two different components
           can be passed as `topBar` — the design system's NavigationHeader and
           the TopBar below — and a header is also legitimately used outside a
@@ -73,7 +73,7 @@ export function TopBar({ children, className, ...props }: TopBarProps) {
     .join(' ')
 
   return (
-    <header className={classes} {...props}>
+    <header className={classes} {...props} data-fds="TopBar">
       {children}
     </header>
   )

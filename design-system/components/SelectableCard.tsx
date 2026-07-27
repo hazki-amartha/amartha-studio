@@ -46,7 +46,13 @@ export function SelectableCard({
   ].filter(Boolean).join(' ')
 
   return (
-    <label htmlFor={inputId} className={classes}>
+    <label
+      htmlFor={inputId}
+      className={classes}
+      data-fds="SelectableCard"
+      data-fds-size={size}
+      data-fds-input-type={inputType}
+    >
       {ribbon ? <span className="ds-selcard-ribbon">{ribbon}</span> : null}
       <input
         {...props}

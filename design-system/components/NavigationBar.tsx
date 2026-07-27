@@ -17,7 +17,7 @@ export type NavigationBarProps = HTMLAttributes<HTMLElement> & {
 export function NavigationBar({ items, className, ...props }: NavigationBarProps) {
   const classes = ['ds-navbar', className].filter(Boolean).join(' ')
   return (
-    <nav className={classes} {...props}>
+    <nav className={classes} {...props} data-fds="NavigationBar">
       {items.map((it) => (
         <NavigationBarTab key={it.id} item={it} />
       ))}

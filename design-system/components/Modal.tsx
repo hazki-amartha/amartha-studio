@@ -85,7 +85,15 @@ export function Modal({
 
   return (
     <div className="ds-modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className={dialogClasses} onClick={(e) => e.stopPropagation()} {...props}>
+      <div
+        className={dialogClasses}
+        onClick={(e) => e.stopPropagation()}
+        {...props}
+        data-fds="Modal"
+        data-fds-size={size}
+        data-fds-variant={variant}
+        data-fds-intent={intent}
+      >
         <div className="ds-modal-head">
           {intent ? <span className={`ds-modal-icon ds-modal-icon-${intent}`}>{intentIcon[intent]}</span> : null}
           {title ? <h3 className="ds-modal-title">{title}</h3> : null}

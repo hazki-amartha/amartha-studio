@@ -33,7 +33,14 @@ export function Button({
   ].filter(Boolean).join(' ')
 
   return (
-    <button className={classes} type={type} {...props}>
+    <button
+      className={classes}
+      type={type}
+      {...props}
+      data-fds="Button"
+      data-fds-variant={variant}
+      data-fds-size={size}
+    >
       {children}
     </button>
   )

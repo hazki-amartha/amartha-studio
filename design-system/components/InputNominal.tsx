@@ -70,7 +70,7 @@ export function InputNominal({
   const showPencil = !disabled && !focused
 
   return (
-    <label className={classes}>
+    <label className={classes} data-fds="InputNominal" data-fds-state={state}>
       {label ? <span className="ds-nominal-label">{label}</span> : null}
       <span className="ds-nominal-row">
         <span className="ds-nominal-currency">{currency}</span>

@@ -46,7 +46,14 @@ export function Badge({
   ].filter(Boolean).join(' ')
 
   return (
-    <span className={classes} {...props}>
+    <span
+      className={classes}
+      {...props}
+      data-fds="Badge"
+      data-fds-intent={intent}
+      data-fds-variant={variant}
+      data-fds-size={size}
+    >
       {dot ? <span className="ds-badge-dot" aria-hidden /> : null}
       {leadingIcon ? <span className="ds-badge-icon" aria-hidden>{leadingIcon}</span> : null}
       {children}

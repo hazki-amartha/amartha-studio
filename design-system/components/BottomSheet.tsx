@@ -74,7 +74,13 @@ export function BottomSheet({
 
   return (
     <div className="ds-sheet-overlay" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className={sheetClasses} onClick={(e) => e.stopPropagation()} {...props}>
+      <div
+        className={sheetClasses}
+        onClick={(e) => e.stopPropagation()}
+        {...props}
+        data-fds="BottomSheet"
+        data-fds-size={size}
+      >
         <div className="ds-sheet-head">
           {!hideClose ? (
             <button
