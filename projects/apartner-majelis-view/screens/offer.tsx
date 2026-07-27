@@ -15,7 +15,7 @@
 // the relationship. A script here would be read out loud by nobody.
 
 import { useState } from 'react'
-import { Badge, Button, Card, NavigationHeader, SelectableCard } from '@/design-system/components'
+import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, growthStat, rupiah } from '../lib/data'
@@ -37,6 +37,13 @@ const DECLINE_REASONS = [
   'Mau diskusi dulu di rumah',
   'Sudah punya di tempat lain',
   'Tidak sesuai — sudah punya / sudah renew',
+]
+
+// The answer itself. Its "Tertarik" description is the offer's own past tense
+// ("Celengan dibuka"), filled in per mitra where the list is built.
+const RESULTS: { value: 'ya' | 'tidak'; label: string; description?: string }[] = [
+  { value: 'ya', label: 'Tertarik' },
+  { value: 'tidak', label: 'Tidak tertarik', description: 'Catat alasannya' },
 ]
 
 // What happened to the yes. Two answers, because there are only two: it was
@@ -109,30 +116,29 @@ export function OfferScreen() {
 
           <SectionTitle>Bagaimana tanggapan Ibu?</SectionTitle>
 
-          <div className="flex flex-col gap-8">
-            <SelectableCard
-              name="hasil-penawaran"
-              inputType="radio"
-              title="Tertarik"
-              description={growth.done}
-              checked={result === 'ya'}
-              onChange={() => {
-                setResult('ya')
-                setReason(null)
-              }}
-            />
-            <SelectableCard
-              name="hasil-penawaran"
-              inputType="radio"
-              title="Tidak tertarik"
-              description="Catat alasannya"
-              checked={result === 'tidak'}
-              onChange={() => {
-                setResult('tidak')
-                setFollowUp(null)
-              }}
-            />
-          </div>
+          {/* The same row treatment the two follow-ups below use. This question
+              used to be a pair of FunDS SelectableCards while the questions it
+              gates were ChoiceLists, so one page asked three single-choice
+              questions in two different card styles — a left-hand radio dot
+              here, a right-hand tick eight pixels lower — and the BP had to
+              re-learn what "chosen" looks like halfway down. The choice of
+              which to keep is settled by the rest of the flow: ChoiceList is
+              what stage 1 and the collect sheet already use. */}
+          <ChoiceList
+            hideLabel
+            label="Hasil penawaran"
+            options={RESULTS.map((r) => ({
+              label: r.label,
+              description: r.value === 'ya' ? growth.done : r.description,
+            }))}
+            value={RESULTS.find((r) => r.value === result)?.label}
+            onPick={(label) => {
+              const picked = RESULTS.find((r) => r.label === label)?.value ?? null
+              setResult(picked)
+              if (picked === 'ya') setReason(null)
+              if (picked === 'tidak') setFollowUp(null)
+            }}
+          />
 
           {/* A yes is not the end of the conversation. Opening a celengan takes
               a form and a signature, and at a kumpulan of 22 there is often no

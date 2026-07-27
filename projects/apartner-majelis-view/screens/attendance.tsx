@@ -62,11 +62,17 @@ import {
 // recorded, and marking her absent week after week hides a data fix behind an
 // attendance figure — so it gets its own reason rather than landing in "tanpa
 // kabar", where it is indistinguishable from a woman who simply didn't come.
+//
+// "Meninggal dunia" is the one absence that is not about this week. It ends the
+// membership and hands the loan to a settlement process nobody in the room can
+// run, so it cannot be logged as a sick day — and stage 2 has to know, which is
+// why the reason travels onto her card there.
 const ABSENCE_REASONS = [
   'Sedang bekerja',
   'Sakit',
   'Diwakilkan',
   'Salah majelis',
+  'Meninggal dunia',
   'Tanpa kabar',
 ]
 
