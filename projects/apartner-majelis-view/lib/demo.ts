@@ -23,7 +23,7 @@ import {
   outstandingOf,
 } from './data'
 import { INTEREST_ORDER, SEED_LEADS, type Lead } from './leads'
-import { vaFor } from './schedule'
+import { vaFor, type SettleMethod } from './schedule'
 import {
   store,
   type AppState,
@@ -142,6 +142,7 @@ export const scheduleHomeVisit = () =>
     deposits: depositsFor(['t1', 't2']),
     settlements: [],
     depositAmount: null,
+    depositMethod: null,
     depositProof: false,
   })
 
@@ -154,6 +155,7 @@ export const scheduleClosing = () =>
     deposits: bankedDay,
     settlements: [],
     depositAmount: null,
+    depositMethod: null,
     depositProof: false,
     depositDone: false,
   })
@@ -170,9 +172,12 @@ export const scheduleCloseable = () =>
     deposits: bankedDay,
     settlements: [
       settlement(1, ['t1'], '11.40'),
-      settlement(2, ['t2', 't4'], '16.20'),
+      // The second handover went to an agent counter — the two roads, side by
+      // side in the history, so a walkthrough shows both without tapping.
+      settlement(2, ['t2', 't4'], '16.20', undefined, 'agent'),
     ],
     depositAmount: null,
+    depositMethod: null,
     depositProof: false,
     depositDone: false,
   })
@@ -201,12 +206,13 @@ export const scheduleCapped = () =>
     },
     settlements: [
       settlement(1, ['t1'], '11.40'),
-      settlement(2, ['t2'], '15.10'),
+      settlement(2, ['t2'], '15.10', undefined, 'agent'),
       // Short by Rp15.000, with the reason on file — the case the confirm step
       // exists for, and the one the old settle() silently threw away.
       settlement(3, ['t4'], '16.05', bankedDay.t4.cash - 15_000),
     ],
     depositAmount: null,
+    depositMethod: null,
     depositProof: false,
   })
 
@@ -219,9 +225,10 @@ export const scheduleClosed = () =>
     deposits: bankedDay,
     settlements: [
       settlement(1, ['t1'], '11.40'),
-      settlement(2, ['t2', 't4'], '16.20'),
+      settlement(2, ['t2', 't4'], '16.20', undefined, 'agent'),
     ],
     depositAmount: null,
+    depositMethod: null,
     depositProof: true,
     depositDone: true,
   })
@@ -266,7 +273,13 @@ const CLOSING_DONE = ['t1', 't2', 't2b', 't3', 't3b', 't4', 't5']
  * One recorded handover. `expected` defaults to the amount, because the fixture
  * days agree with the app — the disagreement is what `daySelisih` is for.
  */
-const settlement = (no: number, taskIds: string[], at: string, amount?: number): Settlement => {
+const settlement = (
+  no: number,
+  taskIds: string[],
+  at: string,
+  amount?: number,
+  method: SettleMethod = 'va',
+): Settlement => {
   const expected = taskIds.reduce((sum, id) => sum + (bankedDay[id]?.cash ?? 0), 0)
   return {
     no,
@@ -275,6 +288,7 @@ const settlement = (no: number, taskIds: string[], at: string, amount?: number):
     diffReason: amount === undefined || amount === expected ? null : 'Salah catat nominal',
     taskIds,
     va: vaFor(no),
+    method,
     at,
     closing: false,
   }
@@ -775,6 +789,7 @@ export const bagFirstHandover = () =>
     settlements: [],
     depositAmount: null,
     depositDiffReason: null,
+    depositMethod: null,
     depositProof: false,
     depositDone: false,
   })
@@ -793,6 +808,9 @@ export const bagShort = () =>
     settlements: [],
     depositAmount: MIDDAY_BANKED - 200_000,
     depositDiffReason: null,
+    // She has already picked her road and photographed the receipt — the state
+    // is a step from confirming, which is what makes the selisih the point.
+    depositMethod: 'va',
     depositProof: true,
     depositDone: false,
   })

@@ -67,6 +67,7 @@ import {
   OptionSheet,
   Overline,
   ResetLink,
+  SettlementHistorySheet,
   type Tint,
 } from '../lib/ui'
 
@@ -234,13 +235,14 @@ function TaskBody({
  * wants to SEE rather than infer from an absence. They just stop taking the
  * room they needed while there was something to do.
  */
-function DoneLine({ children }: { children: ReactNode }) {
+function DoneLine({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex items-center gap-8 rounded-12 bg-neutral-white px-12 py-8">
       <span className="shrink-0 text-green-500">
         <IconCheck size={16} />
       </span>
       <span className="min-w-0 flex-1 truncate text-12 text-caption">{children}</span>
+      {action ? <span className="shrink-0">{action}</span> : null}
     </div>
   )
 }
@@ -361,6 +363,7 @@ export function TodayScreen() {
   const [kind, setKind] = useState<Task['kind'] | null>(null)
   const [status, setStatus] = useState<TaskStatus | null>(null)
   const [menu, setMenu] = useState<'kind' | 'status' | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const day = findDay(s.day)
   const pending = pendingSync(s)
   const toSettle = unsettledTotal(s)
@@ -581,10 +584,23 @@ export function TodayScreen() {
       {/* Nothing left to hand over, but something went. The card stays and
           shrinks to its one fact: a settled bag is worth confirming — she is
           carrying nothing, which is the answer to a question she asks herself
-          all afternoon — but it has no button and no breakdown, so it has no
-          business taking three lines to say so. */}
+          all afternoon. It carries no breakdown of its own, but it does offer a
+          way IN to one: "lihat" opens the day's cash story rather than making
+          her infer it from an absence. */}
       {!canSettle(s) && settledTotal(s) > 0 ? (
-        <DoneLine>Sudah disetor hari ini: {rupiah(settledTotal(s))}</DoneLine>
+        <DoneLine
+          action={
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              className="text-12 font-bold text-link"
+            >
+              Lihat
+            </button>
+          }
+        >
+          Sudah disetor hari ini: {rupiah(settledTotal(s))}
+        </DoneLine>
       ) : null}
 
       {/* --- Belum terkirim: the day's work that hasn't left the handset.
@@ -827,6 +843,7 @@ export function TodayScreen() {
         }}
         onClose={() => setMenu(null)}
       />
+      <SettlementHistorySheet open={historyOpen} onClose={() => setHistoryOpen(false)} />
       <TabBar active="today" />
     </Screen>
   )

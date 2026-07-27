@@ -27,9 +27,9 @@ import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { DEPOSIT, TASKS } from '../lib/schedule'
+import { DEPOSIT, SETTLE_METHOD_LABEL, TASKS, taskCode } from '../lib/schedule'
 import { IconCheck } from '../lib/icons'
-import { store, unsettledTotal, useApp } from '../lib/store'
+import { depositExpected, settledTotal, store, unsettledTotal, useApp } from '../lib/store'
 import { SectionTitle, StickyBar } from '../lib/ui'
 
 export function DepositScreen() {
@@ -137,8 +137,8 @@ export function DepositScreen() {
 
             {depositSettled ? (
               <span className="text-12 text-caption">
-                {toDeposit > 0
-                  ? `Titipan tunai ${rupiah(toDeposit)} sudah disetor ke VA cabang.`
+                {s.settlements.length > 0
+                  ? 'Semua titipan tunai sudah disetor ke cabang.'
                   : 'Tidak ada titipan tunai untuk disetor hari ini.'}
               </span>
             ) : (
@@ -173,6 +173,31 @@ export function DepositScreen() {
                 )}
               </>
             )}
+
+            {/* A brief recap of what already went — how much of the day's cash
+                is down, and which pelayanan and by which road each handover
+                covered. It reads back the settlements the mid-day widget made,
+                so closing the day is a confirmation of a story already told
+                rather than the first time she sees it totalled. */}
+            {s.settlements.length > 0 ? (
+              <div className="flex flex-col gap-8 border-t border-default pt-8">
+                <span className="text-12 text-caption">
+                  {rupiah(settledTotal(s))} dari {rupiah(depositExpected(s))} tunai terkumpul sudah
+                  disetor
+                </span>
+                {s.settlements.map((x) => (
+                  <div key={x.no} className="flex items-center gap-8">
+                    <span className="min-w-0 flex-1 truncate text-12 text-default">
+                      Setoran ke-{x.no} · {SETTLE_METHOD_LABEL[x.method]} ·{' '}
+                      {x.taskIds.map((id) => taskCode(id)).join(', ')}
+                    </span>
+                    <span className="shrink-0 text-12 font-bold text-default">
+                      {rupiah(x.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </Card>

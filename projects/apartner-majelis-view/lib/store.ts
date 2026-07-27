@@ -31,6 +31,7 @@ import {
   type DayKey,
   type MajelisEntry,
   type MajelisStatus,
+  type SettleMethod,
   type Task,
 } from './schedule'
 
@@ -156,6 +157,13 @@ export interface Settlement {
   /** The finished tasks whose cash this covered. */
   taskIds: string[]
   va: string
+  /**
+   * Which road the cash took — a VA transfer or an AmarthaLink agent. Recorded
+   * rather than assumed, because the two reconcile differently at the branch,
+   * and the identifier on the receipt (the VA number, or the agent kode unik)
+   * is read back from it.
+   */
+  method: SettleMethod
   /** "13.20" — when she sent it. */
   at: string
   /** Done from the closing task rather than mid-day from the schedule. */
@@ -344,6 +352,12 @@ export interface AppState {
   depositAmount: number | null
   /** Why her figure differs from the app's. Required when the two disagree. */
   depositDiffReason: string | null
+  /**
+   * The road THIS settlement will take — VA or agent — chosen before she can
+   * confirm. Null until she picks, so the code (a VA number or an agent kode
+   * unik) never shows before there is a method for it to belong to.
+   */
+  depositMethod: SettleMethod | null
   /** Photo of the transfer receipt. Gates submission, as on every visit. */
   depositProof: boolean
   /** Submitted. Not "verified" — the branch confirms that, and it isn't today. */
@@ -469,6 +483,7 @@ const initial: AppState = {
   settlements: [],
   depositAmount: null,
   depositDiffReason: null,
+  depositMethod: null,
   depositProof: false,
   depositDone: false,
   leads: seedLeads,
@@ -657,6 +672,7 @@ export const store = {
       activeTask: null,
       depositAmount: null,
       depositDiffReason: null,
+      depositMethod: null,
       depositProof: false,
     })
   },
@@ -665,6 +681,7 @@ export const store = {
       activeTask: taskId,
       depositAmount: depositExpected(state),
       depositDiffReason: null,
+      depositMethod: null,
       startedTasks: withStarted(state.startedTasks, taskId),
     })
   },
@@ -1075,6 +1092,9 @@ export const store = {
   setDepositDiffReason(depositDiffReason: string | null) {
     store.set({ depositDiffReason })
   },
+  setDepositMethod(depositMethod: SettleMethod | null) {
+    store.set({ depositMethod })
+  },
   setDepositProof(depositProof: boolean) {
     store.set({ depositProof })
   },
@@ -1106,14 +1126,19 @@ export const store = {
           diffReason: amount === expected ? null : state.depositDiffReason,
           taskIds: entries.map((e) => e.taskId),
           va: vaFor(no),
+          // Defaults to VA only as a guard — the screen gates the confirm on a
+          // chosen method, so this is never actually null at the call site.
+          method: state.depositMethod ?? 'va',
           at,
           closing,
         },
       ],
-      // The next settlement starts clean — its own proof, its own agreement.
+      // The next settlement starts clean — its own proof, its own method, its
+      // own agreement.
       depositProof: false,
       depositAmount: null,
       depositDiffReason: null,
+      depositMethod: null,
     })
   },
   submitDeposit() {
