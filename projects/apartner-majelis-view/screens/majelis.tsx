@@ -27,7 +27,8 @@
 
 import { useState } from 'react'
 import { Badge, BottomSheet, Button, NavigationHeader } from '@/design-system/components'
-import { PaperPlaneTilt, Sort, WhatsappLogo } from '@/design-system/icons'
+import { Sort } from '@/design-system/icons'
+import { WaSendSheet } from '../lib/wa-sheet'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, type Mitra } from '../lib/data'
@@ -331,36 +332,14 @@ function ReminderSheet({
     `Terima kasih.`
 
   return (
-    <BottomSheet
+    <WaSendSheet
       open={open}
       onClose={onClose}
-      size="md"
       title="Kirim pengingat kumpulan"
       description="Pesan dikirim ke grup WhatsApp majelis."
-    >
-      <div className="flex flex-col gap-12">
-        <div className="flex items-center gap-8 rounded-8 bg-neutral-50 p-12">
-          <span className="shrink-0 text-green-500">
-            <WhatsappLogo size={20} />
-          </span>
-          <span className="min-w-0 flex-1 truncate text-12 font-bold text-default">
-            Grup {group.name}
-          </span>
-        </div>
-
-        {/* The message as a read-back, not a text field. A field invites an edit
-            she did not come here to make, and the sentence is already correct. */}
-        <p className="whitespace-pre-line rounded-12 border border-default bg-neutral-white p-12 text-12 text-default">
-          {message}
-        </p>
-
-        <Button size="lg" className="w-full" onClick={onClose}>
-          <span className="flex items-center justify-center gap-8">
-            <PaperPlaneTilt size={20} />
-            Kirim ke Grup WhatsApp
-          </span>
-        </Button>
-      </div>
-    </BottomSheet>
+      recipient={`Grup ${group.name}`}
+      message={message}
+      sendLabel="Kirim ke Grup WhatsApp"
+    />
   )
 }

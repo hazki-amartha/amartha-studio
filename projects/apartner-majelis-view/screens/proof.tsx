@@ -14,6 +14,12 @@
 // showed the running count while she worked, and the recap that follows says
 // what those numbers MEAN.
 //
+// Two buttons, the same pair the home visit ends on. FINISHING is the primary.
+// Sending the group its receipt is secondary and optional — the majelis's own
+// record of who paid what, in the place the group already talks — and it opens
+// in the SAME sheet the kumpulan reminder uses. One message shape, one gesture,
+// whether it is a reminder before the visit or a summary after it.
+//
 // It is the visit's FOURTH step, in the same bar as the three before it, exactly
 // as Bukti & Kirim is the home visit's third. It used to sit outside the bar —
 // attendance, collection and offers are the work, proof is the paperwork — which
@@ -21,12 +27,24 @@
 // complete, and made the same visit a 3-step flow at the balai and a 3-step flow
 // with a loose ending at the door.
 
+import { useState } from 'react'
 import { Button, Card, NavigationHeader } from '@/design-system/components'
+import { WhatsappLogo } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
+import { MAJELIS, rupiah } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
 import { IconCamera } from '../lib/icons'
-import { pendingMembers, store, useApp, openMajelisEntry } from '../lib/store'
+import {
+  collectStatus,
+  collectedTotal,
+  paidOf,
+  pendingMembers,
+  store,
+  useApp,
+  openMajelisEntry,
+} from '../lib/store'
+import { WaSendSheet } from '../lib/wa-sheet'
 import { PinMark, ProofTile, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
 
 export function ProofScreen() {
@@ -35,6 +53,38 @@ export function ProofScreen() {
   const group = openMajelisEntry(s)
 
   const pending = pendingMembers(s)
+  const [sending, setSending] = useState(false)
+
+  // The whole room's outcome, mitra by mitra. It goes to the GROUP, which is the
+  // point: a majelis settles together, the women hold each other to it, and a
+  // summary that only ops can see leaves the group taking the BP's word for what
+  // was collected. Everyone recorded gets a line; whoever is still open is named
+  // at the foot rather than quietly left out.
+  const lines = MAJELIS.members
+    .map((m) => {
+      const status = collectStatus(s, m)
+      if (status === 'belum') return null
+      const paid = paidOf(s, m)
+      const label =
+        status === 'lunas' ? 'Lunas' : status === 'sebagian' ? 'Sebagian' : 'Belum bayar'
+      return `• ${m.name} — ${rupiah(paid)} (${label})`
+    })
+    .filter(Boolean)
+
+  const message = [
+    `Assalamualaikum Ibu-ibu ${group.name} 🙏`,
+    ``,
+    `Rekap pembayaran kumpulan ${group.day}, ${group.time}:`,
+    ``,
+    ...lines,
+    ``,
+    `Total diterima: ${rupiah(collectedTotal(s))}`,
+    ...(pending.length > 0
+      ? [``, `Belum tercatat: ${pending.map((m) => m.name).join(', ')}.`]
+      : []),
+    ``,
+    `Terima kasih atas kehadirannya hari ini.`,
+  ].join('\n')
 
   function submit() {
     store.finishTask()
@@ -102,9 +152,32 @@ export function ProofScreen() {
             Kirim" page after this one, which put a second confirmation between
             the BP and a task she has finished. */}
         <Button size="lg" className="w-full" disabled={!s.photo} onClick={submit}>
-          Kirim Laporan
+          Selesaikan Tugas
+        </Button>
+        {/* Optional, and never gated on the photo: the group's receipt is a
+            courtesy to the majelis, not part of the proof she submits with. */}
+        <Button
+          size="lg"
+          variant="outline"
+          className="w-full"
+          onClick={() => setSending(true)}
+        >
+          <span className="flex items-center justify-center gap-8">
+            <WhatsappLogo size={20} />
+            Kirim Bukti via WhatsApp
+          </span>
         </Button>
       </StickyBar>
+
+      <WaSendSheet
+        open={sending}
+        onClose={() => setSending(false)}
+        title="Kirim bukti pelayanan"
+        description="Pesan dikirim ke grup WhatsApp majelis."
+        recipient={`Grup ${group.name}`}
+        message={message}
+        sendLabel="Kirim ke Grup WhatsApp"
+      />
     </Screen>
   )
 }
