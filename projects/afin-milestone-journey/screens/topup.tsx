@@ -4,6 +4,11 @@
 // gap rather than a round number, because the mitra came here to clear one
 // specific deficit and making her compute Rp70.000 from two other figures is
 // the kind of arithmetic that ends a payment.
+//
+// The same screen is also reachable straight from the Poket widget on home,
+// where there is no payment in flight and so no gap to clear. Then it is a
+// plain top-up: round presets, no floor, and it returns to home instead of
+// carrying on into the payment confirmation.
 
 import { useState } from 'react'
 import { NavigationHeader } from '@/design-system/components'
@@ -17,9 +22,11 @@ export function TopupScreen() {
   const flow = useFlow()
   const s = useApp()
   const gap = shortfall(s)
+  /** True when the mitra got here from a payment she can't yet afford. */
+  const clearingShortfall = gap > 0
   const [value, setValue] = useState(0)
 
-  let helper = 'Minimal sesuai kekurangan'
+  let helper = clearingShortfall ? 'Minimal sesuai kekurangan' : 'Pilih atau isi jumlahnya'
   let helperError = false
   let canTopup = false
 
@@ -33,15 +40,21 @@ export function TopupScreen() {
 
   return (
     <Screen
-      topBar={<NavigationHeader title="Isi Saldo Poket" onBack={() => flow.go('poket-shortfall')} />}
+      topBar={
+        <NavigationHeader
+          title="Isi Saldo Poket"
+          onBack={() => flow.go(clearingShortfall ? 'poket-shortfall' : 'home-v2')}
+        />
+      }
     >
       <div>
         <div className="text-12 text-primary-500">Saldo Poket sekarang</div>
         <div className="mt-4 text-24 font-bold text-default">{rupiah(s.poketBalance)}</div>
-        <div className="mt-4 text-12 text-caption">
-          Tambahkan minimal{' '}
-          <span className="font-bold text-primary-500">{rupiah(gap)}</span>
-        </div>
+        {clearingShortfall ? (
+          <div className="mt-4 text-12 text-caption">
+            Tambahkan minimal <span className="font-bold text-primary-500">{rupiah(gap)}</span>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-8">
@@ -64,7 +77,7 @@ export function TopupScreen() {
       </div>
 
       <div className="flex flex-wrap gap-8">
-        {[gap, 100000, 200000].map((v, i) => (
+        {(clearingShortfall ? [gap, 100000, 200000] : [50000, 100000, 200000]).map((v, i) => (
           <Chip key={i} selected={value === v} onClick={() => setValue(v)}>
             {rupiah(v)}
           </Chip>
@@ -76,7 +89,7 @@ export function TopupScreen() {
           disabled={!canTopup}
           onClick={() => {
             store.topUp(value)
-            flow.go('poket-confirm')
+            flow.go(clearingShortfall ? 'poket-confirm' : 'home-v2')
           }}
         >
           Isi Saldo

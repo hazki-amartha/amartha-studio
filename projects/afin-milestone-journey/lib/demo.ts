@@ -25,7 +25,7 @@ const reset = () =>
     amount: 0,
     method: null,
     paidAmount: 0,
-    poketBalance: 80000,
+    poketBalance: 151000,
     billState: 'idle',
     attendState: 'idle',
     attendMsg: '',
@@ -58,7 +58,7 @@ export const sudahLunas = () => {
     amount: WEEKLY_BILL,
     method: 'poket',
     paidAmount: WEEKLY_BILL,
-    poketBalance: 80000,
+    poketBalance: 1000,
     billState: 'paid',
   })
 }
@@ -83,7 +83,7 @@ export const sisaTunggakan = () => {
     amount: 50000,
     method: 'poket',
     paidAmount: 50000,
-    poketBalance: 30000,
+    poketBalance: 101000,
     billState: 'paid',
   })
 }
@@ -112,7 +112,7 @@ export const poketCukup = () => {
   store.set({ amount: WEEKLY_BILL, method: 'poket', poketBalance: 200000 })
 }
 
-/** The same bill against the seeded Rp80.000 — the shortfall branch. */
+/** The same bill against a Rp80.000 wallet — the shortfall branch. */
 export const poketKurang = () => {
   reset()
   store.set({ amount: WEEKLY_BILL, method: 'poket', poketBalance: 80000 })
