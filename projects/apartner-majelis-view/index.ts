@@ -20,7 +20,6 @@ import { KpiScreen } from './screens/kpi'
 import { HomeBriefScreen } from './screens/home-brief'
 import { HomeVisitScreen } from './screens/home-visit'
 import { HomeProofScreen } from './screens/home-proof'
-import { HomeWaConfirmScreen } from './screens/home-wa-confirm'
 import { DepositScreen } from './screens/deposit'
 import { SettlementScreen } from './screens/settlement'
 import { SosialisasiScreen } from './screens/sosialisasi'
@@ -489,43 +488,23 @@ export const project: ProjectModule = {
         {
           id: 'cash',
           label: 'Cash collected at the door',
-          description: 'Submitting goes on to the WhatsApp receipt for that one mitra',
+          description: 'The receipt sheet carries the amount and the date',
           apply: demo.doorProofCash,
         },
         {
           id: 'no-cash',
           label: 'Nothing collected',
-          description: 'No receipt to send — submitting returns straight to the schedule',
+          description: 'The receipt carries the promise instead of a payment',
           apply: demo.doorProofNoCash,
-        },
-      ],
-      flowsTo: [
-        { to: 'home-wa-confirm', label: 'Selesaikan Tugas — jika ada uang tunai' },
-        { to: 'today', label: 'Selesaikan Tugas — jika tidak bayar' },
-      ],
-    },
-    {
-      id: 'home-wa-confirm',
-      title: 'Home Visit — Konfirmasi WhatsApp',
-      component: HomeWaConfirmScreen,
-      notes: [
-        'Shown only when cash was collected at the door. A doorstep collection leaves no slip and sends nothing to the mitra’s phone, so this hands the BP a ready-made WhatsApp receipt — amount, date, any balance promised — to review, edit, and send to that one mitra before returning to the schedule.',
-      ],
-      states: [
-        {
-          id: 'full',
-          label: 'Receipt for a full payment',
-          description: 'Amount and date, nothing outstanding to mention',
-          apply: demo.receiptFull,
         },
         {
           id: 'partial',
-          label: 'Receipt with a balance',
-          description: 'A part-payment, so the message also carries the rest and the date promised',
+          label: 'A part-payment at the door',
+          description: 'The receipt also carries the balance and the date promised',
           apply: demo.receiptPartial,
         },
       ],
-      flowsTo: [{ to: 'today', label: 'Kirim / Lewati — kembali ke jadwal' }],
+      flowsTo: [{ to: 'today', label: 'Selesaikan Tugas — kembali ke jadwal' }],
     },
     {
       id: 'settlement',

@@ -11,11 +11,24 @@
 // gets questioned later, and "she was at the house" is exactly the claim a photo
 // alone cannot make. So the confirmation reads back the geotag — where the shot
 // was taken — rather than a filename.
+//
+// Two buttons, the same pair the majelis visit ends on. FINISHING is the
+// primary: the visit is done and the day is waiting. Sending the receipt is
+// secondary and optional — a courtesy to the mitra, since a doorstep collection
+// leaves no slip and nothing reaches her phone — and it opens in the SAME sheet
+// the kumpulan reminder uses rather than the page it used to be. A page put a
+// screen between a finished visit and the schedule, and made "send the receipt"
+// feel like a step the BP had to get through.
 
+import { useState } from 'react'
 import { Button, Card, NavigationHeader } from '@/design-system/components'
+import { WhatsappLogo } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
+import { outstandingOf, rupiah } from '../lib/data'
 import { profileOf } from '../lib/profile'
+import { DAYS } from '../lib/schedule'
+import { WaSendSheet } from '../lib/wa-sheet'
 import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
 import {
   HOME_STAGE_LABELS,
@@ -32,14 +45,33 @@ export function HomeProofScreen() {
   const s = useApp()
   const mitra = openHomeMitra(s)
   const task = openHomeTask(s)
-  const houseLocation = task?.place ?? profileOf(mitra).address
-  // Cash collected at the door → offer a WhatsApp receipt to the mitra before
-  // returning to the schedule. A no-payment visit skips straight back.
-  const collectedCash = paidOf(s, mitra) > 0
+  const profile = profileOf(mitra)
+  const houseLocation = task?.place ?? profile.address
+  const [sending, setSending] = useState(false)
+
+  // What the receipt says. Money taken gets a receipt; a visit that ended in a
+  // promise gets the promise in writing, which is the same thing to the mitra —
+  // a record of what was agreed at her door, on the phone she keeps.
+  const paid = paidOf(s, mitra)
+  const shortfall = Math.max(0, outstandingOf(mitra).total - paid)
+  const promise = s.partialPtp[mitra.id] ?? s.nonPayments[mitra.id]?.ptp
+  const message = [
+    `Halo Ibu ${mitra.name} 🙏`,
+    ``,
+    paid > 0
+      ? `Terima kasih, pembayaran angsuran sebesar ${rupiah(paid)} sudah kami terima hari ini (${DAYS[0].date}).`
+      : `Terima kasih atas waktunya hari ini (${DAYS[0].date}). Belum ada pembayaran yang kami terima.`,
+    ...(shortfall > 0
+      ? [``, `Sisa tagihan ${rupiah(shortfall)}${promise ? `, janji bayar ${promise}` : ''}.`]
+      : []),
+    ``,
+    `Salam,`,
+    `Amartha`,
+  ].join('\n')
 
   function submit() {
     store.finishTask()
-    flow.go(collectedCash ? 'home-wa-confirm' : 'today')
+    flow.go('today')
   }
 
   return (
@@ -84,7 +116,30 @@ export function HomeProofScreen() {
         <Button size="lg" className="w-full" disabled={!s.photo} onClick={submit}>
           Selesaikan Tugas
         </Button>
+        {/* Optional, and never gated on the photo: the receipt is a courtesy to
+            the mitra, not part of the proof the task is submitted with. */}
+        <Button
+          size="lg"
+          variant="outline"
+          className="w-full"
+          onClick={() => setSending(true)}
+        >
+          <span className="flex items-center justify-center gap-8">
+            <WhatsappLogo size={20} />
+            Kirim Bukti via WhatsApp
+          </span>
+        </Button>
       </StickyBar>
+
+      <WaSendSheet
+        open={sending}
+        onClose={() => setSending(false)}
+        title="Kirim bukti kunjungan"
+        description="Pesan dikirim ke WhatsApp mitra."
+        recipient={`${mitra.name} · ${profile.phone}`}
+        message={message}
+        sendLabel="Kirim ke WhatsApp Mitra"
+      />
     </Screen>
   )
 }

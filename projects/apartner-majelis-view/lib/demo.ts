@@ -746,15 +746,9 @@ export const doorProofNoCash = () =>
   })
 
 // --- The doorstep receipt --------------------------------------------------
-
-export const receiptFull = () =>
-  atDoor('t3', {
-    metWith: { [WATI.id]: 'mitra' },
-    payMode: { [WATI.id]: 'penuh' },
-    payments: { ...freshPayments(), [WATI.id]: WATI_OWED },
-    photo: true,
-    geo: true,
-  })
+// A state for the Bukti step, whose receipt sheet is where the message now
+// lives. `receiptFull` went with the page it used to seed: "cash at the door"
+// is already the doorProofCash state one line above it.
 
 /** A part-payment, so the message carries the balance and the promised date. */
 export const receiptPartial = () =>
