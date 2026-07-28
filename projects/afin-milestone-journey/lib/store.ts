@@ -40,6 +40,12 @@ export interface AppState {
   /** Consecutive failed checks — two of them offer the "Hubungi BP" escape. */
   attendFails: number
   mitraStage: MitraStage
+  /**
+   * She has fallen behind and the next milestone reward is now at risk: miss
+   * this week's instalment or kumpulan and the streak that unlocks it resets.
+   * Drives the goal card's warning treatment on the home screen.
+   */
+  atRisk: boolean
   /** Who the reminder goes to, set by the majelis screen for the compose screen. */
   waTarget: string
   waMessage: string
@@ -57,6 +63,7 @@ const initial: AppState = {
   attendMsg: '',
   attendFails: 0,
   mitraStage: 'active',
+  atRisk: false,
   waTarget: '',
   waMessage: '',
   lastDisburse: MILESTONE_AMOUNT,

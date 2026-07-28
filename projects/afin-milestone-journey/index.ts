@@ -3,7 +3,6 @@
 import type { ProjectModule } from '@/platform/types'
 import { config } from './project.config'
 import * as demo from './lib/demo'
-import { HomeScreen } from './screens/home'
 import { HomeV2Screen } from './screens/home-v2'
 import { ProgressScreen } from './screens/progress'
 import { RiwayatScreen } from './screens/riwayat'
@@ -66,6 +65,12 @@ const homeStates = [
     description: 'Attendance confirmed for the week.',
     apply: demo.absenBerhasil,
   },
+  {
+    id: 'reward-berisiko',
+    label: 'Reward berisiko',
+    description: 'She has fallen behind — the goal card warns the reward can be forfeited unless she pays and attends this week.',
+    apply: demo.rewardBerisiko,
+  },
 ]
 
 export const project: ProjectModule = {
@@ -73,23 +78,9 @@ export const project: ProjectModule = {
   screens: [
     {
       id: 'home',
-      title: 'Home — opsi 1',
-      component: HomeScreen,
-      entry: true,
-      states: homeStates,
-      flowsTo: [
-        { to: 'amount', label: 'bayar angsuran' },
-        { to: 'pending', label: 'cek status' },
-        { to: 'progress', label: 'lihat perjalanan / tab progress' },
-        { to: 'majelis', label: 'tab majelis' },
-        { to: 'riwayat', label: 'tab transaksi' },
-        { to: 'disburse-amount', label: 'cairkan (mitra baru)' },
-      ],
-    },
-    {
-      id: 'home-v2',
-      title: 'Home — opsi 2',
+      title: 'Home',
       component: HomeV2Screen,
+      entry: true,
       states: homeStates,
       flowsTo: [
         { to: 'topup', label: 'isi saldo poket' },
@@ -251,7 +242,7 @@ export const project: ProjectModule = {
       component: TopupScreen,
       flowsTo: [
         { to: 'poket-confirm', label: 'isi saldo (menutup kekurangan)' },
-        { to: 'home-v2', label: 'isi saldo (dari Poket)' },
+        { to: 'home', label: 'isi saldo (dari Poket)' },
       ],
     },
     {

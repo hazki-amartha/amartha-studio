@@ -1,10 +1,10 @@
 'use client'
 
-// Home, option 2 — the same argument as `home.tsx`, set inside the rest of the
-// real AFin page rather than on a bare canvas. Both are listed so they can be
-// compared side by side; neither is the answer yet.
+// Home — the mitra's landing screen, set inside the rest of the real AFin page
+// rather than on a bare canvas. (It began as one of two compared options; the
+// other was dropped once this one won, so this is now simply Home.)
 //
-// What differs from option 1:
+// The shape that won:
 //   · the brand band and the Poket wallet above the fold, so the goal card is
 //     seen in its actual company rather than at the top of an empty screen;
 //   · limit, goal rail, tasks and the 48-week link folded into ONE card, so the
@@ -40,13 +40,14 @@ import {
   User,
   Voucher,
   Wallet,
+  WarningFill,
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { WEEKLY_BILL, rupiah } from '../lib/data'
 import { IconPiggy } from '../lib/icons'
 import { outstanding, store, useApp } from '../lib/store'
-import { IconTile, Meter, SectionTitle, TaskButton } from '../lib/ui'
+import { IconTile, Meter, Notice, SectionTitle, TaskButton } from '../lib/ui'
 
 export function HomeV2Screen() {
   const flow = useFlow()
@@ -101,9 +102,16 @@ export function HomeV2Screen() {
 
         <div className="p-16">
           <div className="flex items-center gap-12">
-            <span className="rounded-full bg-primary-500 px-12 py-4 text-10 font-bold uppercase text-neutral-white">
-              Goal berikutnya
-            </span>
+            {!isNew && s.atRisk ? (
+              <span className="flex items-center gap-4 rounded-full bg-red-500 px-12 py-4 text-10 font-bold uppercase text-neutral-white">
+                <WarningFill size={16} />
+                Reward berisiko
+              </span>
+            ) : (
+              <span className="rounded-full bg-primary-500 px-12 py-4 text-10 font-bold uppercase text-neutral-white">
+                Goal berikutnya
+              </span>
+            )}
             <span className="flex-1 text-right text-14 text-default">
               {isNew ? 'Di akhir tenor' : '8 minggu lagi'}
             </span>
@@ -114,11 +122,21 @@ export function HomeV2Screen() {
             to={isNew ? 'Naik limit' : 'Cair Rp2.250jt'}
             progress={isNew ? 0 : 62}
             goal={isNew ? 92 : 78}
+            risk={!isNew && s.atRisk}
           />
 
-          <p className="mb-16 mt-20 text-14 text-neutral-700">
-            Tetap lakukan hal berikut untuk mencapai goal:
-          </p>
+          {!isNew && s.atRisk ? (
+            <div className="mb-16 mt-20">
+              <Notice tone="orange">
+                Reward Ibu bisa hangus. Bayar angsuran dan hadir kumpulan minggu ini agar reward
+                tetap didapat.
+              </Notice>
+            </div>
+          ) : (
+            <p className="mb-16 mt-20 text-14 text-neutral-700">
+              Tetap lakukan hal berikut untuk mencapai goal:
+            </p>
+          )}
 
           <div className="flex flex-col gap-16">
             {isNew ? (
@@ -444,6 +462,7 @@ function GoalRail({
   to,
   progress,
   goal,
+  risk,
 }: {
   from: string
   to: string
@@ -451,6 +470,8 @@ function GoalRail({
   progress: number
   /** Where the knob marking the goal sits, 0–100. */
   goal: number
+  /** Tints the goal knob amber when the reward is in jeopardy. */
+  risk?: boolean
 }) {
   return (
     <>
@@ -462,7 +483,7 @@ function GoalRail({
           <Check size={16} />
         </span>
         <span
-          className="absolute h-20 w-20 rounded-full bg-neutral-400"
+          className={`absolute h-20 w-20 rounded-full ${risk ? 'bg-orange-500' : 'bg-neutral-400'}`}
           // Data-driven: the value IS the geometry, same as Meter's width.
           style={{ left: `${goal}%`, transform: 'translateX(-50%)' }}
         />
