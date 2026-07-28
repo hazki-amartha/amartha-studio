@@ -42,7 +42,9 @@ export function AmarthaFinHomeScreen() {
         </div>
       </BrandBand>
 
-      <div className="flex gap-8">
+      {/* The PPOB row is a full-bleed white band, not a card — Figma gives it a
+          white fill, 16px padding and justify-between across the full width. */}
+      <div className="-mx-16 flex items-start justify-between bg-neutral-white p-16">
         <Shortcut icon={<ServiceIcon name="pulsa" size={32} />} label="Pulsa" />
         <Shortcut icon={<ServiceIcon name="paket-data" size={32} />} label="Paket Data" />
         <Shortcut icon={<ServiceIcon name="pln" size={32} />} label="PLN" />

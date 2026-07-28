@@ -75,11 +75,21 @@ export function SectionTitle({ children, onClick }: { children: ReactNode; onCli
   )
 }
 
+// A PPOB tile. The bordered rounded-16 box holds the GLYPH ONLY — the product
+// name sits below it, outside the box (Figma: a 54px `icon` square, then a
+// sibling 12px label, the two spaced apart in a 73px column). Boxing the label
+// in with the icon is the thing this got wrong first time round.
+//
+// The label is allowed to wrap: Figma sizes it `w-[min-content] min-w-full`, so
+// "Paket Data" and "Isi E-Wallet" break onto two lines by design rather than
+// being truncated.
 export function Shortcut({ icon, label }: { icon: ReactNode; label: string }) {
   return (
-    <span className="flex flex-1 flex-col items-center gap-4 rounded-16 border border-default bg-neutral-white px-4 py-12">
-      {icon}
-      <span className="w-full truncate text-center text-10 text-default">{label}</span>
+    <span className="flex flex-1 flex-col items-center gap-4">
+      <span className="flex h-48 w-48 items-center justify-center rounded-16 border border-default bg-neutral-white">
+        {icon}
+      </span>
+      <span className="w-full text-center text-12 text-default">{label}</span>
     </span>
   )
 }
