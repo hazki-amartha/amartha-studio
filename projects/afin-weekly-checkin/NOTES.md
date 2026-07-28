@@ -11,6 +11,10 @@ Project-local components (design system has no equivalent):
 - `Stamp` (`screens/progress-rewards.tsx`) — one of the twelve collected rewards.
 - `HomeShell` (`lib/ui.tsx`) — the rest of the real AFin home (brand band, Poket, shortcuts, nav) so the three card options are judged in context. Unwired.
 
+Home cards use **16px radius** and 12px padding, per Figma — the cheatsheet still
+says 12px for cards. Worth resolving in the design system rather than per
+project; the detail pages (progress, majelis) are still on 12px.
+
 The two detail pages are **alternatives, never companions** — one counts in weeks
 (A & B), the other in rewards (C). A mitra sees exactly one. Each home links only
 to its own; nothing in the app should ever show both units.

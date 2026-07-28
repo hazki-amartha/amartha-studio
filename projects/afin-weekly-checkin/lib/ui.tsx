@@ -6,6 +6,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { NavigationBar } from '@/design-system/components'
+import { ProductLogo, ServiceIcon, type ServiceIconName } from '@/design-system/assets'
 import {
   ArrowRight,
   Bell,
@@ -15,13 +16,10 @@ import {
   ChevronRight,
   Clipboard,
   Coin,
-  DotsThreeOutline,
   Eye,
   EyeSlash,
   Headset,
   House,
-  LightningFill,
-  LogoModal,
   Majelis,
   Medal,
   Minus,
@@ -29,7 +27,6 @@ import {
   Transfer,
   User,
   Voucher,
-  Wallet,
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
@@ -132,7 +129,7 @@ export function MajelisCard() {
     <button
       type="button"
       onClick={() => flow.go('majelis')}
-      className="flex w-full items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left"
+      className="flex w-full items-center gap-12 rounded-16 border border-default bg-neutral-white p-12 text-left"
     >
       <span
         className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-full ${
@@ -387,11 +384,11 @@ export function HomeShell({ ladder, children }: { ladder: Ladder; children: Reac
 
       <SectionTitle>Top-up dan bayar tagihan</SectionTitle>
       <div className="flex gap-8">
-        <Shortcut icon={<LogoModal size={24} />} tint="blue" label="Modal" />
-        <Shortcut icon={<Coin size={24} />} tint="green" label="Celengan" />
-        <Shortcut icon={<LightningFill size={24} />} tint="primary" label="PLN" />
-        <Shortcut icon={<Wallet size={24} />} tint="primary" label="Isi E-Wallet" />
-        <Shortcut icon={<DotsThreeOutline size={24} />} tint="primary" label="Lainnya" />
+        <Shortcut name="modal" label="Modal" />
+        <Shortcut name="celengan" label="Celengan" />
+        <Shortcut name="pln" label="PLN" />
+        <Shortcut name="e-wallet" label="Isi E-Wallet" />
+        <Shortcut name="all" label="Lainnya" />
       </div>
 
       <div className="flex gap-12">
@@ -467,16 +464,21 @@ function ChromeIcon({ badge, children }: { badge?: string; children: ReactNode }
   )
 }
 
+// The wallet, drawn to the Figma: 12px padding, 16px radius, and the pale
+// left-to-right wash behind it. The mark is the real Poket product logo rather
+// than the generic wallet glyph — it is brand artwork, so it comes from
+// design-system/assets, not the icon set.
+
 function PoketWidget() {
   const [hidden, setHidden] = useState(true)
 
   return (
-    <div className="flex items-center gap-16 rounded-12 bg-neutral-white p-12">
+    <div className="flex items-center gap-16 rounded-16 border border-light bg-gradient-to-r from-neutral-white to-primary-50 p-12">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-8 text-primary-500">
-          <Wallet size={20} />
+        <div className="flex items-center gap-4 text-primary-500">
+          <ProductLogo name="poket" size={24} />
           <span className="text-16 font-bold">Poket</span>
-          <ArrowRight size={16} />
+          <ArrowRight size={20} />
         </div>
         <div className="mt-4 flex items-center gap-8">
           <span className="text-20 font-bold text-default">
@@ -486,14 +488,14 @@ function PoketWidget() {
             type="button"
             aria-label={hidden ? 'Tampilkan saldo' : 'Sembunyikan saldo'}
             onClick={() => setHidden((v) => !v)}
-            className="shrink-0 text-primary-500"
+            className="shrink-0 text-default"
           >
             {hidden ? <EyeSlash size={20} /> : <Eye size={20} />}
           </button>
         </div>
       </div>
-      <WalletAction icon={<Plus size={20} />} label="Isi Saldo" />
-      <WalletAction icon={<Transfer size={20} />} label="Transfer" />
+      <WalletAction icon={<Plus size={24} />} label="Isi Saldo" />
+      <WalletAction icon={<Transfer size={24} />} label="Transfer" />
     </div>
   )
 }
@@ -513,24 +515,10 @@ export function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="text-14 font-bold text-default">{children}</h2>
 }
 
-const SHORTCUT_TINT = {
-  primary: 'text-primary-500',
-  blue: 'text-blue-500',
-  green: 'text-green-500',
-} as const
-
-function Shortcut({
-  icon,
-  tint,
-  label,
-}: {
-  icon: ReactNode
-  tint: keyof typeof SHORTCUT_TINT
-  label: string
-}) {
+function Shortcut({ name, label }: { name: ServiceIconName; label: string }) {
   return (
-    <span className="flex flex-1 flex-col items-center gap-8 rounded-12 border border-default bg-neutral-white px-4 py-12">
-      <span className={SHORTCUT_TINT[tint]}>{icon}</span>
+    <span className="flex flex-1 flex-col items-center gap-4 rounded-16 border border-default bg-neutral-white px-4 py-12">
+      <ServiceIcon name={name} size={32} />
       <span className="w-full truncate text-center text-10 text-default">{label}</span>
     </span>
   )

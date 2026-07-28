@@ -44,7 +44,7 @@ export function HomeBScreen() {
 
   return (
     <HomeShell ladder="weeks">
-      <div className="overflow-hidden rounded-12 border border-default bg-neutral-white">
+      <div className="overflow-hidden rounded-16 border border-default bg-neutral-white">
         <div className="p-16">
           <div className="flex items-baseline gap-12">
             <span className="flex-1 text-16 font-bold text-default">Setoran mingguan Ibu</span>
