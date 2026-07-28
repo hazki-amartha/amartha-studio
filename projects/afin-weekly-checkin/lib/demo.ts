@@ -10,9 +10,9 @@ import { store, type AppState } from './store'
 
 /** The ordinary week, reused as the base every other seed varies from. */
 const base: AppState = {
-  week: 15,
-  chapterStart: 13,
-  done: range(1, 14),
+  week: 19,
+  chapterStart: 17,
+  done: range(1, 18),
   missed: [],
   paid: false,
   attended: false,
@@ -32,17 +32,17 @@ export const midChapter = seed({})
 
 /** The fourth good week has just landed — Rp500rb is in the pot. */
 export const rewardReady = seed({
-  week: 17,
-  chapterStart: 13,
-  done: range(1, 16),
+  week: 21,
+  chapterStart: 17,
+  done: range(1, 20),
 })
 
-/** Week 14 went by unfinished. The row grew by one; the reward did not move. */
+/** Week 18 went by unfinished. The row grew by one; the reward did not move. */
 export const missedWeek = seed({
-  week: 16,
-  chapterStart: 13,
-  done: [...range(1, 12), 13, 15],
-  missed: [14],
+  week: 20,
+  chapterStart: 17,
+  done: [...range(1, 16), 17, 19],
+  missed: [18],
 })
 
 /** Two weeks from the limit increase, with one window's worth already taken. */
