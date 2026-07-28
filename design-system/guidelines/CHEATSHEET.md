@@ -136,17 +136,24 @@ Multi-colour artwork — **not** icons. Fixed palettes and gradients, so they ta
 a `size` and nothing else; never try to recolour them with a `text-*` token.
 
 ```tsx
-import { ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
+import { NavIcon, ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
 
 <ProductLogo name="poket" />           // 56px square — the MARK alone, no words
 <Wordmark name="poket" height={20} /> // wide lockup — mark AND product name
 <ServiceIcon name="pln" size={40} />  // 48px square — PPOB / service tiles
+<NavIcon name="home" active />        // 24px — bottom nav; selected state is
+                                      // drawn INTO the art, so it takes
+                                      // `active`, never a text-* colour
 ```
 
 `ProductLogo` when a text label sits beside or under it; `Wordmark` when it
 stands alone — the lockup already says its own name, so never pair it with a
-label. Names are kebab-case; the full lists are the `PRODUCT_LOGOS`, `WORDMARKS`
-and `SERVICE_ICONS` exports in `design-system/assets/index.tsx`.
+label. Names are kebab-case; the full lists are the `PRODUCT_LOGOS`, `WORDMARKS`,
+`SERVICE_ICONS` and `NAV_ICONS` exports in `design-system/assets/index.tsx`.
+
+`NavIcon` names are `celengan home modal scan transaction` — note `modal` is the
+"Pinjaman" tab. Pass `active` alongside the same flag you give the
+`NavigationBar` item, so the artwork and the label agree.
 
 ---
 
