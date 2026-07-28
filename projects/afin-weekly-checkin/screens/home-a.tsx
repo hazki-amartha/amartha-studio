@@ -37,7 +37,7 @@ export function HomeAScreen() {
   const left = weeksToReward(s)
 
   return (
-    <HomeShell>
+    <HomeShell ladder="weeks">
       <div className="overflow-hidden rounded-12 border border-default bg-neutral-white">
         <div className="p-16">
           <Destination />
@@ -81,7 +81,7 @@ export function HomeAScreen() {
           <WeekTasks />
         </div>
 
-        <LadderLink />
+        <LadderLink ladder="weeks" />
       </div>
 
       <MajelisCard />

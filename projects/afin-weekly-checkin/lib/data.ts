@@ -93,6 +93,14 @@ export function chapterCells(s: AppState): WeekCell[] {
   return cells
 }
 
+/** Every week of the tenor, for the page whose unit is the week. */
+export function allWeeks(s: AppState): WeekCell[] {
+  return Array.from({ length: TOTAL_WEEKS }, (_, i) => ({
+    week: i + 1,
+    status: cellStatus(s, i + 1),
+  }))
+}
+
 function cellStatus(s: AppState, week: number): CellStatus {
   if (s.done.includes(week)) return 'done'
   if (s.missed.includes(week)) return 'missed'

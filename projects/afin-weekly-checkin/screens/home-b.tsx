@@ -43,7 +43,7 @@ export function HomeBScreen() {
   const left = weeksToReward(s)
 
   return (
-    <HomeShell>
+    <HomeShell ladder="weeks">
       <div className="overflow-hidden rounded-12 border border-default bg-neutral-white">
         <div className="p-16">
           <div className="flex items-baseline gap-12">
@@ -113,7 +113,7 @@ export function HomeBScreen() {
           </div>
         </div>
 
-        <LadderLink />
+        <LadderLink ladder="weeks" />
       </div>
 
       <MajelisCard />

@@ -37,7 +37,7 @@ export function HomeCScreen() {
   const current = Math.min(earned + 1, TOTAL_CHAPTERS)
 
   return (
-    <HomeShell>
+    <HomeShell ladder="rewards">
       <div className="overflow-hidden rounded-12 border border-default bg-neutral-white">
         <div className="p-16">
           <div className="flex items-baseline gap-12">
@@ -97,7 +97,7 @@ export function HomeCScreen() {
           <WeekTasks />
         </div>
 
-        <LadderLink />
+        <LadderLink ladder="rewards" />
       </div>
 
       <MajelisCard />

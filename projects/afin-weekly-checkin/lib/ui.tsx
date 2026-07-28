@@ -35,6 +35,7 @@ import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import {
   GROUP_SIZE,
+  TOTAL_CHAPTERS,
   TOTAL_WEEKS,
   goodWeeks,
   groupStatus,
@@ -341,17 +342,26 @@ export function WeekTasks() {
   )
 }
 
-/** The way into the full 48 weeks. Always the card's last line. */
-export function LadderLink() {
+// --- Into the detail page --------------------------------------------------
+// Two ladders, and a card must never point at the wrong one. A and B count in
+// weeks, so they go to the weeks page and say so; C counts in rewards and goes
+// to the rewards page. Mixing the two units is the one thing the detail pages
+// exist to avoid.
+
+export type Ladder = 'weeks' | 'rewards'
+
+export function LadderLink({ ladder }: { ladder: Ladder }) {
   const flow = useFlow()
 
   return (
     <button
       type="button"
-      onClick={() => flow.go('progress')}
+      onClick={() => flow.go(ladder === 'weeks' ? 'progress-weeks' : 'progress-rewards')}
       className="flex w-full items-center justify-center gap-8 bg-primary-50 p-12 text-12 font-bold text-primary-500"
     >
-      Lihat semua {TOTAL_WEEKS} minggu
+      {ladder === 'weeks'
+        ? `Lihat semua ${TOTAL_WEEKS} minggu`
+        : `Lihat ${TOTAL_CHAPTERS} hadiah Ibu`}
       <ArrowRight size={16} />
     </button>
   )
@@ -361,8 +371,9 @@ export function LadderLink() {
 // Borrowed wholesale from the real AFin home so each option is judged in its
 // actual company rather than alone on an empty canvas. None of it is wired.
 
-export function HomeShell({ children }: { children: ReactNode }) {
+export function HomeShell({ ladder, children }: { ladder: Ladder; children: ReactNode }) {
   const flow = useFlow()
+  const progressId = ladder === 'weeks' ? 'progress-weeks' : 'progress-rewards'
 
   return (
     <Screen statusBar="none">
@@ -401,7 +412,7 @@ export function HomeShell({ children }: { children: ReactNode }) {
               id: 'progress',
               label: 'Progress',
               icon: <ChartLineUp size={24} />,
-              onClick: () => flow.go('progress'),
+              onClick: () => flow.go(progressId),
             },
             {
               id: 'majelis',

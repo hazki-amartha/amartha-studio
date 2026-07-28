@@ -85,11 +85,11 @@ export function MilestoneScreen() {
       </div>
 
       <div className="mt-auto flex flex-col gap-8 pb-16">
+        {/* One button. The detail page is reached from home, and which of the
+            two ladders is right depends on the concept the mitra is on — this
+            screen has no business guessing. */}
         <Button variant="primary" size="lg" onClick={flow.back}>
           Lanjut
-        </Button>
-        <Button variant="ghost" size="lg" onClick={() => flow.go('progress')}>
-          Lihat perjalanan Ibu
         </Button>
       </div>
     </Screen>

@@ -13,7 +13,8 @@ import { HomeAScreen } from './screens/home-a'
 import { HomeBScreen } from './screens/home-b'
 import { HomeCScreen } from './screens/home-c'
 import { MajelisScreen } from './screens/majelis'
-import { ProgressScreen } from './screens/progress'
+import { ProgressWeeksScreen } from './screens/progress-weeks'
+import { ProgressRewardsScreen } from './screens/progress-rewards'
 import { MilestoneScreen } from './screens/milestone'
 
 // The same four conditions apply to every screen here, because every screen
@@ -92,9 +93,15 @@ export const project: ProjectModule = {
       states: journeyStates,
     },
     {
-      id: 'progress',
-      title: 'Perjalanan 48 minggu',
-      component: ProgressScreen,
+      id: 'progress-weeks',
+      title: 'Detail 1 — Perjalanan minggu (A & B)',
+      component: ProgressWeeksScreen,
+      states: journeyStates,
+    },
+    {
+      id: 'progress-rewards',
+      title: 'Detail 2 — Koleksi hadiah (C)',
+      component: ProgressRewardsScreen,
       states: journeyStates,
     },
     {

@@ -6,8 +6,14 @@ Project-local components (design system has no equivalent):
 - `Destination` + `Meter` (`lib/ui.tsx`) — the combined limit-increase line and its progress bar, shared by home A, the ladder and the reward moment.
 - `TaskRow` / `WeekTasks` (`lib/ui.tsx`) — the two halves of a good week. Bayar is a button; datang kumpulan is recorded automatically and shows status only.
 - `MajelisCard` + `GroupBadge` (`lib/ui.tsx`) — the three-line group card on home and its qualitative status chip.
-- `SplitLine` / `Stamp` (`screens/progress.tsx`) — the limit split into her half and the group's, and the twelve milestone stamps.
+- `SplitLine` (both progress screens) — the limit split into her half and the group's.
+- `GridWeek` / `Legend` (`screens/progress-weeks.tsx`) — the 48-cell week grid and its key.
+- `Stamp` (`screens/progress-rewards.tsx`) — one of the twelve collected rewards.
 - `HomeShell` (`lib/ui.tsx`) — the rest of the real AFin home (brand band, Poket, shortcuts, nav) so the three card options are judged in context. Unwired.
+
+The two detail pages are **alternatives, never companions** — one counts in weeks
+(A & B), the other in rewards (C). A mitra sees exactly one. Each home links only
+to its own; nothing in the app should ever show both units.
 
 Assumptions worth revisiting (nothing in the brief fixed these):
 
