@@ -86,7 +86,10 @@ Every screen wraps its content in **`Screen`** — never hand-roll page padding:
 
 `projects/amarthafin-live/` is the **source of truth for screens already shipped
 in production**. It is not a prototype under review; it is what the app actually
-looks like today.
+looks like today. That is what `status: 'live'` means in `project.config.ts` —
+distinct from `'final'`, which means the design is settled but says nothing
+about whether it shipped. Only use `'live'` for a project that documents
+production.
 
 **If you are building or changing a homepage, open it first** and match what is
 already there — the flat white canvas (`<Screen canvas="white">`, not the
