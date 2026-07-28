@@ -19,9 +19,6 @@ import { WEEKLY_BILL, MILESTONE_AMOUNT, type MethodId } from './data'
 /** Where the weekly instalment task has got to, as the home screen shows it. */
 export type BillState = 'idle' | 'pending' | 'paid'
 
-/** The geolocation check behind the "Absen" button. */
-export type AttendState = 'idle' | 'checking' | 'ok' | 'fail'
-
 /** Which mitra the home screen is drawn for. A brand-new mitra has no repayment
  *  history yet, so her nearest goal is the first disbursement, not a milestone. */
 export type MitraStage = 'active' | 'new'
@@ -34,11 +31,6 @@ export interface AppState {
   paidAmount: number
   poketBalance: number
   billState: BillState
-  attendState: AttendState
-  /** Distance message shown when the location check fails. */
-  attendMsg: string
-  /** Consecutive failed checks — two of them offer the "Hubungi BP" escape. */
-  attendFails: number
   mitraStage: MitraStage
   /**
    * She has fallen behind and the next milestone reward is now at risk: miss
@@ -59,9 +51,6 @@ const initial: AppState = {
   paidAmount: 0,
   poketBalance: 151000,
   billState: 'idle',
-  attendState: 'idle',
-  attendMsg: '',
-  attendFails: 0,
   mitraStage: 'active',
   atRisk: false,
   waTarget: '',
@@ -118,21 +107,6 @@ export const store = {
   },
   topUp(value: number) {
     store.set({ poketBalance: state.poketBalance + value })
-  },
-
-  // --- Attendance ---------------------------------------------------------
-  startAttendCheck() {
-    store.set({ attendState: 'checking', attendMsg: '' })
-  },
-  attendOk() {
-    store.set({ attendState: 'ok', attendFails: 0, attendMsg: '' })
-  },
-  attendFail(message: string) {
-    store.set({
-      attendState: 'fail',
-      attendMsg: message,
-      attendFails: state.attendFails + 1,
-    })
   },
 
   // --- Reminders ----------------------------------------------------------

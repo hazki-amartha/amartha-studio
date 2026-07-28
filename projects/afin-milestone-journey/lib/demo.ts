@@ -27,9 +27,6 @@ const reset = () =>
     paidAmount: 0,
     poketBalance: 151000,
     billState: 'idle',
-    attendState: 'idle',
-    attendMsg: '',
-    attendFails: 0,
     atRisk: false,
   })
 
@@ -87,22 +84,6 @@ export const sisaTunggakan = () => {
     poketBalance: 101000,
     billState: 'paid',
   })
-}
-
-/** The location check has failed twice — the "Hubungi BP" escape is showing. */
-export const absenGagal = () => {
-  reset()
-  store.set({
-    mitraStage: 'active',
-    attendState: 'fail',
-    attendMsg: 'Lokasi terlalu jauh (≈820m dari titik kumpulan)',
-    attendFails: 2,
-  })
-}
-
-export const absenBerhasil = () => {
-  reset()
-  store.set({ mitraStage: 'active', attendState: 'ok' })
 }
 
 /**
