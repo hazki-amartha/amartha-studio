@@ -24,7 +24,7 @@ import { BrandBand, OfferCard, ProgressBar, QuickLink, SectionTitle, Shortcut } 
 
 export function AmarthaFinHomeScreen() {
   return (
-    <Screen statusBar="none">
+    <Screen statusBar="none" canvas="white">
       <BrandBand>
         <div className="flex items-center gap-16 rounded-16 border border-default bg-gradient-to-r from-neutral-white to-primary-50 p-12">
           <div className="min-w-0 flex-1">
@@ -42,9 +42,10 @@ export function AmarthaFinHomeScreen() {
         </div>
       </BrandBand>
 
-      {/* The PPOB row is a full-bleed white band, not a card — Figma gives it a
-          white fill, 16px padding and justify-between across the full width. */}
-      <div className="-mx-16 flex items-start justify-between bg-neutral-white p-16">
+      {/* Full-bleed row: Figma pads the PPOB band 16px on its own, inside the
+          page padding. The band's white fill is the page's own colour now, so
+          only the padding is left to carry. */}
+      <div className="-mx-16 flex items-start justify-between p-16">
         <Shortcut icon={<ServiceIcon name="pulsa" size={32} />} label="Pulsa" />
         <Shortcut icon={<ServiceIcon name="paket-data" size={32} />} label="Paket Data" />
         <Shortcut icon={<ServiceIcon name="pln" size={32} />} label="PLN" />
