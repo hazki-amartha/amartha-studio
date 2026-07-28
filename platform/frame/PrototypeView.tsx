@@ -57,14 +57,16 @@ function useIsDesktop(): boolean {
 }
 
 /** Mirrors the running prototype into the screen bridge so the shell's page
- *  explorer can highlight the active screen and jump to another one. */
-function BridgePublisher({ slug }: { slug: string }) {
+ *  explorer can highlight the active screen and jump to another one, and the
+ *  mobile triple-tap dialog can offer the active screen's states. */
+function BridgePublisher({ slug, screens }: { slug: string; screens: ScreenDef[] }) {
   const { current } = useFlow()
   const jump = useScreenJump()
 
   useEffect(() => {
-    publishScreenBridge(slug, current, jump)
-  }, [slug, current, jump])
+    const active = screens.find((s) => s.id === current)
+    publishScreenBridge(slug, current, jump, active?.states ?? [])
+  }, [slug, current, jump, screens])
 
   // Clear only on unmount — the publish effect above handles every update.
   useEffect(() => () => clearScreenBridge(), [])
@@ -348,7 +350,7 @@ export function PrototypeView({ config, screens, initialScreenId }: PrototypeVie
 
   return (
     <PrototypeProvider screens={screens} initialScreenId={initialScreenId}>
-      <BridgePublisher slug={config.slug} />
+      <BridgePublisher slug={config.slug} screens={screens} />
       {isDesktop ? <DesktopLayout config={config} screens={screens} /> : <MobileLayout />}
     </PrototypeProvider>
   )
