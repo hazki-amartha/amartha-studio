@@ -67,7 +67,7 @@ export function SectionTitle({ children, onClick }: { children: ReactNode; onCli
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between text-left text-14 font-bold text-default"
+      className="flex w-full items-center justify-between text-left text-16 font-bold text-default"
     >
       {children}
       <ArrowRight size={16} className="text-caption" />
@@ -130,10 +130,10 @@ export function OfferCard({
     <Card onClick={onClick}>
       <div className="flex items-start justify-between gap-8">
         <div className="min-w-0">
-          <p className={`text-12 font-bold ${tone === 'green' ? 'text-green-500' : 'text-orange-500'}`}>
+          <p className={`text-16 font-bold ${tone === 'green' ? 'text-green-500' : 'text-orange-500'}`}>
             {title}
           </p>
-          <p className="mt-4 text-12 text-caption">{description}</p>
+          <p className="mt-4 text-16 text-caption">{description}</p>
         </div>
         <ArrowRight size={16} className="mt-2 shrink-0 text-caption" />
       </div>

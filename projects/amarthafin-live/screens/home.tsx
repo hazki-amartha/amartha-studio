@@ -5,20 +5,8 @@
 // screen, not a click-through, so nothing here navigates anywhere else.
 
 import { Button, Card, NavigationBar } from '@/design-system/components'
-import { ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
-import {
-  ArrowRight,
-  ChatCircleQuestion,
-  Clipboard,
-  Coin,
-  Eye,
-  HandCoins,
-  Headset,
-  House,
-  Plus,
-  ScanFill,
-  Transfer,
-} from '@/design-system/icons'
+import { NavIcon, ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
+import { ArrowRight, ChatCircleQuestion, Eye, Headset, Plus, Transfer } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { BrandBand, OfferCard, ProgressBar, QuickLink, SectionTitle, Shortcut } from '../lib/ui'
 
@@ -69,7 +57,7 @@ export function AmarthaFinHomeScreen() {
         </div>
         <div className="mt-12 flex items-center justify-between gap-8">
           <div>
-            <p className="text-10 text-caption">Jadwal Pembayaran</p>
+            <p className="text-12 text-caption">Jadwal Pembayaran</p>
             <p className="text-12 font-bold text-default">19 Agu 2024</p>
           </div>
           <Button variant="outline" size="sm">
@@ -94,15 +82,15 @@ export function AmarthaFinHomeScreen() {
       />
       <OfferCard
         tone="orange"
-        title="Mulai jualan pulsa, listrik, dengan biaya paling murah!"
-        description=""
+        title="Mulai jualan pulsa, listrik,"
+        description="dengan biaya paling murah!"
         logo={<ProductLogo name="amartha-link" size={24} />}
       />
 
       <SectionTitle>Promo menarik untuk Anda</SectionTitle>
       <div className="rounded-16 bg-gradient-to-br from-primary-500 to-primary-700 p-16 text-neutral-white">
-        <p className="text-14 font-bold">Isi Poket minimal 100 ribu sebanyak 6 kali</p>
-        <p className="mt-4 text-12">Bonus 10 ribu</p>
+        <p className="text-16 font-bold">Isi Poket minimal 100 ribu sebanyak 6 kali</p>
+        <p className="mt-4 text-14">Bonus 10 ribu</p>
       </div>
 
       <div className="flex gap-12">
@@ -111,18 +99,18 @@ export function AmarthaFinHomeScreen() {
       </div>
 
       <div className="pb-16 text-center">
-        <p className="text-12 text-caption">Berizin &amp; Diawasi oleh</p>
-        <p className="mt-2 text-12 font-bold text-default">Otoritas Jasa Keuangan</p>
+        <p className="text-10 text-caption">Berizin &amp; Diawasi oleh</p>
+        <p className="mt-2 text-10 font-bold text-default">Otoritas Jasa Keuangan</p>
       </div>
 
       <div className="sticky bottom-0 -mx-16 mt-auto">
         <NavigationBar
           items={[
-            { id: 'home', label: 'Home', icon: <House size={24} />, active: true },
-            { id: 'pinjaman', label: 'Pinjaman', icon: <HandCoins size={24} /> },
-            { id: 'scan', label: 'Scan', icon: <ScanFill size={24} /> },
-            { id: 'celengan', label: 'Celengan', icon: <Coin size={24} /> },
-            { id: 'transaksi', label: 'Transaksi', icon: <Clipboard size={24} /> },
+            { id: 'home', label: 'Home', icon: <NavIcon name="home" active />, active: true },
+            { id: 'pinjaman', label: 'Pinjaman', icon: <NavIcon name="modal" /> },
+            { id: 'scan', label: 'Scan', icon: <NavIcon name="scan" /> },
+            { id: 'celengan', label: 'Celengan', icon: <NavIcon name="celengan" /> },
+            { id: 'transaksi', label: 'Transaksi', icon: <NavIcon name="transaction" /> },
           ]}
         />
       </div>
