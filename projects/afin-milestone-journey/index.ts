@@ -54,18 +54,6 @@ const homeStates = [
     apply: demo.sisaTunggakan,
   },
   {
-    id: 'absen-gagal',
-    label: 'Absen gagal 2x',
-    description: 'The location check has failed twice — the Hubungi BP escape is showing.',
-    apply: demo.absenGagal,
-  },
-  {
-    id: 'absen-berhasil',
-    label: 'Absen berhasil',
-    description: 'Attendance confirmed for the week.',
-    apply: demo.absenBerhasil,
-  },
-  {
     id: 'reward-berisiko',
     label: 'Reward berisiko',
     description: 'She has fallen behind — the goal card warns the reward can be forfeited unless she pays and attends this week.',

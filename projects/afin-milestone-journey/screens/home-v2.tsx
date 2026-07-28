@@ -35,6 +35,7 @@ import {
   LightningFill,
   Majelis,
   ShareNetwork,
+  ShieldCheck,
   Plus,
   Transfer,
   User,
@@ -57,21 +58,6 @@ export function HomeV2Screen() {
   const goToPayment = () => {
     store.startPayment()
     flow.go('amount')
-  }
-
-  // The location check the "Absen" button runs. Deliberately unreliable — the
-  // failure path (and the "Hubungi BP" escape after two of them) is the part of
-  // attendance worth prototyping; a check that always passes shows nothing.
-  const confirmAttendance = () => {
-    store.startAttendCheck()
-    window.setTimeout(() => {
-      if (Math.random() < 0.65) {
-        store.attendOk()
-      } else {
-        const dist = 500 + Math.floor(Math.random() * 600)
-        store.attendFail(`Lokasi terlalu jauh (≈${dist}m dari titik kumpulan)`)
-      }
-    }, 1200)
   }
 
   return (
@@ -160,26 +146,28 @@ export function HomeV2Screen() {
                   description={<BillLine />}
                   action={<BayarButton onPay={goToPayment} />}
                 />
-                <div className="flex flex-col gap-4">
-                  <Task
-                    tint="green"
-                    icon={<Majelis size={20} />}
-                    title="Datang kumpulan"
-                    description="Setiap Kamis, jam 11.30"
-                    action={<AbsenButton onCheck={confirmAttendance} />}
-                  />
-                  {s.attendState === 'fail' && s.attendMsg ? (
-                    <p className="text-right text-12 text-red-500">{s.attendMsg}</p>
-                  ) : null}
-                  {s.attendState === 'fail' && s.attendFails >= 2 ? (
-                    <button
-                      type="button"
-                      className="text-right text-12 font-bold text-primary-500 underline"
-                    >
-                      Lokasi tidak sesuai? Hubungi BP
-                    </button>
-                  ) : null}
-                </div>
+                <Task
+                  tint="green"
+                  icon={<Majelis size={20} />}
+                  title="Datang kumpulan"
+                  description="Setiap Kamis, jam 11.30"
+                />
+                {/* Group health is the third habit, and the one that lifts the
+                    ceiling: a majelis where everyone stays current is what turns
+                    the limit band's "s/d Rp7jt" from the top of a range into the
+                    number she actually reaches. Its button opens the 48-week
+                    progress page, where that standing is shown in full. */}
+                <Task
+                  tint="primary"
+                  icon={<ShieldCheck size={20} />}
+                  title="Majelis sehat"
+                  description="Kelompok lancar, limit bisa s/d Rp7jt"
+                  action={
+                    <TaskButton tone="primary" onClick={() => flow.go('progress')}>
+                      Lihat
+                    </TaskButton>
+                  }
+                />
               </>
             )}
           </div>
@@ -510,7 +498,8 @@ function Task({
   icon: ReactNode
   title: string
   description: ReactNode
-  action: ReactNode
+  /** The trailing control. Omit for an informational row with no action. */
+  action?: ReactNode
 }) {
   return (
     <div className="flex items-center gap-12">
@@ -566,30 +555,6 @@ function BayarButton({ onPay }: { onPay: () => void }) {
   return (
     <TaskButton tone="primary" onClick={onPay}>
       Bayar
-    </TaskButton>
-  )
-}
-
-function AbsenButton({ onCheck }: { onCheck: () => void }) {
-  const s = useApp()
-
-  if (s.attendState === 'checking') {
-    return (
-      <TaskButton tone="neutral" disabled>
-        Mengecek…
-      </TaskButton>
-    )
-  }
-  if (s.attendState === 'ok') {
-    return (
-      <TaskButton tone="green" disabled>
-        <Check size={16} /> Hadir
-      </TaskButton>
-    )
-  }
-  return (
-    <TaskButton tone={s.attendState === 'fail' ? 'red' : 'primary'} onClick={onCheck}>
-      {s.attendState === 'fail' ? 'Coba lagi' : 'Absen'}
     </TaskButton>
   )
 }
