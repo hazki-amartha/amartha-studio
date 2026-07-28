@@ -1,0 +1,1 @@
+- `ProgressBar` (`lib/ui.tsx`) — no shared progress bar in `@/design-system/components`; project-local filled-track tile, used on the Modal limit-usage card in `screens/home.tsx`.
