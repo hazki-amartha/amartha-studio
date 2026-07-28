@@ -7,10 +7,15 @@
 // never imported by prototype screens.
 // =============================================================================
 
+import type { ScreenState } from '@/platform/types'
+
 export interface ScreenBridgeState {
   slug: string
   /** Active screen id in the running prototype. */
   current: string
+  /** States declared by the active screen, so chrome outside the prototype
+   *  tree (the mobile triple-tap dialog) can offer them too. */
+  states: ScreenState[]
 }
 
 let state: ScreenBridgeState | null = null
@@ -25,12 +30,14 @@ export function publishScreenBridge(
   slug: string,
   current: string,
   jump: (id: string) => void,
+  states: ScreenState[] = [],
 ) {
   jumpFn = jump
   // Keep the snapshot referentially stable unless something visible changed —
-  // useSyncExternalStore re-renders on identity.
+  // useSyncExternalStore re-renders on identity. `states` belong to the active
+  // screen, so slug + current already covers when they change.
   if (state?.slug !== slug || state?.current !== current) {
-    state = { slug, current }
+    state = { slug, current, states }
     emit()
   }
 }
