@@ -127,6 +127,24 @@ import { Coins, ArrowRight, CheckCircle } from '@/design-system/icons'
 
 ---
 
+## Brand assets
+
+Multi-colour artwork — **not** icons. Fixed palettes and gradients, so they take
+a `size` and nothing else; never try to recolour them with a `text-*` token.
+
+```tsx
+import { ProductLogo, ServiceIcon } from '@/design-system/assets'
+
+<ProductLogo name="poket" />          // 56px default — Poket, Modal, Celengan,
+                                      // ggs, insurance, amartha-link
+<ServiceIcon name="pln" size={40} />  // 48px default — the PPOB / service tiles
+```
+
+Names are kebab-case; the full lists are the `PRODUCT_LOGOS` and `SERVICE_ICONS`
+exports in `design-system/assets/index.tsx`.
+
+---
+
 ## Navigation
 
 ```tsx
