@@ -462,7 +462,7 @@
 .ds-card {
   background: var(--neutral-white);
   border: 1px solid var(--neutral-200);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: var(--card-padding);
   font-family: var(--font);
 }

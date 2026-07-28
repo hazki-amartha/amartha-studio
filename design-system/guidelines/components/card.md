@@ -8,7 +8,7 @@ Base surface container for grouping related content on a screen.
 |------|-------|-------|
 | Background | `#FFFFFF` | `--neutral-white` |
 | Border | 1px `#E5E7EB` | `--neutral-200` / `border-default` |
-| Radius | 12px | `rounded-12` |
+| Radius | 16px | `rounded-16` |
 | Padding | 12px | `--card-padding` (not 20px) |
 | Gap between cards | 8px | `--card-gap` |
 

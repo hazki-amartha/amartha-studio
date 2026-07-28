@@ -19,7 +19,7 @@ components from `@/design-system/components`, layout from `@/platform/primitives
 | Font | Inter, weights **500 / 700** only → `font-regular` / `font-bold` |
 | Spacing | 4px grid: `0 2 4 8 12 16 20 24 32 40 48` only |
 | Button radius | `rounded-full` (pill) — never rectangular |
-| Card radius | `rounded-12`, 12px padding |
+| Card radius | `rounded-16`, 12px padding |
 | Input radius | `rounded-8` |
 | Status | 500 foreground on matching 50-tint background (Badge does this) |
 | Layout | 16px page padding-x/top, 12px section gap, 48px topbar |
