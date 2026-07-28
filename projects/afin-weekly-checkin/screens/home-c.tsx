@@ -1,32 +1,31 @@
 'use client'
 
-// Option C — the board, wired to the endgame.
+// Option C — the board, wired to the endgame in one line.
 //
-// A variation of B rather than a different species. Same four-tile board, same
-// oversized reward closing it — but the reward is no longer the end of the
-// argument. A short rail runs from it down into a strip of twelve milestone
-// stamps, and the limit increase sits at the bottom of that strip as what
-// collecting all twelve buys.
+// A variation of B, and the lightest of the three. Same four-tile board, same
+// oversized reward closing it — but the endgame gets neither a header (A) nor a
+// block of its own (B). It is a single line attached to the reward tile: this
+// is hadiah 4, there are 12, the twelfth raises the limit.
 //
-// So the card answers "why does this month matter" without a destination
-// header: this month is one of twelve, and the twelve are the limit increase.
-// The reward tile and its stamp in the strip carry the same number, which is
-// the whole connection.
+// The strip of twelve stamps that used to sit here now lives on the progress
+// page. Home keeps three blocks and nothing else: the board, the connector
+// line, and the two things that fill a week.
 
 import {
   CHAPTER_LENGTH,
-  LIMIT_INCREASE,
   MILESTONE_REWARD,
   TOTAL_CHAPTERS,
   chapterCells,
+  groupStatus,
+  limitOnOffer,
   milestonesEarned,
   rewardReady,
   short,
   weeksToReward,
 } from '../lib/data'
 import { useApp } from '../lib/store'
-import { HomeShell, LadderLink, WeekTasks, WeekTile } from '../lib/ui'
-import { Check, Medal, Withdraw } from '@/design-system/icons'
+import { HomeShell, LadderLink, MajelisCard, WeekTasks, WeekTile, windowLine } from '../lib/ui'
+import { Medal, Withdraw } from '@/design-system/icons'
 
 export function HomeCScreen() {
   const s = useApp()
@@ -54,8 +53,6 @@ export function HomeCScreen() {
             ))}
           </div>
 
-          {/* The board's closing tile, tagged with its number so it can be found
-              again in the strip below. */}
           <div
             className={`mt-8 flex items-center gap-12 rounded-12 p-16 ${
               ready ? 'bg-primary-500 text-neutral-white' : 'border border-primary-200 bg-primary-50'
@@ -69,9 +66,7 @@ export function HomeCScreen() {
                 {short(MILESTONE_REWARD)}
               </span>
               <span className={`mt-2 block text-12 ${ready ? '' : 'text-caption'}`}>
-                {ready
-                  ? 'Sudah bisa Ibu cairkan'
-                  : `Terbuka setelah ${CHAPTER_LENGTH} minggu lancar`}
+                {ready ? windowLine(s) : `Terbuka setelah ${CHAPTER_LENGTH} minggu lancar`}
               </span>
             </span>
             <span
@@ -83,43 +78,18 @@ export function HomeCScreen() {
             </span>
           </div>
 
-          {/* The rail. The only thing on the card that says the month and the
-              year are the same argument. */}
-          <span className="mx-auto block h-16 w-2 bg-primary-200" />
-
-          <div className="rounded-12 bg-neutral-50 p-12">
-            <p className="text-14 font-bold text-default">
-              Kumpulkan {TOTAL_CHAPTERS} hadiah, limit Ibu naik
-            </p>
-            <p className="mt-2 text-12 text-caption">
-              {earned} dari {TOTAL_CHAPTERS} hadiah sudah Ibu kumpulkan
-            </p>
-
-            <div className="mt-12 grid grid-cols-6 gap-4">
-              {Array.from({ length: TOTAL_CHAPTERS }, (_, i) => i + 1).map((n) => (
-                <Stamp
-                  key={n}
-                  n={n}
-                  status={n <= earned ? 'earned' : n === current ? 'current' : 'locked'}
-                />
-              ))}
-            </div>
-
-            <span className="mx-auto block h-12 w-2 bg-neutral-200" />
-
-            <div className="flex items-center gap-12 rounded-8 border border-default bg-neutral-white p-12">
-              <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-yellow-50 text-yellow-600">
-                <Medal size={24} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-14 font-bold text-default">
-                  Limit naik {short(LIMIT_INCREASE)}
-                </span>
-                <span className="mt-2 block text-12 text-caption">
-                  Setelah hadiah ke-{TOTAL_CHAPTERS}
-                </span>
-              </span>
-            </div>
+          {/* The whole endgame, in one line. The only thing on this card that
+              says the month and the year are the same argument. */}
+          <div className="mt-12 flex items-center gap-8 text-12">
+            <Medal size={20} className="shrink-0 text-yellow-600" />
+            <span className="min-w-0 flex-1 text-caption">
+              Kumpulkan {TOTAL_CHAPTERS} hadiah, limit naik{' '}
+              {groupStatus(s) === 'lewat' ? '' : 's/d '}
+              <span className="font-bold text-default">{short(limitOnOffer(s))}</span>
+            </span>
+            <span className="shrink-0 font-bold text-default">
+              {earned}/{TOTAL_CHAPTERS}
+            </span>
           </div>
         </div>
 
@@ -129,29 +99,8 @@ export function HomeCScreen() {
 
         <LadderLink />
       </div>
-    </HomeShell>
-  )
-}
 
-/** One of the twelve milestone stamps. Earned, being filled, or still locked. */
-function Stamp({ n, status }: { n: number; status: 'earned' | 'current' | 'locked' }) {
-  if (status === 'earned') {
-    return (
-      <span className="flex h-32 items-center justify-center rounded-8 bg-primary-500 text-neutral-white">
-        <Check size={16} />
-      </span>
-    )
-  }
-  if (status === 'current') {
-    return (
-      <span className="flex h-32 items-center justify-center rounded-8 border-2 border-primary-500 bg-neutral-white text-12 font-bold text-primary-500">
-        {n}
-      </span>
-    )
-  }
-  return (
-    <span className="flex h-32 items-center justify-center rounded-8 border border-default bg-neutral-white text-12 text-disabled">
-      {n}
-    </span>
+      <MajelisCard />
+    </HomeShell>
   )
 }

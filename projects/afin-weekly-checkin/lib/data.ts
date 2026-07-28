@@ -18,6 +18,26 @@ export const FINAL_LIMIT = 7_000_000
 export const CURRENT_LIMIT = 5_000_000
 export const LIMIT_INCREASE = FINAL_LIMIT - CURRENT_LIMIT
 
+// --- The two currencies ----------------------------------------------------
+// Keeping these apart is what makes the whole thing explainable: the POT is
+// what Ibu can take out during this tenor, the LIMIT is how big her next loan
+// can be. Milestones fill the pot. Week 48 and the majelis fill the limit.
+
+/** Weeks between withdrawal windows. Nobody withdraws monthly in practice. */
+export const WINDOW_EVERY = 12
+
+// --- The majelis lever -----------------------------------------------------
+// 90% of the tenor must be weeks where the WHOLE group was complete: 43 of 48,
+// so the group can afford five broken weeks. That budget is never shown — see
+// groupStatus below for why.
+
+export const GROUP_SIZE = 15
+export const GROUP_BONUS = 1_000_000
+export const GROUP_THRESHOLD_WEEKS = 43
+export const GROUP_SLACK = TOTAL_WEEKS - GROUP_THRESHOLD_WEEKS
+/** How far back the displayed status looks. Recent, so it can be recovered. */
+export const GROUP_RECENT_WEEKS = 8
+
 /** Inclusive integer range — the weeks already behind her. */
 export function range(from: number, to: number): number[] {
   return Array.from({ length: to - from + 1 }, (_, i) => from + i)
@@ -98,6 +118,56 @@ export function rewardReady(s: AppState): boolean {
 /** Is the current chapter the last one — the limit increase rather than a payout? */
 export function onFinalChapter(s: AppState): boolean {
   return milestonesEarned(s) >= TOTAL_CHAPTERS - 1
+}
+
+// --- The pot and its window ------------------------------------------------
+
+/** Everything the milestones have banked and she has not taken out yet. */
+export function pot(s: AppState): number {
+  return (milestonesEarned(s) - s.withdrawnMilestones) * MILESTONE_REWARD
+}
+
+/** The next week a withdrawal is actually possible. */
+export function nextWindow(s: AppState): number {
+  return Math.min(Math.ceil(s.week / WINDOW_EVERY) * WINDOW_EVERY, TOTAL_WEEKS)
+}
+
+export function weeksToWindow(s: AppState): number {
+  return Math.max(0, nextWindow(s) - s.week)
+}
+
+// --- The majelis -----------------------------------------------------------
+
+export type GroupStatus = 'baik' | 'jaga' | 'lewat'
+
+/**
+ * What the mitra is shown about her group — and deliberately NOT a countdown.
+ *
+ * A visible allowance ("5 kesempatan left") turns a safety margin into a budget
+ * people feel free to spend, and makes every miss a countable public event in a
+ * group that meets face to face. So the status is qualitative, it is driven by
+ * RECENT weeks rather than by the lifetime budget — which is what lets a group
+ * earn its way back to "Baik", and what makes "pertahankan" literally true —
+ * and it never has a bad-sounding third state.
+ *
+ * `lewat` is not a grade. It means the 90% is arithmetically out of reach, and
+ * the block stays on screen saying so plainly rather than vanishing.
+ */
+export function groupStatus(s: AppState): GroupStatus {
+  if (s.groupBroken.length > GROUP_SLACK) return 'lewat'
+  const recent = s.groupBroken.filter((w) => w > s.week - GROUP_RECENT_WEEKS)
+  if (s.groupShort > 0 || recent.length > 0) return 'jaga'
+  return 'baik'
+}
+
+/** Weeks the whole majelis completed. The real figure, for the detail page. */
+export function groupGoodWeeks(s: AppState): number {
+  return s.week - 1 - s.groupBroken.length
+}
+
+/** The limit increase still on the table: hers alone, or hers plus the group's. */
+export function limitOnOffer(s: AppState): number {
+  return groupStatus(s) === 'lewat' ? LIMIT_INCREASE : LIMIT_INCREASE + GROUP_BONUS
 }
 
 // --- The full ladder, for the progress page --------------------------------

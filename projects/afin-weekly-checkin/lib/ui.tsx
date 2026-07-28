@@ -34,24 +34,34 @@ import {
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import {
-  LIMIT_INCREASE,
+  GROUP_SIZE,
   TOTAL_WEEKS,
   goodWeeks,
+  groupStatus,
   journeyPercent,
+  limitOnOffer,
+  nextWindow,
   rupiah,
   short,
+  weeksToWindow,
+  type GroupStatus,
   type WeekCell,
 } from './data'
-import { store, useApp } from './store'
+import { store, useApp, type AppState } from './store'
 
 // --- The destination line --------------------------------------------------
 // The limit increase, stated once and carrying no mechanics: an icon, an
 // amount, a fraction, a bar. It is the reason to bother, held above the row
 // that says what to do — so the far reward frames the near one instead of
 // competing with it for the same kind of attention.
+//
+// One number, not two: her own Rp2jt and the majelis's Rp1jt are the same
+// currency, so home says "s/d Rp3jt" and the split is a detail-page concern.
+// When the group bonus goes out of reach the figure honestly drops to Rp2jt.
 
 export function Destination() {
   const s = useApp()
+  const offer = limitOnOffer(s)
 
   return (
     <div className="flex flex-col gap-8">
@@ -60,7 +70,10 @@ export function Destination() {
           <Medal size={24} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-14 font-bold text-default">Limit naik {short(LIMIT_INCREASE)}</p>
+          <p className="text-14 font-bold text-default">
+            Limit naik {groupStatus(s) === 'lewat' ? '' : 's/d '}
+            {short(offer)}
+          </p>
           <p className="mt-2 text-12 text-caption">
             {goodWeeks(s)} dari {TOTAL_WEEKS} minggu lancar
           </p>
@@ -69,6 +82,92 @@ export function Destination() {
       </div>
       <Meter percent={journeyPercent(s)} />
     </div>
+  )
+}
+
+// --- The pot ---------------------------------------------------------------
+// What a milestone actually pays. Nobody withdraws monthly in practice, so the
+// reward does not hand over cash — it grows what she can take at the next
+// window. That also separates earning from borrowing: she banks the reward in a
+// calm moment and decides about debt in a different one.
+
+export function windowLine(s: AppState): string {
+  const left = weeksToWindow(s)
+  if (left === 0) return 'Pencairan dibuka minggu ini'
+  return `Bisa dicairkan minggu ${nextWindow(s)} · ${left} minggu lagi`
+}
+
+// --- The majelis -----------------------------------------------------------
+// A card of its own rather than a lane inside the personal one: the group has a
+// different owner and a different cadence, and home is already dense. Three
+// lines here, everything real on the detail page behind it.
+//
+// The good state carries NO numbers. A count appears only in the state where
+// there is something to do about it — which is the whole "fewer numbers" rule
+// applied properly: a figure earns its place by being actionable.
+
+const GROUP_COPY: Record<GroupStatus, { badge: string; line: string }> = {
+  baik: {
+    badge: 'Baik',
+    line: 'Pertahankan untuk tambahan limit di akhir tenor',
+  },
+  jaga: {
+    badge: 'Perlu dijaga',
+    line: '',
+  },
+  lewat: {
+    badge: 'Tidak tercapai',
+    line: 'Tambahan limit dari kelompok tidak tercapai tenor ini',
+  },
+}
+
+export function MajelisCard() {
+  const flow = useFlow()
+  const s = useApp()
+  const status = groupStatus(s)
+  const copy = GROUP_COPY[status]
+
+  return (
+    <button
+      type="button"
+      onClick={() => flow.go('majelis')}
+      className="flex w-full items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left"
+    >
+      <span
+        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-full ${
+          status === 'lewat' ? 'bg-neutral-50 text-neutral-500' : 'bg-primary-50 text-primary-500'
+        }`}
+      >
+        <Majelis size={24} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-8">
+          <span className="truncate text-14 font-bold text-default">Kelompok Melati</span>
+          <GroupBadge status={status} />
+        </span>
+        <span className="mt-2 block text-12 text-caption">
+          {status === 'jaga'
+            ? `${GROUP_SIZE - s.groupShort} dari ${GROUP_SIZE} sudah bayar minggu ini`
+            : copy.line}
+        </span>
+      </span>
+      <ChevronRight size={20} className="shrink-0 text-neutral-500" />
+    </button>
+  )
+}
+
+export function GroupBadge({ status }: { status: GroupStatus }) {
+  const tone =
+    status === 'baik'
+      ? 'bg-green-50 text-green-500'
+      : status === 'jaga'
+        ? 'bg-orange-50 text-orange-500'
+        : 'bg-neutral-200 text-neutral-700'
+
+  return (
+    <span className={`shrink-0 rounded-full px-8 py-2 text-10 font-bold ${tone}`}>
+      {GROUP_COPY[status].badge}
+    </span>
   )
 }
 
@@ -304,7 +403,12 @@ export function HomeShell({ children }: { children: ReactNode }) {
               icon: <ChartLineUp size={24} />,
               onClick: () => flow.go('progress'),
             },
-            { id: 'majelis', label: 'Majelis', icon: <Majelis size={24} /> },
+            {
+              id: 'majelis',
+              label: 'Majelis',
+              icon: <Majelis size={24} />,
+              onClick: () => flow.go('majelis'),
+            },
             { id: 'celengan', label: 'Celengan', icon: <Coin size={24} /> },
             { id: 'transaksi', label: 'Transaksi', icon: <Clipboard size={24} /> },
           ]}

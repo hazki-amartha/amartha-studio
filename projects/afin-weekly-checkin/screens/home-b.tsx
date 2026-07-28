@@ -13,18 +13,27 @@
 
 import {
   CHAPTER_LENGTH,
-  LIMIT_INCREASE,
   MILESTONE_REWARD,
   TOTAL_WEEKS,
   chapterCells,
   goodWeeks,
+  groupStatus,
   journeyPercent,
+  limitOnOffer,
   rewardReady,
   short,
   weeksToReward,
 } from '../lib/data'
 import { useApp } from '../lib/store'
-import { HomeShell, LadderLink, Meter, WeekTasks, WeekTile } from '../lib/ui'
+import {
+  HomeShell,
+  LadderLink,
+  MajelisCard,
+  Meter,
+  WeekTasks,
+  WeekTile,
+  windowLine,
+} from '../lib/ui'
 import { Medal, Withdraw } from '@/design-system/icons'
 
 export function HomeBScreen() {
@@ -72,9 +81,7 @@ export function HomeBScreen() {
                 {short(MILESTONE_REWARD)}
               </span>
               <span className={`mt-2 block text-12 ${ready ? '' : 'text-caption'}`}>
-                {ready
-                  ? 'Sudah bisa Ibu cairkan'
-                  : `Terbuka setelah ${CHAPTER_LENGTH} minggu lancar`}
+                {ready ? windowLine(s) : `Terbuka setelah ${CHAPTER_LENGTH} minggu lancar`}
               </span>
             </span>
           </div>
@@ -93,7 +100,8 @@ export function HomeBScreen() {
             <span className="min-w-0 flex-1">
               <span className="block text-12 uppercase text-caption">Hadiah akhir</span>
               <span className="mt-2 block text-14 font-bold text-default">
-                Limit naik {short(LIMIT_INCREASE)}
+                Limit naik {groupStatus(s) === 'lewat' ? '' : 's/d '}
+                {short(limitOnOffer(s))}
               </span>
             </span>
             <span className="shrink-0 text-12 text-caption">
@@ -107,6 +115,8 @@ export function HomeBScreen() {
 
         <LadderLink />
       </div>
+
+      <MajelisCard />
     </HomeShell>
   )
 }

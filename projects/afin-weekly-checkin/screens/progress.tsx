@@ -8,21 +8,27 @@
 // they assume no further missed weeks, which is the only honest thing to draw.
 
 import { Badge, NavigationHeader } from '@/design-system/components'
-import { Medal, Withdraw } from '@/design-system/icons'
+import { Check, Medal, Withdraw } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import {
+  GROUP_BONUS,
   LIMIT_INCREASE,
   MILESTONE_REWARD,
+  TOTAL_CHAPTERS,
   TOTAL_WEEKS,
   goodWeeks,
+  groupStatus,
   journeyPercent,
   ladder,
+  limitOnOffer,
+  milestonesEarned,
+  pot,
   short,
   type Chapter,
 } from '../lib/data'
 import { useApp } from '../lib/store'
-import { Meter, WeekTile } from '../lib/ui'
+import { Meter, WeekTile, windowLine } from '../lib/ui'
 
 export function ProgressScreen() {
   const flow = useFlow()
@@ -31,13 +37,33 @@ export function ProgressScreen() {
 
   return (
     <Screen topBar={<NavigationHeader title="Perjalanan Ibu" onBack={flow.back} />}>
+      {/* The pot. What the milestones have actually banked, and when it opens —
+          the first thing to answer, because it is the near-term one. */}
+      <div className="rounded-12 border border-default bg-neutral-white p-16">
+        <div className="flex items-center gap-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-500">
+            <Withdraw size={24} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-12 text-caption">Siap dicairkan</p>
+            <p className="mt-2 text-20 font-bold text-default">{short(pot(s))}</p>
+          </div>
+        </div>
+        <p className="mt-12 text-12 text-caption">{windowLine(s)}</p>
+      </div>
+
+      {/* The limit, and the two things that raise it. The split home never
+          shows: hers is week 48, the other is the majelis. */}
       <div className="rounded-12 border border-default bg-neutral-white p-16">
         <div className="flex items-center gap-12">
           <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-yellow-50 text-yellow-600">
             <Medal size={24} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-16 font-bold text-default">Limit naik {short(LIMIT_INCREASE)}</p>
+            <p className="text-16 font-bold text-default">
+              Limit naik {groupStatus(s) === 'lewat' ? '' : 's/d '}
+              {short(limitOnOffer(s))}
+            </p>
             <p className="mt-2 text-12 text-caption">
               {goodWeeks(s)} dari {TOTAL_WEEKS} minggu lancar
             </p>
@@ -45,6 +71,37 @@ export function ProgressScreen() {
         </div>
         <div className="mt-12">
           <Meter percent={journeyPercent(s)} tone="yellow" />
+        </div>
+
+        <div className="mt-16 flex flex-col gap-8">
+          <SplitLine label={`Dari ${TOTAL_WEEKS} minggu Ibu`} amount={short(LIMIT_INCREASE)} />
+          <SplitLine
+            label="Dari kelompok lancar"
+            amount={short(GROUP_BONUS)}
+            struck={groupStatus(s) === 'lewat'}
+          />
+        </div>
+      </div>
+
+      {/* The twelve stamps, moved off the home card. */}
+      <div className="rounded-12 border border-default bg-neutral-white p-16">
+        <p className="text-14 font-bold text-default">
+          {milestonesEarned(s)} dari {TOTAL_CHAPTERS} hadiah terkumpul
+        </p>
+        <div className="mt-12 grid grid-cols-6 gap-4">
+          {Array.from({ length: TOTAL_CHAPTERS }, (_, i) => i + 1).map((n) => (
+            <Stamp
+              key={n}
+              n={n}
+              status={
+                n <= milestonesEarned(s)
+                  ? 'earned'
+                  : n === milestonesEarned(s) + 1
+                    ? 'current'
+                    : 'locked'
+              }
+            />
+          ))}
         </div>
       </div>
 
@@ -54,6 +111,50 @@ export function ProgressScreen() {
         ))}
       </div>
     </Screen>
+  )
+}
+
+function SplitLine({
+  label,
+  amount,
+  struck,
+}: {
+  label: string
+  amount: string
+  struck?: boolean
+}) {
+  return (
+    <div className="flex items-baseline gap-8">
+      <span className="min-w-0 flex-1 text-12 text-caption">{label}</span>
+      <span
+        className={`shrink-0 text-12 font-bold ${struck ? 'text-caption line-through' : 'text-default'}`}
+      >
+        {amount}
+      </span>
+    </div>
+  )
+}
+
+/** One of the twelve milestone stamps. Earned, being filled, or still locked. */
+function Stamp({ n, status }: { n: number; status: 'earned' | 'current' | 'locked' }) {
+  if (status === 'earned') {
+    return (
+      <span className="flex h-32 items-center justify-center rounded-8 bg-primary-500 text-neutral-white">
+        <Check size={16} />
+      </span>
+    )
+  }
+  if (status === 'current') {
+    return (
+      <span className="flex h-32 items-center justify-center rounded-8 border-2 border-primary-500 bg-neutral-white text-12 font-bold text-primary-500">
+        {n}
+      </span>
+    )
+  }
+  return (
+    <span className="flex h-32 items-center justify-center rounded-8 border border-default bg-neutral-white text-12 text-disabled">
+      {n}
+    </span>
   )
 }
 

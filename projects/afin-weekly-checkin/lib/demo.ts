@@ -1,34 +1,40 @@
 'use client'
 
-// Seeds for the state controls beside the device. Four conditions worth
-// showing, three of which cannot be reached by tapping: a reward already ripe,
-// a week already missed, and a journey already eleven months old.
+// Seeds for the state controls beside the device. The conditions worth showing,
+// most of which cannot be reached by tapping: a reward already ripe, a week
+// already missed, a journey already eleven months old, and three majelis
+// conditions that take weeks of group behaviour to arrive at.
 
 import { range } from './data'
 import { store, type AppState } from './store'
 
-function seed(next: AppState) {
-  return () => store.seed(next)
-}
-
-/** Two good weeks banked, two still owed. The ordinary week. */
-export const midChapter = seed({
+/** The ordinary week, reused as the base every other seed varies from. */
+const base: AppState = {
   week: 15,
   chapterStart: 13,
   done: range(1, 14),
   missed: [],
   paid: false,
   attended: false,
-})
+  withdrawnMilestones: 0,
+  groupBroken: [],
+  groupShort: 0,
+}
 
-/** The fourth good week has just landed — the reward is open, unclaimed. */
+function seed(patch: Partial<AppState>) {
+  return () => store.seed({ ...base, ...patch })
+}
+
+// --- Her own journey -------------------------------------------------------
+
+/** Two good weeks banked, two still owed. */
+export const midChapter = seed({})
+
+/** The fourth good week has just landed — Rp500rb is in the pot. */
 export const rewardReady = seed({
   week: 17,
   chapterStart: 13,
   done: range(1, 16),
-  missed: [],
-  paid: false,
-  attended: false,
 })
 
 /** Week 14 went by unfinished. The row grew by one; the reward did not move. */
@@ -37,16 +43,32 @@ export const missedWeek = seed({
   chapterStart: 13,
   done: [...range(1, 12), 13, 15],
   missed: [14],
-  paid: false,
-  attended: false,
 })
 
-/** Two weeks from the limit increase, so the destination line is nearly full. */
+/** Two weeks from the limit increase, with one window's worth already taken. */
 export const nearFinal = seed({
   week: 47,
   chapterStart: 45,
   done: range(1, 46),
-  missed: [],
-  paid: false,
-  attended: false,
+  withdrawnMilestones: 9,
+})
+
+// --- Her majelis -----------------------------------------------------------
+
+/** Everyone current, nothing broken recently. The status the design defaults to. */
+export const groupGood = seed({})
+
+/** Two members short this week — the only state that shows a count. */
+export const groupWatch = seed({ groupShort: 2 })
+
+/**
+ * Six broken weeks against a budget of five: the 90% is out of reach. Kept
+ * visible rather than removed, and worded as a fact rather than a grade.
+ */
+export const groupLost = seed({
+  week: 30,
+  chapterStart: 29,
+  done: range(1, 29),
+  withdrawnMilestones: 5,
+  groupBroken: [4, 9, 11, 17, 22, 26],
 })

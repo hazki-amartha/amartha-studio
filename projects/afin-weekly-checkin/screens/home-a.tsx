@@ -19,7 +19,15 @@ import {
   weeksToReward,
 } from '../lib/data'
 import { useApp } from '../lib/store'
-import { Destination, HomeShell, LadderLink, WeekTasks, WeekTile } from '../lib/ui'
+import {
+  Destination,
+  HomeShell,
+  LadderLink,
+  MajelisCard,
+  WeekTasks,
+  WeekTile,
+  windowLine,
+} from '../lib/ui'
 import { LockKeyOpen, Withdraw } from '@/design-system/icons'
 
 export function HomeAScreen() {
@@ -57,11 +65,14 @@ export function HomeAScreen() {
             }`}
           >
             {ready ? <Withdraw size={20} /> : <LockKeyOpen size={20} />}
-            <span className="min-w-0 flex-1 text-14 font-bold">
-              Cair {short(MILESTONE_REWARD)}
-            </span>
-            <span className="shrink-0 text-12">
-              {ready ? 'Siap dicairkan' : `Setelah ${CHAPTER_LENGTH} minggu lancar`}
+            <span className="min-w-0 flex-1">
+              <span className="block text-14 font-bold">
+                {ready ? '+' : ''}
+                {short(MILESTONE_REWARD)} untuk pencairan berikutnya
+              </span>
+              <span className={`mt-2 block text-12 ${ready ? '' : 'text-caption'}`}>
+                {ready ? windowLine(s) : `Terbuka setelah ${CHAPTER_LENGTH} minggu lancar`}
+              </span>
             </span>
           </div>
         </div>
@@ -72,6 +83,8 @@ export function HomeAScreen() {
 
         <LadderLink />
       </div>
+
+      <MajelisCard />
     </HomeShell>
   )
 }

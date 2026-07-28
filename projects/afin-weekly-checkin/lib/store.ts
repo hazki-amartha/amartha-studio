@@ -21,6 +21,12 @@ export interface AppState {
   paid: boolean
   /** Has this week's attendance posted? */
   attended: boolean
+  /** Milestones already taken out at a past window — the pot is the rest. */
+  withdrawnMilestones: number
+  /** Weeks the majelis did NOT finish complete. Five of these are affordable. */
+  groupBroken: number[]
+  /** Members still short this week. A count, never names. */
+  groupShort: number
 }
 
 const initial: AppState = {
@@ -30,6 +36,9 @@ const initial: AppState = {
   missed: [],
   paid: false,
   attended: false,
+  withdrawnMilestones: 0,
+  groupBroken: [],
+  groupShort: 0,
 }
 
 let state: AppState = initial

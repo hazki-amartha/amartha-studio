@@ -1,9 +1,18 @@
 import type { ProjectModule, ScreenState } from '@/platform/types'
 import { config } from './project.config'
-import { midChapter, missedWeek, nearFinal, rewardReady } from './lib/demo'
+import {
+  groupGood,
+  groupLost,
+  groupWatch,
+  midChapter,
+  missedWeek,
+  nearFinal,
+  rewardReady,
+} from './lib/demo'
 import { HomeAScreen } from './screens/home-a'
 import { HomeBScreen } from './screens/home-b'
 import { HomeCScreen } from './screens/home-c'
+import { MajelisScreen } from './screens/majelis'
 import { ProgressScreen } from './screens/progress'
 import { MilestoneScreen } from './screens/milestone'
 
@@ -34,6 +43,24 @@ const journeyStates: ScreenState[] = [
     description: 'Dua minggu dari kenaikan limit — garis tujuan hampir penuh.',
     apply: nearFinal,
   },
+  {
+    id: 'group-good',
+    label: 'Kelompok baik',
+    description: 'Semua anggota lancar. Status tanpa angka sama sekali.',
+    apply: groupGood,
+  },
+  {
+    id: 'group-watch',
+    label: 'Kelompok perlu dijaga',
+    description: 'Dua anggota belum bayar — satu-satunya kondisi yang menyebut angka.',
+    apply: groupWatch,
+  },
+  {
+    id: 'group-lost',
+    label: 'Tambahan kelompok lewat',
+    description: 'Enam minggu tidak lengkap: 90% tidak terkejar. Tetap terlihat, tanpa nilai buruk.',
+    apply: groupLost,
+  },
 ]
 
 export const project: ProjectModule = {
@@ -56,6 +83,12 @@ export const project: ProjectModule = {
       id: 'home-c',
       title: 'Home C — Papan + 12 hadiah',
       component: HomeCScreen,
+      states: journeyStates,
+    },
+    {
+      id: 'majelis',
+      title: 'Kelompok Melati',
+      component: MajelisScreen,
       states: journeyStates,
     },
     {
