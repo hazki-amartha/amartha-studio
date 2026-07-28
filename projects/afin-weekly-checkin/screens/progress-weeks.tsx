@@ -3,39 +3,39 @@
 // Detail page for the A/B concept: the unit is the WEEK.
 //
 // One denominator on the page and nowhere else. Everything here counts in weeks
-// — the headline, the bar, the grid, the recap — and the word "12" never
-// appears. The four-week reward still exists, but it is stated once as a
-// sentence underneath, subordinate to the run of weeks it hangs off.
+// — the headline, the bar, and every row of the ladder, which is labelled
+// "Minggu 13–16" rather than numbered "hadiah 3". The reward sits at the end of
+// a row as what those four weeks unlocked; it is never itself counted, because
+// counting rewards is the other page's job.
 //
 // The rewards page is the mirror image: it counts in twelves and never says 48.
 // A mitra should only ever be handed one of these.
 
-import { NavigationHeader } from '@/design-system/components'
-import { Check, Medal, Minus, Withdraw } from '@/design-system/icons'
+import { Badge, NavigationHeader } from '@/design-system/components'
+import { Medal, Withdraw } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import {
-  CHAPTER_LENGTH,
   GROUP_BONUS,
   LIMIT_INCREASE,
   MILESTONE_REWARD,
   TOTAL_WEEKS,
-  allWeeks,
   goodWeeks,
   groupStatus,
   journeyPercent,
+  ladder,
   limitOnOffer,
   pot,
   short,
-  type WeekCell,
+  type Chapter,
 } from '../lib/data'
 import { useApp } from '../lib/store'
-import { Meter, windowLine } from '../lib/ui'
+import { Meter, WeekTile, windowLine } from '../lib/ui'
 
 export function ProgressWeeksScreen() {
   const flow = useFlow()
   const s = useApp()
-  const weeks = allWeeks(s)
+  const chapters = ladder(s)
 
   return (
     <Screen topBar={<NavigationHeader title="Perjalanan Ibu" onBack={flow.back} />}>
@@ -69,28 +69,14 @@ export function ProgressWeeksScreen() {
         </div>
       </div>
 
-      {/* Forty-eight weeks, unbroken. No chapter dividers, no reward markers —
-          the moment the run is cut into blocks it starts counting in twelves. */}
-      <div className="rounded-12 border border-default bg-neutral-white p-16">
-        <p className="text-14 font-bold text-default">Catatan mingguan Ibu</p>
-
-        <div className="mt-12 grid grid-cols-8 gap-4">
-          {weeks.map((cell) => (
-            <GridWeek key={cell.week} cell={cell} />
-          ))}
-        </div>
-
-        <div className="mt-12 flex flex-wrap gap-12">
-          <Legend tone="bg-primary-500" label="Lancar" />
-          <Legend tone="border border-orange-200 bg-orange-50" label="Terlewat" />
-          <Legend tone="border border-default bg-neutral-white" label="Belum" />
-        </div>
-
-        {/* The reward, said once and kept subordinate. */}
-        <p className="mt-16 text-12 text-caption">
-          Setiap {CHAPTER_LENGTH} minggu lancar, Ibu dapat tambahan{' '}
-          {short(MILESTONE_REWARD)} untuk pencairan berikutnya.
-        </p>
+      {/* The forty-eight weeks, four to a row, each row ending in what those
+          four weeks unlock. Every row is labelled by its WEEKS — no row is
+          numbered "hadiah 3 of 12", because that is the count this page hands
+          to the rewards page. */}
+      <div className="flex flex-col gap-12">
+        {chapters.map((chapter) => (
+          <ChapterBlock key={chapter.index} chapter={chapter} />
+        ))}
       </div>
 
       {/* The pot. A rupiah figure, not a second thing to track — one row. */}
@@ -110,31 +96,56 @@ export function ProgressWeeksScreen() {
   )
 }
 
-function GridWeek({ cell }: { cell: WeekCell }) {
-  const style =
-    cell.status === 'done'
-      ? 'bg-primary-500 text-neutral-white'
-      : cell.status === 'missed'
-        ? 'border border-orange-200 bg-orange-50 text-orange-500'
-        : cell.status === 'active'
-          ? 'border-2 border-primary-500 bg-neutral-white text-primary-500'
-          : 'border border-default bg-neutral-white text-disabled'
+/** Four weeks and what they unlock. Labelled by week range, never numbered. */
+function ChapterBlock({ chapter }: { chapter: Chapter }) {
+  const first = chapter.cells[0].week
+  const last = chapter.cells[chapter.cells.length - 1].week
 
   return (
-    <span className={`flex h-32 items-center justify-center rounded-4 text-10 ${style}`}>
-      {cell.status === 'done' ? <Check size={16} /> : null}
-      {cell.status === 'missed' ? <Minus size={16} /> : null}
-      {cell.status === 'done' || cell.status === 'missed' ? null : cell.week}
-    </span>
-  )
-}
+    <div
+      className={`rounded-12 border bg-neutral-white p-12 ${
+        chapter.status === 'current' ? 'border-primary-500' : 'border-default'
+      }`}
+    >
+      <div className="flex items-center gap-8">
+        <span className="min-w-0 flex-1 text-14 font-bold text-default">
+          Minggu {first}–{last}
+        </span>
+        {chapter.status === 'done' ? (
+          <Badge intent="green" variant="subtle" size="sm">
+            Selesai
+          </Badge>
+        ) : null}
+        {chapter.status === 'current' ? (
+          <Badge intent="primary" variant="solid" size="sm">
+            Sekarang
+          </Badge>
+        ) : null}
+      </div>
 
-function Legend({ tone, label }: { tone: string; label: string }) {
-  return (
-    <span className="flex items-center gap-4">
-      <span className={`h-12 w-12 rounded-2 ${tone}`} />
-      <span className="text-10 text-caption">{label}</span>
-    </span>
+      <div className="mt-12 flex items-start gap-8">
+        <span className="flex min-w-0 flex-1 gap-4">
+          {chapter.cells.map((cell) => (
+            <WeekTile key={cell.week} cell={cell} size="sm" />
+          ))}
+        </span>
+
+        <span
+          className={`flex h-32 shrink-0 items-center gap-4 rounded-8 px-8 ${
+            chapter.status === 'done'
+              ? 'bg-primary-500 text-neutral-white'
+              : chapter.final
+                ? 'bg-yellow-50 text-yellow-600'
+                : 'border border-primary-200 bg-primary-50 text-primary-500'
+          }`}
+        >
+          {chapter.final ? <Medal size={16} /> : <Withdraw size={16} />}
+          <span className="whitespace-nowrap text-12 font-bold">
+            {chapter.final ? short(LIMIT_INCREASE) : short(MILESTONE_REWARD)}
+          </span>
+        </span>
+      </div>
+    </div>
   )
 }
 

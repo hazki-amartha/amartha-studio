@@ -7,7 +7,7 @@ Project-local components (design system has no equivalent):
 - `TaskRow` / `WeekTasks` (`lib/ui.tsx`) — the two halves of a good week. Bayar is a button; datang kumpulan is recorded automatically and shows status only.
 - `MajelisCard` + `GroupBadge` (`lib/ui.tsx`) — the three-line group card on home and its qualitative status chip.
 - `SplitLine` (both progress screens) — the limit split into her half and the group's.
-- `GridWeek` / `Legend` (`screens/progress-weeks.tsx`) — the 48-cell week grid and its key.
+- `ChapterBlock` (`screens/progress-weeks.tsx`) — four week tiles and the reward they unlock, labelled by week range.
 - `Stamp` (`screens/progress-rewards.tsx`) — one of the twelve collected rewards.
 - `HomeShell` (`lib/ui.tsx`) — the rest of the real AFin home (brand band, Poket, shortcuts, nav) so the three card options are judged in context. Unwired.
 
