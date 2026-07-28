@@ -9,7 +9,7 @@ Project-local components (design system has no equivalent):
 - `SplitLine` (both progress screens) — the limit split into her half and the group's.
 - `ChapterBlock` (`screens/progress-weeks.tsx`) — four week tiles and the reward they unlock, labelled by week range.
 - `Stamp` (`screens/progress-rewards.tsx`) — one of the twelve collected rewards.
-- `IconPiggy` / `IconGift` (`lib/icons.tsx`) — the two glyphs the 166-icon set doesn't carry, both load-bearing in the Home A comp. Drawn in the shared set's idiom.
+- `IconGift` (`lib/icons.tsx`) — the one glyph the 166-icon set does not carry, used on the bonus tile. Drawn in the shared set's idiom.
 - `ChapterTile` / `Habit` (`screens/home-a.tsx`) — the hi-fi week tile (done / current / bonus / missed) and the two-habit rows.
 - `HomeShell` (`lib/ui.tsx`) — the rest of the real AFin home (brand band, Poket, shortcuts, nav) so the three card options are judged in context. Unwired.
 

@@ -33,8 +33,15 @@ import {
 } from '../lib/data'
 import { store, useApp } from '../lib/store'
 import { HomeShell, MajelisCard, windowLine } from '../lib/ui'
-import { IconGift, IconPiggy } from '../lib/icons'
-import { CheckCircleFill, ChevronRight, CreditCard, Minus, Users } from '@/design-system/icons'
+import { IconGift } from '../lib/icons'
+import {
+  CheckCircleFill,
+  ChevronRight,
+  CreditCard,
+  LogoModal,
+  Minus,
+  Users,
+} from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 
 export function HomeAScreen() {
@@ -44,13 +51,13 @@ export function HomeAScreen() {
 
   return (
     <HomeShell ladder="weeks">
-      <div className="overflow-hidden rounded-20 bg-neutral-white">
+      <div className="overflow-hidden rounded-20 border border-default bg-neutral-white">
         {/* The destination band. One figure, one fraction, one bar — the same
             thin destination line as before, given the card's whole top. */}
         <div className="bg-gradient-to-br from-primary-400 to-primary-600 px-16 pb-24 pt-16">
           <div className="flex items-start gap-12">
             <span className="flex h-48 w-48 shrink-0 items-center justify-center rounded-12 bg-primary-700 text-neutral-white">
-              <IconPiggy size={24} />
+              <LogoModal size={24} />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-14 text-neutral-white">Naik limit hingga</p>
