@@ -7,7 +7,7 @@
 // token and they must not be recoloured, so giving them the icon API would be a
 // lie.
 //
-// Three families, and the difference between the first two matters when you are
+// Four families, and the difference between the first two matters when you are
 // picking one:
 //
 //   ProductLogo  56x56 square — the MARK alone, no words. For tiles and rows
@@ -15,11 +15,16 @@
 //   Wordmark     wide lockup — the mark AND the product name set as artwork.
 //                Already says its own name, so never pair it with a text label.
 //   ServiceIcon  48x48 square — the PPOB / service glyphs.
+//   NavIcon      24x24 — the bottom navigation bar's own artwork, which is
+//                two-tone when active and a flat neutral-500 silhouette when
+//                not. That state is baked into the file, so it takes `active`
+//                rather than a colour.
 //
-//   import { ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
+//   import { NavIcon, ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
 //   <ProductLogo name="poket" />
 //   <Wordmark name="poket" height={20} />
 //   <ServiceIcon name="pln" size={40} />
+//   <NavIcon name="home" active />
 //
 // They render as <img> against files in public/funds/ rather than inlined JSX.
 // The artwork uses gradient defs with fixed ids, and inlining the same asset
@@ -66,9 +71,12 @@ export const SERVICE_ICONS = [
   'zakat-inverted',
 ] as const
 
+export const NAV_ICONS = ['celengan', 'home', 'modal', 'scan', 'transaction'] as const
+
 export type ProductLogoName = (typeof PRODUCT_LOGOS)[number]
 export type WordmarkName = (typeof WORDMARKS)[number]
 export type ServiceIconName = (typeof SERVICE_ICONS)[number]
+export type NavIconName = (typeof NAV_ICONS)[number]
 
 type AssetProps = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt' | 'width' | 'height'> & {
   /** Rendered box in px. Defaults to the size the artwork was drawn at. */
@@ -130,6 +138,32 @@ export function ServiceIcon({ name, size = 48, ...props }: AssetProps & { name: 
       aria-hidden="true"
       {...props}
       data-fds="ServiceIcon"
+    />
+  )
+}
+
+/**
+ * A bottom-navigation glyph. Unlike the Phosphor icons, the selected state is
+ * drawn into the artwork — active is two-tone primary-500/primary-300, inactive
+ * is a flat neutral-500 silhouette — so this takes `active`, never a colour.
+ * Pass it straight to NavigationBar's `icon`, alongside the same `active` flag
+ * you give the item.
+ */
+export function NavIcon({
+  name,
+  active = false,
+  size = 24,
+  ...props
+}: AssetProps & { name: NavIconName; active?: boolean }) {
+  return (
+    <img
+      src={`/funds/nav/${name}${active ? '-active' : ''}.svg`}
+      width={size}
+      height={size}
+      alt=""
+      aria-hidden="true"
+      {...props}
+      data-fds="NavIcon"
     />
   )
 }

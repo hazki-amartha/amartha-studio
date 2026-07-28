@@ -11,7 +11,12 @@ import type { ComponentType } from 'react'
  *  the enum exists so desktop prototypes don't need a contract change. */
 export type DeviceKind = 'mobile' | 'desktop'
 
-export type ProjectStatus = 'draft' | 'in-review' | 'final'
+/** Where a project sits. The first three are stages of a proposal getting
+ *  agreed; `live` is a different kind of thing — not a design being reviewed but
+ *  a record of what production already ships, kept so a proposal can be judged
+ *  against the real screen rather than someone's memory of it. `final` means the
+ *  design is settled, which is not the same as shipped. */
+export type ProjectStatus = 'draft' | 'in-review' | 'final' | 'live'
 
 /** Product the prototype belongs to. Add a member here (Tier 2) to onboard a
  *  new platform; omit the field entirely for studio-internal work. */

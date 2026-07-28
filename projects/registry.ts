@@ -10,5 +10,6 @@ export const registry: Registry = {
   'apartner-majelis-view': () => import('./apartner-majelis-view').then((m) => m.project),
   'afin-milestone-journey': () => import('./afin-milestone-journey').then((m) => m.project),
   'afin-weekly-checkin': () => import('./afin-weekly-checkin').then((m) => m.project),
+  'amarthafin-live': () => import('./amarthafin-live').then((m) => m.project),
   // <append new projects above this line — one line per project>
 }

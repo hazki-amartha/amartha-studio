@@ -13,17 +13,21 @@ import { PageHeader } from '@/platform/chrome'
 import type { Platform, ProjectConfig, ProjectStatus } from '@/platform/types'
 import { registry } from '@/projects/registry'
 
-// draft = orange, in-review = blue, final = green (Badge subtle = 500-on-50 rule)
+// draft = orange, in-review = blue, final = green (Badge subtle = 500-on-50 rule).
+// live = primary: it is not another shade of "done", it is the shipped product,
+// so it reads in the brand colour rather than on the draft→final ramp.
 const STATUS_INTENT: Record<ProjectStatus, BadgeIntent> = {
   draft: 'orange',
   'in-review': 'blue',
   final: 'green',
+  live: 'primary',
 }
 
 const STATUS_LABEL: Record<ProjectStatus, string> = {
   draft: 'Draft',
   'in-review': 'In review',
   final: 'Final',
+  live: 'Live',
 }
 
 // Enum value is code-friendly; the display label carries the hyphen/casing.

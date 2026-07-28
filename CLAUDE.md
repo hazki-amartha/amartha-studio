@@ -54,7 +54,7 @@ rule `no-arbitrary-value` errors on them. Use only the locked named classes
 | Font | Inter, weights **500 and 700 only** — classes `font-regular` / `font-bold`; `font-medium` etc. do NOT exist and fail silently |
 | Spacing | 4px grid: `0 2 4 8 12 16 20 24 32 40 48` px only |
 | Buttons | pill shape (`rounded-full`, 9999px) — never rectangular |
-| Cards | 12px radius (`rounded-12`), 12px padding |
+| Cards | 16px radius (`rounded-16`), 12px padding |
 | Inputs | 8px radius (`rounded-8`) |
 | Status colors | 500 foreground on the matching 50-tint background (Badge handles this) |
 | Layout | 16px page padding-x, 16px page padding-top, 12px section gap, 48px topbar |
@@ -75,8 +75,39 @@ Every screen wraps its content in **`Screen`** — never hand-roll page padding:
 
 - `Screen` — props: `topBar?` (pinned chrome) + `children`. Applies the
   `neutral-50` canvas, 16px page padding, and 12px section gap for you.
+  `canvas="white"` swaps the tinted canvas for a flat white page — the shipped
+  AmarthaFin homepage has no canvas tint, so homepages want it (see below).
+  `statusBar="none"` stops the status strip painting, so coloured chrome can
+  reach the top of the display.
 - `TopBar` — a minimal 48px top bar (`children`) for screens that don't need a
   full `NavigationHeader`.
+
+### Live product reference — read before building a homepage
+
+`projects/amarthafin-live/` is the **source of truth for screens already shipped
+in production**. It is not a prototype under review; it is what the app actually
+looks like today. That is what `status: 'live'` means in `project.config.ts` —
+distinct from `'final'`, which means the design is settled but says nothing
+about whether it shipped. Only use `'live'` for a project that documents
+production.
+
+**If you are building or changing a homepage, open it first** and match what is
+already there — the flat white canvas (`<Screen canvas="white">`, not the
+neutral-50 tint), the curved brand band, the Poket wallet widget, the service
+shortcut row, the bottom navigation. A homepage that invents its own header or
+wallet is wrong even when every token in it is legal: the designer is judging a
+change *against the live product*, and a prototype that silently redraws the
+surrounding chrome hides the very thing they are trying to see.
+
+Reuse it by reading `projects/amarthafin-live/lib/ui.tsx` and copying the piece
+you need into your own project's `lib/` — do **not** import across projects
+(§1: never reach into another project's folder).
+
+Some of these pieces are genuinely shared vocabulary — the Poket payment widget
+is the clearest case — and are **candidates for promotion into
+`design-system/components/`** once a second prototype wants them (§4's
+"wanted twice" bar). Promoting one is Tier 2: its own commit, and tell the
+designer, because it costs them a review.
 
 ---
 

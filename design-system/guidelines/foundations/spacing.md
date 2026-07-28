@@ -30,7 +30,8 @@
 |---------|-------|-------|
 | Buttons, badges, toggle tracks | 9999px | `rounded-full` |
 | Inputs, selects, text areas | 8px | `rounded-8` |
-| Cards, modals, bottom sheets | 12px | `rounded-12` |
+| Cards | 16px | `rounded-16` |
+| Modals, bottom sheets | 12px | `rounded-12` |
 | Chips, small tags | 6px | `rounded-6` |
 
 Do NOT use rectangular buttons (radius 0) or lightly rounded buttons (e.g. 4px, 8px) — pill is the ONLY permitted button shape.

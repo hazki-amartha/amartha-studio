@@ -10,7 +10,7 @@ export const config: ProjectConfig = {
   owner: 'Your Name', // the DESIGNER's name (or ['A', 'B'] for several) — ask if unknown; never guess
   description: 'One paragraph on what this prototype explores.',
   device: 'mobile', // v1 ships 'mobile' only
-  status: 'draft', // 'draft' | 'in-review' | 'final'
+  status: 'draft', // 'draft' | 'in-review' | 'final' | 'live' ('live' = documents what production already ships)
   createdAt: '2026-01-01', // ISO date, set once at creation, never edited
   // updatedAt: '2026-01-01', // ISO date of the last meaningful change; omit until first edit
   // notes: ['Project-wide annotation shown beside the device on desktop.'],

@@ -9,11 +9,15 @@ import Link from 'next/link'
 import type { ProjectStatus } from '@/platform/types'
 import type { ProjectIndexEntry } from './loadProjectIndex'
 
-const GROUP_ORDER: ProjectStatus[] = ['draft', 'in-review', 'final']
+// Live sits at the TOP, not the end of the draft→final ramp: it is the
+// reference you check a proposal against, so it should be reachable without
+// scrolling past every draft.
+const GROUP_ORDER: ProjectStatus[] = ['live', 'draft', 'in-review', 'final']
 const GROUP_LABEL: Record<ProjectStatus, string> = {
   draft: 'Draft',
   'in-review': 'In review',
   final: 'Final',
+  live: 'Live',
 }
 
 export function StudioSidebar({

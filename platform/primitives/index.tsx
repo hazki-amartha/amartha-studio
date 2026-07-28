@@ -11,6 +11,9 @@ import type { HTMLAttributes, ReactNode } from 'react'
 /** How the 32px device status-bar strip above the top bar is painted. */
 export type ScreenStatusBar = 'light' | 'none'
 
+/** How the page canvas behind the content is painted. */
+export type ScreenCanvas = 'neutral' | 'white'
+
 export interface ScreenProps extends HTMLAttributes<HTMLDivElement> {
   /** Fixed chrome pinned to the top of the screen (e.g. a NavigationHeader or TopBar). */
   topBar?: ReactNode
@@ -21,6 +24,15 @@ export interface ScreenProps extends HTMLAttributes<HTMLDivElement> {
    * `-mt-48`: 32px of strip plus the 16px page padding-top).
    */
   statusBar?: ScreenStatusBar
+  /**
+   * `'neutral'` (default) — the neutral-50 canvas, which separates white cards
+   * from the page behind them. `'white'` — a flat white page, for screens whose
+   * real counterpart has no canvas tint at all; the shipped AmarthaFin homepage
+   * is the reference case. A screen can't get this by passing `bg-neutral-white`
+   * via `className`, because which of the two rules wins would then depend on
+   * their order in Tailwind's output rather than on anything stated here.
+   */
+  canvas?: ScreenCanvas
   children: ReactNode
 }
 
@@ -28,12 +40,26 @@ export interface ScreenProps extends HTMLAttributes<HTMLDivElement> {
 const STATUS_BAR_H = 'h-32'
 
 /**
- * The frame a project screen renders inside. Provides the neutral-50 canvas,
- * an optional pinned top bar, and the standard content padding + section gap.
- * The content area scrolls; the top bar stays put.
+ * The frame a project screen renders inside. Provides the page canvas
+ * (neutral-50 by default, see `canvas`), an optional pinned top bar, and the
+ * standard content padding + section gap. The content area scrolls; the top bar
+ * stays put.
  */
-export function Screen({ topBar, statusBar = 'light', children, className, ...props }: ScreenProps) {
-  const classes = ['flex', 'min-h-full', 'flex-col', 'bg-neutral-50', className]
+export function Screen({
+  topBar,
+  statusBar = 'light',
+  canvas = 'neutral',
+  children,
+  className,
+  ...props
+}: ScreenProps) {
+  const classes = [
+    'flex',
+    'min-h-full',
+    'flex-col',
+    canvas === 'white' ? 'bg-neutral-white' : 'bg-neutral-50',
+    className,
+  ]
     .filter(Boolean)
     .join(' ')
 
