@@ -11,7 +11,7 @@
 //   • ScreenStage        — renders the active screen inside the device viewport.
 // =============================================================================
 
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, Suspense, useCallback, useContext, useMemo, useState } from 'react'
 import type { FlowApi, ScreenDef } from '@/platform/types'
 import styles from '@/platform/frame/prototype.module.css'
 
@@ -169,7 +169,13 @@ export function ScreenStage() {
     <div className={styles.stage}>
       {/* key on the screen id so React remounts (and re-animates) on navigation */}
       <div key={current} className={`${styles.slide} ${slideClass}`}>
-        <Screen />
+        {/* Screens are lazyScreen()-deferred, so the first visit to one waits on
+            its chunk. Fallback is blank rather than a spinner: the wait is a
+            frame or two on localhost, and a flashing loader would read as part
+            of the prototype. */}
+        <Suspense fallback={null}>
+          <Screen />
+        </Suspense>
       </div>
     </div>
   )

@@ -1,32 +1,8 @@
 // Project module — exports config + the screens array.
 
 import type { ProjectModule } from '@/platform/types'
+import { lazyScreen } from '@/platform/lazyScreen'
 import { config } from './project.config'
-import { MajelisScreen } from './screens/majelis'
-import { AttendanceScreen } from './screens/attendance'
-import { CollectionScreen } from './screens/collection'
-import { MitraScreen } from './screens/mitra'
-import { LoansScreen } from './screens/loans'
-import { CollectScreen } from './screens/collect'
-import { GrowthScreen } from './screens/growth'
-import { OfferScreen } from './screens/offer'
-import { ProofScreen } from './screens/proof'
-import { LadderScreen } from './screens/ladder'
-import { TodayScreen } from './screens/today'
-import { MajelisListScreen } from './screens/majelis-list'
-import { MitraListScreen } from './screens/mitra-list'
-import { ProfileScreen } from './screens/profile'
-import { KpiScreen } from './screens/kpi'
-import { HomeBriefScreen } from './screens/home-brief'
-import { HomeVisitScreen } from './screens/home-visit'
-import { HomeProofScreen } from './screens/home-proof'
-import { DepositScreen } from './screens/deposit'
-import { SettlementScreen } from './screens/settlement'
-import { SosialisasiScreen } from './screens/sosialisasi'
-import { LeadScreen } from './screens/lead'
-import { FollowUpScreen } from './screens/follow-up'
-import { CommsScreen } from './screens/comms'
-import { BannerDetailScreen } from './screens/banner-detail'
 import * as demo from './lib/demo'
 
 export const project: ProjectModule = {
@@ -35,7 +11,7 @@ export const project: ProjectModule = {
     {
       id: 'today',
       title: 'Tugas',
-      component: TodayScreen,
+      component: lazyScreen(() => import('./screens/today'), 'TodayScreen'),
       entry: true,
       notes: [
         'The BP opens her day here, as one list of equal cards under two headings: Belum selesai and Selesai. Every row starts its task on tap. Nothing is singled out as “now” — a day does not run in clock order, so the schedule stays a list of things she can begin rather than a queue that only hands her the top row.',
@@ -105,7 +81,7 @@ export const project: ProjectModule = {
     {
       id: 'majelis-list',
       title: 'Majelis',
-      component: MajelisListScreen,
+      component: lazyScreen(() => import('./screens/majelis-list'), 'MajelisListScreen'),
       notes: [
         'Every majelis the BP is responsible for, in one flat list. A BP who opens this tab is looking a group up, on whatever day it meets — which day it is belongs to the schedule, not to a directory.',
         'Each row states three things about the group: what product it runs on (Modal blue, GL purple, Hybrid neutral), when it meets, and one status badge — Draft, n Mitra DPD, or Lancar. The product palette deliberately avoids green/orange/yellow, which the status badges own; a hue that means two things on one card is worse than no hue at all. Hybrid is neutral because it is not a third product, it is a group carrying both.',
@@ -143,7 +119,7 @@ export const project: ProjectModule = {
     {
       id: 'kpi',
       title: 'KPI',
-      component: KpiScreen,
+      component: lazyScreen(() => import('./screens/kpi'), 'KpiScreen'),
       notes: [
         'Seven monthly parameters, each carrying a flat rupiah bonus — a parameter earns its bonus outright rather than feeding a combined score.',
         'Every card answers one question: how many more women. The subtraction is done for her and the result IS the headline — “Kurangi 3 mitra lagi”, “Tambah 3 mitra lagi”, “Target tercapai”. A number that exists only to be subtracted from another number is a number the app should be holding, so the current count is not printed.',
@@ -160,7 +136,7 @@ export const project: ProjectModule = {
     {
       id: 'mitra-list',
       title: 'Mitra',
-      component: MitraListScreen,
+      component: lazyScreen(() => import('./screens/mitra-list'), 'MitraListScreen'),
       notes: [
         'Every borrower the BP carries, across every group. The Majelis tab answers “who is in this group”; this answers “where is Ibu Rina” — a question a directory of groups cannot take, because the woman phoning her does not open with which balai she attends.',
         'The card is the roster’s card unchanged, with one line added under the name: her majelis and when it meets. That line is the only reason this list is not the roster — on the roster, the group is the page you are already on.',
@@ -177,7 +153,7 @@ export const project: ProjectModule = {
     {
       id: 'profile',
       title: 'Profil',
-      component: ProfileScreen,
+      component: lazyScreen(() => import('./screens/profile'), 'ProfileScreen'),
       notes: [
         'The BP’s own account and settings — the standard shelf every app has, and deliberately unremarkable.',
         'No KPI card here. KPI is its own tab one thumb away, so a card would be a shortcut to the thing sitting beside it.',
@@ -192,19 +168,19 @@ export const project: ProjectModule = {
     {
       id: 'comms',
       title: 'Informasi & Program',
-      component: CommsScreen,
+      component: lazyScreen(() => import('./screens/comms'), 'CommsScreen'),
       flowsTo: [{ to: 'banner-detail', label: 'ketuk kartu' }],
     },
     {
       id: 'banner-detail',
       title: 'Detail Banner',
-      component: BannerDetailScreen,
+      component: lazyScreen(() => import('./screens/banner-detail'), 'BannerDetailScreen'),
       flowsTo: [{ to: 'comms', label: 'kembali' }],
     },
     {
       id: 'majelis',
       title: 'Majelis View',
-      component: MajelisScreen,
+      component: lazyScreen(() => import('./screens/majelis'), 'MajelisScreen'),
       notes: [
         'The roster of one group. The kumpulan slot rides in the header subtitle — it is asked every time the page is opened — and the address is a one-liner directly under it, ending in a Rute button rather than a full stop, because on the way there the answer she needs is the route, not the text.',
         'Each card is a name, a DPD badge and its labels — no rupiah figure at all. DPD already answers “who do I deal with first”, and an amount on a roster is a number the BP reads but cannot act on; the one she negotiates against is derived fresh on the collect page, from the ledger, at the moment she needs it. KM says who the chair is; Modal / GL says which product she is on, since a Hybrid majelis is exactly a group with both in one room; and Janji bayar / Dapat keringanan are on the ROSTER rather than only in the collect flow, because a BP who walks up to a mitra without knowing she already promised a date asks for the whole amount and gets the argument that follows.',
@@ -235,7 +211,7 @@ export const project: ProjectModule = {
     {
       id: 'attendance',
       title: 'Majelis Visit 1 — Kehadiran',
-      component: AttendanceScreen,
+      component: lazyScreen(() => import('./screens/attendance'), 'AttendanceScreen'),
       notes: [
         'Attendance is asked first and on its own, and collection does not open until every mitra is marked. The register is a record other people read later, and a half-marked one cannot be trusted or audited.',
         'Nothing on this screen mentions money — that is the next stage’s question, and asking both at once is what this split exists to avoid. The 15 who already paid before the visit come pre-marked present, so the BP confirms 7 rather than all 22.',
@@ -265,7 +241,7 @@ export const project: ProjectModule = {
     {
       id: 'collection',
       title: 'Majelis Visit 2 — Penagihan',
-      component: CollectionScreen,
+      component: lazyScreen(() => import('./screens/collection'), 'CollectionScreen'),
       notes: [
         'The same roster in the same order as the register before it, and the same card — only the row under the rule changes, from a register question to a bill. The list is static: recording an outcome updates the card where it stands instead of moving it to a “sudah ditagih” section, so the woman the BP is standing in front of stays where she was.',
         'The stage’s job is to record an outcome for everyone, not to make everyone lunas — any recorded result counts, including “tidak bayar”. Tagih opens a page rather than a sheet; the 15 who settled before the visit carry the fact and no button, because there is nothing to tagih from them and offering the control would invite a double entry.',
@@ -301,7 +277,7 @@ export const project: ProjectModule = {
     {
       id: 'growth',
       title: 'Majelis Visit 3 — Penawaran',
-      component: GrowthScreen,
+      component: lazyScreen(() => import('./screens/growth'), 'GrowthScreen'),
       notes: [
         'Offers come last, after the money. Pitching a savings product before collecting would mean asking a woman to open an account with the instalment she has not handed over yet.',
         'Only mitra with a real recommendation appear — four rows out of 22, not a list for everyone — in the same order and the same card as the two stages before. Tawarkan opens a page, exactly as Tagih does, so both actions on a visit card behave the same way. The whole stage can be skipped: a tail that blocks the close of a visit has stopped being a tail.',
@@ -335,7 +311,7 @@ export const project: ProjectModule = {
     {
       id: 'offer',
       title: 'Tawarkan Produk',
-      component: OfferScreen,
+      component: lazyScreen(() => import('./screens/offer'), 'OfferScreen'),
       states: [
         {
           id: 'fresh',
@@ -361,7 +337,7 @@ export const project: ProjectModule = {
     {
       id: 'proof',
       title: 'Bukti Pelayanan',
-      component: ProofScreen,
+      component: lazyScreen(() => import('./screens/proof'), 'ProofScreen'),
       notes: [
         'A photo and a recorded location, both required before the visit can be submitted. A photo alone proves she photographed something; a location alone proves she was in the right place but not that a majelis happened. Only the pair makes a visit verifiable afterwards.',
         'They sit as two equal tiles rather than a big photo drop-zone with location as a footnote, and outside the three-stage bar — attendance, collection and growth are the work, this is the paperwork that closes it.',
@@ -391,7 +367,7 @@ export const project: ProjectModule = {
     {
       id: 'home-brief',
       title: 'Home Visit 1 — Persiapan',
-      component: HomeBriefScreen,
+      component: lazyScreen(() => import('./screens/home-brief'), 'HomeBriefScreen'),
       states: [
         {
           id: 'fresh',
@@ -433,7 +409,7 @@ export const project: ProjectModule = {
     {
       id: 'home-visit',
       title: 'Home Visit 2 — Tagih',
-      component: HomeVisitScreen,
+      component: lazyScreen(() => import('./screens/home-visit'), 'HomeVisitScreen'),
       notes: [
         'The money step. Who she met was answered on Persiapan, so this page opens straight on the ledger and the bill — the ten-week strip and the total tagihan, the same components the mitra and collect pages draw — then the payment outcome: full, partial, or a recorded no.',
         'Whether the money came from the mitra or her PJ does not change what gets recorded — the amount and the promise — so who handed it over is a tag, not a branch. "Nobody home" never reaches this step: a locked door has nothing to tagih, so that case takes its visit note on Persiapan and skips straight to Bukti & Kirim.',
@@ -475,7 +451,7 @@ export const project: ProjectModule = {
     {
       id: 'home-proof',
       title: 'Home Visit 3 — Bukti & Kirim',
-      component: HomeProofScreen,
+      component: lazyScreen(() => import('./screens/home-proof'), 'HomeProofScreen'),
       notes: [
         'The close of a home visit: a photo of the door, required before it can be submitted. What she recorded on the two steps before — who was met, what was paid — is not read back here; this step is the paperwork that closes the visit, not a second review of it.',
       ],
@@ -510,7 +486,7 @@ export const project: ProjectModule = {
     {
       id: 'settlement',
       title: 'Setoran',
-      component: SettlementScreen,
+      component: lazyScreen(() => import('./screens/settlement'), 'SettlementScreen'),
       notes: [
         'Where the cash leaves her hands — separate from Closing, which is the checklist that ends the DAY. This screen is about the BAG: the money she is carrying right now and the transfer that gets it to the branch.',
         'One stepped page, in the order the act happens: what is in the bag and which pelayanan it came from, then how much of it to put down now, then which ROAD — a VA she transfers to, or an AmarthaLink agent she hands the notes to — then the photo that proves it went.',
@@ -551,7 +527,7 @@ export const project: ProjectModule = {
     {
       id: 'deposit',
       title: 'Closing',
-      component: DepositScreen,
+      component: lazyScreen(() => import('./screens/deposit'), 'DepositScreen'),
       notes: [
         'The close of the day, rebuilt as a two-item checklist over one CTA. Closing is exactly two obligations: every task on the day finished, and the collected cash handed back — so the screen is those two checks and nothing else, and the CTA unlocks only when both pass.',
         'Check 1 counts the day’s stops. When any are still open it names them — “5 dari 7 selesai”, then the list — so the BP knows what to go back to rather than only that she cannot close yet; when all are done it collapses to a single ticked line.',
@@ -594,7 +570,7 @@ export const project: ProjectModule = {
     {
       id: 'sosialisasi',
       title: 'Sosialisasi',
-      component: SosialisasiScreen,
+      component: lazyScreen(() => import('./screens/sosialisasi'), 'SosialisasiScreen'),
       notes: [
         'The first task on this day that is not about a woman who already borrows. A BP carries an NTB target out of the same seven KPI parameters as her collection target, so prospecting sits on the same schedule rather than in a tab she visits when there is time — which is how it stops happening.',
         'The page is a counter, a button, and the names taken so far. The target is on screen DURING the event and not on a report afterwards: “4 dari 10” at 14.30 is a BP who works the room for another hour; the same fact at 17.00 is a BP who went home short.',
@@ -628,7 +604,7 @@ export const project: ProjectModule = {
     {
       id: 'lead',
       title: 'Data Prospek',
-      component: LeadScreen,
+      component: lazyScreen(() => import('./screens/lead'), 'LeadScreen'),
       notes: [
         'The counterpart to the mitra page, for a woman who is not one yet. It is deliberately drawn WITH GAPS: everything the quick capture skipped appears as an empty field with a name and a count, because a lead who cannot be submitted for want of an address is a lead that dies silently.',
         'The history at the bottom is what makes a three-month-old prospect callable. “Minat tinggi, menunggu pinjaman BRI lunas Oktober” recorded on 14 Juli is the reason anyone dials her in October — without it, October’s BP is cold-calling a stranger the app told her was warm.',
@@ -658,7 +634,7 @@ export const project: ProjectModule = {
     {
       id: 'follow-up',
       title: 'Follow Up Prospek',
-      component: FollowUpScreen,
+      component: lazyScreen(() => import('./screens/follow-up'), 'FollowUpScreen'),
       notes: [
         'The same shape as a home visit, for the same reason: one person, a branch on whether you reached her at all, and worthless unless the outcome carries a date.',
         '“Did the call land” is asked BEFORE minat. Most follow-ups do not connect, and a form that opens on how interested she is makes an unanswered phone look like a lead who went cold — two completely different facts, only one of them about her.',
@@ -698,7 +674,7 @@ export const project: ProjectModule = {
     {
       id: 'mitra',
       title: 'Detail Mitra',
-      component: MitraScreen,
+      component: lazyScreen(() => import('./screens/mitra'), 'MitraScreen'),
       notes: [
         'One borrower, opened from her card anywhere in the flow, and a record rather than a second place to act. Her name and her DPD chip are the pinned top bar, with chat and route as the two icon buttons beside them — the two things a BP DOES with a mitra rather than reads about her, reachable from wherever she has scrolled to. Collecting happens in the pelayanan queue, which is the only place the BP has the mitra in front of her.',
         'The week strip is the heart of the page: it carries the amount inside each week rather than a paid/unpaid dot, so the BP can say “Ibu kurang Rp50.000 di minggu 7” instead of “Ibu belum bayar”. It shows the last ten weeks and opens on THIS week at the right edge, scrolling left into the past. The date under each cell says which week it is, in the only terms said out loud.',
@@ -734,7 +710,7 @@ export const project: ProjectModule = {
     {
       id: 'loans',
       title: 'Semua Pencairan',
-      component: LoansScreen,
+      component: lazyScreen(() => import('./screens/loans'), 'LoansScreen'),
       notes: [
         'Every cycle she has taken, active first and settled below. The mitra page answers “what does she owe today”; this answers “how long has she been with us, and how did the last cycles go” — a different question with a different shelf life, which is why it is a page rather than another section on one already carrying a ledger.',
         'It is the evidence behind the ladder. “Ibu sudah tiga kali cair dan dua lunas tepat waktu” is the sentence that makes a top-up conversation land, and until this screen existed the BP had to remember it.',
@@ -746,7 +722,7 @@ export const project: ProjectModule = {
     {
       id: 'collect',
       title: 'Tagih Pembayaran',
-      component: CollectScreen,
+      component: lazyScreen(() => import('./screens/collect'), 'CollectScreen'),
       notes: [
         'The moment of negotiation. It opens on who she is over what she owes, drawn flat with no cards — the identity, the week-grid history and the bill read as one block — over the week grid carrying the date, outcome and amount of each recent week. Under it, the four ways she can pay as a menu.',
         'Two levels, told apart by ground rather than a rule: the identity and bill on white up top, the choice on a lightest-grey floor below. Every option opens a bottom sheet carrying only what it needs — a reason, a promise, an amount, or for a full payment nothing but a confirm — because the bill it is against is still on the page behind the sheet. A payment short of the bill still cannot save without both a reason and a date for the rest, exactly as a “tidak bayar” cannot.',
@@ -786,7 +762,7 @@ export const project: ProjectModule = {
     {
       id: 'ladder',
       title: 'Jalur Naik Modal',
-      component: LadderScreen,
+      component: lazyScreen(() => import('./screens/ladder'), 'LadderScreen'),
       notes: [
         'The one screen here that is not about what to do, but what to say. A BP opens it mid-conversation, reads the line at the top out loud, then turns the phone around and lets the mitra read the ladder herself. The top card states her current limit, because every rung below is an amount added to it and without the base the ladder is a set of increments measured from nowhere.',
         'So the copy is split by audience: the framing speaks to the BP about the mitra, while the quoted line and the rail speak to the mitra directly. Nothing is recorded here — the outcome of the conversation is logged where she is already being asked for it.',

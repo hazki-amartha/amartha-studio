@@ -336,17 +336,47 @@ function MobileLayout() {
 
 export interface PrototypeViewProps {
   config: ProjectConfig
-  screens: ScreenDef[]
   /** Deep-link target from ?screen=<id>; falls back to the entry screen. */
   initialScreenId?: string
 }
 
-export function PrototypeView({ config, screens, initialScreenId }: PrototypeViewProps) {
+/** The project's screen list, loaded client-side from the registry.
+ *  Screen components are lazyScreen() handles and can't cross the server
+ *  boundary, so the loader runs here — the same thing FlowCanvas does. */
+function useScreens(slug: string): ScreenDef[] | null {
+  const [screens, setScreens] = useState<ScreenDef[] | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    // The registry is imported dynamically, not at the top of the file: a
+    // static import would put every project's index — and the demo/store libs
+    // their states pull in — into this route's bundle, which is the cost we
+    // just removed from the screens.
+    import('@/projects/registry')
+      .then(({ registry }) => registry[slug]?.())
+      .then((m) => {
+        if (alive && m) setScreens(m.screens)
+      })
+    return () => {
+      alive = false
+    }
+  }, [slug])
+
+  return screens
+}
+
+export function PrototypeView({ config, initialScreenId }: PrototypeViewProps) {
   const isDesktop = useIsDesktop()
+  const screens = useScreens(config.slug)
 
   // The mode flag outlives this route, so leaving for the gallery or the flow
   // view would otherwise strand the toggle lit with nothing to inspect.
   useEffect(() => () => setInspectMode(false), [])
+
+  // The provider seeds its visit stack from the screen list, so it must not
+  // mount before the list is there. The canvas underneath is the same colour
+  // the loaded layout paints, so the wait reads as an empty page, not a flash.
+  if (!screens) return <div className="h-full w-full bg-neutral-50 dark:bg-ink-950" />
 
   return (
     <PrototypeProvider screens={screens} initialScreenId={initialScreenId}>

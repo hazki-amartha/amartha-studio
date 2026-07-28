@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Validates flow metadata across every registered project (PLAN.md WS-0 task 8):
+//   - registry.ts and configs.ts list exactly the same slugs
 //   - registry key matches config.slug
 //   - screen ids unique within a project
 //   - exactly one screen has entry: true
@@ -35,7 +36,8 @@ try {
   await build({
     absWorkingDir: root,
     stdin: {
-      contents: `export { registry } from './projects/registry'`,
+      contents: `export { registry } from './projects/registry'
+export { configs } from './projects/configs'`,
       resolveDir: root,
       loader: 'ts',
     },
@@ -49,8 +51,23 @@ try {
     logLevel: 'silent',
   })
 
-  const { registry } = await import(pathToFileURL(outFile).href)
+  const { registry, configs } = await import(pathToFileURL(outFile).href)
   const errors = []
+
+  // The two maps are appended by hand and are easy to half-update. A project
+  // missing from configs.ts 404s in the gallery; one missing from registry.ts
+  // opens to an empty device. Both are confusing enough to be worth catching
+  // here rather than in the browser.
+  for (const slug of Object.keys(registry)) {
+    if (!configs[slug]) {
+      errors.push(`${slug}: in projects/registry.ts but not projects/configs.ts — add the line`)
+    }
+  }
+  for (const slug of Object.keys(configs)) {
+    if (!registry[slug]) {
+      errors.push(`${slug}: in projects/configs.ts but not projects/registry.ts — add the line`)
+    }
+  }
 
   for (const [slug, load] of Object.entries(registry)) {
     let project

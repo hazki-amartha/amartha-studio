@@ -149,11 +149,33 @@ A new project = **copy `projects/_template/` → `projects/<slug>/`**, then:
 3. List screens in `index.ts` — each with `id` (kebab-case, stable), `title`,
    and `component`. Exactly **one** screen sets `entry: true`. That's the whole
    requirement; `notes` and `flowsTo` are opt-in extras (see below).
-4. Register in `projects/registry.ts` — append **one** line above the marker
-   comment; never modify or reorder other lines:
+
+   **`component` is always a `lazyScreen()`, never a top-level import.** The
+   index is metadata; importing a screen file at the top of it means listing a
+   screen loads it, which put every screen of every project into every page of
+   the studio:
    ```ts
-   '<slug>': () => import('./<slug>').then((m) => m.project),
+   import { lazyScreen } from '@/platform/lazyScreen'
+   // ✅
+   component: lazyScreen(() => import('./screens/home'), 'HomeScreen'),
+   // ❌ import { HomeScreen } from './screens/home'  →  component: HomeScreen
    ```
+   The import must be written inline like that — a bundler can only split a
+   path it can read literally.
+4. Register the project in **two** append-only maps, one line in each, above
+   the marker comment; never modify or reorder other lines:
+   ```ts
+   // projects/registry.ts — the full module, loaded by client code
+   '<slug>': () => import('./<slug>').then((m) => m.project),
+
+   // projects/configs.ts — metadata only, loaded by server code
+   '<slug>': () => import('./<slug>/project.config').then((m) => m.config),
+   ```
+   They are separate files because a Server Component pays for everything
+   reachable from what it imports, dynamic imports included: the gallery only
+   wants your project's name, and reading it through `registry.ts` would load
+   the whole studio's screens. `npm run check:flows` fails if the two maps
+   drift, so a missed line is caught before it ships.
 
 **`notes` — only when the designer asks, in words, this session.** They're
 annotations shown beside the device on desktop — genuinely useful when someone

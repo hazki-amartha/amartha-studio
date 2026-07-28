@@ -1,6 +1,6 @@
 import type { ProjectModule } from '@/platform/types'
+import { lazyScreen } from '@/platform/lazyScreen'
 import { config } from './project.config'
-import { AmarthaFinHomeScreen } from './screens/home'
 
 export const project: ProjectModule = {
   config,
@@ -8,7 +8,7 @@ export const project: ProjectModule = {
     {
       id: 'home',
       title: 'AmarthaFin Home',
-      component: AmarthaFinHomeScreen,
+      component: lazyScreen(() => import('./screens/home'), 'AmarthaFinHomeScreen'),
       entry: true,
     },
   ],

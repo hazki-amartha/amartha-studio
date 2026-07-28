@@ -1,7 +1,13 @@
 // =============================================================================
 // Project registry — APPEND-ONLY.
-// Add exactly one line for your project above the marker comment.
-// Never modify or remove another designer's line.
+// Add exactly one line for your project above the marker comment, and the
+// matching line in projects/configs.ts. Never modify or remove another
+// designer's line.
+//
+// This map loads a project's FULL module — screens included — so it is imported
+// from client code only (the prototype view, the flow canvas, the shell's
+// project list). Server code reads projects/configs.ts instead; see the note at
+// the top of that file for why the two are kept apart.
 // =============================================================================
 
 import type { Registry } from '@/platform/types'

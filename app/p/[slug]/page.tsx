@@ -6,7 +6,7 @@
 // =============================================================================
 
 import Link from 'next/link'
-import { registry } from '@/projects/registry'
+import { configs } from '@/projects/configs'
 import { PrototypeView } from '@/platform/frame'
 
 interface PageProps {
@@ -16,7 +16,7 @@ interface PageProps {
 
 /** Pre-render a static page per registered project. */
 export function generateStaticParams() {
-  return Object.keys(registry).map((slug) => ({ slug }))
+  return Object.keys(configs).map((slug) => ({ slug }))
 }
 
 function firstValue(v?: string | string[]): string | undefined {
@@ -43,10 +43,15 @@ function NotFound({ slug }: { slug: string }) {
 }
 
 export default async function PrototypePage({ params, searchParams }: PageProps) {
-  const loader = registry[params.slug]
+  const loader = configs[params.slug]
   if (!loader) return <NotFound slug={params.slug} />
 
-  const { config, screens } = await loader()
+  // Only the config crosses the server boundary. The screen list stays on the
+  // client (PrototypeView loads it from the same registry entry): its
+  // components are lazyScreen() handles, which are not serialisable — and
+  // sending them would defeat the point by pulling every screen into the
+  // server render of the route.
+  const config = await loader()
   const initialScreenId = firstValue(searchParams.screen)
 
   return (
@@ -54,7 +59,6 @@ export default async function PrototypePage({ params, searchParams }: PageProps)
       // Remount when the deep-link target changes so the visit stack resets.
       key={initialScreenId ?? 'entry'}
       config={config}
-      screens={screens}
       initialScreenId={initialScreenId}
     />
   )

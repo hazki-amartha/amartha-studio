@@ -1,4 +1,5 @@
 import type { ProjectModule, ScreenState } from '@/platform/types'
+import { lazyScreen } from '@/platform/lazyScreen'
 import { config } from './project.config'
 import {
   groupGood,
@@ -9,13 +10,6 @@ import {
   nearFinal,
   rewardReady,
 } from './lib/demo'
-import { HomeAScreen } from './screens/home-a'
-import { HomeBScreen } from './screens/home-b'
-import { HomeCScreen } from './screens/home-c'
-import { MajelisScreen } from './screens/majelis'
-import { ProgressWeeksScreen } from './screens/progress-weeks'
-import { ProgressRewardsScreen } from './screens/progress-rewards'
-import { MilestoneScreen } from './screens/milestone'
 
 // The same four conditions apply to every screen here, because every screen
 // reads the same journey. Three of them cannot be reached by tapping.
@@ -70,44 +64,44 @@ export const project: ProjectModule = {
     {
       id: 'home-a',
       title: 'Home A — Deret minggu',
-      component: HomeAScreen,
+      component: lazyScreen(() => import('./screens/home-a'), 'HomeAScreen'),
       entry: true,
       states: journeyStates,
     },
     {
       id: 'home-b',
       title: 'Home B — Papan hadiah',
-      component: HomeBScreen,
+      component: lazyScreen(() => import('./screens/home-b'), 'HomeBScreen'),
       states: journeyStates,
     },
     {
       id: 'home-c',
       title: 'Home C — Papan + 12 hadiah',
-      component: HomeCScreen,
+      component: lazyScreen(() => import('./screens/home-c'), 'HomeCScreen'),
       states: journeyStates,
     },
     {
       id: 'majelis',
       title: 'Kelompok Melati',
-      component: MajelisScreen,
+      component: lazyScreen(() => import('./screens/majelis'), 'MajelisScreen'),
       states: journeyStates,
     },
     {
       id: 'progress-weeks',
       title: 'Detail 1 — Perjalanan minggu (A & B)',
-      component: ProgressWeeksScreen,
+      component: lazyScreen(() => import('./screens/progress-weeks'), 'ProgressWeeksScreen'),
       states: journeyStates,
     },
     {
       id: 'progress-rewards',
       title: 'Detail 2 — Koleksi hadiah (C)',
-      component: ProgressRewardsScreen,
+      component: lazyScreen(() => import('./screens/progress-rewards'), 'ProgressRewardsScreen'),
       states: journeyStates,
     },
     {
       id: 'milestone',
       title: 'Hadiah terbuka',
-      component: MilestoneScreen,
+      component: lazyScreen(() => import('./screens/milestone'), 'MilestoneScreen'),
       states: journeyStates,
     },
   ],

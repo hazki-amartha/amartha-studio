@@ -1,24 +1,9 @@
 // Project module — exports config + the screens array.
 
 import type { ProjectModule } from '@/platform/types'
+import { lazyScreen } from '@/platform/lazyScreen'
 import { config } from './project.config'
 import * as demo from './lib/demo'
-import { HomeV2Screen } from './screens/home-v2'
-import { ProgressScreen } from './screens/progress'
-import { RiwayatScreen } from './screens/riwayat'
-import { MajelisScreen } from './screens/majelis'
-import { WhatsAppReminderScreen } from './screens/whatsapp-reminder'
-import { MilestoneUnlockedScreen } from './screens/milestone-unlocked'
-import { DisburseAmountScreen } from './screens/disburse-amount'
-import { DisburseSuccessScreen } from './screens/disburse-success'
-import { AmountScreen } from './screens/amount'
-import { MethodScreen } from './screens/method'
-import { InstructionScreen } from './screens/instruction'
-import { PoketConfirmScreen } from './screens/poket-confirm'
-import { PoketShortfallScreen } from './screens/poket-shortfall'
-import { TopupScreen } from './screens/topup'
-import { PendingScreen } from './screens/pending'
-import { SuccessScreen } from './screens/success'
 
 /** Shared by both home options, so a state control means the same thing on
  *  whichever of the two is on screen. */
@@ -67,7 +52,7 @@ export const project: ProjectModule = {
     {
       id: 'home',
       title: 'Home',
-      component: HomeV2Screen,
+      component: lazyScreen(() => import('./screens/home-v2'), 'HomeV2Screen'),
       entry: true,
       states: homeStates,
       flowsTo: [
@@ -83,7 +68,7 @@ export const project: ProjectModule = {
     {
       id: 'progress',
       title: 'Perjalanan 48 minggu',
-      component: ProgressScreen,
+      component: lazyScreen(() => import('./screens/progress'), 'ProgressScreen'),
       flowsTo: [
         { to: 'milestone-unlocked', label: 'tap milestone terbuka' },
         { to: 'home', label: 'kembali' },
@@ -92,13 +77,13 @@ export const project: ProjectModule = {
     {
       id: 'riwayat',
       title: 'Riwayat bayar & hadir',
-      component: RiwayatScreen,
+      component: lazyScreen(() => import('./screens/riwayat'), 'RiwayatScreen'),
       flowsTo: [{ to: 'home', label: 'kembali' }],
     },
     {
       id: 'majelis',
       title: 'Majelis Melati 07',
-      component: MajelisScreen,
+      component: lazyScreen(() => import('./screens/majelis'), 'MajelisScreen'),
       flowsTo: [
         { to: 'whatsapp-reminder', label: 'ingatkan' },
         { to: 'home', label: 'kembali' },
@@ -107,13 +92,13 @@ export const project: ProjectModule = {
     {
       id: 'whatsapp-reminder',
       title: 'Kirim pengingat',
-      component: WhatsAppReminderScreen,
+      component: lazyScreen(() => import('./screens/whatsapp-reminder'), 'WhatsAppReminderScreen'),
       flowsTo: [{ to: 'majelis', label: 'terkirim' }],
     },
     {
       id: 'milestone-unlocked',
       title: 'Milestone minggu 12',
-      component: MilestoneUnlockedScreen,
+      component: lazyScreen(() => import('./screens/milestone-unlocked'), 'MilestoneUnlockedScreen'),
       flowsTo: [
         { to: 'disburse-amount', label: 'cairkan sekarang' },
         { to: 'progress', label: 'nanti saja' },
@@ -122,13 +107,13 @@ export const project: ProjectModule = {
     {
       id: 'disburse-amount',
       title: 'Cairkan modal tambahan',
-      component: DisburseAmountScreen,
+      component: lazyScreen(() => import('./screens/disburse-amount'), 'DisburseAmountScreen'),
       flowsTo: [{ to: 'disburse-success', label: 'cairkan' }],
     },
     {
       id: 'disburse-success',
       title: 'Pencairan berhasil',
-      component: DisburseSuccessScreen,
+      component: lazyScreen(() => import('./screens/disburse-success'), 'DisburseSuccessScreen'),
       flowsTo: [
         { to: 'progress', label: 'lihat perjalananmu' },
         { to: 'home', label: 'kembali ke home' },
@@ -137,13 +122,13 @@ export const project: ProjectModule = {
     {
       id: 'amount',
       title: 'Jumlah pembayaran',
-      component: AmountScreen,
+      component: lazyScreen(() => import('./screens/amount'), 'AmountScreen'),
       flowsTo: [{ to: 'method', label: 'lanjut' }],
     },
     {
       id: 'method',
       title: 'Metode pembayaran',
-      component: MethodScreen,
+      component: lazyScreen(() => import('./screens/method'), 'MethodScreen'),
       states: [
         {
           id: 'poket-cukup',
@@ -174,7 +159,7 @@ export const project: ProjectModule = {
     {
       id: 'instruction',
       title: 'Cara pembayaran',
-      component: InstructionScreen,
+      component: lazyScreen(() => import('./screens/instruction'), 'InstructionScreen'),
       states: [
         {
           id: 'va-bca',
@@ -209,7 +194,7 @@ export const project: ProjectModule = {
     {
       id: 'poket-confirm',
       title: 'Konfirmasi Poket',
-      component: PoketConfirmScreen,
+      component: lazyScreen(() => import('./screens/poket-confirm'), 'PoketConfirmScreen'),
       flowsTo: [
         { to: 'success', label: 'bayar sekarang' },
         { to: 'method', label: 'ganti metode' },
@@ -218,7 +203,7 @@ export const project: ProjectModule = {
     {
       id: 'poket-shortfall',
       title: 'Saldo tidak cukup',
-      component: PoketShortfallScreen,
+      component: lazyScreen(() => import('./screens/poket-shortfall'), 'PoketShortfallScreen'),
       flowsTo: [
         { to: 'topup', label: 'isi saldo' },
         { to: 'method', label: 'pilih metode lain' },
@@ -227,7 +212,7 @@ export const project: ProjectModule = {
     {
       id: 'topup',
       title: 'Isi Saldo Poket',
-      component: TopupScreen,
+      component: lazyScreen(() => import('./screens/topup'), 'TopupScreen'),
       flowsTo: [
         { to: 'poket-confirm', label: 'isi saldo (menutup kekurangan)' },
         { to: 'home', label: 'isi saldo (dari Poket)' },
@@ -236,7 +221,7 @@ export const project: ProjectModule = {
     {
       id: 'pending',
       title: 'Menunggu konfirmasi',
-      component: PendingScreen,
+      component: lazyScreen(() => import('./screens/pending'), 'PendingScreen'),
       flowsTo: [
         { to: 'success', label: 'simulasi konfirmasi' },
         { to: 'home', label: 'kembali ke beranda' },
@@ -245,7 +230,7 @@ export const project: ProjectModule = {
     {
       id: 'success',
       title: 'Pembayaran berhasil',
-      component: SuccessScreen,
+      component: lazyScreen(() => import('./screens/success'), 'SuccessScreen'),
       flowsTo: [{ to: 'home', label: 'kembali ke beranda' }],
     },
   ],
