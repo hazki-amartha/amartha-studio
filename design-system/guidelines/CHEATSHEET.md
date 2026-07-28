@@ -133,15 +133,17 @@ Multi-colour artwork — **not** icons. Fixed palettes and gradients, so they ta
 a `size` and nothing else; never try to recolour them with a `text-*` token.
 
 ```tsx
-import { ProductLogo, ServiceIcon } from '@/design-system/assets'
+import { ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
 
-<ProductLogo name="poket" />          // 56px default — Poket, Modal, Celengan,
-                                      // ggs, insurance, amartha-link
-<ServiceIcon name="pln" size={40} />  // 48px default — the PPOB / service tiles
+<ProductLogo name="poket" />           // 56px square — the MARK alone, no words
+<Wordmark name="poket" height={20} /> // wide lockup — mark AND product name
+<ServiceIcon name="pln" size={40} />  // 48px square — PPOB / service tiles
 ```
 
-Names are kebab-case; the full lists are the `PRODUCT_LOGOS` and `SERVICE_ICONS`
-exports in `design-system/assets/index.tsx`.
+`ProductLogo` when a text label sits beside or under it; `Wordmark` when it
+stands alone — the lockup already says its own name, so never pair it with a
+label. Names are kebab-case; the full lists are the `PRODUCT_LOGOS`, `WORDMARKS`
+and `SERVICE_ICONS` exports in `design-system/assets/index.tsx`.
 
 ---
 
