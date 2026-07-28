@@ -4,7 +4,7 @@
 // the shipped Figma file (node 190:4595). Static — this is a source-of-truth
 // screen, not a click-through, so nothing here navigates anywhere else.
 
-import { Button, NavigationBar } from '@/design-system/components'
+import { Button, Card, NavigationBar } from '@/design-system/components'
 import { ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
 import {
   ArrowRight,
@@ -50,7 +50,7 @@ export function AmarthaFinHomeScreen() {
         <Shortcut icon={<ServiceIcon name="all" size={32} />} label="Lainnya" />
       </div>
 
-      <div className="rounded-12 border border-default bg-neutral-white p-12">
+      <Card>
         <div className="flex items-center gap-4 text-primary-500">
           <Wordmark name="modal" height={20} />
           <ArrowRight size={16} />
@@ -73,7 +73,7 @@ export function AmarthaFinHomeScreen() {
             Bayar Sekarang
           </Button>
         </div>
-      </div>
+      </Card>
 
       <SectionTitle>Mulai Gunakan AmarthaFin</SectionTitle>
 
@@ -97,7 +97,7 @@ export function AmarthaFinHomeScreen() {
       />
 
       <SectionTitle>Promo menarik untuk Anda</SectionTitle>
-      <div className="rounded-12 bg-gradient-to-br from-primary-500 to-primary-700 p-16 text-neutral-white">
+      <div className="rounded-16 bg-gradient-to-br from-primary-500 to-primary-700 p-16 text-neutral-white">
         <p className="text-14 font-bold">Isi Poket minimal 100 ribu sebanyak 6 kali</p>
         <p className="mt-4 text-12">Bonus 10 ribu</p>
       </div>

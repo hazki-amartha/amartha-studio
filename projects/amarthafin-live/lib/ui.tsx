@@ -13,8 +13,18 @@ import { ArrowRight, Bell, User, Voucher } from '@/design-system/icons'
 export function BrandBand({ children }: { children: ReactNode }) {
   return (
     <div className="-mx-16 -mt-48">
-      {/* 20px bottom corners — the header is a curved band, not a square block. */}
-      <div className="rounded-b-20 bg-gradient-to-br from-primary-400 to-primary-700 px-16 pb-40 pt-48">
+      {/* The header is masked to a curved band, not a rounded rectangle: the
+          bottom edge is flat at the sides and sags at the centre (see the
+          production mask, object.svg — 360x123, flat to y=99.8, dipping to 123
+          at x=180). That is an ELLIPTICAL bottom radius, which Tailwind has no
+          class for, so it goes in a style prop: a 50% horizontal radius on both
+          bottom corners against a 24px vertical one, giving one continuous arc
+          across the full width. 24px is the 4px-grid neighbour of the mask's
+          23.2px sag. */}
+      <div
+        className="bg-gradient-to-r from-primary-400 to-primary-500 px-16 pb-40 pt-48"
+        style={{ borderRadius: '0 0 50% 50% / 0 0 24px 24px' }}
+      >
         <div className="flex items-center gap-12 pb-16">
           <ChromeIcon>
             <User size={20} />
