@@ -42,6 +42,9 @@ neutral`.
 ```
 
 - **`Screen`** — `topBar?` + `children`. Never hand-roll page padding.
+  `canvas="white"` for a flat white page instead of the neutral-50 tint
+  (homepages — the live product has no canvas tint); `statusBar="none"` to let
+  coloured chrome reach the top of the display.
 - **`TopBar`** — minimal 48px bar (`children`) when you don't need a full header.
 
 ---

@@ -75,6 +75,10 @@ Every screen wraps its content in **`Screen`** — never hand-roll page padding:
 
 - `Screen` — props: `topBar?` (pinned chrome) + `children`. Applies the
   `neutral-50` canvas, 16px page padding, and 12px section gap for you.
+  `canvas="white"` swaps the tinted canvas for a flat white page — the shipped
+  AmarthaFin homepage has no canvas tint, so homepages want it (see below).
+  `statusBar="none"` stops the status strip painting, so coloured chrome can
+  reach the top of the display.
 - `TopBar` — a minimal 48px top bar (`children`) for screens that don't need a
   full `NavigationHeader`.
 
@@ -85,7 +89,8 @@ in production**. It is not a prototype under review; it is what the app actually
 looks like today.
 
 **If you are building or changing a homepage, open it first** and match what is
-already there — the curved brand band, the Poket wallet widget, the service
+already there — the flat white canvas (`<Screen canvas="white">`, not the
+neutral-50 tint), the curved brand band, the Poket wallet widget, the service
 shortcut row, the bottom navigation. A homepage that invents its own header or
 wallet is wrong even when every token in it is legal: the designer is judging a
 change *against the live product*, and a prototype that silently redraws the
