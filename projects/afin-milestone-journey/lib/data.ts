@@ -97,14 +97,14 @@ export interface Milestone {
 
 export const MILESTONES: Milestone[] = [
   {
-    label: '14 Juli 2026',
+    label: '14 Jul 2026',
     actionLabel: 'Cairkan dana',
     amount: '+Rp1.250.000',
     state: 'unlocked',
     cta: 'Cairkan sekarang',
   },
   {
-    label: '6 Oktober 2026',
+    label: '6 Okt 2026',
     tag: '🎯 Target berikutnya',
     countdown: '10 minggu lagi',
     actionLabel: 'Cairkan dana',
@@ -113,13 +113,13 @@ export const MILESTONES: Milestone[] = [
     state: 'next',
   },
   {
-    label: '26 Januari 2027',
+    label: '26 Jan 2027',
     countdown: '26 minggu lagi',
     actionLabel: 'Pelunasan dini dan kesempatan naik limit',
     state: 'locked',
   },
   {
-    label: '23 Maret 2027 🏆',
+    label: '23 Mar 2027 🏆',
     countdown: '34 minggu lagi',
     actionLabel: 'Limit baru',
     amount: 'Rp8jt',
