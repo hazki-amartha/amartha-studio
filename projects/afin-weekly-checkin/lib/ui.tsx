@@ -6,7 +6,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { NavigationBar } from '@/design-system/components'
-import { ProductLogo, ServiceIcon, type ServiceIconName } from '@/design-system/assets'
+import { ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
 import {
   ArrowRight,
   Bell,
@@ -383,12 +383,15 @@ export function HomeShell({ ladder, children }: { ladder: Ladder; children: Reac
       {children}
 
       <SectionTitle>Top-up dan bayar tagihan</SectionTitle>
+      {/* Every tile prints its own label underneath, so the two Amartha
+          products use the MARK, never the lockup — otherwise Modal and
+          Celengan would show their names twice. */}
       <div className="flex gap-8">
-        <Shortcut name="modal" label="Modal" />
-        <Shortcut name="celengan" label="Celengan" />
-        <Shortcut name="pln" label="PLN" />
-        <Shortcut name="e-wallet" label="Isi E-Wallet" />
-        <Shortcut name="all" label="Lainnya" />
+        <Shortcut icon={<ProductLogo name="modal" size={32} />} label="Modal" />
+        <Shortcut icon={<ProductLogo name="celengan" size={32} />} label="Celengan" />
+        <Shortcut icon={<ServiceIcon name="pln" size={32} />} label="PLN" />
+        <Shortcut icon={<ServiceIcon name="e-wallet" size={32} />} label="Isi E-Wallet" />
+        <Shortcut icon={<ServiceIcon name="all" size={32} />} label="Lainnya" />
       </div>
 
       <div className="flex gap-12">
@@ -465,23 +468,24 @@ function ChromeIcon({ badge, children }: { badge?: string; children: ReactNode }
 }
 
 // The wallet, drawn to the Figma: 12px padding, 16px radius, and the pale
-// left-to-right wash behind it. The mark is the real Poket product logo rather
-// than the generic wallet glyph — it is brand artwork, so it comes from
-// design-system/assets, not the icon set.
+// left-to-right wash behind it.
+//
+// The name is the Poket lockup, not a mark plus a typed word — the artwork
+// already sets "Poket", so a text label beside it would draw the name twice in
+// two different typefaces.
 
 function PoketWidget() {
   const [hidden, setHidden] = useState(true)
 
   return (
-    <div className="flex items-center gap-16 rounded-16 border border-light bg-gradient-to-r from-neutral-white to-primary-50 p-12">
+    <div className="flex items-center gap-16 rounded-16 border border-default bg-gradient-to-r from-neutral-white to-primary-50 p-12">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-4 text-primary-500">
-          <ProductLogo name="poket" size={24} />
-          <span className="text-16 font-bold">Poket</span>
-          <ArrowRight size={20} />
+          <Wordmark name="poket" height={20} />
+          <ArrowRight size={16} />
         </div>
         <div className="mt-4 flex items-center gap-8">
-          <span className="text-20 font-bold text-default">
+          <span className="text-16 font-bold text-default">
             {hidden ? 'Rp•••••••' : rupiah(151_000)}
           </span>
           <button
@@ -490,12 +494,12 @@ function PoketWidget() {
             onClick={() => setHidden((v) => !v)}
             className="shrink-0 text-default"
           >
-            {hidden ? <EyeSlash size={20} /> : <Eye size={20} />}
+            {hidden ? <EyeSlash size={16} /> : <Eye size={16} />}
           </button>
         </div>
       </div>
-      <WalletAction icon={<Plus size={24} />} label="Isi Saldo" />
-      <WalletAction icon={<Transfer size={24} />} label="Transfer" />
+      <WalletAction icon={<Plus size={16} />} label="Isi Saldo" />
+      <WalletAction icon={<Transfer size={16} />} label="Transfer" />
     </div>
   )
 }
@@ -503,7 +507,7 @@ function PoketWidget() {
 function WalletAction({ icon, label }: { icon: ReactNode; label: string }) {
   return (
     <span className="flex shrink-0 flex-col items-center gap-4">
-      <span className="flex h-40 w-40 items-center justify-center rounded-12 bg-primary-500 text-neutral-white">
+      <span className="flex h-24 w-24 items-center justify-center rounded-8 bg-primary-500 text-neutral-white">
         {icon}
       </span>
       <span className="text-12 text-primary-500">{label}</span>
@@ -515,10 +519,10 @@ export function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="text-14 font-bold text-default">{children}</h2>
 }
 
-function Shortcut({ name, label }: { name: ServiceIconName; label: string }) {
+function Shortcut({ icon, label }: { icon: ReactNode; label: string }) {
   return (
     <span className="flex flex-1 flex-col items-center gap-4 rounded-16 border border-default bg-neutral-white px-4 py-12">
-      <ServiceIcon name={name} size={32} />
+      {icon}
       <span className="w-full truncate text-center text-10 text-default">{label}</span>
     </span>
   )
