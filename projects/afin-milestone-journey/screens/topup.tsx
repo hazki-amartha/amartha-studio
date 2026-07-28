@@ -43,7 +43,7 @@ export function TopupScreen() {
       topBar={
         <NavigationHeader
           title="Isi Saldo Poket"
-          onBack={() => flow.go(clearingShortfall ? 'poket-shortfall' : 'home-v2')}
+          onBack={() => flow.go(clearingShortfall ? 'poket-shortfall' : 'home')}
         />
       }
     >
@@ -89,7 +89,7 @@ export function TopupScreen() {
           disabled={!canTopup}
           onClick={() => {
             store.topUp(value)
-            flow.go(clearingShortfall ? 'poket-confirm' : 'home-v2')
+            flow.go(clearingShortfall ? 'poket-confirm' : 'home')
           }}
         >
           Isi Saldo

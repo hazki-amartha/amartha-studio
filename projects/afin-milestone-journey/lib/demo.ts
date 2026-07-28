@@ -30,6 +30,7 @@ const reset = () =>
     attendState: 'idle',
     attendMsg: '',
     attendFails: 0,
+    atRisk: false,
   })
 
 // --- Home ------------------------------------------------------------------
@@ -102,6 +103,17 @@ export const absenGagal = () => {
 export const absenBerhasil = () => {
   reset()
   store.set({ mitraStage: 'active', attendState: 'ok' })
+}
+
+/**
+ * She has fallen behind: the week's instalment is unpaid and she has not shown
+ * at kumpulan, so the next milestone reward is at risk. The goal card swaps its
+ * "keep going" framing for a warning that the reward can be forfeited, and the
+ * two tasks become the way to save it.
+ */
+export const rewardBerisiko = () => {
+  reset()
+  store.set({ mitraStage: 'active', atRisk: true })
 }
 
 // --- Payment flow ----------------------------------------------------------
