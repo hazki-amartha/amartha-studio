@@ -1,82 +1,125 @@
 'use client'
 
-// Option C — the track.
+// Option C — the board, wired to the endgame.
 //
-// The least gamey of the three, and the only one where near and far reward sit
-// on the SAME line: weeks are dots along a path, the milestone is a station on
-// it, and the week-48 limit increase is the end of the same path, greyed out
-// but visible from week one. Nothing is stacked, so the card carries one
-// sentence and one graphic instead of two blocks.
+// A variation of B rather than a different species. Same four-tile board, same
+// oversized reward closing it — but the reward is no longer the end of the
+// argument. A short rail runs from it down into a strip of twelve milestone
+// stamps, and the limit increase sits at the bottom of that strip as what
+// collecting all twelve buys.
 //
-// It gives up the collectible feeling of A and B. What it buys is that the
-// endgame never needs its own row — which is the cheapest possible answer to
-// "how do we keep the limit increase on screen for eleven months without it
-// turning into wallpaper".
+// So the card answers "why does this month matter" without a destination
+// header: this month is one of twelve, and the twelve are the limit increase.
+// The reward tile and its stamp in the strip carry the same number, which is
+// the whole connection.
 
 import {
+  CHAPTER_LENGTH,
+  LIMIT_INCREASE,
   MILESTONE_REWARD,
-  TOTAL_WEEKS,
+  TOTAL_CHAPTERS,
   chapterCells,
+  milestonesEarned,
   rewardReady,
   short,
   weeksToReward,
 } from '../lib/data'
-import { LIMIT_INCREASE } from '../lib/data'
 import { useApp } from '../lib/store'
-import { HomeShell, LadderLink, WeekTasks } from '../lib/ui'
-import { Check, Medal, Minus, Withdraw } from '@/design-system/icons'
+import { HomeShell, LadderLink, WeekTasks, WeekTile } from '../lib/ui'
+import { Check, Medal, Withdraw } from '@/design-system/icons'
 
 export function HomeCScreen() {
   const s = useApp()
   const cells = chapterCells(s)
   const ready = rewardReady(s)
   const left = weeksToReward(s)
+  const earned = milestonesEarned(s)
+  // The milestone this month's board is filling, 1-based.
+  const current = Math.min(earned + 1, TOTAL_CHAPTERS)
 
   return (
     <HomeShell>
-      <div className="overflow-hidden rounded-12 border border-light bg-neutral-white">
+      <div className="overflow-hidden rounded-12 border border-default bg-neutral-white">
         <div className="p-16">
-          {/* The one message on the card. */}
-          <p className="text-16 font-bold text-default">
-            {ready
-              ? `Ibu bisa cairkan ${short(MILESTONE_REWARD)}`
-              : `${left} minggu lagi Ibu bisa cairkan ${short(MILESTONE_REWARD)}`}
-          </p>
-
-          {/* The path. Week dots, the milestone station, then a faded run to the
-              end of the tenor — one line holding both rewards. */}
-          <div className="mt-20 flex items-center">
-            {cells.map((cell, i) => (
-              <span key={cell.week} className="flex flex-1 items-center">
-                {i > 0 ? <Rail tone={cell.status === 'future' ? 'dim' : 'lit'} /> : null}
-                <Node status={cell.status} />
-              </span>
-            ))}
-
-            <Rail tone={ready ? 'lit' : 'dim'} />
-            <span
-              className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-full ${
-                ready
-                  ? 'bg-primary-500 text-neutral-white'
-                  : 'border border-primary-200 bg-primary-50 text-primary-500'
-              }`}
-            >
-              <Withdraw size={20} />
-            </span>
-
-            <Rail tone="dim" />
-            <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500">
-              <Medal size={20} />
+          <div className="flex items-baseline gap-12">
+            <span className="flex-1 text-16 font-bold text-default">Setoran mingguan Ibu</span>
+            <span className="text-12 text-caption">
+              {ready ? 'Hadiah terbuka' : `${left} minggu lagi`}
             </span>
           </div>
 
-          <div className="mt-8 flex items-start gap-8">
-            <span className="min-w-0 flex-1 text-10 text-caption">
-              Minggu {cells[0].week}–{cells[cells.length - 1].week}
+          <div className="mt-16 grid grid-cols-4 gap-8">
+            {cells.map((cell) => (
+              <WeekTile key={cell.week} cell={cell} />
+            ))}
+          </div>
+
+          {/* The board's closing tile, tagged with its number so it can be found
+              again in the strip below. */}
+          <div
+            className={`mt-8 flex items-center gap-12 rounded-12 p-16 ${
+              ready ? 'bg-primary-500 text-neutral-white' : 'border border-primary-200 bg-primary-50'
+            }`}
+          >
+            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-500 text-neutral-white">
+              <Withdraw size={24} />
             </span>
-            <span className="min-w-0 shrink-0 text-right text-10 text-caption">
-              Minggu {TOTAL_WEEKS} · limit naik {short(LIMIT_INCREASE)}
+            <span className="min-w-0 flex-1">
+              <span className={`block text-20 font-bold ${ready ? '' : 'text-primary-500'}`}>
+                {short(MILESTONE_REWARD)}
+              </span>
+              <span className={`mt-2 block text-12 ${ready ? '' : 'text-caption'}`}>
+                {ready
+                  ? 'Sudah bisa Ibu cairkan'
+                  : `Terbuka setelah ${CHAPTER_LENGTH} minggu lancar`}
+              </span>
             </span>
+            <span
+              className={`shrink-0 rounded-full px-8 py-2 text-10 font-bold ${
+                ready ? 'bg-primary-600 text-neutral-white' : 'bg-primary-500 text-neutral-white'
+              }`}
+            >
+              Hadiah {current}
+            </span>
+          </div>
+
+          {/* The rail. The only thing on the card that says the month and the
+              year are the same argument. */}
+          <span className="mx-auto block h-16 w-2 bg-primary-200" />
+
+          <div className="rounded-12 bg-neutral-50 p-12">
+            <p className="text-14 font-bold text-default">
+              Kumpulkan {TOTAL_CHAPTERS} hadiah, limit Ibu naik
+            </p>
+            <p className="mt-2 text-12 text-caption">
+              {earned} dari {TOTAL_CHAPTERS} hadiah sudah Ibu kumpulkan
+            </p>
+
+            <div className="mt-12 grid grid-cols-6 gap-4">
+              {Array.from({ length: TOTAL_CHAPTERS }, (_, i) => i + 1).map((n) => (
+                <Stamp
+                  key={n}
+                  n={n}
+                  status={n <= earned ? 'earned' : n === current ? 'current' : 'locked'}
+                />
+              ))}
+            </div>
+
+            <span className="mx-auto block h-12 w-2 bg-neutral-200" />
+
+            <div className="flex items-center gap-12 rounded-8 border border-default bg-neutral-white p-12">
+              <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-yellow-50 text-yellow-600">
+                <Medal size={24} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-14 font-bold text-default">
+                  Limit naik {short(LIMIT_INCREASE)}
+                </span>
+                <span className="mt-2 block text-12 text-caption">
+                  Setelah hadiah ke-{TOTAL_CHAPTERS}
+                </span>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -90,39 +133,25 @@ export function HomeCScreen() {
   )
 }
 
-function Rail({ tone }: { tone: 'lit' | 'dim' }) {
-  return (
-    <span
-      className={`h-4 min-w-8 flex-1 rounded-full ${tone === 'lit' ? 'bg-primary-500' : 'bg-neutral-200'}`}
-    />
-  )
-}
-
-function Node({ status }: { status: 'done' | 'missed' | 'active' | 'future' }) {
-  const s = useApp()
-
-  if (status === 'done') {
+/** One of the twelve milestone stamps. Earned, being filled, or still locked. */
+function Stamp({ n, status }: { n: number; status: 'earned' | 'current' | 'locked' }) {
+  if (status === 'earned') {
     return (
-      <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary-500 text-neutral-white">
+      <span className="flex h-32 items-center justify-center rounded-8 bg-primary-500 text-neutral-white">
         <Check size={16} />
       </span>
     )
   }
-  if (status === 'missed') {
+  if (status === 'current') {
     return (
-      <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-orange-50 text-orange-500">
-        <Minus size={16} />
+      <span className="flex h-32 items-center justify-center rounded-8 border-2 border-primary-500 bg-neutral-white text-12 font-bold text-primary-500">
+        {n}
       </span>
     )
   }
-  if (status === 'active') {
-    // The two halves of a good week, read at a glance: paid, attended, both.
-    const filled = (s.paid ? 1 : 0) + (s.attended ? 1 : 0)
-    return (
-      <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 border-primary-500 bg-neutral-white">
-        <span className={`h-8 w-8 rounded-full ${filled > 0 ? 'bg-primary-500' : 'bg-primary-200'}`} />
-      </span>
-    )
-  }
-  return <span className="h-20 w-20 shrink-0 rounded-full border border-default bg-neutral-white" />
+  return (
+    <span className="flex h-32 items-center justify-center rounded-8 border border-default bg-neutral-white text-12 text-disabled">
+      {n}
+    </span>
+  )
 }

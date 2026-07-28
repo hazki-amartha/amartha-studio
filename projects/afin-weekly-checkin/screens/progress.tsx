@@ -31,7 +31,7 @@ export function ProgressScreen() {
 
   return (
     <Screen topBar={<NavigationHeader title="Perjalanan Ibu" onBack={flow.back} />}>
-      <div className="rounded-12 border border-light bg-neutral-white p-16">
+      <div className="rounded-12 border border-default bg-neutral-white p-16">
         <div className="flex items-center gap-12">
           <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-yellow-50 text-yellow-600">
             <Medal size={24} />

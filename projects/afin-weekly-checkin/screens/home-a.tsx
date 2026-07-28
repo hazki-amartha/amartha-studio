@@ -30,7 +30,7 @@ export function HomeAScreen() {
 
   return (
     <HomeShell>
-      <div className="overflow-hidden rounded-12 border border-light bg-neutral-white">
+      <div className="overflow-hidden rounded-12 border border-default bg-neutral-white">
         <div className="p-16">
           <Destination />
         </div>

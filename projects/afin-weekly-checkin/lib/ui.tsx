@@ -21,7 +21,6 @@ import {
   Headset,
   House,
   LightningFill,
-  LockKey,
   LogoModal,
   Majelis,
   Medal,
@@ -31,7 +30,6 @@ import {
   User,
   Voucher,
   Wallet,
-  Withdraw,
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
@@ -52,7 +50,7 @@ import { store, useApp } from './store'
 // that says what to do — so the far reward frames the near one instead of
 // competing with it for the same kind of attention.
 
-export function Destination({ compact }: { compact?: boolean }) {
+export function Destination() {
   const s = useApp()
 
   return (
@@ -67,9 +65,7 @@ export function Destination({ compact }: { compact?: boolean }) {
             {goodWeeks(s)} dari {TOTAL_WEEKS} minggu lancar
           </p>
         </div>
-        {compact ? null : (
-          <span className="shrink-0 text-12 font-bold text-caption">{journeyPercent(s)}%</span>
-        )}
+        <span className="shrink-0 text-12 font-bold text-caption">{journeyPercent(s)}%</span>
       </div>
       <Meter percent={journeyPercent(s)} />
     </div>
@@ -142,41 +138,6 @@ function Dot({ on }: { on: boolean }) {
   )
 }
 
-// --- The reward at the end of a chapter ------------------------------------
-// Deliberately not called a prize. The mid-journey milestones open extra
-// capital — an option, not a gift — so they read "terbuka" and wear a key.
-// Only the week-48 limit increase gets the medal.
-
-export function RewardTile({
-  ready,
-  amount,
-  size = 'md',
-}: {
-  ready: boolean
-  amount: number
-  size?: 'sm' | 'md'
-}) {
-  const box = size === 'sm' ? 'h-32' : 'h-48'
-
-  return (
-    <span className="flex min-w-0 flex-col items-center gap-4">
-      <span
-        className={`flex w-full items-center justify-center gap-4 rounded-8 px-8 ${box} ${
-          ready
-            ? 'bg-primary-500 text-neutral-white'
-            : 'border border-primary-200 bg-primary-50 text-primary-500'
-        }`}
-      >
-        {ready ? <Withdraw size={16} /> : <LockKey size={16} />}
-        <span className="whitespace-nowrap text-12 font-bold">{short(amount)}</span>
-      </span>
-      <span className={`truncate text-10 ${ready ? 'font-bold text-primary-500' : 'text-caption'}`}>
-        {ready ? 'Terbuka' : 'Hadiah'}
-      </span>
-    </span>
-  )
-}
-
 // --- The two halves of a good week -----------------------------------------
 // The actions themselves, kept to one compact row. Paying and attending are
 // what the tiles are made of, so they belong inside the same card — but as two
@@ -187,13 +148,17 @@ export function TaskRow({
   label,
   done,
   cta,
+  hint,
   onClick,
 }: {
   icon: ReactNode
   label: string
   done: boolean
-  cta: string
-  onClick: () => void
+  /** The button, for the half the mitra actually performs in the app. */
+  cta?: string
+  /** Shown instead of a button for the half that records itself. */
+  hint?: string
+  onClick?: () => void
 }) {
   return (
     <div className="flex items-center gap-12">
@@ -209,7 +174,7 @@ export function TaskRow({
         <span className="flex shrink-0 items-center gap-4 text-12 font-bold text-green-500">
           <Check size={16} /> Selesai
         </span>
-      ) : (
+      ) : cta && onClick ? (
         <button
           type="button"
           onClick={onClick}
@@ -217,24 +182,27 @@ export function TaskRow({
         >
           {cta}
         </button>
+      ) : (
+        <span className="shrink-0 text-12 text-caption">{hint}</span>
       )}
     </div>
   )
 }
 
 /**
- * The pair of tasks, wired so the week stamps itself once both land — no claim
- * tap. When that stamp closes a chapter the caller is sent to the celebration,
- * which is the only place the destination is allowed to get loud.
+ * What a week is made of, stated outright — because the tile fills itself and
+ * nothing else on the card would ever say how.
+ *
+ * There is no Absen button: attendance is recorded for her at the majelis, so
+ * the only thing to tap here is the instalment. The week stamps once both
+ * halves are in, and if that stamp closes a chapter we go straight to the
+ * celebration — the one place the destination is allowed to get loud.
  */
 export function WeekTasks() {
   const flow = useFlow()
   const s = useApp()
 
-  const settle = (half: 'pay' | 'attend') => {
-    if (half === 'pay') store.pay()
-    else store.attend()
-
+  const stamp = () => {
     const next = store.get()
     if (next.paid && next.attended) {
       const closed = store.stampWeek()
@@ -242,21 +210,33 @@ export function WeekTasks() {
     }
   }
 
+  const pay = () => {
+    store.pay()
+    stamp()
+    // Attendance arrives from the majelis a moment later, on its own.
+    window.setTimeout(() => {
+      store.attend()
+      stamp()
+    }, 1400)
+  }
+
   return (
     <div className="flex flex-col gap-12">
+      <p className="text-12 text-caption">
+        Minggu ini terisi sendiri kalau Ibu melakukan 2 hal:
+      </p>
       <TaskRow
         icon={<Coin size={16} />}
         label={`Bayar angsuran ${rupiah(112_000)}`}
         done={s.paid}
         cta="Bayar"
-        onClick={() => settle('pay')}
+        onClick={pay}
       />
       <TaskRow
         icon={<Majelis size={16} />}
         label="Datang kumpulan Kamis"
         done={s.attended}
-        cta="Absen"
-        onClick={() => settle('attend')}
+        hint="Dicatat otomatis"
       />
     </div>
   )

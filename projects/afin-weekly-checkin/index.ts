@@ -54,7 +54,7 @@ export const project: ProjectModule = {
     },
     {
       id: 'home-c',
-      title: 'Home C — Jalur',
+      title: 'Home C — Papan + 12 hadiah',
       component: HomeCScreen,
       states: journeyStates,
     },
