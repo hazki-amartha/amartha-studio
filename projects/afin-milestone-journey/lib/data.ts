@@ -80,13 +80,15 @@ export const MEMBERS: Member[] = [
 // --- Milestone ladder ------------------------------------------------------
 
 export interface Milestone {
+  /** The milestone's date, e.g. "6 Oktober 2026". */
   label: string
+  /** How far off it still is, e.g. "10 minggu lagi". Omitted once reached. */
+  countdown?: string
   /** What the week unlocks, in the mitra's words. */
   actionLabel: string
   amount?: string
   tag?: string
-  weeksLeft?: string
-  /** Fill of the progress meter, 0–100. Only set alongside `weeksLeft`. */
+  /** Fill of the progress meter, 0–100. Only set on the `next` rung. */
   pct?: number
   state: 'unlocked' | 'next' | 'locked'
   /** Present on the one rung that can be acted on now. */
@@ -95,28 +97,30 @@ export interface Milestone {
 
 export const MILESTONES: Milestone[] = [
   {
-    label: 'Minggu 12',
+    label: '14 Juli 2026',
     actionLabel: 'Cairkan dana',
     amount: '+Rp1.250.000',
     state: 'unlocked',
     cta: 'Cairkan sekarang',
   },
   {
-    label: 'Minggu 24',
+    label: '6 Oktober 2026',
     tag: '🎯 Target berikutnya',
+    countdown: '10 minggu lagi',
     actionLabel: 'Cairkan dana',
     amount: '+Rp1.250.000',
-    weeksLeft: '10 minggu tersisa',
     pct: 17,
     state: 'next',
   },
   {
-    label: 'Minggu 40',
+    label: '26 Januari 2027',
+    countdown: '26 minggu lagi',
     actionLabel: 'Pelunasan dini dan kesempatan naik limit',
     state: 'locked',
   },
   {
-    label: 'Minggu 48 🏆',
+    label: '23 Maret 2027 🏆',
+    countdown: '34 minggu lagi',
     actionLabel: 'Limit baru',
     amount: 'Rp8jt',
     state: 'locked',
