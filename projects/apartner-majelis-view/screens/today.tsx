@@ -545,10 +545,10 @@ export function TodayScreen() {
           </span>
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="text-16 font-bold text-default">{rupiah(inBag)}</span>
-            <span className={`truncate text-12 ${canSetorNow ? 'text-caption' : 'text-orange-500'}`}>
+            <span className="truncate text-12 text-caption">
               {canSetorNow
                 ? `Belum disetor · sisa ${settlementsLeft(s)}x setoran hari ini`
-                : 'Kirim tugas untuk melanjutkan ke setoran'}
+                : 'Kirim tugas untuk lanjut setor'}
             </span>
           </div>
           <Button
