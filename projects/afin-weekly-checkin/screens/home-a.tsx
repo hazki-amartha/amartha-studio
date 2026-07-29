@@ -12,9 +12,11 @@
 //   · The tiles carry the action. "Bayar" sits on the current week's tile, not
 //     on a button in the list below, so those two rows become a plain statement
 //     of what fills a week rather than controls.
-//   · The last tile of the chapter IS the bonus. Week 20 shows the gift instead
-//     of a fourth identical checkbox, so the row ends in the reward rather than
-//     handing off to a separate bar underneath.
+//   · The last tile of the chapter IS the reward. Week 20 shows the increment
+//     instead of a fourth identical checkbox, so the row ends in what those
+//     weeks pay rather than handing off to a separate bar underneath. It pays
+//     into the next disbursement window — it is never cash on the day, which is
+//     why the tile says "Tambahan" and not "Bonus".
 
 import type { ReactNode } from 'react'
 import {
@@ -33,7 +35,6 @@ import {
 } from '../lib/data'
 import { store, useApp } from '../lib/store'
 import { HomeShell, MajelisCard, windowLine } from '../lib/ui'
-import { IconGift } from '../lib/icons'
 import {
   CheckCircleFill,
   ChevronRight,
@@ -41,6 +42,7 @@ import {
   LogoModal,
   Minus,
   Users,
+  Withdraw,
 } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 
@@ -50,7 +52,7 @@ export function HomeAScreen() {
   const ready = rewardReady(s)
 
   return (
-    <HomeShell ladder="weeks">
+    <HomeShell>
       <div className="overflow-hidden rounded-20 border border-default bg-neutral-white">
         {/* The destination band. One figure, one fraction, one bar — the same
             thin destination line as before, given the card's whole top. */}
@@ -171,8 +173,11 @@ function ChapterTile({ cell, last }: { cell: WeekCell; last: boolean }) {
       <div className="flex min-w-0 flex-1 flex-col pt-12">
         <span className="flex w-full flex-col items-center gap-8 rounded-12 bg-primary-600 px-4 py-12 text-neutral-white">
           <span className="w-full truncate text-center text-12">Minggu {cell.week}</span>
-          <IconGift size={24} />
-          <span className="w-full truncate text-center text-12 font-bold">Bonus</span>
+          {/* Not a gift box: the fourth week adds to what the next window
+              disburses, so the tile wears the withdrawal glyph and the word
+              "Tambahan" rather than "Bonus". */}
+          <Withdraw size={24} />
+          <span className="w-full truncate text-center text-12 font-bold">Tambahan</span>
         </span>
       </div>
     )

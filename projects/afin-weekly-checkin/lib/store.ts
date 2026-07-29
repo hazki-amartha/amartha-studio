@@ -27,6 +27,12 @@ export interface AppState {
   groupBroken: number[]
   /** Members still short this week. A count, never names. */
   groupShort: number
+  /**
+   * The standing she starts this tenor with (option B). 'juara' means she
+   * arrived in an earlier tenor, so this year's weeks maintain the status
+   * rather than earn it.
+   */
+  tier: 'mitra' | 'juara'
 }
 
 const initial: AppState = {
@@ -39,6 +45,7 @@ const initial: AppState = {
   withdrawnMilestones: 0,
   groupBroken: [],
   groupShort: 0,
+  tier: 'mitra',
 }
 
 let state: AppState = initial

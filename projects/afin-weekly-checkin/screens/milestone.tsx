@@ -46,13 +46,17 @@ export function MilestoneScreen() {
         </span>
         <p className="mt-16 text-16">Empat minggu lancar, Bu Siti 👏</p>
         <p className="mt-8 text-24 font-bold">+{short(MILESTONE_REWARD)}</p>
-        <p className="mt-8 text-12 text-neutral-200">masuk ke pencairan Ibu berikutnya</p>
+        <p className="mt-8 text-12 text-neutral-200">
+          menambah pencairan Ibu berikutnya — bukan uang tunai hari ini
+        </p>
       </div>
 
       {/* The pot, not a payout. */}
       <div className="rounded-12 border border-default bg-neutral-white p-16">
         <div className="flex items-baseline gap-8">
-          <span className="min-w-0 flex-1 text-12 text-caption">Siap dicairkan</span>
+          <span className="min-w-0 flex-1 text-12 text-caption">
+            Terkumpul untuk pencairan berikutnya
+          </span>
           <span className="shrink-0 text-20 font-bold text-default">{short(pot(s))}</span>
         </div>
         <p className="mt-8 text-12 text-caption">{windowLine(s)}</p>
@@ -79,7 +83,7 @@ export function MilestoneScreen() {
         </div>
         <p className="mt-12 text-12 text-caption">
           {left > 0
-            ? `${left} hadiah lagi sampai limit Ibu naik.`
+            ? `${left} tambahan lagi sampai limit Ibu naik.`
             : 'Limit Ibu sudah naik. Selamat!'}
         </p>
       </div>

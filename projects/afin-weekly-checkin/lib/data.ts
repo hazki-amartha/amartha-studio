@@ -18,13 +18,52 @@ export const FINAL_LIMIT = 7_000_000
 export const CURRENT_LIMIT = 5_000_000
 export const LIMIT_INCREASE = FINAL_LIMIT - CURRENT_LIMIT
 
+// --- The tier (option B) ---------------------------------------------------
+// B replaces the rupiah headline with a named status. The reason is not
+// decoration: a figure has to be hedged (`s/d Rp8jt`, dropping to Rp7jt when
+// the majelis falls out) because it is the sum of two requirements that land at
+// different times. A name is not the sum of anything, so the same journey can
+// be stated once and never corrected — the amounts move down into the tier's
+// benefits, where a range is normal and nobody is being promised a number.
+
+export const TIER_DEFAULT = 'Mitra'
+export const TIER_GOAL = 'Mitra Juara'
+
+/**
+ * What arriving is worth. Deliberately three lines with no figures on home —
+ * the exact limit is a detail-page concern (see LIMIT_INCREASE / GROUP_BONUS).
+ *
+ * The majelis is NOT a gate on the tier: she earns Juara with her own 48 weeks,
+ * and the group makes one benefit bigger. A mitra with a perfect record is
+ * never told she failed because of her neighbours — the group note rides along
+ * on the limit line instead.
+ */
+export const TIER_BENEFITS = [
+  {
+    title: 'Limit lebih tinggi',
+    note: 'Lebih tinggi lagi kalau kelompok Ibu juga tercapai',
+  },
+  { title: 'Pencairan lebih fleksibel' },
+  { title: 'Pilihan tenor lebih banyak' },
+] as const
+
 // --- The two currencies ----------------------------------------------------
 // Keeping these apart is what makes the whole thing explainable: the POT is
-// what Ibu can take out during this tenor, the LIMIT is how big her next loan
-// can be. Milestones fill the pot. Week 48 and the majelis fill the limit.
+// what Ibu can take out at the next disbursement window, the LIMIT is how big
+// her next loan can be. Four good weeks add to the pot. Week 48 and the majelis
+// move the limit.
+//
+// The four-week reward is NOT cash and never lands in her hand on the day: it
+// is an increment on what the next window will disburse. Three good chapters
+// inside a window means Rp1,5jt at that window; miss one and the window pays
+// Rp1jt. That is why nothing in this prototype says "hadiah cair sekarang".
 
-/** Weeks between withdrawal windows. Nobody withdraws monthly in practice. */
+/** Weeks between withdrawal windows — every three months. */
 export const WINDOW_EVERY = 12
+/** Good chapters that fit inside one window: 3, so a full window pays Rp1,5jt. */
+export const CHAPTERS_PER_WINDOW = WINDOW_EVERY / CHAPTER_LENGTH
+/** The most one window can disburse when no week is missed. */
+export const WINDOW_CEILING = CHAPTERS_PER_WINDOW * MILESTONE_REWARD
 
 // --- The majelis lever -----------------------------------------------------
 // 90% of the tenor must be weeks where the WHOLE group was complete: 43 of 48,
@@ -74,6 +113,16 @@ export function goodWeeks(s: AppState): number {
 /** How far along the 48 weeks she is, 0–100. Drives the destination bar. */
 export function journeyPercent(s: AppState): number {
   return Math.round((goodWeeks(s) / TOTAL_WEEKS) * 100)
+}
+
+/**
+ * Is she already Mitra Juara? Two ways in: she finished the 48 weeks in this
+ * tenor, or she arrived in an earlier one and carried the status over — which
+ * is the whole point of a tier over a one-off limit increase. A limit rise
+ * happens once; a standing is something the next 48 weeks maintain.
+ */
+export function isJuara(s: AppState): boolean {
+  return s.tier === 'juara' || goodWeeks(s) >= TOTAL_WEEKS
 }
 
 /** Milestones already reached. */

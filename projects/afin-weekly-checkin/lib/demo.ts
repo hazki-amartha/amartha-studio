@@ -19,6 +19,7 @@ const base: AppState = {
   withdrawnMilestones: 0,
   groupBroken: [],
   groupShort: 0,
+  tier: 'mitra',
 }
 
 function seed(patch: Partial<AppState>) {
@@ -51,6 +52,18 @@ export const nearFinal = seed({
   chapterStart: 45,
   done: range(1, 46),
   withdrawnMilestones: 9,
+})
+
+/**
+ * A second tenor, six weeks in, opened as Mitra Juara (option B only). The
+ * state the tier concept has to survive: nothing left to earn, so the same
+ * board has to read as keeping something rather than chasing it.
+ */
+export const juaraMaintained = seed({
+  week: 6,
+  chapterStart: 5,
+  done: range(1, 5),
+  tier: 'juara',
 })
 
 // --- Her majelis -----------------------------------------------------------
