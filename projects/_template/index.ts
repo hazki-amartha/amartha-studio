@@ -1,11 +1,15 @@
 // Project module — exports config + the screens array. Register the project
-// with ONE appended line in projects/registry.ts (above the marker):
-//   'my-project': () => import('./my-project').then((m) => m.project),
+// with ONE appended line in EACH of the two maps (above their markers):
+//   projects/registry.ts  'my-project': () => import('./my-project').then((m) => m.project),
+//   projects/configs.ts   'my-project': () => import('./my-project/project.config').then((m) => m.config),
+//
+// Screens are declared with lazyScreen(), never imported at the top of this
+// file: the index is the project's metadata, and listing a screen should not
+// load it. See platform/lazyScreen.tsx.
 
 import type { ProjectModule } from '@/platform/types'
+import { lazyScreen } from '@/platform/lazyScreen'
 import { config } from './project.config'
-import { ExampleScreen } from './screens/example'
-import { DetailScreen } from './screens/detail'
 
 export const project: ProjectModule = {
   config,
@@ -20,13 +24,13 @@ export const project: ProjectModule = {
     {
       id: 'example', // kebab-case, unique in this project, stable
       title: 'Example',
-      component: ExampleScreen,
+      component: lazyScreen(() => import('./screens/example'), 'ExampleScreen'),
       entry: true, // exactly ONE screen per project sets entry: true
     },
     {
       id: 'detail',
       title: 'Detail',
-      component: DetailScreen,
+      component: lazyScreen(() => import('./screens/detail'), 'DetailScreen'),
     },
   ],
 }

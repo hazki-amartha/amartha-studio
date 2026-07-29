@@ -5,7 +5,12 @@
 // all active workstreams. Extend privately or request a contract change.
 // =============================================================================
 
-import type { ComponentType } from 'react'
+import type { ComponentType, LazyExoticComponent } from 'react'
+
+/** What a screen's `component` may be: a component, or a deferred one built by
+ *  `lazyScreen()` (platform/lazyScreen). Projects should use lazyScreen — the
+ *  plain form stays legal so a one-off screen defined inline still type-checks. */
+export type ScreenComponent = ComponentType | LazyExoticComponent<ComponentType>
 
 /** Device presentation for the prototype view. v1 ships 'mobile' only;
  *  the enum exists so desktop prototypes don't need a contract change. */
@@ -82,8 +87,10 @@ export interface ScreenDef {
   id: string
   title: string
   /** The screen component. Rendered inside the platform's Screen chrome.
-   *  Receives no props; obtains navigation via useFlow(). */
-  component: ComponentType
+   *  Receives no props; obtains navigation via useFlow().
+   *  Declare it with lazyScreen(() => import('./screens/x'), 'XScreen') so
+   *  listing a screen doesn't load it. */
+  component: ScreenComponent
   /** Exactly one screen per project sets entry: true. */
   entry?: boolean
   /** Annotations shown beside the device in desktop prototype view
@@ -103,8 +110,15 @@ export interface ProjectModule {
   screens: ScreenDef[]
 }
 
-/** projects/registry.ts exports this. Append-only. */
+/** projects/registry.ts exports this — the full project module, screens and
+ *  all. Append-only, and imported from CLIENT code only: a Server Component
+ *  that imports it is charged for every screen in the studio. */
 export type Registry = Record<string /* slug */, () => Promise<ProjectModule>>
+
+/** projects/configs.ts exports this — the same slugs, metadata only, safe to
+ *  import from a Server Component. Append-only, and kept in step with
+ *  `Registry` by `npm run check:flows`. */
+export type ConfigRegistry = Record<string /* slug */, () => Promise<ProjectConfig>>
 
 /** Runtime navigation API — implemented in platform/runtime (WS-A),
  *  consumed by every project screen via useFlow(). */

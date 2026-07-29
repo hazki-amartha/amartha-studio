@@ -27,6 +27,11 @@ next-env.d.ts
 /scripts/.check-flows-bundle.mjs
 /scripts/.check-flows-bundle.css
 
+# Figma-exported component specs — /ingest reads them from here, but they are
+# working input, not source. Tracking them put 14MB of PDFs in every clone.
+# Keep them locally; they don't travel with the repo.
+/design-system/raw/
+
 # agent worktrees
 /.claude/worktrees/
 .vercel

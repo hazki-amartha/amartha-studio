@@ -1,5 +1,5 @@
 // WS-D · Gallery homepage — the front door.
-// Reads projects/registry.ts, renders one card per project, most-recent-first.
+// Reads projects/configs.ts, renders one card per project, most-recent-first.
 // Composed strictly from design-system components + tokens (no arbitrary values).
 
 import Link from 'next/link'
@@ -11,7 +11,7 @@ import { Badge, type BadgeIntent } from '@/design-system/components/Badge'
 import { Card } from '@/design-system/components/Card'
 import { PageHeader } from '@/platform/chrome'
 import type { Platform, ProjectConfig, ProjectStatus } from '@/platform/types'
-import { registry } from '@/projects/registry'
+import { configs as projectConfigs } from '@/projects/configs'
 
 // draft = orange, in-review = blue, final = green (Badge subtle = 500-on-50 rule).
 // live = primary: it is not another shade of "done", it is the shipped product,
@@ -53,8 +53,10 @@ function lastModified(config: ProjectConfig): string {
 }
 
 async function loadEntries(): Promise<GalleryEntry[]> {
-  const modules = await Promise.all(Object.values(registry).map((load) => load()))
-  const entries: GalleryEntry[] = modules.map((mod) => ({ config: mod.config }))
+  // config() only — the gallery draws cards, so pulling each project's screens
+  // in here would put the whole studio's screen code on the front door.
+  const configs = await Promise.all(Object.values(projectConfigs).map((load) => load()))
+  const entries: GalleryEntry[] = configs.map((config) => ({ config }))
   // Most-recently-modified first.
   return entries.sort((a, b) => lastModified(b.config).localeCompare(lastModified(a.config)))
 }

@@ -188,13 +188,37 @@ function HeaderStatusView() {
   )
 }
 
-export function AppShell({
-  projects,
-  children,
-}: {
-  projects: ProjectIndexEntry[]
-  children: ReactNode
-}) {
+/**
+ * The sidebar's project list, loaded here rather than handed down from the
+ * root layout.
+ *
+ * The layout runs on every route, so importing the registry there put every
+ * project — and, through the screen imports, every screen — into the module
+ * graph and client chunk list of every page in the studio. Loading it from the
+ * shell instead keeps the whole project graph in one on-demand chunk. The list
+ * fills in just after hydration; the sidebar starts empty for that beat.
+ */
+function useProjectIndex(): ProjectIndexEntry[] {
+  const [projects, setProjects] = useState<ProjectIndexEntry[]>([])
+
+  useEffect(() => {
+    let alive = true
+    import('./loadProjectIndex')
+      .then((m) => m.loadProjectIndex())
+      .then((list) => {
+        if (alive) setProjects(list)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  return projects
+}
+
+export function AppShell({ children }: { children: ReactNode }) {
+  const projects = useProjectIndex()
+
   return (
     <HeaderStatusProvider>
       <AppShellInner projects={projects}>{children}</AppShellInner>
