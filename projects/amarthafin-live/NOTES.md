@@ -1,1 +1,5 @@
-- `ProgressBar` (`lib/ui.tsx`) — no shared progress bar in `@/design-system/components`; project-local filled-track tile, used on the Modal limit-usage card in `screens/home.tsx`.
+- `ProgressBar` (`lib/ui.tsx`) — no shared progress bar in `@/design-system/components`; project-local filled-track tile, used on the Modal limit card in `screens/home.tsx`.
+- `PoketWidget` (`lib/ui.tsx`) — the Poket wallet card (balance, Isi Saldo / Transfer); the strongest promotion candidate in this project.
+- `MenuTile` / `PromoTile` (`lib/ui.tsx`) — borderless PPOB tile and timed-offer tile for use inside a product widget; AmarthaLink widget in `screens/home.tsx`.
+- `Countdown` / `PageStrip` (`lib/ui.tsx`) — cashback timer chips and the promo carousel's page indicator; both in `screens/home.tsx`.
+- `ProductLockup` (`lib/ui.tsx`) — a product's mark-plus-name for the recommendation cards. **Missing artwork:** `@/design-system/assets` has no `ggs` or `amartha-link` wordmark (only `celengan empower modal poket proteksi`), so those two are drawn as mark + text until the real lockups are added.
