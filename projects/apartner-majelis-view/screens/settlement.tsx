@@ -32,8 +32,15 @@
 // went out, and by which road — because a BP mid-settlement is exactly the
 // person who wants to check what she already put down.
 
-import { useState } from 'react'
-import { Badge, Button, Card, InputNominal, NavigationHeader } from '@/design-system/components'
+import { useEffect, useState } from 'react'
+import {
+  Badge,
+  BottomSheet,
+  Button,
+  Card,
+  InputNominal,
+  NavigationHeader,
+} from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
@@ -50,7 +57,6 @@ import {
 import {
   IconTile,
   OptionCard,
-  ProofTile,
   SectionTitle,
   SettlementHistorySheet,
   StickyBar,
@@ -85,13 +91,17 @@ export function SettlementScreen() {
   // Typing is opt-in. The default gesture is agreeing with the app.
   const [editing, setEditing] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  // Proof is captured AFTER she confirms she has transferred — the sheet that
+  // opens on "Saya Sudah Setor" — not as an inline step that gates the button.
+  const [proofOpen, setProofOpen] = useState(false)
 
-  // Three gates now, in the order the page asks them: an amount, a road for it
-  // to travel, and the photo that proves it went. The difference used to demand
-  // a reason from a fixed list — but she is standing at a counter having already
-  // transferred, and the five options were guesses the app offered on her
-  // behalf. The GAP is still recorded; what it was for is a conversation.
-  const ready = amount > 0 && Boolean(s.depositMethod) && s.depositProof && !lastBlocked
+  // Two gates to REACH the confirm: an amount and a road for it to travel. The
+  // photo that proves it went is asked afterwards, in the sheet the button
+  // opens, because she uploads it having already transferred — so it is the
+  // last thing she does, not a step that blocks her from starting. The
+  // difference used to demand a reason from a fixed list; the GAP is still
+  // recorded, but what it was for is a conversation.
+  const ready = amount > 0 && Boolean(s.depositMethod) && !lastBlocked
 
   const hint = lastBlocked
     ? 'Selesaikan semua tugas hari ini dulu sebelum setoran terakhir'
@@ -99,11 +109,7 @@ export function SettlementScreen() {
       ? 'Belum ada jumlah yang disetor'
       : !s.depositMethod
         ? 'Pilih metode setoran dulu'
-        : !s.depositProof
-          ? s.depositMethod === 'agent'
-            ? 'Foto struk agen belum diambil'
-            : 'Foto bukti transfer belum diambil'
-          : null
+        : null
 
   // --- Nothing left to hand over. Either she has settled everything already,
   // or the day has not banked any cash yet. Both are honest empty states, and
@@ -349,24 +355,6 @@ export function SettlementScreen() {
         </OptionCard>
       </div>
 
-      {/* --- Proof, the same gesture as every visit today. It only appears once
-          she has picked a road — it is proof that the cash went by THAT road, so
-          before there is one there is nothing to photograph. */}
-      {s.depositMethod ? (
-        <>
-          <SectionTitle>{s.depositMethod === 'agent' ? 'Bukti Setor' : 'Bukti Transfer'}</SectionTitle>
-          <div className="flex gap-8">
-            <ProofTile
-              done={s.depositProof}
-              label={s.depositMethod === 'agent' ? 'Foto Struk Agen' : 'Foto Bukti Transfer'}
-              doneLabel="Bukti tersimpan"
-              icon={<IconCamera size={24} />}
-              onClick={() => store.setDepositProof(!s.depositProof)}
-            />
-          </div>
-        </>
-      ) : null}
-
       <StickyBar>
         {/* The difference, and — when she is settling less than she holds —
             what it LEAVES. A short handover is not a discrepancy to explain
@@ -387,23 +375,196 @@ export function SettlementScreen() {
         {hint ? (
           <span className="text-center text-12 font-bold text-orange-500">{hint}</span>
         ) : null}
-        {/* Straight back to the schedule, whether or not it cleared the bag.
-            The day is where a settlement ends; if there is still cash, the
-            widget is waiting there saying so. */}
+        {/* Confirming she has transferred opens the proof sheet — she uploads
+            the bukti there, then it settles the bag and drops her back on the
+            schedule. The day is where a settlement ends; if there is still
+            cash, the widget is waiting there saying so. */}
         <Button
           size="lg"
           className="w-full"
           disabled={!ready}
-          onClick={() => {
-            store.settle(isLast)
-            flow.go('today')
-          }}
+          onClick={() => setProofOpen(true)}
         >
           Saya Sudah Setor {rupiah(amount)}
         </Button>
       </StickyBar>
 
+      {/* Proof, the same camera gesture as every visit today — but for the VA
+          road it asks TWICE, one bukti per transfer, because the money left in
+          two transfers to two different numbers and the branch reconciles each
+          separately. Only after every slot is filled does the bag settle. */}
+      <ProofSheet
+        open={proofOpen}
+        onClose={() => setProofOpen(false)}
+        method={s.depositMethod}
+        transfers={[
+          { label: 'Transfer 1 dari 2', va: va1, amount: vaAmount1 },
+          { label: 'Transfer 2 dari 2', va: va2, amount: vaAmount2 },
+        ]}
+        agent={{ name: AGENT.name, code, amount }}
+        onConfirm={() => {
+          setProofOpen(false)
+          store.settle(isLast)
+          flow.go('today')
+        }}
+      />
+
       <SettlementHistorySheet open={historyOpen} onClose={() => setHistoryOpen(false)} />
     </Screen>
+  )
+}
+
+// --- ProofSheet ------------------------------------------------------------
+// The bukti, moved off the page and behind the confirm. She taps "Saya Sudah
+// Setor" once the money has actually left her banking app, and THEN uploads the
+// receipt — so proof is the last gesture, not a step blocking her from starting.
+//
+// The VA road asks for TWO photos, one per transfer, because the amount left in
+// two transfers to two different VA numbers and the branch reconciles each on
+// its own — a single screenshot cannot prove both. The agent road is one
+// counter, one struk, so it asks once. The confirm stays disabled until every
+// slot the chosen road needs is filled.
+
+interface Transfer {
+  label: string
+  va: string
+  amount: number
+}
+
+function ProofSheet({
+  open,
+  onClose,
+  method,
+  transfers,
+  agent,
+  onConfirm,
+}: {
+  open: boolean
+  onClose: () => void
+  method: 'va' | 'agent' | null
+  /** The two VA transfers, each proved by its own photo. */
+  transfers: Transfer[]
+  /** The single agent handover, proved by the struk. */
+  agent: { name: string; code: string; amount: number }
+  onConfirm: () => void
+}) {
+  // One boolean per slot. Two are ever used (the VA road); the agent road only
+  // reads the first. Local to the sheet: it is captured moments before the bag
+  // settles and the screen navigates away, so it never needs to survive a trip.
+  const [proofs, setProofs] = useState<[boolean, boolean]>([false, false])
+
+  // Fresh every time it opens — a sheet dismissed and reopened for the same
+  // settlement starts its capture over, and a new settlement never inherits the
+  // last one's ticks.
+  useEffect(() => {
+    if (open) setProofs([false, false])
+  }, [open])
+
+  const toggle = (i: 0 | 1) =>
+    setProofs((p) => (i === 0 ? [!p[0], p[1]] : [p[0], !p[1]]))
+
+  const isAgent = method === 'agent'
+  const total = isAgent ? 1 : 2
+  const done = proofs.slice(0, total).filter(Boolean).length
+  const ready = done === total
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={isAgent ? 'Bukti Setor' : 'Bukti Transfer'}
+      description={
+        isAgent
+          ? `Foto struk dari Agen ${agent.name} sebagai bukti setor tunai.`
+          : 'Foto bukti transfer untuk masing-masing nomor Virtual Account.'
+      }
+      size="md"
+      secondaryAction={
+        <Button variant="outline" size="lg" className="w-full" onClick={onClose}>
+          Batal
+        </Button>
+      }
+      primaryAction={
+        <Button size="lg" className="w-full" disabled={!ready} onClick={onConfirm}>
+          Konfirmasi Setoran
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-8">
+        {isAgent ? (
+          <CaptureRow
+            label={`Kode Unik · Agen ${agent.name}`}
+            code={agent.code}
+            amount={agent.amount}
+            done={proofs[0]}
+            onClick={() => toggle(0)}
+          />
+        ) : (
+          transfers.map((t, i) => (
+            <CaptureRow
+              key={t.label}
+              label={t.label}
+              code={t.va}
+              amount={t.amount}
+              done={proofs[i as 0 | 1]}
+              onClick={() => toggle(i as 0 | 1)}
+            />
+          ))
+        )}
+
+        {/* Progress, not an alarm. Two transfers need two receipts, so the
+            count says how far along she is; a single-slot agent handover has
+            nothing to pace, so it shows none. */}
+        {!isAgent ? (
+          <span className="pt-4 text-center text-12 text-caption">
+            {done} dari {total} bukti terunggah
+          </span>
+        ) : null}
+      </div>
+    </BottomSheet>
+  )
+}
+
+// One capture as a single tappable row: the destination it proves on the left —
+// which transfer, its VA number and its share of the amount — and the camera on
+// the right, which turns into a green tick once the receipt is attached. The
+// whole row is the target, so the tap area is the card, not just the icon.
+function CaptureRow({
+  label,
+  code,
+  amount,
+  done,
+  onClick,
+}: {
+  label: string
+  code: string
+  amount: number
+  done: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={done ? `Ganti foto untuk ${label}` : `Ambil foto untuk ${label}`}
+      className={`flex w-full items-center gap-12 rounded-12 border p-12 text-left ${
+        done ? 'border-green-500 bg-green-50' : 'border-default bg-neutral-white'
+      }`}
+    >
+      <span className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="text-10 font-bold uppercase text-caption">{label}</span>
+        <span className="truncate text-14 font-bold text-default">{code}</span>
+        <span className="text-12 text-caption">
+          {done ? 'Bukti tersimpan' : rupiah(amount)}
+        </span>
+      </span>
+      <span
+        className={`flex h-48 w-48 shrink-0 items-center justify-center rounded-12 ${
+          done ? 'bg-green-500 text-neutral-white' : 'bg-primary-50 text-primary-500'
+        }`}
+      >
+        {done ? <IconCheck size={24} /> : <IconCamera size={24} />}
+      </span>
+    </button>
   )
 }
