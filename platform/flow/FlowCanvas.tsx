@@ -291,7 +291,12 @@ export function FlowCanvas({ slug }: { slug: string }) {
 
   const moved = Object.keys(offsets).length > 0
 
-  // --- zoom (wheel + trackpad pinch), centred on the cursor ----------------
+  // --- wheel: scroll pans, pinch/modifier zooms (Figma's split) -------------
+  // A plain two-finger trackpad scroll arrives as a wheel with deltaX/deltaY
+  // and no modifier — that pans, exactly like dragging. A pinch arrives as a
+  // wheel with ctrlKey set (the browser synthesises it), and ⌘/ctrl + scroll is
+  // the mouse-wheel equivalent — both zoom about the cursor.
+  //
   // cx/cy are cursor coordinates relative to the canvas box, so the nav rail
   // and sidebar to our left are already excluded. Pan and zoom move together in
   // one pure updater: nesting a setPan inside a setZoom updater made the
@@ -301,10 +306,16 @@ export function FlowCanvas({ slug }: { slug: string }) {
     e.preventDefault()
     const el = containerRef.current
     if (!el) return
+
+    if (!e.ctrlKey && !e.metaKey) {
+      setView((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }))
+      return
+    }
+
     const rect = el.getBoundingClientRect()
     const cx = e.clientX - rect.left
     const cy = e.clientY - rect.top
-    // Trackpad pinch arrives as wheel + ctrlKey; scale factor differs.
+    // Pinch (ctrlKey) reports much smaller deltas than a mouse wheel notch.
     const factor = e.ctrlKey ? 1 - e.deltaY * 0.01 : 1 - e.deltaY * 0.0015
 
     setView((v) => {

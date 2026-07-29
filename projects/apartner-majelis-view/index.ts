@@ -21,7 +21,7 @@ export const project: ProjectModule = {
         'The propensity label is the only badge on the card, and it goes on home visits only — a majelis is 22 women with 22 answers, so one flag on a group describes nobody in it. It stays a small label rather than a headline, because a BP who reads a prediction as a promise and finds an empty house twice stops believing the next one.',
         'Setoran sits at the top: the cash she is carrying right now, phrased as a decision rather than as progress against a target. The risk being managed is money on a motorbike. It names the amount, says how many handovers she has used, and offers one button.',
 'From the widget she picks WHEN to settle; the Setoran screen is where she picks how much and by which road. She can put the whole bag down or part of it — a short handover leaves the remainder recorded as still in the bag, and the widget comes straight back with it.',
-        'There is no cap on how many times she can settle — every handover reduces the cash she is carrying, which is the point of the feature. What the count decides is the FEE: the first three are free, and the settlement page says so. A cost is a reason to think; a lock is a reason to keep carrying cash she wanted to be rid of.',
+        'She can settle up to THREE times a day, and the counter shuts at 17.00. The widget names how many drops she has left so she paces them; once all three are used it goes quiet, and any cash still in the bag rides to closing. The last of the three also waits on every task being finished before it can be sent.',
         'Belum terkirim sits directly above the task list, because that is what it is about: those rows, and the fact that finishing them was not the last step. A BP closes a visit standing in a balai with no signal; without this she finds out on Friday that Tuesday never landed. It disappears the moment nothing is pending.',
         'Closing — Tutup Hari Ini — is a task ROW at the foot of the list, tapped like any other task. The "every visit done, bag empty" gate lives inside the closing screen, not on the row, so it stays tappable throughout: an early tap just shows her what is still left to do. Once the day is closed the same row moves to Selesai reading Terkirim — a day has one end, and this is it.',
         'One filter, Tipe tugas, and one inbox in the header. Filtering replaces the agenda with a flat list, because the two headings are a shape built around whether work is left, and a BP filtering by type has stopped asking that.',
@@ -47,8 +47,8 @@ export const project: ProjectModule = {
         },
         {
           id: 'capped',
-          label: 'Free handovers used up',
-          description: 'Three settlements made — the next one carries an admin fee',
+          label: 'All three handovers used',
+          description: 'Three settlements made — the widget goes quiet, cash rides to closing',
           apply: demo.scheduleCapped,
         },
         {
@@ -336,11 +336,12 @@ export const project: ProjectModule = {
     },
     {
       id: 'proof',
-      title: 'Bukti Pelayanan',
+      title: 'Summary & Bukti',
       component: lazyScreen(() => import('./screens/proof'), 'ProofScreen'),
       notes: [
-        'A photo and a recorded location, both required before the visit can be submitted. A photo alone proves she photographed something; a location alone proves she was in the right place but not that a majelis happened. Only the pair makes a visit verifiable afterwards.',
-        'They sit as two equal tiles rather than a big photo drop-zone with location as a footnote, and outside the three-stage bar — attendance, collection and growth are the work, this is the paperwork that closes it.',
+        'The visit’s last step carries two things: a recap of what the room paid — the cash she is walking away with from this majelis, over a lunas / sebagian / belum bayar breakdown — and the photo that closes the visit. The recap is where the three working stages land as one figure she can settle against.',
+        'The cash figure counts only the mitra SHE recorded an outcome for, not the ones who had already settled through the app before she arrived — that money was never in her bag.',
+        'One CTA: Selesaikan Tugas. It finishes the visit and hands straight to the WhatsApp preview, where the group’s receipt is sent. That send used to be an optional second button opening a sheet; the group’s recap is the natural close of a majelis, so it is the next step now rather than a control competing with “finish”.',
       ],
       states: [
         {
@@ -362,7 +363,17 @@ export const project: ProjectModule = {
           apply: demo.visitProofGaps,
         },
       ],
-      flowsTo: [{ to: 'today', label: 'Kirim Laporan — butuh foto + lokasi' }],
+      flowsTo: [{ to: 'proof-wa', label: 'Selesaikan Tugas — ke pratinjau WhatsApp' }],
+    },
+    {
+      id: 'proof-wa',
+      title: 'Kirim Rekap ke Grup',
+      component: lazyScreen(() => import('./screens/proof-wa'), 'ProofWaScreen'),
+      notes: [
+        'The send, made its own step. A majelis settles together, so the room’s receipt goes to the group’s WhatsApp — the message the app already wrote, mitra by mitra, with the total received — and the BP has one trigger: Kirim ke Grup WhatsApp.',
+        'Reached after the visit is already finished, so this is a courtesy she performs, not a gate the task waits on. “Nanti saja” leaves without sending; the schedule is where the visit ends either way.',
+      ],
+      flowsTo: [{ to: 'today', label: 'Kirim / Nanti saja — kembali ke jadwal' }],
     },
     {
       id: 'home-brief',
@@ -490,6 +501,9 @@ export const project: ProjectModule = {
       notes: [
         'Where the cash leaves her hands — separate from Closing, which is the checklist that ends the DAY. This screen is about the BAG: the money she is carrying right now and the transfer that gets it to the branch.',
         'One stepped page, in the order the act happens: what is in the bag and which pelayanan it came from, then how much of it to put down now, then which ROAD — a VA she transfers to, or an AmarthaLink agent she hands the notes to — then the photo that proves it went.',
+        'A day carries at most THREE handovers, and the counter shuts at 17.00. The cap is the balance between two risks — cash on a motorbike wants to be put down often, but every settlement is a reconciliation the branch has to clear — and the banner names how many she has left so she paces them.',
+        'The LAST of the three cannot be sent until every task on the day is finished. A final handover that skipped a still-open visit would settle a bag that has not finished filling, so it waits — the confirm stays disabled with the reason under it — until the day’s work is done.',
+        'The agent road needs one thing the VA road does not: a counter to walk to. So under the kode unik sits “Cari agen terdekat”, onto a short list of the AmarthaLink desks near today’s route, each with its distance and closing time.',
         'The receipt number lives INSIDE the road she picks: a VA number for a transfer, a kode unik for the agent. A code with no chosen destination is a number she cannot use yet, so nothing shows until she picks — and the proof step only appears once there is a method for it to be proof OF.',
         'Cash settles by the RUPIAH, not by the task. What is outstanding is everything banked minus everything handed over, so a short handover leaves a remainder and the widget comes straight back with it — the breakdown attributes it to the pelayanan it came from, with the covered part drained off.',
         'Each settlement gets its own VA or kode unik, because that identifier is what the branch reconciles against, and several handovers keyed to one number are deposits nobody can tell apart at the other end.',
@@ -500,7 +514,7 @@ export const project: ProjectModule = {
         {
           id: 'first',
           label: 'First handover of the day',
-          description: 'Two majelis in the bag by midday, and this one is free',
+          description: 'Two majelis in the bag by midday — one of the day’s three drops',
           apply: demo.bagFirstHandover,
         },
         {
@@ -510,9 +524,9 @@ export const project: ProjectModule = {
           apply: demo.bagShort,
         },
         {
-          id: 'fee',
-          label: 'Free handovers used up',
-          description: 'Three already made and cash still coming in — the next one costs',
+          id: 'capped',
+          label: 'All three handovers used',
+          description: 'Three settlements already made and cash still in the bag — no fourth drop',
           apply: demo.scheduleCapped,
         },
         {
@@ -522,7 +536,16 @@ export const project: ProjectModule = {
           apply: demo.scheduleCloseable,
         },
       ],
-      flowsTo: [{ to: 'today', label: 'Selesai — kembali ke jadwal' }],
+      flowsTo: [
+        { to: 'agent-locator', label: 'Cari agen terdekat — dari metode agen' },
+        { to: 'today', label: 'Selesai — kembali ke jadwal' },
+      ],
+    },
+    {
+      id: 'agent-locator',
+      title: 'Agen Terdekat',
+      component: lazyScreen(() => import('./screens/agent-locator'), 'AgentLocatorScreen'),
+      flowsTo: [{ to: 'settlement', label: 'kembali' }],
     },
     {
       id: 'deposit',

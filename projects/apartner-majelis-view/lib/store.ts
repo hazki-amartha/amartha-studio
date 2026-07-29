@@ -1101,8 +1101,9 @@ export const store = {
   /**
    * Hands over everything outstanding. There is no amount argument on purpose:
    * a settlement takes the whole bag, and the only thing the BP chooses is
-   * WHEN. `closing` says which door she came through, because the third one is
-   * the closing task and the first two are hers to time.
+   * WHEN. `closing` marks the LAST of the day's three handovers — the one the
+   * settlement screen gates on every task being finished, and the one that
+   * timestamps latest.
    */
   settle(closing: boolean) {
     const entries = unsettledEntries(state)
@@ -1115,7 +1116,7 @@ export const store = {
     // handed over the full amount, with the reason attached to nothing. The
     // gap is the record ops chases; losing it is losing the only trace of it.
     const amount = state.depositAmount ?? expected
-    const at = closing ? '17.45' : ['11.40', '15.10'][state.settlements.length] ?? '16.20'
+    const at = closing ? '16.45' : ['11.40', '15.10'][state.settlements.length] ?? '16.20'
     store.set({
       settlements: [
         ...state.settlements,
@@ -1273,6 +1274,19 @@ export const growthDoneCount = (s: AppState): number =>
 export const depositEntries = (s: AppState): DepositEntry[] =>
   TASKS.map((t) => s.deposits[t.id]).filter((e): e is DepositEntry => Boolean(e))
 
+/**
+ * The banked lines the branch can actually see — the ones whose reports have
+ * SYNCED. A finished visit that is still on the handset is money the app cannot
+ * let her settle yet: the branch reconciles the handover against the report, so
+ * cash with no report behind it has nothing to reconcile against. Sending the
+ * task (the "Belum terkirim" widget) is what moves its cash into the settleable
+ * total — which is why the amount she can settle only grows after she syncs.
+ */
+export const settleableEntries = (s: AppState): DepositEntry[] =>
+  TASKS.filter((t) => s.sentTasks.includes(t.id))
+    .map((t) => s.deposits[t.id])
+    .filter((e): e is DepositEntry => Boolean(e))
+
 /** Physical money she is carrying — the figure the deposit is about. */
 export const depositExpected = (s: AppState): number =>
   depositEntries(s).reduce((sum, e) => sum + e.cash, 0)
@@ -1283,9 +1297,10 @@ export const depositExpected = (s: AppState): number =>
 export const settledTotal = (s: AppState): number =>
   s.settlements.reduce((sum, x) => sum + x.amount, 0)
 
-/** Every rupiah of cash the day's finished tasks have banked. */
+/** Every rupiah of cash the day's SYNCED tasks have banked — what she can hand
+ *  over now. Finished-but-unsent cash is not counted until its report goes. */
 const bankedTotal = (s: AppState): number =>
-  depositEntries(s).reduce((sum, e) => sum + e.cash, 0)
+  settleableEntries(s).reduce((sum, e) => sum + e.cash, 0)
 
 /**
  * What is still in her bag: banked, minus everything handed over.
@@ -1308,7 +1323,7 @@ export const unsettledTotal = (s: AppState): number =>
 export const unsettledEntries = (s: AppState): DepositEntry[] => {
   let covered = settledTotal(s)
   const out: DepositEntry[] = []
-  depositEntries(s).forEach((e) => {
+  settleableEntries(s).forEach((e) => {
     if (e.cash <= 0) return
     if (covered >= e.cash) {
       covered -= e.cash
@@ -1321,21 +1336,17 @@ export const unsettledEntries = (s: AppState): DepositEntry[] => {
 }
 
 /**
- * Whether the schedule should offer to settle right now. One condition: she is
- * carrying something.
- *
- * There is no cap. Capping the count made the app hold an opinion about how
- * often a BP should be allowed to put cash down, which is the opposite of what
- * the feature is for — the risk being managed is money on a motorbike, and
- * every handover reduces it. What the count still decides is the FEE: the
- * first three are free, and the settlement page says so. A cost is a reason to
- * think; a lock is a reason to carry cash you wanted to be rid of.
+ * Whether the schedule should offer to settle right now. Two conditions: she
+ * is carrying something, AND she has a handover left in the day's three. Past
+ * the third the widget goes quiet — the cash that remains rides to closing, not
+ * to a fourth drop.
  */
-export const canSettle = (s: AppState): boolean => unsettledTotal(s) > 0
+export const canSettle = (s: AppState): boolean =>
+  unsettledTotal(s) > 0 && s.settlements.length < DEPOSIT.maxPerDay
 
-/** Handovers that cost nothing. Beyond this the branch charges admin. */
-export const freeSettlementsLeft = (s: AppState): number =>
-  Math.max(0, DEPOSIT.freePerDay - s.settlements.length)
+/** Handovers left in the day's cap of three. 0 once she has used all three. */
+export const settlementsLeft = (s: AppState): number =>
+  Math.max(0, DEPOSIT.maxPerDay - s.settlements.length)
 
 /**
  * Whether the day can be closed. Everything done, everything SENT, and nothing
