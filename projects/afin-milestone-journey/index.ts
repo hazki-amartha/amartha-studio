@@ -70,8 +70,40 @@ export const project: ProjectModule = {
       title: 'Perjalanan 48 minggu',
       component: lazyScreen(() => import('./screens/progress'), 'ProgressScreen'),
       flowsTo: [
-        { to: 'milestone-unlocked', label: 'tap milestone terbuka' },
+        { to: 'milestone-unlocked', label: '14 Jul — cairkan sekarang' },
+        { to: 'milestone-progress', label: '6 Okt — lihat progress' },
+        { to: 'milestone-pelunasan', label: '26 Jan — lihat progress' },
+        { to: 'milestone-limit', label: '23 Mar — lihat progress' },
         { to: 'home', label: 'kembali' },
+      ],
+    },
+    {
+      id: 'milestone-progress',
+      title: 'Target 6 Okt 2026',
+      component: lazyScreen(() => import('./screens/milestone-progress'), 'MilestoneProgressScreen'),
+      flowsTo: [
+        { to: 'riwayat', label: 'lihat progress bayar & hadir' },
+        { to: 'majelis', label: 'lihat progress majelis' },
+        { to: 'progress', label: 'kembali' },
+      ],
+    },
+    {
+      id: 'milestone-pelunasan',
+      title: 'Target 26 Jan 2027',
+      component: lazyScreen(() => import('./screens/milestone-pelunasan'), 'MilestonePelunasanScreen'),
+      flowsTo: [
+        { to: 'riwayat', label: 'lihat progress bayar & hadir' },
+        { to: 'progress', label: 'kembali' },
+      ],
+    },
+    {
+      id: 'milestone-limit',
+      title: 'Target 23 Mar 2027',
+      component: lazyScreen(() => import('./screens/milestone-limit'), 'MilestoneLimitScreen'),
+      flowsTo: [
+        { to: 'riwayat', label: 'lihat progress bayar & hadir' },
+        { to: 'majelis', label: 'lihat progress majelis' },
+        { to: 'progress', label: 'kembali' },
       ],
     },
     {

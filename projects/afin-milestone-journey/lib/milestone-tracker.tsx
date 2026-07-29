@@ -1,0 +1,111 @@
+'use client'
+
+// The shared shape behind every milestone's dedicated tracker page. Each
+// milestone gets its own thin screen that fills this in with its date, reward,
+// and the habits that earn it — so the pages read as one family while staying
+// distinct trackers. Project-local component (CLAUDE.md §4); see NOTES.md.
+
+import { NavigationHeader } from '@/design-system/components'
+import { ChevronRight } from '@/design-system/icons'
+import { Screen } from '@/platform/primitives'
+import { IconTile } from './ui'
+
+// Health is derived from how much of each habit is on track, but only the word
+// shows — the fraction lives on the detail page the row links to.
+export type Health = 'sehat' | 'berisiko' | 'buruk'
+
+const HEALTH: Record<Health, { label: string; cls: string }> = {
+  sehat: { label: 'Sehat', cls: 'bg-green-50 text-green-600' },
+  berisiko: { label: 'Berisiko', cls: 'bg-orange-50 text-orange-700' },
+  buruk: { label: 'Tidak sehat', cls: 'bg-red-50 text-red-600' },
+}
+
+export const healthOf = (part: number, whole: number): Health => {
+  const ratio = part / whole
+  return ratio >= 0.8 ? 'sehat' : ratio >= 0.5 ? 'berisiko' : 'buruk'
+}
+
+export interface TrackerTask {
+  title: string
+  health: Health
+  onOpen: () => void
+}
+
+export function MilestoneTracker({
+  date,
+  weeksLeft,
+  emoji,
+  headline,
+  caption,
+  reward,
+  tasks,
+  onBack,
+}: {
+  date: string
+  weeksLeft: string
+  emoji: string
+  headline: string
+  caption: string
+  reward: { label: string; value: string; sub: string }
+  tasks: TrackerTask[]
+  onBack: () => void
+}) {
+  return (
+    <Screen
+      topBar={
+        <NavigationHeader
+          title={
+            <span className="flex flex-col leading-tight">
+              <span>{date}</span>
+              <span className="text-12 font-regular text-caption">{weeksLeft}</span>
+            </span>
+          }
+          onBack={onBack}
+        />
+      }
+    >
+      <div className="flex flex-col items-center gap-8 pt-16 text-center">
+        <IconTile tint="primary" size={48} round>
+          <span className="text-24">{emoji}</span>
+        </IconTile>
+        <p className="text-18 font-bold text-default">{headline}</p>
+        <p className="text-12 text-caption">{caption}</p>
+      </div>
+
+      <div className="rounded-12 border border-primary-200 bg-primary-50 p-20">
+        <p className="text-12 text-primary-400">{reward.label}</p>
+        <p className="mt-4 text-24 font-bold text-primary-500">{reward.value}</p>
+        <p className="mt-4 text-12 text-caption">{reward.sub}</p>
+      </div>
+
+      <div className="rounded-12 border border-default bg-neutral-white p-16">
+        <p className="mb-12 text-12 font-bold text-caption">Yang perlu dijaga</p>
+        <div className="flex flex-col gap-16">
+          {tasks.map((t) => (
+            <TaskRow key={t.title} {...t} />
+          ))}
+        </div>
+      </div>
+    </Screen>
+  )
+}
+
+function TaskRow({ title, health, onOpen }: TrackerTask) {
+  const h = HEALTH[health]
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex w-full items-center gap-8 py-4 text-left"
+    >
+      <span className="min-w-0 flex-1 text-14 font-bold text-default">{title}</span>
+      <span className="flex w-1/4 shrink-0 justify-end">
+        <span className={`rounded-full px-8 py-2 text-12 font-bold ${h.cls}`}>{h.label}</span>
+      </span>
+      <span className="shrink-0 text-disabled">
+        <ChevronRight size={20} />
+      </span>
+    </button>
+  )
+}

@@ -79,6 +79,13 @@ export const MEMBERS: Member[] = [
 
 // --- Milestone ladder ------------------------------------------------------
 
+/** The health read shown as a pill on an upcoming rung — mirrors the worst
+ *  habit on that milestone's tracker page. */
+export interface MilestoneStatus {
+  label: string
+  tone: 'green' | 'orange' | 'red'
+}
+
 export interface Milestone {
   /** The milestone's date, e.g. "6 Oktober 2026". */
   label: string
@@ -87,43 +94,50 @@ export interface Milestone {
   /** What the week unlocks, in the mitra's words. */
   actionLabel: string
   amount?: string
-  tag?: string
-  /** Fill of the progress meter, 0–100. Only set on the `next` rung. */
-  pct?: number
+  /** Status pill on an upcoming rung, e.g. "On Track". */
+  status?: MilestoneStatus
   state: 'unlocked' | 'next' | 'locked'
   /** Present on the one rung that can be acted on now. */
   cta?: string
+  /** Screen id of this milestone's dedicated tracker, opened from its card. */
+  detail: string
 }
 
 export const MILESTONES: Milestone[] = [
   {
     label: '14 Jul 2026',
+    status: { label: 'Terbuka', tone: 'green' },
     actionLabel: 'Cairkan dana',
     amount: '+Rp1.250.000',
     state: 'unlocked',
     cta: 'Cairkan sekarang',
+    detail: 'milestone-unlocked',
   },
   {
     label: '6 Okt 2026',
-    tag: '🎯 Target berikutnya',
+    status: { label: 'Sehat', tone: 'green' },
     countdown: '10 minggu lagi',
     actionLabel: 'Cairkan dana',
     amount: '+Rp1.250.000',
-    pct: 17,
     state: 'next',
+    detail: 'milestone-progress',
   },
   {
     label: '26 Jan 2027',
+    status: { label: 'Sehat', tone: 'green' },
     countdown: '26 minggu lagi',
-    actionLabel: 'Pelunasan dini dan kesempatan naik limit',
+    actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
     state: 'locked',
+    detail: 'milestone-pelunasan',
   },
   {
     label: '23 Mar 2027 🏆',
+    status: { label: 'Berisiko', tone: 'orange' },
     countdown: '34 minggu lagi',
     actionLabel: 'Limit baru',
     amount: 'Rp8jt',
     state: 'locked',
+    detail: 'milestone-limit',
   },
 ]
 
