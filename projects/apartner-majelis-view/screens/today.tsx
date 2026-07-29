@@ -45,12 +45,12 @@ import { CloudArrowUp } from '@/design-system/icons'
 import {
   canSettle,
   settlementsLeft,
+  depositExpected,
   pendingSync,
   rejectedTasks,
   rescheduledTasks,
   skippedTasks,
   settledTotal,
-  unsettledTotal,
   scheduledFor,
   store,
   taskStatus,
@@ -366,7 +366,17 @@ export function TodayScreen() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const day = findDay(s.day)
   const pending = pendingSync(s)
-  const toSettle = unsettledTotal(s)
+  // What she has collected and not yet handed over — DONE tasks, whether or not
+  // their reports have synced. This is the figure the widget shows, because the
+  // cash is in her bag the moment she collects it; syncing only decides whether
+  // she can put it down yet.
+  const inBag = Math.max(0, depositExpected(s) - settledTotal(s))
+  // Whether any of that is actually settleable right now: only synced cash can
+  // be handed over. When collected cash is all still on the handset this is
+  // false, so the Setor button waits on her sending the tasks first.
+  const canSetorNow = canSettle(s)
+  const underCap = settlementsLeft(s) > 0
+  const showSetor = underCap && inBag > 0
 
   // A filter replaces the whole agenda with one flat list. Sekarang/Berikutnya/
   // Selesai is a shape built around WHEN, and a BP filtering by type has
@@ -518,28 +528,33 @@ export function TodayScreen() {
 
           Closing is no longer up here as a widget — it is a task ROW at the
           foot of the list (Tutup Hari Ini), tapped like any other. */}
-      {canSettle(s) ? (
+      {showSetor ? (
         // Same shape as the sync widget below it: tile, two lines, one small
         // button pinned right. They are the two things on this page that are
         // not tasks, and giving them one shape says so — a full-width button
         // made this the loudest object on a page whose subject is the day.
+        //
+        // The amount is what she has COLLECTED, shown the moment cash is in the
+        // bag. But she cannot hand it over until the tasks are sent — the branch
+        // settles against the report — so when nothing is synced yet the button
+        // is disabled and the second line tells her the one thing that unblocks
+        // it: send the tasks.
         <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
           <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-green-50 text-green-500">
             <IconWallet size={20} />
           </span>
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-16 font-bold text-default">{rupiah(toSettle)}</span>
-            {/* How many of the day's three handovers are left. It is the number
-                that decides whether she puts the money down now or carries it to
-                the next stop — the widget only shows while at least one remains,
-                so this never reads zero here. */}
-            <span className="truncate text-12 text-caption">
-              Belum disetor · sisa {settlementsLeft(s)}x setoran hari ini
+            <span className="text-16 font-bold text-default">{rupiah(inBag)}</span>
+            <span className={`truncate text-12 ${canSetorNow ? 'text-caption' : 'text-orange-500'}`}>
+              {canSetorNow
+                ? `Belum disetor · sisa ${settlementsLeft(s)}x setoran hari ini`
+                : 'Kirim tugas untuk melanjutkan ke setoran'}
             </span>
           </div>
           <Button
             size="sm"
             className="h-40 shrink-0 px-16"
+            disabled={!canSetorNow}
             onClick={() => {
               store.openSettlement()
               flow.go('settlement')
@@ -556,7 +571,7 @@ export function TodayScreen() {
           all afternoon. It carries no breakdown of its own, but it does offer a
           way IN to one: "lihat" opens the day's cash story rather than making
           her infer it from an absence. */}
-      {!canSettle(s) && settledTotal(s) > 0 ? (
+      {!showSetor && settledTotal(s) > 0 ? (
         <DoneLine
           action={
             <button
