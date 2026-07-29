@@ -7,11 +7,13 @@
 // gets it to the branch. She reaches it twice from the schedule's widget, and a
 // third time through Closing's titipan check — three doors onto one act.
 //
-// A day can carry up to three settlements: two she times herself from the
-// schedule, and a third that IS the closing task. That is not a convenience —
-// it is the shape of the risk. A BP holding six hours of collections on a
-// motorbike is the largest exposure in this flow, and the answer is to let her
-// put the money down twice before 17.45 rather than once at the end of it.
+// A day carries at most three settlements, and no more: two she times herself
+// from the schedule, and a last one that clears the bag at the end. That cap is
+// the shape of the risk from both sides — a BP holding six hours of collections
+// on a motorbike wants to put money down often, but every handover is a
+// reconciliation the branch has to clear, so three is the balance. The counter
+// shuts at 17.00; the last of the three also waits on every task being finished,
+// so a final drop never settles a bag a late majelis hasn't finished filling.
 //
 // The screen is one stepped page, top to bottom, in the order the act happens:
 //
@@ -24,7 +26,8 @@
 //   4. PROOF — the same photo gesture as every visit, and it only appears once
 //      there is a method for it to be proof OF.
 //
-// The confirm is gated on all three: an amount, a method, and the photo. The
+// The confirm is gated on an amount, a method, and the photo — and, on the last
+// of the day's three, on every task being finished as well. The
 // header carries a Riwayat link onto the day's cash story — what came in, what
 // went out, and by which road — because a BP mid-settlement is exactly the
 // person who wants to check what she already put down.
@@ -34,11 +37,11 @@ import { Badge, Button, Card, InputNominal, NavigationHeader } from '@/design-sy
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { AGENT, DEPOSIT, TASKS, agentCodeFor, vaFor } from '../lib/schedule'
-import { IconCamera, IconCheck, IconInfo, IconWallet } from '../lib/icons'
+import { AGENT, DEPOSIT, TASKS, agentCodeFor, splitDeposit, vaFor } from '../lib/schedule'
+import { IconCamera, IconCheck, IconInfo, IconPin, IconWallet } from '../lib/icons'
 import {
-  freeSettlementsLeft,
   settledTotal,
+  settlementsLeft,
   store,
   unsettledEntries,
   unsettledTotal,
@@ -62,13 +65,22 @@ export function SettlementScreen() {
   const amount = s.depositAmount ?? expected
   const diff = amount - expected
 
-  // Which settlement this will be, and whether it is the last one available.
+  // Which settlement this will be within the day's three.
   const no = s.settlements.length + 1
-  // The last handover of the day, in the only sense left now that the count is
-  // uncapped: nothing on the schedule can still take cash.
-  const closing = TASKS.every((t) => s.doneTasks.includes(t.id))
-  const va = vaFor(no)
+  // The last of the three — the one that clears the bag at the end of the day.
+  // It carries an extra gate: it cannot be sent until every task on the day is
+  // finished, because a final handover that skipped a still-open visit would
+  // settle a bag that has not finished filling. The first two are hers to time.
+  const isLast = no >= DEPOSIT.maxPerDay
+  const allTasksDone = TASKS.every((t) => s.doneTasks.includes(t.id))
+  const lastBlocked = isLast && !allTasksDone
   const code = agentCodeFor(no)
+  // The VA road splits into two transfers to two numbers; the agent road takes
+  // the whole amount at one counter. The split is derived from the figure she
+  // is settling, so editing the total re-splits both halves.
+  const va1 = vaFor(no, 1)
+  const va2 = vaFor(no, 2)
+  const [vaAmount1, vaAmount2] = splitDeposit(amount)
 
   // Typing is opt-in. The default gesture is agreeing with the app.
   const [editing, setEditing] = useState(false)
@@ -79,10 +91,11 @@ export function SettlementScreen() {
   // a reason from a fixed list — but she is standing at a counter having already
   // transferred, and the five options were guesses the app offered on her
   // behalf. The GAP is still recorded; what it was for is a conversation.
-  const ready = amount > 0 && Boolean(s.depositMethod) && s.depositProof
+  const ready = amount > 0 && Boolean(s.depositMethod) && s.depositProof && !lastBlocked
 
-  const hint =
-    amount <= 0
+  const hint = lastBlocked
+    ? 'Selesaikan semua tugas hari ini dulu sebelum setoran terakhir'
+    : amount <= 0
       ? 'Belum ada jumlah yang disetor'
       : !s.depositMethod
         ? 'Pilih metode setoran dulu'
@@ -152,6 +165,53 @@ export function SettlementScreen() {
     )
   }
 
+  // --- The three handovers are used up, and there is still cash in the bag.
+  // Not a form: there is no fourth settlement to fill in. The money that
+  // remains rides to closing, and the honest thing is to say so rather than
+  // offer a button that cannot fire.
+  if (s.settlements.length >= DEPOSIT.maxPerDay) {
+    return (
+      <Screen
+        topBar={
+          <NavigationHeader
+            title="Setoran"
+            onBack={() => flow.back()}
+            link="Riwayat"
+            onLinkClick={() => setHistoryOpen(true)}
+          />
+        }
+      >
+        <Card>
+          <div className="flex flex-col items-center gap-8 py-24 text-center">
+            <span className="flex h-48 w-48 items-center justify-center rounded-full bg-orange-50 text-orange-500">
+              <IconWallet size={24} />
+            </span>
+            <span className="text-20 font-bold text-default">Setoran hari ini sudah penuh</span>
+            <span className="text-12 text-caption">
+              {DEPOSIT.maxPerDay}x setoran sudah dikirim hari ini. Sisa {rupiah(expected)} tetap
+              tercatat dan disetor saat Tutup Hari Ini.
+            </span>
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              className="text-12 font-bold text-link"
+            >
+              Lihat riwayat setoran
+            </button>
+          </div>
+        </Card>
+
+        <StickyBar>
+          <Button size="lg" className="w-full" onClick={() => flow.go('today')}>
+            Selesai
+          </Button>
+        </StickyBar>
+
+        <SettlementHistorySheet open={historyOpen} onClose={() => setHistoryOpen(false)} />
+      </Screen>
+    )
+  }
+
   return (
     <Screen
       topBar={
@@ -163,19 +223,21 @@ export function SettlementScreen() {
         />
       }
     >
-      {/* The fee, said once and up front. It is the only thing left that makes
-          the COUNT matter now that there is no cap: settling often is the whole
-          point, and this is the cost of doing it a fourth time — a fact to
-          weigh, not a rule to obey. */}
+      {/* The rules, said once and up front. Three handovers a day, no more — the
+          count she has left is a fact to pace against — and after 17.00 only one
+          drop remains, so a late-afternoon BP settles once and settles all of
+          it. On the last of the three it says the extra rule instead: that it
+          waits on every task being finished. */}
       <div className="flex items-start gap-8 rounded-8 border border-blue-200 bg-blue-50 px-12 py-8">
         <span className="shrink-0 text-blue-500">
           <IconInfo size={16} />
         </span>
         <span className="min-w-0 flex-1 text-12 text-default">
-          Admin fee settlement hanya gratis {DEPOSIT.freePerDay}x per hari.
-          {freeSettlementsLeft(s) > 0
-            ? ` Sisa ${freeSettlementsLeft(s)}x gratis hari ini.`
-            : ' Setoran ini kena biaya admin.'}
+          {lastBlocked
+            ? 'Setoran terakhir. Selesaikan semua tugas hari ini dulu sebelum mengirim.'
+            : isLast
+              ? 'Setoran terakhir hari ini.'
+              : `Setoran maksimal ${DEPOSIT.maxPerDay}x per hari — sisa ${settlementsLeft(s)}x. Setelah pukul ${DEPOSIT.cutoff} hanya bisa 1x setoran lagi.`}
         </span>
       </div>
 
@@ -190,11 +252,10 @@ export function SettlementScreen() {
             <span className="text-12 text-caption">Uang tunai yang bisa disetor</span>
             <span className="text-24 font-bold text-default">{rupiah(expected)}</span>
           </div>
-          <Badge intent={closing ? 'orange' : 'neutral'}>
-            {closing ? 'Setoran terakhir' : `Setoran ke-${no}`}
+          <Badge intent={isLast ? 'orange' : 'neutral'}>
+            {isLast ? 'Setoran terakhir' : `Setoran ke-${no}`}
           </Badge>
         </div>
-        <p className="mt-8 text-right text-10 text-disabled">Batas setor {DEPOSIT.due}</p>
       </Card>
 
       {/* --- How much to put down now. Agreeing is a tap; settling less is
@@ -225,24 +286,35 @@ export function SettlementScreen() {
         </Card>
       )}
 
-      {/* --- Which road the cash takes. The receipt number lives INSIDE the road
-          she picks: a VA she transfers to from her own banking, or a kode unik
-          she reads out at an AmarthaLink agent. Each is fresh per settlement, so
-          the branch can tell three handovers apart at the other end. */}
+      {/* --- Which road the cash takes, and how the amount is split to travel it.
+          The VA road caps per transfer, so it goes as TWO transfers to two VA
+          numbers; the agent road takes the whole sum at one counter, so it stays
+          one figure and one kode unik. The amount anchors to the method she
+          picks — that is why nothing shows until she picks one. */}
       <SectionTitle>Metode Setoran</SectionTitle>
       <div className="flex flex-col gap-8">
         <OptionCard
           selected={s.depositMethod === 'va'}
           title="Transfer ke Virtual Account"
-          description="Setor lewat mobile banking ke VA cabang"
+          description="Setor lewat mobile banking ke 2 VA cabang"
           onSelect={() => store.setDepositMethod('va')}
         >
-          <div className="flex flex-col gap-2 rounded-8 bg-neutral-white p-12">
-            <span className="text-12 text-caption">{DEPOSIT.bank}</span>
-            <span className="truncate text-18 font-bold text-default">{va}</span>
-            <span className="truncate text-12 text-caption">{DEPOSIT.holder}</span>
-            <span className="mt-4 text-10 text-disabled">
-              Nomor VA khusus setoran ke-{no} hari ini — jangan pakai nomor setoran sebelumnya.
+          <div className="flex flex-col gap-8 rounded-8 bg-neutral-white p-12">
+            <span className="text-12 text-caption">{DEPOSIT.bank} · {DEPOSIT.holder}</span>
+            {[
+              { label: 'Transfer 1 dari 2', va: va1, amount: vaAmount1 },
+              { label: 'Transfer 2 dari 2', va: va2, amount: vaAmount2 },
+            ].map((row) => (
+              <div key={row.label} className="flex flex-col gap-2 border-t border-default pt-8 first:border-t-0 first:pt-0">
+                <span className="text-10 font-bold uppercase text-caption">{row.label}</span>
+                <div className="flex items-center gap-8">
+                  <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">{row.va}</span>
+                  <span className="shrink-0 text-14 font-bold text-primary-500">{rupiah(row.amount)}</span>
+                </div>
+              </div>
+            ))}
+            <span className="text-10 text-disabled">
+              Dua nomor VA berbeda — pastikan nominal tiap transfer sesuai.
             </span>
           </div>
         </OptionCard>
@@ -250,14 +322,30 @@ export function SettlementScreen() {
         <OptionCard
           selected={s.depositMethod === 'agent'}
           title={`Setor tunai ke Agen ${AGENT.name}`}
-          description="Serahkan uang tunai ke agen terdekat pakai kode unik"
+          description="Serahkan seluruh uang tunai ke agen terdekat pakai kode unik"
           onSelect={() => store.setDepositMethod('agent')}
         >
-          <div className="flex flex-col gap-2 rounded-8 bg-neutral-white p-12">
-            <span className="text-12 text-caption">Kode Unik · Agen {AGENT.name}</span>
-            <span className="truncate text-18 font-bold text-default">{code}</span>
-            <span className="mt-4 text-10 text-disabled">{AGENT.hint}</span>
+          <div className="flex flex-col gap-8 rounded-8 bg-neutral-white p-12">
+            <div className="flex items-center gap-8">
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <span className="text-12 text-caption">Kode Unik · Agen {AGENT.name}</span>
+                <span className="truncate text-18 font-bold text-default">{code}</span>
+              </div>
+              <span className="shrink-0 text-14 font-bold text-primary-500">{rupiah(amount)}</span>
+            </div>
+            <span className="text-10 text-disabled">{AGENT.hint}</span>
           </div>
+          {/* The code is useless without a counter to read it out at, so the way
+              to FIND one sits right under it — the one thing this road needs
+              that the VA road does not. */}
+          <button
+            type="button"
+            onClick={() => flow.go('agent-locator')}
+            className="flex items-center justify-center gap-4 rounded-8 border border-primary-500 py-8 text-12 font-bold text-primary-500"
+          >
+            <IconPin size={16} />
+            Cari agen terdekat
+          </button>
         </OptionCard>
       </div>
 
@@ -307,7 +395,7 @@ export function SettlementScreen() {
           className="w-full"
           disabled={!ready}
           onClick={() => {
-            store.settle(closing)
+            store.settle(isLast)
             flow.go('today')
           }}
         >

@@ -183,17 +183,20 @@ export const scheduleCloseable = () =>
   })
 
 /**
- * Three free handovers used and cash still coming in — the state the FEE now
- * speaks to. The widget still offers to settle; the page says the next one
- * costs. Nothing is locked, which is the point of the change.
+ * All three of the day's handovers used, and a late majelis has banked more
+ * cash — the state the CAP speaks to. The widget goes quiet (there is no fourth
+ * drop), and the cash that remains rides to closing. Opening the settlement
+ * screen here shows its "sudah penuh" state rather than a form.
  */
 export const scheduleCapped = () =>
   store.set({
     day: 'today',
     doneTasks: ['t1', 't2', 't2b', 't3', 't4', 't5'],
-    sentTasks: ['t1', 't2', 't2b', 't3', 't4'],
+    // Everything sent, so the late majelis's cash IS settleable — it is the cap,
+    // not a missing sync, that keeps it in the bag.
+    sentTasks: ['t1', 't2', 't2b', 't3', 't4', 't5'],
     // The 16.30 majelis banked after the third handover, so there is cash in
-    // the bag with no free settlement left to put it down with.
+    // the bag with no settlement left in the day's three to put it down with.
     deposits: {
       ...bankedDay,
       t5: {

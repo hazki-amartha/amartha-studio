@@ -44,7 +44,7 @@ import { IconCheck, IconChevronDown, IconInbox, IconWallet } from '../lib/icons'
 import { CloudArrowUp } from '@/design-system/icons'
 import {
   canSettle,
-  freeSettlementsLeft,
+  settlementsLeft,
   pendingSync,
   rejectedTasks,
   rescheduledTasks,
@@ -529,14 +529,12 @@ export function TodayScreen() {
           </span>
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="text-16 font-bold text-default">{rupiah(toSettle)}</span>
-            {/* The count as USED of allowed, not as remaining. "Sisa 2" makes
-                her subtract to learn where she is; "0 dari maks 2" is the state
-                itself, and it is the number that decides whether she puts the
-                money down now or carries it to the next stop. */}
+            {/* How many of the day's three handovers are left. It is the number
+                that decides whether she puts the money down now or carries it to
+                the next stop — the widget only shows while at least one remains,
+                so this never reads zero here. */}
             <span className="truncate text-12 text-caption">
-              {freeSettlementsLeft(s) > 0
-                ? `Belum disetor · ${freeSettlementsLeft(s)} setoran gratis tersisa`
-                : 'Belum disetor · setoran berikutnya kena biaya admin'}
+              Belum disetor · sisa {settlementsLeft(s)}x setoran hari ini
             </span>
           </div>
           <Button
