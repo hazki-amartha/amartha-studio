@@ -181,9 +181,13 @@ export default async function Home({
         <div className="flex flex-col gap-8">
           {/* Back out of the folder. The shell's own breadcrumb is the only
               breadcrumb — this is a plain back affordance, not a second one. */}
+          {/* Hover underlines rather than darkens: a hover colour would need a
+              light and a dark value, and the two rules land at equal weight —
+              whichever Tailwind emits last wins, which in dark mode meant black
+              text on a black canvas. Underline needs no second colour. */}
           <Link
             href="/"
-            className="flex w-fit items-center gap-4 text-14 text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50"
+            className="flex w-fit items-center gap-4 text-14 text-caption hover:underline dark:text-neutral-400"
           >
             <ChevronLeftIcon className="size-16 shrink-0" />
             Back
