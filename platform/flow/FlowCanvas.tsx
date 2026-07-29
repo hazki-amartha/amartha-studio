@@ -358,7 +358,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
     <div className="flex h-full flex-col bg-neutral-50 dark:bg-ink-950">
       <div
         ref={containerRef}
-        className="relative flex-1 cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing"
+        className="relative flex-1 cursor-grab touch-none select-none overflow-hidden overscroll-none active:cursor-grabbing"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

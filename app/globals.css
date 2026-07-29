@@ -7,6 +7,11 @@
 
 html {
   font-family: var(--font);
+  /* The flow canvas pans on a two-finger scroll, so a horizontal swipe must
+     never reach the browser's history gesture (back/forward). preventDefault on
+     the wheel event isn't enough — Safari latches the gesture before the page
+     sees it — so the root scroller opts out of overscroll chaining entirely. */
+  overscroll-behavior: none;
 }
 
 body {
