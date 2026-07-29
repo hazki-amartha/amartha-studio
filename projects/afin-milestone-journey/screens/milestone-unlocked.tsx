@@ -28,7 +28,7 @@ export function MilestoneUnlockedScreen() {
   return (
     <Screen
       topBar={
-        <NavigationHeader title="Milestone minggu ke-12" onBack={() => flow.go('progress')} />
+        <NavigationHeader title="14 Jul 2026" onBack={() => flow.go('progress')} />
       }
     >
       <div className="flex flex-col items-center gap-8 pt-16 text-center">

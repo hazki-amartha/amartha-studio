@@ -35,17 +35,17 @@ import {
   LightningFill,
   Majelis,
   ShareNetwork,
-  ShieldCheck,
   Plus,
   Transfer,
   User,
+  Users,
   Voucher,
   Wallet,
   WarningFill,
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { WEEKLY_BILL, rupiah } from '../lib/data'
+import { MEMBERS, WEEKLY_BILL, rupiah } from '../lib/data'
 import { IconPiggy } from '../lib/icons'
 import { outstanding, store, useApp } from '../lib/store'
 import { IconTile, Meter, Notice, SectionTitle, TaskButton } from '../lib/ui'
@@ -59,6 +59,10 @@ export function HomeV2Screen() {
     store.startPayment()
     flow.go('amount')
   }
+
+  // How many in her majelis are behind on payments — the "Majelis sehat" task's
+  // status line, and the reason its "Ingatkan" CTA exists.
+  const tunggakanCount = MEMBERS.filter((m) => !m.bayar).length
 
   return (
     <Screen statusBar="none">
@@ -80,9 +84,9 @@ export function HomeV2Screen() {
           <ArrowRight size={20} />
           <div className="min-w-0 flex-1 text-right">
             <p className="text-12 text-neutral-200">
-              {isNew ? 'Di akhir tenor dapat naik s/d' : 'Minggu 40 dapat naik s/d'}
+              {isNew ? 'Di akhir tenor bisa naik' : '23 Mar 2027 bisa naik'}
             </p>
-            <p className="mt-4 text-20 font-bold">Rp6jt – Rp7jt</p>
+            <p className="mt-4 text-20 font-bold">Rp8jt</p>
           </div>
         </div>
 
@@ -99,13 +103,13 @@ export function HomeV2Screen() {
               </span>
             )}
             <span className="flex-1 text-right text-14 text-default">
-              {isNew ? 'Di akhir tenor' : '8 minggu lagi'}
+              {isNew ? 'Di akhir tenor' : '10 minggu lagi'}
             </span>
           </div>
 
           <GoalRail
-            from={isNew ? 'Cair Rp5jt' : 'Cair Rp1jt'}
-            to={isNew ? 'Naik limit' : 'Cair Rp2.250jt'}
+            from={isNew ? 'Cair Rp5jt' : 'Cair Rp1,25jt'}
+            to={isNew ? 'Naik limit' : 'Cair Rp2,5jt'}
             progress={isNew ? 0 : 62}
             goal={isNew ? 92 : 78}
             risk={!isNew && s.atRisk}
@@ -150,21 +154,16 @@ export function HomeV2Screen() {
                   tint="green"
                   icon={<Majelis size={20} />}
                   title="Datang kumpulan"
-                  description="Setiap Kamis, jam 11.30"
+                  description="Kamis, 11.30"
                 />
-                {/* Group health is the third habit, and the one that lifts the
-                    ceiling: a majelis where everyone stays current is what turns
-                    the limit band's "s/d Rp7jt" from the top of a range into the
-                    number she actually reaches. Its button opens the 48-week
-                    progress page, where that standing is shown in full. */}
                 <Task
                   tint="primary"
-                  icon={<ShieldCheck size={20} />}
+                  icon={<Users size={20} />}
                   title="Majelis sehat"
-                  description="Kelompok lancar, limit bisa s/d Rp7jt"
+                  description={`${tunggakanCount} anggota punya tunggakan`}
                   action={
-                    <TaskButton tone="primary" onClick={() => flow.go('progress')}>
-                      Lihat
+                    <TaskButton tone="primary" onClick={() => flow.go('majelis')}>
+                      Ingatkan
                     </TaskButton>
                   }
                 />
