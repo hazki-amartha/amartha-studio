@@ -59,7 +59,10 @@ export function BrandBand({
         className="h-24 w-full bg-gradient-to-r from-primary-400 to-primary-500"
         style={{ clipPath: 'url(#afin-band-sag)' }}
       />
-      <div className="-mt-40 px-16">{children}</div>
+      {/* `relative` is load-bearing: the clip-path above puts the sag strip in
+          its own stacking context, which would otherwise paint over this
+          in-flow sibling and cut the Poket widget in half. */}
+      <div className="relative -mt-40 px-16">{children}</div>
     </div>
   )
 }

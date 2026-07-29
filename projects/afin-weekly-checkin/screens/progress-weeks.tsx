@@ -1,15 +1,17 @@
 'use client'
 
-// Detail page for the A/B concept: the unit is the WEEK.
+// The one detail page, shared by both options: the unit is the WEEK.
 //
 // One denominator on the page and nowhere else. Everything here counts in weeks
 // — the headline, the bar, and every row of the ladder, which is labelled
-// "Minggu 13–16" rather than numbered "hadiah 3". The reward sits at the end of
-// a row as what those four weeks unlocked; it is never itself counted, because
-// counting rewards is the other page's job.
+// "Minggu 13–16" rather than numbered. The increment sits at the end of a row
+// as what those four weeks added to the next disbursement; it is never itself
+// counted, because a mitra tracking "how many rewards have I collected" is
+// tracking the wrong thing.
 //
-// The rewards page is the mirror image: it counts in twelves and never says 48.
-// A mitra should only ever be handed one of these.
+// This page is deliberately where the RUPIAH live. Option B keeps figures off
+// home on purpose, so the split it doesn't print — her Rp2jt, the majelis's
+// Rp1jt — has to be legible somewhere, and this is that somewhere.
 
 import { Badge, NavigationHeader } from '@/design-system/components'
 import { Medal, Withdraw } from '@/design-system/icons'
@@ -85,7 +87,7 @@ export function ProgressWeeksScreen() {
           <Withdraw size={16} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-12 text-caption">Siap dicairkan</span>
+          <span className="block text-12 text-caption">Terkumpul untuk pencairan berikutnya</span>
           <span className="mt-2 block text-12 text-caption">{windowLine(s)}</span>
         </span>
         <span className="shrink-0 text-16 font-bold text-default">{short(pot(s))}</span>

@@ -5,6 +5,7 @@ import {
   groupGood,
   groupLost,
   groupWatch,
+  juaraMaintained,
   midChapter,
   missedWeek,
   nearFinal,
@@ -39,6 +40,12 @@ const journeyStates: ScreenState[] = [
     apply: nearFinal,
   },
   {
+    id: 'juara-maintained',
+    label: 'Sudah Mitra Juara (B)',
+    description: 'Tenor baru dibuka dengan status sudah di tangan: dipertahankan, bukan dikejar.',
+    apply: juaraMaintained,
+  },
+  {
     id: 'group-good',
     label: 'Kelompok baik',
     description: 'Semua anggota lancar. Status tanpa angka sama sekali.',
@@ -63,21 +70,15 @@ export const project: ProjectModule = {
   screens: [
     {
       id: 'home-a',
-      title: 'Home A — Deret minggu',
+      title: 'Home A — Anchor limit',
       component: lazyScreen(() => import('./screens/home-a'), 'HomeAScreen'),
       entry: true,
       states: journeyStates,
     },
     {
       id: 'home-b',
-      title: 'Home B — Papan hadiah',
+      title: 'Home B — Anchor tier (Mitra Juara)',
       component: lazyScreen(() => import('./screens/home-b'), 'HomeBScreen'),
-      states: journeyStates,
-    },
-    {
-      id: 'home-c',
-      title: 'Home C — Papan + 12 hadiah',
-      component: lazyScreen(() => import('./screens/home-c'), 'HomeCScreen'),
       states: journeyStates,
     },
     {
@@ -88,19 +89,13 @@ export const project: ProjectModule = {
     },
     {
       id: 'progress-weeks',
-      title: 'Detail 1 — Perjalanan minggu (A & B)',
+      title: 'Detail — Perjalanan 48 minggu',
       component: lazyScreen(() => import('./screens/progress-weeks'), 'ProgressWeeksScreen'),
       states: journeyStates,
     },
     {
-      id: 'progress-rewards',
-      title: 'Detail 2 — Koleksi hadiah (C)',
-      component: lazyScreen(() => import('./screens/progress-rewards'), 'ProgressRewardsScreen'),
-      states: journeyStates,
-    },
-    {
       id: 'milestone',
-      title: 'Hadiah terbuka',
+      title: 'Empat minggu lancar',
       component: lazyScreen(() => import('./screens/milestone'), 'MilestoneScreen'),
       states: journeyStates,
     },
