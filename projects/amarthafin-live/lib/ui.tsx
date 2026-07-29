@@ -7,10 +7,18 @@
 
 import { type ReactNode } from 'react'
 import { Card } from '@/design-system/components'
-import { ProductLogo } from '@/design-system/assets'
-import { ArrowRight, Bell, User, Voucher } from '@/design-system/icons'
+import { ProductLogo, ServiceIcon, type ServiceIconName, Wordmark } from '@/design-system/assets'
+import { ArrowRight, Bell, Eye, Plus, Transfer, User, Voucher } from '@/design-system/icons'
 
-export function BrandBand({ children }: { children: ReactNode }) {
+export function BrandBand({
+  greeting = 'Hello',
+  name = 'Widyasari',
+  children,
+}: {
+  greeting?: string
+  name?: string
+  children: ReactNode
+}) {
   return (
     <div className="-mx-16 -mt-48">
       {/* The header is masked to a curved band, not a rounded rectangle: the
@@ -30,8 +38,8 @@ export function BrandBand({ children }: { children: ReactNode }) {
             <User size={20} />
           </ChromeIcon>
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="text-12 text-neutral-white">Hello</span>
-            <span className="truncate text-14 font-bold text-neutral-white underline">Widyasari</span>
+            <span className="text-12 text-neutral-white">{greeting}</span>
+            <span className="truncate text-14 font-bold text-neutral-white underline">{name}</span>
           </span>
           <ChromeIcon badge="8">
             <Voucher size={20} />
@@ -62,7 +70,46 @@ function ChromeIcon({ badge, children }: { badge?: string; children: ReactNode }
   )
 }
 
-export function SectionTitle({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
+// The Poket wallet widget that sits over the brand band.
+export function PoketWidget({ balance }: { balance: string }) {
+  return (
+    <div className="flex items-center gap-16 rounded-16 border border-default bg-gradient-to-r from-neutral-white to-primary-50 p-12">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-4 text-primary-500">
+          <Wordmark name="poket" height={20} />
+          <ArrowRight size={16} />
+        </div>
+        <div className="mt-4 flex items-center gap-8">
+          <span className="text-16 font-bold text-default">{balance}</span>
+          <Eye size={16} className="text-default" />
+        </div>
+      </div>
+      <WalletAction icon={<Plus size={16} />} label="Isi Saldo" />
+      <WalletAction icon={<Transfer size={16} />} label="Transfer" />
+    </div>
+  )
+}
+
+function WalletAction({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <span className="flex shrink-0 flex-col items-center gap-4">
+      <span className="flex h-24 w-24 items-center justify-center rounded-8 bg-primary-500 text-neutral-white">
+        {icon}
+      </span>
+      <span className="text-12 text-primary-500">{label}</span>
+    </span>
+  )
+}
+
+export function SectionTitle({
+  children,
+  showArrow = true,
+  onClick,
+}: {
+  children: ReactNode
+  showArrow?: boolean
+  onClick?: () => void
+}) {
   return (
     <button
       type="button"
@@ -70,8 +117,86 @@ export function SectionTitle({ children, onClick }: { children: ReactNode; onCli
       className="flex w-full items-center justify-between text-left text-16 font-bold text-default"
     >
       {children}
-      <ArrowRight size={16} className="text-caption" />
+      {showArrow ? <ArrowRight size={16} className="text-caption" /> : null}
     </button>
+  )
+}
+
+// A PPOB tile as it appears INSIDE a product widget: glyph and label with no
+// bordered box (the widget's own card already carries the container), unlike
+// the bordered `Shortcut` used on the bare homepage.
+export function MenuTile({
+  icon,
+  label,
+  badge,
+}: {
+  icon: ServiceIconName
+  label: string
+  badge?: string
+}) {
+  return (
+    <span className="flex flex-col items-center gap-4">
+      <span className="relative">
+        <ServiceIcon name={icon} size={40} />
+        {badge ? (
+          <span className="absolute -left-4 -top-4 rounded-full bg-red-500 px-4 text-10 font-bold text-neutral-white">
+            {badge}
+          </span>
+        ) : null}
+      </span>
+      <span className="text-center text-12 text-default">{label}</span>
+    </span>
+  )
+}
+
+// One offer in the AmarthaLink cashback strip: glyph, wrapping product name,
+// price. Three sit side by side, so they share the row evenly.
+export function PromoTile({
+  icon,
+  label,
+  price,
+}: {
+  icon: ServiceIconName
+  label: string
+  price: string
+}) {
+  return (
+    <span className="flex flex-1 flex-col gap-4 rounded-12 border border-default bg-neutral-white p-8">
+      <ServiceIcon name={icon} size={24} />
+      <span className="text-10 text-caption">{label}</span>
+      <span className="mt-auto text-12 font-bold text-default">{price}</span>
+    </span>
+  )
+}
+
+// The cashback countdown: lightning glyph, then hh : mm : ss in red chips.
+export function Countdown({ hours, minutes, seconds }: { hours: string; minutes: string; seconds: string }) {
+  return (
+    <span className="flex items-center gap-2">
+      {[hours, minutes, seconds].map((unit, i) => (
+        <span key={unit + i} className="flex items-center gap-2">
+          {i > 0 ? <span className="text-12 font-bold text-red-500">:</span> : null}
+          <span className="rounded-4 bg-red-500 px-4 text-12 font-bold text-neutral-white">{unit}</span>
+        </span>
+      ))}
+    </span>
+  )
+}
+
+// The promo carousel's page indicator: a wide pill for the active page, dots
+// for the rest.
+export function PageStrip({ count, active }: { count: number; active: number }) {
+  return (
+    <div className="flex items-center justify-center gap-4">
+      {Array.from({ length: count }, (_, i) => (
+        <span
+          key={i}
+          className={
+            i === active ? 'h-4 w-16 rounded-full bg-primary-500' : 'h-4 w-4 rounded-full bg-neutral-400'
+          }
+        />
+      ))}
+    </div>
   )
 }
 
@@ -113,35 +238,58 @@ export function ProgressBar({ percent }: { percent: number }) {
   )
 }
 
+/** The products the recommendation cards can advertise. */
+export type OfferProduct = 'modal' | 'ggs' | 'celengan' | 'amartha-link'
+
+const OFFER_TONE = {
+  modal: 'text-blue-500',
+  ggs: 'text-green-500',
+  celengan: 'text-green-500',
+  'amartha-link': 'text-orange-500',
+} as const
+
+// A recommendation card. The foot is the product's full LOCKUP — mark plus
+// name — not the bare mark, because the copy above never says which product it
+// is selling. `modal` and `celengan` ship as real wordmark artwork; GGS and
+// AmarthaLink have no wordmark in @/design-system/assets yet, so their lockup
+// is drawn as mark + text until that artwork exists (see NOTES.md).
+export function ProductLockup({ name }: { name: OfferProduct }) {
+  if (name === 'modal' || name === 'celengan') {
+    return <Wordmark name={name} height={20} />
+  }
+  return (
+    <span className="flex items-center gap-4">
+      <ProductLogo name={name} size={20} />
+      <span className="text-14 font-bold text-default">
+        {name === 'ggs' ? 'Grassroots' : 'amarthalink'}
+      </span>
+    </span>
+  )
+}
+
 export function OfferCard({
-  tone,
+  product,
   title,
   description,
-  logo,
   onClick,
 }: {
-  tone: 'green' | 'orange'
+  product: OfferProduct
   title: string
   description: string
-  logo: ReactNode
   onClick?: () => void
 }) {
   return (
     <Card onClick={onClick}>
       <div className="flex items-start justify-between gap-8">
         <div className="min-w-0">
-          <p className={`text-16 font-bold ${tone === 'green' ? 'text-green-500' : 'text-orange-500'}`}>
-            {title}
-          </p>
+          <p className={`text-16 font-bold ${OFFER_TONE[product]}`}>{title}</p>
           <p className="mt-4 text-16 text-caption">{description}</p>
         </div>
         <ArrowRight size={16} className="mt-2 shrink-0 text-caption" />
       </div>
-      <div className="mt-12">{logo}</div>
+      <div className="mt-12">
+        <ProductLockup name={product} />
+      </div>
     </Card>
   )
-}
-
-export function ProductMark({ name }: { name: 'ggs' | 'celengan' | 'amartha-link' }) {
-  return <ProductLogo name={name} size={24} />
 }
