@@ -42,7 +42,15 @@ export const PRODUCT_LOGOS = [
   'poket',
 ] as const
 
-export const WORDMARKS = ['celengan', 'empower', 'modal', 'poket', 'proteksi'] as const
+export const WORDMARKS = [
+  'amartha-link',
+  'celengan',
+  'empower',
+  'ggs',
+  'modal',
+  'poket',
+  'proteksi',
+] as const
 
 export const SERVICE_ICONS = [
   'all',
