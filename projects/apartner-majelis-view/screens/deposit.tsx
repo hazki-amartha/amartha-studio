@@ -152,7 +152,9 @@ export function DepositScreen() {
                     OWN account number, so a fixed one on this card would be the
                     wrong number as often as the right one — the settlement
                     screen issues it along with the breakdown and the proof. */}
-                <span className="text-10 text-disabled">Batas setor {DEPOSIT.due}</span>
+                <span className="text-10 text-disabled">
+                  Setelah pukul {DEPOSIT.cutoff} hanya bisa 1x setoran lagi
+                </span>
 
                 {allDone ? (
                   <Button

@@ -1,51 +1,49 @@
 'use client'
 
-// Bukti kunjungan — the capture that gates submitting.
+// Summary & Bukti — the last step of a majelis visit.
 //
-// One tile, exactly as the home visit's Bukti & Kirim: take the photo. Location
-// used to be a second tile the BP tapped herself, which asked her to perform a
-// step the phone does — the shot is geotagged whether or not anyone presses a
-// button — and made a one-gesture screen into two. So the geotag is read back
-// UNDER the photo instead, as the confirmation of where it was taken.
+// It carries two things now: a RECAP of what the room paid — how much cash she
+// is walking away with from this majelis — and the photo that closes the visit.
+// The recap is the point the three working stages were building to: attendance,
+// collection and offers each showed a running count while she worked, and this
+// is where those numbers land as one figure she can act on and settle against.
 //
-// The stage read-back above it is gone for the same reason it is absent from the
-// home visit: this is the paperwork that closes the visit, not a second review
-// of it. Attendance, collection and offers were each recorded on a screen that
-// showed the running count while she worked, and the recap that follows says
-// what those numbers MEAN.
+// The geotag is read back UNDER the photo rather than tapped as a second tile —
+// the shot is geotagged whether or not anyone presses a button, so asking her to
+// confirm the location is asking her to perform a step the phone already did.
 //
-// Two buttons, the same pair the home visit ends on. FINISHING is the primary.
-// Sending the group its receipt is secondary and optional — the majelis's own
-// record of who paid what, in the place the group already talks — and it opens
-// in the SAME sheet the kumpulan reminder uses. One message shape, one gesture,
-// whether it is a reminder before the visit or a summary after it.
+// One CTA: Selesaikan Tugas. It finishes the visit and hands straight to the
+// WhatsApp preview, where she sends the group its receipt. That send used to be
+// an optional second button here, opening a sheet — but the group's recap is the
+// natural close of a majelis, not a courtesy she might skip, so it is the next
+// STEP now rather than a control competing with "finish" on the same bar.
 //
-// It is the visit's FOURTH step, in the same bar as the three before it, exactly
-// as Bukti & Kirim is the home visit's third. It used to sit outside the bar —
-// attendance, collection and offers are the work, proof is the paperwork — which
-// left a BP two taps from finishing looking at a bar that already read as
-// complete, and made the same visit a 3-step flow at the balai and a 3-step flow
-// with a loose ending at the door.
+// It is the visit's FOURTH step, in the same bar as the three before it.
 
-import { useState } from 'react'
 import { Button, Card, NavigationHeader } from '@/design-system/components'
-import { WhatsappLogo } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, rupiah } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
-import { IconCamera } from '../lib/icons'
+import { IconCamera, IconWallet } from '../lib/icons'
 import {
   collectStatus,
-  collectedTotal,
   paidOf,
   pendingMembers,
+  recordedMembers,
   store,
   useApp,
   openMajelisEntry,
 } from '../lib/store'
-import { WaSendSheet } from '../lib/wa-sheet'
-import { PinMark, ProofTile, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
+import {
+  IconTile,
+  PinMark,
+  ProofTile,
+  SectionTitle,
+  StageBar,
+  StickyBar,
+  VisitTitle,
+} from '../lib/ui'
 
 export function ProofScreen() {
   const flow = useFlow()
@@ -53,42 +51,23 @@ export function ProofScreen() {
   const group = openMajelisEntry(s)
 
   const pending = pendingMembers(s)
-  const [sending, setSending] = useState(false)
 
-  // The whole room's outcome, mitra by mitra. It goes to the GROUP, which is the
-  // point: a majelis settles together, the women hold each other to it, and a
-  // summary that only ops can see leaves the group taking the BP's word for what
-  // was collected. Everyone recorded gets a line; whoever is still open is named
-  // at the foot rather than quietly left out.
-  const lines = MAJELIS.members
-    .map((m) => {
-      const status = collectStatus(s, m)
-      if (status === 'belum') return null
-      const paid = paidOf(s, m)
-      const label =
-        status === 'lunas' ? 'Lunas' : status === 'sebagian' ? 'Sebagian' : 'Belum bayar'
-      return `• ${m.name} — ${rupiah(paid)} (${label})`
-    })
-    .filter(Boolean)
-
-  const message = [
-    `Assalamualaikum Ibu-ibu ${group.name} 🙏`,
-    ``,
-    `Rekap pembayaran kumpulan ${group.day}, ${group.time}:`,
-    ``,
-    ...lines,
-    ``,
-    `Total diterima: ${rupiah(collectedTotal(s))}`,
-    ...(pending.length > 0
-      ? [``, `Belum tercatat: ${pending.map((m) => m.name).join(', ')}.`]
-      : []),
-    ``,
-    `Terima kasih atas kehadirannya hari ini.`,
-  ].join('\n')
+  // What she actually collected at this majelis — the cash from the mitra SHE
+  // recorded an outcome for, which excludes the ones who had already settled
+  // through the app before she arrived (that money was never in her bag). The
+  // three counts under it are the shape of the room: paid in full, part-paid,
+  // or reached and did not pay.
+  const recorded = recordedMembers(s)
+  const cashCollected = recorded.reduce((sum, m) => sum + paidOf(s, m), 0)
+  const lunasN = recorded.filter((m) => collectStatus(s, m) === 'lunas').length
+  const sebagianN = recorded.filter((m) => collectStatus(s, m) === 'sebagian').length
+  const tidakN = recorded.filter((m) => collectStatus(s, m) === 'tidak').length
 
   function submit() {
+    // Finishing the visit is what "Selesaikan Tugas" does; the WhatsApp preview
+    // that follows is the send, not a second confirmation of the finish.
     store.finishTask()
-    flow.go('today')
+    flow.go('proof-wa')
   }
 
   return (
@@ -106,7 +85,30 @@ export function ProofScreen() {
         <StageBar current={4} />
       </div>
 
-      <SectionTitle>Bukti Pelayanan</SectionTitle>
+      {/* --- Summary: the cash this majelis put in her bag, and the room behind
+          the figure. */}
+      <SectionTitle>Ringkasan pembayaran</SectionTitle>
+      <Card>
+        <div className="flex items-center gap-12">
+          <IconTile tint="green">
+            <IconWallet size={20} />
+          </IconTile>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-12 text-caption">Tunai terkumpul dari majelis ini</span>
+            <span className="text-24 font-bold text-default">{rupiah(cashCollected)}</span>
+          </div>
+        </div>
+        <div className="mt-12 flex items-center gap-8 border-t border-default pt-12 text-12 text-caption">
+          <span>{lunasN} lunas</span>
+          <span className="text-disabled">·</span>
+          <span>{sebagianN} sebagian</span>
+          <span className="text-disabled">·</span>
+          <span>{tidakN} belum bayar</span>
+        </div>
+      </Card>
+
+      {/* --- Bukti: the photo that closes the visit. */}
+      <SectionTitle>Bukti pelayanan</SectionTitle>
       <div className="flex">
         <ProofTile
           done={s.photo}
@@ -148,36 +150,13 @@ export function ProofScreen() {
             Ambil foto dulu untuk mengirim
           </span>
         ) : null}
-        {/* Submitting IS the end of the visit. There used to be a "Ringkasan &
-            Kirim" page after this one, which put a second confirmation between
-            the BP and a task she has finished. */}
+        {/* One button now. Finishing hands straight to the WhatsApp preview,
+            where the group's receipt is sent — the natural close of the visit
+            rather than an optional control beside "finish". */}
         <Button size="lg" className="w-full" disabled={!s.photo} onClick={submit}>
           Selesaikan Tugas
         </Button>
-        {/* Optional, and never gated on the photo: the group's receipt is a
-            courtesy to the majelis, not part of the proof she submits with. */}
-        <Button
-          size="lg"
-          variant="outline"
-          className="w-full"
-          onClick={() => setSending(true)}
-        >
-          <span className="flex items-center justify-center gap-8">
-            <WhatsappLogo size={20} />
-            Kirim Bukti via WhatsApp
-          </span>
-        </Button>
       </StickyBar>
-
-      <WaSendSheet
-        open={sending}
-        onClose={() => setSending(false)}
-        title="Kirim bukti pelayanan"
-        description="Pesan dikirim ke grup WhatsApp majelis."
-        recipient={`Grup ${group.name}`}
-        message={message}
-        sendLabel="Kirim ke Grup WhatsApp"
-      />
     </Screen>
   )
 }

@@ -206,13 +206,23 @@ export const TARGET_HARIAN = 6_200_000
 export const DEPOSIT = {
   bank: 'BCA Virtual Account',
   holder: 'Amartha Cabang Ciseeng',
-  due: '18.00',
+  // 17.00 is NOT a hard deadline — she can still settle after it. It is the
+  // point past which only ONE more handover is allowed: most of the day's cash
+  // is in by late afternoon, so a single final drop covers the rest, and it
+  // spares the branch a trickle of tiny late settlements to reconcile.
+  cutoff: '17.00',
   /**
-   * Handovers that cost nothing. Not a cap — she can settle as often as she
-   * likes, and should; past this the branch charges an admin fee, which is a
-   * reason to think rather than a door that is shut.
+   * The hard ceiling on handovers in a day: three, and no more. The risk being
+   * managed cuts both ways — cash on a motorbike wants to be put down often,
+   * but every settlement is a reconciliation the branch has to clear, so three
+   * is the count that balances the two. It is a DOOR, not a fee: past the third
+   * there is nothing to pay because there is no fourth.
+   *
+   * The last of the three is special — it cannot be sent until every task on
+   * the day is finished (see the settlement screen), because a final handover
+   * that skipped a still-open visit would settle a bag that isn't full yet.
    */
-  freePerDay: 3,
+  maxPerDay: 3,
 }
 
 /**
@@ -263,6 +273,72 @@ export const AGENT = {
 }
 
 /**
+ * One AmarthaLink counter she can walk cash to. The agent road only helps if
+ * she knows WHERE the nearest desk is, so the settlement screen offers a way
+ * onto this list before she commits to the method.
+ *
+ * `open` and `closes` are on the row because a counter that shut at 17.00 is
+ * not a place to ride to at 17.30 — the whole point of picking one is that it
+ * is open when she gets there.
+ */
+export interface AgentLocation {
+  id: string
+  /** The warung or kiosk the counter sits in — what she looks for on arrival. */
+  place: string
+  address: string
+  distanceKm: number
+  /** "07.00–21.00" — the counter's hours, said in full. */
+  hours: string
+  /** When it shuts, for the "tutup HH.MM" line on a counter still open now. */
+  closes: string
+  open: boolean
+}
+
+/**
+ * The counters near her route today, nearest first. A short list on purpose —
+ * she is choosing between the two or three she could actually reach, not
+ * browsing a directory (CLAUDE.md §3: only what is on screen).
+ */
+export const NEAREST_AGENTS: AgentLocation[] = [
+  {
+    id: 'ag1',
+    place: 'Warung Bu Ipah',
+    address: 'Kp. Cibeuteung RT 03, Ciseeng',
+    distanceKm: 0.4,
+    hours: '07.00–21.00',
+    closes: '21.00',
+    open: true,
+  },
+  {
+    id: 'ag2',
+    place: 'Toko Berkah Jaya',
+    address: 'Jl. Raya Ciseeng No. 12',
+    distanceKm: 1.1,
+    hours: '08.00–20.00',
+    closes: '20.00',
+    open: true,
+  },
+  {
+    id: 'ag3',
+    place: 'Konter Rizki Cell',
+    address: 'Pasar Ciseeng, Blok C',
+    distanceKm: 2.3,
+    hours: '08.00–17.00',
+    closes: '17.00',
+    open: true,
+  },
+  {
+    id: 'ag4',
+    place: 'Warung Sembako Nia',
+    address: 'Kp. Putat Nutug RT 05',
+    distanceKm: 3.6,
+    hours: '06.00–22.00',
+    closes: '22.00',
+    open: true,
+  },
+]
+
+/**
  * A fresh unique code per settlement, for the same reason the VA is fresh: two
  * cash drops keyed under one code are two deposits the branch cannot tell
  * apart. Derived from the settlement number so it is stable for one handover.
@@ -280,7 +356,20 @@ export const agentCodeFor = (no: number): string => {
  * indistinguishable at the other end. The BP transfers to the number on the
  * screen in front of her, and that number is the receipt.
  */
-export const vaFor = (no: number): string => `8808 2145 77${90 + no} ${1123 + no * 7}`
+export const vaFor = (no: number, part = 1): string =>
+  `8808 2145 77${90 + no} ${1123 + no * 7 + (part - 1) * 3}`
+
+/**
+ * Splits a VA deposit into two transfers. A single VA transfer at the branch
+ * bank caps below a full day's collections, so the settlement goes as two
+ * round-numbered halves to two different VA numbers — the second carries any
+ * remainder so the pair always sums back to the total. The agent road has no
+ * such cap: a counter takes the whole amount at once, so it stays one figure.
+ */
+export const splitDeposit = (total: number): [number, number] => {
+  const first = Math.min(total, Math.round(total / 2 / 1000) * 1000)
+  return [first, total - first]
+}
 
 /**
  * "MV", "HV" — the KIND of a task, in the shorthand a BP and her BM speak.
