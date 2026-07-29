@@ -2,43 +2,37 @@
 
 // Home visit, step 3 of 3 — Bukti & Kirim.
 //
-// The close of a home visit: a geotagged photo of the door, and submitting ticks
-// the schedule row so the day advances. Everything the BP recorded — who she
-// met, what was paid — was entered on the two steps before and is not read back
-// here; this step is the paperwork that closes the visit, not a second review.
+// The close of a home visit, and — like the majelis visit's Summary & Bukti — it
+// now carries a RECAP of what the door paid before the photo that proves the
+// visit. What she recorded on Tagih lands here as one figure and its status, so
+// she confirms what she is submitting rather than re-entering it.
 //
 // The photo carries the mitra's house location: a doorstep is the visit that
 // gets questioned later, and "she was at the house" is exactly the claim a photo
 // alone cannot make. So the confirmation reads back the geotag — where the shot
 // was taken — rather than a filename.
 //
-// Two buttons, the same pair the majelis visit ends on. FINISHING is the
-// primary: the visit is done and the day is waiting. Sending the receipt is
-// secondary and optional — a courtesy to the mitra, since a doorstep collection
-// leaves no slip and nothing reaches her phone — and it opens in the SAME sheet
-// the kumpulan reminder uses rather than the page it used to be. A page put a
-// screen between a finished visit and the schedule, and made "send the receipt"
-// feel like a step the BP had to get through.
+// One CTA: Selesaikan Tugas. It finishes the visit and hands straight to the
+// WhatsApp preview, where the mitra's payment receipt is sent — the same shape
+// as the majelis visit, where the group's recap is its own next step rather than
+// an optional second button competing with "finish".
 
-import { useState } from 'react'
-import { Button, Card, NavigationHeader } from '@/design-system/components'
-import { WhatsappLogo } from '@/design-system/icons'
+import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
 import { profileOf } from '../lib/profile'
-import { DAYS } from '../lib/schedule'
-import { WaSendSheet } from '../lib/wa-sheet'
 import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
 import {
   HOME_STAGE_LABELS,
+  IconTile,
   PinMark,
   ProofTile,
   SectionTitle,
   StageBar,
   StickyBar,
 } from '../lib/ui'
-import { IconCamera } from '../lib/icons'
+import { IconCamera, IconWallet } from '../lib/icons'
 
 export function HomeProofScreen() {
   const flow = useFlow()
@@ -47,44 +41,52 @@ export function HomeProofScreen() {
   const task = openHomeTask(s)
   const profile = profileOf(mitra)
   const houseLocation = task?.place ?? profile.address
-  const [sending, setSending] = useState(false)
 
-  // What the receipt says. Money taken gets a receipt; a visit that ended in a
-  // promise gets the promise in writing, which is the same thing to the mitra —
-  // a record of what was agreed at her door, on the phone she keeps.
+  // What the door paid, and where that leaves the bill — the recap the WhatsApp
+  // receipt on the next step is built from.
   const paid = paidOf(s, mitra)
-  const shortfall = Math.max(0, outstandingOf(mitra).total - paid)
+  const total = outstandingOf(mitra).total
+  const shortfall = Math.max(0, total - paid)
   const promise = s.partialPtp[mitra.id] ?? s.nonPayments[mitra.id]?.ptp
-  const message = [
-    `Halo Ibu ${mitra.name} 🙏`,
-    ``,
-    paid > 0
-      ? `Terima kasih, pembayaran angsuran sebesar ${rupiah(paid)} sudah kami terima hari ini (${DAYS[0].date}).`
-      : `Terima kasih atas waktunya hari ini (${DAYS[0].date}). Belum ada pembayaran yang kami terima.`,
-    ...(shortfall > 0
-      ? [``, `Sisa tagihan ${rupiah(shortfall)}${promise ? `, janji bayar ${promise}` : ''}.`]
-      : []),
-    ``,
-    `Salam,`,
-    `Amartha`,
-  ].join('\n')
+  const status = paid >= total && paid > 0 ? 'lunas' : paid > 0 ? 'sebagian' : 'belum'
+  const statusLabel = status === 'lunas' ? 'Lunas' : status === 'sebagian' ? 'Sebagian' : 'Belum bayar'
+  const statusIntent = status === 'lunas' ? 'green' : status === 'sebagian' ? 'orange' : 'neutral'
 
   function submit() {
+    // Finishing the visit is what "Selesaikan Tugas" does; the WhatsApp preview
+    // that follows is the send, not a second confirmation of the finish.
     store.finishTask()
-    flow.go('today')
+    flow.go('home-proof-wa')
   }
 
   return (
     <Screen
-      topBar={
-        <NavigationHeader
-          title="Bukti & Kirim"
-          onBack={() => flow.back()}
-        />
-      }
+      topBar={<NavigationHeader title="Bukti & Kirim" onBack={() => flow.back()} />}
     >
       <StageBar current={3} labels={HOME_STAGE_LABELS} />
 
+      {/* --- Summary: what the door paid, and where the bill stands. */}
+      <SectionTitle>Ringkasan pembayaran</SectionTitle>
+      <Card>
+        <div className="flex items-center gap-12">
+          <IconTile tint="green">
+            <IconWallet size={20} />
+          </IconTile>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-12 text-caption">Pembayaran diterima dari kunjungan ini</span>
+            <span className="text-24 font-bold text-default">{rupiah(paid)}</span>
+          </div>
+          <Badge intent={statusIntent}>{statusLabel}</Badge>
+        </div>
+        {shortfall > 0 || promise ? (
+          <div className="mt-12 flex flex-col gap-2 border-t border-default pt-12 text-12 text-caption">
+            {shortfall > 0 ? <span>Sisa tagihan {rupiah(shortfall)}</span> : null}
+            {promise ? <span>Janji bayar {promise}</span> : null}
+          </div>
+        ) : null}
+      </Card>
+
+      {/* --- Bukti: the geotagged photo that closes the visit. */}
       <SectionTitle>Bukti kunjungan</SectionTitle>
       <div className="flex">
         <ProofTile
@@ -113,33 +115,12 @@ export function HomeProofScreen() {
         {!s.photo ? (
           <span className="text-center text-12 text-caption">Ambil foto dulu untuk mengirim</span>
         ) : null}
+        {/* One button now. Finishing hands straight to the WhatsApp preview,
+            where the mitra's payment receipt is sent. */}
         <Button size="lg" className="w-full" disabled={!s.photo} onClick={submit}>
           Selesaikan Tugas
         </Button>
-        {/* Optional, and never gated on the photo: the receipt is a courtesy to
-            the mitra, not part of the proof the task is submitted with. */}
-        <Button
-          size="lg"
-          variant="outline"
-          className="w-full"
-          onClick={() => setSending(true)}
-        >
-          <span className="flex items-center justify-center gap-8">
-            <WhatsappLogo size={20} />
-            Kirim Bukti via WhatsApp
-          </span>
-        </Button>
       </StickyBar>
-
-      <WaSendSheet
-        open={sending}
-        onClose={() => setSending(false)}
-        title="Kirim bukti kunjungan"
-        description="Pesan dikirim ke WhatsApp mitra."
-        recipient={`${mitra.name} · ${profile.phone}`}
-        message={message}
-        sendLabel="Kirim ke WhatsApp Mitra"
-      />
     </Screen>
   )
 }

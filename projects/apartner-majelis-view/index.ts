@@ -464,7 +464,8 @@ export const project: ProjectModule = {
       title: 'Home Visit 3 — Bukti & Kirim',
       component: lazyScreen(() => import('./screens/home-proof'), 'HomeProofScreen'),
       notes: [
-        'The close of a home visit: a photo of the door, required before it can be submitted. What she recorded on the two steps before — who was met, what was paid — is not read back here; this step is the paperwork that closes the visit, not a second review of it.',
+        'The close of a home visit, mirroring the majelis visit’s Summary & Bukti: a recap of what the door paid — the amount received and where the bill stands — then the geotagged photo that proves the visit.',
+        'One CTA: Selesaikan Tugas. It finishes the visit and hands straight to the WhatsApp preview, where the mitra’s receipt is sent. That send used to be an optional second button opening a sheet; it is the next step now rather than a control competing with “finish”.',
       ],
       states: [
         {
@@ -476,7 +477,7 @@ export const project: ProjectModule = {
         {
           id: 'cash',
           label: 'Cash collected at the door',
-          description: 'The receipt sheet carries the amount and the date',
+          description: 'The summary shows the amount; the WhatsApp receipt carries it too',
           apply: demo.doorProofCash,
         },
         {
@@ -492,7 +493,17 @@ export const project: ProjectModule = {
           apply: demo.receiptPartial,
         },
       ],
-      flowsTo: [{ to: 'today', label: 'Selesaikan Tugas — kembali ke jadwal' }],
+      flowsTo: [{ to: 'home-proof-wa', label: 'Selesaikan Tugas — ke pratinjau WhatsApp' }],
+    },
+    {
+      id: 'home-proof-wa',
+      title: 'Kirim Bukti Bayar',
+      component: lazyScreen(() => import('./screens/home-proof-wa'), 'HomeProofWaScreen'),
+      notes: [
+        'The send, made its own step. A doorstep collection leaves no slip, so the mitra’s receipt — what was paid, and what is still owed with the date promised — goes to her own WhatsApp, and the BP has one trigger: Kirim Bukti Bayar via WhatsApp.',
+        'Reached after the visit is already finished, so this is a courtesy she performs, not a gate the task waits on. “Nanti saja” leaves without sending; the schedule is where the visit ends either way.',
+      ],
+      flowsTo: [{ to: 'today', label: 'Kirim / Nanti saja — kembali ke jadwal' }],
     },
     {
       id: 'settlement',
