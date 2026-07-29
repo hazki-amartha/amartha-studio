@@ -7,8 +7,8 @@
 
 import { type ReactNode } from 'react'
 import { Card } from '@/design-system/components'
-import { ProductLogo, ServiceIcon, type ServiceIconName, Wordmark } from '@/design-system/assets'
-import { ArrowRight, Bell, Eye, Plus, Transfer, User, Voucher } from '@/design-system/icons'
+import { ServiceIcon, type ServiceIconName, Wordmark } from '@/design-system/assets'
+import { ArrowRight, Bell, Eye, Plus, Promo, Transfer, User } from '@/design-system/icons'
 
 export function BrandBand({
   greeting = 'Hello',
@@ -21,18 +21,24 @@ export function BrandBand({
 }) {
   return (
     <div className="-mx-16 -mt-48">
-      {/* The header is masked to a curved band, not a rounded rectangle: the
-          bottom edge is flat at the sides and sags at the centre (see the
-          production mask, object.svg — 360x123, flat to y=99.8, dipping to 123
-          at x=180). That is an ELLIPTICAL bottom radius, which Tailwind has no
-          class for, so it goes in a style prop: a 50% horizontal radius on both
-          bottom corners against a 24px vertical one, giving one continuous arc
-          across the full width. 24px is the 4px-grid neighbour of the mask's
-          23.2px sag. */}
-      <div
-        className="bg-gradient-to-r from-primary-400 to-primary-500 px-16 pb-40 pt-48"
-        style={{ borderRadius: '0 0 50% 50% / 0 0 24px 24px' }}
-      >
+      {/* The band's bottom edge is a bezier, not a radius. The production mask
+          (object.svg, 360x123) runs flat to y=99.8 and then sags to y=123 at the
+          centre — and crucially its first control point sits ON the start point,
+          so the curve leaves each side corner already angled downward. A CSS
+          border-radius can't do that: an elliptical radius is tangent-VERTICAL
+          at the sides, which rounds the two corners the real shape keeps sharp.
+          So the sag is its own 24px strip below the flat rectangle, clipped to
+          the mask's own path. The clipPath is in objectBoundingBox units (the
+          mask's x-coords over 360: 290.403 -> 0.8067, 180 -> 0.5, 69.5972 ->
+          0.1933) so it stretches to any device width. 24px is the 4px-grid
+          neighbour of the mask's 23.2px sag; pb-16 + that strip keeps the same
+          40px below the content the layout below is pulling back against. */}
+      <svg aria-hidden className="absolute h-0 w-0">
+        <clipPath id="afin-band-sag" clipPathUnits="objectBoundingBox">
+          <path d="M1 0 C1 0 0.8067 1 0.5 1 C0.1933 1 0 0 0 0 Z" />
+        </clipPath>
+      </svg>
+      <div className="bg-gradient-to-r from-primary-400 to-primary-500 px-16 pb-16 pt-48">
         <div className="flex items-center gap-12 pb-16">
           <ChromeIcon>
             <User size={20} />
@@ -42,27 +48,41 @@ export function BrandBand({
             <span className="truncate text-14 font-bold text-neutral-white underline">{name}</span>
           </span>
           <ChromeIcon badge="8">
-            <Voucher size={20} />
+            <Promo size={20} />
           </ChromeIcon>
           <ChromeIcon badge="8">
             <Bell size={20} />
           </ChromeIcon>
         </div>
       </div>
+      <div
+        className="h-24 w-full bg-gradient-to-r from-primary-400 to-primary-500"
+        style={{ clipPath: 'url(#afin-band-sag)' }}
+      />
       <div className="-mt-40 px-16">{children}</div>
     </div>
   )
 }
 
-// Frosted-glass chrome button: a 2px white ring over a lighter purple fill.
-// The Figma uses a translucent white wash with a backdrop blur; primary-400 is
-// the nearest token that keeps the ring reading against the darker gradient.
+// Frosted-glass chrome button. Production does NOT fill these with a flat
+// purple — the fill is a translucent primary-50 wash over a 16px backdrop blur,
+// so the gradient behind shows through, and the roundness comes from two
+// shadows: a soft drop shadow below and an inset purple highlight up and to the
+// left. Neither shadow is a token, so they go in a style prop (same escape
+// hatch as the band's elliptical radius above); the colours are still the
+// tokens — rgba of primary-600 for the inset, plain black for the drop.
 function ChromeIcon({ badge, children }: { badge?: string; children: ReactNode }) {
   return (
-    <span className="relative flex h-32 w-32 shrink-0 items-center justify-center rounded-full border-2 border-neutral-white bg-primary-400 text-neutral-white">
+    <span
+      className="relative flex h-32 w-32 shrink-0 items-center justify-center rounded-full border-2 border-neutral-white/60 bg-primary-50/25 text-neutral-white backdrop-blur-lg"
+      style={{
+        boxShadow:
+          '0 4px 4px rgba(0, 0, 0, 0.1), inset -4px 6px 4px rgba(115, 44, 124, 0.32)',
+      }}
+    >
       {children}
       {badge ? (
-        <span className="absolute -right-4 -top-4 flex h-16 min-w-16 items-center justify-center rounded-full bg-red-500 px-4 text-10 font-bold text-neutral-white">
+        <span className="absolute -right-8 -top-8 flex h-20 min-w-20 items-center justify-center rounded-full bg-red-500 px-4 text-10 font-bold text-neutral-white">
           {badge}
         </span>
       ) : null}
@@ -249,24 +269,8 @@ const OFFER_TONE = {
 } as const
 
 // A recommendation card. The foot is the product's full LOCKUP — mark plus
-// name — not the bare mark, because the copy above never says which product it
-// is selling. `modal` and `celengan` ship as real wordmark artwork; GGS and
-// AmarthaLink have no wordmark in @/design-system/assets yet, so their lockup
-// is drawn as mark + text until that artwork exists (see NOTES.md).
-export function ProductLockup({ name }: { name: OfferProduct }) {
-  if (name === 'modal' || name === 'celengan') {
-    return <Wordmark name={name} height={20} />
-  }
-  return (
-    <span className="flex items-center gap-4">
-      <ProductLogo name={name} size={20} />
-      <span className="text-14 font-bold text-default">
-        {name === 'ggs' ? 'Grassroots' : 'amarthalink'}
-      </span>
-    </span>
-  )
-}
-
+// name as artwork — not the bare mark, because the copy above never says which
+// product it is selling.
 export function OfferCard({
   product,
   title,
@@ -288,7 +292,7 @@ export function OfferCard({
         <ArrowRight size={16} className="mt-2 shrink-0 text-caption" />
       </div>
       <div className="mt-12">
-        <ProductLockup name={product} />
+        <Wordmark name={product} height={20} />
       </div>
     </Card>
   )

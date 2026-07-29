@@ -1492,6 +1492,20 @@ export function Plus(props: IconProps) {
   ) })
 }
 
+/** promo — the bare voucher. `Voucher` is this glyph plus a green check badge,
+    which reads as "voucher applied"; use this one for entry points to a promo
+    list, where nothing has been claimed yet. */
+export function Promo(props: IconProps) {
+  return base({ ...props, children: (
+    <>
+      <path d="M17 5H7C4.79086 5 3 6.79086 3 9V9.5L3.05972 9.51493C4.20003 9.80001 5 10.8246 5 12C5 13.1754 4.20003 14.2 3.05972 14.4851L3 14.5V15C3 17.2091 4.79086 19 7 19H17C19.2091 19 21 17.2091 21 15V9C21 6.79086 19.2091 5 17 5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+      <path d="M15.5 9.2002L9.5 15.2002" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <circle cx="10" cy="9.2002" r="1.5" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="15.5" cy="14.7002" r="1.5" stroke="currentColor" strokeWidth="1.5"/>
+    </>
+  ) })
+}
+
 /** profile */
 export function Profile(props: IconProps) {
   return base({ ...props, children: (
