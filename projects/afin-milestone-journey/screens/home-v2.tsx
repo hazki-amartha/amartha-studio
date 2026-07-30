@@ -69,26 +69,15 @@ export function HomeV2Screen() {
         <PoketWidget />
       </BrandBand>
 
-      <h1 className="text-16 font-bold text-default">Perjalanan pendanaan Ibu</h1>
-
       <div className="overflow-hidden rounded-12 border border-light bg-neutral-white">
-        {/* The capital journey. What she has now, what discipline grows it into,
-            and the two stops on the way — the near top-up and the far limit
-            rise — on one timeline, so short and long term read as one story. */}
+        {/* The capital journey. What discipline grows her limit into, and the
+            two stops on the way — the near top-up and the far limit rise — on
+            one timeline, so short and long term read as one story. */}
         <div className="p-16">
-          <div className="flex items-start gap-12">
-            <div className="min-w-0 flex-1">
-              <p className="text-12 text-caption">Limit sekarang</p>
-              <p className="mt-2 text-20 font-bold text-default">Rp5jt</p>
-            </div>
-            <div className="min-w-0 flex-1 text-right">
-              <p className="text-12 text-caption">Bisa naik jadi</p>
-              <p className="mt-2 flex items-center justify-end gap-4 text-20 font-bold text-primary-500">
-                Rp7–8jt
-                <ChartLineUp size={16} />
-              </p>
-            </div>
-          </div>
+          <p className="flex items-center gap-4 text-14 font-bold text-default">
+            Tingkatkan limit dari Rp5jt ke Rp8jt
+            <ChartLineUp size={16} className="shrink-0 text-primary-500" />
+          </p>
 
           <div className="mt-24">
             <div className="flex items-center">
@@ -132,15 +121,17 @@ export function HomeV2Screen() {
             </div>
           </div>
 
+          <div className="-mx-16 mt-16 border-t border-light" />
+
           {!isNew && s.atRisk ? (
-            <div className="mb-16 mt-20">
+            <div className="mb-16 mt-16">
               <Notice tone="orange">
                 Reward Ibu bisa hangus. Bayar angsuran dan hadir kumpulan minggu ini agar reward
                 tetap didapat.
               </Notice>
             </div>
           ) : (
-            <p className="mb-16 mt-20 text-14 text-neutral-700">
+            <p className="mb-16 mt-16 text-14 text-neutral-700">
               Tetap lakukan hal berikut untuk mencapai goal:
             </p>
           )}
