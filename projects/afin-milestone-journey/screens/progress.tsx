@@ -9,9 +9,8 @@
 // Locked rungs stay visible and stay specific — "pelunasan dini", "limit baru
 // Rp8jt" — because a lock only motivates if you can read what is behind it.
 
-import { useState } from 'react'
 import { NavigationHeader } from '@/design-system/components'
-import { Check, ChevronDown, ChevronRight, LockKey } from '@/design-system/icons'
+import { Check, ChevronRight, LockKey } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { HISTORY, MEMBERS, MILESTONES, type Milestone } from '../lib/data'
@@ -31,10 +30,9 @@ const HEALTH_LABEL: Record<Health, { label: string; tone: keyof typeof STATUS_TO
 
 export function ProgressScreen() {
   const flow = useFlow()
-  const [progressOpen, setProgressOpen] = useState(false)
 
-  // The two reads behind the "Progress" header menu, from the same data their
-  // detail pages use: her own bayar/hadir record, and the majelis's payments.
+  // The two health reads that open the page, from the same data their detail
+  // pages use: her own bayar/hadir record, and the majelis's payments.
   const weeks = HISTORY.length
   const personal = healthOf(
     Math.min(HISTORY.filter((e) => e.bayar).length, HISTORY.filter((e) => e.kumpulan).length),
@@ -45,54 +43,27 @@ export function ProgressScreen() {
 
   return (
     <Screen
-      topBar={
-        <NavigationHeader
-          title="Perjalanan pendanaan"
-          onBack={() => flow.go('home')}
-          link={
-            <span className="flex items-center gap-2">
-              Progress
-              <ChevronDown size={16} />
-            </span>
-          }
-          onLinkClick={() => setProgressOpen((open) => !open)}
-        />
-      }
+      topBar={<NavigationHeader title="Perjalanan pendanaan" onBack={() => flow.go('home')} />}
     >
-      <div className="relative flex flex-col gap-16 pb-16">
-        {/* The "Progress" header menu: two health reads, each a way into the
-            page that shows it in full. Drawn as a dropdown from the header. */}
-        {progressOpen ? (
-          <>
-            <button
-              type="button"
-              aria-label="Tutup"
-              onClick={() => setProgressOpen(false)}
-              className="absolute inset-0 z-10 cursor-default"
-            />
-            <div className="absolute left-0 right-0 top-0 z-20 -mx-16 -mt-16 overflow-hidden rounded-b-12 border-b border-default bg-neutral-white">
-              <ProgressMenuItem
-                label="Progress pribadi"
-                subtitle="Semua pembayaran lunas"
-                health={personal}
-                onOpen={() => {
-                  setProgressOpen(false)
-                  flow.go('riwayat')
-                }}
-              />
-              <div className="h-px bg-neutral-200" />
-              <ProgressMenuItem
-                label="Progress majelis"
-                subtitle={`${tunggakan} anggota punya tunggakan`}
-                health={majelis}
-                onOpen={() => {
-                  setProgressOpen(false)
-                  flow.go('majelis')
-                }}
-              />
-            </div>
-          </>
-        ) : null}
+      <div className="flex flex-col gap-16 pb-16">
+        {/* Both health reads sit at the top of the page rather than behind a
+            header menu — a risky majelis is the thing she most needs to see,
+            and a dropdown hides it until she thinks to look. */}
+        <div className="overflow-hidden rounded-12 border border-default bg-neutral-white">
+          <ProgressMenuItem
+            label="Progress pribadi"
+            subtitle="Semua pembayaran lunas"
+            health={personal}
+            onOpen={() => flow.go('riwayat')}
+          />
+          <div className="h-px bg-neutral-200" />
+          <ProgressMenuItem
+            label="Progress majelis"
+            subtitle={`${tunggakan} anggota punya tunggakan`}
+            health={majelis}
+            onOpen={() => flow.go('majelis')}
+          />
+        </div>
 
         {MILESTONES.map((m, i) => (
           <MilestoneRung
