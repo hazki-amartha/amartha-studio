@@ -5,15 +5,17 @@
 // The screen opens with what the mitra can DO about the group this week, not
 // with a roster. That ordering is deliberate: she is the ketua, the group's
 // condition is partly hers to fix, and a list of names with red badges is a
-// diagnosis without a treatment. The roster sits underneath as the evidence.
+// diagnosis without a treatment. The roster sits underneath as the evidence —
+// her own row pulled out under "Anda", the rest under "Anggota".
 
+import type { ReactNode } from 'react'
 import { NavigationHeader } from '@/design-system/components'
-import { WhatsappLogo } from '@/design-system/icons'
+import { ChevronRight, File, Headset, User, WhatsappLogo } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { MEMBERS } from '../lib/data'
+import { MEMBERS, type Member } from '../lib/data'
 import { store } from '../lib/store'
-import { SectionTitle, StatRow } from '../lib/ui'
+import { StatRow } from '../lib/ui'
 
 const WA_GROUP = 'Grup WhatsApp Majelis Melati 07'
 
@@ -21,16 +23,24 @@ export function MajelisScreen() {
   const flow = useFlow()
 
   const total = MEMBERS.length
-  const hadir = MEMBERS.filter((m) => m.hadir).length
-  const bayar = MEMBERS.filter((m) => m.bayar).length
-  const issues = total - hadir + (total - bayar)
+  const you = MEMBERS.find((m) => m.ketua) ?? MEMBERS[0]
+  const others = MEMBERS.filter((m) => m !== you)
+  const belumBayar = MEMBERS.filter((m) => !m.bayar)
 
   const overall =
-    issues === 0
+    belumBayar.length === 0
       ? { text: 'Semua lancar 🎉', tone: 'bg-green-50 text-green-500' }
-      : issues <= 2
+      : belumBayar.length <= 2
         ? { text: 'Cukup baik', tone: 'bg-orange-50 text-orange-700' }
         : { text: 'Butuh perhatian', tone: 'bg-red-50 text-red-500' }
+
+  // "Ingatkan Ibu A, B, dan N lainnya" — named where it fits, counted when the
+  // list would run long.
+  const names = belumBayar.map((m) => m.name.split(' ')[0])
+  const belumText =
+    names.length <= 2
+      ? names.join(' dan ')
+      : `${names.slice(0, 2).join(', ')}, dan ${names.length - 2} lainnya`
 
   const remind = (message: string) => {
     store.composeReminder(WA_GROUP, message)
@@ -38,9 +48,7 @@ export function MajelisScreen() {
   }
 
   return (
-    <Screen
-      topBar={<NavigationHeader title="Majelis Melati 07" onBack={() => flow.go('home')} />}
-    >
+    <Screen topBar={<NavigationHeader title="Majelis Melati 07" onBack={() => flow.go('home')} />}>
       <div className="rounded-12 border border-default bg-neutral-white p-16">
         <div className="flex items-center gap-12 border-b border-light pb-12">
           <p className="flex-1 text-12 font-bold text-default">Kondisi majelis minggu ini</p>
@@ -59,46 +67,45 @@ export function MajelisScreen() {
             )
           }
         />
-        <ActionRow
-          border
-          emoji="⚠️"
-          text="Ingatkan Ibu Nur dan Yulianti untuk bayar."
-          onRemind={() =>
-            remind(
-              'Ibu Nur dan Ibu Yulianti, jangan lupa bayar angsuran minggu ini ya. Terima kasih 🙏',
-            )
-          }
-        />
+        {belumBayar.length > 0 ? (
+          <ActionRow
+            border
+            emoji="⚠️"
+            text={`Ingatkan Ibu ${belumText} untuk bayar.`}
+            onRemind={() =>
+              remind(
+                'Ibu-ibu yang belum melunasi angsuran minggu ini, mohon segera dibayar ya. Terima kasih 🙏',
+              )
+            }
+          />
+        ) : null}
       </div>
 
-      <SectionTitle>Anggota ({MEMBERS.length})</SectionTitle>
+      <div className="rounded-12 border border-default bg-neutral-white p-16">
+        <div className="flex items-center gap-12 border-b border-light pb-12">
+          <p className="flex-1 text-14 font-bold text-default">Anggota majelis</p>
+          <p className="text-12 text-caption">{total} mitra</p>
+        </div>
 
-      <button
-        type="button"
-        className="flex items-center gap-12 rounded-12 border border-neutral-400 bg-neutral-50 p-12 text-left"
-      >
-        <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-primary-50 text-18 font-bold text-primary-500">
-          +
-        </span>
-        <span className="text-14 font-bold text-primary-500">Undang anggota baru</span>
-      </button>
+        <p className="mt-12 text-10 font-bold uppercase text-caption">Anda</p>
+        <MemberRow member={you} />
 
-      <div className="rounded-12 border border-default bg-neutral-white px-16">
-        {MEMBERS.map((m, i) => (
-          <div
-            key={m.initials}
-            className={`flex items-center gap-12 py-12 ${i === 0 ? '' : 'border-t border-light'}`}
-          >
-            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-50 text-12 font-bold text-primary-500">
-              {m.initials}
-            </span>
-            <span className="min-w-0 flex-1 text-14 font-bold text-default">{m.name}</span>
-            <span className="flex shrink-0 flex-col items-end gap-4">
-              <MemberBadge ok={m.hadir} okLabel="Hadir" failLabel="Tidak hadir" />
-              <MemberBadge ok={m.bayar} okLabel="Sudah bayar" failLabel="Belum bayar" />
-            </span>
-          </div>
-        ))}
+        <p className="mt-8 text-10 font-bold uppercase text-caption">Anggota</p>
+        <button
+          type="button"
+          className="mt-8 flex w-full items-center gap-12 rounded-12 border border-neutral-400 bg-neutral-50 p-12 text-left"
+        >
+          <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-primary-50 text-18 font-bold text-primary-500">
+            +
+          </span>
+          <span className="text-14 font-bold text-primary-500">Undang anggota baru</span>
+        </button>
+
+        <div className="mt-4">
+          {others.map((m, i) => (
+            <MemberRow key={m.initials} member={m} divider={i > 0} />
+          ))}
+        </div>
       </div>
 
       <div className="rounded-12 border border-default bg-neutral-white p-16">
@@ -109,17 +116,13 @@ export function MajelisScreen() {
         <StatRow label="Ketua majelis" value="Ibu Siti (Anda) 👑" />
       </div>
 
-      <div className="flex items-center gap-12 pb-16">
-        <div className="min-w-0 flex-1">
-          <p className="text-12 text-caption">Grup WhatsApp</p>
-          <p className="mt-2 text-14 font-bold text-default">Info &amp; pengingat kumpulan</p>
-        </div>
-        <button
-          type="button"
-          className="shrink-0 rounded-full border border-primary-500 bg-neutral-white px-16 py-8 text-12 font-bold text-primary-500"
-        >
-          Gabung grup
-        </button>
+      <LinkCard
+        icon={<File size={24} />}
+        title="Tentang Modal"
+        subtitle="Keuntungan dan cara kerja Modal."
+      />
+      <div className="pb-16">
+        <LinkCard icon={<Headset size={24} />} title="AmarthaCare" />
       </div>
     </Screen>
   )
@@ -151,22 +154,53 @@ function ActionRow({
   )
 }
 
-function MemberBadge({
-  ok,
-  okLabel,
-  failLabel,
+function LinkCard({
+  icon,
+  title,
+  subtitle,
 }: {
-  ok: boolean
-  okLabel: string
-  failLabel: string
+  icon: ReactNode
+  title: string
+  subtitle?: string
 }) {
   return (
-    <span
-      className={`whitespace-nowrap rounded-full px-8 py-2 text-10 font-bold ${
-        ok ? 'bg-green-50 text-green-500' : 'bg-red-50 text-red-500'
-      }`}
+    <button
+      type="button"
+      className="flex w-full items-center gap-12 rounded-12 border border-default bg-neutral-white p-16 text-left"
     >
-      {ok ? okLabel : failLabel}
-    </span>
+      <span className="shrink-0 text-default">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-14 font-bold text-default">{title}</p>
+        {subtitle ? <p className="mt-2 text-12 text-caption">{subtitle}</p> : null}
+      </div>
+      <span className="shrink-0 text-disabled">
+        <ChevronRight size={20} />
+      </span>
+    </button>
+  )
+}
+
+function MemberRow({ member, divider }: { member: Member; divider?: boolean }) {
+  return (
+    <div className={`flex items-center gap-12 py-12 ${divider ? 'border-t border-light' : ''}`}>
+      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-500">
+        <User size={20} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-14 font-bold text-default">{member.name}</p>
+        {member.ketua ? (
+          <span className="mt-2 inline-block rounded-full border border-default px-8 py-2 text-10 text-caption">
+            Ketua
+          </span>
+        ) : null}
+      </div>
+      <span
+        className={`shrink-0 whitespace-nowrap rounded-full px-8 py-2 text-12 font-bold ${
+          member.bayar ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'
+        }`}
+      >
+        {member.bayar ? 'Lancar' : 'Tidak lancar'}
+      </span>
+    </div>
   )
 }

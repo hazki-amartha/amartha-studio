@@ -59,22 +59,29 @@ export const HISTORY: WeekEntry[] = [
 ]
 
 // --- Majelis roster --------------------------------------------------------
-// Shown for the current week only, so `hadir` / `bayar` are this week's facts
-// and the summary pill at the top is derived from them.
+// `bayar` is the member's payment health this cycle — lancar when true, tidak
+// lancar when false; the summary pill and reminders are derived from it. Ibu
+// Siti (the mitra using the app) is the ketua, flagged with `ketua`.
 
 export interface Member {
   initials: string
   name: string
   hadir: boolean
   bayar: boolean
+  ketua?: boolean
 }
 
 export const MEMBERS: Member[] = [
-  { initials: 'IS', name: 'Ibu Siti (Ketua Majelis)', hadir: true, bayar: true },
-  { initials: 'ML', name: 'Marlina', hadir: false, bayar: true },
-  { initials: 'NH', name: 'Nur Hasanah', hadir: false, bayar: false },
-  { initials: 'YL', name: 'Yulianti', hadir: false, bayar: false },
-  { initials: 'SR', name: 'Siti Rahayu', hadir: true, bayar: true },
+  { initials: 'IS', name: 'Ibu Siti', hadir: true, bayar: true, ketua: true },
+  { initials: 'AK', name: 'Alen Kurnia', hadir: true, bayar: true },
+  { initials: 'AN', name: 'Arin Nita', hadir: false, bayar: false },
+  { initials: 'SY', name: 'Suyamti', hadir: true, bayar: false },
+  { initials: 'DS', name: 'Dewi Sartika', hadir: true, bayar: true },
+  { initials: 'RW', name: 'Ratna Wati', hadir: false, bayar: false },
+  { initials: 'SW', name: 'Sri Wahyuni', hadir: true, bayar: true },
+  { initials: 'FH', name: 'Fitri Handayani', hadir: true, bayar: false },
+  { initials: 'NH', name: 'Nurul Hidayah', hadir: false, bayar: false },
+  { initials: 'ML', name: 'Marlina', hadir: true, bayar: true },
 ]
 
 // --- Milestone ladder ------------------------------------------------------
