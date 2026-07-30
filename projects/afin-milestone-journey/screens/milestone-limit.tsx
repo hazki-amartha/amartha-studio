@@ -25,8 +25,8 @@ export function MilestoneLimitScreen() {
       headline="Menuju limit baru"
       caption="Terus jaga hal berikut agar target terbesar ini terbuka."
       reward={{
-        label: 'Naik limit kredit hingga',
-        value: 'Rp8jt',
+        label: 'Peluang naik limit kredit',
+        value: 's/d Rp8jt',
         sub: 'Target 23 Mar 2027',
       }}
       tasks={[
