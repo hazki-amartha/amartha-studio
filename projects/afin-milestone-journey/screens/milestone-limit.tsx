@@ -31,17 +31,20 @@ export function MilestoneLimitScreen() {
       }}
       tasks={[
         {
-          title: 'Bayar angsuran tiap minggu',
+          who: 'Ibu Siti',
+          habit: 'Lancar bayar angsuran',
           health: healthOf(bayar, weeks),
           onOpen: () => flow.go('riwayat'),
         },
         {
-          title: 'Datang kumpulan tiap minggu',
+          who: 'Ibu Siti',
+          habit: 'Rutin datang kumpulan',
           health: healthOf(hadir, weeks),
           onOpen: () => flow.go('riwayat'),
         },
         {
-          title: 'Teman-teman majelis lancar membayar',
+          who: 'Majelis Melati 07',
+          habit: 'Lancar bayar angsuran',
           health: healthOf(membersBayar, members),
           onOpen: () => flow.go('majelis'),
         },

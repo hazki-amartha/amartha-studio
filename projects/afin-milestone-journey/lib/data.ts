@@ -90,7 +90,7 @@ export const MEMBERS: Member[] = [
  *  habit on that milestone's tracker page. */
 export interface MilestoneStatus {
   label: string
-  tone: 'green' | 'orange' | 'red'
+  tone: 'green' | 'blue' | 'orange' | 'red'
 }
 
 export interface Milestone {
@@ -113,7 +113,7 @@ export interface Milestone {
 export const MILESTONES: Milestone[] = [
   {
     label: '14 Jul 2026',
-    status: { label: 'Terbuka', tone: 'green' },
+    status: { label: 'Berhasil diraih', tone: 'green' },
     actionLabel: 'Cairkan dana',
     amount: '+Rp1.250.000',
     state: 'unlocked',
@@ -122,7 +122,7 @@ export const MILESTONES: Milestone[] = [
   },
   {
     label: '6 Okt 2026',
-    status: { label: 'Sehat', tone: 'green' },
+    status: { label: 'Sesuai rencana', tone: 'blue' },
     countdown: '10 minggu lagi',
     actionLabel: 'Cairkan dana',
     amount: '+Rp1.250.000',
@@ -131,7 +131,7 @@ export const MILESTONES: Milestone[] = [
   },
   {
     label: '26 Jan 2027',
-    status: { label: 'Sehat', tone: 'green' },
+    status: { label: 'Sesuai rencana', tone: 'blue' },
     countdown: '26 minggu lagi',
     actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
     state: 'locked',

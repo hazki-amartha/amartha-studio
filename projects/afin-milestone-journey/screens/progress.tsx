@@ -9,8 +9,9 @@
 // Locked rungs stay visible and stay specific — "pelunasan dini", "limit baru
 // Rp8jt" — because a lock only motivates if you can read what is behind it.
 
-import { NavigationHeader } from '@/design-system/components'
-import { Check, ChevronRight, LockKey } from '@/design-system/icons'
+import { useState } from 'react'
+import { BottomSheet, NavigationHeader } from '@/design-system/components'
+import { Check, ChevronRight, LightbulbFilament, LockKey } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { HISTORY, MEMBERS, MILESTONES, type Milestone } from '../lib/data'
@@ -18,6 +19,7 @@ import { healthOf, type Health } from '../lib/milestone-tracker'
 
 const STATUS_TONE = {
   green: 'bg-green-50 text-green-600',
+  blue: 'bg-blue-50 text-blue-600',
   orange: 'bg-orange-50 text-orange-700',
   red: 'bg-red-50 text-red-600',
 } as const
@@ -30,39 +32,39 @@ const HEALTH_LABEL: Record<Health, { label: string; tone: keyof typeof STATUS_TO
 
 export function ProgressScreen() {
   const flow = useFlow()
+  const [progressOpen, setProgressOpen] = useState(false)
 
-  // The two health reads that open the page, from the same data their detail
-  // pages use: her own bayar/hadir record, and the majelis's payments.
+  // The two reads behind the "Lihat progress" menu, from the same data their
+  // detail pages use: her own bayar/hadir record, and the majelis's payments.
   const weeks = HISTORY.length
   const personal = healthOf(
     Math.min(HISTORY.filter((e) => e.bayar).length, HISTORY.filter((e) => e.kumpulan).length),
     weeks,
   )
   const majelis = healthOf(MEMBERS.filter((m) => m.bayar).length, MEMBERS.length)
-  const tunggakan = MEMBERS.filter((m) => !m.bayar).length
 
   return (
     <Screen
       topBar={<NavigationHeader title="Perjalanan pendanaan" onBack={() => flow.go('home')} />}
     >
       <div className="flex flex-col gap-16 pb-16">
-        {/* Both health reads sit at the top of the page rather than behind a
-            header menu — a risky majelis is the thing she most needs to see,
-            and a dropdown hides it until she thinks to look. */}
-        <div className="overflow-hidden rounded-12 border border-default bg-neutral-white">
-          <ProgressMenuItem
-            label="Progress pribadi"
-            subtitle="Semua pembayaran lunas"
-            health={personal}
-            onOpen={() => flow.go('riwayat')}
-          />
-          <div className="h-px bg-neutral-200" />
-          <ProgressMenuItem
-            label="Progress majelis"
-            subtitle={`${tunggakan} anggota punya tunggakan`}
-            health={majelis}
-            onOpen={() => flow.go('majelis')}
-          />
+        {/* A tip that frames the ladder — discipline compounds toward a bigger
+            limit — with the way into the two progress reads inline. */}
+        <div className="flex items-start gap-12 rounded-12 bg-blue-50 p-16">
+          <span className="shrink-0 text-caption">
+            <LightbulbFilament size={24} />
+          </span>
+          <p className="text-14 text-caption">
+            Setiap pembayaran tepat waktu yang Ibu dan teman-teman satu majelis lakukan, membawa
+            Ibu lebih dekat ke modal yang lebih besar.{' '}
+            <button
+              type="button"
+              onClick={() => setProgressOpen(true)}
+              className="p-0 align-baseline text-14 font-bold text-primary-500"
+            >
+              Lihat progress
+            </button>
+          </p>
         </div>
 
         {MILESTONES.map((m, i) => (
@@ -74,6 +76,30 @@ export function ProgressScreen() {
           />
         ))}
       </div>
+
+      <BottomSheet open={progressOpen} onClose={() => setProgressOpen(false)} title="Progress Ibu">
+        <div className="flex flex-col">
+          <ProgressMenuItem
+            label="Progress pribadi"
+            subtitle="Berpengaruh ke semua goal"
+            health={personal}
+            onOpen={() => {
+              setProgressOpen(false)
+              flow.go('riwayat')
+            }}
+          />
+          <div className="h-px bg-neutral-200" />
+          <ProgressMenuItem
+            label="Progress majelis"
+            subtitle="Berpengaruh ke goal kenaikan limit"
+            health={majelis}
+            onOpen={() => {
+              setProgressOpen(false)
+              flow.go('majelis')
+            }}
+          />
+        </div>
+      </BottomSheet>
     </Screen>
   )
 }
@@ -94,7 +120,7 @@ function ProgressMenuItem({
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-center gap-8 p-16 text-left"
+      className="flex w-full items-center gap-8 py-12 text-left"
     >
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="text-14 font-bold text-default">{label}</span>
@@ -154,13 +180,8 @@ function MilestoneRung({
         </span>
       </div>
 
-      <div
-        className={`min-w-0 flex-1 rounded-12 border bg-neutral-white p-16 ${
-          state === 'next' ? 'border-primary-500' : 'border-default'
-        }`}
-      >
-        {/* Date on the left, a health pill pinned top-right on each upcoming
-            rung — its tone mirrors the worst habit on that milestone's tracker. */}
+      <div className="min-w-0 flex-1 rounded-12 border border-default bg-neutral-white p-16">
+        {/* Date + countdown on the left, the status pill on the right. */}
         <div className="flex items-start gap-8">
           <div className="min-w-0 flex-1">
             <span className="text-16 font-bold text-default">{label}</span>
@@ -175,26 +196,32 @@ function MilestoneRung({
           ) : null}
         </div>
 
-        <p className="mt-16 text-14 text-caption">{actionLabel}</p>
-        {amount ? <p className="text-18 font-bold text-primary-500">{amount}</p> : null}
+        <div className="my-16 border-t border-light" />
 
-        {state === 'unlocked' && cta && onOpen ? (
-          <button
-            type="button"
-            onClick={onOpen}
-            className="mt-12 w-full rounded-full bg-primary-500 px-16 py-12 text-14 font-bold text-neutral-white"
-          >
-            {cta}
-          </button>
-        ) : onOpen ? (
-          <button
-            type="button"
-            onClick={onOpen}
-            className="mt-12 w-full rounded-full border border-primary-500 px-16 py-12 text-14 font-bold text-primary-500"
-          >
-            Lihat progress
-          </button>
-        ) : null}
+        {/* The reward on the left, the way in on the right — on one row. */}
+        <div className="flex items-center gap-8">
+          <div className="min-w-0 flex-1">
+            <p className="text-14 text-caption">{actionLabel}</p>
+            {amount ? <p className="mt-2 text-18 font-bold text-green-600">{amount}</p> : null}
+          </div>
+          {state === 'unlocked' && cta && onOpen ? (
+            <button
+              type="button"
+              onClick={onOpen}
+              className="shrink-0 rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white"
+            >
+              Cairkan
+            </button>
+          ) : onOpen ? (
+            <button
+              type="button"
+              onClick={onOpen}
+              className="shrink-0 rounded-full border border-primary-500 px-16 py-8 text-14 font-bold text-primary-500"
+            >
+              Lihat
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   )

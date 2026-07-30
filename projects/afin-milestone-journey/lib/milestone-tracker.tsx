@@ -6,7 +6,6 @@
 // distinct trackers. Project-local component (CLAUDE.md §4); see NOTES.md.
 
 import { NavigationHeader } from '@/design-system/components'
-import { ChevronRight } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { IconTile } from './ui'
 
@@ -26,7 +25,10 @@ export const healthOf = (part: number, whole: number): Health => {
 }
 
 export interface TrackerTask {
-  title: string
+  /** Who the habit belongs to — "Ibu Siti" or the majelis's name. */
+  who: string
+  /** The habit, in the mitra's words — "Lancar bayar angsuran". */
+  habit: string
   health: Health
   onOpen: () => void
 }
@@ -82,7 +84,7 @@ export function MilestoneTracker({
         <h2 className="text-16 font-bold text-default">Yang perlu dijaga</h2>
         <div className="flex flex-col gap-12">
           {tasks.map((t) => (
-            <TaskRow key={t.title} {...t} />
+            <TaskRow key={`${t.who}-${t.habit}`} {...t} />
           ))}
         </div>
       </div>
@@ -90,7 +92,7 @@ export function MilestoneTracker({
   )
 }
 
-function TaskRow({ title, health, onOpen }: TrackerTask) {
+function TaskRow({ who, habit, health, onOpen }: TrackerTask) {
   const h = HEALTH[health]
 
   return (
@@ -99,13 +101,11 @@ function TaskRow({ title, health, onOpen }: TrackerTask) {
       onClick={onOpen}
       className="flex w-full items-center gap-8 rounded-12 border border-default bg-neutral-white p-16 text-left"
     >
-      <span className="min-w-0 flex-1 text-14 font-bold text-default">{title}</span>
-      <span className="flex w-1/4 shrink-0 justify-end">
-        <span className={`rounded-full px-8 py-2 text-12 font-bold ${h.cls}`}>{h.label}</span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-16 font-bold text-default">{who}</span>
+        <span className="mt-2 text-14 text-caption">{habit}</span>
       </span>
-      <span className="shrink-0 text-disabled">
-        <ChevronRight size={20} />
-      </span>
+      <span className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${h.cls}`}>{h.label}</span>
     </button>
   )
 }

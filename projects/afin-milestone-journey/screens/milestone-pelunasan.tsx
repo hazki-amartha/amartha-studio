@@ -27,7 +27,8 @@ export function MilestonePelunasanScreen() {
       }}
       tasks={[
         {
-          title: 'Bayar angsuran tiap minggu',
+          who: 'Ibu Siti',
+          habit: 'Lancar bayar angsuran',
           health: healthOf(bayar, weeks),
           onOpen: () => flow.go('riwayat'),
         },

@@ -26,6 +26,7 @@ import {
   Check,
   ChevronRight,
   Clipboard,
+  Coins,
   DeviceMobile,
   DotsThreeOutline,
   Eye,
@@ -36,6 +37,7 @@ import {
   Majelis,
   ShareNetwork,
   Plus,
+  QrCode,
   Transfer,
   User,
   Users,
@@ -75,7 +77,7 @@ export function HomeV2Screen() {
             one timeline, so short and long term read as one story. */}
         <div className="p-16">
           <p className="flex items-center gap-4 text-14 font-bold text-default">
-            Limit Ibu Rp5jt, bisa naik s/d Rp8jt
+            Tingkatkan limit dari Rp5jt ke Rp8jt
             <ChartLineUp size={16} className="shrink-0 text-primary-500" />
           </p>
 
@@ -251,16 +253,15 @@ export function HomeV2Screen() {
               active: true,
             },
             {
-              id: 'progress',
-              label: 'Progress',
-              icon: <ChartLineUp size={24} />,
+              id: 'pinjaman',
+              label: 'Pinjaman',
+              icon: <Coins size={24} />,
               onClick: () => flow.go('progress'),
             },
             {
-              id: 'majelis',
-              label: 'Majelis',
-              icon: <Majelis size={24} />,
-              onClick: () => flow.go('majelis'),
+              id: 'scan',
+              label: 'Scan',
+              icon: <QrCode size={24} />,
             },
             {
               id: 'celengan',
