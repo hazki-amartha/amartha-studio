@@ -9,11 +9,13 @@
 // Locked rungs stay visible and stay specific — "pelunasan dini", "limit baru
 // Rp8jt" — because a lock only motivates if you can read what is behind it.
 
+import { useState } from 'react'
 import { NavigationHeader } from '@/design-system/components'
-import { Check, LockKey } from '@/design-system/icons'
+import { Check, ChevronDown, ChevronRight, LockKey } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { MILESTONES, type Milestone } from '../lib/data'
+import { HISTORY, MEMBERS, MILESTONES, type Milestone } from '../lib/data'
+import { healthOf, type Health } from '../lib/milestone-tracker'
 
 const STATUS_TONE = {
   green: 'bg-green-50 text-green-600',
@@ -21,16 +23,77 @@ const STATUS_TONE = {
   red: 'bg-red-50 text-red-600',
 } as const
 
+const HEALTH_LABEL: Record<Health, { label: string; tone: keyof typeof STATUS_TONE }> = {
+  sehat: { label: 'Sehat', tone: 'green' },
+  berisiko: { label: 'Berisiko', tone: 'orange' },
+  buruk: { label: 'Tidak sehat', tone: 'red' },
+}
+
 export function ProgressScreen() {
   const flow = useFlow()
+  const [progressOpen, setProgressOpen] = useState(false)
+
+  // The two reads behind the "Progress" header menu, from the same data their
+  // detail pages use: her own bayar/hadir record, and the majelis's payments.
+  const weeks = HISTORY.length
+  const personal = healthOf(
+    Math.min(HISTORY.filter((e) => e.bayar).length, HISTORY.filter((e) => e.kumpulan).length),
+    weeks,
+  )
+  const majelis = healthOf(MEMBERS.filter((m) => m.bayar).length, MEMBERS.length)
+  const tunggakan = MEMBERS.filter((m) => !m.bayar).length
 
   return (
     <Screen
       topBar={
-        <NavigationHeader title="Perjalanan pendanaan" onBack={() => flow.go('home')} />
+        <NavigationHeader
+          title="Perjalanan pendanaan"
+          onBack={() => flow.go('home')}
+          link={
+            <span className="flex items-center gap-2">
+              Progress
+              <ChevronDown size={16} />
+            </span>
+          }
+          onLinkClick={() => setProgressOpen((open) => !open)}
+        />
       }
     >
-      <div className="flex flex-col gap-16 pb-16">
+      <div className="relative flex flex-col gap-16 pb-16">
+        {/* The "Progress" header menu: two health reads, each a way into the
+            page that shows it in full. Drawn as a dropdown from the header. */}
+        {progressOpen ? (
+          <>
+            <button
+              type="button"
+              aria-label="Tutup"
+              onClick={() => setProgressOpen(false)}
+              className="absolute inset-0 z-10 cursor-default"
+            />
+            <div className="absolute left-0 right-0 top-0 z-20 -mx-16 -mt-16 overflow-hidden rounded-b-12 border-b border-default bg-neutral-white">
+              <ProgressMenuItem
+                label="Progress pribadi"
+                subtitle="Semua pembayaran lunas"
+                health={personal}
+                onOpen={() => {
+                  setProgressOpen(false)
+                  flow.go('riwayat')
+                }}
+              />
+              <div className="h-px bg-neutral-200" />
+              <ProgressMenuItem
+                label="Progress majelis"
+                subtitle={`${tunggakan} anggota punya tunggakan`}
+                health={majelis}
+                onOpen={() => {
+                  setProgressOpen(false)
+                  flow.go('majelis')
+                }}
+              />
+            </div>
+          </>
+        ) : null}
+
         {MILESTONES.map((m, i) => (
           <MilestoneRung
             key={m.label}
@@ -41,6 +104,38 @@ export function ProgressScreen() {
         ))}
       </div>
     </Screen>
+  )
+}
+
+function ProgressMenuItem({
+  label,
+  subtitle,
+  health,
+  onOpen,
+}: {
+  label: string
+  subtitle: string
+  health: Health
+  onOpen: () => void
+}) {
+  const h = HEALTH_LABEL[health]
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex w-full items-center gap-8 p-16 text-left"
+    >
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-14 font-bold text-default">{label}</span>
+        <span className="text-12 text-caption">{subtitle}</span>
+      </span>
+      <span className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${STATUS_TONE[h.tone]}`}>
+        {h.label}
+      </span>
+      <span className="shrink-0 text-disabled">
+        <ChevronRight size={16} />
+      </span>
+    </button>
   )
 }
 

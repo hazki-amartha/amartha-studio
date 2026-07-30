@@ -78,9 +78,9 @@ export function MilestoneTracker({
         <p className="mt-4 text-12 text-caption">{reward.sub}</p>
       </div>
 
-      <div className="rounded-12 border border-default bg-neutral-white p-16">
-        <p className="mb-12 text-12 font-bold text-caption">Yang perlu dijaga</p>
-        <div className="flex flex-col gap-16">
+      <div className="flex flex-col gap-8">
+        <h2 className="text-16 font-bold text-default">Yang perlu dijaga</h2>
+        <div className="flex flex-col gap-12">
           {tasks.map((t) => (
             <TaskRow key={t.title} {...t} />
           ))}
@@ -97,7 +97,7 @@ function TaskRow({ title, health, onOpen }: TrackerTask) {
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-center gap-8 py-4 text-left"
+      className="flex w-full items-center gap-8 rounded-12 border border-default bg-neutral-white p-16 text-left"
     >
       <span className="min-w-0 flex-1 text-14 font-bold text-default">{title}</span>
       <span className="flex w-1/4 shrink-0 justify-end">

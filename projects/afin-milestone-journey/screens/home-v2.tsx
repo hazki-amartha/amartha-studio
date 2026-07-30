@@ -41,14 +41,13 @@ import {
   Users,
   Voucher,
   Wallet,
-  WarningFill,
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MEMBERS, WEEKLY_BILL, rupiah } from '../lib/data'
 import { IconPiggy } from '../lib/icons'
 import { outstanding, store, useApp } from '../lib/store'
-import { IconTile, Meter, Notice, SectionTitle, TaskButton } from '../lib/ui'
+import { IconTile, Notice, SectionTitle, TaskButton } from '../lib/ui'
 
 export function HomeV2Screen() {
   const flow = useFlow()
@@ -73,47 +72,65 @@ export function HomeV2Screen() {
       <h1 className="text-16 font-bold text-default">Perjalanan pendanaan Ibu</h1>
 
       <div className="overflow-hidden rounded-12 border border-light bg-neutral-white">
-        {/* The limit band. What she has now and what discipline turns it into,
-            reading left to right across an arrow — the card's whole premise,
-            stated before the mechanics of reaching it. */}
-        <div className="flex items-center gap-12 bg-primary-900 p-16 text-neutral-white">
-          <div className="min-w-0 flex-1">
-            <p className="text-12 text-neutral-200">Limit sekarang</p>
-            <p className="mt-4 text-20 font-bold">Rp5jt</p>
-          </div>
-          <ArrowRight size={20} />
-          <div className="min-w-0 flex-1 text-right">
-            <p className="text-12 text-neutral-200">
-              {isNew ? 'Di akhir tenor bisa naik' : '23 Mar 2027 bisa naik'}
-            </p>
-            <p className="mt-4 text-20 font-bold">Rp8jt</p>
-          </div>
-        </div>
-
+        {/* The capital journey. What she has now, what discipline grows it into,
+            and the two stops on the way — the near top-up and the far limit
+            rise — on one timeline, so short and long term read as one story. */}
         <div className="p-16">
-          <div className="flex items-center gap-12">
-            {!isNew && s.atRisk ? (
-              <span className="flex items-center gap-4 rounded-full bg-red-500 px-12 py-4 text-10 font-bold uppercase text-neutral-white">
-                <WarningFill size={16} />
-                Reward berisiko
-              </span>
-            ) : (
-              <span className="rounded-full bg-primary-500 px-12 py-4 text-10 font-bold uppercase text-neutral-white">
-                Goal berikutnya
-              </span>
-            )}
-            <span className="flex-1 text-right text-14 text-default">
-              {isNew ? 'Di akhir tenor' : '10 minggu lagi'}
-            </span>
+          <div className="flex items-start gap-12">
+            <div className="min-w-0 flex-1">
+              <p className="text-12 text-caption">Limit sekarang</p>
+              <p className="mt-2 text-20 font-bold text-default">Rp5jt</p>
+            </div>
+            <div className="min-w-0 flex-1 text-right">
+              <p className="text-12 text-caption">Bisa naik jadi</p>
+              <p className="mt-2 flex items-center justify-end gap-4 text-20 font-bold text-primary-500">
+                Rp7–8jt
+                <ChartLineUp size={16} />
+              </p>
+            </div>
           </div>
 
-          <GoalRail
-            from={isNew ? 'Cair Rp5jt' : 'Cair Rp1,25jt'}
-            to={isNew ? 'Naik limit' : 'Cair Rp2,5jt'}
-            progress={isNew ? 0 : 62}
-            goal={isNew ? 92 : 78}
-            risk={!isNew && s.atRisk}
-          />
+          <div className="mt-24">
+            <div className="flex items-center">
+              <JourneyDot current />
+              <span className="mx-4 h-2 flex-1 rounded-full bg-blue-400" />
+              <JourneyDot />
+              {/* Small dots: the pelunasan and other milestones that fall between
+                  the next top-up and the far limit rise. */}
+              <span className="mx-4 flex flex-1 items-center gap-4">
+                <span className="h-2 flex-1 rounded-full bg-green-400" />
+                <span className="h-8 w-8 shrink-0 rounded-full border border-green-400 bg-neutral-white" />
+                <span className="h-2 flex-1 rounded-full bg-green-400" />
+                <span className="h-8 w-8 shrink-0 rounded-full border border-green-400 bg-neutral-white" />
+                <span className="h-2 flex-1 rounded-full bg-green-400" />
+              </span>
+              <JourneyDot />
+            </div>
+            <div className="mt-8 flex gap-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-12 font-bold text-primary-500">Sekarang</p>
+                <p className="text-10 text-caption">Di sini</p>
+              </div>
+              <div className="min-w-0 flex-1 text-center">
+                <p className="text-12 font-bold text-default">6 Okt &rsquo;26</p>
+                <p className="text-10 text-caption">{isNew ? 'Pencairan awal' : '10 minggu lagi'}</p>
+                <span
+                  className={`mt-4 inline-block rounded-full px-8 py-2 text-10 font-bold ${
+                    !isNew && s.atRisk ? 'bg-red-50 text-red-600' : 'bg-primary-50 text-primary-500'
+                  }`}
+                >
+                  Cair Rp1,25jt
+                </span>
+              </div>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-12 font-bold text-default">23 Mar &rsquo;27</p>
+                <p className="text-10 text-caption">Naik limit</p>
+                <span className="mt-4 inline-block rounded-full bg-green-50 px-8 py-2 text-10 font-bold text-green-600">
+                  Rp8jt
+                </span>
+              </div>
+            </div>
+          </div>
 
           {!isNew && s.atRisk ? (
             <div className="mb-16 mt-20">
@@ -439,49 +456,19 @@ function RecCard({
   )
 }
 
-// --- The goal rail ---------------------------------------------------------
-// Where she is, where the next disbursement is, and how much of the gap is
-// closed. A progress bar that names both ends, which is the only reason it
-// beats the plain "week 14 of 48" it replaces.
+// --- The capital-journey timeline ------------------------------------------
+// A node on the horizontal journey line: the filled target ring marks where she
+// is now, hollow rings the stops still ahead.
 
-function GoalRail({
-  from,
-  to,
-  progress,
-  goal,
-  risk,
-}: {
-  from: string
-  to: string
-  /** How far along the track the fill reaches, 0–100. */
-  progress: number
-  /** Where the knob marking the goal sits, 0–100. */
-  goal: number
-  /** Tints the goal knob amber when the reward is in jeopardy. */
-  risk?: boolean
-}) {
-  return (
-    <>
-      <div className="relative mt-16 flex h-20 items-center">
-        <span className="absolute left-0 right-0">
-          <Meter percent={progress} />
-        </span>
-        <span className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary-500 text-neutral-white">
-          <Check size={16} />
-        </span>
-        <span
-          className={`absolute h-20 w-20 rounded-full ${risk ? 'bg-orange-500' : 'bg-neutral-400'}`}
-          // Data-driven: the value IS the geometry, same as Meter's width.
-          style={{ left: `${goal}%`, transform: 'translateX(-50%)' }}
-        />
-      </div>
-
-      <div className="mt-8 flex items-baseline gap-12">
-        <span className="flex-1 text-14 text-caption">{from}</span>
-        <span className="flex-1 text-right text-14 font-bold text-primary-500">{to}</span>
-      </div>
-    </>
-  )
+function JourneyDot({ current }: { current?: boolean }) {
+  if (current) {
+    return (
+      <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 border-primary-500">
+        <span className="h-8 w-8 rounded-full bg-primary-500" />
+      </span>
+    )
+  }
+  return <span className="h-20 w-20 shrink-0 rounded-full border-2 border-neutral-200 bg-neutral-white" />
 }
 
 // --- Tasks -----------------------------------------------------------------
