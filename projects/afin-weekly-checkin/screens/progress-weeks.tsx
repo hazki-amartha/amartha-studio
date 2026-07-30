@@ -1,51 +1,90 @@
 'use client'
 
-// The one detail page, shared by both options: the unit is the WEEK.
+// Detail A — the repayment tracker. Nothing about the tier lives here; this page
+// is the schedule and the money it moves.
 //
-// One denominator on the page and nowhere else. Everything here counts in weeks
-// — the headline, the bar, and every row of the ladder, which is labelled
-// "Minggu 13–16" rather than numbered. The increment sits at the end of a row
-// as what those four weeks added to the next disbursement; it is never itself
-// counted, because a mitra tracking "how many rewards have I collected" is
-// tracking the wrong thing.
+// The unit is the WEEK and the beat is FOUR of them. Every week behind her
+// carries one verdict — paid, paid late, not paid — and every four weeks those
+// verdicts settle into the one figure this page exists to explain: what that
+// block added to the amount she can disburse. Four clean weeks add Rp500rb, a
+// late week takes a quarter off, and a week never paid means the block adds
+// nothing.
 //
-// This page is deliberately where the RUPIAH live. Option B keeps figures off
-// home on purpose, so the split it doesn't print — her Rp2jt, the majelis's
-// Rp1jt — has to be legible somewhere, and this is that somewhere.
+// Two things follow from that, and between them they are the whole layout:
+//
+//   · The amount comes FIRST, with the button that spends it — enabled exactly
+//     when a closed block has left something to take. It is the only thing on
+//     the page she can act on, so nothing is allowed above it.
+//   · A row is four boxes wide and nothing else. What the four weeks earned is
+//     a line UNDER them, in plain text, because it is the result of the four and
+//     not a fifth thing to collect.
 
 import { Badge, NavigationHeader } from '@/design-system/components'
-import { Medal, Withdraw } from '@/design-system/icons'
+import { TrendUp, Withdraw } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import {
+  CHAPTER_LENGTH,
   GROUP_BONUS,
   LIMIT_INCREASE,
   MILESTONE_REWARD,
   TOTAL_WEEKS,
+  cycles,
+  disbursementWeek,
   goodWeeks,
   groupStatus,
   journeyPercent,
-  ladder,
   limitOnOffer,
-  pot,
   short,
-  type Chapter,
+  weeksToDisbursement,
+  withdrawable,
+  type Cycle,
 } from '../lib/data'
-import { useApp } from '../lib/store'
-import { Meter, WeekTile, windowLine } from '../lib/ui'
+import { store, useApp, type AppState } from '../lib/store'
+import { Meter, WeekLegend, WeekTile } from '../lib/ui'
 
 export function ProgressWeeksScreen() {
   const flow = useFlow()
   const s = useApp()
-  const chapters = ladder(s)
+  const blocks = cycles(s)
+  const ready = withdrawable(s)
 
   return (
-    <Screen topBar={<NavigationHeader title="Perjalanan Ibu" onBack={flow.back} />}>
-      {/* The one thing this page argues, in the one unit it uses. */}
+    <Screen topBar={<NavigationHeader title="Angsuran & pencairan" onBack={flow.back} />}>
+      {/* What she can do something about, at the top. The button is the state
+          the whole page resolves to: open when a closed block left something,
+          flat when it did not. */}
+      <div className="rounded-12 border border-default bg-neutral-white p-12">
+        <div className="flex items-center gap-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-500">
+            <Withdraw size={24} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-12 text-caption">Bisa dicairkan sekarang</span>
+            <span className="mt-2 block text-20 font-bold text-default">{short(ready)}</span>
+          </span>
+        </div>
+
+        <p className="mt-12 text-12 text-caption">{disbursementLine(s)}</p>
+
+        <button
+          type="button"
+          disabled={ready === 0}
+          onClick={() => store.withdraw()}
+          className={`mt-12 w-full rounded-full py-12 text-14 font-bold ${
+            ready === 0 ? 'bg-neutral-200 text-disabled' : 'bg-primary-500 text-neutral-white'
+          }`}
+        >
+          Cairkan
+        </button>
+      </div>
+
+      {/* Where the weeks are heading: the limit at the end of the tenor, and the
+          two things that move it. */}
       <div className="rounded-12 border border-default bg-neutral-white p-16">
         <div className="flex items-center gap-12">
-          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-yellow-50 text-yellow-600">
-            <Medal size={24} />
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-500">
+            <TrendUp size={24} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-16 font-bold text-default">
@@ -58,7 +97,7 @@ export function ProgressWeeksScreen() {
           </div>
         </div>
         <div className="mt-12">
-          <Meter percent={journeyPercent(s)} tone="yellow" />
+          <Meter percent={journeyPercent(s)} />
         </div>
 
         <div className="mt-16 flex flex-col gap-8">
@@ -71,26 +110,14 @@ export function ProgressWeeksScreen() {
         </div>
       </div>
 
-      {/* The forty-eight weeks, four to a row, each row ending in what those
-          four weeks unlock. Every row is labelled by its WEEKS — no row is
-          numbered "hadiah 3 of 12", because that is the count this page hands
-          to the rewards page. */}
-      <div className="flex flex-col gap-12">
-        {chapters.map((chapter) => (
-          <ChapterBlock key={chapter.index} chapter={chapter} />
-        ))}
-      </div>
+      <WeekLegend />
 
-      {/* The pot. A rupiah figure, not a second thing to track — one row. */}
-      <div className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 pb-16">
-        <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-500">
-          <Withdraw size={16} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-12 text-caption">Terkumpul untuk pencairan berikutnya</span>
-          <span className="mt-2 block text-12 text-caption">{windowLine(s)}</span>
-        </span>
-        <span className="shrink-0 text-16 font-bold text-default">{short(pot(s))}</span>
+      {/* The forty-eight weeks, four to a row — always four, because the due
+          dates never moved. Each row ends in what those four weeks earned. */}
+      <div className="flex flex-col gap-12">
+        {blocks.map((block) => (
+          <CycleBlock key={block.index} cycle={block} />
+        ))}
       </div>
 
       <div className="pb-16" />
@@ -98,57 +125,65 @@ export function ProgressWeeksScreen() {
   )
 }
 
-/** Four weeks and what they unlock. Labelled by week range, never numbered. */
-function ChapterBlock({ chapter }: { chapter: Chapter }) {
-  const first = chapter.cells[0].week
-  const last = chapter.cells[chapter.cells.length - 1].week
+/** One line about timing: when the amount can next move, or that it just did. */
+function disbursementLine(s: AppState): string {
+  const left = weeksToDisbursement(s)
+  if (left === 0) return `Minggu ini menutup 4 minggu — jumlahnya dihitung akhir minggu`
+  return `Tambahan berikutnya di minggu ${disbursementWeek(s)} · ${left} minggu lagi`
+}
 
+/** Four calendar weeks and what they earned. */
+function CycleBlock({ cycle }: { cycle: Cycle }) {
   return (
     <div
       className={`rounded-12 border bg-neutral-white p-12 ${
-        chapter.status === 'current' ? 'border-primary-500' : 'border-default'
+        cycle.status === 'open' ? 'border-primary-500' : 'border-default'
       }`}
     >
       <div className="flex items-center gap-8">
         <span className="min-w-0 flex-1 text-14 font-bold text-default">
-          Minggu {first}–{last}
+          Minggu {cycle.from}–{cycle.to}
         </span>
-        {chapter.status === 'done' ? (
-          <Badge intent="green" variant="subtle" size="sm">
-            Selesai
-          </Badge>
-        ) : null}
-        {chapter.status === 'current' ? (
+        {cycle.status === 'open' ? (
           <Badge intent="primary" variant="solid" size="sm">
             Sekarang
           </Badge>
         ) : null}
       </div>
 
-      <div className="mt-12 flex items-start gap-8">
-        <span className="flex min-w-0 flex-1 gap-4">
-          {chapter.cells.map((cell) => (
-            <WeekTile key={cell.week} cell={cell} size="sm" />
-          ))}
-        </span>
+      <div className="mt-12 flex gap-4">
+        {cycle.cells.map((cell) => (
+          <WeekTile key={cell.week} cell={cell} size="sm" />
+        ))}
+      </div>
 
-        <span
-          className={`flex h-32 shrink-0 items-center gap-4 rounded-8 px-8 ${
-            chapter.status === 'done'
-              ? 'bg-primary-500 text-neutral-white'
-              : chapter.final
-                ? 'bg-yellow-50 text-yellow-600'
-                : 'border border-primary-200 bg-primary-50 text-primary-500'
-          }`}
-        >
-          {chapter.final ? <Medal size={16} /> : <Withdraw size={16} />}
-          <span className="whitespace-nowrap text-12 font-bold">
-            {chapter.final ? short(LIMIT_INCREASE) : short(MILESTONE_REWARD)}
-          </span>
+      {/* The increase, stated rather than staged: a label that says WHY it is
+          the figure it is, and the figure. No chip, no medal — the four boxes
+          above are the thing being tracked. */}
+      <div className="mt-12 flex items-baseline gap-8 border-t border-default pt-12">
+        <span className="min-w-0 flex-1 text-12 text-caption">{incrementLabel(cycle)}</span>
+        <span className={`shrink-0 text-14 font-bold ${incrementTone(cycle)}`}>
+          {cycle.status === 'closed' && cycle.increment === 0 ? '—' : `+${short(cycle.increment)}`}
         </span>
       </div>
     </div>
   )
+}
+
+function incrementLabel(cycle: Cycle): string {
+  if (cycle.status !== 'closed') {
+    return `Kalau ${CHAPTER_LENGTH} minggu ini dibayar tepat waktu`
+  }
+  if (cycle.unpaid > 0) return 'Ada minggu yang belum dibayar — tidak ada tambahan'
+  if (cycle.late > 0) return `${cycle.late} minggu telat, jadi tambahannya berkurang`
+  return 'Tambahan pencairan'
+}
+
+function incrementTone(cycle: Cycle): string {
+  if (cycle.status !== 'closed') return 'text-caption'
+  if (cycle.increment === 0) return 'text-red-500'
+  if (cycle.increment < MILESTONE_REWARD) return 'text-orange-500'
+  return 'text-default'
 }
 
 function SplitLine({

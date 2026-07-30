@@ -2,14 +2,20 @@ import type { ProjectModule, ScreenState } from '@/platform/types'
 import { lazyScreen } from '@/platform/lazyScreen'
 import { config } from './project.config'
 import {
+  atRisk,
+  dropped,
+  firstWindow,
   groupGood,
   groupLost,
   groupWatch,
-  juaraMaintained,
+  lateCaught,
   midChapter,
   missedWeek,
+  mixedRepayments,
   nearFinal,
+  recovered,
   rewardReady,
+  windowEve,
 } from './lib/demo'
 
 // The same four conditions apply to every screen here, because every screen
@@ -40,10 +46,50 @@ const journeyStates: ScreenState[] = [
     apply: nearFinal,
   },
   {
-    id: 'juara-maintained',
-    label: 'Sudah Mitra Juara (B)',
-    description: 'Tenor baru dibuka dengan status sudah di tangan: dipertahankan, bukan dikejar.',
-    apply: juaraMaintained,
+    id: 'mixed-repayments',
+    label: 'Bayar, telat, belum bayar',
+    description:
+      'Ketiga status di satu papan: minggu 7 telat, minggu 8 belum dibayar — blok 2 tidak menambah apa pun.',
+    apply: mixedRepayments,
+  },
+  // Option B's six, all about the 12-week grading. Four of them cannot be
+  // tapped to at all: a week has to have gone by unpaid, or twelve weeks have
+  // to have already been graded against her.
+  {
+    id: 'first-window',
+    label: 'Penilaian pertama (B)',
+    description: 'Minggu 6, belum ada penambahan sama sekali — status modal sudah Sangat Baik.',
+    apply: firstWindow,
+  },
+  {
+    id: 'at-risk',
+    label: 'Perlu Ditingkatkan (B)',
+    description: 'Minggu 17 belum dibayar, 12 minggu ini belum selesai. Masih bisa diselamatkan.',
+    apply: atRisk,
+  },
+  {
+    id: 'late-caught',
+    label: 'Baik, bukan Sangat Baik (B)',
+    description: 'Dua minggu dibayar terlambat: status turun ke Baik, penambahannya lebih kecil.',
+    apply: lateCaught,
+  },
+  {
+    id: 'window-eve',
+    label: 'Sehari sebelum penilaian (B)',
+    description: 'Minggu 24, semua lancar — satu tap dari penambahan penuh.',
+    apply: windowEve,
+  },
+  {
+    id: 'tier-dropped',
+    label: 'Status modal turun (B)',
+    description: 'Minggu 22 belum dibayar sampai penilaian ke-2 selesai: Tidak Lancar.',
+    apply: dropped,
+  },
+  {
+    id: 'tier-recovered',
+    label: 'Status modal pulih (B)',
+    description: 'Tunggakan lunas: status naik lagi ke Baik, penambahan berikutnya di minggu 36.',
+    apply: recovered,
   },
   {
     id: 'group-good',
@@ -77,7 +123,7 @@ export const project: ProjectModule = {
     },
     {
       id: 'home-b',
-      title: 'Home B — Anchor tier (Mitra Juara)',
+      title: 'Home B — Anchor status modal',
       component: lazyScreen(() => import('./screens/home-b'), 'HomeBScreen'),
       states: journeyStates,
     },
@@ -88,8 +134,20 @@ export const project: ProjectModule = {
       states: journeyStates,
     },
     {
+      id: 'progress-tier',
+      title: 'Detail B — Status modal & penambahan',
+      component: lazyScreen(() => import('./screens/progress-tier'), 'ProgressTierScreen'),
+      states: journeyStates,
+    },
+    {
+      id: 'window-close',
+      title: '12 minggu selesai — penilaian (B)',
+      component: lazyScreen(() => import('./screens/window-close'), 'WindowCloseScreen'),
+      states: journeyStates,
+    },
+    {
       id: 'progress-weeks',
-      title: 'Detail — Perjalanan 48 minggu',
+      title: 'Detail A — Angsuran & pencairan',
       component: lazyScreen(() => import('./screens/progress-weeks'), 'ProgressWeeksScreen'),
       states: journeyStates,
     },
