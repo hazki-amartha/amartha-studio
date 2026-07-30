@@ -75,7 +75,7 @@ export function HomeV2Screen() {
             one timeline, so short and long term read as one story. */}
         <div className="p-16">
           <p className="flex items-center gap-4 text-14 font-bold text-default">
-            Tingkatkan limit dari Rp5jt ke Rp8jt
+            Limit Ibu Rp5jt, bisa naik s/d Rp8jt
             <ChartLineUp size={16} className="shrink-0 text-primary-500" />
           </p>
 
@@ -113,9 +113,13 @@ export function HomeV2Screen() {
               </div>
               <div className="min-w-0 flex-1 text-right">
                 <p className="text-12 font-bold text-default">23 Mar &rsquo;27</p>
-                <p className="text-10 text-caption">Naik limit</p>
+                {/* "Peluang" and "s/d", not "Naik limit / Rp8jt": the rise is
+                    assessed at the end of the tenor and the figure is a ceiling,
+                    so stating it flat reads as a promise the product has not
+                    made. Hedged here and everywhere else it appears. */}
+                <p className="text-10 text-caption">Peluang naik limit</p>
                 <span className="mt-4 inline-block rounded-full bg-green-50 px-8 py-2 text-10 font-bold text-green-600">
-                  Rp8jt
+                  s/d Rp8jt
                 </span>
               </div>
             </div>
