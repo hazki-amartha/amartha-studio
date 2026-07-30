@@ -1,123 +1,149 @@
 'use client'
 
-// Option B — the tier.
+// Option B — Status Modal on a 12-week clock.
 //
-// A is anchored on a rupiah figure ("Naik limit hingga Rp8jt"), and that
-// headline can only stay honest by hedging: `s/d` while the majelis bonus is
-// still live, silently dropping when the group falls out. The hedge is the
-// tell — the number is the sum of two requirements that land at different
-// times, so it cannot be stated once and left alone.
+// A anchors on a rupiah figure at week 48. B anchors on the STATE OF THE LOAN,
+// graded now and re-graded every twelve weeks, and the card only ever says two
+// things: what the status is worth, and what keeps it there. Everything B used
+// to carry besides those two — a tier to be won, a comparison against the mitra
+// she is not, three labels saying the same thing — is gone.
 //
-// B changes the anchor to a STATUS. "Mitra Juara" is not the sum of anything,
-// so it never needs correcting; the amounts move down into the tier's benefits,
-// where a range is normal and nothing is promised as a figure. Three
-// consequences the screen is built around:
+// Why a grade and not a tier: see the status banner in lib/data.ts. The short
+// version is that the thing already behaved like a grade (it moves down
+// mid-tenor and recovers), so naming it a membership was the card arguing with
+// its own mechanics.
 //
-//   · The destination is a name, and the 48 weeks are the path to it.
-//   · The majelis does not gate the tier — she earns it with her own weeks.
-//     The group makes the LIMIT benefit bigger, said as a note on that one
-//     line, so a mitra with a perfect record is never told she failed because
-//     of her neighbours.
-//   · Arriving is not the end. A limit rise happens once; a standing is kept.
-//     When she opens the next tenor already Juara the same card reads as
-//     maintenance — the `juara-maintained` state shows it.
+// The MAJELIS is not on this card's list. It moves the week-48 limit, not her
+// grade, so it keeps its own card underneath — which is also the honest shape:
+// nothing on the status list is somebody else's behaviour.
 //
-// And the thing that separates it from A in SHAPE, not just in anchor: home
-// carries no board. A puts the four-week chapter on the homepage; B states the
-// standing, what it is worth, and the single thing owed this week, and sends
-// the whole 48-week ladder — with the rupiah increments on it — one tap away.
-// If the status is a strong enough anchor, the streak does not need to be on
-// home to work; that is precisely what this option is for finding out.
+// Read top to bottom: WHO the loan is (band) → WHAT COMES NEXT (track) → WHAT
+// IT ADDS (the quote) → WHAT KEEPS IT (two habits) → everything else, one tap
+// away on the status page.
 
 import type { ReactNode } from 'react'
 import {
-  TIER_BENEFITS,
-  TIER_GOAL,
+  ABSENCE_BUDGET,
+  STATUS_NAME,
   TOTAL_WEEKS,
+  WINDOW_LENGTH,
+  absencesLeft,
+  accessWeek,
+  currentWindow,
   goodWeeks,
-  isJuara,
-  journeyPercent,
+  gradeIncrement,
+  gradeInfo,
+  gradeOf,
+  outcomeOf,
   rupiah,
+  weeksLeftInWindow,
+  windowQuote,
+  windowRows,
+  type Grade,
+  type WindowRow,
 } from '../lib/data'
 import { store, useApp } from '../lib/store'
-import { HomeShell, LadderLink, MajelisCard } from '../lib/ui'
+import { HomeShell, MajelisCard, StatusLink } from '../lib/ui'
 import { useFlow } from '@/platform/runtime'
-import { CalendarDots, Check, Medal, TrendUp, Withdraw } from '@/design-system/icons'
-
-const BENEFIT_ICONS = [
-  <TrendUp key="limit" size={20} />,
-  <Withdraw key="pencairan" size={20} />,
-  <CalendarDots key="tenor" size={20} />,
-]
+import {
+  Check,
+  Coins,
+  CreditCard,
+  MoneyBag,
+  Minus,
+  TrendUp,
+  Users,
+  Warning,
+} from '@/design-system/icons'
 
 export function HomeBScreen() {
   const s = useApp()
-  const juara = isJuara(s)
+  const grade = gradeOf(s)
+  // Everything still owed, not only this window's — a grade of Tidak Lancar is
+  // owed from a stretch that has already closed, and there has to be a way to
+  // clear it from home or the state is a dead end.
+  const owing = s.unpaid
 
   return (
     <HomeShell>
       <div className="overflow-hidden rounded-20 border border-default bg-neutral-white">
-        {/* The destination band. A name where A puts a rupiah figure — and the
-            same 48-week fraction underneath, because the path is identical.
-            Once she is already Juara the band states the standing instead, and
-            the bar becomes what keeps it. */}
+        {/* The band: the grade, and the one count that evidences it. "28 dari
+            48 minggu lancar" is the whole argument for whatever word sits above
+            it — a grade with no visible basis is just an opinion. */}
         <div className="bg-gradient-to-br from-primary-400 to-primary-600 px-16 pb-24 pt-16">
           <div className="flex items-start gap-12">
             <span className="flex h-48 w-48 shrink-0 items-center justify-center rounded-12 bg-primary-700 text-neutral-white">
-              <Medal size={24} />
+              <MoneyBag size={24} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-14 text-neutral-white">{juara ? 'Status Ibu' : 'Menuju'}</p>
-              <p className="mt-2 text-24 font-bold text-neutral-white">{TIER_GOAL}</p>
+              <p className="text-14 text-neutral-white">{STATUS_NAME}</p>
+              <p className="mt-2 text-24 font-bold text-neutral-white">
+                {gradeInfo(grade).label}
+              </p>
             </div>
-            <p className="shrink-0 text-right text-14 text-neutral-white">
-              {goodWeeks(s)} dari {TOTAL_WEEKS}
-              <br />
-              minggu lancar
-            </p>
+            <div className="shrink-0 text-right">
+              <p className="text-14 font-bold text-neutral-white">
+                {goodWeeks(s)} dari {TOTAL_WEEKS}
+              </p>
+              <p className="text-12 text-neutral-200">minggu lancar</p>
+            </div>
           </div>
-
-          <span className="mt-16 block h-8 w-full overflow-hidden rounded-full bg-primary-700">
-            <span
-              className="block h-8 rounded-full bg-green-400"
-              // Data-driven: the value IS the geometry.
-              style={{ width: `${Math.max(journeyPercent(s), 2)}%` }}
-            />
-          </span>
-
-          <p className="mt-8 text-12 text-neutral-200">
-            {juara
-              ? `Pertahankan sampai minggu ${TOTAL_WEEKS} untuk tetap ${TIER_GOAL}`
-              : `Lancar sampai minggu ${TOTAL_WEEKS} untuk jadi ${TIER_GOAL}`}
-          </p>
         </div>
 
-        {/* The white sheet, overlapping the band's lower edge — same shape as A
-            so the two options differ in argument, not in styling. */}
         <div className="-mt-12 rounded-t-20 bg-neutral-white px-16 pb-16 pt-20">
-          {/* Why bother. Three lines, no figures: this is the block the rupiah
-              headline used to do, and the only one allowed to describe what
-              the status is worth. */}
-          <h2 className="text-14 text-caption">
-            {juara ? `Yang Ibu dapatkan sebagai ${TIER_GOAL}` : `Yang Ibu dapat jadi ${TIER_GOAL}`}
-          </h2>
-          <div className="mt-12 flex flex-col gap-12">
-            {TIER_BENEFITS.map((benefit, i) => (
-              <Benefit
-                key={benefit.title}
-                icon={BENEFIT_ICONS[i]}
-                title={benefit.title}
-                note={'note' in benefit ? benefit.note : undefined}
+          {/* The two bad grades are the only states that put something EXTRA on
+              home, and it goes above everything because it is the only thing
+              that matters until it is cleared. */}
+          {grade === 'tidak-lancar' ? <Stalled /> : null}
+
+          {owing.length > 0 ? <Outstanding weeks={owing} grade={grade} /> : null}
+
+          <h2 className="text-16 font-bold text-default">Keuntungan Ibu</h2>
+
+          {/* Four stops, not one 48-week bar. A bar says "you are 17% of the way
+              through something"; four stops say what the tenor is made of and
+              what each one adds — which is the thing a 12-week cadence has that
+              a 48-week climb does not. */}
+          <div className="mt-16 flex">
+            {windowRows(s).map((row, i, all) => (
+              <Milestone
+                key={row.index}
+                row={row}
+                first={i === 0}
+                last={i === all.length - 1}
+                next={row.index === currentWindow(s)}
               />
             ))}
           </div>
 
-          <div className="mt-20 border-t border-default pt-16">
-            <ThisWeek />
+          <Quote grade={grade} />
+
+          <p className="mt-20 text-14 text-caption">{askLine(grade)}</p>
+
+          <div className="mt-16 flex flex-col gap-16">
+            <Habit
+              icon={<CreditCard size={20} />}
+              label={`Bayar angsuran ${rupiah(112_000)}`}
+              done={s.paid}
+              trailing={<PayAction />}
+            />
+            <Habit
+              icon={<Users size={20} />}
+              label="Datang kumpulan hari Kamis"
+              done={s.attended}
+              note={
+                absencesLeft(s) < ABSENCE_BUDGET
+                  ? `Sisa ${absencesLeft(s)} kali tidak hadir di ${WINDOW_LENGTH} minggu ini`
+                  : undefined
+              }
+              trailing={
+                s.attended ? null : <span className="text-12 text-caption">Dicatat otomatis</span>
+              }
+            />
           </div>
         </div>
 
-        <LadderLink />
+        <StatusLink />
       </div>
 
       <MajelisCard />
@@ -126,75 +152,252 @@ export function HomeBScreen() {
 }
 
 /**
- * The whole near term, in one line. Everything the board on A shows — the
- * chapter, the tiles, the increment it pays — is on the detail page; home keeps
- * only the thing that is actually owed today.
+ * One of the four stops. The circle carries the verdict — a check once the
+ * twelve weeks closed clean, the reward's own glyph while it is still ahead —
+ * the week above it says when, and the word below says what it adds.
  *
- * The three faces are the three real conditions of a week: not yet paid,
- * paid and waiting on the majelis (which records itself), and both halves in.
- * No progress figure appears here — the band above already carries the count,
- * and repeating it is what made this half of the card too heavy.
+ * No rupiah on the track. The figure belongs to the ONE stop she is walking
+ * toward and is quoted once underneath; printing it four times turns a cadence
+ * into a price list and implies three more promises we cannot keep.
  */
-function ThisWeek() {
-  const flow = useFlow()
+function Milestone({
+  row,
+  first,
+  last,
+  next,
+}: {
+  row: WindowRow
+  first: boolean
+  last: boolean
+  next: boolean
+}) {
+  const closed = row.status === 'closed'
+  const failed = closed && row.outcome === 'failed'
+  const done = closed && !failed
+
+  const circle = done
+    ? 'bg-primary-500 text-neutral-white'
+    : failed
+      ? 'bg-neutral-200 text-neutral-500'
+      : next
+        ? 'bg-primary-50 text-primary-500'
+        : 'bg-neutral-50 text-neutral-500'
+
+  // The rail behind the stops: filled up to where she has actually been.
+  const rail = 'h-2 flex-1'
+  const behind = done ? 'bg-primary-500' : 'bg-neutral-200'
+  const ahead = closed ? 'bg-primary-500' : 'bg-neutral-200'
+
+  return (
+    <span className="flex min-w-0 flex-1 flex-col items-center">
+      <span className={`text-12 ${next ? 'font-bold text-primary-500' : 'text-caption'}`}>
+        {row.to}
+      </span>
+
+      <span className="mt-4 flex w-full items-center">
+        <span className={`${rail} ${first ? '' : behind}`} />
+        <span
+          className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-full ${circle}`}
+        >
+          {done ? (
+            <Check size={20} />
+          ) : failed ? (
+            <Minus size={20} />
+          ) : row.final ? (
+            <TrendUp size={20} />
+          ) : (
+            <Coins size={20} />
+          )}
+        </span>
+        <span className={`${rail} ${last ? '' : ahead}`} />
+      </span>
+
+      <span
+        className={`mt-4 w-full truncate text-center text-12 ${
+          next ? 'font-bold text-primary-500' : 'text-caption'
+        }`}
+      >
+        {row.final ? 'Naik limit' : 'Pencairan'}
+      </span>
+    </span>
+  )
+}
+
+/**
+ * What the next stop is worth at TODAY'S grade — the sharpest thing the four
+ * names buy us. Sangat Baik and Baik add different figures, so a mitra sitting
+ * at Baik sees the smaller number and, underneath it, exactly what the bigger
+ * one costs her: paying on time. That second line is the entire argument for
+ * having a scale instead of a pass/fail.
+ *
+ * "Bertambah", never "terbuka": the twelve weeks raise a balance she can take
+ * whenever she likes — they do not open a door that shuts again. The badge is
+ * when the addition lands, not a deadline to withdraw.
+ */
+function Quote({ grade }: { grade: Grade }) {
   const s = useApp()
+  const left = weeksLeftInWindow(s)
+  const forecast = windowQuote(outcomeOf(s, currentWindow(s)))
+
+  if (grade === 'tidak-lancar' || grade === 'perlu-ditingkatkan') return null
+
+  return (
+    <div className="mt-16 rounded-12 border border-default bg-neutral-50 p-12">
+      <p className="text-14 text-caption">Pencairan Ibu bertambah</p>
+      <div className="mt-4 flex flex-wrap items-center gap-8">
+        <span className="text-20 font-bold text-primary-500">+{rupiah(forecast)}</span>
+        <span className="rounded-full bg-orange-500 px-8 py-2 text-12 font-bold text-neutral-white">
+          {left === 0 ? 'Minggu ini' : `${left} minggu lagi`}
+        </span>
+      </div>
+      {grade === 'baik' ? (
+        <p className="mt-8 text-12 text-caption">
+          Jadi {rupiah(gradeIncrement('sangat-baik'))} kalau semua angsuran 12 minggu ini tepat
+          waktu.
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+/** The lead-in to the two habits. One line, and it moves with the grade. */
+function askLine(grade: Grade): string {
+  switch (grade) {
+    case 'sangat-baik':
+      return `Jaga ${STATUS_NAME.toLowerCase()} Ibu dengan cara ini:`
+    case 'baik':
+      return `Tingkatkan ${STATUS_NAME.toLowerCase()} Ibu dengan cara ini:`
+    default:
+      return `Naikkan lagi ${STATUS_NAME.toLowerCase()} Ibu dengan cara ini:`
+  }
+}
+
+/**
+ * The unpaid-week row. It asks for one thing and says what clearing it protects
+ * — never what it costs, because the cost is the engine's number and she cannot
+ * act on it.
+ */
+function Outstanding({ weeks, grade }: { weeks: number[]; grade: Grade }) {
+  const s = useApp()
+
+  return (
+    <div className="mb-20 rounded-12 border border-orange-200 bg-orange-50 p-12">
+      <div className="flex items-start gap-12">
+        <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-orange-500 text-neutral-white">
+          <Warning size={16} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-14 font-bold text-default">
+            Angsuran minggu {weeks.join(', ')} belum dibayar
+          </span>
+          <span className="mt-2 block text-12 text-caption">
+            {grade === 'tidak-lancar'
+              ? `Lunasi untuk menaikkan status modal dan penambahan pencairan di minggu ${accessWeek(s)}.`
+              : 'Masih bisa dibayar sekarang. Setelah lunas, status modal Ibu naik lagi.'}
+          </span>
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => store.payOutstanding()}
+        className="mt-12 w-full rounded-full bg-primary-500 py-8 text-14 font-bold text-neutral-white"
+      >
+        Bayar tunggakan
+      </button>
+    </div>
+  )
+}
+
+/** Arrears outlived a close. One fact, one route back, no scolding. */
+function Stalled() {
+  const s = useApp()
+
+  return (
+    <div className="mb-20 rounded-12 border border-default bg-neutral-50 p-12">
+      <p className="text-14 font-bold text-default">Jumlah pencairan tidak bertambah</p>
+      <p className="mt-4 text-12 text-caption">
+        Ada minggu yang belum dibayar sampai 12 minggu sebelumnya selesai. Setelah tunggakan lunas,
+        status modal Ibu naik lagi dan jumlah pencairan bisa bertambah di minggu {accessWeek(s)}.
+      </p>
+    </div>
+  )
+}
+
+/**
+ * One half of a good week. Drawn as A draws it — 40px tinted square, one plain
+ * sentence — with a trailing slot, because B has no week tile to hang the
+ * payment on: the row itself has to carry the action.
+ */
+function Habit({
+  icon,
+  label,
+  done,
+  note,
+  trailing,
+}: {
+  icon: ReactNode
+  label: string
+  done: boolean
+  note?: string
+  trailing?: ReactNode
+}) {
+  return (
+    <div className="flex items-center gap-16">
+      <span
+        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-12 ${
+          done ? 'bg-green-50 text-green-500' : 'bg-primary-50 text-primary-500'
+        }`}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-16 text-default">{label}</span>
+        {note ? <span className="mt-2 block text-12 text-orange-500">{note}</span> : null}
+      </span>
+      {done ? (
+        <span className="flex shrink-0 items-center gap-4 text-12 font-bold text-green-500">
+          <Check size={16} /> Selesai
+        </span>
+      ) : (
+        <span className="shrink-0">{trailing}</span>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The only thing on this page that is tapped. Paying stamps the week once the
+ * majelis records attendance a moment later — and if that stamp was the last
+ * week of the twelve, the stretch is graded and we go to the verdict rather
+ * than to a four-week celebration. B's beat is twelve weeks; the chapter is A's.
+ */
+function PayAction() {
+  const flow = useFlow()
 
   const pay = () => {
     store.pay()
     // Attendance arrives from the majelis a moment later, on its own.
     window.setTimeout(() => {
       store.attend()
-      const next = store.get()
-      if (next.paid && next.attended && store.stampWeek()) flow.go('milestone')
+      const now = store.get()
+      if (!now.paid || !now.attended) return
+      // Read this BEFORE stamping: the stamp moves the cursor into the next week.
+      const closes = now.week === accessWeek(now)
+      store.stampWeek()
+      if (closes) {
+        store.closeWindow()
+        flow.go('window-close')
+      }
     }, 1400)
   }
 
-  if (s.paid) {
-    return (
-      <div className="flex items-center gap-12">
-        <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-500">
-          <Check size={20} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-14 text-default">Angsuran minggu {s.week} sudah dibayar</span>
-          <span className="mt-2 block text-12 text-caption">
-            Menunggu kehadiran kumpulan Kamis — dicatat otomatis
-          </span>
-        </span>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex items-center gap-12">
-      <span className="min-w-0 flex-1">
-        <span className="block text-14 text-default">Minggu {s.week} belum dibayar</span>
-        <span className="mt-2 block text-16 font-bold text-default">{rupiah(112_000)}</span>
-      </span>
-      <button
-        type="button"
-        onClick={pay}
-        className="shrink-0 rounded-full bg-primary-500 px-24 py-8 text-14 font-bold text-neutral-white"
-      >
-        Bayar
-      </button>
-    </div>
-  )
-}
-
-// One tier benefit. The limit line carries the majelis note, which is the only
-// place the group appears in the tier at all — as more of a benefit she has
-// already earned, never as a condition on the status.
-function Benefit({ icon, title, note }: { icon: ReactNode; title: string; note?: string }) {
-  return (
-    <div className="flex items-start gap-12">
-      <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-primary-500">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-14 text-default">{title}</span>
-        {note ? <span className="mt-2 block text-12 text-caption">{note}</span> : null}
-      </span>
-    </div>
+    <button
+      type="button"
+      onClick={pay}
+      className="rounded-full bg-primary-500 px-24 py-8 text-14 font-bold text-neutral-white"
+    >
+      Bayar
+    </button>
   )
 }

@@ -137,20 +137,25 @@ export function Meter({ percent, tone = 'primary' }: { percent: number; tone?: '
 }
 
 // --- The week tile ---------------------------------------------------------
-// Four states carried by fill alone, so the tile needs no sentence: stamped,
-// delayed, this week, later. The active tile shows the two halves of a good
-// week as dots — a half-filled tile says "you paid but you missed the majelis".
+// Five states carried by fill alone, so the tile needs no sentence: paid, paid
+// late, not paid, this week, later. Late and unpaid are two different colours
+// rather than two shades of one, because they have two different consequences —
+// late trims the four-week increase, unpaid cancels it. The active tile shows
+// the two halves of a good week as dots — a half-filled tile says "you paid but
+// you missed the majelis".
 
 const TILE_STYLE: Record<WeekCell['status'], string> = {
   done: 'bg-primary-500 text-neutral-white',
-  missed: 'border border-orange-200 bg-orange-50 text-orange-500',
+  late: 'border border-orange-500 bg-orange-50 text-orange-500',
+  missed: 'border border-red-200 bg-red-50 text-red-500',
   active: 'border-2 border-primary-500 bg-neutral-white text-primary-500',
   future: 'border border-default bg-neutral-white text-disabled',
 }
 
 const LABEL_STYLE: Record<WeekCell['status'], string> = {
   done: 'text-default',
-  missed: 'text-orange-500',
+  late: 'text-orange-500',
+  missed: 'text-red-500',
   active: 'font-bold text-primary-500',
   future: 'text-disabled',
 }
@@ -164,11 +169,40 @@ export function WeekTile({ cell, size = 'md' }: { cell: WeekCell; size?: 'sm' | 
       <span
         className={`flex w-full items-center justify-center rounded-8 ${box} ${TILE_STYLE[cell.status]}`}
       >
-        {cell.status === 'done' ? <Check size={16} /> : null}
+        {cell.status === 'done' || cell.status === 'late' ? <Check size={16} /> : null}
         {cell.status === 'missed' ? <Minus size={16} /> : null}
         {cell.status === 'active' ? <HalfDots paid={s.paid} attended={s.attended} /> : null}
       </span>
       <span className={`truncate text-10 ${LABEL_STYLE[cell.status]}`}>Mgg {cell.week}</span>
+    </span>
+  )
+}
+
+/**
+ * What the three fills mean, once. The tracker is the only screen that shows
+ * all three side by side, and a board of coloured boxes with no key is a puzzle
+ * — but it belongs here, next to the styles it explains, so the two can never
+ * drift apart.
+ */
+export function WeekLegend() {
+  return (
+    <div className="flex items-center gap-16 rounded-12 border border-default bg-neutral-white p-12">
+      <LegendItem status="done" label="Dibayar" />
+      <LegendItem status="late" label="Telat" />
+      <LegendItem status="missed" label="Belum bayar" />
+    </div>
+  )
+}
+
+function LegendItem({ status, label }: { status: WeekCell['status']; label: string }) {
+  return (
+    <span className="flex items-center gap-4">
+      <span
+        className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-4 ${TILE_STYLE[status]}`}
+      >
+        {status === 'missed' ? <Minus size={16} /> : <Check size={16} />}
+      </span>
+      <span className="text-12 text-caption">{label}</span>
     </span>
   )
 }
@@ -310,6 +344,32 @@ export function LadderLink() {
     >
       Lihat semua {TOTAL_WEEKS} minggu
       <ArrowRight size={16} />
+    </button>
+  )
+}
+
+/**
+ * Option B's footer. B's home quotes ONE benefit — what the next twelve weeks
+ * add — so the second benefit and the grades themselves need a door, and this
+ * is it. It points at the status page rather than the week ladder because the
+ * status is what B anchors on; the 48 weeks are one further tap, from there.
+ *
+ * Drawn as a quiet row on the card's own white behind a divider, not a tinted
+ * bar: the card already has a purple band and a purple track, and a third
+ * purple block at the bottom would compete with the one thing on the card that
+ * is actually tapped.
+ */
+export function StatusLink() {
+  const flow = useFlow()
+
+  return (
+    <button
+      type="button"
+      onClick={() => flow.go('progress-tier')}
+      className="flex w-full items-center justify-center gap-8 border-t border-default p-16 text-14 text-caption"
+    >
+      Lihat seluruh keuntungan
+      <ChevronRight size={16} />
     </button>
   )
 }
