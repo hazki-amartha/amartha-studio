@@ -206,21 +206,13 @@ export const TARGET_HARIAN = 6_200_000
 export const DEPOSIT = {
   bank: 'BCA Virtual Account',
   holder: 'Amartha Cabang Ciseeng',
-  // 17.00 is NOT a hard deadline — she can still settle after it. It is the
-  // point past which only ONE more handover is allowed: most of the day's cash
-  // is in by late afternoon, so a single final drop covers the rest, and it
-  // spares the branch a trickle of tiny late settlements to reconcile.
-  cutoff: '17.00',
   /**
-   * The hard ceiling on handovers in a day: three, and no more. The risk being
-   * managed cuts both ways — cash on a motorbike wants to be put down often,
-   * but every settlement is a reconciliation the branch has to clear, so three
-   * is the count that balances the two. It is a DOOR, not a fee: past the third
-   * there is nothing to pay because there is no fourth.
-   *
-   * The last of the three is special — it cannot be sent until every task on
-   * the day is finished (see the settlement screen), because a final handover
-   * that skipped a still-open visit would settle a bag that isn't full yet.
+   * The hard ceiling on handovers in a day: three, and no more. There is no
+   * clock on it — she can settle whenever she likes — the only limit is the
+   * count. The risk being managed cuts both ways: cash on a motorbike wants to
+   * be put down often, but every settlement is a reconciliation the branch has
+   * to clear, so three is the count that balances the two. It is a DOOR, not a
+   * fee: past the third there is nothing to pay because there is no fourth.
    */
   maxPerDay: 3,
 }
@@ -270,6 +262,23 @@ export const SETTLE_METHOD_LABEL: Record<SettleMethod, string> = {
 export const AGENT = {
   name: 'AmarthaLink',
   hint: 'Tunjukkan kode ini ke agen AmarthaLink terdekat, lalu serahkan uang tunainya.',
+}
+
+/**
+ * A per-mitra cash breakdown for a majelis that has no live roster in this
+ * prototype (only Mawar does). It lets the settlement screen open such a majelis
+ * into its individual mitra to pick from, just like Mawar. Keyed by task id, and
+ * each list sums to that task's banked cash so the roster and the deposit agree.
+ */
+export const MAJELIS_SETTLE_ROSTER: Record<string, { name: string; cash: number }[]> = {
+  // Majelis Melati (t2) — banks Rp1.675.000 in cash.
+  t2: [
+    { name: 'Ibu Nurhayati', cash: 350_000 },
+    { name: 'Ibu Sukaesih', cash: 300_000 },
+    { name: 'Ibu Wulan Sari', cash: 425_000 },
+    { name: 'Ibu Karti', cash: 275_000 },
+    { name: 'Ibu Darsih', cash: 325_000 },
+  ],
 }
 
 /**

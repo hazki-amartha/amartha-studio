@@ -27,7 +27,7 @@ import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { DEPOSIT, SETTLE_METHOD_LABEL, TASKS, taskCode } from '../lib/schedule'
+import { SETTLE_METHOD_LABEL, TASKS, taskCode } from '../lib/schedule'
 import { IconCheck } from '../lib/icons'
 import { depositExpected, settledTotal, store, unsettledTotal, useApp } from '../lib/store'
 import { SectionTitle, StickyBar } from '../lib/ui'
@@ -152,9 +152,6 @@ export function DepositScreen() {
                     OWN account number, so a fixed one on this card would be the
                     wrong number as often as the right one — the settlement
                     screen issues it along with the breakdown and the proof. */}
-                <span className="text-10 text-disabled">
-                  Setelah pukul {DEPOSIT.cutoff} hanya bisa 1x setoran lagi
-                </span>
 
                 {allDone ? (
                   <Button

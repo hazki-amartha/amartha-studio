@@ -54,6 +54,21 @@ const freshPayments = (): Record<string, number> => {
   return payments
 }
 
+/**
+ * The Mawar roster with every cash-paying mitra having settled her bill in full.
+ * This is what lets the settlement screen open Majelis Mawar into its individual
+ * mitra to pick from — without the per-mitra payments there is only the
+ * aggregate deposit to show. The cash sums to Mawar's banked figure, so the
+ * roster view and the deposit figure agree.
+ */
+const mawarPaid = (): Record<string, number> => {
+  const payments = freshPayments()
+  collectible.forEach((m) => {
+    payments[m.id] = outstandingOf(m).total
+  })
+  return payments
+}
+
 const sumOf = (list: typeof collectible) =>
   list.reduce((sum, m) => sum + outstandingOf(m).total, 0)
 
@@ -205,7 +220,9 @@ export const scheduleHomeVisit = () =>
     sentTasks: [],
     // The finished visits BANK their cash, or the settlement widget on this
     // screen has nothing to be about. Two majelis in the bag by midday is
-    // exactly the moment the mid-day handover exists for.
+    // exactly the moment the mid-day handover exists for. Mawar's roster is
+    // seeded so the settlement can pick per mitra from it.
+    payments: mawarPaid(),
     deposits: depositsFor(['t1', 't2']),
     settlements: [],
     depositAmount: null,
@@ -219,6 +236,8 @@ export const scheduleClosing = () =>
     day: 'today',
     doneTasks: CLOSING_DONE,
     sentTasks: CLOSING_DONE,
+    // Mawar's roster seeded so the settlement opens it per mitra.
+    payments: mawarPaid(),
     deposits: bankedDay,
     settlements: [],
     depositAmount: null,
@@ -849,12 +868,19 @@ export const receiptPartial = () =>
 
 const MIDDAY_BANKED = bankedDay.t1.cash + bankedDay.t2.cash
 
-/** Two majelis in the bag by midday — the first handover, and it is free. */
-export const bagFirstHandover = () =>
+/**
+ * Two majelis in the bag by midday — the first handover. Mawar's roster is
+ * seeded per mitra (each collectible member paid her bill in cash), so the
+ * settlement can open it into individual mitra to pick from; Melati has no
+ * roster in this prototype and stays one line. The per-mitra cash sums to
+ * Mawar's banked figure, so the two views agree.
+ */
+export const bagFirstHandover = () => {
   store.set({
     day: 'today',
     doneTasks: ['t1', 't2', 't2b'],
     sentTasks: ['t1', 't2', 't2b'],
+    payments: mawarPaid(),
     deposits: depositsFor(['t1', 't2']),
     settlements: [],
     depositAmount: null,
@@ -863,6 +889,7 @@ export const bagFirstHandover = () =>
     depositProof: false,
     depositDone: false,
   })
+}
 
 /**
  * She is about to declare Rp200.000 less than the app says she is carrying. The

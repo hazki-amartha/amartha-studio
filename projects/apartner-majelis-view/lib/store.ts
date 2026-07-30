@@ -24,6 +24,7 @@ import {
 import { KPI_PERIODS } from './kpi'
 import {
   DEPOSIT,
+  MAJELIS_SETTLE_ROSTER,
   TASKS,
   findMajelisEntry,
   findTask,
@@ -34,6 +35,7 @@ import {
   type MajelisStatus,
   type SettleMethod,
   type Task,
+  type TaskKind,
 } from './schedule'
 
 /** Who actually answered the door on a home visit. */
@@ -133,10 +135,10 @@ export interface LastCollect {
  * largest exposure in this flow, and the fix is to let her put it down twice
  * before the day ends rather than once at 17.45.
  *
- * Each one takes EVERYTHING outstanding. Partial settlement would mean the app
- * holding an opinion about which rupiah in her bag belongs to which pelayanan,
- * which it cannot check and she cannot separate — and a BP who can choose the
- * amount is a BP who can be asked to explain why she chose it.
+ * She chooses what goes in each one: which tasks, and which mitra inside a
+ * majelis she has a roster for. The amount is the sum of what she ticks, so a
+ * handover can be part of the bag — the remainder stays recorded as unsettled
+ * and comes back on the next one.
  */
 export interface Settlement {
   /** 1-based. Also picks the VA, so each transfer reconciles on its own. */
@@ -1276,7 +1278,7 @@ export const collectedTotal = (s: AppState): number =>
  * target drops as she records it — which is the honest depiction: that debt
  * turned out to be settled, and it was never going to be cash in her bag.
  */
-const noCashFrom = (s: AppState, mitra: Mitra): boolean =>
+export const noCashFrom = (s: AppState, mitra: Mitra): boolean =>
   isSelfServe(mitra) || s.payMode[mitra.id] === 'poket'
 
 /** What the BP has to collect in cash this visit. */
@@ -1364,6 +1366,92 @@ export const unsettledEntries = (s: AppState): DepositEntry[] => {
   })
   return out
 }
+
+/** One thing she can tick to settle: a whole task, or one mitra inside a
+ *  majelis. `name` is the mitra's name for a per-mitra leaf, null for a
+ *  whole-task leaf. `key` is unique and stable within a render. */
+export interface SettleLeaf {
+  key: string
+  name: string | null
+  cash: number
+}
+
+/** A settleable source, grouped by the task that banked it. `perMitra` majelis
+ *  groups expand into one leaf per cash-paying mitra; everything else is a
+ *  single whole-task leaf. `kindLabel` is the visit kind spelled out —
+ *  "Majelis Visit", "Home Visit" — for the overline above the title. */
+export interface SettleGroup {
+  taskId: string
+  title: string
+  kindLabel: string
+  perMitra: boolean
+  leaves: SettleLeaf[]
+}
+
+/** The visit kind spelled out for the settlement's group overline. */
+const SETTLE_KIND_LABEL: Record<TaskKind, string> = {
+  majelis: 'Majelis Visit',
+  'home-visit': 'Home Visit',
+  sosialisasi: 'Sosialisasi',
+  'follow-up': 'Follow Up',
+  setoran: 'Setoran',
+}
+
+/**
+ * The day's unsettled cash, broken down as far as she can PICK it: the majelis
+ * she has a roster for opens into its individual cash payers, so she can choose
+ * which mitra's money goes in this handover; every other task (home visits, a
+ * majelis without a roster in this prototype) stays one line, because there is
+ * no finer record of it to select from.
+ *
+ * Built on `unsettledEntries`, so a source only offers its per-mitra rows while
+ * it is wholly unsettled — once a partial handover has drained some of its
+ * rupiah the remainder shows as a single line, since the store settles by the
+ * rupiah and can no longer say which mitra's share is left.
+ */
+export const settleableSources = (s: AppState): SettleGroup[] =>
+  unsettledEntries(s).map((e) => {
+    const task = TASKS.find((t) => t.id === e.taskId)
+    const title = task?.title ?? e.label
+    const kindLabel = task ? SETTLE_KIND_LABEL[task.kind] : ''
+
+    // Majelis Mawar has a LIVE roster — the mitra she actually collected from,
+    // with the amounts she recorded — so its per-mitra rows come from there.
+    if (task?.majelisId === MAJELIS.id) {
+      const payers = MAJELIS.members.filter((m) => !noCashFrom(s, m) && paidOf(s, m) > 0)
+      const sum = payers.reduce((acc, m) => acc + paidOf(s, m), 0)
+      if (payers.length > 0 && sum === e.cash) {
+        return {
+          taskId: e.taskId,
+          title,
+          kindLabel,
+          perMitra: true,
+          leaves: payers.map((m) => ({ key: `${e.taskId}:${m.id}`, name: m.name, cash: paidOf(s, m) })),
+        }
+      }
+    }
+
+    // Any other majelis with a static breakdown (no live roster in this
+    // prototype) opens per mitra from that fixed list.
+    const roster = MAJELIS_SETTLE_ROSTER[e.taskId]
+    if (roster && roster.reduce((acc, r) => acc + r.cash, 0) === e.cash) {
+      return {
+        taskId: e.taskId,
+        title,
+        kindLabel,
+        perMitra: true,
+        leaves: roster.map((r, i) => ({ key: `${e.taskId}:${i}`, name: r.name, cash: r.cash })),
+      }
+    }
+
+    return {
+      taskId: e.taskId,
+      title,
+      kindLabel,
+      perMitra: false,
+      leaves: [{ key: e.taskId, name: null, cash: e.cash }],
+    }
+  })
 
 /**
  * Whether the schedule should offer to settle right now. Two conditions: she

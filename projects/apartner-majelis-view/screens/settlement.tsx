@@ -7,48 +7,48 @@
 // gets it to the branch. She reaches it twice from the schedule's widget, and a
 // third time through Closing's titipan check — three doors onto one act.
 //
-// A day carries at most three settlements, and no more: two she times herself
-// from the schedule, and a last one that clears the bag at the end. That cap is
-// the shape of the risk from both sides — a BP holding six hours of collections
-// on a motorbike wants to put money down often, but every handover is a
-// reconciliation the branch has to clear, so three is the balance. The counter
-// shuts at 17.00; the last of the three also waits on every task being finished,
-// so a final drop never settles a bag a late majelis hasn't finished filling.
+// A day carries at most three settlements, and no more — there is no clock on
+// it, only the count. That cap is the shape of the risk from both sides: a BP
+// holding six hours of collections on a motorbike wants to put money down
+// often, but every handover is a reconciliation the branch has to clear, so
+// three is the balance.
 //
 // The screen is one stepped page, top to bottom, in the order the act happens:
 //
-//   1. WHAT is in the bag — the total, and the pelayanan it came from.
-//   2. HOW MUCH of it to put down now — she confirms or edits the figure.
+//   1. WHAT is in the bag — the total she is carrying, and where it came from.
+//   2. WHICH of it to put down now — she TICKS the tasks, and the mitra inside
+//      a majelis she has a roster for, whose cash goes in this handover. The
+//      amount is the sum of what she ticks; leaving some unticked leaves it in
+//      the bag for a later drop.
 //   3. WHICH ROAD — a VA she transfers to, or an AmarthaLink agent she hands
 //      the cash to. The receipt number (a VA, or a kode unik) appears inside
 //      the road she picks, because a code with no chosen destination is a
 //      number she cannot use yet.
-//   4. PROOF — the same photo gesture as every visit, and it only appears once
-//      there is a method for it to be proof OF.
+//   4. PROOF — the same photo gesture as every visit, asked in the sheet the
+//      confirm opens, once there is a method for it to be proof OF.
 //
-// The confirm is gated on an amount, a method, and the photo — and, on the last
-// of the day's three, on every task being finished as well. The
-// header carries a Riwayat link onto the day's cash story — what came in, what
-// went out, and by which road — because a BP mid-settlement is exactly the
-// person who wants to check what she already put down.
+// The confirm is gated on a chosen amount and a method. The header carries a
+// Riwayat link onto the day's cash story — what came in, what went out, and by
+// which road — because a BP mid-settlement is exactly the person who wants to
+// check what she already put down.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Badge,
   BottomSheet,
   Button,
   Card,
-  InputNominal,
   NavigationHeader,
 } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { AGENT, DEPOSIT, TASKS, agentCodeFor, splitDeposit, vaFor } from '../lib/schedule'
+import { AGENT, DEPOSIT, agentCodeFor, splitDeposit, vaFor } from '../lib/schedule'
 import { IconCamera, IconCheck, IconInfo, IconPin, IconWallet } from '../lib/icons'
 import {
   settledTotal,
   settlementsLeft,
+  settleableSources,
   store,
   unsettledEntries,
   unsettledTotal,
@@ -68,45 +68,68 @@ export function SettlementScreen() {
 
   const entries = unsettledEntries(s)
   const expected = unsettledTotal(s)
-  const amount = s.depositAmount ?? expected
+
+  // What she can pick from: the day's unsettled cash, broken down as far as it
+  // can be selected — a majelis with a roster into its cash payers, everything
+  // else as one line.
+  const sources = settleableSources(s)
+  const allKeys = useMemo(
+    () => sources.flatMap((g) => g.leaves.map((l) => l.key)),
+    [sources],
+  )
+  const cashOf = useMemo(() => {
+    const m = new Map<string, number>()
+    sources.forEach((g) => g.leaves.forEach((l) => m.set(l.key, l.cash)))
+    return m
+  }, [sources])
+
+  // Everything ticked by default: agreeing is a tap, and settling the whole bag
+  // is the common case. We track what she UNTICKS, not what she picks — so a
+  // source is selected until she says otherwise, which also means cash that
+  // populates after mount (a state control, a late render) comes in ticked
+  // rather than stranded off.
+  const [deselected, setDeselected] = useState<Set<string>>(() => new Set())
+  const isOn = (key: string) => !deselected.has(key)
+  const toggle = (key: string) =>
+    setDeselected((prev) => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  const setGroup = (keys: string[], on: boolean) =>
+    setDeselected((prev) => {
+      const next = new Set(prev)
+      keys.forEach((k) => (on ? next.delete(k) : next.add(k)))
+      return next
+    })
+
+  // The nominal she is settling: the sum of what is still ticked.
+  const amount = allKeys.reduce((sum, k) => (isOn(k) ? sum + (cashOf.get(k) ?? 0) : sum), 0)
   const diff = amount - expected
 
   // Which settlement this will be within the day's three.
   const no = s.settlements.length + 1
-  // The last of the three — the one that clears the bag at the end of the day.
-  // It carries an extra gate: it cannot be sent until every task on the day is
-  // finished, because a final handover that skipped a still-open visit would
-  // settle a bag that has not finished filling. The first two are hers to time.
-  const isLast = no >= DEPOSIT.maxPerDay
-  const allTasksDone = TASKS.every((t) => s.doneTasks.includes(t.id))
-  const lastBlocked = isLast && !allTasksDone
   const code = agentCodeFor(no)
   // The VA road splits into two transfers to two numbers; the agent road takes
   // the whole amount at one counter. The split is derived from the figure she
-  // is settling, so editing the total re-splits both halves.
+  // is settling, so ticking more re-splits both halves.
   const va1 = vaFor(no, 1)
   const va2 = vaFor(no, 2)
   const [vaAmount1, vaAmount2] = splitDeposit(amount)
 
-  // Typing is opt-in. The default gesture is agreeing with the app.
-  const [editing, setEditing] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   // Proof is captured AFTER she confirms she has transferred — the sheet that
   // opens on "Saya Sudah Setor" — not as an inline step that gates the button.
   const [proofOpen, setProofOpen] = useState(false)
 
-  // Two gates to REACH the confirm: an amount and a road for it to travel. The
-  // photo that proves it went is asked afterwards, in the sheet the button
-  // opens, because she uploads it having already transferred — so it is the
-  // last thing she does, not a step that blocks her from starting. The
-  // difference used to demand a reason from a fixed list; the GAP is still
-  // recorded, but what it was for is a conversation.
-  const ready = amount > 0 && Boolean(s.depositMethod) && !lastBlocked
+  // Two gates to REACH the confirm: something ticked, and a road for it to
+  // travel. The photo that proves it went is asked afterwards, in the sheet the
+  // button opens, because she uploads it having already transferred.
+  const ready = amount > 0 && Boolean(s.depositMethod)
 
-  const hint = lastBlocked
-    ? 'Selesaikan semua tugas hari ini dulu sebelum setoran terakhir'
-    : amount <= 0
-      ? 'Belum ada jumlah yang disetor'
+  const hint =
+    amount <= 0
+      ? 'Pilih minimal satu yang mau disetor'
       : !s.depositMethod
         ? 'Pilih metode setoran dulu'
         : null
@@ -229,26 +252,18 @@ export function SettlementScreen() {
         />
       }
     >
-      {/* The rules, said once and up front. Three handovers a day, no more — the
-          count she has left is a fact to pace against — and after 17.00 only one
-          drop remains, so a late-afternoon BP settles once and settles all of
-          it. On the last of the three it says the extra rule instead: that it
-          waits on every task being finished. */}
+      {/* Just the count she has left today — the fact she paces against. */}
       <div className="flex items-start gap-8 rounded-8 border border-blue-200 bg-blue-50 px-12 py-8">
         <span className="shrink-0 text-blue-500">
           <IconInfo size={16} />
         </span>
         <span className="min-w-0 flex-1 text-12 text-default">
-          {lastBlocked
-            ? 'Setoran terakhir. Selesaikan semua tugas hari ini dulu sebelum mengirim.'
-            : isLast
-              ? 'Setoran terakhir hari ini.'
-              : `Setoran maksimal ${DEPOSIT.maxPerDay}x per hari — sisa ${settlementsLeft(s)}x. Setelah pukul ${DEPOSIT.cutoff} hanya bisa 1x setoran lagi.`}
+          Sisa {settlementsLeft(s)}x setoran hari ini.
         </span>
       </div>
 
-      {/* --- What she is carrying. The figure she CAN put down — she chooses
-          how much of it to settle now. */}
+      {/* --- What she is carrying, and what she has picked out of it. The total
+          is the bag; the selected figure is this handover. */}
       <Card>
         <div className="flex items-center gap-12">
           <IconTile tint="green">
@@ -258,39 +273,66 @@ export function SettlementScreen() {
             <span className="text-12 text-caption">Uang tunai yang bisa disetor</span>
             <span className="text-24 font-bold text-default">{rupiah(expected)}</span>
           </div>
-          <Badge intent={isLast ? 'orange' : 'neutral'}>
-            {isLast ? 'Setoran terakhir' : `Setoran ke-${no}`}
-          </Badge>
+          <Badge intent="neutral">Setoran ke-{no}</Badge>
         </div>
       </Card>
 
-      {/* --- How much to put down now. Agreeing is a tap; settling less is
-          deliberate, and the remainder stays in the bag for a later handover. */}
-      <SectionTitle>Jumlah yang Disetor</SectionTitle>
-      {editing ? (
-        <InputNominal
-          label="Jumlah disetor"
-          value={amount ? String(amount) : ''}
-          onValueChange={(digits) => store.setDepositAmount(Number(digits) || 0)}
-          helperText={
-            diff === 0
-              ? 'Sama dengan catatan aplikasi'
-              : `${diff > 0 ? 'Lebih' : 'Kurang'} ${rupiah(Math.abs(diff))} dari catatan aplikasi`
-          }
-        />
-      ) : (
-        <Card>
-          <div className="flex items-center gap-12">
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="text-18 font-bold text-default">{rupiah(amount)}</span>
-              <span className="text-12 text-caption">Sesuai catatan aplikasi</span>
-            </div>
-            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-              Ubah
-            </Button>
-          </div>
-        </Card>
-      )}
+      {/* --- Which cash goes in THIS handover. She ticks the tasks, and the
+          mitra inside a majelis she has a roster for; the amount is the sum of
+          what is ticked. Everything starts ticked — settling the whole bag is
+          the common case — and unticking leaves that cash for a later drop. */}
+      <SectionTitle>Pilih yang mau disetor</SectionTitle>
+      <div className="flex flex-col gap-8">
+        {sources.map((g) => {
+          const keys = g.leaves.map((l) => l.key)
+          const allOn = keys.every((k) => isOn(k))
+          return (
+            <Card key={g.taskId}>
+              {g.perMitra ? (
+                <div className="flex flex-col gap-12">
+                  {/* The visit kind and its name over the mitra rows, with the
+                      "select all" toggle on the title line. */}
+                  <div className="flex items-start justify-between gap-8">
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-10 font-bold uppercase text-caption">{g.kindLabel}</span>
+                      <span className="truncate text-14 font-bold text-default">{g.title}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setGroup(keys, !allOn)}
+                      className="shrink-0 pt-12 text-12 font-bold text-link"
+                    >
+                      {allOn ? 'Kosongkan' : 'Pilih semua'}
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-8">
+                    {g.leaves.map((l) => (
+                      <SelectRow
+                        key={l.key}
+                        label={l.name ?? g.title}
+                        cash={l.cash}
+                        checked={isOn(l.key)}
+                        onToggle={() => toggle(l.key)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-8">
+                  {/* One selectable line — the kind over its own row. */}
+                  <span className="text-10 font-bold uppercase text-caption">{g.kindLabel}</span>
+                  <SelectRow
+                    label={g.title}
+                    cash={g.leaves[0].cash}
+                    checked={isOn(g.leaves[0].key)}
+                    onToggle={() => toggle(g.leaves[0].key)}
+                  />
+                </div>
+              )}
+            </Card>
+          )
+        })}
+      </div>
 
       {/* --- Which road the cash takes, and how the amount is split to travel it.
           The VA road caps per transfer, so it goes as TWO transfers to two VA
@@ -356,21 +398,13 @@ export function SettlementScreen() {
       </div>
 
       <StickyBar>
-        {/* The difference, and — when she is settling less than she holds —
-            what it LEAVES. A short handover is not a discrepancy to explain
-            afterwards, it is cash still in her bag, and the honest thing to
-            say before she taps is that it will still be there. */}
-        {diff !== 0 ? (
-          <div className="flex flex-col items-center gap-4">
-            <Badge intent="orange">
-              Selisih {diff > 0 ? 'lebih' : 'kurang'} {rupiah(Math.abs(diff))}
-            </Badge>
-            {diff < 0 ? (
-              <span className="text-10 text-caption">
-                Sisa {rupiah(-diff)} tetap tercatat belum disetor
-              </span>
-            ) : null}
-          </div>
+        {/* When she has left some of the bag unticked, say what stays behind.
+            A short handover is not a discrepancy — it is cash still in her bag —
+            and the honest thing before she taps is that it will still be there. */}
+        {diff < 0 ? (
+          <span className="text-center text-10 text-caption">
+            Sisa {rupiah(-diff)} tetap tercatat belum disetor
+          </span>
         ) : null}
         {hint ? (
           <span className="text-center text-12 font-bold text-orange-500">{hint}</span>
@@ -404,7 +438,11 @@ export function SettlementScreen() {
         agent={{ name: AGENT.name, code, amount }}
         onConfirm={() => {
           setProofOpen(false)
-          store.settle(isLast)
+          // Record the picked nominal, then settle it: the store reads
+          // depositAmount, so setting it here is what makes the handover the
+          // sum she ticked rather than the whole bag.
+          store.setDepositAmount(amount)
+          store.settle(false)
           flow.go('today')
         }}
       />
@@ -565,6 +603,43 @@ function CaptureRow({
       >
         {done ? <IconCheck size={24} /> : <IconCamera size={24} />}
       </span>
+    </button>
+  )
+}
+
+// One selectable line in the "pilih yang mau disetor" list: a checkbox, the
+// name (a mitra, or a whole task), and its cash on the right. The whole row is
+// the tap target, so she never has to hit the small box.
+function SelectRow({
+  label,
+  cash,
+  checked,
+  onToggle,
+}: {
+  label: string
+  cash: number
+  checked: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={onToggle}
+      className="flex w-full items-center gap-12 text-left"
+    >
+      <span
+        className={`flex h-24 w-24 shrink-0 items-center justify-center rounded-8 border ${
+          checked
+            ? 'border-primary-500 bg-primary-500 text-neutral-white'
+            : 'border-neutral-400 bg-neutral-white'
+        }`}
+      >
+        {checked ? <IconCheck size={16} /> : null}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-14 text-default">{label}</span>
+      <span className="shrink-0 text-14 font-bold text-default">{rupiah(cash)}</span>
     </button>
   )
 }
