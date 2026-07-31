@@ -51,10 +51,17 @@ import { IconPiggy } from '../lib/icons'
 import { outstanding, store, useApp } from '../lib/store'
 import { IconTile, Notice, SectionTitle, TaskButton } from '../lib/ui'
 
+/** How far past due the unpaid week is, in the at-risk state. */
+const DAYS_LATE = 3
+
 export function HomeV2Screen() {
   const flow = useFlow()
   const s = useApp()
   const isNew = s.mitraStage === 'new'
+  // The reward is at risk in two conditions, not one: the deliberate at-risk
+  // state, and a short payment that left arrears behind. Both owe money this
+  // week, so both get the warning and the red disbursement chip.
+  const rewardAtRisk = !isNew && (s.atRisk || (s.billState === 'paid' && outstanding(s) > 0))
 
   const goToPayment = () => {
     store.startPayment()
@@ -107,7 +114,7 @@ export function HomeV2Screen() {
                 <p className="text-10 text-caption">{isNew ? 'Pencairan awal' : '10 minggu lagi'}</p>
                 <span
                   className={`mt-4 inline-block rounded-full px-8 py-2 text-10 font-bold ${
-                    !isNew && s.atRisk ? 'bg-red-50 text-red-600' : 'bg-primary-50 text-primary-500'
+                    rewardAtRisk ? 'bg-red-50 text-red-600' : 'bg-primary-50 text-primary-500'
                   }`}
                 >
                   Cair Rp1,25jt
@@ -129,11 +136,10 @@ export function HomeV2Screen() {
 
           <div className="-mx-16 mt-16 border-t border-light" />
 
-          {!isNew && s.atRisk ? (
+          {rewardAtRisk ? (
             <div className="mb-16 mt-16">
               <Notice tone="orange">
-                Reward Ibu bisa hangus. Bayar angsuran dan hadir kumpulan minggu ini agar reward
-                tetap didapat.
+                Reward Ibu bisa hangus. Bayar tunggakan angsuran agar reward tetap didapat.
               </Notice>
             </div>
           ) : (
@@ -272,7 +278,6 @@ export function HomeV2Screen() {
               id: 'transaksi',
               label: 'Transaksi',
               icon: <Clipboard size={24} />,
-              onClick: () => flow.go('riwayat'),
             },
           ]}
         />
@@ -505,6 +510,18 @@ function BillLine() {
   }
   if (s.billState === 'paid') {
     return <span className="text-red-500">{rupiah(outstanding(s))} (sisa tunggakan)</span>
+  }
+  // Unpaid and behind: the amount alone doesn't say the week has already
+  // slipped, which is the reason the reward is on the line.
+  if (s.atRisk) {
+    return (
+      <span className="flex flex-wrap items-center gap-8">
+        {rupiah(WEEKLY_BILL)}
+        <span className="rounded-full bg-red-50 px-8 py-2 text-10 font-bold text-red-600">
+          Telat {DAYS_LATE} hari
+        </span>
+      </span>
+    )
   }
   return <>{rupiah(WEEKLY_BILL)}</>
 }
