@@ -14,7 +14,8 @@ import { BottomSheet, NavigationHeader } from '@/design-system/components'
 import { Check, ChevronRight, LightbulbFilament, LockKey } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { HISTORY, MEMBERS, MILESTONES, type Milestone } from '../lib/data'
+import { HISTORY, MEMBERS, MILESTONE_SETS, type Milestone } from '../lib/data'
+import { useApp } from '../lib/store'
 import { healthOf, type Health } from '../lib/milestone-tracker'
 
 const STATUS_TONE = {
@@ -32,7 +33,11 @@ const HEALTH_LABEL: Record<Health, { label: string; tone: keyof typeof STATUS_TO
 
 export function ProgressScreen() {
   const flow = useFlow()
+  const { journeyPhase } = useApp()
   const [progressOpen, setProgressOpen] = useState(false)
+
+  // Which snapshot of the ladder to draw — the demo-state controls set the phase.
+  const milestones = MILESTONE_SETS[journeyPhase]
 
   // The two reads behind the "Lihat progress" menu, from the same data their
   // detail pages use: her own bayar/hadir record, and the majelis's payments.
@@ -67,11 +72,11 @@ export function ProgressScreen() {
           </p>
         </div>
 
-        {MILESTONES.map((m, i) => (
+        {milestones.map((m, i) => (
           <MilestoneRung
             key={m.label}
             milestone={m}
-            showConnector={i < MILESTONES.length - 1}
+            showConnector={i < milestones.length - 1}
             onOpen={() => flow.go(m.detail)}
           />
         ))}
@@ -167,13 +172,17 @@ function MilestoneRung({
               ? 'bg-green-500 text-neutral-white'
               : state === 'next'
                 ? 'bg-primary-500 text-neutral-white'
-                : 'bg-neutral-50 text-neutral-400'
+                : state === 'missed'
+                  ? 'bg-red-500 text-neutral-white'
+                  : 'bg-neutral-50 text-neutral-400'
           }`}
         >
           {state === 'unlocked' ? (
             <Check size={20} />
           ) : state === 'next' ? (
             <span className="text-16">🎯</span>
+          ) : state === 'missed' ? (
+            <span className="text-18 font-bold">✕</span>
           ) : (
             <LockKey size={20} />
           )}
@@ -204,13 +213,13 @@ function MilestoneRung({
             <p className="text-14 text-caption">{actionLabel}</p>
             {amount ? <p className="mt-2 text-18 font-bold text-green-600">{amount}</p> : null}
           </div>
-          {state === 'unlocked' && cta && onOpen ? (
+          {cta && onOpen ? (
             <button
               type="button"
               onClick={onOpen}
               className="shrink-0 rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white"
             >
-              Cairkan
+              {cta}
             </button>
           ) : onOpen ? (
             <button

@@ -14,7 +14,7 @@
 // open bottom sheet — stays as useState in the screen that owns it.
 
 import { useSyncExternalStore } from 'react'
-import { WEEKLY_BILL, MILESTONE_AMOUNT, type MethodId } from './data'
+import { WEEKLY_BILL, MILESTONE_AMOUNT, type JourneyPhase, type MethodId } from './data'
 
 /** Where the weekly instalment task has got to, as the home screen shows it. */
 export type BillState = 'idle' | 'pending' | 'paid'
@@ -43,6 +43,8 @@ export interface AppState {
   waMessage: string
   /** Amount of the last disbursement, so the success screen can name it. */
   lastDisburse: number
+  /** Which snapshot of the milestone ladder the progress page draws. */
+  journeyPhase: JourneyPhase
 }
 
 const initial: AppState = {
@@ -56,6 +58,7 @@ const initial: AppState = {
   waTarget: '',
   waMessage: '',
   lastDisburse: MILESTONE_AMOUNT,
+  journeyPhase: 'default',
 }
 
 let state: AppState = initial

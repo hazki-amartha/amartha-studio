@@ -103,8 +103,9 @@ export interface Milestone {
   amount?: string
   /** Status pill on an upcoming rung, e.g. "On Track". */
   status?: MilestoneStatus
-  state: 'unlocked' | 'next' | 'locked'
-  /** Present on the one rung that can be acted on now. */
+  state: 'unlocked' | 'next' | 'locked' | 'missed'
+  /** The primary button's label when the rung can be acted on now — solid and
+   *  purple, e.g. "Cairkan" / "Mulai". Absent rungs get an outline "Lihat". */
   cta?: string
   /** Screen id of this milestone's dedicated tracker, opened from its card. */
   detail: string
@@ -117,7 +118,7 @@ export const MILESTONES: Milestone[] = [
     actionLabel: 'Cairkan dana',
     amount: '+Rp1.250.000',
     state: 'unlocked',
-    cta: 'Cairkan sekarang',
+    cta: 'Cairkan',
     detail: 'milestone-unlocked',
   },
   {
@@ -147,6 +148,171 @@ export const MILESTONES: Milestone[] = [
     detail: 'milestone-limit',
   },
 ]
+
+// --- Journey phases (progress-page demo states) ----------------------------
+// Each phase is a snapshot of the ladder at a different point in time. `default`
+// is the entry view (MILESTONES above); the rest are seeded by the state
+// controls on the progress screen. A rung that has been reached but not acted
+// on carries a solid `cta`; once it's cair'd it drops off the top of the ladder,
+// so later phases show fewer rungs.
+
+export type JourneyPhase = 'default' | 'gagal' | 'okt' | 'jan' | 'mar' | 'newloan'
+
+export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
+  default: MILESTONES,
+
+  // The first goal was missed — it shows Gagal instead of Berhasil diraih.
+  gagal: [
+    {
+      label: '14 Jul 2026',
+      status: { label: 'Gagal', tone: 'red' },
+      actionLabel: 'Cairkan dana',
+      amount: '+Rp1.250.000',
+      state: 'missed',
+      detail: 'milestone-unlocked',
+    },
+    {
+      label: '6 Okt 2026',
+      status: { label: 'Sesuai rencana', tone: 'blue' },
+      countdown: '10 minggu lagi',
+      actionLabel: 'Cairkan dana',
+      amount: '+Rp1.250.000',
+      state: 'next',
+      detail: 'milestone-progress',
+    },
+    {
+      label: '26 Jan 2027',
+      status: { label: 'Sesuai rencana', tone: 'blue' },
+      countdown: '26 minggu lagi',
+      actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
+      state: 'locked',
+      detail: 'milestone-pelunasan',
+    },
+    {
+      label: '23 Mar 2027 🏆',
+      status: { label: 'Berisiko', tone: 'orange' },
+      countdown: '34 minggu lagi',
+      actionLabel: 'Peluang limit baru',
+      amount: 's/d Rp8jt',
+      state: 'locked',
+      detail: 'milestone-limit',
+    },
+  ],
+
+  // Today is 6 Okt: the first cair is done and gone; the second is reached and
+  // ready — the only rung that can be cair'd now.
+  okt: [
+    {
+      label: '6 Okt 2026',
+      status: { label: 'Berhasil diraih', tone: 'green' },
+      actionLabel: 'Cairkan dana',
+      amount: '+Rp1.250.000',
+      state: 'unlocked',
+      cta: 'Cairkan',
+      detail: 'milestone-unlocked',
+    },
+    {
+      label: '26 Jan 2027',
+      status: { label: 'Sesuai rencana', tone: 'blue' },
+      countdown: '16 minggu lagi',
+      actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
+      state: 'next',
+      detail: 'milestone-pelunasan',
+    },
+    {
+      label: '23 Mar 2027 🏆',
+      status: { label: 'Berisiko', tone: 'orange' },
+      countdown: '24 minggu lagi',
+      actionLabel: 'Peluang limit baru',
+      amount: 's/d Rp8jt',
+      state: 'locked',
+      detail: 'milestone-limit',
+    },
+  ],
+
+  // Today is 26 Jan: two rungs reached, both awaiting action (both purple).
+  jan: [
+    {
+      label: '6 Okt 2026',
+      status: { label: 'Berhasil diraih', tone: 'green' },
+      actionLabel: 'Cairkan dana',
+      amount: '+Rp1.250.000',
+      state: 'unlocked',
+      cta: 'Cairkan',
+      detail: 'milestone-unlocked',
+    },
+    {
+      label: '26 Jan 2027',
+      status: { label: 'Berhasil diraih', tone: 'green' },
+      actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
+      state: 'unlocked',
+      cta: 'Mulai',
+      detail: 'milestone-pelunasan',
+    },
+    {
+      label: '23 Mar 2027 🏆',
+      status: { label: 'Berisiko', tone: 'orange' },
+      countdown: '8 minggu lagi',
+      actionLabel: 'Peluang limit baru',
+      amount: 's/d Rp8jt',
+      state: 'locked',
+      detail: 'milestone-limit',
+    },
+  ],
+
+  // Today is 23 Mar: only the limit-rise remains, reached and ready to cair.
+  mar: [
+    {
+      label: '23 Mar 2027 🏆',
+      status: { label: 'Berhasil diraih', tone: 'green' },
+      actionLabel: 'Peluang limit baru',
+      amount: 's/d Rp8jt',
+      state: 'unlocked',
+      cta: 'Cairkan',
+      detail: 'milestone-unlocked',
+    },
+  ],
+
+  // The larger loan is disbursed — a fresh ladder, every ~12 weeks, toward a
+  // Rp10jt ceiling.
+  newloan: [
+    {
+      label: '15 Jun 2027',
+      status: { label: 'Berhasil diraih', tone: 'green' },
+      actionLabel: 'Cairkan dana',
+      amount: '+Rp2.000.000',
+      state: 'unlocked',
+      cta: 'Cairkan',
+      detail: 'milestone-unlocked',
+    },
+    {
+      label: '7 Sep 2027',
+      status: { label: 'Sesuai rencana', tone: 'blue' },
+      countdown: '12 minggu lagi',
+      actionLabel: 'Cairkan dana',
+      amount: '+Rp2.000.000',
+      state: 'next',
+      detail: 'milestone-progress',
+    },
+    {
+      label: '30 Nov 2027',
+      status: { label: 'Sesuai rencana', tone: 'blue' },
+      countdown: '24 minggu lagi',
+      actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
+      state: 'locked',
+      detail: 'milestone-pelunasan',
+    },
+    {
+      label: '22 Feb 2028 🏆',
+      status: { label: 'Berisiko', tone: 'orange' },
+      countdown: '36 minggu lagi',
+      actionLabel: 'Peluang limit baru',
+      amount: 's/d Rp10jt',
+      state: 'locked',
+      detail: 'milestone-limit',
+    },
+  ],
+}
 
 /** The extra capital week 12 opens — the amount the disbursement flow caps at. */
 export const MILESTONE_AMOUNT = 1250000

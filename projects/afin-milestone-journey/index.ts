@@ -69,6 +69,44 @@ export const project: ProjectModule = {
       id: 'progress',
       title: 'Perjalanan 48 minggu',
       component: lazyScreen(() => import('./screens/progress'), 'ProgressScreen'),
+      states: [
+        {
+          id: 'journey-sekarang',
+          label: 'Perjalanan sekarang',
+          description: 'The entry view — four rungs from 14 Jul to the 23 Mar limit rise.',
+          apply: demo.journeySekarang,
+        },
+        {
+          id: 'journey-gagal',
+          label: 'Goal 14 Jul gagal',
+          description: 'The first goal was missed — its rung shows Gagal in red.',
+          apply: demo.journeyGagal,
+        },
+        {
+          id: 'journey-okt',
+          label: 'Hari ini 6 Okt',
+          description: 'The first cair is done and gone; 6 Okt is reached and ready to cair.',
+          apply: demo.journeyOkt,
+        },
+        {
+          id: 'journey-jan',
+          label: 'Hari ini 26 Jan',
+          description: '6 Okt and 26 Jan are both reached and awaiting their (purple) action.',
+          apply: demo.journeyJan,
+        },
+        {
+          id: 'journey-mar',
+          label: 'Hari ini 23 Mar',
+          description: 'Only the limit-rise rung remains — reached, with a Cairkan button.',
+          apply: demo.journeyMar,
+        },
+        {
+          id: 'journey-newloan',
+          label: 'Limit baru cair',
+          description: 'The larger loan is disbursed — a fresh ladder toward a Rp10jt ceiling.',
+          apply: demo.journeyNewLoan,
+        },
+      ],
       flowsTo: [
         { to: 'milestone-unlocked', label: '14 Jul — cairkan sekarang' },
         { to: 'milestone-progress', label: '6 Okt — lihat progress' },
