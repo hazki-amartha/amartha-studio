@@ -7,21 +7,23 @@
 // built on "twelve weeks are graded, and the grade decides the increment"
 // cannot sit in one flow without one of them lying.
 //
-// Three blocks, in the order the questions actually arrive:
+// The status is the page's HEADER — a coloured band in the page's own chrome,
+// the way the homepage carries its brand band, rather than a purple card in the
+// middle of a page already about it. The band carries the grade AND what the
+// grade is worth, because a status and its benefits are one statement: the two
+// benefits sat in a white card underneath repeating the header's subject. The
+// four grade names above them are the scale, as a control — the only thing the
+// grades differ on is the benefits, so a separate list of them was the same
+// table printed twice.
 //
-//   1. The money — what she can take out today, then the four additions that
-//      built it, each drawn as the twelve weeks it is made of (detail A's
-//      block, on B's clock). The history is its own section rather than a
-//      footnote inside the balance card: twelve boxes wide, it is no longer a
-//      list of doors but the evidence behind every grade this page quotes.
-//   2. The status — the grade, what holds it up (two criteria she owns), and
-//      the two benefits it is worth. The scale lives here too, as four
-//      tappable names above the benefits rather than a card of its own: the
-//      only thing the four grades differ on IS the benefits, so a separate
-//      list of them was the same table printed twice. Tap another name and the
-//      benefits become that status's — hers stays outlined throughout.
-//   3. What keeps it — the three rules, and the ONLY place allowed to carry
-//      numbers, because they are about her behaviour rather than our money.
+// Then three blocks, in the order the questions actually arrive:
+//
+//   1. The money — what she can take out today.
+//   2. Where it came from — the four additions, each drawn as the twelve weeks
+//      it is made of (detail A's block, on B's clock), four boxes to a row.
+//   3. What keeps it — where she stands on each criterion, then the three
+//      rules. The ONLY place allowed to carry numbers, because they are about
+//      her behaviour rather than our money.
 //
 // Two corrections this page carries, both from the designer:
 //
@@ -31,13 +33,14 @@
 //   · The majelis is not a status criterion. It appears once, inside the limit
 //     benefit, because that is the only thing it moves.
 
-import { Badge, NavigationHeader } from '@/design-system/components'
+import { Badge } from '@/design-system/components'
 import {
+  ArrowLeft,
   CheckCircleFill,
   Coins,
+  LogoModal,
   Majelis,
   Minus,
-  MoneyBag,
   TrendUp,
   Warning,
   Withdraw,
@@ -84,7 +87,55 @@ export function ProgressTierScreen() {
   const [shown, setShown] = useState<Grade>(grade)
 
   return (
-    <Screen topBar={<NavigationHeader title={STATUS_NAME} onBack={flow.back} />}>
+    <Screen statusBar="none">
+      {/* The header. The status used to be a purple card in the middle of the
+          page — a band on a page that was already about the band. Promoted to
+          the page's own chrome it stops competing: the grade IS the title, the
+          criteria under it are the evidence, and everything below is what the
+          grade is worth and where it came from.
+
+          Drawn like the homepage's brand band — edge to edge, reaching into the
+          status strip (statusBar="none" plus -mt-48: 32px of strip and 16px of
+          page padding). */}
+      <div className="-mx-16 -mt-48 bg-gradient-to-br from-primary-400 to-primary-600 px-16 pb-24 pt-48">
+        <div className="flex h-48 items-center gap-12">
+          <button
+            type="button"
+            onClick={flow.back}
+            aria-label="Kembali"
+            className="shrink-0 text-neutral-white"
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <span className="min-w-0 flex-1 truncate text-16 font-bold text-neutral-white">
+            {STATUS_NAME}
+          </span>
+        </div>
+
+        <div className="mt-8 flex items-start gap-12">
+          <span className="flex h-48 w-48 shrink-0 items-center justify-center rounded-12 bg-primary-700 text-neutral-white">
+            <LogoModal size={24} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-24 font-bold text-neutral-white">{gradeInfo(grade).label}</p>
+            <p className="mt-2 text-12 text-neutral-200">{gradeInfo(grade).earned}</p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="text-14 font-bold text-neutral-white">
+              {goodWeeks(s)} dari {TOTAL_WEEKS}
+            </p>
+            <p className="text-12 text-neutral-200">minggu lancar</p>
+          </div>
+        </div>
+
+        {/* What the status is WORTH, on the purple. It was a white card under
+            the header saying the same thing the header was about; a status and
+            its benefits are one statement, so they are one block. The four
+            names above them are the scale, as a control: tap one and both
+            benefits become that status's. */}
+        <Worth grade={grade} shown={shown} onSelect={setShown} />
+      </div>
+
       {/* 1. The balance, and the four things that build it — one card, because
              they are one subject. The card stays on screen at Rp0: "nothing
              yet" is a state of the same balance, and hiding it would make the
@@ -125,7 +176,7 @@ export function ProgressTierScreen() {
 
       </div>
 
-      {/* The four additions, drawn the way detail A draws its blocks — as the
+      {/* 2. The four additions, drawn the way detail A draws its blocks — as the
           weeks they are made of. A stretch is twelve boxes wide and the figure
           it produced is a line UNDER them, because the figure is the result of
           the twelve and not a thirteenth thing to collect. */}
@@ -146,127 +197,25 @@ export function ProgressTierScreen() {
         ))}
       </div>
 
-      {/* 2. The status itself: the grade on the band, what holds it up inside
-             the band, and what it is worth underneath. Criteria sit ON the
-             purple because they are the evidence for the word above them —
-             separating the two put a claim on one card and its proof on
-             another. */}
-      <div className="overflow-hidden rounded-16 border border-default bg-neutral-white">
-        <div className="bg-gradient-to-br from-primary-400 to-primary-600 px-16 pb-24 pt-16">
-          <div className="flex items-start gap-12">
-            <span className="flex h-48 w-48 shrink-0 items-center justify-center rounded-12 bg-primary-700 text-neutral-white">
-              <MoneyBag size={24} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-14 text-neutral-white">{STATUS_NAME}</p>
-              <p className="mt-2 text-24 font-bold text-neutral-white">{gradeInfo(grade).label}</p>
-            </div>
-            <div className="shrink-0 text-right">
-              <p className="text-14 font-bold text-neutral-white">
-                {goodWeeks(s)} dari {TOTAL_WEEKS}
-              </p>
-              <p className="text-12 text-neutral-200">minggu lancar</p>
-            </div>
-          </div>
-
-          <div className="mt-16 flex flex-col gap-12">
-            {criteria(s).map((item) => (
-              <CriterionRow key={item.label} item={item} />
-            ))}
-          </div>
-
-          <p className="mt-12 text-12 text-neutral-200">
-            Dinilai tiap {WINDOW_LENGTH} minggu. Sekarang minggu ke-{weeksIntoWindow(s)} dari{' '}
-            {WINDOW_LENGTH} di penilaian ke-{currentWindow(s)}.
-          </p>
-        </div>
-
-        <div className="-mt-12 rounded-t-20 bg-neutral-white px-16 pb-16 pt-20">
-          {/* The scale, folded into the card it was describing. It used to be a
-              second card listing four names and four figures beside a card
-              already quoting one of them — the same table, printed twice. Here
-              the four names are a control: tap one and the benefits below
-              become that status's, so the comparison is read in the one place
-              the benefits are stated instead of copied next to them. */}
-          <div className="flex flex-wrap gap-8">
-            {GRADES.map((g) => (
-              <GradePill
-                key={g.id}
-                id={g.id}
-                mine={g.id === grade}
-                shown={g.id === shown}
-                onSelect={() => setShown(g.id)}
-              />
-            ))}
-          </div>
-
-          <h2 className="mt-20 text-16 font-bold text-default">
-            {shown === grade ? 'Keuntungan Ibu' : `Keuntungan ${gradeInfo(shown).label}`}
-          </h2>
-          <p className="mt-4 text-12 text-caption">
-            {shown === grade
-              ? gradeInfo(grade).earned
-              : `${gradeInfo(shown).earned} · status Ibu sekarang ${gradeInfo(grade).label}`}
-          </p>
-
-          {/* Two benefits, and only two. They run on different clocks, and the
-              order says so: the increment is recurring, twelve weeks away and
-              concrete; the limit lands once, at week 48, and stays hedged. */}
-          <div className="mt-16 flex flex-col gap-16">
-            {/* The figure is the SELECTED grade's — hers unless she has tapped
-                another one. Quoting the top increment to a mitra sitting at
-                Baik would be the page telling her she has something she does
-                not, so a comparison has to be something she asked for. */}
-            <Benefit
-              icon={<Coins size={20} />}
-              title={
-                gradeIncrement(shown) > 0
-                  ? `Tambah ${rupiah(gradeIncrement(shown))} di pencairan berikutnya`
-                  : 'Pencairan tidak bertambah'
-              }
-            >
-              <span className="mt-2 block text-12 text-caption">
-                Setiap {WINDOW_LENGTH} minggu lancar menambah jumlah yang bisa Ibu cairkan.{' '}
-                {shown === 'sangat-baik'
-                  ? 'Status Sangat Baik menambah paling besar.'
-                  : shown === 'baik'
-                    ? `Jadi ${rupiah(gradeIncrement('sangat-baik'))} kalau semua angsuran tepat waktu.`
-                    : 'Belum bertambah selama masih ada angsuran yang belum dibayar.'}
-              </span>
-            </Benefit>
-
-            <Benefit
-              icon={<TrendUp size={20} />}
-              title={`Naik limit hingga ${rupiah(LIMIT_CEILING)}`}
-            >
-              <span className="mt-2 block text-12 text-caption">
-                {gradeIncrement(shown) > 0
-                  ? `Kalau status modal Ibu terjaga sampai minggu ${TOTAL_WEEKS}.`
-                  : `Limit baru naik kalau status modal Ibu pulih dan terjaga sampai minggu ${TOTAL_WEEKS}.`}
-              </span>
-              {/* The majelis, named once — under the benefit it actually moves,
-                  never as a criterion of her own grade. */}
-              <span className="mt-8 flex items-start gap-8 rounded-8 bg-neutral-50 p-8">
-                <span className="shrink-0 text-primary-500">
-                  <Majelis size={16} />
-                </span>
-                <span className="min-w-0 flex-1 text-12 text-caption">
-                  {rupiah(LIMIT_CEILING)} kalau kelompok Ibu juga lancar,{' '}
-                  {rupiah(FINAL_LIMIT)} kalau tidak.{' '}
-                  {groupStatus(s) === 'lewat'
-                    ? 'Kelompok Melati tidak tercapai tenor ini.'
-                    : 'Kelompok Melati sedang lancar.'}
-                </span>
-              </span>
-            </Benefit>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. What keeps it. The one block with numbers in it. */}
+      {/* 3. What keeps it — and, at the top of it, where she actually stands on
+             each criterion. The criteria used to sit on the band as the proof
+             for the grade; the band now carries the benefits instead, so the
+             live state moves next to the rules it is measured against. */}
       <div className="rounded-12 border border-default bg-neutral-white p-16">
         <h2 className="text-16 font-bold text-default">Yang perlu Ibu jaga</h2>
-        <div className="mt-16 flex flex-col gap-16">
+
+        <div className="mt-16 flex flex-col gap-12">
+          {criteria(s).map((item) => (
+            <CriterionRow key={item.label} item={item} />
+          ))}
+        </div>
+
+        <p className="mt-12 text-12 text-caption">
+          Dinilai tiap {WINDOW_LENGTH} minggu. Sekarang minggu ke-{weeksIntoWindow(s)} dari{' '}
+          {WINDOW_LENGTH} di penilaian ke-{currentWindow(s)}.
+        </p>
+
+        <div className="mt-16 flex flex-col gap-16 border-t border-default pt-16">
           {STATUS_RULES.map((item) => (
             <div key={item.rule}>
               <p className="text-14 font-bold text-default">{item.rule}</p>
@@ -282,10 +231,101 @@ export function ProgressTierScreen() {
 }
 
 /**
- * One criterion, on the band. Drawn white-on-purple with a filled mark rather
- * than a tinted pill: at this size the state has to be readable at a glance,
- * and three fill colours on a gradient is where a band starts to look like a
- * dashboard.
+ * What the status is worth — and, folded into it, the scale. The four grades
+ * used to be a card of their own listing four names and four figures beside a
+ * card already quoting one of them: the same table, printed twice. Here the
+ * names are a CONTROL. Tap one and both benefits become that status's, so a
+ * comparison is read in the one place the benefits are stated.
+ */
+function Worth({
+  grade,
+  shown,
+  onSelect,
+}: {
+  grade: Grade
+  shown: Grade
+  onSelect: (id: Grade) => void
+}) {
+  const s = useApp()
+
+  return (
+    <div className="mt-20">
+      <div className="flex flex-wrap gap-8">
+        {GRADES.map((g) => (
+          <GradePill
+            key={g.id}
+            id={g.id}
+            mine={g.id === grade}
+            shown={g.id === shown}
+            onSelect={() => onSelect(g.id)}
+          />
+        ))}
+      </div>
+
+      <h2 className="mt-16 text-16 font-bold text-neutral-white">
+        {shown === grade ? 'Keuntungan Ibu' : `Keuntungan ${gradeInfo(shown).label}`}
+      </h2>
+      <p className="mt-4 text-12 text-neutral-200">
+        {shown === grade
+          ? gradeInfo(grade).earned
+          : `${gradeInfo(shown).earned} · status Ibu sekarang ${gradeInfo(grade).label}`}
+      </p>
+
+      {/* Two benefits, and only two. They run on different clocks, and the
+          order says so: the increment is recurring, twelve weeks away and
+          concrete; the limit lands once, at week 48, and stays hedged. */}
+      <div className="mt-16 flex flex-col gap-16">
+        {/* The figure is the SELECTED grade's — hers unless she has tapped
+            another one. Quoting the top increment to a mitra sitting at Baik
+            would be the page telling her she has something she does not, so a
+            comparison has to be something she asked for. */}
+        <Benefit
+          icon={<Coins size={20} />}
+          title={
+            gradeIncrement(shown) > 0
+              ? `Tambah ${rupiah(gradeIncrement(shown))} di pencairan berikutnya`
+              : 'Pencairan tidak bertambah'
+          }
+        >
+          <span className="mt-2 block text-12 text-neutral-200">
+            Setiap {WINDOW_LENGTH} minggu lancar menambah jumlah yang bisa Ibu cairkan.{' '}
+            {shown === 'sangat-baik'
+              ? 'Status Sangat Baik menambah paling besar.'
+              : shown === 'baik'
+                ? `Jadi ${rupiah(gradeIncrement('sangat-baik'))} kalau semua angsuran tepat waktu.`
+                : 'Belum bertambah selama masih ada angsuran yang belum dibayar.'}
+          </span>
+        </Benefit>
+
+        <Benefit icon={<TrendUp size={20} />} title={`Naik limit hingga ${rupiah(LIMIT_CEILING)}`}>
+          <span className="mt-2 block text-12 text-neutral-200">
+            {gradeIncrement(shown) > 0
+              ? `Kalau status modal Ibu terjaga sampai minggu ${TOTAL_WEEKS}.`
+              : `Limit baru naik kalau status modal Ibu pulih dan terjaga sampai minggu ${TOTAL_WEEKS}.`}
+          </span>
+          {/* The majelis, named once — under the benefit it actually moves,
+              never as a criterion of her own grade. */}
+          <span className="mt-8 flex items-start gap-8 rounded-8 bg-primary-700 p-8">
+            <span className="shrink-0 text-neutral-white">
+              <Majelis size={16} />
+            </span>
+            <span className="min-w-0 flex-1 text-12 text-neutral-200">
+              {rupiah(LIMIT_CEILING)} kalau kelompok Ibu juga lancar, {rupiah(FINAL_LIMIT)} kalau
+              tidak.{' '}
+              {groupStatus(s) === 'lewat'
+                ? 'Kelompok Melati tidak tercapai tenor ini.'
+                : 'Kelompok Melati sedang lancar.'}
+            </span>
+          </span>
+        </Benefit>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * One criterion — where she actually stands, next to the rules it is measured
+ * against. Three states, carried by the mark's own colour: met, at risk, gone.
  */
 function CriterionRow({ item }: { item: Criterion }) {
   return (
@@ -293,26 +333,27 @@ function CriterionRow({ item }: { item: Criterion }) {
       <span
         className={`flex h-24 w-24 shrink-0 items-center justify-center rounded-full ${
           item.state === 'met'
-            ? 'bg-primary-700 text-neutral-white'
+            ? 'bg-green-50 text-green-500'
             : item.state === 'warn'
-              ? 'bg-orange-500 text-neutral-white'
-              : 'bg-red-500 text-neutral-white'
+              ? 'bg-orange-50 text-orange-500'
+              : 'bg-red-50 text-red-500'
         }`}
       >
         {item.state === 'met' ? <CheckCircleFill size={16} /> : <Warning size={16} />}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-14 text-neutral-white">{item.label}</span>
-        <span className="mt-2 block text-12 text-neutral-200">{item.note}</span>
+        <span className="block text-14 text-default">{item.label}</span>
+        <span className="mt-2 block text-12 text-caption">{item.note}</span>
       </span>
     </span>
   )
 }
 
 /**
- * One rung of the scale, as a control rather than a row. Hers is outlined even
- * when she is reading another one, so a comparison can never be mistaken for
- * the status she actually has.
+ * One rung of the scale, as a control rather than a row — and drawn for the
+ * band it now sits on. Selected is a solid white chip on the purple; hers keeps
+ * a white outline even while she is reading another one, so a comparison can
+ * never be mistaken for the status she actually has.
  */
 function GradePill({
   id,
@@ -326,10 +367,10 @@ function GradePill({
   onSelect: () => void
 }) {
   const tone = shown
-    ? 'border-primary-500 bg-primary-500 text-neutral-white'
+    ? 'border-neutral-white bg-neutral-white text-primary-600'
     : mine
-      ? 'border-primary-500 bg-neutral-white text-primary-500'
-      : 'border-default bg-neutral-white text-caption'
+      ? 'border-neutral-white text-neutral-white'
+      : 'border-primary-300 text-neutral-200'
 
   return (
     <button
@@ -418,6 +459,7 @@ function windowLabel(row: WindowRow): string {
   return 'Belum mulai'
 }
 
+/** One benefit, on the band: white on purple, with the glyph on the darker tint. */
 function Benefit({
   icon,
   title,
@@ -429,11 +471,11 @@ function Benefit({
 }) {
   return (
     <div className="flex items-start gap-12">
-      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-12 bg-primary-50 text-primary-500">
+      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-12 bg-primary-700 text-neutral-white">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-16 font-bold text-default">{title}</span>
+        <span className="block text-16 font-bold text-neutral-white">{title}</span>
         {children}
       </span>
     </div>
