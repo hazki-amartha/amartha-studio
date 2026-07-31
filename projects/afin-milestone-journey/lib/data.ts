@@ -177,7 +177,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       actionLabel: 'Cairkan dana',
       amount: '+Rp1.250.000',
       state: 'missed',
-      detail: 'milestone-unlocked',
+      detail: 'milestone-missed',
     },
     {
       label: '6 Okt 2026',

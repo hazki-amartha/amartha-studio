@@ -113,6 +113,7 @@ export const project: ProjectModule = {
       states: journeyStates,
       flowsTo: [
         { to: 'milestone-unlocked', label: '14 Jul — cairkan sekarang' },
+        { to: 'milestone-missed', label: '14 Jul — gagal' },
         { to: 'milestone-progress', label: '6 Okt — lihat progress' },
         { to: 'milestone-pelunasan', label: '26 Jan — lihat progress' },
         { to: 'milestone-limit', label: '23 Mar — lihat progress' },
@@ -191,6 +192,15 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'disburse-amount', label: 'cairkan sekarang' },
         { to: 'progress', label: 'nanti saja' },
+      ],
+    },
+    {
+      id: 'milestone-missed',
+      title: 'Milestone minggu 12 — gagal',
+      component: lazyScreen(() => import('./screens/milestone-missed'), 'MilestoneMissedScreen'),
+      flowsTo: [
+        { to: 'riwayat', label: 'riwayat pembayaran & kehadiran' },
+        { to: 'progress', label: 'tutup' },
       ],
     },
     {
