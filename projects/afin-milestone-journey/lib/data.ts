@@ -48,14 +48,22 @@ export interface WeekEntry {
   kumpulan: boolean
 }
 
+// Twelve weeks, newest first, ending on the week of 14 Jul 2026 — the same week
+// the home card and the first milestone are dated to, so the record behind the
+// claim lines up with the claim itself.
 export const HISTORY: WeekEntry[] = [
-  { week: 14, date: '19 Agu 2024', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
-  { week: 13, date: '12 Agu 2024', bayar: true, bayarAmount: 'Rp150.000', kumpulan: false },
-  { week: 12, date: '5 Agu 2024', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
-  { week: 11, date: '29 Jul 2024', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
-  { week: 10, date: '22 Jul 2024', bayar: false, kumpulan: true },
-  { week: 9, date: '15 Jul 2024', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
-  { week: 8, date: '8 Jul 2024', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
+  { week: 12, date: '14 Jul 2026', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
+  { week: 11, date: '7 Jul 2026', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
+  { week: 10, date: '30 Jun 2026', bayar: true, bayarAmount: 'Rp150.000', kumpulan: false },
+  { week: 9, date: '23 Jun 2026', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
+  { week: 8, date: '16 Jun 2026', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
+  { week: 7, date: '9 Jun 2026', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
+  { week: 6, date: '2 Jun 2026', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
+  { week: 5, date: '26 Mei 2026', bayar: false, kumpulan: true },
+  { week: 4, date: '19 Mei 2026', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
+  { week: 3, date: '12 Mei 2026', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
+  { week: 2, date: '5 Mei 2026', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
+  { week: 1, date: '28 Apr 2026', bayar: true, bayarAmount: 'Rp150.000', kumpulan: true },
 ]
 
 // --- Majelis roster --------------------------------------------------------
