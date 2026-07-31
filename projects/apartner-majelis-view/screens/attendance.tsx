@@ -22,15 +22,15 @@
 // worked through in person cannot afford. What changes is the STATE of the card,
 // not its place, and the same roster in the same order carries all three stages.
 
-import { BottomSheet, Button, NavigationHeader } from '@/design-system/components'
-import { useEffect, useState } from 'react'
+import { Button, NavigationHeader } from '@/design-system/components'
+import { useState } from 'react'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { KumpulanCard } from '../lib/kumpulan-card'
 import { MAJELIS, type Mitra } from '../lib/data'
-import { majelisWhen, taskForMajelis, type MajelisEntry } from '../lib/schedule'
-import { IconCamera, IconCheck, IconX } from '../lib/icons'
+import { majelisWhen, taskForMajelis } from '../lib/schedule'
 import { DpdBadge, KetuaBadge, MitraCard } from '../lib/mitra-card'
+import { SkipVisitSheet } from '../lib/visit-sheets'
 import {
   attendanceComplete,
   presentCount,
@@ -40,12 +40,10 @@ import {
   openMajelisEntry,
 } from '../lib/store'
 import {
+  AttendanceChoice,
   ChoiceList,
-  ChoicePill,
-  ChosenRow,
-  PinMark,
   ProductBadge,
-  ProofTile,
+  ReasonNote,
   RosterFilter,
   SectionTitle,
   StageBar,
@@ -82,8 +80,8 @@ type FilterId = 'semua' | 'sudah' | 'belum'
 // roster — only the verb changes, from tagih to dicatat.
 const FILTERS: { id: FilterId; label: string }[] = [
   { id: 'semua', label: 'Semua' },
-  { id: 'sudah', label: 'Sudah dicatat' },
-  { id: 'belum', label: 'Belum dicatat' },
+  { id: 'sudah', label: 'Tercatat' },
+  { id: 'belum', label: 'Belum tercatat' },
 ]
 
 export function AttendanceScreen() {
@@ -150,7 +148,25 @@ export function AttendanceScreen() {
         </div>
       </div>
 
-      <SectionTitle>Daftar Mitra</SectionTitle>
+      {/* "Catat semua" — the whole group turned up, said once. The common case
+          at a healthy majelis is a full room, and 22 taps to record it is 22
+          chances to mis-tap on the one stage that gates everything after it. It
+          only fills the BLANKS: an absence already recorded, with its reason
+          attached, is an answer, and a bulk control that overwrote one would
+          make the register unsafe to use. */}
+      <div className="flex items-center gap-8">
+        <SectionTitle>Daftar Mitra</SectionTitle>
+        <span className="flex-1" />
+        {settled < total ? (
+          <button
+            type="button"
+            onClick={() => store.markAllPresent()}
+            className="shrink-0 text-12 font-bold text-primary-500"
+          >
+            Catat semua
+          </button>
+        ) : null}
+      </div>
 
       {/* "Who is left" — the same question, the same chips, as stage 2. */}
       <RosterFilter
@@ -189,50 +205,52 @@ export function AttendanceScreen() {
                 flow.go('mitra')
               }}
               action={
-                <div className="flex flex-col gap-12">
-                  {/* No "Kehadiran" label. Two named pills on the one stage
+                <div className="flex flex-col gap-8">
+                  {/* No "Kehadiran" label. Two named cells on the one stage
                       whose whole subject is attendance say what they are, and
                       the label was a third word on a row that already had two —
-                      dropping it gives both pills the full width of the card. */}
+                      dropping it gives both the full width of the card. */}
                   <div className="flex gap-8">
-                    <ChoicePill
+                    <AttendanceChoice
+                      tone="red"
                       selected={mark === 'tidak'}
-                      icon={<IconX size={16} />}
+                      answered={Boolean(mark)}
                       label={`Tidak hadir — ${mitra.name}`}
                       onClick={() => store.setAttendance(mitra.id, 'tidak')}
                     >
-                      Tidak
-                    </ChoicePill>
-                    <ChoicePill
+                      Tidak hadir
+                    </AttendanceChoice>
+                    <AttendanceChoice
+                      tone="green"
                       selected={mark === 'hadir'}
-                      icon={<IconCheck size={16} />}
+                      answered={Boolean(mark)}
                       label={`Hadir — ${mitra.name}`}
                       onClick={() => store.setAttendance(mitra.id, 'hadir')}
                     >
                       Hadir
-                    </ChoicePill>
+                    </AttendanceChoice>
                   </div>
 
                   {/* An absence carries its reason, and the card grows a second
                       row to take it rather than filing her somewhere else. Once
                       chosen it collapses to the answer — the record, not the
-                      four things she could have said. */}
+                      five things she could have said. */}
                   {mark === 'tidak' ? (
-                    <div className="border-t border-default pt-12">
-                      {reason ? (
-                        <ChosenRow
-                          label="Alasan tidak hadir"
-                          value={reason}
-                          onChange={() => store.clearAbsenceReason(mitra.id)}
-                        />
-                      ) : (
+                    reason ? (
+                      <ReasonNote
+                        label="Alasan:"
+                        value={reason}
+                        onEdit={() => store.clearAbsenceReason(mitra.id)}
+                      />
+                    ) : (
+                      <div className="pt-4">
                         <ChoiceList
                           label="Alasan tidak hadir"
                           options={ABSENCE_REASONS}
                           onPick={(picked) => store.setAbsent(mitra.id, picked)}
                         />
-                      )}
-                    </div>
+                      </div>
+                    )
                   ) : null}
                 </div>
               }
@@ -260,7 +278,7 @@ export function AttendanceScreen() {
           disabled={!complete}
           onClick={() => flow.go('collection')}
         >
-          Simpan &amp; Lanjut
+          Lanjut
         </Button>
       </StickyBar>
 
@@ -268,82 +286,12 @@ export function AttendanceScreen() {
           there is nothing to record — but a skip with nothing behind it is
           indistinguishable from a BP who just went home. The photo + location
           are the proof she was there, which is what makes the skip auditable. */}
-      <SkipSheet open={skipping} group={group} onClose={() => setSkipping(false)} onConfirm={skip} />
+      <SkipVisitSheet
+        open={skipping}
+        place={group.place}
+        onClose={() => setSkipping(false)}
+        onConfirm={skip}
+      />
     </Screen>
-  )
-}
-
-/**
- * Skip a majelis visit with proof. A bottom sheet rather than a screen: it is a
- * meta-action on the TASK, reached from the top bar, and the whole interaction
- * is two captures and a confirm.
- *
- * Just a photo, the same as the home visit's Bukti & Kirim step — the location
- * rides along with it automatically, read back under the tile once the shot is
- * taken. A photo proves she was there, the geotag proves it was HERE, and asking
- * her to tap "record location" separately is a second gesture for a fact the
- * camera already carries. The draft is local and resets on open, so a cancelled
- * skip leaves nothing behind on the next group.
- */
-function SkipSheet({
-  open,
-  group,
-  onClose,
-  onConfirm,
-}: {
-  open: boolean
-  group: MajelisEntry
-  onClose: () => void
-  onConfirm: () => void
-}) {
-  const [photo, setPhoto] = useState(false)
-
-  useEffect(() => {
-    if (open) setPhoto(false)
-  }, [open])
-
-  return (
-    <BottomSheet
-      open={open}
-      onClose={onClose}
-      title="Lewati kunjungan majelis"
-      description={`Ambil foto sebagai bukti sebelum melewati kunjungan ${group.name}. Lokasi terekam otomatis.`}
-      secondaryAction={
-        <Button variant="outline" size="lg" className="w-full" onClick={onClose}>
-          Batal
-        </Button>
-      }
-      primaryAction={
-        <Button size="lg" className="w-full" disabled={!photo} onClick={onConfirm}>
-          Lewati Kunjungan
-        </Button>
-      }
-    >
-      <div className="flex flex-col gap-12">
-        <div className="flex">
-          <ProofTile
-            done={photo}
-            label="Ambil Foto"
-            doneLabel="Foto tersimpan"
-            icon={<IconCamera size={24} />}
-            onClick={() => setPhoto(!photo)}
-          />
-        </div>
-
-        {/* The geotag the photo carried, read back — the location is recorded
-            with the shot, not tapped for separately. */}
-        {photo ? (
-          <div className="flex items-center gap-8 rounded-12 bg-neutral-50 p-12">
-            <span className="shrink-0 text-caption">
-              <PinMark size={16} />
-            </span>
-            <span className="flex-1 text-12 text-caption">{group.place}</span>
-            <span className="shrink-0 text-12 text-caption">±8 m</span>
-          </div>
-        ) : (
-          <span className="text-12 text-caption">Ambil foto dulu untuk melewati kunjungan</span>
-        )}
-      </div>
-    </BottomSheet>
   )
 }

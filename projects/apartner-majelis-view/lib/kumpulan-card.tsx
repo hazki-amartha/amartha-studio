@@ -34,31 +34,37 @@ export function KumpulanCard({ entry }: { entry: MajelisEntry }) {
   const km = profileOf(ketua)
 
   return (
-    <div className="flex items-center gap-12">
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        {/* The address leads: on this row it is the thing being acted on, and
-            the KM is who answers for it. */}
-        <span className="break-words text-14 font-bold text-default">{entry.place}</span>
-        <span className="break-words text-12 text-caption">Ketua Majelis · {ketua.name}</span>
-      </div>
+    <div className="flex flex-col gap-4">
+      {/* The block says what it IS before it says the thing. Without the caption
+          an address alone at the top of a register reads as the majelis's own
+          name repeated — and the two round buttons beside it are the whole
+          "kontak" half, which nothing else on the screen names. */}
+      <span className="text-12 text-caption">Kontak &amp; Lokasi majelis</span>
 
-      {/* Route first, then WhatsApp — same order and same pair as the doorstep
-          card, so reaching a place and reaching a person are drawn once. */}
-      <div className="flex shrink-0 gap-8">
-        <ContactButton
-          label={`Buka lokasi ${entry.place} di peta`}
-          tone="red"
-          href={mapsUrl(entry.place)}
-        >
-          <PinMark size={20} />
-        </ContactButton>
-        <ContactButton
-          label={`WhatsApp ${ketua.name} — Ketua Majelis`}
-          tone="green"
-          href={`https://wa.me/${km.phone.replace(/\D/g, '')}`}
-        >
-          <WhatsappLogo size={20} />
-        </ContactButton>
+      <div className="flex items-center gap-12">
+        {/* The address leads at reading size: it is the thing being acted on,
+            and the KM is who answers for it — she is named by the button that
+            reaches her rather than by a second line of grey under the street. */}
+        <span className="min-w-0 flex-1 break-words text-16 text-default">{entry.place}</span>
+
+        {/* Route first, then WhatsApp — same order and same pair as the doorstep
+            card, so reaching a place and reaching a person are drawn once. */}
+        <div className="flex shrink-0 gap-8">
+          <ContactButton
+            label={`Buka lokasi ${entry.place} di peta`}
+            tone="red"
+            href={mapsUrl(entry.place)}
+          >
+            <PinMark size={20} />
+          </ContactButton>
+          <ContactButton
+            label={`WhatsApp ${ketua.name} — Ketua Majelis`}
+            tone="green"
+            href={`https://wa.me/${km.phone.replace(/\D/g, '')}`}
+          >
+            <WhatsappLogo size={20} />
+          </ContactButton>
+        </div>
       </div>
     </div>
   )

@@ -36,12 +36,14 @@ import {
   TASKS,
   TOMORROW_TASKS,
   findDay,
+  findMajelisEntry,
   kmShort,
   withScheduled,
   type Task,
 } from '../lib/schedule'
 import { IconCheck, IconChevronDown, IconInbox, IconWallet } from '../lib/icons'
 import { CloudArrowUp } from '@/design-system/icons'
+import { SkipVisitSheet, VisitGateSheet } from '../lib/visit-sheets'
 import {
   canSettle,
   settlementsLeft,
@@ -364,6 +366,11 @@ export function TodayScreen() {
   const [status, setStatus] = useState<TaskStatus | null>(null)
   const [menu, setMenu] = useState<'kind' | 'status' | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
+  // The majelis task waiting on the door question, and — if the answer was "no
+  // one came" — the same task waiting on its proof. Two pieces of state rather
+  // than one flag, because the second sheet has to survive the first closing.
+  const [gating, setGating] = useState<Task | null>(null)
+  const [skipping, setSkipping] = useState<Task | null>(null)
   const day = findDay(s.day)
   const pending = pendingSync(s)
   // What she has collected and not yet handed over — DONE tasks, whether or not
@@ -435,8 +442,11 @@ export function TodayScreen() {
   // finished work on the day.
   function start(task: Task) {
     if (task.kind === 'majelis') {
-      store.startVisit(task.majelisId ?? 'mawar', task.id)
-      flow.go('attendance')
+      // One question at the door before the register opens: did the group
+      // actually gather? A majelis nobody came to is not a roster with 22
+      // absences in it — it is a visit that did not happen, and the two
+      // outcomes are worth splitting before either costs a tap.
+      setGating(task)
       return
     }
     if (task.kind === 'home-visit') {
@@ -460,6 +470,24 @@ export function TodayScreen() {
       flow.go('deposit')
       return
     }
+  }
+
+  /** "Kerjakan tugas" — the group is here, so open the register. */
+  function workGated(task: Task) {
+    setGating(null)
+    store.startVisit(task.majelisId ?? 'mawar', task.id)
+    flow.go('attendance')
+  }
+
+  /** "Lewati tugas" — hand straight to the proof sheet, which is the gate. */
+  function skipGated(task: Task) {
+    setGating(null)
+    setSkipping(task)
+  }
+
+  function confirmSkip(task: Task) {
+    store.skipVisit(task.id)
+    setSkipping(null)
   }
 
   // Two lines, so this is a project-local header rather than the 48px TopBar
@@ -822,6 +850,23 @@ export function TodayScreen() {
       )}
 
       <DayPicker open={picking} onClose={() => setPicking(false)} />
+
+      {/* The door question, and the proof it hands off to when the answer is
+          that nobody came. Both keyed off the task that was tapped, so the
+          skip lands on the right row. */}
+      <VisitGateSheet
+        open={Boolean(gating)}
+        onClose={() => setGating(null)}
+        onWork={() => gating && workGated(gating)}
+        onSkip={() => gating && skipGated(gating)}
+      />
+      <SkipVisitSheet
+        open={Boolean(skipping)}
+        place={findMajelisEntry(skipping?.majelisId ?? 'mawar').place}
+        onClose={() => setSkipping(null)}
+        onConfirm={() => skipping && confirmSkip(skipping)}
+      />
+
       <OptionSheet
         open={menu === 'kind'}
         title="Tipe tugas"
