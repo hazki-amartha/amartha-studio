@@ -51,9 +51,21 @@ const homeStates = [
 const journeyStates = [
   {
     id: 'journey-sekarang',
-    label: 'Perjalanan sekarang',
-    description: 'The entry view — four rungs from 14 Jul to the 23 Mar limit rise.',
+    label: 'Sebelum 14 Jul',
+    description: 'The entry view — today is before the first goal, so nothing is unlocked or missed and 14 Jul is simply next.',
     apply: demo.journeySekarang,
+  },
+  {
+    id: 'journey-sisa-limit',
+    label: 'Limit belum cair penuh',
+    description: 'Same week, with Rp2.500.000 of her limit still undrawn — an already-open rung at the top of the ladder.',
+    apply: demo.journeySisaLimit,
+  },
+  {
+    id: 'journey-jul',
+    label: 'Goal 14 Jul terbuka',
+    description: 'The first goal is reached and ready to cair; 6 Okt becomes the next goal.',
+    apply: demo.journeyJul,
   },
   {
     id: 'journey-gagal',
@@ -64,25 +76,25 @@ const journeyStates = [
   {
     id: 'journey-okt',
     label: 'Hari ini 6 Okt',
-    description: 'The first cair is done and gone; 6 Okt is reached and ready to cair.',
+    description: '14 Jul stays on the ladder as a collected rung; 6 Okt is reached and ready to cair, 26 Jan is the next goal.',
     apply: demo.journeyOkt,
   },
   {
     id: 'journey-jan',
     label: 'Hari ini 26 Jan',
-    description: '6 Okt and 26 Jan are both reached and awaiting their (purple) action.',
+    description: '6 Okt and 26 Jan are both reached and awaiting their (purple) action; 23 Mar is the next goal.',
     apply: demo.journeyJan,
   },
   {
     id: 'journey-mar',
     label: 'Hari ini 23 Mar',
-    description: 'Only the limit-rise rung remains — reached, with a Cairkan button.',
+    description: 'Three collected rungs above a reached limit rise — the last rung of the cycle, so it carries the next-goal marker.',
     apply: demo.journeyMar,
   },
   {
     id: 'journey-newloan',
     label: 'Limit baru cair',
-    description: 'The larger loan is disbursed — a fresh ladder toward a Rp10jt ceiling.',
+    description: 'The cycle closed: a fresh ladder toward Rp10jt, last cycle behind a link at the foot of the page.',
     apply: demo.journeyNewLoan,
   },
 ]
