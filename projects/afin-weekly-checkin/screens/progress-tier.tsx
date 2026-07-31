@@ -51,6 +51,8 @@ import type { ReactNode } from 'react'
 import {
   GROUP_BONUS,
   LIMIT_CEILING,
+  QUOTE_FULL,
+  QUOTE_REDUCED,
   STATUS_NAME,
   STATUS_RULES,
   TOTAL_WEEKS,
@@ -243,23 +245,16 @@ function Worth({ grade }: { grade: Grade }) {
        says so: the increment is recurring, twelve weeks away and concrete; the
        limit lands once, at week 48, and stays hedged. */
     <div className="mt-20 flex flex-col gap-16">
+      {/* "s/d", never an exact figure: the amount a window releases is the
+          engine's on the day, and the grade only sets its ceiling. */}
       <Benefit
         icon={<Coins size={20} />}
         title={
           gradeIncrement(grade) > 0
-            ? `Tambah ${rupiah(gradeIncrement(grade))} di pencairan berikutnya`
+            ? `Tambah s/d ${short(gradeIncrement(grade))} di pencairan berikutnya`
             : 'Pencairan tidak bertambah'
         }
-      >
-        <span className="mt-2 block text-12 text-neutral-200">
-          Setiap {WINDOW_LENGTH} minggu lancar menambah jumlah yang bisa Ibu cairkan.{' '}
-          {grade === 'sangat-baik'
-            ? 'Status Sangat Baik menambah paling besar.'
-            : grade === 'baik'
-              ? `Jadi ${rupiah(gradeIncrement('sangat-baik'))} kalau semua angsuran tepat waktu.`
-              : 'Belum bertambah selama masih ada angsuran yang belum dibayar.'}
-        </span>
-      </Benefit>
+      />
 
       <Benefit icon={<TrendUp size={20} />} title={`Naik limit hingga ${rupiah(LIMIT_CEILING)}`}>
         <span className="mt-2 block text-12 text-neutral-200">
@@ -317,8 +312,10 @@ function CriterionRow({ item }: { item: Criterion }) {
  * grade ADDED, because those two facts together are the argument the whole page
  * makes; the boxes above them are the evidence for the grade.
  *
- * The open and future ones carry no amount at all: what twelve weeks will add
- * is the engine's to say on the day.
+ * The ones still ahead carry a RANGE, never a figure. What twelve weeks end up
+ * adding is the engine's to say on the day, and the two ends of the range are
+ * the two outcomes the mitra herself controls — clean, or clean but late. A
+ * single number here would be a promise; the range is the rule.
  */
 function WindowBlock({ row }: { row: WindowRow }) {
   const s = useApp()
@@ -365,7 +362,11 @@ function WindowBlock({ row }: { row: WindowRow }) {
           >
             {added > 0 ? `+${rupiah(added)}` : <Minus size={16} />}
           </span>
-        ) : null}
+        ) : (
+          <span className="shrink-0 text-14 font-bold text-caption">
+            {short(QUOTE_REDUCED)}–{short(QUOTE_FULL)}
+          </span>
+        )}
       </div>
     </div>
   )
@@ -379,11 +380,13 @@ function windowLabel(row: WindowRow): string {
     if (row.outcome === 'reduced') return `${label} — ada angsuran telat`
     return `${label} · tambahan pencairan`
   }
-  if (row.final) return 'Limit Ibu ditentukan di sini'
   if (row.status === 'open') {
-    return `Sedang berjalan — dinilai di akhir minggu ${row.to}`
+    return row.final
+      ? `Sedang berjalan — limit Ibu juga ditentukan di sini`
+      : `Sedang berjalan — dinilai di akhir minggu ${row.to}`
   }
-  return 'Belum mulai'
+  if (row.final) return 'Limit Ibu ditentukan di sini'
+  return `Kalau ${WINDOW_LENGTH} minggu ini lancar`
 }
 
 /** One benefit, on the band: white on purple, with the glyph on the darker tint. */
