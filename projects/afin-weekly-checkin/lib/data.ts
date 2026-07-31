@@ -419,6 +419,19 @@ export function windowRows(s: AppState): WindowRow[] {
   })
 }
 
+/**
+ * The twelve weeks of one window, each with its own verdict. B's detail page
+ * draws a stretch the way A draws a chapter — as the weeks it is made of —
+ * because a grade with no visible weeks behind it is the same unsupported
+ * opinion the home band would be without its count.
+ */
+export function windowCells(s: AppState, index: number): WeekCell[] {
+  return range(windowStart(index), windowEnd(index)).map((week) => ({
+    week,
+    status: paymentStatus(s, week),
+  }))
+}
+
 /** True on the last week of a window — the week that triggers the decision. */
 export function closesWindow(s: AppState): boolean {
   return s.week === windowEnd(currentWindow(s))
