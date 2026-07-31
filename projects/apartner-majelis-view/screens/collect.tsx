@@ -45,10 +45,10 @@ import { useFlow } from '@/platform/runtime'
 import { findMitra, outstandingOf, rupiah } from '../lib/data'
 import { Image as ImageIcon } from '@/design-system/icons'
 import { paidOf, paidViaPoket, store, useApp } from '../lib/store'
-import { AngsuranCard, DpdBadge, KetuaBadge, MitraCard } from '../lib/mitra-card'
-import { ChoiceList, ProductBadge, ProofTile, SectionTitle } from '../lib/ui'
-import { IconChevronRight } from '../lib/icons'
+import { AngsuranCard, JanjiBayarCard } from '../lib/mitra-card'
+import { ChoiceList, PickRow, ProofTile, SectionTitle, StickyBar } from '../lib/ui'
 import {
+  DROPOUT_REASONS,
   PTP_OPTIONS,
   REASONS,
   SHORTFALL_REASONS,
@@ -76,8 +76,23 @@ import {
  * she has, through the app, and the balance behind it is a balance like any
  * other. What differs is only where the money went and that a screenshot backs
  * it, not how much of the bill it closed.
+ *
+ * `keluar` is the fifth, and the only one that is not about this week's money at
+ * all: she is leaving the program. It carries a reason and NO janji bayar,
+ * because there is no next date to chase — it opens a case ops picks up. The
+ * home visit has always been able to record it; the majelis could not, which
+ * left the BP entering "tidak bayar" with a promise nobody would ever collect
+ * on for a woman who had already gone.
  */
-type Mode = 'bayar' | 'tidak' | 'tanggung' | 'poket'
+type Mode = 'bayar' | 'tidak' | 'tanggung' | 'poket' | 'keluar'
+
+/**
+ * What the BP picks on the page, which is not quite what the sheets are: a full
+ * payment and a part-payment are ONE sheet with a different starting figure, but
+ * they are two different sentences to say out loud to a mitra, and the page is
+ * where they have to be told apart.
+ */
+type Pick = 'lunas' | 'sebagian' | 'poket' | 'tanggung' | 'tidak' | 'keluar'
 
 export function CollectScreen() {
   const flow = useFlow()
@@ -86,28 +101,35 @@ export function CollectScreen() {
   const mitra = findMitra(s.openMitra)
   const owed = outstandingOf(mitra)
 
-  // When she is current, "bayar penuh" and "minggu ini saja" collect the same
-  // money. Showing both would be a choice with no difference behind it.
-  const hasArrears = owed.total > owed.thisWeek
-
-  // Reopened from the recap's "Ubah", the sheet that produced the outcome comes
-  // back open and prefilled — a refusal on the tidak sheet, any part-payment on
-  // the jumlah-lain sheet, a full payment on the penuh sheet. A fresh "Tagih"
-  // has no outcome yet, so it opens on the menu with every sheet closed.
+  // Reopened from the recap's "Ubah", the row that produced the outcome comes
+  // back picked AND its sheet open and prefilled — correcting a figure should
+  // not cost the same three taps as entering it. A fresh "Tagih" has no outcome
+  // yet, so it opens on the choice with nothing picked and no sheet.
   const existing = paidOf(s, mitra)
   const refusal = s.nonPayments[mitra.id]
   const settledByGroup = s.payMode[mitra.id] === 'tanggung' && existing > 0
   const settledViaPoket = paidViaPoket(s, mitra)
-  const [sheet, setSheet] = useState<Mode | null>(
-    refusal
-      ? 'tidak'
+  const dropReason = s.dropOut[mitra.id]
+
+  // What is already on file, read back as the row that produced it. A fresh
+  // "Tagih" has none and opens with nothing picked.
+  const recorded: Pick | null = refusal
+    ? 'tidak'
+    : dropReason
+      ? 'keluar'
       : settledByGroup
         ? 'tanggung'
         : settledViaPoket
           ? 'poket'
-          : existing > 0
-            ? 'bayar'
-            : null,
+          : existing >= owed.total && existing > 0
+            ? 'lunas'
+            : existing > 0
+              ? 'sebagian'
+              : null
+  const [pick, setPick] = useState<Pick | null>(recorded)
+
+  const [sheet, setSheet] = useState<Mode | null>(
+    recorded === null ? null : recorded === 'lunas' || recorded === 'sebagian' ? 'bayar' : recorded,
   )
   // Every sheet opens on its first step, including a reopened one: the answer to
   // correct is usually the one given first.
@@ -124,6 +146,7 @@ export function CollectScreen() {
   // The screenshot. Held on the page rather than written straight to the store,
   // so backing out of the sheet leaves no half-recorded claim behind.
   const [proof, setProof] = useState(s.poketProof[mitra.id] ?? false)
+  const [drop, setDrop] = useState<string | null>(dropReason ?? null)
 
   const typed = Number(draft.replace(/\D/g, '')) || 0
   // Short is a fact about the FIGURE, not about which row was tapped: anything
@@ -143,16 +166,18 @@ export function CollectScreen() {
   const step1Done =
     sheet === 'tidak'
       ? reason !== null
-      : sheet === 'bayar'
-        ? typed > 0 && (!short || shortfall !== null)
-        : sheet === 'poket'
-          ? // Same rules as a cash payment — an amount, and a reason if it fell
-            // short — plus the screenshot, which is what makes it more than one
-            // person's word that a payment nobody's system has seen happened.
-            typed > 0 && (!short || shortfall !== null) && proof
-          : // Tanggung renteng has nothing to fill in: the amount is the whole
-            // bill and the payer is the group. One tap is the whole record.
-            sheet === 'tanggung'
+      : sheet === 'keluar'
+        ? drop !== null
+        : sheet === 'bayar'
+          ? typed > 0 && (!short || shortfall !== null)
+          : sheet === 'poket'
+            ? // Same rules as a cash payment — an amount, and a reason if it fell
+              // short — plus the screenshot, which is what makes it more than one
+              // person's word that a payment nobody's system has seen happened.
+              typed > 0 && (!short || shortfall !== null) && proof
+            : // Tanggung renteng has nothing to fill in: the amount is the whole
+              // bill and the payer is the group. One tap is the whole record.
+              sheet === 'tanggung'
 
   const onLastStep = !hasPtpStep || step === 2
   const canAdvance = step === 1 ? step1Done : ptp !== undefined
@@ -175,15 +200,43 @@ export function CollectScreen() {
     setStep(1)
   }
 
+  /**
+   * Lanjut. A "Lunas" needs nothing else said about it — the figure is the bill,
+   * the payer is her, and there is no reason or promise behind a settled
+   * account — so it records straight from the page. Every other pick has one
+   * question left, and that question is the sheet.
+   */
+  function confirmPick() {
+    if (pick === null) return
+    if (pick === 'lunas') {
+      store.setPayMode(mitra.id, 'penuh')
+      store.collect(mitra, owed.total)
+      store.setPartialPtp(mitra.id, null)
+      store.clearDropOut(mitra.id)
+      flow.go('collection')
+      return
+    }
+    if (pick === 'sebagian') openSheet('bayar')
+    else if (pick === 'poket') openSheet('poket', owed.total)
+    else openSheet(pick)
+  }
+
   function save() {
     if (!canSave || sheet === null) return
     if (sheet === 'tidak') {
       store.setPayMode(mitra.id, 'tidak')
       store.setNonPayment(mitra, { reason: reason as string, ptp: ptp ?? null })
+      store.clearDropOut(mitra.id)
+    } else if (sheet === 'keluar') {
+      // `setDropOut` retracts any payment, reason and promise already on file:
+      // a mitra leaving the program cannot also be carrying a janji bayar.
+      store.setPayMode(mitra.id, 'keluar')
+      store.setDropOut(mitra, drop as string)
     } else if (sheet === 'poket') {
       store.recordPoket(mitra, typed, short ? (shortfall as string) : undefined)
       store.setPartialPtp(mitra.id, short ? (ptp ?? null) : null)
       store.setPoketProof(mitra.id, true)
+      store.clearDropOut(mitra.id)
     } else if (sheet === 'tanggung') {
       // Settled in full, funded by the group rather than by her. The two facts
       // are recorded separately — the money on the ledger, the payer on the
@@ -191,11 +244,13 @@ export function CollectScreen() {
       store.setPayMode(mitra.id, 'tanggung')
       store.collect(mitra, owed.total)
       store.setPartialPtp(mitra.id, null)
+      store.clearDropOut(mitra.id)
     } else {
       store.setPayMode(mitra.id, short ? 'sebagian' : 'penuh')
       store.collect(mitra, typed, short ? (shortfall as string) : undefined)
       // The promise rides with a shortfall, and is cleared when there isn't one.
       store.setPartialPtp(mitra.id, short ? (ptp ?? null) : null)
+      store.clearDropOut(mitra.id)
     }
     flow.go('collection')
   }
@@ -204,81 +259,102 @@ export function CollectScreen() {
     // A white canvas: the top block sits on it directly, and the options section
     // lays its own grey band over it to drop to the lower level.
     <Screen
-      topBar={<NavigationHeader title="Tagih Pembayaran" onBack={() => flow.back()} />}
+      // Her NAME is the page title — the page is about one woman, and a generic
+      // "Tagih Pembayaran" over an identity block spent a card re-drawing who
+      // she was when the top bar could simply say it.
+      topBar={<NavigationHeader title={mitra.name} onBack={() => flow.back()} />}
       className="bg-neutral-white"
     >
-      {/* Who she is, what she has been paying, and what she owes — as one flat
-          block, no cards. The week grid's grey fill carries the one edge that
-          remains. */}
-      <MitraCard
-        mitra={mitra}
-        flat
-        meta={null}
-        labels={
-          <>
-            <KetuaBadge mitra={mitra} />
-            <ProductBadge product={mitra.product} />
-            <DpdBadge dpd={mitra.dpd} format="short" />
-          </>
-        }
-        onOpen={() => flow.go('mitra')}
-      />
+      {/* What she has been paying and what she owes, as one flat block: the
+          week grid, the last instalment that landed, and the bill. */}
+      <AngsuranCard mitra={mitra} flat onSeeAll={() => flow.go('loans')} />
 
-      <AngsuranCard mitra={mitra} flat />
+      {/* The promise already on file, set apart from the bill by a hairline —
+          the total and the janji are two facts, not one running block. Renders
+          nothing for a mitra who has not made one. */}
+      {mitra.ptp && mitra.ptpAmount !== undefined ? (
+        <>
+          <div className="border-t border-default" />
+          <JanjiBayarCard mitra={mitra} date={mitra.ptp} flat />
+        </>
+      ) : null}
 
       {/* The lower level. It bleeds to the page edges and fills the rest of the
           screen, so the grey reads as a floor the choice sits on rather than a
           tinted card floating in the middle of a white page. */}
       <div
         role="radiogroup"
-        aria-label="Cara membayar"
+        aria-label="Berapa yang dibayar"
         className="-mx-16 flex flex-1 flex-col gap-12 border-t border-default bg-neutral-50 px-16 pb-16 pt-16"
       >
-        <SectionTitle>Bagaimana Ibu membayar?</SectionTitle>
+        <SectionTitle>Berapa yang dibayar?</SectionTitle>
 
+        {/* A choice made, THEN confirmed — not six rows that each fire their own
+            sheet on touch. The BP is standing in front of a woman who is still
+            counting notes out of a plastic bag; picking the wrong row and having
+            a sheet come up over the bill is a correction she has to back out of.
+            Picking is now free, and Lanjut is the commitment.
+
+            "Minggu ini saja" and "Jumlah lain" are gone. They were never
+            different transactions from a part-payment — the same question with a
+            different starting guess — and the amount field asks it directly. */}
         <div className="flex flex-col gap-8">
-          {/* Three doors into ONE sheet. What differs is the figure the amount
-              field opens on — the whole bill, this week only, or blank. */}
-          <NavRow
-            title="Bayar penuh"
-            amount={rupiah(owed.total)}
-            onOpen={() => openSheet('bayar', owed.total)}
+          <PickRow
+            title="Lunas"
+            description={rupiah(owed.total)}
+            selected={pick === 'lunas'}
+            onSelect={() => setPick('lunas')}
           />
-
-          {hasArrears ? (
-            <NavRow
-              title="Minggu ini saja"
-              amount={rupiah(owed.thisWeek)}
-              onOpen={() => openSheet('bayar', owed.thisWeek)}
-            />
-          ) : null}
-
-          <NavRow title="Jumlah lain" onOpen={() => openSheet('bayar')} />
-
-          {/* GL only. The group covering her arrears is a real outcome of a
-              kumpulan — it is decided in the room, out loud, by the women
-              sitting in it — and without a row for it the BP records the money
-              as a payment from a mitra who did not make it. */}
-          {mitra.product === 'GL' ? (
-            <NavRow
-              title="Tanggung renteng"
-              amount={rupiah(owed.total)}
-              onOpen={() => openSheet('tanggung')}
-            />
-          ) : null}
-
+          <PickRow
+            title="Bayar sebagian"
+            selected={pick === 'sebagian'}
+            onSelect={() => setPick('sebagian')}
+          />
           {/* Not a payment she is taking — one she is CATCHING UP with. It sits
               with the paying rows because that is what it is to the mitra: her
               bill is settled. */}
-          <NavRow
-            title="Sudah bayar via Poket"
-            amount={rupiah(owed.total)}
-            onOpen={() => openSheet('poket', owed.total)}
+          <PickRow
+            title="Bayar via Poket"
+            selected={pick === 'poket'}
+            onSelect={() => setPick('poket')}
           />
-
-          <NavRow title="Tidak bayar" onOpen={() => openSheet('tidak')} />
+          {/* GL only. The group covering her arrears is a real outcome of a
+              kumpulan — it is decided in the room, out loud, by the women
+              sitting in it — and on a Modal loan the debt is hers alone, so
+              offering the group as a payer would record a settlement no group
+              ever agreed to. */}
+          {mitra.product === 'GL' ? (
+            <PickRow
+              title="Tanggung renteng"
+              selected={pick === 'tanggung'}
+              onSelect={() => setPick('tanggung')}
+            />
+          ) : null}
+          <PickRow
+            title="Tidak bayar"
+            selected={pick === 'tidak'}
+            onSelect={() => setPick('tidak')}
+          />
+          {/* Last, and apart from the rest in what it means: not a bill she did
+              not pay this week, but a mitra who is leaving. */}
+          <PickRow
+            title="Berhenti"
+            selected={pick === 'keluar'}
+            onSelect={() => setPick('keluar')}
+          />
         </div>
       </div>
+
+      <StickyBar>
+        <div className="flex gap-12">
+          <Button size="lg" variant="secondary" className="flex-1" onClick={() => flow.back()}>
+            Kembali
+          </Button>
+          <Button size="lg" className="flex-1" disabled={pick === null} onClick={confirmPick}>
+            Lanjut
+          </Button>
+        </div>
+      </StickyBar>
 
       <BottomSheet
         open={sheet !== null}
@@ -298,11 +374,13 @@ export function CollectScreen() {
               ? 'Janji Bayar'
               : sheet === 'tidak'
                 ? 'Alasan Tidak Bayar'
-                : sheet === 'tanggung'
-                  ? 'Tanggung Renteng'
-                  : sheet === 'poket'
-                    ? 'Sudah Bayar via Poket'
-                    : undefined
+                : sheet === 'keluar'
+                  ? 'Alasan Berhenti Pinjam'
+                  : sheet === 'tanggung'
+                    ? 'Tanggung Renteng'
+                    : sheet === 'poket'
+                      ? 'Sudah Bayar via Poket'
+                      : undefined
         }
         primaryAction={
           <Button
@@ -315,11 +393,13 @@ export function CollectScreen() {
               ? 'Lanjut'
               : sheet === 'tidak'
                 ? 'Simpan Catatan'
-                : sheet === 'tanggung'
-                  ? 'Catat Tanggung Renteng'
-                  : sheet === 'poket'
-                    ? 'Catat Pembayaran'
-                    : 'Terima Tunai'}
+                : sheet === 'keluar'
+                  ? 'Catat Berhenti Pinjam'
+                  : sheet === 'tanggung'
+                    ? 'Catat Tanggung Renteng'
+                    : sheet === 'poket'
+                      ? 'Catat Pembayaran'
+                      : 'Terima Tunai'}
           </Button>
         }
       >
@@ -430,6 +510,19 @@ export function CollectScreen() {
           />
         ) : null}
 
+        {/* One step, and no janji bayar behind it: there is no next date on a
+            mitra who has left the program, and asking for one would file a
+            promise nobody is going to collect on. */}
+        {sheet === 'keluar' ? (
+          <ChoiceList
+            hideLabel
+            label="Alasan berhenti pinjam"
+            options={DROPOUT_REASONS}
+            value={drop ?? undefined}
+            onPick={setDrop}
+          />
+        ) : null}
+
         {/* --- Step 2: the date the balance is chased on. ------------------ */}
         {step === 2 ? (
           <ChoiceList
@@ -445,28 +538,3 @@ export function CollectScreen() {
   )
 }
 
-// A payment option: a full-width row that opens its sheet. White with a border
-// so each row still reads as its own object against the grey floor.
-function NavRow({
-  title,
-  amount,
-  onOpen,
-}: {
-  title: string
-  amount?: string
-  onOpen: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="flex items-center gap-12 rounded-8 border border-default bg-neutral-white p-16 text-left"
-    >
-      <span className="min-w-0 flex-1 text-16 text-default">{title}</span>
-      {amount ? <span className="shrink-0 text-16 font-bold text-default">{amount}</span> : null}
-      <span className="shrink-0 text-disabled">
-        <IconChevronRight size={20} />
-      </span>
-    </button>
-  )
-}

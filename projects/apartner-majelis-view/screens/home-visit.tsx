@@ -28,36 +28,27 @@ import { Image as ImageIcon } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
-import { AngsuranCard, JanjiBayarCard, LastPaymentCard } from '../lib/mitra-card'
+import { AngsuranCard, JanjiBayarCard } from '../lib/mitra-card'
 import { DAYS } from '../lib/schedule'
 import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
 import {
   ChoiceList,
   HOME_STAGE_LABELS,
+  PickRow,
   ProductBadge,
   ProofTile,
   SectionTitle,
   StageBar,
   StickyBar,
 } from '../lib/ui'
-import { IconChevronRight } from '../lib/icons'
 import {
+  DROPOUT_REASONS,
   PTP_OPTIONS,
   REASONS,
   SHORTFALL_REASONS,
   ptpLabelOf,
   ptpValueOf,
 } from '../lib/collect-options'
-
-// Why she is leaving the program. "Meninggal" and "pindah tanpa kabar" are the
-// two that open a case ops has to pick up rather than a promise to chase — which
-// is the whole reason a drop-out is its own outcome and not a heavier "tidak".
-const DROPOUT_REASONS = [
-  'Usaha bangkrut',
-  'Pindah tanpa kabar',
-  'Menolak melanjutkan',
-  'Meninggal dunia',
-]
 
 export function HomeVisitScreen() {
   const flow = useFlow()
@@ -73,33 +64,24 @@ export function HomeVisitScreen() {
   const mode = s.payMode[mitra.id]
   const dropReason = s.dropOut[mitra.id]
 
-  // The Lanjut gate: a picked outcome must be COMPLETE before the visit moves
-  // on. Penuh and tanggung renteng settle on their own; the others each carry a
-  // follow-up the record isn't whole without. A Poket payment is a CLAIM until
-  // the screenshot is attached, and a short one owes the same reason + janji a
-  // short cash payment does.
-  const outcomeDone =
-    mode === 'penuh' || mode === 'tanggung'
-      ? true
-      : mode === 'poket'
-        ? Boolean(s.poketProof[mitra.id]) &&
-          paid > 0 &&
-          (paid >= owed.total ||
-            (Boolean(s.shortfallReasons[mitra.id]) && s.partialPtp[mitra.id] !== undefined))
-        : mode === 'sebagian'
-          ? paid > 0
-          : mode === 'tidak'
-            ? Boolean(refusal?.reason)
-            : mode === 'keluar'
-              ? Boolean(dropReason)
-              : false
-
-  // --- The outcome, the same shape as the majelis collect page: a menu of rows,
-  // each opening ONE stepped sheet. `bayar` covers Bayar Penuh (seeded with the
-  // full bill) and Bayar Sebagian (seeded blank); tanggung, tidak and keluar are
-  // their own. Answers live in local draft state and are written on save, so
-  // closing a sheet abandons an unfinished outcome rather than half-recording it.
+  // --- The outcome, the same shape as the majelis collect page: a radio list
+  // over ONE stepped sheet. `bayar` covers Lunas (seeded with the full bill) and
+  // Bayar Sebagian (seeded blank); tanggung, tidak and keluar are their own.
+  // Answers live in local draft state and are written on save, so closing a
+  // sheet abandons an unfinished outcome rather than half-recording it.
   type Sheet = 'bayar' | 'poket' | 'tanggung' | 'tidak' | 'keluar'
+  type Pick = 'lunas' | 'sebagian' | 'poket' | 'tanggung' | 'tidak' | 'keluar'
+
+  // What is already on file, read back as the row that produced it.
+  const recorded: Pick | null =
+    mode === 'penuh'
+      ? 'lunas'
+      : mode === 'sebagian' || mode === 'poket' || mode === 'tanggung' || mode === 'tidak'
+        ? mode
+        : mode === 'keluar'
+          ? 'keluar'
+          : null
+  const [pick, setPick] = useState<Pick | null>(recorded)
   const [sheet, setSheet] = useState<Sheet | null>(null)
   const [step, setStep] = useState<1 | 2>(1)
   const [draft, setDraft] = useState(String(paid > 0 ? paid : ''))
@@ -177,6 +159,30 @@ export function HomeVisitScreen() {
       store.setPayMode(mitra.id, 'keluar')
     }
     closeSheet()
+    // The sheet carries the visit on rather than dropping the BP back on a page
+    // whose only remaining button says the same thing she just said.
+    flow.go('home-proof')
+  }
+
+  /**
+   * Lanjut. A "Lunas" needs nothing else said about it — the figure is the bill,
+   * the payer is her, and there is no reason or promise behind a settled
+   * account — so it records straight from the page. Every other pick has one
+   * question left, and that question is the sheet.
+   */
+  function confirmPick() {
+    if (pick === null) return
+    if (pick === 'lunas') {
+      store.collect(mitra, owed.total)
+      store.setPartialPtp(mitra.id, null)
+      store.setPayMode(mitra.id, 'penuh')
+      store.clearDropOut(mitra.id)
+      flow.go('home-proof')
+      return
+    }
+    if (pick === 'sebagian') openSheet('bayar', paid > 0 ? paid : undefined)
+    else if (pick === 'poket') openSheet('poket', paid > 0 ? paid : undefined)
+    else openSheet(pick)
   }
 
   return (
@@ -207,13 +213,12 @@ export function HomeVisitScreen() {
 
       {/* The top bar already carries who she is, so this page opens straight on
           what she has been paying and what she owes — the week grid and the bill
-          as one flat block. The entry point under the grid (via `onSeeHistory`)
-          opens her mitra page, where the full ledger lives. It seeds the mitra
-          that page reads before navigating. */}
+          as one flat block. "Lihat semua" opens her mitra page, where the full
+          ledger lives; it seeds the mitra that page reads before navigating. */}
       <AngsuranCard
         mitra={mitra}
         flat
-        onSeeHistory={() => {
+        onSeeAll={() => {
           store.openMitraPage(mitra.id)
           flow.go('mitra')
         }}
@@ -223,73 +228,68 @@ export function HomeVisitScreen() {
           and the janji are two facts, not one running block. */}
       <div className="border-t border-default" />
 
-      <LastPaymentCard mitra={mitra} flat />
-
       <JanjiBayarCard mitra={mitra} date={DAYS[0].date} flat />
 
-      {/* --- The outcome: a menu of rows on a grey floor, each opening the sheet
-          — the same shape as the majelis collect page. The chosen row keeps a
-          one-line recap of what was recorded. */}
+      {/* --- The outcome, on a grey floor: the same radio list, the same words
+          and the same Kembali/Lanjut footer as the majelis collect page. One
+          question asked one way, whether she is standing in a balai or at a
+          door. The picked row keeps a one-line recap of what was recorded. */}
       {met ? (
         <div
           role="radiogroup"
-          aria-label="Pembayaran"
+          aria-label="Berapa yang dibayar"
           className="-mx-16 flex flex-1 flex-col gap-12 border-t border-default bg-neutral-50 px-16 pb-16 pt-16"
         >
-          <SectionTitle>Bagaimana Ibu membayar?</SectionTitle>
+          <SectionTitle>Berapa yang dibayar?</SectionTitle>
           <div className="flex flex-col gap-8">
-            {/* Full payment needs no figure and no reason, so it records on the
-                tap and lets the page Lanjut carry the visit on — the same instant
-                path as "Mitra sendiri" on Persiapan. */}
-            <PayRow
-              title="Bayar Penuh"
-              amount={rupiah(owed.total)}
-              recap={mode === 'penuh' ? `Lunas · ${rupiah(paid)}` : null}
-              instant
-              onOpen={() => {
-                store.collect(mitra, owed.total)
-                store.setPayMode(mitra.id, 'penuh')
-                store.clearDropOut(mitra.id)
-              }}
+            <PickRow
+              title="Lunas"
+              description={rupiah(owed.total)}
+              detail={mode === 'penuh' ? `Diterima ${rupiah(paid)}` : null}
+              selected={pick === 'lunas'}
+              onSelect={() => setPick('lunas')}
             />
-            <PayRow
-              title="Bayar Sebagian"
-              recap={
+            <PickRow
+              title="Bayar sebagian"
+              detail={
                 mode === 'sebagian'
                   ? `${rupiah(paid)} diterima · sisa ${rupiah(Math.max(0, owed.total - paid))}`
                   : null
               }
-              onOpen={() => openSheet('bayar', paid > 0 ? paid : undefined)}
+              selected={pick === 'sebagian'}
+              onSelect={() => setPick('sebagian')}
             />
-            {/* GL only: joint liability is what the G in GL is. A Modal loan is
-                hers alone, so offering the group as a payer on her door would
-                record a settlement no group ever agreed to. */}
-            {mitra.product === 'GL' ? (
-              <PayRow
-                title="Tanggung Renteng"
-                recap={mode === 'tanggung' ? `Ditanggung kelompok · ${rupiah(owed.total)}` : null}
-                onOpen={() => openSheet('tanggung')}
-              />
-            ) : null}
             {/* Not a payment she is taking — one she is catching up with: the
                 mitra paid through Poket days ago and the system has not updated,
                 which happens often enough that without this row the BP either
                 books cash she never received or leaves her owing money she has
                 already handed over. */}
-            <PayRow
-              title="Sudah Bayar via Poket"
-              recap={
+            <PickRow
+              title="Bayar via Poket"
+              detail={
                 mode === 'poket' && paid > 0
                   ? `Via Poket · ${rupiah(paid)}${
                       paid < owed.total ? ` · sisa ${rupiah(owed.total - paid)}` : ''
                     }`
                   : null
               }
-              onOpen={() => openSheet('poket', paid > 0 ? paid : undefined)}
+              selected={pick === 'poket'}
+              onSelect={() => setPick('poket')}
             />
-            <PayRow
-              title="Tidak Bayar"
-              recap={
+            {/* GL only: joint liability is what the G in GL is. A Modal loan is
+                hers alone, so offering the group as a payer on her door would
+                record a settlement no group ever agreed to. */}
+            {mitra.product === 'GL' ? (
+              <PickRow
+                title="Tanggung renteng"
+                detail={mode === 'tanggung' ? `Ditanggung kelompok · ${rupiah(owed.total)}` : null}
+                selected={pick === 'tanggung'}
+                onSelect={() => setPick('tanggung')}
+              />
+            ) : null}
+            <PickRow
+              title="Tidak bayar"
+              detail={
                 mode === 'tidak' && refusal?.reason
                   ? `${refusal.reason}${
                       refusal.ptp !== undefined && ptpLabelOf(refusal.ptp)
@@ -298,12 +298,14 @@ export function HomeVisitScreen() {
                     }`
                   : null
               }
-              onOpen={() => openSheet('tidak')}
+              selected={pick === 'tidak'}
+              onSelect={() => setPick('tidak')}
             />
-            <PayRow
-              title="Drop Out"
-              recap={mode === 'keluar' && dropReason ? dropReason : null}
-              onOpen={() => openSheet('keluar')}
+            <PickRow
+              title="Berhenti"
+              detail={mode === 'keluar' && dropReason ? dropReason : null}
+              selected={pick === 'keluar'}
+              onSelect={() => setPick('keluar')}
             />
           </div>
         </div>
@@ -463,59 +465,15 @@ export function HomeVisitScreen() {
       </BottomSheet>
 
       <StickyBar>
-        <Button
-          size="lg"
-          className="w-full"
-          disabled={!outcomeDone}
-          onClick={() => flow.go('home-proof')}
-        >
-          Lanjut
-        </Button>
+        <div className="flex gap-12">
+          <Button size="lg" variant="secondary" className="flex-1" onClick={() => flow.back()}>
+            Kembali
+          </Button>
+          <Button size="lg" className="flex-1" disabled={pick === null} onClick={confirmPick}>
+            Lanjut
+          </Button>
+        </div>
       </StickyBar>
     </Screen>
-  )
-}
-
-/**
- * One outcome, as a row that opens the sheet — the collect page's NavRow with a
- * recap line. The chosen outcome carries the brand tint and its one-line summary;
- * the rest stay plain, with the full-bill figure shown on Bayar Penuh until it
- * is recorded.
- */
-function PayRow({
-  title,
-  amount,
-  recap,
-  instant,
-  onOpen,
-}: {
-  title: string
-  amount?: string
-  recap?: string | null
-  /** Records on the tap rather than opening a sheet — no chevron. */
-  instant?: boolean
-  onOpen: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={`flex items-center gap-12 rounded-8 border p-16 text-left ${
-        recap ? 'border-primary-500 bg-primary-50' : 'border-default bg-neutral-white'
-      }`}
-    >
-      <span className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="text-16 text-default">{title}</span>
-        {recap ? <span className="text-12 text-primary-500">{recap}</span> : null}
-      </span>
-      {amount && !recap ? (
-        <span className="shrink-0 text-16 font-bold text-default">{amount}</span>
-      ) : null}
-      {!instant ? (
-        <span className="shrink-0 text-disabled">
-          <IconChevronRight size={20} />
-        </span>
-      ) : null}
-    </button>
   )
 }

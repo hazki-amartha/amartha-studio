@@ -10,7 +10,16 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, Input, SelectableCard } from '@/design-system/components'
-import { MagnifyingGlass, MapPin, NotePencil, WhatsappLogo } from '@/design-system/icons'
+import { ProductLogo } from '@/design-system/assets'
+import {
+  CheckCircleFill,
+  CrossCircleFill,
+  Image,
+  MagnifyingGlass,
+  MapPin,
+  NotePencil,
+  WhatsappLogo,
+} from '@/design-system/icons'
 import { ringkas, rupiah, type Week } from './data'
 import { agentCodeFor, SETTLE_METHOD_LABEL, taskCode } from './schedule'
 import { IconCheck, IconChevronDown, IconChevronUp, IconX } from './icons'
@@ -103,7 +112,7 @@ export const STAGE_LABELS = ['Kehadiran', 'Penagihan', 'Penawaran', 'Bukti']
 // home — takes the visit note right there and skips straight to Bukti & Kirim,
 // since there is nothing to tagih from a locked door. Otherwise the Tagih step
 // settles the money against the ledger, then Bukti & Kirim proves the visit.
-export const HOME_STAGE_LABELS = ['Persiapan', 'Tagih', 'Bukti & Kirim']
+export const HOME_STAGE_LABELS = ['Kunjungi', 'Tagih', 'Kirim bukti']
 
 export function StageBar({
   current,
@@ -119,23 +128,28 @@ export function StageBar({
         const no = i + 1
         const done = no < current
         const active = no === current
-        // An upcoming stage is OUTLINED, not filled grey. A filled grey disc
-        // reads as a state — something already decided about — where a ring
-        // around a number reads as an empty slot waiting for her, which is what
-        // stages 2–4 are while she is still marking the register.
+        // A cleared stage goes GREY, not green, and an upcoming one is a ring
+        // around its number rather than a filled disc. Only one thing on this
+        // bar is coloured — where she is standing — because that is the single
+        // fact the bar exists to state; green ticks behind her competed with it
+        // and made a four-step bar look like three results and a question.
         const circle = done
-          ? 'border-green-500 bg-green-500 text-neutral-white'
+          ? 'border-neutral-400 bg-neutral-400 text-neutral-white'
           : active
             ? 'border-primary-500 bg-primary-500 text-neutral-white'
-            : 'border-default bg-neutral-white text-caption'
+            : 'border-default bg-neutral-white text-default'
         return (
           <div key={label} className="flex flex-1 flex-col items-center gap-4">
             <div className="flex w-full items-center gap-4">
               {/* The rails are half-width spacers on the outer edges so the
                   circles stay centred over their labels — a full rail on the
-                  first and last stage would push both inward. */}
+                  first and last stage would push both inward.
+
+                  The one coloured rail runs OUT of the active stage, toward the
+                  one she is heading for: it is the stage in progress, not a
+                  trail of everything already done. */}
               <span
-                className={`h-2 flex-1 rounded-full ${i === 0 ? 'bg-transparent' : done || active ? 'bg-green-500' : 'bg-neutral-200'}`}
+                className={`h-2 flex-1 rounded-full ${i === 0 ? 'bg-transparent' : no === current + 1 ? 'bg-primary-200' : 'bg-neutral-200'}`}
               />
               <span
                 className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full border text-12 font-bold ${circle}`}
@@ -143,15 +157,17 @@ export function StageBar({
                 {done ? <IconCheck size={16} /> : no}
               </span>
               <span
-                className={`h-2 flex-1 rounded-full ${i === labels.length - 1 ? 'bg-transparent' : done ? 'bg-green-500' : 'bg-neutral-200'}`}
+                className={`h-2 flex-1 rounded-full ${i === labels.length - 1 ? 'bg-transparent' : active ? 'bg-primary-200' : 'bg-neutral-200'}`}
               />
             </div>
             {/* Sentence case at reading size, not 10px caps. The stage names are
                 words the BP says ("kehadiran dulu, baru penagihan"), and setting
                 them as a legend under a diagram made the bar look like a chart
-                of the visit rather than the place she is standing in it. */}
+                of the visit rather than the place she is standing in it.
+                A cleared stage's name greys out — it is behind her — while the
+                ones ahead stay dark: they are still work. */}
             <span
-              className={`text-12 ${active ? 'font-bold text-default' : done ? 'font-bold text-green-500' : 'font-regular text-caption'}`}
+              className={`text-12 ${active ? 'font-bold text-default' : done ? 'font-regular text-disabled' : 'font-regular text-default'}`}
             >
               {label}
             </span>
@@ -393,12 +409,29 @@ export function WeekGrid({ weeks }: { weeks: Week[] }) {
 // it is not a third product: it is a group carrying both at once, and giving it
 // its own hue would say otherwise.
 
+/**
+ * Which product she is on, drawn as the reference draws it: the product's own
+ * mark and its name in the product's colour, on no ground at all.
+ *
+ * It was a solid `Badge`, and on a card that now carries three chips — chair,
+ * product, bucket — the solid one won every time, when the product is the least
+ * changeable fact of the three. Quiet is the point: it labels, it does not
+ * report. Only Modal has a mark in the FunDS asset set, so GL and the mix are
+ * their name alone; the colour is what they have in common.
+ *
+ * "Hybrid" is the internal word; "GL Modal Mix" is what it actually means and
+ * names both products in it, which is the whole reason a BP looks at this
+ * before she opens the group.
+ */
 export function ProductBadge({ product }: { product: 'Modal' | 'GL' | 'Hybrid' }) {
-  const intent = product === 'Modal' ? 'blue' : product === 'GL' ? 'primary' : 'neutral'
-  // "Hybrid" is the internal word; "GL Modal Mix" is what it actually means and
-  // names both products in it, which is the whole reason a BP looks at this
-  // badge before she opens the group.
-  return <Badge intent={intent}>{product === 'Hybrid' ? 'GL Modal Mix' : product}</Badge>
+  const ink =
+    product === 'Modal' ? 'text-blue-500' : product === 'GL' ? 'text-primary-500' : 'text-caption'
+  return (
+    <span className={`flex shrink-0 items-center gap-4 ${ink}`}>
+      {product === 'Modal' ? <ProductLogo name="modal" size={16} /> : null}
+      <span className="text-12 font-bold">{product === 'Hybrid' ? 'GL Modal Mix' : product}</span>
+    </span>
+  )
 }
 
 // --- Finding things in a list ----------------------------------------------
@@ -754,76 +787,188 @@ export function ActionRow({
 // half, and deliberately not `ActionRow`.
 //
 // ActionRow is one line with one control on the right, which is right while the
-// card still asks for something ("Tagihan Rp650.000 · [Tagih]"). The moment an
-// outcome exists there are three or four facts to carry — the amount, what kind
-// of outcome it was, what is still short, why — and squeezing them into one row
-// meant the amount, a badge and "Ubah" fought over the same 340px, with the
-// shortfall reduced to text inside a badge.
+// card still asks for something ("Tagihan Rp650.000 · [Tagih]"). Once an outcome
+// exists the card is no longer asking, and the reference draws that as a change
+// of GROUND rather than a change of contents: one tinted band carrying the whole
+// result — a mark, what happened, and the figure — in the status colour, with
+// "Ubah" at its edge.
 //
-// So: the figure gets its own line at reading size with its status beside it,
-// "Ubah" sits out at the edge as a link rather than a button, and anything
-// further — what is still owed, the reason, the promise — drops to a SECOND row
-// under a rule. The row only appears when there is something to put in it, so a
-// clean "Lunas" stays exactly one row tall.
+// It replaces a caption-over-figure with a badge and a round pencil beside it:
+// three objects saying one thing, where the news itself ("Lunas", "Tidak bayar")
+// was the smallest of them. The tint now IS the status, so the badge is gone,
+// and "Ubah" comes back as a word — a bare pencil on a coloured ground reads as
+// decoration rather than a control.
+//
+// Anything the outcome LEAVES BEHIND — the reason, the promise, what is still
+// short, the screenshot backing a Poket claim — drops into a note block under
+// the band: grey, ruled down its left edge, so it reads as an annotation on the
+// result rather than a second result.
+
+export type ResultTone = 'green' | 'orange' | 'red'
+
+const RESULT_TONE: Record<ResultTone, { band: string; ink: string }> = {
+  // 700 on the orange tint, 500/600 on the others: orange-500 is the brightest
+  // colour in the palette and at 12px on its own 50-tint it stops being legible.
+  green: { band: 'bg-green-50', ink: 'text-green-600' },
+  orange: { band: 'bg-orange-50', ink: 'text-orange-700' },
+  red: { band: 'bg-red-50', ink: 'text-red-500' },
+}
+
+/**
+ * The annotation ground: grey, ruled down its left edge, square where it meets
+ * that rule. Shared by every block that hangs under a result band so a reason
+ * and a screenshot are visibly the same KIND of thing — a footnote on the
+ * outcome — rather than two more results stacked below it.
+ */
+function NoteBlock({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-4 rounded-r-8 border-l-2 border-neutral-400 bg-neutral-50 px-12 py-4">
+      {children}
+    </div>
+  )
+}
 
 export function ResultRow({
+  tone,
   label,
   amount,
-  badge,
   onEdit,
-  detail,
+  notes,
+  proof,
 }: {
+  tone: ResultTone
+  /** What happened, in words: "Lunas", "Bayar sebagian", "Berhenti pinjam". */
   label: string
-  /** The figure, at reading size. */
-  amount: string
-  /** What kind of outcome it was, set beside the figure rather than opposite it. */
-  badge?: ReactNode
+  /**
+   * The figure, bold, beside the label. Omitted where the outcome has no
+   * amount — a mitra leaving the program did not pay a smaller number, she
+   * stopped having a bill at all, and "Rp0" beside her name says the opposite.
+   */
+  amount?: string
   /** Reopens whatever produced the outcome. Omitted renders no "Ubah". */
   onEdit?: () => void
-  /** The second row. Omitted renders no rule and no row. */
-  detail?: { label: string; value: string; tone?: 'red' | 'default'; note?: string }
+  /**
+   * The note block: each entry a caption over its value. Every fact the outcome
+   * leaves for whoever reads the visit later — the reason, the janji bayar,
+   * what is still short — goes here, in one block, because they are one
+   * annotation and three grey boxes would read as three.
+   */
+  notes?: { label: string; value: string }[]
+  /** Renders the "Foto bukti" strip — the screenshot behind a Poket claim. */
+  proof?: boolean
 }) {
+  const t = RESULT_TONE[tone]
   return (
-    <div className="flex flex-col gap-12">
-      <div className="flex items-center gap-12">
-        {/* Same caption-over-figure at the same size as the "Tagihan Rp650.000"
-            this row replaces. The amount used to jump to 20px once it was
-            collected, so one card changed type size the moment it was answered. */}
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <span className="truncate text-12 text-caption">{label}</span>
-          <span className="truncate text-16 font-bold text-default">{amount}</span>
-        </div>
-        {/* Status and the way to change it, together at the edge — where the
-            "Tagih" button sat before the outcome existed. "Ubah" as a word cost
-            a whole label for a control the pencil says in an icon. */}
-        <div className="flex shrink-0 items-center gap-8">
-          {badge}
-          {onEdit ? (
-            <button
-              type="button"
-              onClick={onEdit}
-              aria-label="Ubah hasil"
-              className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-neutral-50 text-default"
-            >
-              <NotePencil size={20} />
-            </button>
-          ) : null}
-        </div>
+    <div className="flex flex-col gap-8">
+      <div className={`flex items-center gap-12 rounded-8 p-8 ${t.band}`}>
+        <span className={`flex min-w-0 flex-1 items-center gap-4 ${t.ink}`}>
+          <span className="shrink-0">
+            {tone === 'red' ? <CrossCircleFill size={16} /> : <CheckCircleFill size={16} />}
+          </span>
+          <span className="truncate text-12">{label}</span>
+          {amount ? <span className="shrink-0 text-12 font-bold">{amount}</span> : null}
+        </span>
+        {onEdit ? (
+          <Button variant="outline" size="xs" onClick={onEdit}>
+            Ubah
+          </Button>
+        ) : null}
       </div>
 
-      {detail ? (
-        <div className="flex flex-col gap-2 border-t border-default pt-12">
-          <span className="text-12 text-caption">{detail.label}</span>
-          {/* Not bold. The figure above it is the one that was collected; this
-              is what is still missing, and setting both bold made the card
-              argue with itself about which number it was about. */}
-          <span className={`text-16 ${detail.tone === 'red' ? 'text-red-500' : 'text-default'}`}>
-            {detail.value}
+      {notes && notes.length > 0 ? (
+        <NoteBlock>
+          {notes.map((n) => (
+            <p key={n.label} className="text-12 text-default">
+              <span className="text-caption">{n.label}:</span>
+              <br />
+              {n.value}
+            </p>
+          ))}
+        </NoteBlock>
+      ) : null}
+
+      {proof ? (
+        <NoteBlock>
+          <span className="flex items-center gap-8">
+            <span className="shrink-0 text-12 text-caption">Foto bukti:</span>
+            {/* The same honest placeholder the rest of the project uses for a
+                photo it does not have — a tinted tile with a glyph, not a stock
+                receipt pretending to be her screenshot. */}
+            <span className="flex h-32 w-24 shrink-0 items-center justify-center rounded-4 border border-default bg-neutral-white text-disabled">
+              <Image size={16} />
+            </span>
+            <span className="flex-1" />
+            {onEdit ? (
+              <button
+                type="button"
+                onClick={onEdit}
+                aria-label="Ubah foto bukti"
+                className="shrink-0 text-primary-500"
+              >
+                <NotePencil size={20} />
+              </button>
+            ) : null}
           </span>
-          {detail.note ? <span className="text-12 text-caption">{detail.note}</span> : null}
-        </div>
+        </NoteBlock>
       ) : null}
     </div>
+  )
+}
+
+// --- PickRow ---------------------------------------------------------------
+// The one radio row this direction uses for a question with a fixed set of
+// answers: who was met at the door, how much was paid. A full-width card with
+// the mark on the RIGHT, where the chevron used to be — these rows used to GO
+// somewhere on touch, and putting the radio under the thumb that was already
+// travelling there keeps the target still while the meaning changes.
+//
+// Why picking and committing are now two acts: the BP is standing in front of a
+// woman still counting notes out of a plastic bag, and a row that fires its own
+// sheet on touch means a mis-tap costs a sheet she has to back out of over the
+// bill she was reading. Picking is free; the page's Lanjut is the commitment.
+
+export function PickRow({
+  title,
+  description,
+  detail,
+  selected,
+  onSelect,
+}: {
+  title: string
+  /** What the option means, or the figure it commits to. */
+  description?: string
+  /** A read-back of what the option's follow-up captured, once it has. */
+  detail?: string | null
+  selected: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={onSelect}
+      className={`flex items-center gap-12 rounded-12 border p-16 text-left ${
+        selected ? 'border-primary-500 bg-primary-50' : 'border-default bg-neutral-white'
+      }`}
+    >
+      <span className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="text-14 font-bold text-default">{title}</span>
+        {description ? <span className="text-12 text-caption">{description}</span> : null}
+        {detail ? (
+          <span className="mt-4 border-t border-primary-200 pt-8 text-12 text-primary-500">
+            {detail}
+          </span>
+        ) : null}
+      </span>
+      <span
+        className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 ${
+          selected ? 'border-primary-500' : 'border-neutral-400'
+        }`}
+      >
+        {selected ? <span className="h-12 w-12 rounded-full bg-primary-500" /> : null}
+      </span>
+    </button>
   )
 }
 
@@ -1035,8 +1180,11 @@ export function RosterFilter<T extends string>({
     >
       {options.map((option) => {
         const selected = option.id === value
+        // The picked chip keeps the white ground of the others and takes the
+        // brand colour on its border and its word only — a tinted fill made the
+        // filter row read as a second, louder header above the roster.
         const tone = selected
-          ? 'border-primary-500 bg-primary-50 text-primary-500'
+          ? 'border-primary-500 bg-neutral-white text-primary-500'
           : 'border-default bg-neutral-white text-neutral-700'
         return (
           <button
@@ -1158,7 +1306,10 @@ export function ProgressCard({
     <div className="flex flex-col gap-8">
       <div className="flex items-end gap-8">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <span className="text-12 text-caption">{title}</span>
+          {/* Bold and dark, not a grey caption: it names the figure under it,
+              and on a white header band a grey label over a 24px number read as
+              a footnote that had floated above its own total. */}
+          <span className="text-12 font-bold text-default">{title}</span>
           <span className="flex items-baseline gap-4">
             <span className="text-24 font-bold text-default">{value}</span>
             {of && showPercent ? <span className="text-14 text-caption">dari {of}</span> : null}

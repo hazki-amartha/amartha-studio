@@ -66,8 +66,11 @@ export type Attendance = 'hadir' | 'tidak'
  * - `tidak`    — recorded as not paying, with a reason and maybe a promise. An
  *                OUTCOME, not the absence of one: "she said no, here's why,
  *                here's when" is a result the BP can close and ops can chase.
+ * - `keluar`   — she is leaving the program. Also an outcome, and deliberately
+ *                not a heavier `tidak`: a refusal carries a date somebody
+ *                chases, and this one opens a case ops has to pick up instead.
  */
-export type CollectStatus = 'belum' | 'sebagian' | 'lunas' | 'tidak'
+export type CollectStatus = 'belum' | 'sebagian' | 'lunas' | 'tidak' | 'keluar'
 
 /** Why she isn't paying, and when she says she will. */
 export interface NonPayment {
@@ -1184,7 +1187,11 @@ export function collectStatus(s: AppState, mitra: Mitra): CollectStatus {
   // Money wins over a recorded no — `collect` clears the no, but read it in the
   // same order so the two can never disagree.
   if (paid > 0) return paid >= outstandingOf(mitra).total ? 'lunas' : 'sebagian'
-  return s.nonPayments[mitra.id] ? 'tidak' : 'belum'
+  if (s.nonPayments[mitra.id]) return 'tidak'
+  // A drop-out is settled for this visit — there is nothing more to ask her —
+  // so it has to read as recorded, or the stage's gate would hold the whole
+  // majelis open on a mitra who has left the program.
+  return s.dropOut[mitra.id] ? 'keluar' : 'belum'
 }
 
 // --- Stage 1: attendance ---------------------------------------------------
