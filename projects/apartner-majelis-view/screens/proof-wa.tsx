@@ -37,9 +37,12 @@ export function ProofWaScreen() {
     .map((m) => {
       const status = collectStatus(s, m)
       if (status === 'belum') return null
+      // A mitra who has left the program carries no figure — this recap goes to
+      // the whole majelis, and "Rp0" against her name reads as a woman who
+      // refused to pay this morning rather than one who is no longer borrowing.
+      if (status === 'keluar') return `• ${m.name} — Berhenti pinjam`
       const paid = paidOf(s, m)
-      const label =
-        status === 'lunas' ? 'Lunas' : status === 'sebagian' ? 'Sebagian' : 'Belum bayar'
+      const label = status === 'lunas' ? 'Lunas' : status === 'sebagian' ? 'Sebagian' : 'Belum bayar'
       return `• ${m.name} — ${rupiah(paid)} (${label})`
     })
     .filter(Boolean)

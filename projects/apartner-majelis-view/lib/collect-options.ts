@@ -27,6 +27,18 @@ export const SHORTFALL_REASONS = [
   'Sisanya menyusul minggu ini',
 ]
 
+// Why she is leaving the program. "Meninggal dunia" and "pindah tanpa kabar"
+// are the two that open a case ops has to pick up rather than a promise to
+// chase — which is the whole reason a drop-out is its own outcome and not a
+// heavier "tidak bayar". Shared by the majelis collect menu and the home visit,
+// which record the same fact from the same list.
+export const DROPOUT_REASONS = [
+  'Usaha bangkrut',
+  'Pindah tanpa kabar',
+  'Menolak melanjutkan',
+  'Meninggal dunia',
+]
+
 // Discrete options rather than a date picker: a BP negotiates a rough date at
 // the majelis, and "no promise at all" has to be expressible.
 //

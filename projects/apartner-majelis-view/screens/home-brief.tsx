@@ -34,6 +34,7 @@ import {
 } from '../lib/store'
 import {
   HOME_STAGE_LABELS,
+  PickRow,
   ProductBadge,
   RescheduleSheet,
   SectionTitle,
@@ -41,15 +42,24 @@ import {
   StageBar,
   StickyBar,
 } from '../lib/ui'
+import { IconChevronDown, IconChevronUp } from '../lib/icons'
 
+// The description says what the ANSWER means for the record, not what the BP
+// can do next: "bisa langsung menagih" told her something she already knew from
+// standing there, where "dicatat atas nama mitra" is the fact she is being
+// asked to vouch for.
 const WHO: { value: MetWith; title: string; description: string }[] = [
-  { value: 'mitra', title: 'Mitra sendiri', description: 'Bisa langsung menagih' },
+  {
+    value: 'mitra',
+    title: 'Mitra sendiri',
+    description: 'Pembayaran dilakukan langsung oleh mitra.',
+  },
   {
     value: 'pj',
-    title: 'Keluarga / penanggung jawab',
-    description: 'Titipan dan janji bayar tetap dicatat atas nama mitra',
+    title: 'Penanggung jawab/keluarga',
+    description: 'Pembayaran akan dicatat atas nama mitra.',
   },
-  { value: 'nobody', title: 'Tidak ada orang', description: 'Tidak ada pembayaran hari ini' },
+  { value: 'nobody', title: 'Tidak ada orang', description: 'Tidak ada pembayaran hari ini.' },
 ]
 
 // Why nobody was there. Relocation and death both open a different case
@@ -91,6 +101,8 @@ export function HomeBriefScreen() {
   const [lightbox, setLightbox] = useState<string | null>(null)
   // Moving the whole visit off today, from the first step's top bar.
   const [rescheduling, setRescheduling] = useState(false)
+  // Her house and her warung, folded away until asked for. See home-card.tsx.
+  const [showPlaces, setShowPlaces] = useState(false)
 
   function reschedule(reason: string, date: string) {
     store.rescheduleTask(s.openHome, reason, date)
@@ -144,17 +156,19 @@ export function HomeBriefScreen() {
     >
       <StageBar current={1} labels={HOME_STAGE_LABELS} />
 
-      {/* --- Who's at this door: the mitra with her two places (house and
-          warung, each with a photo, an address, and its own route), then her
-          penanggung jawab on the flat ContactRow below — his portrait, relation,
-          the house address, a map and WhatsApp. -------- */}
-      <section className="flex flex-col gap-16 pt-8">
+      {/* --- Who's at this door: the two people the BP may be about to talk to,
+          as two rows of the same shape, with her house and warung folded away
+          behind "Selengkapnya". The addresses are for getting HERE, and she is
+          already here. -------- */}
+      <SectionTitle>Kontak &amp; alamat</SectionTitle>
+      <section className="flex flex-col gap-12">
         <HomeMitraCard
           mitra={mitra}
           address={task?.place ?? profile.address}
           business={profile.business}
           photo={profile.photo}
           housePhoto={profile.housePhoto}
+          expanded={showPlaces}
           onEnlarge={setLightbox}
           onOpen={() => {
             store.openMitraPage(mitra.id)
@@ -169,16 +183,20 @@ export function HomeBriefScreen() {
             <MitraPhoto src={profile.pjPhoto} onClick={() => setLightbox(profile.pjPhoto)} />
           }
           name={pjName}
-          subtitle={
-            <span className="flex flex-col gap-2 text-caption">
-              <span>Penanggung jawab · {profile.pjRelation}</span>
-              <span className="break-words">{task?.place ?? profile.address}</span>
-            </span>
-          }
+          subtitle={<span className="text-caption">Penanggung jawab · {profile.pjRelation}</span>}
           mapHref={mapsUrl(task?.place ?? profile.address)}
           mapLabel={`Buka lokasi ${pjName} di peta`}
           waLabel={`WhatsApp ${pjName}`}
         />
+
+        <button
+          type="button"
+          onClick={() => setShowPlaces((open) => !open)}
+          className="flex items-center justify-center gap-4 self-center text-12 font-bold text-link"
+        >
+          {showPlaces ? 'Lebih sedikit' : 'Selengkapnya'}
+          {showPlaces ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+        </button>
       </section>
 
       {/* --- The choice, on its own greyish panel that bleeds to the screen
@@ -204,28 +222,17 @@ export function HomeBriefScreen() {
                 summary = revisit ? `${note.reason} · ${revisit}` : note.reason
               }
               return (
-                <button
+                <PickRow
                   key={option.value}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => {
+                  title={option.title}
+                  description={option.description}
+                  detail={summary}
+                  selected={selected}
+                  onSelect={() => {
                     store.setMetWith(mitra.id, option.value)
                     setSheetOpen(option.value !== 'mitra')
                   }}
-                  className={`rounded-12 border p-16 text-left ${
-                    selected
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-default bg-neutral-white'
-                  }`}
-                >
-                  <div className="text-14 font-bold text-default">{option.title}</div>
-                  <div className="mt-2 text-12 text-caption">{option.description}</div>
-                  {summary ? (
-                    <div className="mt-8 border-t border-primary-200 pt-8 text-12 text-primary-500">
-                      {summary}
-                    </div>
-                  ) : null}
-                </button>
+                />
               )
             })}
           </div>

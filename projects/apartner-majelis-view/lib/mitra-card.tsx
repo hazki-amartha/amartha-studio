@@ -13,9 +13,9 @@
 
 import type { ReactNode } from 'react'
 import { Badge, Card } from '@/design-system/components'
-import { User } from '@/design-system/icons'
+import { ArrowRight, User } from '@/design-system/icons'
 import { isKetua, lastPaymentOf, outstandingOf, rupiah, type Mitra } from './data'
-import { IconCalendar, IconChevronRight, IconHome, IconStore, IconWallet } from './icons'
+import { IconCalendar, IconChevronRight, IconHome, IconStore } from './icons'
 import { ProductBadge, WeekGrid } from './ui'
 
 /**
@@ -104,67 +104,63 @@ function TagihanLine({
  * its outcome and the amount received that week — rather than a bare mark strip,
  * because the amount under a cell is what tells a shortfall apart from a miss.
  *
- * `onSeeAll` renders the "Lihat Semua" link into the full ledger; the collect
- * page omits it, because the whole history is not a place to wander off to with
- * a mitra waiting to hand over cash.
+ * `onSeeAll` renders the "Lihat semua" link into the full ledger, beside the
+ * heading. Every surface that shows the grid now offers it: the five weeks on
+ * screen are a summary, and the mitra arguing about a week off the left edge is
+ * exactly when the BP needs the rest.
  *
- * `flat` strips the card — no border, no padding, and no "Riwayat Angsuran"
- * heading — so the grid and the breakdown sit straight on the page. The collect
- * page uses it to read its identity, its history and its bill as ONE unified
- * block rather than a stack of bordered boxes; the mitra page keeps the card,
- * where the breakdown is one section among several and its edge earns its place.
+ * `flat` strips the card — no border, no padding — so the grid and the
+ * breakdown sit straight on the page. The heading stays either way: a section
+ * with no edge needs its name more, not less.
  */
 export function AngsuranCard({
   mitra,
   onSeeAll,
-  onSeeHistory,
   flat,
 }: {
   mitra: Mitra
   onSeeAll?: () => void
-  /**
-   * A compact link into the full ledger, sitting directly UNDER the week grid
-   * and above the bill — where the flat home-visit header wants its entry point,
-   * tied to the history it expands rather than trailing the total as a footer.
-   * The carded surfaces use `onSeeAll` in the heading instead.
-   */
-  onSeeHistory?: () => void
   flat?: boolean
 }) {
   const owed = outstandingOf(mitra)
   const overdue = owed.missed + owed.partial
 
+  const last = lastPaymentOf(mitra)
+
   const inner = (
     <>
-      {!flat ? (
-        <div className="flex items-center gap-8">
-          <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">
-            Riwayat Angsuran
-          </span>
-          {onSeeAll ? (
-            <button
-              type="button"
-              onClick={onSeeAll}
-              className="flex shrink-0 items-center gap-2 text-12 font-bold text-link"
-            >
-              Lihat Semua
-              <IconChevronRight size={16} />
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      {/* The heading and its way out to the full ledger, on the same line —
+          including in flat mode, where the section still needs naming even
+          though it has no card edge to be named inside. */}
+      <div className="flex items-center gap-8">
+        <span className="min-w-0 flex-1 truncate text-14 font-bold text-default">
+          Riwayat angsuran
+        </span>
+        {onSeeAll ? (
+          <button
+            type="button"
+            onClick={onSeeAll}
+            className="flex shrink-0 items-center gap-4 text-12 font-bold text-link"
+          >
+            Lihat semua
+            <ArrowRight size={16} />
+          </button>
+        ) : null}
+      </div>
 
       <WeekGrid weeks={mitra.weeks} />
 
-      {onSeeHistory ? (
-        <button
-          type="button"
-          onClick={onSeeHistory}
-          className="self-center text-12 font-bold text-link"
-        >
-          Lihat Semua Riwayat Angsuran
-        </button>
+      {/* The last instalment that actually landed, as one quiet line under the
+          grid rather than a card of its own. It answers the question the grid
+          raises — "when did she last pay anything?" — and a mitra whose recent
+          weeks are all empty is exactly the one where the answer is off the
+          left edge of the strip. */}
+      {last ? (
+        <span className="text-12 text-caption">
+          Pembayaran terakhir: {last.date} · {rupiah(last.amount)}
+        </span>
       ) : null}
+
 
       <div className="flex flex-col gap-8">
         {/* Always shown, even at Rp0: a mitra reads "Tunggakan Rp0" as the good
@@ -223,10 +219,36 @@ export function KetuaBadge({ mitra }: { mitra: Mitra }) {
   )
 }
 
+/**
+ * The 7-day bucket a DPD falls in: 34 days late is "DPD 31-37".
+ *
+ * The reference badges the BUCKET, not the day count, and it is right to — the
+ * bucket is what ops acts on, what the BP is measured against, and what makes
+ * two mitra comparable at a glance down a roster of 22. "DPD 34" beside "DPD 31"
+ * invites a distinction that means nothing; both are the same collection.
+ */
+function dpdBucket(dpd: number): string {
+  const band = Math.ceil(dpd / 7)
+  return `DPD ${(band - 1) * 7 + 1}-${band * 7}`
+}
+
 export function DpdBadge({ dpd, format = 'long' }: { dpd: number; format?: 'long' | 'short' }) {
-  if (dpd === 0) return <Badge intent="green">Lancar</Badge>
-  const intent = dpd >= 30 ? 'red' : 'orange'
-  return <Badge intent={intent}>{format === 'short' ? `DPD ${dpd}` : `Menunggak ${dpd} hari`}</Badge>
+  if (dpd === 0) {
+    return (
+      <Badge intent="green" variant="outline">
+        Lancar
+      </Badge>
+    )
+  }
+  // Three bands, not two: a mitra one week late and a mitra a month late were
+  // both wearing the same orange, which is the whole colour spent on "behind"
+  // and none left for "behind enough to matter".
+  const intent = dpd > 37 ? 'red' : dpd <= 7 ? 'yellow' : 'orange'
+  return (
+    <Badge intent={intent} variant="outline">
+      {format === 'short' ? dpdBucket(dpd) : `Menunggak ${dpd} hari`}
+    </Badge>
+  )
 }
 
 /**
@@ -423,12 +445,15 @@ export function JanjiBayarCard({
   return (
     <div
       className={`flex items-center gap-12 ${
-        flat ? '' : 'rounded-12 border border-primary-200 bg-primary-50 p-12'
+        flat ? '' : 'rounded-12 border border-orange-200 bg-orange-50 p-12'
       }`}
     >
+      {/* Orange, and a disc rather than a rounded square: a promise is a date
+          with a deadline attached, and in a page that spends purple on what the
+          BP can DO, a purple glyph on a standing fact read as a control. */}
       <span
-        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-8 text-primary-500 ${
-          flat ? 'bg-primary-50' : 'bg-neutral-white'
+        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-full text-orange-500 ${
+          flat ? 'bg-orange-50' : 'bg-neutral-white'
         }`}
       >
         <IconCalendar size={20} />
@@ -437,39 +462,6 @@ export function JanjiBayarCard({
         <span className="text-12 text-caption">Janji bayar</span>
         <span className="break-words text-14 font-bold text-default">
           {date} · {rupiah(mitra.ptpAmount)}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-/**
- * The last instalment that actually landed — its date and amount, read straight
- * off the ledger so it can never disagree with the week strip. Drawn as the same
- * icon-tile fact-row as `JanjiBayarCard` and stacked beside it — same purple
- * glyph on the same tinted tile — so the two facts read as one pair. Renders
- * nothing for a mitra who has paid nothing yet.
- */
-export function LastPaymentCard({ mitra, flat }: { mitra: Mitra; flat?: boolean }) {
-  const last = lastPaymentOf(mitra)
-  if (!last) return null
-  return (
-    <div
-      className={`flex items-center gap-12 ${
-        flat ? '' : 'rounded-12 border border-default bg-neutral-white p-12'
-      }`}
-    >
-      <span
-        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-8 text-primary-500 ${
-          flat ? 'bg-primary-50' : 'bg-neutral-white'
-        }`}
-      >
-        <IconWallet size={20} />
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="text-12 text-caption">Pembayaran terakhir</span>
-        <span className="break-words text-14 font-bold text-default">
-          {last.date} · {rupiah(last.amount)}
         </span>
       </div>
     </div>
@@ -494,7 +486,11 @@ export function MitraCard({
    * stage that wants no second line at all; only `undefined` falls back.
    */
   meta?: ReactNode
-  /** Sits against the name. For what she IS in the group, not how she is doing. */
+  /**
+   * Rides at the END of the name row, pinned to the card's right edge. For a
+   * standing fact about her — her product, her chair — rather than how she is
+   * doing on this visit, which belongs in `labels` under it.
+   */
   titleBadge?: ReactNode
   /**
    * A wrapping row of small labels under the meta. Kept as a slot rather than
@@ -524,8 +520,13 @@ export function MitraCard({
     <>
       <MitraPhoto />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="flex items-center gap-4">
-          <span className="truncate text-16 font-bold text-default">{mitra.name}</span>
+        {/* The name takes the row and whatever rides with it is pushed to the
+            far edge — which is where the reference puts the product, level with
+            her name rather than floating between it and her badges. */}
+        <span className="flex items-center gap-8">
+          <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">
+            {mitra.name}
+          </span>
           {titleBadge}
         </span>
         {meta === undefined ? (

@@ -267,6 +267,13 @@ export const project: ProjectModule = {
           description: 'Including one part-payment and one refusal with a promise to pay',
           apply: demo.queueDone,
         },
+        {
+          id: 'every-state',
+          label: 'One of every card state',
+          description:
+            'Lunas, sebagian, via Poket (full and short), tanggung renteng, tidak bayar, berhenti pinjam',
+          apply: demo.queueEveryOutcome,
+        },
       ],
       flowsTo: [
         { to: 'collect', label: 'Tagih' },

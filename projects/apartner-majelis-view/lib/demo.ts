@@ -88,15 +88,33 @@ export const registerDone = () => {
 
 // --- Stage 2: the queue ----------------------------------------------------
 
+// Every queue state clears `payMode`, `poketProof` and `dropOut` as well as the
+// payments: they are what tells the card WHICH result it is showing, so a state
+// that left them behind would seed a roster still wearing the last one's
+// outcomes.
+const noOutcomes = { payMode: {}, poketProof: {}, dropOut: {}, partialPtp: {} } as const
+
 export const queueFull = () =>
-  store.set({ payments: freshPayments(), nonPayments: {}, shortfallReasons: {}, lastCollect: null })
+  store.set({
+    payments: freshPayments(),
+    nonPayments: {},
+    shortfallReasons: {},
+    lastCollect: null,
+    ...noOutcomes,
+  })
 
 export const queueHalf = () => {
   const payments = freshPayments()
   collectible.slice(0, Math.ceil(collectible.length / 2)).forEach((m) => {
     payments[m.id] = outstandingOf(m).total
   })
-  store.set({ payments, nonPayments: {}, shortfallReasons: {}, lastCollect: null })
+  store.set({
+    payments,
+    nonPayments: {},
+    shortfallReasons: {},
+    lastCollect: null,
+    ...noOutcomes,
+  })
 }
 
 /** Everyone recorded, and the two outcomes that are not "lunas" both present. */
@@ -115,6 +133,55 @@ export const queueDone = () => {
     // A part-payment carries its reason exactly as a refusal does — the balance
     // it leaves behind has to be chaseable by whoever reads the visit later.
     shortfallReasons: { [partial.id]: 'Uang belum terkumpul semua' },
+    lastCollect: null,
+    ...noOutcomes,
+    payMode: { [refuser.id]: 'tidak', [partial.id]: 'sebagian' },
+  })
+}
+
+/**
+ * Every result a mitra card can carry, on one screen, in roster order.
+ *
+ * The eight states of the card are the thing under review, and most of them
+ * cost a full pass through the collect menu to reach — some of them twice, on
+ * two different mitra, because a card can only be in one state at a time. This
+ * seeds one of each: a cash lunas and a part-payment, the same two through
+ * Poket, a bill the group covered, a refusal, a mitra leaving the program, and
+ * the fifteen who had already settled before the BP arrived.
+ */
+export const queueEveryOutcome = () => {
+  const payments = freshPayments()
+  const [sebagian, tanggung, poketLunas, poketSebagian, lunas, tidak, keluar] = collectible
+
+  payments[lunas.id] = outstandingOf(lunas).total
+  payments[tanggung.id] = outstandingOf(tanggung).total
+  payments[poketLunas.id] = outstandingOf(poketLunas).total
+  payments[sebagian.id] = Math.round(outstandingOf(sebagian).total / 2)
+  payments[poketSebagian.id] = Math.round(outstandingOf(poketSebagian).total / 2)
+
+  store.set({
+    payments,
+    payMode: {
+      [lunas.id]: 'penuh',
+      [sebagian.id]: 'sebagian',
+      [tanggung.id]: 'tanggung',
+      [poketLunas.id]: 'poket',
+      [poketSebagian.id]: 'poket',
+      [tidak.id]: 'tidak',
+      [keluar.id]: 'keluar',
+    },
+    // The screenshot behind each Poket claim — without it the card has a state
+    // the flow would never have let the BP save.
+    poketProof: { [poketLunas.id]: true, [poketSebagian.id]: true },
+    nonPayments: {
+      [tidak.id]: { reason: 'Usaha sedang sepi', ptp: '25 Juli' },
+    },
+    dropOut: { [keluar.id]: 'Pindah tanpa kabar' },
+    shortfallReasons: {
+      [sebagian.id]: 'Uang belum terkumpul semua',
+      [poketSebagian.id]: 'Usaha sedang sepi',
+    },
+    partialPtp: { [sebagian.id]: '23 Juli', [poketSebagian.id]: null },
     lastCollect: null,
   })
 }

@@ -28,7 +28,6 @@ import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, isSelfServe, outstandingOf, rupiah, type Mitra } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
-import { IconCheck } from '../lib/icons'
 import { DpdBadge, KetuaBadge, MitraCard } from '../lib/mitra-card'
 import {
   cashBillableTotal,
@@ -47,6 +46,7 @@ import {
   ProductBadge,
   ProgressCard,
   ResultRow,
+  type ResultTone,
   RosterFilter,
   SectionTitle,
   StageBar,
@@ -114,15 +114,14 @@ export function CollectionScreen() {
         <ProgressCard
           flat
           showPercent={false}
-          title="Cash Terkumpul"
+          title="Tunai terkumpul"
           value={rupiah(cashCollected)}
           of={rupiah(cashBillable)}
           percent={cashBillable > 0 ? Math.round((cashCollected / cashBillable) * 100) : 0}
-          tone="green"
         />
       </div>
 
-      <SectionTitle>Daftar Mitra</SectionTitle>
+      <SectionTitle>Daftar mitra</SectionTitle>
 
       {/* "Who is left" is the question this stage is asked constantly, and it
           was being answered by scrolling 22 cards looking for buttons. */}
@@ -163,16 +162,95 @@ export function CollectionScreen() {
           const absence =
             s.attendance[mitra.id] === 'tidak' ? (s.absenceReasons[mitra.id] ?? null) : null
 
+          // The recorded outcome, as the band says it: a tone, the words, the
+          // figure the outcome is ABOUT, and whatever it leaves for whoever
+          // reads the visit later. Built here rather than in the JSX because
+          // the seven results differ in every one of those four fields, and as
+          // nested ternaries in props they could no longer be read as a set.
+          //
+          // Who paid is part of the record: a bill closed by the group under
+          // tanggung renteng, one caught up through Poket days ago and one
+          // handed over in cash this morning are three different facts, and the
+          // card is where the BP re-reads which one she entered.
+          function resultOf(): {
+            tone: ResultTone
+            label: string
+            amount?: string
+            notes?: { label: string; value: string }[]
+            proof?: boolean
+          } {
+            if (status === 'keluar') {
+              return {
+                tone: 'red',
+                label: 'Berhenti pinjam',
+                // No figure. She did not pay a smaller number — she stopped
+                // having a bill at all, and "Rp0" beside her name says the
+                // opposite of that.
+                notes: [{ label: 'Alasan', value: s.dropOut[mitra.id] ?? '—' }],
+              }
+            }
+            if (status === 'tidak') {
+              return {
+                tone: 'red',
+                label: 'Tidak bayar',
+                // What she did NOT pay, not "Rp0": the figure on the band is
+                // always the money the outcome is about, and on a refusal that
+                // is the bill still standing.
+                amount: rupiah(owed.total),
+                notes: [
+                  { label: 'Alasan', value: refusal?.reason ?? '—' },
+                  { label: 'Janji bayar', value: refusal?.ptp ?? 'Tidak ada janji bayar' },
+                ],
+              }
+            }
+            // A part-payment leaves a balance, and a balance nobody wrote a
+            // reason and a date against is a balance nobody can chase — so both
+            // ride under the band, with what is still short.
+            const notes =
+              status === 'sebagian'
+                ? [
+                    { label: 'Kurang', value: rupiah(remainingOf(s, mitra)) },
+                    { label: 'Alasan', value: s.shortfallReasons[mitra.id] ?? '—' },
+                    { label: 'Janji bayar', value: s.partialPtp[mitra.id] ?? 'Tidak ada janji bayar' },
+                  ]
+                : undefined
+            return {
+              // A Poket payment that covered the bill and one that fell short
+              // are different outcomes, exactly as they are in cash: the second
+              // leaves a balance, and green on it would file a part-payment as
+              // settled.
+              tone: status === 'lunas' ? 'green' : 'orange',
+              label: byPoket
+                ? status === 'lunas'
+                  ? 'Bayar via Poket'
+                  : 'Bayar sebagian via Poket'
+                : byGroup
+                  ? 'Ditanggung renteng'
+                  : status === 'lunas'
+                    ? 'Lunas'
+                    : 'Bayar sebagian',
+              amount: rupiah(paid),
+              notes,
+              // The screenshot is what makes a Poket claim more than one
+              // person's word about a payment nobody's system has seen.
+              proof: byPoket,
+            }
+          }
+
+          const result = resultOf()
+
           return (
             <MitraCard
               key={mitra.id}
               mitra={mitra}
               // Identical to stage 1, deliberately. See attendance.tsx.
               meta={null}
+              // See attendance.tsx — the product labels the card from the right
+              // edge of the name row on all three stages.
+              titleBadge={<ProductBadge product={mitra.product} />}
               labels={
                 <>
                   <KetuaBadge mitra={mitra} />
-                  <ProductBadge product={mitra.product} />
                   <DpdBadge dpd={mitra.dpd} format="short" />
                   {/* Red only for the absence that ends the membership — the
                       rest are this week's news and read as neutral facts, and
@@ -190,15 +268,11 @@ export function CollectionScreen() {
               }}
               action={
                 selfPaid ? (
-                  <ResultRow
-                    label="Dibayar mandiri"
-                    amount={rupiah(paid)}
-                    badge={
-                      <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                        Lunas
-                      </Badge>
-                    }
-                  />
+                  // Settled before the BP arrived, so the band carries the fact
+                  // and no "Ubah": there is nothing of hers for the BP to
+                  // correct, and a control here would invite a second entry
+                  // against money that never passed through her hands.
+                  <ResultRow tone="green" label="Sudah bayar via Poket" amount={rupiah(paid)} />
                 ) : status === 'belum' ? (
                   <ActionRow label="Tagihan" value={rupiah(owed.total)}>
                     {/* Default size, not sm: sm sets 12px type and the pills on
@@ -210,79 +284,16 @@ export function CollectionScreen() {
                     </Button>
                   </ActionRow>
                 ) : (
-                  // The figure leads, its status sits beside it, and whatever is
-                  // left to say drops to a second row rather than being crushed
-                  // into the first. "Ubah" reopens the page that produced the
-                  // outcome, so a recorded entry is never trapped.
+                  // One band, in the colour of what happened, with everything
+                  // the outcome left behind hanging under it. "Ubah" reopens the
+                  // page that produced it, so a recorded entry is never trapped.
                   <ResultRow
-                    // Who paid it is part of the record: a bill closed by the
-                    // group under tanggung renteng is not the same fact as a
-                    // mitra who handed over the money herself, and the card is
-                    // where the BP re-reads what she entered.
-                    label={
-                      byPoket
-                        ? 'Sudah bayar via Poket'
-                        : byGroup
-                          ? 'Ditanggung kelompok'
-                          : 'Dibayar hari ini'
-                    }
-                    amount={rupiah(status === 'tidak' ? 0 : paid)}
-                    badge={
-                      // A Poket payment that covered the bill and one that fell
-                      // short are different outcomes, exactly as they are in
-                      // cash: the second leaves a balance, and a green tick on
-                      // it would file a part-payment as settled.
-                      byPoket ? (
-                        status === 'lunas' ? (
-                          <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                            Via Poket
-                          </Badge>
-                        ) : (
-                          <Badge intent="orange">Sebagian via Poket</Badge>
-                        )
-                      ) : byGroup ? (
-                        <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                          Tanggung renteng
-                        </Badge>
-                      ) : status === 'lunas' ? (
-                        <Badge intent="green" leadingIcon={<IconCheck size={16} />}>
-                          Lunas
-                        </Badge>
-                      ) : status === 'sebagian' ? (
-                        <Badge intent="orange">Sebagian</Badge>
-                      ) : (
-                        <Badge intent="red">Tidak bayar</Badge>
-                      )
-                    }
+                    tone={result.tone}
+                    label={result.label}
+                    amount={result.amount}
+                    notes={result.notes}
+                    proof={result.proof}
                     onEdit={() => openCollect(mitra.id)}
-                    detail={
-                      status === 'tidak'
-                        ? {
-                            label: 'Alasan',
-                            value: refusal?.reason ?? '—',
-                            note: refusal?.ptp
-                              ? `Janji bayar ${refusal.ptp}`
-                              : 'Tidak ada janji bayar',
-                          }
-                        : status === 'sebagian'
-                          ? {
-                              label: 'Kurang',
-                              value: rupiah(remainingOf(s, mitra)),
-                              tone: 'red',
-                              // The reason AND the date she gave for the rest: a
-                              // shortfall with no promise against it is the same
-                              // unchaseable gap as a refusal with no date.
-                              note: [
-                                s.shortfallReasons[mitra.id],
-                                s.partialPtp[mitra.id]
-                                  ? `Janji ${s.partialPtp[mitra.id]}`
-                                  : 'Tanpa janji',
-                              ]
-                                .filter(Boolean)
-                                .join(' · '),
-                            }
-                          : undefined
-                    }
                   />
                 )
               }
@@ -299,18 +310,26 @@ export function CollectionScreen() {
             missing, because a disabled button with no reason attached is the
             most common way a blocking step becomes a support ticket. */}
         {pending.length > 0 ? (
-          <span className="text-center text-12 font-bold text-orange-500">
-            {pending.length} mitra belum ditagih
+          <span className="text-center text-12 text-caption">
+            {pending.length} mitra belum dicatat pembayarannya
           </span>
         ) : null}
-        <Button
-          size="lg"
-          className="w-full"
-          disabled={pending.length > 0}
-          onClick={() => flow.go('growth')}
-        >
-          Lanjut
-        </Button>
+        {/* Two buttons, equal width: the way back out of a stage is part of the
+            footer rather than only the arrow in the top bar, which a BP working
+            one-handed on a motorbike stand cannot reach. */}
+        <div className="flex gap-12">
+          <Button size="lg" variant="secondary" className="flex-1" onClick={() => flow.back()}>
+            Kembali
+          </Button>
+          <Button
+            size="lg"
+            className="flex-1"
+            disabled={pending.length > 0}
+            onClick={() => flow.go('growth')}
+          >
+            Lanjut
+          </Button>
+        </div>
       </StickyBar>
     </Screen>
   )

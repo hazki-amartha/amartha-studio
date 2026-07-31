@@ -62,6 +62,10 @@ export function ProofScreen() {
   const lunasN = recorded.filter((m) => collectStatus(s, m) === 'lunas').length
   const sebagianN = recorded.filter((m) => collectStatus(s, m) === 'sebagian').length
   const tidakN = recorded.filter((m) => collectStatus(s, m) === 'tidak').length
+  // Counted apart from "belum bayar", and only shown when there is one: a mitra
+  // leaving the program is the outcome of this visit ops most wants to see, and
+  // folding her into the refusals would hide the case she opens.
+  const keluarN = recorded.filter((m) => collectStatus(s, m) === 'keluar').length
 
   function submit() {
     // Finishing the visit is what "Selesaikan Tugas" does; the WhatsApp preview
@@ -104,6 +108,12 @@ export function ProofScreen() {
           <span>{sebagianN} sebagian</span>
           <span className="text-disabled">·</span>
           <span>{tidakN} belum bayar</span>
+          {keluarN > 0 ? (
+            <>
+              <span className="text-disabled">·</span>
+              <span>{keluarN} berhenti pinjam</span>
+            </>
+          ) : null}
         </div>
       </Card>
 

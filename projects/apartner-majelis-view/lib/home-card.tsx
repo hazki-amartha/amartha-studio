@@ -3,13 +3,20 @@
 // The doorstep card, and the amount card under it — the two blocks a home visit
 // opens with.
 //
-// The mitra leads with her name and WhatsApp, then her two places — her house
-// and her warung — each a small photo, its address, and a route, because a home
-// visit may be chasing either and the two are rarely the same door.
+// The mitra and her penanggung jawab are TWO ROWS of the same shape — an
+// avatar, a name, a line about them, and the round buttons that reach them —
+// because at the door they are two people the BP may be about to talk to, and
+// drawing one as a card and the other as a row said one of them mattered less.
 //
-//   [avatar] Nama  ›                                  [WA]
-//   [🏠]     Rumah          · alamat rumah          [Peta]
-//   [🏪]     Tempat usaha   · alamat usaha          [Peta]
+//   [avatar] Nama  ›                          [WA] [Peta]
+//            Modal
+//   ────────────────────────────────────────────────────
+//   [avatar] Dono Sutardi                     [WA] [Peta]
+//            Penanggung jawab
+//
+// Her two places — her house and her warung, each a small photo, its address
+// and a route — sit behind "Selengkapnya", since a home visit may be chasing
+// either but neither is the question this page asks.
 //
 // Her penanggung jawab reuses the flat ContactRow below — a person, a subtitle,
 // and the round buttons that reach them — with his relation and address as the
@@ -26,7 +33,7 @@ import { type Mitra } from './data'
 import { IconChevronRight } from './icons'
 import { BusinessPhoto, HousePhoto, MitraPhoto, mapsUrl } from './mitra-card'
 import { WhatsappLogo } from '@/design-system/icons'
-import { ContactButton, PinMark } from './ui'
+import { ContactButton, PinMark, ProductBadge } from './ui'
 
 /**
  * One contact, one row: an avatar, a name (optionally a button that opens a
@@ -76,17 +83,18 @@ export function ContactRow({
         <div className="min-w-0 text-12">{subtitle}</div>
       </div>
 
-      {/* The route to the door, then WhatsApp. Map first, because at the door
-          the first move is getting there. */}
+      {/* WhatsApp, then the route. Reaching her comes first: a BP who is still
+          reading the card has not left yet, and the message that saves the trip
+          ("Bu, saya di depan?") is the one she sends before she rides. */}
       <div className="flex shrink-0 gap-8">
+        <ContactButton label={waLabel} tone="green">
+          <WhatsappLogo size={20} />
+        </ContactButton>
         {mapHref ? (
           <ContactButton label={mapLabel ?? `Buka lokasi ${name} di peta`} tone="red" href={mapHref}>
             <PinMark size={20} />
           </ContactButton>
         ) : null}
-        <ContactButton label={waLabel} tone="green">
-          <WhatsappLogo size={20} />
-        </ContactButton>
       </div>
     </div>
   )
@@ -100,6 +108,7 @@ export function HomeMitraCard({
   housePhoto,
   onOpen,
   onEnlarge,
+  expanded,
 }: {
   mitra: Mitra
   /** Her home address. */
@@ -113,51 +122,53 @@ export function HomeMitraCard({
   onOpen: () => void
   /** Enlarges a photo in a lightbox. */
   onEnlarge?: (src: string) => void
+  /**
+   * Reveals her two places. Collapsed, she is one contact row like her PJ —
+   * which is all the BP needs once she is standing at the door. The addresses
+   * are for GETTING there, and a card that leads with them puts the ride ahead
+   * of the visit on a page whose question is "who did you meet?".
+   */
+  expanded?: boolean
 }) {
   return (
-    <div className="flex gap-12">
-      <MitraPhoto src={photo} onClick={photo && onEnlarge ? () => onEnlarge(photo) : undefined} />
-      <div className="flex min-w-0 flex-1 flex-col gap-12">
-        {/* Name opens her page; WhatsApp reaches her. */}
-        <div className="flex items-center gap-8">
-          <button
-            type="button"
-            onClick={onOpen}
-            aria-label={`Buka halaman ${mitra.name}`}
-            className="flex min-w-0 flex-1 items-center gap-4 text-left"
-          >
-            <span className="truncate text-14 font-bold text-default">{mitra.name}</span>
-            <span className="shrink-0 text-disabled">
-              <IconChevronRight size={16} />
-            </span>
-          </button>
-          <ContactButton label={`WhatsApp ${mitra.name}`} tone="green">
-            <WhatsappLogo size={20} />
-          </ContactButton>
-        </div>
+    <div className="flex flex-col gap-12">
+      <ContactRow
+        avatar={
+          <MitraPhoto src={photo} onClick={photo && onEnlarge ? () => onEnlarge(photo) : undefined} />
+        }
+        name={mitra.name}
+        subtitle={<ProductBadge product={mitra.product} />}
+        onOpen={onOpen}
+        mapHref={mapsUrl(address)}
+        mapLabel={`Buka lokasi rumah ${mitra.name} di peta`}
+        waLabel={`WhatsApp ${mitra.name}`}
+      />
 
-        {/* Her two places, each a photo, its address, and a route of its own. */}
-        <LocationRow
-          photo={
-            <HousePhoto
-              size={32}
-              src={housePhoto}
-              onClick={housePhoto && onEnlarge ? () => onEnlarge(housePhoto) : undefined}
-            />
-          }
-          label="Rumah"
-          address={address}
-          mapHref={mapsUrl(address)}
-          mapLabel={`Buka lokasi rumah ${mitra.name} di peta`}
-        />
-        <LocationRow
-          photo={<BusinessPhoto size={32} />}
-          label="Tempat usaha"
-          address={business}
-          mapHref={mapsUrl(business)}
-          mapLabel={`Buka lokasi usaha ${mitra.name} di peta`}
-        />
-      </div>
+      {/* Her two places, each a photo, its address, and a route of its own. */}
+      {expanded ? (
+        <>
+          <LocationRow
+            photo={
+              <HousePhoto
+                size={32}
+                src={housePhoto}
+                onClick={housePhoto && onEnlarge ? () => onEnlarge(housePhoto) : undefined}
+              />
+            }
+            label="Rumah"
+            address={address}
+            mapHref={mapsUrl(address)}
+            mapLabel={`Buka lokasi rumah ${mitra.name} di peta`}
+          />
+          <LocationRow
+            photo={<BusinessPhoto size={32} />}
+            label="Tempat usaha"
+            address={business}
+            mapHref={mapsUrl(business)}
+            mapLabel={`Buka lokasi usaha ${mitra.name} di peta`}
+          />
+        </>
+      ) : null}
     </div>
   )
 }
