@@ -13,10 +13,10 @@
 // mid-tenor and recovers), so naming it a membership was the card arguing with
 // its own mechanics.
 //
-// The MAJELIS now sits on this card too, but under its OWN lead-in. It moves
-// the week-48 limit, not her grade, so mixing it into the two habits would say
-// something false; a second heading keeps the two asks apart on one card
-// instead of splitting home across two.
+// The MAJELIS is on this card's list now, as its third line. It moves the
+// week-48 limit rather than her grade, which earned it a heading of its own for
+// a while — but a second lead-in over a single row read as a second card inside
+// the card. One list, and the row itself says what it is for.
 //
 // Read top to bottom: WHO the loan is (band) → WHAT COMES NEXT (track) → WHAT
 // IT ADDS (the quote) → WHAT KEEPS IT (two habits) → everything else, one tap
@@ -145,13 +145,6 @@ export function HomeBScreen() {
                 s.attended ? null : <span className="text-12 text-caption">Dicatat otomatis</span>
               }
             />
-          </div>
-
-          <p className="mt-20 text-14 text-caption">
-            Pertahankan untuk dapat tambahan limit:
-          </p>
-
-          <div className="mt-16">
             <MajelisHabit />
           </div>
         </div>
@@ -377,11 +370,11 @@ function Habit({
 }
 
 /**
- * The majelis, folded into the card as a row of the same shape as the two
- * habits — but under its own heading, because it buys a different thing (the
- * week-48 limit, not the grade) and it is the one line on the card that is
- * somebody else's behaviour. Still a door: it opens the majelis page, which is
- * where the roster and the real numbers live.
+ * The majelis, the third line of the list. It buys a different thing from the
+ * two above it — the week-48 limit, not the grade — and it is the one line that
+ * is somebody else's behaviour, so the row says what it is for underneath
+ * itself rather than borrowing a heading. Still a door: it opens the majelis
+ * page, where the roster and the real numbers live.
  *
  * The count appears only in the state where there is something to do about it,
  * same rule the standalone card followed.
@@ -414,7 +407,11 @@ function MajelisHabit() {
           <span className="mt-2 block text-12 text-caption">
             Tambahan limit dari kelompok tidak tercapai tenor ini
           </span>
-        ) : null}
+        ) : (
+          <span className="mt-2 block text-12 text-caption">
+            Untuk tambahan limit di akhir tenor
+          </span>
+        )}
       </span>
       <ChevronRight size={20} className="shrink-0 text-neutral-500" />
     </button>
