@@ -403,6 +403,23 @@ export interface WindowRow {
  * spine and replaces the 48-tile ladder — under this model four weeks buys
  * rhythm and nothing else, so the chapter has no place on B's pages.
  */
+/** full < reduced < failed. A window is only ever graded down, never up. */
+const OUTCOME_RANK: Record<WindowOutcome, number> = { full: 0, reduced: 1, failed: 2 }
+
+/**
+ * The worse of what the log says and what the weeks say. A logged outcome can
+ * only be MORE severe than the weeks — arrears cleared after a close leave a
+ * window that stays failed with nothing owed — but it must never be kinder:
+ * a window whose own boxes show an unpaid week cannot print a full increment
+ * because the seed happened not to log it.
+ */
+function gradedOutcome(s: AppState, index: number): WindowOutcome {
+  const logged = s.windowLog[index - 1]
+  const fromWeeks = outcomeOf(s, index)
+  if (!logged) return fromWeeks
+  return OUTCOME_RANK[logged] >= OUTCOME_RANK[fromWeeks] ? logged : fromWeeks
+}
+
 export function windowRows(s: AppState): WindowRow[] {
   const now = currentWindow(s)
   return Array.from({ length: WINDOWS_IN_TENOR }, (_, i) => {
@@ -413,7 +430,7 @@ export function windowRows(s: AppState): WindowRow[] {
       from: windowStart(index),
       to: windowEnd(index),
       status,
-      outcome: status === 'closed' ? (s.windowLog[i] ?? 'full') : outcomeOf(s, index),
+      outcome: status === 'closed' ? gradedOutcome(s, index) : outcomeOf(s, index),
       final: index === WINDOWS_IN_TENOR,
     }
   })
