@@ -16,7 +16,7 @@
 // the same store the screens already read, so a demo state is indistinguishable
 // from having done the work by hand.
 
-import { WEEKLY_BILL } from './data'
+import { WEEKLY_BILL, type JourneyPhase } from './data'
 import { store } from './store'
 
 /** Wipe every screen-crossing value back to a fresh, unpaid week. */
@@ -136,3 +136,17 @@ export const viaTransfer = () => {
   reset()
   store.set({ amount: WEEKLY_BILL, method: 'transfer' })
 }
+
+// --- Progress ladder -------------------------------------------------------
+// Each seeds a snapshot of the milestone journey (see MILESTONE_SETS). Payment
+// state is left alone — the ladder is a separate axis from the weekly bill.
+
+const journey = (journeyPhase: JourneyPhase) => () => store.set({ journeyPhase })
+
+/** Back to the entry view — the four rungs from 14 Jul to 23 Mar. */
+export const journeySekarang = journey('default')
+export const journeyGagal = journey('gagal')
+export const journeyOkt = journey('okt')
+export const journeyJan = journey('jan')
+export const journeyMar = journey('mar')
+export const journeyNewLoan = journey('newloan')
