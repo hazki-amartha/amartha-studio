@@ -143,8 +143,10 @@ export const viaTransfer = () => {
 
 const journey = (journeyPhase: JourneyPhase) => () => store.set({ journeyPhase })
 
-/** Back to the entry view — the four rungs from 14 Jul to 23 Mar. */
+/** Back to the entry view — before 14 Jul, so nothing is unlocked or missed. */
 export const journeySekarang = journey('default')
+export const journeySisaLimit = journey('sisalimit')
+export const journeyJul = journey('jul')
 export const journeyGagal = journey('gagal')
 export const journeyOkt = journey('okt')
 export const journeyJan = journey('jan')

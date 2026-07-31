@@ -122,26 +122,26 @@ export interface Milestone {
 export const MILESTONES: Milestone[] = [
   {
     label: '14 Jul 2026',
-    status: { label: 'Berhasil diraih', tone: 'green' },
-    actionLabel: 'Cairkan dana',
-    amount: '+Rp1.250.000',
-    state: 'unlocked',
-    cta: 'Cairkan',
-    detail: 'milestone-unlocked',
-  },
-  {
-    label: '6 Okt 2026',
     status: { label: 'Sesuai rencana', tone: 'blue' },
-    countdown: '10 minggu lagi',
+    countdown: '2 minggu lagi',
     actionLabel: 'Cairkan dana',
     amount: '+Rp1.250.000',
     state: 'next',
     detail: 'milestone-progress',
   },
   {
+    label: '6 Okt 2026',
+    status: { label: 'Sesuai rencana', tone: 'blue' },
+    countdown: '14 minggu lagi',
+    actionLabel: 'Cairkan dana',
+    amount: '+Rp1.250.000',
+    state: 'locked',
+    detail: 'milestone-progress',
+  },
+  {
     label: '26 Jan 2027',
     status: { label: 'Sesuai rencana', tone: 'blue' },
-    countdown: '26 minggu lagi',
+    countdown: '30 minggu lagi',
     actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
     state: 'locked',
     detail: 'milestone-pelunasan',
@@ -149,7 +149,7 @@ export const MILESTONES: Milestone[] = [
   {
     label: '23 Mar 2027 🏆',
     status: { label: 'Berisiko', tone: 'orange' },
-    countdown: '34 minggu lagi',
+    countdown: '38 minggu lagi',
     actionLabel: 'Peluang limit baru',
     amount: 's/d Rp8jt',
     state: 'locked',
@@ -159,15 +159,81 @@ export const MILESTONES: Milestone[] = [
 
 // --- Journey phases (progress-page demo states) ----------------------------
 // Each phase is a snapshot of the ladder at a different point in time. `default`
-// is the entry view (MILESTONES above); the rest are seeded by the state
-// controls on the progress screen. A rung that has been reached but not acted
-// on carries a solid `cta`; once it's cair'd it drops off the top of the ladder,
-// so later phases show fewer rungs.
+// is the entry view (MILESTONES above) — today is BEFORE 14 Jul, so nothing has
+// been unlocked or missed yet and the first rung is simply the next goal. The
+// rest are seeded by the state controls on the progress screen. A rung that has
+// been reached but not acted on carries a solid `cta`; once it's cair'd it stays
+// on the ladder as a collected rung, and only a closed cycle clears the page.
 
-export type JourneyPhase = 'default' | 'gagal' | 'okt' | 'jan' | 'mar' | 'newloan'
+export type JourneyPhase =
+  | 'default'
+  | 'sisalimit'
+  | 'jul'
+  | 'gagal'
+  | 'okt'
+  | 'jan'
+  | 'mar'
+  | 'newloan'
 
 export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
   default: MILESTONES,
+
+  // Still before 14 Jul, but she never drew her whole limit: the leftover sits at the TOP
+  // of the ladder as a rung that is already open — no waiting, no habits to
+  // keep, the money is hers to take. It is dated the day the loan started
+  // rather than a milestone week, because that is when the remainder appeared.
+  sisalimit: [
+    {
+      label: '28 Apr',
+      status: { label: 'Terbuka', tone: 'green' },
+      actionLabel: 'Dapat dicairkan',
+      amount: 'Rp2.500.000',
+      state: 'unlocked',
+      cta: 'Cairkan',
+      detail: 'milestone-unlocked',
+    },
+    ...MILESTONES,
+  ],
+
+  // The week itself: 14 Jul is reached and ready to cair, and 6 Okt becomes the
+  // goal ahead.
+  jul: [
+    {
+      label: '14 Jul 2026',
+      status: { label: 'Berhasil diraih', tone: 'green' },
+      actionLabel: 'Cairkan dana',
+      amount: '+Rp1.250.000',
+      state: 'unlocked',
+      cta: 'Cairkan',
+      detail: 'milestone-unlocked',
+    },
+    {
+      label: '6 Okt 2026',
+      status: { label: 'Sesuai rencana', tone: 'blue' },
+      countdown: '10 minggu lagi',
+      actionLabel: 'Cairkan dana',
+      amount: '+Rp1.250.000',
+      state: 'next',
+      detail: 'milestone-progress',
+    },
+    {
+      label: '26 Jan 2027',
+      status: { label: 'Sesuai rencana', tone: 'blue' },
+      countdown: '26 minggu lagi',
+      actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
+      state: 'locked',
+      detail: 'milestone-pelunasan',
+    },
+    {
+      label: '23 Mar 2027 🏆',
+      status: { label: 'Berisiko', tone: 'orange' },
+      countdown: '34 minggu lagi',
+      actionLabel: 'Peluang limit baru',
+      amount: 's/d Rp8jt',
+      state: 'locked',
+      detail: 'milestone-limit',
+    },
+  ],
 
   // The first goal was missed — it shows Gagal instead of Berhasil diraih.
   gagal: [
@@ -207,9 +273,19 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
     },
   ],
 
-  // Today is 6 Okt: the first cair is done and gone; the second is reached and
-  // ready — the only rung that can be cair'd now.
+  // Today is 6 Okt. The 14 Jul rung stays on the ladder as a collected
+  // achievement — the cycle's record is the page's whole point, so nothing
+  // leaves it until the cycle itself ends. 6 Okt is reached and ready to cair;
+  // 26 Jan is the goal she is now working toward.
   okt: [
+    {
+      label: '14 Jul 2026',
+      status: { label: 'Berhasil diraih', tone: 'green' },
+      actionLabel: 'Dana sudah dicairkan',
+      amount: '+Rp1.250.000',
+      state: 'unlocked',
+      detail: 'milestone-unlocked',
+    },
     {
       label: '6 Okt 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
@@ -238,8 +314,17 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
     },
   ],
 
-  // Today is 26 Jan: two rungs reached, both awaiting action (both purple).
+  // Today is 26 Jan: two rungs reached and still awaiting their action, with
+  // the limit rise now the goal ahead.
   jan: [
+    {
+      label: '14 Jul 2026',
+      status: { label: 'Berhasil diraih', tone: 'green' },
+      actionLabel: 'Dana sudah dicairkan',
+      amount: '+Rp1.250.000',
+      state: 'unlocked',
+      detail: 'milestone-unlocked',
+    },
     {
       label: '6 Okt 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
@@ -263,26 +348,53 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       countdown: '8 minggu lagi',
       actionLabel: 'Peluang limit baru',
       amount: 's/d Rp8jt',
-      state: 'locked',
+      state: 'next',
       detail: 'milestone-limit',
     },
   ],
 
-  // Today is 23 Mar: only the limit-rise remains, reached and ready to cair.
+  // Today is 23 Mar. The limit rise is the last rung of the cycle and nothing
+  // sits beyond it, so IT carries the next-goal marker: reached, and still the
+  // thing she is here to do. The cycle's earlier rungs stay above it.
   mar: [
+    {
+      label: '14 Jul 2026',
+      status: { label: 'Berhasil diraih', tone: 'green' },
+      actionLabel: 'Dana sudah dicairkan',
+      amount: '+Rp1.250.000',
+      state: 'unlocked',
+      detail: 'milestone-unlocked',
+    },
+    {
+      label: '6 Okt 2026',
+      status: { label: 'Berhasil diraih', tone: 'green' },
+      actionLabel: 'Dana sudah dicairkan',
+      amount: '+Rp1.250.000',
+      state: 'unlocked',
+      detail: 'milestone-unlocked',
+    },
+    {
+      label: '26 Jan 2027',
+      status: { label: 'Berhasil diraih', tone: 'green' },
+      actionLabel: 'Pelunasan dini sudah dimulai',
+      state: 'unlocked',
+      detail: 'milestone-pelunasan',
+    },
     {
       label: '23 Mar 2027 🏆',
       status: { label: 'Berhasil diraih', tone: 'green' },
       actionLabel: 'Peluang limit baru',
       amount: 's/d Rp8jt',
-      state: 'unlocked',
+      state: 'next',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
     },
   ],
 
-  // The larger loan is disbursed — a fresh ladder, every ~12 weeks, toward a
-  // Rp10jt ceiling.
+  // The limit rise was unlocked AND cair'd, so the cycle closed: a fresh ladder
+  // every ~12 weeks toward a Rp10jt ceiling, and the previous cycle's rungs
+  // leave the page — they are the ONE thing that clears it. They stay reachable
+  // through the "capaian siklus sebelumnya" link at the foot of the page.
   newloan: [
     {
       label: '15 Jun 2027',
@@ -321,6 +433,10 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
     },
   ],
 }
+
+/** True once a cycle has closed — the naik-limit milestone unlocked and cair'd.
+ *  The ladder starts over, so the page offers a way back to the cycle before it. */
+export const hasPreviousCycle = (phase: JourneyPhase) => phase === 'newloan'
 
 /** The extra capital week 12 opens — the amount the disbursement flow caps at. */
 export const MILESTONE_AMOUNT = 1250000
