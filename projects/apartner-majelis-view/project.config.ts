@@ -10,7 +10,7 @@ export const config: ProjectConfig = {
   device: 'mobile',
   status: 'in-review',
   createdAt: '2026-07-20',
-  updatedAt: '2026-07-26',
+  updatedAt: '2026-07-31',
   notes: [
     'Attendance is a gate, not a step to skip: collection does not open until every mitra in the group is marked, because the register is a record other people read and audit later.',
     'Collection opens a full page rather than a sheet — the week strip, the outstanding split into this-week and missed, and a live "remaining after this" — because that is the moment the BP is negotiating an amount face to face with the mitra.',

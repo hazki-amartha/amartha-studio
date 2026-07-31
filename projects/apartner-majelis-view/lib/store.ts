@@ -985,6 +985,21 @@ export const store = {
     store.set({ attendance: { ...state.attendance, [mitraId]: value }, absenceReasons })
   },
   /**
+   * "Catat semua" — the whole room, marked present in one gesture.
+   *
+   * Only the UNMARKED are touched. An absence already recorded, with its reason
+   * attached, is an answer someone gave out loud; a bulk control that overwrote
+   * one would make the register something the BP has to re-check after using,
+   * which is worse than the 22 taps it saves.
+   */
+  markAllPresent() {
+    const attendance = { ...state.attendance }
+    for (const mitra of MAJELIS.members) {
+      if (!attendance[mitra.id]) attendance[mitra.id] = 'hadir'
+    }
+    store.set({ attendance })
+  },
+  /**
    * Records WHY she isn't here. Marking "Tidak" and giving the reason are two
    * taps on one card now — the card stays where it is and simply grows the
    * reason list — so the absence lands first and this completes it.

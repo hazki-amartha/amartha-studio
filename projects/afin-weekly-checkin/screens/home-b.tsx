@@ -13,9 +13,10 @@
 // mid-tenor and recovers), so naming it a membership was the card arguing with
 // its own mechanics.
 //
-// The MAJELIS is not on this card's list. It moves the week-48 limit, not her
-// grade, so it keeps its own card underneath — which is also the honest shape:
-// nothing on the status list is somebody else's behaviour.
+// The MAJELIS now sits on this card too, but under its OWN lead-in. It moves
+// the week-48 limit, not her grade, so mixing it into the two habits would say
+// something false; a second heading keeps the two asks apart on one card
+// instead of splitting home across two.
 //
 // Read top to bottom: WHO the loan is (band) → WHAT COMES NEXT (track) → WHAT
 // IT ADDS (the quote) → WHAT KEEPS IT (two habits) → everything else, one tap
@@ -24,6 +25,7 @@
 import type { ReactNode } from 'react'
 import {
   ABSENCE_BUDGET,
+  GROUP_SIZE,
   STATUS_NAME,
   TOTAL_WEEKS,
   WINDOW_LENGTH,
@@ -34,6 +36,7 @@ import {
   gradeIncrement,
   gradeInfo,
   gradeOf,
+  groupStatus,
   outcomeOf,
   rupiah,
   weeksLeftInWindow,
@@ -43,13 +46,15 @@ import {
   type WindowRow,
 } from '../lib/data'
 import { store, useApp } from '../lib/store'
-import { HomeShell, MajelisCard, StatusLink } from '../lib/ui'
+import { HomeShell, StatusLink } from '../lib/ui'
 import { useFlow } from '@/platform/runtime'
 import {
   Check,
+  ChevronRight,
   Coins,
   CreditCard,
-  MoneyBag,
+  LogoModal,
+  Majelis,
   Minus,
   TrendUp,
   Users,
@@ -73,11 +78,11 @@ export function HomeBScreen() {
         <div className="bg-gradient-to-br from-primary-400 to-primary-600 px-16 pb-24 pt-16">
           <div className="flex items-start gap-12">
             <span className="flex h-48 w-48 shrink-0 items-center justify-center rounded-12 bg-primary-700 text-neutral-white">
-              <MoneyBag size={24} />
+              <LogoModal size={24} />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-14 text-neutral-white">{STATUS_NAME}</p>
-              <p className="mt-2 text-24 font-bold text-neutral-white">
+              <p className="mt-2 text-16 font-bold text-neutral-white">
                 {gradeInfo(grade).label}
               </p>
             </div>
@@ -141,12 +146,18 @@ export function HomeBScreen() {
               }
             />
           </div>
+
+          <p className="mt-20 text-14 text-caption">
+            Pertahankan untuk dapat tambahan limit:
+          </p>
+
+          <div className="mt-16">
+            <MajelisHabit />
+          </div>
         </div>
 
         <StatusLink />
       </div>
-
-      <MajelisCard />
     </HomeShell>
   )
 }
@@ -362,6 +373,51 @@ function Habit({
         <span className="shrink-0">{trailing}</span>
       )}
     </div>
+  )
+}
+
+/**
+ * The majelis, folded into the card as a row of the same shape as the two
+ * habits — but under its own heading, because it buys a different thing (the
+ * week-48 limit, not the grade) and it is the one line on the card that is
+ * somebody else's behaviour. Still a door: it opens the majelis page, which is
+ * where the roster and the real numbers live.
+ *
+ * The count appears only in the state where there is something to do about it,
+ * same rule the standalone card followed.
+ */
+function MajelisHabit() {
+  const flow = useFlow()
+  const s = useApp()
+  const status = groupStatus(s)
+
+  return (
+    <button
+      type="button"
+      onClick={() => flow.go('majelis')}
+      className="flex w-full items-center gap-16 text-left"
+    >
+      <span
+        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-12 ${
+          status === 'lewat' ? 'bg-neutral-50 text-neutral-500' : 'bg-primary-50 text-primary-500'
+        }`}
+      >
+        <Majelis size={20} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-16 text-default">Jaga kelancaran majelis</span>
+        {status === 'jaga' ? (
+          <span className="mt-2 block text-12 text-orange-500">
+            {GROUP_SIZE - s.groupShort} dari {GROUP_SIZE} sudah bayar minggu ini
+          </span>
+        ) : status === 'lewat' ? (
+          <span className="mt-2 block text-12 text-caption">
+            Tambahan limit dari kelompok tidak tercapai tenor ini
+          </span>
+        ) : null}
+      </span>
+      <ChevronRight size={20} className="shrink-0 text-neutral-500" />
+    </button>
   )
 }
 

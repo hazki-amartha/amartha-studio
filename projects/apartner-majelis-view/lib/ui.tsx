@@ -119,11 +119,15 @@ export function StageBar({
         const no = i + 1
         const done = no < current
         const active = no === current
+        // An upcoming stage is OUTLINED, not filled grey. A filled grey disc
+        // reads as a state — something already decided about — where a ring
+        // around a number reads as an empty slot waiting for her, which is what
+        // stages 2–4 are while she is still marking the register.
         const circle = done
-          ? 'bg-green-500 text-neutral-white'
+          ? 'border-green-500 bg-green-500 text-neutral-white'
           : active
-            ? 'bg-primary-500 text-neutral-white'
-            : 'bg-neutral-200 text-neutral-600'
+            ? 'border-primary-500 bg-primary-500 text-neutral-white'
+            : 'border-default bg-neutral-white text-caption'
         return (
           <div key={label} className="flex flex-1 flex-col items-center gap-4">
             <div className="flex w-full items-center gap-4">
@@ -134,7 +138,7 @@ export function StageBar({
                 className={`h-2 flex-1 rounded-full ${i === 0 ? 'bg-transparent' : done || active ? 'bg-green-500' : 'bg-neutral-200'}`}
               />
               <span
-                className={`flex h-24 w-24 shrink-0 items-center justify-center rounded-full text-12 font-bold ${circle}`}
+                className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full border text-12 font-bold ${circle}`}
               >
                 {done ? <IconCheck size={16} /> : no}
               </span>
@@ -142,8 +146,12 @@ export function StageBar({
                 className={`h-2 flex-1 rounded-full ${i === labels.length - 1 ? 'bg-transparent' : done ? 'bg-green-500' : 'bg-neutral-200'}`}
               />
             </div>
+            {/* Sentence case at reading size, not 10px caps. The stage names are
+                words the BP says ("kehadiran dulu, baru penagihan"), and setting
+                them as a legend under a diagram made the bar look like a chart
+                of the visit rather than the place she is standing in it. */}
             <span
-              className={`text-10 font-bold uppercase ${active ? 'text-primary-500' : done ? 'text-green-500' : 'text-caption'}`}
+              className={`text-12 ${active ? 'font-bold text-default' : done ? 'font-bold text-green-500' : 'font-regular text-caption'}`}
             >
               {label}
             </span>
@@ -612,6 +620,104 @@ export function ChoicePill({ selected, onClick, label, icon, children }: ChoiceP
       {children}
       <span className="shrink-0">{icon}</span>
     </button>
+  )
+}
+
+// --- AttendanceChoice ------------------------------------------------------
+// The register's one gesture, as the final UI draws it: two cells side by side
+// under the rule, "Tidak hadir" and "Hadir", filling the card's width.
+//
+// Not `ChoicePill`, and the difference is the point. A pill is a button — a
+// thing you press to make something happen. These two are a RECORD: one of them
+// is what she said, and the pair is a single field with two possible values. So
+// they take the 8px radius the system gives inputs, and the unchosen one goes
+// quiet rather than staying equally loud, because once an answer exists the card
+// should read as an answer and not as a question still being asked.
+//
+// Colour is the outcome, not the selection: green for present, red for absent.
+// That is the one place this direction spends the semantic pair on attendance —
+// justified because a BP scanning 22 cards for who is still missing is reading
+// exactly that, and a uniform primary tint on both answers made "marked" and
+// "here" the same colour.
+
+export function AttendanceChoice({
+  tone,
+  selected,
+  /** True once EITHER answer is given — what dims the road not taken. */
+  answered,
+  label,
+  onClick,
+  children,
+}: {
+  tone: 'green' | 'red'
+  selected: boolean
+  answered: boolean
+  /** Spoken label — "Hadir" alone doesn't say whose attendance this is. */
+  label: string
+  onClick: () => void
+  children: ReactNode
+}) {
+  const classes = selected
+    ? tone === 'green'
+      ? 'border-green-500 bg-green-50 font-bold text-green-500'
+      : 'border-red-500 bg-red-50 font-bold text-red-500'
+    : answered
+      ? 'border-default bg-neutral-white font-regular text-disabled'
+      : 'border-default bg-neutral-white font-regular text-default'
+
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`flex flex-1 items-center justify-center rounded-8 border px-8 py-8 text-12 ${classes}`}
+    >
+      {children}
+    </button>
+  )
+}
+
+// --- ReasonNote ------------------------------------------------------------
+// The answer behind the answer: why she isn't here, once it has been picked.
+//
+// It is a NOTE, not a form row — a tinted block with a rule down its left edge,
+// the way a quotation is set — because that is what it is: the sentence the BP
+// was told, attached to the mark it explains. The pencil is the only way back
+// into the list, out at the edge where it can't be hit while reading.
+
+export function ReasonNote({
+  label,
+  value,
+  onEdit,
+}: {
+  label: string
+  value: string
+  /** Reopens the list. Omitted renders no pencil. */
+  onEdit?: () => void
+}) {
+  // Square on the left, rounded on the right. The rule IS the left edge — a
+  // radius there pulls the block away from its own margin and turns the mark
+  // into a stripe floating beside the text instead of the edge it is set
+  // against. Neutral, not primary: the rule is punctuation, and this block is
+  // already the quiet half of a card whose answer is coloured above it.
+  return (
+    <div className="flex items-start gap-8 rounded-r-8 border-l-2 border-default bg-neutral-50 p-8">
+      <span className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="truncate text-12 text-caption">{label}</span>
+        <span className="break-words text-12 text-default">{value}</span>
+      </span>
+      {onEdit ? (
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Ubah ${label.toLowerCase()}`}
+          className="shrink-0 text-primary-500"
+        >
+          <NotePencil size={16} />
+        </button>
+      ) : null}
+    </div>
   )
 }
 
