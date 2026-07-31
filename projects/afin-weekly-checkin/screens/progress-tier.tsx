@@ -11,10 +11,10 @@
 // the way the homepage carries its brand band, rather than a purple card in the
 // middle of a page already about it. The band carries the grade AND what the
 // grade is worth, because a status and its benefits are one statement: the two
-// benefits sat in a white card underneath repeating the header's subject. The
-// four grade names above them are the scale, as a control — the only thing the
-// grades differ on is the benefits, so a separate list of them was the same
-// table printed twice.
+// benefits sat in a white card underneath repeating the header's subject. Two
+// benefit lines and nothing else — the grade is already the title and the count
+// beside it is already its evidence, so a heading and a scale above them were
+// the band introducing itself twice before saying anything.
 //
 // Then three blocks, in the order the questions actually arrive:
 //
@@ -47,10 +47,9 @@ import {
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import {
-  FINAL_LIMIT,
-  GRADES,
+  GROUP_BONUS,
   LIMIT_CEILING,
   STATUS_NAME,
   STATUS_RULES,
@@ -66,6 +65,7 @@ import {
   gradeOfOutcome,
   groupStatus,
   rupiah,
+  short,
   weeksIntoWindow,
   windowCells,
   windowQuote,
@@ -82,9 +82,6 @@ export function ProgressTierScreen() {
   const s = useApp()
   const grade = gradeOf(s)
   const ready = disbursable(s)
-  // Which status the benefits below are describing. Hers until she taps
-  // another one — the scale is read by comparison, not by reading a table.
-  const [shown, setShown] = useState<Grade>(grade)
 
   return (
     <Screen statusBar="none">
@@ -130,10 +127,8 @@ export function ProgressTierScreen() {
 
         {/* What the status is WORTH, on the purple. It was a white card under
             the header saying the same thing the header was about; a status and
-            its benefits are one statement, so they are one block. The four
-            names above them are the scale, as a control: tap one and both
-            benefits become that status's. */}
-        <Worth grade={grade} shown={shown} onSelect={setShown} />
+            its benefits are one statement, so they are one block. */}
+        <Worth grade={grade} />
       </div>
 
       {/* 1. The balance, and the four things that build it — one card, because
@@ -231,94 +226,61 @@ export function ProgressTierScreen() {
 }
 
 /**
- * What the status is worth — and, folded into it, the scale. The four grades
- * used to be a card of their own listing four names and four figures beside a
- * card already quoting one of them: the same table, printed twice. Here the
- * names are a CONTROL. Tap one and both benefits become that status's, so a
- * comparison is read in the one place the benefits are stated.
+ * What the status is worth: two benefits and nothing else. The four grade names
+ * and the "Keuntungan Ibu" heading are gone — the grade is already the header's
+ * title and the count beside it is already its evidence, so both were the band
+ * introducing itself twice before saying anything.
+ *
+ * The figures are HER grade's, never the best one: quoting the top increment to
+ * a mitra sitting at Baik would be the page telling her she has something she
+ * does not.
  */
-function Worth({
-  grade,
-  shown,
-  onSelect,
-}: {
-  grade: Grade
-  shown: Grade
-  onSelect: (id: Grade) => void
-}) {
+function Worth({ grade }: { grade: Grade }) {
   const s = useApp()
 
   return (
-    <div className="mt-20">
-      <div className="flex flex-wrap gap-8">
-        {GRADES.map((g) => (
-          <GradePill
-            key={g.id}
-            id={g.id}
-            mine={g.id === grade}
-            shown={g.id === shown}
-            onSelect={() => onSelect(g.id)}
-          />
-        ))}
-      </div>
+    /* Two benefits, and only two. They run on different clocks, and the order
+       says so: the increment is recurring, twelve weeks away and concrete; the
+       limit lands once, at week 48, and stays hedged. */
+    <div className="mt-20 flex flex-col gap-16">
+      <Benefit
+        icon={<Coins size={20} />}
+        title={
+          gradeIncrement(grade) > 0
+            ? `Tambah ${rupiah(gradeIncrement(grade))} di pencairan berikutnya`
+            : 'Pencairan tidak bertambah'
+        }
+      >
+        <span className="mt-2 block text-12 text-neutral-200">
+          Setiap {WINDOW_LENGTH} minggu lancar menambah jumlah yang bisa Ibu cairkan.{' '}
+          {grade === 'sangat-baik'
+            ? 'Status Sangat Baik menambah paling besar.'
+            : grade === 'baik'
+              ? `Jadi ${rupiah(gradeIncrement('sangat-baik'))} kalau semua angsuran tepat waktu.`
+              : 'Belum bertambah selama masih ada angsuran yang belum dibayar.'}
+        </span>
+      </Benefit>
 
-      <h2 className="mt-16 text-16 font-bold text-neutral-white">
-        {shown === grade ? 'Keuntungan Ibu' : `Keuntungan ${gradeInfo(shown).label}`}
-      </h2>
-      <p className="mt-4 text-12 text-neutral-200">
-        {shown === grade
-          ? gradeInfo(grade).earned
-          : `${gradeInfo(shown).earned} · status Ibu sekarang ${gradeInfo(grade).label}`}
-      </p>
-
-      {/* Two benefits, and only two. They run on different clocks, and the
-          order says so: the increment is recurring, twelve weeks away and
-          concrete; the limit lands once, at week 48, and stays hedged. */}
-      <div className="mt-16 flex flex-col gap-16">
-        {/* The figure is the SELECTED grade's — hers unless she has tapped
-            another one. Quoting the top increment to a mitra sitting at Baik
-            would be the page telling her she has something she does not, so a
-            comparison has to be something she asked for. */}
-        <Benefit
-          icon={<Coins size={20} />}
-          title={
-            gradeIncrement(shown) > 0
-              ? `Tambah ${rupiah(gradeIncrement(shown))} di pencairan berikutnya`
-              : 'Pencairan tidak bertambah'
-          }
-        >
-          <span className="mt-2 block text-12 text-neutral-200">
-            Setiap {WINDOW_LENGTH} minggu lancar menambah jumlah yang bisa Ibu cairkan.{' '}
-            {shown === 'sangat-baik'
-              ? 'Status Sangat Baik menambah paling besar.'
-              : shown === 'baik'
-                ? `Jadi ${rupiah(gradeIncrement('sangat-baik'))} kalau semua angsuran tepat waktu.`
-                : 'Belum bertambah selama masih ada angsuran yang belum dibayar.'}
+      <Benefit icon={<TrendUp size={20} />} title={`Naik limit hingga ${rupiah(LIMIT_CEILING)}`}>
+        <span className="mt-2 block text-12 text-neutral-200">
+          {gradeIncrement(grade) > 0
+            ? `Kalau status modal Ibu terjaga sampai minggu ${TOTAL_WEEKS}.`
+            : `Limit baru naik kalau status modal Ibu pulih dan terjaga sampai minggu ${TOTAL_WEEKS}.`}
+        </span>
+        {/* The majelis, named once — under the benefit it actually moves, never
+            as a criterion of her own grade. One line: what the group is worth,
+            not an arithmetic of two limits she has to hold in her head. */}
+        <span className="mt-8 flex items-center gap-8 rounded-8 bg-primary-700 px-8 py-4">
+          <span className="shrink-0 text-neutral-white">
+            <Majelis size={16} />
           </span>
-        </Benefit>
-
-        <Benefit icon={<TrendUp size={20} />} title={`Naik limit hingga ${rupiah(LIMIT_CEILING)}`}>
-          <span className="mt-2 block text-12 text-neutral-200">
-            {gradeIncrement(shown) > 0
-              ? `Kalau status modal Ibu terjaga sampai minggu ${TOTAL_WEEKS}.`
-              : `Limit baru naik kalau status modal Ibu pulih dan terjaga sampai minggu ${TOTAL_WEEKS}.`}
+          <span className="min-w-0 flex-1 text-12 text-neutral-200">
+            {groupStatus(s) === 'lewat'
+              ? `Tambahan ${short(GROUP_BONUS)} dari majelis tidak tercapai`
+              : `+${short(GROUP_BONUS)} dari majelis lancar`}
           </span>
-          {/* The majelis, named once — under the benefit it actually moves,
-              never as a criterion of her own grade. */}
-          <span className="mt-8 flex items-start gap-8 rounded-8 bg-primary-700 p-8">
-            <span className="shrink-0 text-neutral-white">
-              <Majelis size={16} />
-            </span>
-            <span className="min-w-0 flex-1 text-12 text-neutral-200">
-              {rupiah(LIMIT_CEILING)} kalau kelompok Ibu juga lancar, {rupiah(FINAL_LIMIT)} kalau
-              tidak.{' '}
-              {groupStatus(s) === 'lewat'
-                ? 'Kelompok Melati tidak tercapai tenor ini.'
-                : 'Kelompok Melati sedang lancar.'}
-            </span>
-          </span>
-        </Benefit>
-      </div>
+        </span>
+      </Benefit>
     </div>
   )
 }
@@ -346,41 +308,6 @@ function CriterionRow({ item }: { item: Criterion }) {
         <span className="mt-2 block text-12 text-caption">{item.note}</span>
       </span>
     </span>
-  )
-}
-
-/**
- * One rung of the scale, as a control rather than a row — and drawn for the
- * band it now sits on. Selected is a solid white chip on the purple; hers keeps
- * a white outline even while she is reading another one, so a comparison can
- * never be mistaken for the status she actually has.
- */
-function GradePill({
-  id,
-  mine,
-  shown,
-  onSelect,
-}: {
-  id: Grade
-  mine: boolean
-  shown: boolean
-  onSelect: () => void
-}) {
-  const tone = shown
-    ? 'border-neutral-white bg-neutral-white text-primary-600'
-    : mine
-      ? 'border-neutral-white text-neutral-white'
-      : 'border-primary-300 text-neutral-200'
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`flex items-center gap-4 rounded-full border px-12 py-4 text-12 font-bold ${tone}`}
-    >
-      {mine ? <CheckCircleFill size={16} /> : null}
-      {gradeInfo(id).label}
-    </button>
   )
 }
 
