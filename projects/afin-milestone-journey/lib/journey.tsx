@@ -5,7 +5,7 @@
 // live here so the alternative layout can differ at the TOP of the page without
 // forking the ladder underneath it. Project-local (CLAUDE.md §4).
 
-import { Check, ChevronRight, LockKey } from '@/design-system/icons'
+import { Check, ChevronRight, History, LockKey } from '@/design-system/icons'
 import type { Milestone } from './data'
 import type { Health } from './milestone-tracker'
 
@@ -50,6 +50,29 @@ export function ProgressMenuItem({
       </span>
       <span className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${STATUS_TONE[h.tone]}`}>
         {h.label}
+      </span>
+      <span className="shrink-0 text-disabled">
+        <ChevronRight size={16} />
+      </span>
+    </button>
+  )
+}
+
+/** The way back to the cycle that just closed. It sits at the FOOT of the
+ *  ladder and scrolls with it — the current cycle is what she came for, and a
+ *  pinned bar would put last cycle's rungs in front of this one's. Drawn, not
+ *  wired: the achievements page does not exist yet. */
+export function PreviousCycleLink() {
+  return (
+    <button
+      type="button"
+      className="flex w-full items-center gap-8 rounded-12 border border-default bg-neutral-white p-16 text-left"
+    >
+      <span className="shrink-0 text-primary-500">
+        <History size={20} />
+      </span>
+      <span className="min-w-0 flex-1 text-14 font-bold text-primary-500">
+        Lihat capaian siklus sebelumnya
       </span>
       <span className="shrink-0 text-disabled">
         <ChevronRight size={16} />

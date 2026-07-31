@@ -14,10 +14,10 @@ import { BottomSheet, NavigationHeader } from '@/design-system/components'
 import { LightbulbFilament } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { HISTORY, MEMBERS, MILESTONE_SETS } from '../lib/data'
+import { HISTORY, MEMBERS, MILESTONE_SETS, hasPreviousCycle } from '../lib/data'
 import { useApp } from '../lib/store'
 import { healthOf } from '../lib/milestone-tracker'
-import { MilestoneRung, ProgressMenuItem } from '../lib/journey'
+import { MilestoneRung, PreviousCycleLink, ProgressMenuItem } from '../lib/journey'
 
 export function ProgressScreen() {
   const flow = useFlow()
@@ -68,6 +68,10 @@ export function ProgressScreen() {
             onOpen={() => flow.go(m.detail)}
           />
         ))}
+
+        {/* Only once a cycle has closed: last cycle's rungs left the ladder,
+            so this is where they went. */}
+        {hasPreviousCycle(journeyPhase) ? <PreviousCycleLink /> : null}
       </div>
 
       <BottomSheet open={progressOpen} onClose={() => setProgressOpen(false)} title="Progress Ibu">

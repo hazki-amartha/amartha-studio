@@ -11,4 +11,4 @@ Project-local components (§4 missing-component protocol) — all in `lib/ui.tsx
 - **CopyBlock / InfoBlock / Notice / Steps / Hero / ResultHeader / StatRow / Chip / StatusMark / SectionTitle / Caption** — the shared vocabulary of the payment-instruction and outcome screens.
 - **`lib/icons.tsx`** — `IconWalletOff` (empty/crossed-out wallet) and `IconPiggy` (Celengan). Everything else moved to `@/design-system/icons` once the shared FunDS set landed.
 - **`lib/milestone-tracker.tsx`** — `MilestoneTracker`, the shared shape behind each milestone's dedicated tracker page (`milestone-progress`, `milestone-pelunasan`, `milestone-limit`): date header, reward card, and a list of habit rows with a health chip. Keeps the per-milestone screens thin.
-- **`lib/journey.tsx`** — `MilestoneRung` + `ProgressMenuItem`, shared by the two Perjalanan pendanaan layouts (`progress`, `progress-v2`) so the alternative only differs at the top of the page.
+- **`lib/journey.tsx`** — `MilestoneRung`, `ProgressMenuItem` and `PreviousCycleLink`, shared by the two Perjalanan pendanaan layouts (`progress`, `progress-v2`) so the alternative only differs at the top of the page.
