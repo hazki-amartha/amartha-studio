@@ -90,7 +90,23 @@ export function MilestoneRung({
   showConnector: boolean
   onOpen?: () => void
 }) {
-  const { label, status, countdown, actionLabel, amount, state, cta } = milestone
+  const { label, status, countdown, actionLabel, amount, amountTo, footnote, state, cta } =
+    milestone
+
+  // A rung that asks nothing more of her collapses to a single line: the date,
+  // what it was, and how it ended. That covers both a rung she has already
+  // collected and one she missed — in neither case is there a figure worth the
+  // room, and a card with a divider and an empty reward slot reads as unfinished
+  // business. Only rungs with something still to do keep the full card.
+  const collapsed = state === 'missed' || (state === 'unlocked' && !cta)
+
+  const pill = status ? (
+    <span
+      className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${STATUS_TONE[status.tone]}`}
+    >
+      {status.label}
+    </span>
+  ) : null
 
   return (
     <div className="flex gap-12">
@@ -129,49 +145,91 @@ export function MilestoneRung({
         </span>
       </div>
 
-      <div className="min-w-0 flex-1 rounded-12 border border-default bg-neutral-white p-16">
-        {/* Date + countdown on the left, the status pill on the right. */}
-        <div className="flex items-start gap-8">
-          <div className="min-w-0 flex-1">
-            <span className="text-16 font-bold text-default">{label}</span>
-            {countdown ? <p className="mt-2 text-12 text-caption">{countdown}</p> : null}
-          </div>
-          {status ? (
+      {collapsed ? (
+        // The whole card is the target — there is no control drawn on it, but
+        // its tracker page is still worth reaching, especially for a missed
+        // rung where the page explains what went wrong.
+        <button
+          type="button"
+          onClick={onOpen}
+          disabled={!onOpen}
+          className={`flex min-w-0 flex-1 items-start gap-8 rounded-12 border border-default p-16 text-left ${
+            state === 'missed' ? 'bg-neutral-50' : 'bg-neutral-white'
+          }`}
+        >
+          <span className="flex min-w-0 flex-1 flex-col">
             <span
-              className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${STATUS_TONE[status.tone]}`}
+              className={`text-16 font-bold ${state === 'missed' ? 'text-disabled' : 'text-default'}`}
             >
-              {status.label}
+              {label}
             </span>
-          ) : null}
-        </div>
+            <span className={`mt-2 text-12 ${state === 'missed' ? 'text-disabled' : 'text-caption'}`}>
+              {actionLabel}
+            </span>
+          </span>
+          {pill}
+        </button>
+      ) : (
+        <div className="min-w-0 flex-1 overflow-hidden rounded-12 border border-default bg-neutral-white">
+          <div className="p-16">
+            {/* Date + countdown on the left, the status pill on the right. */}
+            <div className="flex items-start gap-8">
+              <div className="min-w-0 flex-1">
+                <span className="text-16 font-bold text-default">{label}</span>
+                {countdown ? <p className="mt-2 text-12 text-caption">{countdown}</p> : null}
+              </div>
+              {pill}
+            </div>
 
-        <div className="my-16 border-t border-light" />
+            <div className="my-16 border-t border-light" />
 
-        {/* The reward on the left, the way in on the right — on one row. */}
-        <div className="flex items-center gap-8">
-          <div className="min-w-0 flex-1">
-            <p className="text-14 text-caption">{actionLabel}</p>
-            {amount ? <p className="mt-2 text-18 font-bold text-green-600">{amount}</p> : null}
+            {/* The reward on the left, the way in on the right — on one row. */}
+            <div className="flex items-center gap-8">
+              <div className="min-w-0 flex-1">
+                <p className="text-14 text-caption">{actionLabel}</p>
+                {amount ? (
+                  // An estimate is two figures and a dash — it needs the small
+                  // size to stay on one line beside the button, and reading
+                  // quieter than a settled figure is the right hierarchy anyway.
+                  <p
+                    className={`mt-2 font-bold text-green-600 ${amountTo ? 'text-12' : 'text-18'}`}
+                  >
+                    {amountTo ? `${amount} - ${amountTo}` : amount}
+                  </p>
+                ) : null}
+              </div>
+              {cta && onOpen ? (
+                <button
+                  type="button"
+                  onClick={onOpen}
+                  className="shrink-0 rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white"
+                >
+                  {cta}
+                </button>
+              ) : onOpen ? (
+                <button
+                  type="button"
+                  onClick={onOpen}
+                  className="shrink-0 rounded-full border border-primary-500 px-16 py-8 text-14 font-bold text-primary-500"
+                >
+                  Lihat
+                </button>
+              ) : null}
+            </div>
           </div>
-          {cta && onOpen ? (
-            <button
-              type="button"
-              onClick={onOpen}
-              className="shrink-0 rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white"
-            >
-              {cta}
-            </button>
-          ) : onOpen ? (
-            <button
-              type="button"
-              onClick={onOpen}
-              className="shrink-0 rounded-full border border-primary-500 px-16 py-8 text-14 font-bold text-primary-500"
-            >
-              Lihat
-            </button>
+
+          {/* The condition on the figure above, in a band of its own so it
+              qualifies the number without competing with it. */}
+          {footnote ? (
+            <div className="border-t border-light bg-neutral-50 px-16 py-8">
+              <p className="text-10 text-caption">
+                {footnote.before} <span className="font-bold text-default">{footnote.strong}</span>{' '}
+                {footnote.after}
+              </p>
+            </div>
           ) : null}
         </div>
-      </div>
+      )}
     </div>
   )
 }
