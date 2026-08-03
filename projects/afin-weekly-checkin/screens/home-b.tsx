@@ -41,6 +41,7 @@ import {
   paidThisWeek,
   outcomeOf,
   rupiah,
+  weekDate,
   weeksLeftInWindow,
   windowQuote,
   windowRows,
@@ -251,8 +252,12 @@ function Milestone({
 
   return (
     <span className="flex min-w-0 flex-1 flex-col items-center">
-      <span className={`text-12 ${next ? 'font-bold text-primary-500' : 'text-caption'}`}>
-        {row.to}
+      {/* The date the stop lands on, not "minggu 24". The week number is our
+          unit; a date is one she can hold against Lebaran and school fees. */}
+      <span
+        className={`whitespace-nowrap text-12 ${next ? 'font-bold text-primary-500' : 'text-caption'}`}
+      >
+        {weekDate(row.to)}
       </span>
 
       <span className="mt-4 flex w-full items-center">
