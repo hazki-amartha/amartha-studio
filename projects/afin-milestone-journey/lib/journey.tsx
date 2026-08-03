@@ -100,9 +100,19 @@ export function MilestoneRung({
   // business. Only rungs with something still to do keep the full card.
   const collapsed = state === 'missed' || (state === 'unlocked' && !cta)
 
+  // A rung further up the ladder is drained of colour entirely — grey date,
+  // grey figure, grey status. It is real and worth seeing, but it is not what
+  // she should be working on: the next rung is, and it can only look urgent if
+  // the ones behind it are quiet. The status still says what it says; it just
+  // stops competing for the eye.
+  const muted = state === 'locked'
+  const ink = muted ? 'text-disabled' : undefined
+
   const pill = status ? (
     <span
-      className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${STATUS_TONE[status.tone]}`}
+      className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${
+        muted ? 'bg-neutral-200 text-caption' : STATUS_TONE[status.tone]
+      }`}
     >
       {status.label}
     </span>
@@ -175,8 +185,10 @@ export function MilestoneRung({
             {/* Date + countdown on the left, the status pill on the right. */}
             <div className="flex items-start gap-8">
               <div className="min-w-0 flex-1">
-                <span className="text-16 font-bold text-default">{label}</span>
-                {countdown ? <p className="mt-2 text-12 text-caption">{countdown}</p> : null}
+                <span className={`text-16 font-bold ${ink ?? 'text-default'}`}>{label}</span>
+                {countdown ? (
+                  <p className={`mt-2 text-12 ${ink ?? 'text-caption'}`}>{countdown}</p>
+                ) : null}
               </div>
               {pill}
             </div>
@@ -186,12 +198,12 @@ export function MilestoneRung({
             {/* The reward on the left, the way in on the right — on one row. */}
             <div className="flex items-center gap-8">
               <div className="min-w-0 flex-1">
-                <p className="text-14 text-caption">{actionLabel}</p>
+                <p className={`text-14 ${ink ?? 'text-caption'}`}>{actionLabel}</p>
                 {/* One size for every figure, estimate or not: the ladder is
                     read by comparing rungs, and a range that shrank to fit
                     would read as the smaller reward. */}
                 {amount ? (
-                  <p className="mt-2 text-18 font-bold text-green-600">
+                  <p className={`mt-2 text-18 font-bold ${ink ?? 'text-green-600'}`}>
                     {amountTo ? `${amount} - ${amountTo}` : amount}
                   </p>
                 ) : null}
@@ -223,8 +235,9 @@ export function MilestoneRung({
               qualifies the number without competing with it. */}
           {footnote ? (
             <div className="border-t border-light bg-neutral-50 px-16 py-8">
-              <p className="text-10 text-caption">
-                {footnote.before} <span className="font-bold text-default">{footnote.strong}</span>{' '}
+              <p className={`text-10 ${ink ?? 'text-caption'}`}>
+                {footnote.before}{' '}
+                <span className={`font-bold ${ink ?? 'text-default'}`}>{footnote.strong}</span>{' '}
                 {footnote.after}
               </p>
             </div>
