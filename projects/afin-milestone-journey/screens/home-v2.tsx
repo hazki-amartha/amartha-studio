@@ -208,36 +208,33 @@ export function HomeV2Screen() {
             )}
           </div>
 
-          {/* Money already on the table. It sits below a rule rather than among
-              the rows above it, because it is not the same kind of thing: those
-              are habits to keep in order to earn the next goal, this is a goal
-              already earned and waiting to be taken. Solid button, not the
-              outline the tasks use — it is the one row here that pays out.
-
-              Absent unless a rung has been reached and left undrawn, so a mitra
-              with nothing open never sees an empty promise. */}
-          {!isNew && claimable ? (
-            <>
-              <div className="-mx-16 mt-16 border-t border-light" />
-              <div className="mt-16 flex items-center gap-12">
-                <IconTile tint="green" round>
-                  <Wallet size={20} />
-                </IconTile>
-                <div className="min-w-0 flex-1">
-                  <p className="text-12 text-neutral-700">Dana siap dicairkan</p>
-                  <p className="text-16 font-bold text-green-600">{claimable.amount}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => flow.go('disburse-amount')}
-                  className="shrink-0 rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white"
-                >
-                  Cairkan
-                </button>
-              </div>
-            </>
-          ) : null}
         </div>
+
+        {/* Money already on the table. It gets a band of its own at the foot of
+            the card — green, the colour every figure in this prototype uses for
+            money — because it is not the same kind of thing as the rows above
+            it: those are habits to keep in order to earn the next goal, this is
+            a goal already earned and waiting to be taken. No avatar tile, so it
+            reads as a payout strip rather than a fourth task, and a solid
+            button rather than the outline the tasks carry.
+
+            Absent unless a rung has been reached and left undrawn, so a mitra
+            with nothing open never sees an empty promise. */}
+        {!isNew && claimable ? (
+          <div className="flex items-center gap-12 border-t border-light bg-green-50 p-16">
+            <div className="min-w-0 flex-1">
+              <p className="text-12 text-neutral-700">Dana siap dicairkan</p>
+              <p className="text-18 font-bold text-green-600">{claimable.amount}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => flow.go('disburse-amount')}
+              className="shrink-0 rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white"
+            >
+              Cairkan
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <SectionTitle>Top-up dan bayar tagihan</SectionTitle>
