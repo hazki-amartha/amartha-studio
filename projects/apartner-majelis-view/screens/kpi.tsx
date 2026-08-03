@@ -245,38 +245,11 @@ function ClassicRowCard({ r }: { r: KpiRow }) {
         )}
       </div>
 
-      {/* The threshold sits directly under the name it qualifies — the raw
-          figure a BP does get asked for, and nobody can recite seven of them. */}
-      <p className="mt-4 text-12 text-caption">
-        Target: {r.lower ? 'dibawah' : 'diatas'} {r.targetCount} {label}
-      </p>
-
-      <div className="mt-12">
-        <Meter
-          progress={pct}
-          tone={r.annulled ? 'muted' : r.incentivised ? 'green' : r.lower ? 'red' : 'orange'}
-          threshold={minMark}
-          goal={TARGET_MARK}
-        />
-        {/* The gate needs naming once, or the notch is a decorative tick. The
-            labels split ON it — "min" ends where the mark is, "insentif" begins
-            in the stretch it applies to — so the words sit over the geometry
-            they describe. The target is not labelled here: it is already
-            spelled out in full one line above, and two numbers under a 320px
-            rail four percent apart is two numbers nobody can read. */}
-        <p className="mt-4 flex text-10 text-caption">
-          <span className="pr-4 text-right" style={{ width: `${minMark}%` }}>
-            min {r.minCount}
-          </span>
-          <span className="pl-4">insentif</span>
-        </p>
-      </div>
-
-      {/* The verdict, and the only number on the card she has to do anything
-          with. It lands UNDER the meter so the card reads as a sentence: here
-          is the target, here is how far you got, so here is what is left. */}
+      {/* Where she stands, directly under the name — the one line on the card
+          she has to act on, so it takes the position the eye lands on first.
+          The target it is measured against sits below the rail. */}
       <p
-        className={`mt-8 text-16 font-bold ${
+        className={`mt-4 text-16 font-bold ${
           r.annulled ? 'text-caption' : r.met ? 'text-green-600' : 'text-default'
         }`}
       >
@@ -285,12 +258,42 @@ function ClassicRowCard({ r }: { r: KpiRow }) {
 
       {/* Why a met row paid nothing. Without this the card is just wrong: a
           tick, a full meter, and no money. The reason names the parameter she
-          has to fix, because that is the only thing that unlocks it. */}
+          has to fix, because that is the only thing that unlocks it. It stays
+          pinned to the verdict it qualifies. */}
       {r.annulled ? (
         <p className="mt-2 text-12 text-red-600">
           Insentif tertahan — target penagihan belum tercapai
         </p>
       ) : null}
+
+      <div className="mt-12">
+        <Meter
+          progress={pct}
+          tone={r.annulled ? 'muted' : r.incentivised ? 'green' : r.lower ? 'red' : 'orange'}
+          threshold={minMark}
+        />
+        {/* The gate needs naming once, or the notch is a decorative tick. The
+            labels split ON it — "min" ends where the mark is, "insentif" begins
+            in the stretch it applies to — so the words sit over the geometry
+            they describe. The target is not labelled here: it is spelled out in
+            full on the line below, and two numbers under a 320px rail four
+            percent apart is two numbers nobody can read. */}
+        <p className="mt-4 flex text-10 text-caption">
+          <span className="pr-4 text-right" style={{ width: `${minMark}%` }}>
+            min {r.minCount}
+          </span>
+          {/* Pinned to the far edge, not left-hugging the notch: the label names
+              the whole stretch from the mark to the end of the rail, so sitting
+              at its far end is what says "everything from here on". */}
+          <span className="flex-1 pl-4 text-right">insentif</span>
+        </p>
+      </div>
+
+      {/* The threshold, as the footnote it is: the raw figure a BP does get
+          asked for, under the rail that plots it. */}
+      <p className="mt-8 text-12 text-caption">
+        Target: {r.lower ? 'dibawah' : 'diatas'} {r.targetCount} {label}
+      </p>
     </div>
   )
 }
@@ -408,16 +411,16 @@ function WeightRowCard({ r }: { r: KpiRow }) {
         )}
       </div>
 
-      <p className="mt-4 text-12 text-caption">
-        Target: {r.lower ? 'dibawah' : 'diatas'} {r.targetCount} {label}
+      <p className={`mt-4 text-16 font-bold ${r.met ? 'text-green-600' : 'text-default'}`}>
+        {action}
       </p>
 
       <div className="mt-12">
         <Meter progress={r.progress} tone={r.met ? 'green' : r.lower ? 'red' : 'orange'} />
       </div>
 
-      <p className={`mt-8 text-16 font-bold ${r.met ? 'text-green-600' : 'text-default'}`}>
-        {action}
+      <p className="mt-8 text-12 text-caption">
+        Target: {r.lower ? 'dibawah' : 'diatas'} {r.targetCount} {label}
       </p>
     </div>
   )
