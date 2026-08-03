@@ -86,9 +86,7 @@ export function HomeV2Screen() {
           {/* The card names the nearest goal and hands the whole ladder to one
               link — the header is the way in, so there is no footer bar. */}
           <div className="flex items-center gap-8">
-            <p className="min-w-0 flex-1 text-16 font-bold text-default">
-              Gol pinjaman Anda selanjutnya
-            </p>
+            <p className="min-w-0 flex-1 text-16 font-bold text-default">Gol pinjaman Anda</p>
             <button
               type="button"
               onClick={() => flow.go('progress')}
