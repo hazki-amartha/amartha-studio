@@ -17,7 +17,12 @@ import { useFlow } from '@/platform/runtime'
 import { HISTORY, MEMBERS, MILESTONE_SETS, hasPreviousCycle } from '../lib/data'
 import { useApp } from '../lib/store'
 import { healthOf } from '../lib/milestone-tracker'
-import { MilestoneRung, PreviousCycleLink, ProgressMenuItem } from '../lib/journey'
+import {
+  activeIndexOf,
+  MilestoneRung,
+  PreviousCycleLink,
+  ProgressMenuItem,
+} from '../lib/journey'
 
 export function ProgressScreen() {
   const flow = useFlow()
@@ -26,6 +31,7 @@ export function ProgressScreen() {
 
   // Which snapshot of the ladder to draw — the demo-state controls set the phase.
   const milestones = MILESTONE_SETS[journeyPhase]
+  const activeIndex = activeIndexOf(milestones)
 
   // The two reads behind the "Lihat progress" menu, from the same data their
   // detail pages use: her own bayar/hadir record, and the majelis's payments.
@@ -65,6 +71,7 @@ export function ProgressScreen() {
             key={m.label}
             milestone={m}
             showConnector={i < milestones.length - 1}
+            active={i === activeIndex}
             onOpen={() => flow.go(m.detail)}
           />
         ))}
