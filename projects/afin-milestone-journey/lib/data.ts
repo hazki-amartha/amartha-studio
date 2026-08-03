@@ -481,5 +481,14 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
  *  The ladder starts over, so the page offers a way back to the cycle before it. */
 export const hasPreviousCycle = (phase: JourneyPhase) => phase === 'newloan'
 
+/** The rung with money on the table right now, if there is one. A rung only
+ *  ever carries a `cta` once it has been reached, so a "Cairkan" that is still
+ *  sitting there IS the open limit — already summed, because undrawn pencairan
+ *  accumulates onto the newest rung. Home reads this to decide whether to offer
+ *  the disbursement row at all; the ladder stays the single source of what she
+ *  can take, so the two screens can never disagree about the figure. */
+export const claimableOf = (phase: JourneyPhase) =>
+  MILESTONE_SETS[phase].find((m) => m.cta === 'Cairkan')
+
 /** The extra capital week 12 opens — the amount the disbursement flow caps at. */
 export const MILESTONE_AMOUNT = 1250000
