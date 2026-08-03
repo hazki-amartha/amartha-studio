@@ -106,18 +106,47 @@ export interface Milestone {
   label: string
   /** How far off it still is, e.g. "10 minggu lagi". Omitted once reached. */
   countdown?: string
-  /** What the week unlocks, in the mitra's words. */
+  /** What the rung is about. While it is still ahead of her this is the
+   *  instruction — "Cairkan dana". Once the rung has collapsed (collected, or
+   *  missed) it is what the rung WAS — "Pencairan tambahan". The two never
+   *  appear on the same rung. */
   actionLabel: string
+  /** The reward figure, always in the short "Rp1,25jt" form — a ladder is read
+   *  by comparing rungs, and full rupiah runs to a different width on every
+   *  one. A rung she can act on states one figure, because the amount is
+   *  settled; a rung still ahead states the band it is estimated at, with the
+   *  upper bound in `amountTo`. */
   amount?: string
+  amountTo?: string
+  /** What could lift the figure beyond `amount` — on the limit rise, the
+   *  majelis's own payment record. Drawn as a tinted band at the card's foot,
+   *  with `strong` picked out, so the ceiling is legible without promising it. */
+  footnote?: { before: string; strong: string; after: string }
   /** Status pill on an upcoming rung, e.g. "On Track". */
   status?: MilestoneStatus
   state: 'unlocked' | 'next' | 'locked' | 'missed'
   /** The primary button's label when the rung can be acted on now — solid and
-   *  purple, e.g. "Cairkan" / "Mulai". Absent rungs get an outline "Lihat". */
+   *  purple, e.g. "Cairkan" / "Mulai". Without one, only the `next` rung gets a
+   *  control: an outline "Lihat" into its tracker. */
   cta?: string
   /** Screen id of this milestone's dedicated tracker, opened from its card. */
   detail: string
 }
+
+/** Every pencairan rung still ahead of her carries the same estimate — the
+ *  band the disbursement is expected to land in, not a single figure the
+ *  product has not committed to yet. */
+const PENCAIRAN_ESTIMATE = { amount: 'Rp1,25jt', amountTo: 'Rp1,5jt' }
+
+/** The majelis condition on the limit rise. Her own record earns the figure on
+ *  the card; the majelis's record is what lifts it to the ceiling — so the
+ *  ceiling is stated as a possibility, in its own band, rather than as the
+ *  headline number. */
+const majelisUplift = (ceiling: string) => ({
+  before: 'Bisa',
+  strong: `s/d ${ceiling}`,
+  after: 'jika performa pembayaran Majelis juga bagus',
+})
 
 export const MILESTONES: Milestone[] = [
   {
@@ -125,7 +154,7 @@ export const MILESTONES: Milestone[] = [
     status: { label: 'Sesuai rencana', tone: 'blue' },
     countdown: '2 minggu lagi',
     actionLabel: 'Cairkan dana',
-    amount: '+Rp1.250.000',
+    ...PENCAIRAN_ESTIMATE,
     state: 'next',
     detail: 'milestone-progress',
   },
@@ -134,7 +163,7 @@ export const MILESTONES: Milestone[] = [
     status: { label: 'Sesuai rencana', tone: 'blue' },
     countdown: '14 minggu lagi',
     actionLabel: 'Cairkan dana',
-    amount: '+Rp1.250.000',
+    ...PENCAIRAN_ESTIMATE,
     state: 'locked',
     detail: 'milestone-progress',
   },
@@ -150,8 +179,9 @@ export const MILESTONES: Milestone[] = [
     label: '23 Mar 2027 🏆',
     status: { label: 'Berisiko', tone: 'orange' },
     countdown: '38 minggu lagi',
-    actionLabel: 'Peluang limit baru',
-    amount: 's/d Rp8jt',
+    actionLabel: 'Peningkatan limit',
+    amount: 's/d Rp7jt',
+    footnote: majelisUplift('8jt'),
     state: 'locked',
     detail: 'milestone-limit',
   },
@@ -187,7 +217,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '28 Apr',
       status: { label: 'Terbuka', tone: 'green' },
       actionLabel: 'Dapat dicairkan',
-      amount: 'Rp2.500.000',
+      amount: 'Rp2,5jt',
       state: 'unlocked',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
@@ -202,7 +232,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '14 Jul 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
       actionLabel: 'Cairkan dana',
-      amount: '+Rp1.250.000',
+      amount: 'Rp1,25jt',
       state: 'unlocked',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
@@ -212,7 +242,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       status: { label: 'Sesuai rencana', tone: 'blue' },
       countdown: '10 minggu lagi',
       actionLabel: 'Cairkan dana',
-      amount: '+Rp1.250.000',
+      ...PENCAIRAN_ESTIMATE,
       state: 'next',
       detail: 'milestone-progress',
     },
@@ -228,20 +258,21 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '23 Mar 2027 🏆',
       status: { label: 'Berisiko', tone: 'orange' },
       countdown: '34 minggu lagi',
-      actionLabel: 'Peluang limit baru',
-      amount: 's/d Rp8jt',
+      actionLabel: 'Peningkatan limit',
+      amount: 's/d Rp7jt',
+      footnote: majelisUplift('8jt'),
       state: 'locked',
       detail: 'milestone-limit',
     },
   ],
 
-  // The first goal was missed — it shows Gagal instead of Berhasil diraih.
+  // The first goal was missed — it shows Gagal instead of Berhasil diraih, and
+  // the rung collapses: there is no figure to state and nothing left to do.
   gagal: [
     {
       label: '14 Jul 2026',
       status: { label: 'Gagal', tone: 'red' },
-      actionLabel: 'Cairkan dana',
-      amount: '+Rp1.250.000',
+      actionLabel: 'Pencairan tambahan',
       state: 'missed',
       detail: 'milestone-missed',
     },
@@ -250,7 +281,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       status: { label: 'Sesuai rencana', tone: 'blue' },
       countdown: '10 minggu lagi',
       actionLabel: 'Cairkan dana',
-      amount: '+Rp1.250.000',
+      ...PENCAIRAN_ESTIMATE,
       state: 'next',
       detail: 'milestone-progress',
     },
@@ -266,8 +297,9 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '23 Mar 2027 🏆',
       status: { label: 'Berisiko', tone: 'orange' },
       countdown: '34 minggu lagi',
-      actionLabel: 'Peluang limit baru',
-      amount: 's/d Rp8jt',
+      actionLabel: 'Peningkatan limit',
+      amount: 's/d Rp7jt',
+      footnote: majelisUplift('8jt'),
       state: 'locked',
       detail: 'milestone-limit',
     },
@@ -277,12 +309,18 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
   // achievement — the cycle's record is the page's whole point, so nothing
   // leaves it until the cycle itself ends. 6 Okt is reached and ready to cair;
   // 26 Jan is the goal she is now working toward.
+  //
+  // Rungs of the SAME kind accumulate: an earned pencairan she has not drawn
+  // yet rolls into the next one, so the newest rung states the whole sum
+  // (Rp1,25jt + Rp1,25jt = Rp2,5jt) and the rung it came from gives up its
+  // figure and its button. One live amount, in one place — the alternative is
+  // two cards each offering money and no way to tell whether taking one
+  // forfeits the other.
   okt: [
     {
       label: '14 Jul 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
-      actionLabel: 'Dana sudah dicairkan',
-      amount: '+Rp1.250.000',
+      actionLabel: 'Pencairan tambahan',
       state: 'unlocked',
       detail: 'milestone-unlocked',
     },
@@ -290,7 +328,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '6 Okt 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
       actionLabel: 'Cairkan dana',
-      amount: '+Rp1.250.000',
+      amount: 'Rp2,5jt',
       state: 'unlocked',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
@@ -307,21 +345,23 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '23 Mar 2027 🏆',
       status: { label: 'Berisiko', tone: 'orange' },
       countdown: '24 minggu lagi',
-      actionLabel: 'Peluang limit baru',
-      amount: 's/d Rp8jt',
+      actionLabel: 'Peningkatan limit',
+      amount: 's/d Rp7jt',
+      footnote: majelisUplift('8jt'),
       state: 'locked',
       detail: 'milestone-limit',
     },
   ],
 
-  // Today is 26 Jan: two rungs reached and still awaiting their action, with
-  // the limit rise now the goal ahead.
+  // Today is 26 Jan: the pelunasan is reached and still awaiting its action,
+  // with the limit rise now the goal ahead. The two pencairan rungs behind it
+  // have accumulated the same way they do in `okt` — Rp2,5jt on the newest of
+  // them, and nothing on the one it absorbed.
   jan: [
     {
       label: '14 Jul 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
-      actionLabel: 'Dana sudah dicairkan',
-      amount: '+Rp1.250.000',
+      actionLabel: 'Pencairan tambahan',
       state: 'unlocked',
       detail: 'milestone-unlocked',
     },
@@ -329,7 +369,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '6 Okt 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
       actionLabel: 'Cairkan dana',
-      amount: '+Rp1.250.000',
+      amount: 'Rp2,5jt',
       state: 'unlocked',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
@@ -346,8 +386,9 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '23 Mar 2027 🏆',
       status: { label: 'Berisiko', tone: 'orange' },
       countdown: '8 minggu lagi',
-      actionLabel: 'Peluang limit baru',
-      amount: 's/d Rp8jt',
+      actionLabel: 'Peningkatan limit',
+      amount: 's/d Rp7jt',
+      footnote: majelisUplift('8jt'),
       state: 'next',
       detail: 'milestone-limit',
     },
@@ -360,31 +401,31 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
     {
       label: '14 Jul 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
-      actionLabel: 'Dana sudah dicairkan',
-      amount: '+Rp1.250.000',
+      actionLabel: 'Pencairan tambahan',
       state: 'unlocked',
       detail: 'milestone-unlocked',
     },
     {
       label: '6 Okt 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
-      actionLabel: 'Dana sudah dicairkan',
-      amount: '+Rp1.250.000',
+      actionLabel: 'Pencairan tambahan',
       state: 'unlocked',
       detail: 'milestone-unlocked',
     },
     {
       label: '26 Jan 2027',
       status: { label: 'Berhasil diraih', tone: 'green' },
-      actionLabel: 'Pelunasan dini sudah dimulai',
+      actionLabel: 'Pelunasan dini',
       state: 'unlocked',
       detail: 'milestone-pelunasan',
     },
     {
+      // Reached, so the ceiling is settled and stated flat — no "s/d", and no
+      // majelis footnote: there is nothing left to condition it on.
       label: '23 Mar 2027 🏆',
       status: { label: 'Berhasil diraih', tone: 'green' },
-      actionLabel: 'Peluang limit baru',
-      amount: 's/d Rp8jt',
+      actionLabel: 'Peningkatan limit',
+      amount: 'Rp8jt',
       state: 'next',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
@@ -400,7 +441,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '15 Jun 2027',
       status: { label: 'Berhasil diraih', tone: 'green' },
       actionLabel: 'Cairkan dana',
-      amount: '+Rp2.000.000',
+      amount: 'Rp2jt',
       state: 'unlocked',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
@@ -410,7 +451,8 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       status: { label: 'Sesuai rencana', tone: 'blue' },
       countdown: '12 minggu lagi',
       actionLabel: 'Cairkan dana',
-      amount: '+Rp2.000.000',
+      amount: 'Rp2jt',
+      amountTo: 'Rp2,4jt',
       state: 'next',
       detail: 'milestone-progress',
     },
@@ -426,8 +468,9 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '22 Feb 2028 🏆',
       status: { label: 'Berisiko', tone: 'orange' },
       countdown: '36 minggu lagi',
-      actionLabel: 'Peluang limit baru',
-      amount: 's/d Rp10jt',
+      actionLabel: 'Peningkatan limit',
+      amount: 's/d Rp9jt',
+      footnote: majelisUplift('10jt'),
       state: 'locked',
       detail: 'milestone-limit',
     },

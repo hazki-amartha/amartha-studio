@@ -1,40 +1,32 @@
 'use client'
 
-// Progress — the 48-week tenor as a ladder of rewards rather than a countdown.
+// Perjalanan pendanaan — the 48-week tenor as a ladder of rewards rather than
+// a countdown.
 //
-// The ordering is the point: an unlocked rung sits at the TOP, above the one
-// she is working toward, so the first thing on the page is money she can take
-// today. A chronological list would bury it under whatever week she is on.
+// There is no tip card and nothing behind a sheet: the two progress reads ARE
+// the first band, run full-bleed under the header so they read as part of the
+// chrome rather than as one more card competing with the rungs. The argument a
+// tip card would make — discipline compounds toward a bigger limit — is carried
+// by the row subtitles instead of a paragraph: each says which goal the read
+// moves.
 //
-// Locked rungs stay visible and stay specific — "pelunasan dini", "limit baru
-// Rp8jt" — because a lock only motivates if you can read what is behind it.
+// `progress-alt.tsx` keeps the earlier layout, which put that argument in a
+// tip card and the two reads behind a bottom sheet.
 
-import { useState } from 'react'
-import { BottomSheet, NavigationHeader } from '@/design-system/components'
-import { LightbulbFilament } from '@/design-system/icons'
+import { NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { HISTORY, MEMBERS, MILESTONE_SETS, hasPreviousCycle } from '../lib/data'
 import { useApp } from '../lib/store'
 import { healthOf } from '../lib/milestone-tracker'
-import {
-  activeIndexOf,
-  MilestoneRung,
-  PreviousCycleLink,
-  ProgressMenuItem,
-} from '../lib/journey'
+import { MilestoneRung, PreviousCycleLink, ProgressMenuItem } from '../lib/journey'
 
 export function ProgressScreen() {
   const flow = useFlow()
   const { journeyPhase } = useApp()
-  const [progressOpen, setProgressOpen] = useState(false)
 
-  // Which snapshot of the ladder to draw — the demo-state controls set the phase.
   const milestones = MILESTONE_SETS[journeyPhase]
-  const activeIndex = activeIndexOf(milestones)
 
-  // The two reads behind the "Lihat progress" menu, from the same data their
-  // detail pages use: her own bayar/hadir record, and the majelis's payments.
   const weeks = HISTORY.length
   const personal = healthOf(
     Math.min(HISTORY.filter((e) => e.bayar).length, HISTORY.filter((e) => e.kumpulan).length),
@@ -46,32 +38,32 @@ export function ProgressScreen() {
     <Screen
       topBar={<NavigationHeader title="Perjalanan pendanaan" onBack={() => flow.go('home')} />}
     >
-      <div className="flex flex-col gap-16 pb-16">
-        {/* A tip that frames the ladder — discipline compounds toward a bigger
-            limit — with the way into the two progress reads inline. */}
-        <div className="flex items-start gap-12 rounded-12 bg-blue-50 p-16">
-          <span className="shrink-0 text-caption">
-            <LightbulbFilament size={24} />
-          </span>
-          <p className="text-14 text-caption">
-            Setiap pembayaran tepat waktu yang Ibu dan teman-teman satu majelis lakukan, membawa
-            Ibu lebih dekat ke modal yang lebih besar.{' '}
-            <button
-              type="button"
-              onClick={() => setProgressOpen(true)}
-              className="p-0 align-baseline text-14 font-bold text-primary-500"
-            >
-              Lihat progress
-            </button>
-          </p>
-        </div>
+      {/* Pulled to the display edges and up against the header: one white band,
+          two rows, a hairline between them and one under the band. */}
+      <div className="-mx-16 -mt-16 border-b border-light bg-neutral-white">
+        <ProgressMenuItem
+          inset
+          label="Progress pribadi"
+          subtitle="Berpengaruh ke semua goal"
+          health={personal}
+          onOpen={() => flow.go('riwayat')}
+        />
+        <div className="mx-16 h-px bg-neutral-200" />
+        <ProgressMenuItem
+          inset
+          label="Progress majelis"
+          subtitle="Berpengaruh ke goal kenaikan limit"
+          health={majelis}
+          onOpen={() => flow.go('majelis')}
+        />
+      </div>
 
+      <div className="flex flex-col gap-16 pb-16">
         {milestones.map((m, i) => (
           <MilestoneRung
             key={m.label}
             milestone={m}
             showConnector={i < milestones.length - 1}
-            active={i === activeIndex}
             onOpen={() => flow.go(m.detail)}
           />
         ))}
@@ -80,30 +72,6 @@ export function ProgressScreen() {
             so this is where they went. */}
         {hasPreviousCycle(journeyPhase) ? <PreviousCycleLink /> : null}
       </div>
-
-      <BottomSheet open={progressOpen} onClose={() => setProgressOpen(false)} title="Progress Ibu">
-        <div className="flex flex-col">
-          <ProgressMenuItem
-            label="Progress pribadi"
-            subtitle="Berpengaruh ke semua goal"
-            health={personal}
-            onOpen={() => {
-              setProgressOpen(false)
-              flow.go('riwayat')
-            }}
-          />
-          <div className="h-px bg-neutral-200" />
-          <ProgressMenuItem
-            label="Progress majelis"
-            subtitle="Berpengaruh ke goal kenaikan limit"
-            health={majelis}
-            onOpen={() => {
-              setProgressOpen(false)
-              flow.go('majelis')
-            }}
-          />
-        </div>
-      </BottomSheet>
     </Screen>
   )
 }

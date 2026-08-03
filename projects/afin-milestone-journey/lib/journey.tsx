@@ -81,37 +81,42 @@ export function PreviousCycleLink() {
   )
 }
 
-/**
- * Which rung is the ONE live card on the ladder.
- *
- * A ladder where four cards all carry a coloured amount and a button asks the
- * mitra to work out which one is hers to act on today. Exactly one is: the rung
- * that has money on the table now — reached, with its `cta` still unspent — and
- * failing that, the nearest goal she is working toward. Everything else is
- * either behind her or too far off to do anything about, so it greys out.
- */
-export function activeIndexOf(milestones: Milestone[]) {
-  const claimable = milestones.findIndex((m) => m.state === 'unlocked' && m.cta)
-  return claimable !== -1 ? claimable : milestones.findIndex((m) => m.state === 'next')
-}
-
 export function MilestoneRung({
   milestone,
   showConnector,
-  active,
   onOpen,
 }: {
   milestone: Milestone
   showConnector: boolean
-  /** The single live rung — see `activeIndexOf`. Everything else greys out. */
-  active: boolean
   onOpen?: () => void
 }) {
-  const { label, status, countdown, actionLabel, amount, state, cta } = milestone
-  // Locked rungs carry no figures at all. A rupiah amount and a week count on a
-  // goal she cannot reach for months is arithmetic she has no use for yet, and
-  // it was the loudest thing on a card that should have been the quietest.
-  const locked = state === 'locked'
+  const { label, status, countdown, actionLabel, amount, amountTo, footnote, state, cta } =
+    milestone
+
+  // A rung that asks nothing more of her collapses to a single line: the date,
+  // what it was, and how it ended. That covers both a rung she has already
+  // collected and one she missed — in neither case is there a figure worth the
+  // room, and a card with a divider and an empty reward slot reads as unfinished
+  // business. Only rungs with something still to do keep the full card.
+  const collapsed = state === 'missed' || (state === 'unlocked' && !cta)
+
+  // A rung further up the ladder is drained of colour entirely — grey date,
+  // grey figure, grey status. It is real and worth seeing, but it is not what
+  // she should be working on: the next rung is, and it can only look urgent if
+  // the ones behind it are quiet. The status still says what it says; it just
+  // stops competing for the eye.
+  const muted = state === 'locked'
+  const ink = muted ? 'text-disabled' : undefined
+
+  const pill = status ? (
+    <span
+      className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${
+        muted ? 'bg-neutral-200 text-caption' : STATUS_TONE[status.tone]
+      }`}
+    >
+      {status.label}
+    </span>
+  ) : null
 
   return (
     <div className="flex gap-12">
@@ -129,20 +134,16 @@ export function MilestoneRung({
         ) : null}
         <span
           className={`relative z-10 flex h-40 w-40 items-center justify-center rounded-full ${
-            !active
-              ? 'bg-neutral-50 text-neutral-400'
-              : state === 'unlocked'
-                ? 'bg-green-500 text-neutral-white'
-                : state === 'next'
-                  ? 'bg-primary-500 text-neutral-white'
-                  : state === 'missed'
-                    ? 'bg-red-500 text-neutral-white'
-                    : 'bg-neutral-50 text-neutral-400'
+            state === 'unlocked'
+              ? 'bg-green-500 text-neutral-white'
+              : state === 'next'
+                ? 'bg-primary-500 text-neutral-white'
+                : state === 'missed'
+                  ? 'bg-red-500 text-neutral-white'
+                  : 'bg-neutral-50 text-neutral-400'
           }`}
         >
-          {locked ? (
-            <LockKey size={20} />
-          ) : state === 'unlocked' ? (
+          {state === 'unlocked' ? (
             <Check size={20} />
           ) : state === 'next' ? (
             <span className="text-16">🎯</span>
@@ -154,65 +155,95 @@ export function MilestoneRung({
         </span>
       </div>
 
-      <div
-        className={`min-w-0 flex-1 rounded-12 border p-16 ${
-          active ? 'border-primary-500 bg-neutral-white' : 'border-default bg-neutral-50'
-        }`}
-      >
-        {/* Date + countdown on the left, the status pill on the right. */}
-        <div className="flex items-start gap-8">
-          <div className="min-w-0 flex-1">
-            <span className={`text-16 font-bold ${active ? 'text-default' : 'text-caption'}`}>
+      {collapsed ? (
+        // The whole card is the target — there is no control drawn on it, but
+        // its tracker page is still worth reaching, especially for a missed
+        // rung where the page explains what went wrong.
+        <button
+          type="button"
+          onClick={onOpen}
+          disabled={!onOpen}
+          className={`flex min-w-0 flex-1 items-start gap-8 rounded-12 border border-default p-16 text-left ${
+            state === 'missed' ? 'bg-neutral-50' : 'bg-neutral-white'
+          }`}
+        >
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span
+              className={`text-16 font-bold ${state === 'missed' ? 'text-disabled' : 'text-default'}`}
+            >
               {label}
             </span>
-            {countdown && !locked ? (
-              <p className="mt-2 text-12 text-caption">{countdown}</p>
-            ) : null}
-          </div>
-          {status ? (
-            <span
-              className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${
-                // A missed goal keeps its red wherever it sits: greying "Gagal"
-                // into the furniture would hide the one thing she must not miss.
-                active || state === 'missed'
-                  ? STATUS_TONE[status.tone]
-                  : 'bg-neutral-200 text-caption'
-              }`}
-            >
-              {status.label}
+            <span className={`mt-2 text-12 ${state === 'missed' ? 'text-disabled' : 'text-caption'}`}>
+              {actionLabel}
             </span>
-          ) : null}
-        </div>
+          </span>
+          {pill}
+        </button>
+      ) : (
+        <div className="min-w-0 flex-1 overflow-hidden rounded-12 border border-default bg-neutral-white">
+          <div className="p-16">
+            {/* Date + countdown on the left, the status pill on the right. */}
+            <div className="flex items-start gap-8">
+              <div className="min-w-0 flex-1">
+                <span className={`text-16 font-bold ${ink ?? 'text-default'}`}>{label}</span>
+                {countdown ? (
+                  <p className={`mt-2 text-12 ${ink ?? 'text-caption'}`}>{countdown}</p>
+                ) : null}
+              </div>
+              {pill}
+            </div>
 
-        <div className="my-16 border-t border-light" />
+            <div className="my-16 border-t border-light" />
 
-        {/* The reward on the left, the way in on the right — on one row. The
-            amount belongs to the live card only; repeated down the ladder it
-            read as four payouts pending rather than one. */}
-        <div className="flex items-center gap-8">
-          <div className="min-w-0 flex-1">
-            <p className={`text-14 ${active ? 'text-caption' : 'text-disabled'}`}>{actionLabel}</p>
-            {amount && active ? (
-              <p className="mt-2 text-18 font-bold text-green-600">{amount}</p>
-            ) : null}
+            {/* The reward on the left, the way in on the right — on one row. */}
+            <div className="flex items-center gap-8">
+              <div className="min-w-0 flex-1">
+                <p className={`text-14 ${ink ?? 'text-caption'}`}>{actionLabel}</p>
+                {/* One size for every figure, estimate or not: the ladder is
+                    read by comparing rungs, and a range that shrank to fit
+                    would read as the smaller reward. */}
+                {amount ? (
+                  <p className={`mt-2 text-18 font-bold ${ink ?? 'text-green-600'}`}>
+                    {amountTo ? `${amount} - ${amountTo}` : amount}
+                  </p>
+                ) : null}
+              </div>
+              {cta && onOpen ? (
+                <button
+                  type="button"
+                  onClick={onOpen}
+                  className="shrink-0 rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white"
+                >
+                  {cta}
+                </button>
+              ) : state === 'next' && onOpen ? (
+                // Only the rung she is working toward is worth opening. A
+                // locked rung further up has no progress of its own to show
+                // yet, so it gets no control and the card stays inert.
+                <button
+                  type="button"
+                  onClick={onOpen}
+                  className="shrink-0 rounded-full border border-primary-500 px-16 py-8 text-14 font-bold text-primary-500"
+                >
+                  Lihat
+                </button>
+              ) : null}
+            </div>
           </div>
-          {onOpen ? (
-            <button
-              type="button"
-              onClick={onOpen}
-              className={`shrink-0 rounded-full px-16 py-8 text-14 font-bold ${
-                active && cta
-                  ? 'bg-primary-500 text-neutral-white'
-                  : active
-                    ? 'border border-primary-500 text-primary-500'
-                    : 'border border-default text-caption'
-              }`}
-            >
-              {active && cta ? cta : 'Lihat'}
-            </button>
+
+          {/* The condition on the figure above, in a band of its own so it
+              qualifies the number without competing with it. */}
+          {footnote ? (
+            <div className="border-t border-light bg-neutral-50 px-16 py-8">
+              <p className={`text-10 ${ink ?? 'text-caption'}`}>
+                {footnote.before}{' '}
+                <span className={`font-bold ${ink ?? 'text-default'}`}>{footnote.strong}</span>{' '}
+                {footnote.after}
+              </p>
+            </div>
           ) : null}
         </div>
-      </div>
+      )}
     </div>
   )
 }
