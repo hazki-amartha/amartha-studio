@@ -21,7 +21,7 @@ export const project: ProjectModule = {
         'The propensity label is the only badge on the card, and it goes on home visits only — a majelis is 22 women with 22 answers, so one flag on a group describes nobody in it. It stays a small label rather than a headline, because a BP who reads a prediction as a promise and finds an empty house twice stops believing the next one.',
         'Setoran sits at the top: the cash she is carrying right now, phrased as a decision rather than as progress against a target. The risk being managed is money on a motorbike. It names the amount, says how many handovers she has used, and offers one button.',
 'From the widget she picks WHEN to settle; the Setoran screen is where she picks how much and by which road. She can put the whole bag down or part of it — a short handover leaves the remainder recorded as still in the bag, and the widget comes straight back with it.',
-        'She can settle up to THREE times a day, and the counter shuts at 17.00. The widget names how many drops she has left so she paces them; once all three are used it goes quiet, and any cash still in the bag rides to closing. The last of the three also waits on every task being finished before it can be sent.',
+        'She can settle up to THREE times a day — that is the only limit, there is no clock on it. The widget names how many drops she has left so she paces them; once all three are used it goes quiet, and any cash still in the bag rides to closing.',
         'Belum terkirim sits directly above the task list, because that is what it is about: those rows, and the fact that finishing them was not the last step. A BP closes a visit standing in a balai with no signal; without this she finds out on Friday that Tuesday never landed. It disappears the moment nothing is pending.',
         'Closing — Tutup Hari Ini — is a task ROW at the foot of the list, tapped like any other task. The "every visit done, bag empty" gate lives inside the closing screen, not on the row, so it stays tappable throughout: an early tap just shows her what is still left to do. Once the day is closed the same row moves to Selesai reading Terkirim — a day has one end, and this is it.',
         'One filter, Tipe tugas, and one inbox in the header. Filtering replaces the agenda with a flat list, because the two headings are a shape built around whether work is left, and a BP filtering by type has stopped asking that.',
@@ -123,8 +123,36 @@ export const project: ProjectModule = {
       notes: [
         'Seven monthly parameters, each carrying a flat rupiah bonus — a parameter earns its bonus outright rather than feeding a combined score.',
         'Every card answers one question: how many more women. The subtraction is done for her and the result IS the headline — “Kurangi 3 mitra lagi”, “Tambah 3 mitra lagi”, “Target tercapai”. A number that exists only to be subtracted from another number is a number the app should be holding, so the current count is not printed.',
-        'The hero says the same thing the same way: “Penuhi 4 target lagi” rather than “3 dari 7 tercapai” — work remaining rather than a score. Switch the period to Juni 2026 to see the all-clear.',
+        'The hero says the same thing the same way: “Penuhi 4 target lagi” rather than “3 dari 7 tercapai” — work remaining rather than a score.',
+        'Collection GATES growth: miss a DPD bucket and the insentif on every pencairan and cross-sell row is held, however well she did on it. The held row keeps its “Target tercapai” — she did the work — but loses the green tick and the green meter, because green on this page means banked.',
+        'The two ways to reach Rp0 are the thing the hero has to tell apart. “Nothing met yet” and “everything you won is behind the gate” read identically on the bottom line and mean opposite things, so each gets its own sentence. And the money is “tertahan”, not “dianulir”, while the month is still running — it is recoverable, and a word that reads as final is how you make a BP stop trying.',
         'The target survives as small print, because a BP does get asked what the threshold is and nobody recites seven of them, and the bonus as a pill, because it is what makes the gap worth closing. No card links out to the work: the schedule owns that, and hanging a task off a score turns the score into how you navigate.',
+      ],
+      states: [
+        {
+          id: 'kpi-running',
+          label: 'Bulan berjalan',
+          description: 'DPD 31–90 meleset, jadi Celengan yang sudah tercapai ikut tertahan',
+          apply: demo.kpiRunning,
+        },
+        {
+          id: 'kpi-all-held',
+          label: 'Semua tertahan — Rp0',
+          description: 'Semua target growth tercapai, semua DPD meleset: sebulan kerja, Rp0',
+          apply: demo.kpiAllHeld,
+        },
+        {
+          id: 'kpi-nothing',
+          label: 'Belum ada capaian — Rp0',
+          description: 'Rp0 tanpa ada yang tertahan — bedanya harus kebaca',
+          apply: demo.kpiNothingYet,
+        },
+        {
+          id: 'kpi-all-clear',
+          label: 'Semua target tercapai',
+          description: 'Penagihan bersih, jadi growth cair dan gate-nya tak terlihat',
+          apply: demo.kpiAllClear,
+        },
       ],
       flowsTo: [
         { to: 'today', label: 'tab Jadwal' },
@@ -518,15 +546,14 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/settlement'), 'SettlementScreen'),
       notes: [
         'Where the cash leaves her hands — separate from Closing, which is the checklist that ends the DAY. This screen is about the BAG: the money she is carrying right now and the transfer that gets it to the branch.',
-        'One stepped page, in the order the act happens: what is in the bag and which pelayanan it came from, then how much of it to put down now, then which ROAD — a VA she transfers to, or an AmarthaLink agent she hands the notes to — then the photo that proves it went.',
-        'A day carries at most THREE handovers, and the counter shuts at 17.00. The cap is the balance between two risks — cash on a motorbike wants to be put down often, but every settlement is a reconciliation the branch has to clear — and the banner names how many she has left so she paces them.',
-        'The LAST of the three cannot be sent until every task on the day is finished. A final handover that skipped a still-open visit would settle a bag that has not finished filling, so it waits — the confirm stays disabled with the reason under it — until the day’s work is done.',
+        'One stepped page, in the order the act happens: what is in the bag, then WHICH of it to put down now, then which ROAD — a VA she transfers to, or an AmarthaLink agent she hands the notes to — then the photo that proves it went.',
+        'She picks what goes in this handover: she ticks the tasks, and the individual mitra inside a majelis she has a roster for, and the amount is the sum of what she ticks. Everything starts ticked (settling the whole bag is the common case); unticking leaves that cash recorded as unsettled for a later drop.',
+        'A day carries at most THREE handovers — that is the only limit, there is no clock on it. The cap is the balance between two risks: cash on a motorbike wants to be put down often, but every settlement is a reconciliation the branch has to clear. The banner names how many she has left, and once all three are used the remainder rides to closing.',
         'The agent road needs one thing the VA road does not: a counter to walk to. So under the kode unik sits “Cari agen terdekat”, onto a short list of the AmarthaLink desks near today’s route, each with its distance and closing time.',
         'The receipt number lives INSIDE the road she picks: a VA number for a transfer, a kode unik for the agent. A code with no chosen destination is a number she cannot use yet, so nothing shows until she picks — and the proof step only appears once there is a method for it to be proof OF.',
         'Cash settles by the RUPIAH, not by the task. What is outstanding is everything banked minus everything handed over, so a short handover leaves a remainder and the widget comes straight back with it — the breakdown attributes it to the pelayanan it came from, with the covered part drained off.',
         'Each settlement gets its own VA or kode unik, because that identifier is what the branch reconciles against, and several handovers keyed to one number are deposits nobody can tell apart at the other end.',
         'The header carries a Riwayat link onto the day’s cash story — what came in, what went out, and by which road — because a BP mid-settlement is exactly the person who wants to check what she already put down. The same sheet is reachable from the schedule’s settled line.',
-        'The selisih flow is for the disagreement that will happen: the app’s figure and the money in the bag differ. A gap with a reason attached is a record ops can chase; a gap with nowhere to put it becomes a phone call.',
       ],
       states: [
         {
@@ -534,12 +561,6 @@ export const project: ProjectModule = {
           label: 'First handover of the day',
           description: 'Two majelis in the bag by midday — one of the day’s three drops',
           apply: demo.bagFirstHandover,
-        },
-        {
-          id: 'short',
-          label: 'Short of the ledger',
-          description: 'She declares Rp200.000 less than the app says — the gap ops chases',
-          apply: demo.bagShort,
         },
         {
           id: 'capped',
