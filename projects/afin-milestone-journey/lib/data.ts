@@ -309,6 +309,13 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
   // achievement — the cycle's record is the page's whole point, so nothing
   // leaves it until the cycle itself ends. 6 Okt is reached and ready to cair;
   // 26 Jan is the goal she is now working toward.
+  //
+  // Rungs of the SAME kind accumulate: an earned pencairan she has not drawn
+  // yet rolls into the next one, so the newest rung states the whole sum
+  // (Rp1,25jt + Rp1,25jt = Rp2,5jt) and the rung it came from gives up its
+  // figure and its button. One live amount, in one place — the alternative is
+  // two cards each offering money and no way to tell whether taking one
+  // forfeits the other.
   okt: [
     {
       label: '14 Jul 2026',
@@ -321,7 +328,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '6 Okt 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
       actionLabel: 'Cairkan dana',
-      amount: 'Rp1,25jt',
+      amount: 'Rp2,5jt',
       state: 'unlocked',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
@@ -346,8 +353,10 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
     },
   ],
 
-  // Today is 26 Jan: two rungs reached and still awaiting their action, with
-  // the limit rise now the goal ahead.
+  // Today is 26 Jan: the pelunasan is reached and still awaiting its action,
+  // with the limit rise now the goal ahead. The two pencairan rungs behind it
+  // have accumulated the same way they do in `okt` — Rp2,5jt on the newest of
+  // them, and nothing on the one it absorbed.
   jan: [
     {
       label: '14 Jul 2026',
@@ -360,7 +369,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '6 Okt 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
       actionLabel: 'Cairkan dana',
-      amount: 'Rp1,25jt',
+      amount: 'Rp2,5jt',
       state: 'unlocked',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
