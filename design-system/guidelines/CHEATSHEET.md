@@ -44,7 +44,11 @@ neutral`.
 - **`Screen`** — `topBar?` + `children`. Never hand-roll page padding.
   `canvas="white"` for a flat white page instead of the neutral-50 tint
   (homepages — the live product has no canvas tint); `statusBar="none"` to let
-  coloured chrome reach the top of the display.
+  coloured chrome reach the top of the display. The top bar is pinned for you —
+  it stays put while the content scrolls, so a header that must stay visible
+  belongs in `topBar`, not in the page body. `chromeClassName="…"` paints the
+  whole pinned block (status strip + bar) — pair it with `statusBar="none"` when
+  the chrome is a brand band rather than a white bar.
 - **`TopBar`** — minimal 48px bar (`children`) when you don't need a full header.
 
 ---
