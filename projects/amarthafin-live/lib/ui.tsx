@@ -10,17 +10,46 @@ import { Card } from '@/design-system/components'
 import { ServiceIcon, type ServiceIconName, Wordmark } from '@/design-system/assets'
 import { ArrowRight, Bell, Eye, Plus, Promo, Transfer, User } from '@/design-system/icons'
 
-export function BrandBand({
+// The band's purple fill. Left-to-right rather than diagonal on purpose: the
+// band is split across two elements — the pinned header and the sag below it —
+// and only a horizontal gradient carries across the seam invisibly.
+export const BAND_FILL = 'bg-gradient-to-r from-primary-400 to-primary-500'
+
+// The greeting row, passed to Screen as its `topBar` so it stays pinned while
+// the page scrolls under it. It carries no fill of its own: Screen paints the
+// whole pinned block (status strip included) via `chromeClassName`, which is the
+// only way the purple reaches the very top of the display.
+export function BrandHeader({
   greeting = 'Hello',
   name = 'Widyasari',
-  children,
 }: {
   greeting?: string
   name?: string
-  children: ReactNode
 }) {
   return (
-    <div className="-mx-16 -mt-48">
+    <div className="flex items-center gap-12 px-16 pb-16 pt-16">
+      <ChromeIcon>
+        <User size={20} />
+      </ChromeIcon>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-12 text-neutral-white">{greeting}</span>
+        <span className="truncate text-14 font-bold text-neutral-white underline">{name}</span>
+      </span>
+      <ChromeIcon badge="8">
+        <Promo size={20} />
+      </ChromeIcon>
+      <ChromeIcon badge="8">
+        <Bell size={20} />
+      </ChromeIcon>
+    </div>
+  )
+}
+
+// What is left of the band once the greeting row is pinned above it: the last
+// 16px of flat purple, the sag, and the wallet sitting across the join.
+export function BrandBand({ children }: { children: ReactNode }) {
+  return (
+    <div className="-mx-16 -mt-16">
       {/* The band's bottom edge is a bezier, not a radius. The production mask
           (object.svg, 360x123) runs flat to y=99.8 and then sags to y=123 at the
           centre — and crucially its first control point sits ON the start point,
@@ -38,27 +67,8 @@ export function BrandBand({
           <path d="M1 0 C1 0 0.8067 1 0.5 1 C0.1933 1 0 0 0 0 Z" />
         </clipPath>
       </svg>
-      <div className="bg-gradient-to-r from-primary-400 to-primary-500 px-16 pb-16 pt-48">
-        <div className="flex items-center gap-12 pb-16">
-          <ChromeIcon>
-            <User size={20} />
-          </ChromeIcon>
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="text-12 text-neutral-white">{greeting}</span>
-            <span className="truncate text-14 font-bold text-neutral-white underline">{name}</span>
-          </span>
-          <ChromeIcon badge="8">
-            <Promo size={20} />
-          </ChromeIcon>
-          <ChromeIcon badge="8">
-            <Bell size={20} />
-          </ChromeIcon>
-        </div>
-      </div>
-      <div
-        className="h-24 w-full bg-gradient-to-r from-primary-400 to-primary-500"
-        style={{ clipPath: 'url(#afin-band-sag)' }}
-      />
+      <div className={`h-16 w-full ${BAND_FILL}`} />
+      <div className={`h-24 w-full ${BAND_FILL}`} style={{ clipPath: 'url(#afin-band-sag)' }} />
       {/* `relative` is load-bearing: the clip-path above puts the sag strip in
           its own stacking context, which would otherwise paint over this
           in-flow sibling and cut the Poket widget in half. */}
