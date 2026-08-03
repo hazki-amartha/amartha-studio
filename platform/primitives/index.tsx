@@ -33,6 +33,15 @@ export interface ScreenProps extends HTMLAttributes<HTMLDivElement> {
    * their order in Tailwind's output rather than on anything stated here.
    */
   canvas?: ScreenCanvas
+  /**
+   * Classes painted on the pinned block as a whole — the status-bar strip AND
+   * the top bar together. A screen whose chrome is coloured (a brand band) needs
+   * the fill to run from the very top of the display, and it cannot get that by
+   * styling the bar alone: the strip above it is the platform's, not the
+   * screen's. Pair with `statusBar="none"` so the strip doesn't paint white over
+   * the fill. Default undefined — every other screen is unchanged.
+   */
+  chromeClassName?: string
   children: ReactNode
 }
 
@@ -49,6 +58,7 @@ export function Screen({
   topBar,
   statusBar = 'light',
   canvas = 'neutral',
+  chromeClassName,
   children,
   className,
   ...props
@@ -83,7 +93,7 @@ export function Screen({
           header) can reach the top of the display instead of stopping under a
           white bar it cannot paint. Default 'light' keeps it exactly as the
           frame used to draw it, so screens that don't ask are unchanged. */}
-      <div className="sticky top-0 z-10 shrink-0">
+      <div className={`sticky top-0 z-10 shrink-0 ${chromeClassName ?? ''}`}>
         <div
           className={`${STATUS_BAR_H} ${statusBar === 'none' ? '' : 'bg-neutral-white'}`}
           aria-hidden
