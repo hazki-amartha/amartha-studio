@@ -44,6 +44,12 @@ const homeStates = [
     description: 'She has fallen behind — the goal card warns the reward can be forfeited unless she pays and attends this week.',
     apply: demo.rewardBerisiko,
   },
+  {
+    id: 'limit-terbuka',
+    label: 'Limit siap cair',
+    description: 'A goal is reached and the money still undrawn, so the card carries a disbursement row under the tasks.',
+    apply: demo.limitTerbuka,
+  },
 ]
 
 /** Shared by both Perjalanan pendanaan layouts, so a phase means the same

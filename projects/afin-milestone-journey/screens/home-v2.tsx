@@ -43,7 +43,7 @@ import {
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { MEMBERS, WEEKLY_BILL, rupiah } from '../lib/data'
+import { MEMBERS, WEEKLY_BILL, claimableOf, rupiah } from '../lib/data'
 import { IconPiggy } from '../lib/icons'
 import { outstanding, store, useApp } from '../lib/store'
 import { IconTile, Notice, SectionTitle, TaskButton } from '../lib/ui'
@@ -68,6 +68,10 @@ export function HomeV2Screen() {
   // How many in her majelis are behind on payments — the "Majelis sehat" task's
   // status line, and the reason its "Ingatkan" CTA exists.
   const tunggakanCount = MEMBERS.filter((m) => !m.bayar).length
+
+  // Read off the ladder rather than held here: whatever the journey page says
+  // is hers to take is exactly what home offers, figure included.
+  const claimable = claimableOf(s.journeyPhase)
 
   return (
     <Screen
@@ -203,6 +207,36 @@ export function HomeV2Screen() {
               </>
             )}
           </div>
+
+          {/* Money already on the table. It sits below a rule rather than among
+              the rows above it, because it is not the same kind of thing: those
+              are habits to keep in order to earn the next goal, this is a goal
+              already earned and waiting to be taken. Solid button, not the
+              outline the tasks use — it is the one row here that pays out.
+
+              Absent unless a rung has been reached and left undrawn, so a mitra
+              with nothing open never sees an empty promise. */}
+          {!isNew && claimable ? (
+            <>
+              <div className="-mx-16 mt-16 border-t border-light" />
+              <div className="mt-16 flex items-center gap-12">
+                <IconTile tint="green" round>
+                  <Wallet size={20} />
+                </IconTile>
+                <div className="min-w-0 flex-1">
+                  <p className="text-12 text-neutral-700">Dana siap dicairkan</p>
+                  <p className="text-16 font-bold text-green-600">{claimable.amount}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => flow.go('disburse-amount')}
+                  className="shrink-0 rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white"
+                >
+                  Cairkan
+                </button>
+              </div>
+            </>
+          ) : null}
         </div>
       </div>
 

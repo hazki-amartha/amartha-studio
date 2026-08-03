@@ -97,6 +97,17 @@ export const rewardBerisiko = () => {
   store.set({ mitraStage: 'active', atRisk: true })
 }
 
+/**
+ * A goal has been reached and the money left undrawn, so home carries the
+ * disbursement row under its tasks. This one seeds the LADDER, unlike the
+ * states above it: home reads what is claimable off the journey phase, so the
+ * two axes meet here on purpose rather than by accident.
+ */
+export const limitTerbuka = () => {
+  reset()
+  store.set({ mitraStage: 'active', journeyPhase: 'jul' })
+}
+
 // --- Payment flow ----------------------------------------------------------
 
 /** A full weekly bill against a wallet that can cover it. */
