@@ -1,9 +1,9 @@
 'use client'
 
 // Seeds for the state controls beside the device. The conditions worth showing,
-// most of which cannot be reached by tapping: a reward already ripe, a week
-// already missed, a journey already eleven months old, and three majelis
-// conditions that take weeks of group behaviour to arrive at.
+// most of which cannot be reached by tapping: a week already gone by unpaid,
+// twelve weeks already graded against her, and three majelis conditions that
+// take weeks of group behaviour to arrive at.
 
 import { range } from './data'
 import { store, type AppState } from './store'
@@ -11,16 +11,13 @@ import { store, type AppState } from './store'
 /** The ordinary week, reused as the base every other seed varies from. */
 const base: AppState = {
   week: 19,
-  chapterStart: 17,
   done: range(1, 18),
-  missed: [],
   paid: false,
   attended: false,
-  withdrawnMilestones: 0,
   groupBroken: [],
   groupShort: 0,
   // Week 19 sits in window 2, so window 1 is behind her and closed clean —
-  // which under B's model means she already HOLDS the standing.
+  // which means she already holds a clean standing.
   tier: 'juara',
   late: [],
   unpaid: [],
@@ -33,65 +30,18 @@ function seed(patch: Partial<AppState>) {
   return () => store.seed({ ...base, ...patch })
 }
 
-// --- Her own journey -------------------------------------------------------
-
-/** Two good weeks banked, two still owed. */
-export const midChapter = seed({})
-
-/** The fourth good week has just landed — Rp500rb is in the pot. */
-export const rewardReady = seed({
-  week: 21,
-  chapterStart: 17,
-  done: range(1, 20),
-})
-
-/** Week 18 went by unfinished. The row grew by one; the reward did not move. */
-export const missedWeek = seed({
-  week: 20,
-  chapterStart: 17,
-  done: [...range(1, 16), 17, 19],
-  missed: [18],
-})
-
-/** Two weeks from the limit increase, with one window's worth already taken. */
-export const nearFinal = seed({
-  week: 47,
-  chapterStart: 45,
-  done: range(1, 46),
-  withdrawnMilestones: 9,
-  windowLog: ['full', 'full', 'full'],
-})
+// --- The standing, window by window -----------------------------------------
+// The states are about the 12-week window, and four of them cannot be tapped
+// to: at-risk needs a week to have gone by unpaid, dropped needs a window to
+// have closed against her, and recovering needs both to have happened already.
+// This is exactly what the state controls are for.
 
 /**
- * All three verdicts on one board, for the repayment tracker: weeks 1–4 clean,
- * week 7 paid late, week 8 never paid. Which makes block 2 the only one on the
- * page that adds nothing — the state the tracker's whole arithmetic is for, and
- * one nobody can tap their way to.
- */
-export const mixedRepayments = seed({
-  week: 15,
-  chapterStart: 13,
-  done: [...range(1, 6), ...range(9, 14)],
-  late: [7],
-  unpaid: [8],
-  tier: 'mitra',
-  windowLog: [],
-})
-
-// --- The standing, window by window (option B) ------------------------------
-// B's states are about the 12-week window, and four of the five cannot be
-// tapped to: at-risk needs a week to have gone by unpaid, dropped needs a
-// window to have closed against her, and recovering needs both to have happened
-// already. This is exactly what the state controls are for.
-
-/**
- * The first window, week 6 — she has never held the standing. Under the old
- * 48-week model this was the whole prototype; now it is the exception, which is
- * the clearest single sign the model changed.
+ * The first window, week 6 — nothing has been graded yet. The status still
+ * exists (a grade is held from week 1), but no addition has landed.
  */
 export const firstWindow = seed({
   week: 6,
-  chapterStart: 5,
   done: range(1, 5),
   tier: 'mitra',
   windowLog: [],
@@ -104,7 +54,6 @@ export const firstWindow = seed({
  */
 export const atRisk = seed({
   week: 20,
-  chapterStart: 17,
   done: [...range(1, 16), 18, 19],
   unpaid: [17],
 })
@@ -116,7 +65,6 @@ export const atRisk = seed({
  */
 export const lateCaught = seed({
   week: 22,
-  chapterStart: 21,
   done: range(1, 21),
   late: [17, 18],
 })
@@ -128,7 +76,6 @@ export const lateCaught = seed({
  */
 export const dropped = seed({
   week: 26,
-  chapterStart: 25,
   done: [...range(1, 21), 23, 24, 25],
   tier: 'mitra',
   unpaid: [22],
@@ -142,7 +89,6 @@ export const dropped = seed({
  */
 export const recovered = seed({
   week: 28,
-  chapterStart: 25,
   done: [...range(1, 21), 22, 23, 24, 25, 26, 27],
   tier: 'mitra',
   late: [22],
@@ -151,12 +97,11 @@ export const recovered = seed({
 
 /**
  * Standing on week 24 with everything clean — one tap from the window closing
- * in full. The only one of B's states that can also be reached by tapping, kept
- * because getting to it otherwise costs nine weeks of taps.
+ * in full. The only one of these states that can also be reached by tapping,
+ * kept because getting to it otherwise costs nine weeks of taps.
  */
 export const windowEve = seed({
   week: 24,
-  chapterStart: 21,
   done: range(1, 23),
 })
 
@@ -174,9 +119,7 @@ export const groupWatch = seed({ groupShort: 2 })
  */
 export const groupLost = seed({
   week: 30,
-  chapterStart: 29,
   done: range(1, 29),
-  withdrawnMilestones: 5,
   groupBroken: [4, 9, 11, 17, 22, 26],
   windowLog: ['full', 'full'],
 })
