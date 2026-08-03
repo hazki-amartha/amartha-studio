@@ -17,7 +17,7 @@
 import { Badge, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { AGENT, NEAREST_AGENTS, kmShort } from '../lib/schedule'
+import { AGENT, DEPOSIT, NEAREST_AGENTS, kmShort } from '../lib/schedule'
 import { IconInfo, IconPin, IconStore } from '../lib/icons'
 import { SectionTitle } from '../lib/ui'
 
@@ -62,6 +62,32 @@ export function AgentLocatorScreen() {
       </div>
 
       <SectionTitle>Agen terdekat</SectionTitle>
+
+      {/* What the Rekomendasi badge is claiming, said once above the list it
+          appears in. A badge that ranks one counter over a closer one is making
+          an argument, and an argument with no stated basis is one she has to
+          either take on faith or ignore — so the three things it weighs are
+          named. Distance is only one of them, which is the whole point: it is
+          why the recommendation and the top of the list can disagree. */}
+      <div className="rounded-8 border border-default bg-neutral-white p-12">
+        <Badge intent="primary">Rekomendasi</Badge>
+        <ul className="mt-8 flex flex-col gap-2">
+          {[
+            'Jarak terdekat',
+            'Saldo Poket agen kemungkinan cukup',
+            // The cap lands on the same number as the day's handover limit, and
+            // that is not a coincidence worth hiding: three subsidised drops
+            // cover three settlements, so a BP who paces them never pays.
+            `Bebas biaya, maks ${DEPOSIT.maxPerDay}x setoran per hari`,
+          ].map((line) => (
+            <li key={line} className="flex gap-8 text-12 text-default">
+              <span className="shrink-0 text-caption">·</span>
+              <span className="min-w-0 flex-1">{line}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
       <div className="flex flex-col gap-8">
         {NEAREST_AGENTS.map((agent, i) => (
           <div
@@ -72,9 +98,18 @@ export function AgentLocatorScreen() {
               <IconStore size={20} />
             </span>
             <div className="flex min-w-0 flex-1 flex-col">
-              <span className="flex items-center gap-8">
-                <span className="truncate text-14 font-bold text-default">Agen · {agent.place}</span>
-                {i === 0 ? <Badge intent="primary">Terdekat</Badge> : null}
+              {/* Rekomendasi takes the primary tint and Terdekat drops to
+                  neutral: distance is a fact about a counter, the
+                  recommendation is the advice, and the louder of the two should
+                  be the one she is meant to act on. */}
+              {/* Wraps rather than truncates: the counter's NAME is what she
+                  looks for when she gets there, and "Agen · Warung Bu …" is the
+                  one part of the row that must survive a badge sitting next to
+                  it. */}
+              <span className="flex flex-wrap items-center gap-x-8 gap-y-2">
+                <span className="text-14 font-bold text-default">Agen · {agent.place}</span>
+                {agent.recommended ? <Badge intent="primary">Rekomendasi</Badge> : null}
+                {i === 0 ? <Badge intent="neutral">Terdekat</Badge> : null}
               </span>
               <span className="truncate text-12 text-caption">{agent.address}</span>
               <span className="mt-2 text-12 text-caption">

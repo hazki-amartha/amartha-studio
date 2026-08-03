@@ -274,16 +274,21 @@ export function SettlementScreen() {
         </span>
       </div>
 
-      {/* --- What she is carrying, and what she has picked out of it. The total
-          is the bag; the selected figure is this handover. */}
+      {/* --- The figure THIS handover is worth, and it moves with the ticks.
+          It used to print the whole bag, which meant unticking a mitra changed
+          the button at the bottom of the page and nothing at the top — the one
+          number she is reading while she picks stayed still while the decision
+          underneath it changed. The bag is still shown, but demoted to the line
+          that says what the picked figure came OUT of, and only while the two
+          disagree. */}
       <Card>
         <div className="flex items-center gap-12">
           <IconTile tint="green">
             <IconWallet size={20} />
           </IconTile>
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-12 text-caption">Uang tunai yang bisa disetor</span>
-            <span className="text-24 font-bold text-default">{rupiah(expected)}</span>
+            <span className="text-12 text-caption">Jumlah yang akan disetor</span>
+            <span className="text-24 font-bold text-default">{rupiah(amount)}</span>
           </div>
           <Badge intent="neutral">Setoran ke-{no}</Badge>
         </div>
