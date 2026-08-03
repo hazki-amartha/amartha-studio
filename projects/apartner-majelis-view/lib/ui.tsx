@@ -1426,9 +1426,28 @@ export function StatRows({ rows }: { rows: StatRow[] }) {
 export function Meter({
   progress,
   tone = 'primary',
+  threshold,
+  goal,
 }: {
   progress: number
   tone?: 'primary' | 'green' | 'orange' | 'red' | 'muted'
+  /**
+   * Where the minimum sits on the rail, 0–100. Draws a notch there and tints
+   * the track past it, so the bar stops being "how far along" and becomes "how
+   * far along, and where the bar you have to clear actually is".
+   *
+   * The scale has to run PAST this point for the notch to mean anything — a
+   * meter whose 100% is the target has nowhere to put "beyond". Omit it and
+   * the meter behaves exactly as it always did.
+   */
+  threshold?: number
+  /**
+   * Where the TARGET sits, 0–100 — a second, quieter tick past the gate. It is
+   * deliberately not labelled on the rail: the target is already spelled out in
+   * words above every bar that uses this, and two labels a few percent apart
+   * are two labels nobody reads.
+   */
+  goal?: number
 }) {
   const clamped = Math.max(0, Math.min(100, progress))
   const fill =
@@ -1441,15 +1460,41 @@ export function Meter({
           : tone === 'muted'
             ? 'bg-neutral-400'
             : 'bg-primary-500'
+  const mark = threshold == null ? null : Math.max(0, Math.min(100, threshold))
+  const goalMark = goal == null ? null : Math.max(0, Math.min(100, goal))
   return (
-    <div className="h-8 w-full rounded-full bg-neutral-200">
+    <div className="relative h-8 w-full rounded-full bg-neutral-200">
+      {/* The incentive zone: the stretch of track beyond the minimum, tinted so
+          it reads as a different place to be rather than more of the same. */}
+      {mark == null ? null : (
+        <div
+          className="absolute inset-y-0 right-0 rounded-r-full bg-neutral-50"
+          style={{ left: `${mark}%` }}
+        />
+      )}
       <div
-        className={`h-8 rounded-full ${fill}`}
+        className={`relative h-8 rounded-full ${fill}`}
         // A data-driven width is the one dimension a progress meter cannot take
         // from a token — the value IS the geometry. Every colour and height
         // around it is still a token.
         style={{ width: `${clamped}%` }}
       />
+      {/* The target tick — quieter than the gate, because clearing the gate is
+          what pays and the target is the thing above it she is aiming at. */}
+      {goalMark == null ? null : (
+        <span
+          className="absolute inset-y-0 w-2 -translate-x-1/2 rounded-full bg-neutral-400"
+          style={{ left: `${goalMark}%` }}
+        />
+      )}
+      {/* The gate notch, drawn over the fill so it stays visible once she is
+          past it — that is the moment it is most worth seeing. */}
+      {mark == null ? null : (
+        <span
+          className="absolute inset-y-0 w-2 -translate-x-1/2 rounded-full bg-neutral-500"
+          style={{ left: `${mark}%` }}
+        />
+      )}
     </div>
   )
 }

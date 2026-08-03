@@ -123,8 +123,36 @@ export const project: ProjectModule = {
       notes: [
         'Seven monthly parameters, each carrying a flat rupiah bonus — a parameter earns its bonus outright rather than feeding a combined score.',
         'Every card answers one question: how many more women. The subtraction is done for her and the result IS the headline — “Kurangi 3 mitra lagi”, “Tambah 3 mitra lagi”, “Target tercapai”. A number that exists only to be subtracted from another number is a number the app should be holding, so the current count is not printed.',
-        'The hero says the same thing the same way: “Penuhi 4 target lagi” rather than “3 dari 7 tercapai” — work remaining rather than a score. Switch the period to Juni 2026 to see the all-clear.',
+        'The hero says the same thing the same way: “Penuhi 4 target lagi” rather than “3 dari 7 tercapai” — work remaining rather than a score.',
+        'Collection GATES growth: miss a DPD bucket and the insentif on every pencairan and cross-sell row is held, however well she did on it. The held row keeps its “Target tercapai” — she did the work — but loses the green tick and the green meter, because green on this page means banked.',
+        'The two ways to reach Rp0 are the thing the hero has to tell apart. “Nothing met yet” and “everything you won is behind the gate” read identically on the bottom line and mean opposite things, so each gets its own sentence. And the money is “tertahan”, not “dianulir”, while the month is still running — it is recoverable, and a word that reads as final is how you make a BP stop trying.',
         'The target survives as small print, because a BP does get asked what the threshold is and nobody recites seven of them, and the bonus as a pill, because it is what makes the gap worth closing. No card links out to the work: the schedule owns that, and hanging a task off a score turns the score into how you navigate.',
+      ],
+      states: [
+        {
+          id: 'kpi-running',
+          label: 'Bulan berjalan',
+          description: 'DPD 31–90 meleset, jadi Celengan yang sudah tercapai ikut tertahan',
+          apply: demo.kpiRunning,
+        },
+        {
+          id: 'kpi-all-held',
+          label: 'Semua tertahan — Rp0',
+          description: 'Semua target growth tercapai, semua DPD meleset: sebulan kerja, Rp0',
+          apply: demo.kpiAllHeld,
+        },
+        {
+          id: 'kpi-nothing',
+          label: 'Belum ada capaian — Rp0',
+          description: 'Rp0 tanpa ada yang tertahan — bedanya harus kebaca',
+          apply: demo.kpiNothingYet,
+        },
+        {
+          id: 'kpi-all-clear',
+          label: 'Semua target tercapai',
+          description: 'Penagihan bersih, jadi growth cair dan gate-nya tak terlihat',
+          apply: demo.kpiAllClear,
+        },
       ],
       flowsTo: [
         { to: 'today', label: 'tab Jadwal' },

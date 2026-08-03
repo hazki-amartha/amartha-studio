@@ -21,6 +21,7 @@ import {
   type LeadStage,
   type SosialisasiEvent,
 } from './leads'
+import { KPI_PERIODS } from './kpi'
 import {
   DEPOSIT,
   TASKS,
@@ -406,6 +407,12 @@ export interface AppState {
   comms: Comm[]
   /** Which message the detail page renders. Null before anything is opened. */
   openComm: string | null
+  /**
+   * Which month's numbers the KPI page scores. A BP only ever sees the running
+   * month — this exists so the demo controls can reach the conditions she
+   * cannot tap her way to, above all the two different ways to arrive at Rp0.
+   */
+  kpiPeriod: string
 }
 
 /** What the BP is recording about one call, before she saves it. */
@@ -497,6 +504,7 @@ const initial: AppState = {
   followUp: emptyFollowUp('l1'),
   comms: COMMS_SEED,
   openComm: null,
+  kpiPeriod: KPI_PERIODS[0],
 }
 
 let state: AppState = initial

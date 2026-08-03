@@ -43,16 +43,20 @@ import { useState } from 'react'
 import { Badge, Card, Toggle } from '@/design-system/components'
 import { Screen, TopBar } from '@/platform/primitives'
 import { ringkas, rupiah } from '../lib/data'
-import { KPI_DAYS_LEFT, KPI_PERIODS, KPI_TIERS, buildKpi, type KpiRow } from '../lib/kpi'
+import { KPI_DAYS_LEFT, KPI_TIERS, buildKpi, type KpiRow } from '../lib/kpi'
 import { IconCheck } from '../lib/icons'
 import { TabBar } from '../lib/tabs'
+import { useApp } from '../lib/store'
 import { Meter, SectionTitle } from '../lib/ui'
 
 export function KpiScreen() {
   const [tiered, setTiered] = useState(false)
 
   // Always the running month — see the file note on why there is no picker.
-  const d = buildKpi(KPI_PERIODS[0])
+  // The store holds which month only so the demo controls can reach the
+  // conditions a happy-path tap-through never gets to; the BP never sets it.
+  const { kpiPeriod } = useApp()
+  const d = buildKpi(kpiPeriod)
 
   return (
     <Screen
@@ -101,11 +105,20 @@ function ClassicBody({ d }: { d: ReturnType<typeof buildKpi> }) {
 
         {/* Banked against still on the table. Two figures, no tinted boxes —
             the hero's job is the sentence above, and a pair of coloured chips
-            competes with it for the same glance. */}
+            competes with it for the same glance.
+
+            Rp0 is never green. Green on this page means banked, and a green
+            zero is the page congratulating her on nothing. */}
         <div className="mt-8 flex items-start justify-between gap-12 border-t border-default pt-12">
           <div className="min-w-0">
             <p className="text-10 text-caption">Capaian sekarang</p>
-            <p className="mt-2 text-14 font-bold text-green-600">{rupiah(d.earned)}</p>
+            <p
+              className={`mt-2 text-14 font-bold ${
+                d.earned > 0 ? 'text-green-600' : 'text-caption'
+              }`}
+            >
+              {rupiah(d.earned)}
+            </p>
           </div>
           <div className="min-w-0 text-right">
             <p className="text-10 text-caption">Bisa diraih lagi</p>
@@ -114,6 +127,36 @@ function ClassicBody({ d }: { d: ReturnType<typeof buildKpi> }) {
             </p>
           </div>
         </div>
+
+        {/* The gate, stated at the top where the money is. Collection failing
+            does not cost her one row — it costs her every growth row she has
+            already won, so the figure above is smaller than her work and she
+            deserves to be told why before she goes hunting for the missing
+            rupiah in the list.
+
+            "Tertahan", not "dianulir", while the month is still running: the
+            money is behind a condition she can still clear, and a word that
+            reads as final is how you make a BP with 12 days left stop trying.
+            It only becomes annulled when the month closes on it. */}
+        {d.annulledTotal > 0 ? (
+          <div className="mt-12 rounded-8 bg-red-50 p-12">
+            <p className="text-12 font-bold text-red-600">
+              {rupiah(d.annulledTotal)} tertahan
+            </p>
+            <p className="mt-2 text-12 text-red-600">
+              {d.earned === 0
+                ? 'Semua target yang sudah kamu capai ada di pencairan dan cross-sell, dan itu belum bisa cair selama target penagihan belum tercapai.'
+                : 'Target penagihan belum tercapai, jadi insentif pencairan dan cross-sell belum bisa cair.'}{' '}
+              Penuhi semua target DPD untuk membukanya.
+            </p>
+          </div>
+        ) : null}
+
+        {/* The other zero — nothing met, nothing held — gets NO extra line. The
+            card already says it three times over: "Penuhi 7 target lagi", the
+            days left on the overline, and the full Rp2,5jt still on the table.
+            What separates the two zeros is the held banner above, and its
+            ABSENCE is the signal here. */}
       </Card>
 
       <section className="flex flex-col gap-8 pb-16">
@@ -126,16 +169,47 @@ function ClassicBody({ d }: { d: ReturnType<typeof buildKpi> }) {
   )
 }
 
+/**
+ * Where the TARGET sits on every row's rail — the fixed landmark the scale is
+ * built around, leaving a quarter of the track beyond it for overshoot. The min
+ * lands just short of it, at whatever ratio that row's two numbers give (170
+ * against 180 on DPD 0 puts it at 75.6%).
+ *
+ * Anchoring on the target rather than on a per-row ceiling is what keeps the
+ * seven cards readable as a list: a landmark that moved from 80% on one card to
+ * 7% on the next is a landmark nobody learns.
+ */
+const TARGET_MARK = 80
+
+/**
+ * A value's position on the rail, 0–100. Both directions put the target on
+ * TARGET_MARK, so one notch means one thing all the way down the list.
+ *
+ *   higher-is-better — position is the plain ratio to target.
+ *   lower-is-better  — the good direction is DOWN, so the ratio inverts. Going
+ *     further BELOW the ceiling moves her further RIGHT, which is the whole
+ *     point: "beyond the threshold" has to travel the same way on every row.
+ */
+const railPos = (value: number, target: number, lower?: boolean) =>
+  Math.max(0, Math.min(100, (lower ? target / Math.max(value, 0.01) : value / target) * TARGET_MARK))
+
 function ClassicRowCard({ r }: { r: KpiRow }) {
   const label = r.baseLabel || 'mitra'
-  const pct = Math.min(100, Math.max(0, Math.round((r.count / r.targetCount) * 100)))
   const gap = r.lower ? r.count - r.targetCount : r.targetCount - r.count
 
-  // The headline, and the only number on the card the BP has to do anything
-  // with. "Kurangi" for the DPD buckets, where the target is a ceiling and the
-  // work is moving women OUT; "Tambah" everywhere else.
+  const pct = railPos(r.val, r.target, r.lower)
+  const minMark = railPos(r.min, r.target, r.lower)
+
+  // The only number on the card the BP has to do anything with. "Kurangi" for
+  // the DPD buckets, where the target is a ceiling and the work is moving women
+  // OUT; "Tambah" everywhere else.
+  //
+  // A met row states where she actually STANDS, not just that she cleared the
+  // bar: "tercapai" alone leaves her guessing whether she is one mitra past the
+  // threshold or forty, which is the difference between a target she has to
+  // keep defending and one she can stop watching.
   const action = r.met
-    ? 'Target tercapai'
+    ? `Target tercapai · ${r.count} ${label}`
     : r.lower
       ? `Kurangi ${gap} mitra lagi`
       : `Tambah ${gap} mitra lagi`
@@ -143,34 +217,80 @@ function ClassicRowCard({ r }: { r: KpiRow }) {
   return (
     <div className="rounded-12 border border-default bg-neutral-white p-12">
       <div className="flex items-center gap-8">
-        <span className="min-w-0 flex-1 text-12 font-bold text-default">{r.n}</span>
+        <span className="min-w-0 flex-1 text-14 font-bold text-default">{r.n}</span>
         {/* What closing the gap is worth, banked or not. It stays a pill on the
             same line as the parameter name so the money never competes with the
-            headline underneath it. */}
-        {r.met ? (
+            headline underneath it.
+
+            "Insentif" carries the whole point: a bare figure beside a target
+            reads as a fact about the row, not as something she GETS for closing
+            the gap. One word in the pill says it without spending a line under
+            the action. */}
+        {r.annulled ? (
+          // Met, but paying nothing. It must not wear the green tick — that is
+          // the one signal on the page that means "banked" — so it drops to a
+          // neutral pill with the amount struck through: the work counted, the
+          // money did not.
+          <Badge intent="neutral" size="sm">
+            <span className="line-through">Insentif {rupiah(r.bonus)}</span>
+          </Badge>
+        ) : r.met ? (
           <Badge intent="green" size="sm" leadingIcon={<IconCheck size={16} />}>
-            {rupiah(r.bonus)}
+            Insentif {rupiah(r.bonus)}
           </Badge>
         ) : (
           <Badge intent="primary" size="sm" dot>
-            {rupiah(r.bonus)}
+            Insentif {rupiah(r.bonus)}
           </Badge>
         )}
       </div>
 
-      <p className={`mt-4 text-18 font-bold ${r.met ? 'text-green-600' : 'text-default'}`}>
-        {action}
+      {/* The threshold sits directly under the name it qualifies — the raw
+          figure a BP does get asked for, and nobody can recite seven of them. */}
+      <p className="mt-4 text-12 text-caption">
+        Target: {r.lower ? 'dibawah' : 'diatas'} {r.targetCount} {label}
       </p>
 
       <div className="mt-12">
-        <Meter progress={pct} tone={r.met ? 'green' : r.lower ? 'red' : 'orange'} />
+        <Meter
+          progress={pct}
+          tone={r.annulled ? 'muted' : r.incentivised ? 'green' : r.lower ? 'red' : 'orange'}
+          threshold={minMark}
+          goal={TARGET_MARK}
+        />
+        {/* The gate needs naming once, or the notch is a decorative tick. The
+            labels split ON it — "min" ends where the mark is, "insentif" begins
+            in the stretch it applies to — so the words sit over the geometry
+            they describe. The target is not labelled here: it is already
+            spelled out in full one line above, and two numbers under a 320px
+            rail four percent apart is two numbers nobody can read. */}
+        <p className="mt-4 flex text-10 text-caption">
+          <span className="pr-4 text-right" style={{ width: `${minMark}%` }}>
+            min {r.minCount}
+          </span>
+          <span className="pl-4">insentif</span>
+        </p>
       </div>
 
-      {/* Small print, and deliberately the only surviving raw figure: a BP does
-          get asked what the threshold is, and nobody can recite seven of them. */}
-      <p className="mt-8 text-10 text-disabled">
-        Target: {r.lower ? 'dibawah' : 'diatas'} {r.targetCount} {label}
+      {/* The verdict, and the only number on the card she has to do anything
+          with. It lands UNDER the meter so the card reads as a sentence: here
+          is the target, here is how far you got, so here is what is left. */}
+      <p
+        className={`mt-8 text-16 font-bold ${
+          r.annulled ? 'text-caption' : r.met ? 'text-green-600' : 'text-default'
+        }`}
+      >
+        {action}
       </p>
+
+      {/* Why a met row paid nothing. Without this the card is just wrong: a
+          tick, a full meter, and no money. The reason names the parameter she
+          has to fix, because that is the only thing that unlocks it. */}
+      {r.annulled ? (
+        <p className="mt-2 text-12 text-red-600">
+          Insentif tertahan — target penagihan belum tercapai
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -266,7 +386,7 @@ function WeightRowCard({ r }: { r: KpiRow }) {
   const gap = r.lower ? r.count - r.targetCount : r.targetCount - r.count
 
   const action = r.met
-    ? 'Target tercapai'
+    ? `Target tercapai · ${r.count} ${label}`
     : r.lower
       ? `Kurangi ${gap} mitra lagi`
       : `Tambah ${gap} mitra lagi`
@@ -274,7 +394,7 @@ function WeightRowCard({ r }: { r: KpiRow }) {
   return (
     <div className="rounded-12 border border-default bg-neutral-white p-12">
       <div className="flex items-center gap-8">
-        <span className="min-w-0 flex-1 text-12 font-bold text-default">{r.n}</span>
+        <span className="min-w-0 flex-1 text-14 font-bold text-default">{r.n}</span>
         {/* The parameter's share of the whole score — the pill the rupiah used
             to occupy. Green with a tick once it is fully banked. */}
         {r.met ? (
@@ -288,16 +408,16 @@ function WeightRowCard({ r }: { r: KpiRow }) {
         )}
       </div>
 
-      <p className={`mt-4 text-18 font-bold ${r.met ? 'text-green-600' : 'text-default'}`}>
-        {action}
+      <p className="mt-4 text-12 text-caption">
+        Target: {r.lower ? 'dibawah' : 'diatas'} {r.targetCount} {label}
       </p>
 
       <div className="mt-12">
         <Meter progress={r.progress} tone={r.met ? 'green' : r.lower ? 'red' : 'orange'} />
       </div>
 
-      <p className="mt-8 text-10 text-disabled">
-        Target: {r.lower ? 'dibawah' : 'diatas'} {r.targetCount} {label}
+      <p className={`mt-8 text-16 font-bold ${r.met ? 'text-green-600' : 'text-default'}`}>
+        {action}
       </p>
     </div>
   )

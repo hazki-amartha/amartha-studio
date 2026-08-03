@@ -939,3 +939,23 @@ export const collectGroupCovered = () =>
     payments: { ...freshPayments(), m2: outstandingOf(findMitra('m2')).total },
     payMode: { m2: 'tanggung' },
   })
+
+// --- KPI: the four conditions the scoreboard has to tell apart -------------
+//
+// Every one of these turns on the gate — collection has to be clear before a
+// single growth rupiah is payable — and the page's whole job is that two of
+// them show Rp0 for opposite reasons. A BP who reads "sudah kerja tapi Rp0" the
+// same way she reads "belum ada capaian" is a BP who stops trying.
+
+/** The running month: DPD 31–90 missed, so the Celengan she won is held. */
+export const kpiRunning = () => store.set({ kpiPeriod: 'Juli 2026' })
+
+/** The gate's worst case — every growth target won, every DPD missed. Rp0, and
+ *  all of it recoverable if she clears collection before the month closes. */
+export const kpiAllHeld = () => store.set({ kpiPeriod: 'gate-zero' })
+
+/** Rp0 with nothing behind it: no target met anywhere, nothing held. */
+export const kpiNothingYet = () => store.set({ kpiPeriod: 'nothing-yet' })
+
+/** Everything met — collection clear, so growth pays and the gate is invisible. */
+export const kpiAllClear = () => store.set({ kpiPeriod: 'Juni 2026' })
