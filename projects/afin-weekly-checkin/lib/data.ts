@@ -502,6 +502,50 @@ export function paidThisWeek(s: AppState): number {
   return GROUP_SIZE - members(s).filter((m) => !m.bayar).length
 }
 
+// --- The calendar -----------------------------------------------------------
+// Home's track carries DATES, not week numbers. "Minggu 24" is our unit, not
+// hers: a mitra knows when Lebaran is and when school fees are due, and a
+// milestone she can put against those is a milestone she can plan around. The
+// week number survives everywhere it is the subject — the status page's
+// stretches, the verdict screen — because there it names a stretch rather than
+// answering "when".
+
+/**
+ * Week 1's due date, fixed rather than read off today's clock. The same
+ * prototype has to draw the same dates on every machine and on every render:
+ * a date derived from `now` would differ between the server pass and the
+ * client one, which is a hydration mismatch, and it would also make two
+ * screenshots taken a month apart disagree for no reason.
+ *
+ * A Thursday, because the kumpulan is Thursday. Chosen so the default journey
+ * (week 15) sits around the middle of 2026.
+ */
+const TENOR_START = Date.UTC(2026, 3, 23)
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agu',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
+]
+
+/** The date week `n` falls on, spoken the short way: "9 Jul". */
+export function weekDate(n: number): string {
+  // UTC throughout — a local-time Date would shift the day across timezones and
+  // reintroduce exactly the drift the fixed start date exists to prevent.
+  const d = new Date(TENOR_START + (n - 1) * WEEK_MS)
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`
+}
+
 // --- Weeks and formatting ---------------------------------------------------
 
 /** Inclusive integer range — the weeks already behind her. */
