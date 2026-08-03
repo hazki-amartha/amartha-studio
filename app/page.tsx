@@ -1,7 +1,7 @@
 // WS-D · Gallery homepage — the front door.
-// Reads projects/configs.ts, renders one folder per status and one card per
-// project, most-recent-first. Composed strictly from design-system components +
-// tokens (no arbitrary values).
+// Reads projects/configs.ts, renders one folder per platform and one card per
+// project, most-recent-first. Status is a chip filter, applied in place.
+// Composed strictly from design-system components + tokens (no arbitrary values).
 
 import Link from 'next/link'
 // Import Badge + Card directly (and their CSS) rather than via the barrel:
@@ -32,20 +32,10 @@ const STATUS_LABEL: Record<ProjectStatus, string> = {
   live: 'Live',
 }
 
-// The four folders, in pipeline order — draft → in review → final → live. Fixed
-// taxonomy: a status with nothing in it still shows, so the shape of the studio
-// reads the same on every visit.
+// Pipeline order — draft → in review → final → live. Fixed taxonomy: a status
+// with nothing in it still shows as a chip, so the shape of the studio reads the
+// same on every visit.
 const STATUS_ORDER: ProjectStatus[] = ['draft', 'in-review', 'final', 'live']
-
-// Folder fills reuse each status's own hue (same mapping as the card badges), so
-// a folder and the badges inside it are obviously the same thing. Tab is the 400
-// tint, body the 500 — the fold reads as a lighter flap catching the light.
-const STATUS_FOLDER: Record<ProjectStatus, { tab: string; body: string }> = {
-  draft: { tab: 'bg-orange-400', body: 'bg-orange-500' },
-  'in-review': { tab: 'bg-blue-400', body: 'bg-blue-500' },
-  final: { tab: 'bg-green-400', body: 'bg-green-500' },
-  live: { tab: 'bg-primary-400', body: 'bg-primary-500' },
-}
 
 // Enum value is code-friendly; the display label carries the hyphen/casing.
 const PLATFORM_LABEL: Record<Platform, string> = {
@@ -53,6 +43,38 @@ const PLATFORM_LABEL: Record<Platform, string> = {
   AFIN: 'AFIN',
   NGMIS: 'NGMIS',
 }
+
+// The folders are the products. Fixed taxonomy, same order every visit.
+const PLATFORM_ORDER: Platform[] = ['AFIN', 'APartner', 'NGMIS']
+
+// One hue per product — AFIN purple (the brand), A-Partner blue, NGMIS green —
+// carried by both the folder and the card, so a card's colour tells you which
+// product it belongs to before you read a word of it. Tab is the lighter tint:
+// the fold reads as a flap catching the light.
+const PLATFORM_COLOR: Record<
+  Platform,
+  { tab: string; body: string; card: string }
+> = {
+  AFIN: {
+    tab: 'bg-primary-400',
+    body: 'bg-primary-500',
+    card: 'from-primary-700 to-primary-900',
+  },
+  APartner: {
+    tab: 'bg-blue-400',
+    body: 'bg-blue-500',
+    card: 'from-blue-600 to-blue-800',
+  },
+  NGMIS: {
+    tab: 'bg-green-400',
+    body: 'bg-green-500',
+    card: 'from-green-600 to-green-800',
+  },
+}
+
+// Studio-internal work carries no platform — it gets the neutral ramp rather
+// than borrowing a product's colour.
+const NO_PLATFORM_CARD = 'from-neutral-700 to-neutral-900'
 
 type GalleryEntry = {
   config: ProjectConfig
@@ -80,10 +102,11 @@ async function loadEntries(): Promise<GalleryEntry[]> {
 
 function ProjectCard({ config }: GalleryEntry) {
   const owners = Array.isArray(config.owner) ? config.owner.join(', ') : config.owner
+  const fill = config.platform ? PLATFORM_COLOR[config.platform].card : NO_PLATFORM_CARD
   return (
     <Card flush className="gallery-card flex flex-col dark:border-ink-700 dark:bg-ink-900">
-      {/* Dark brand region — eyebrow, title, description, byline. */}
-      <div className="flex flex-1 flex-col gap-12 bg-gradient-to-br from-primary-700 to-primary-900 p-16">
+      {/* Dark product region — eyebrow, title, description, byline. */}
+      <div className={`flex flex-1 flex-col gap-12 bg-gradient-to-br ${fill} p-16`}>
         <div className="flex items-start justify-between gap-8">
           {config.platform && (
             <span className="text-12 font-regular text-neutral-400">
@@ -114,13 +137,13 @@ function ProjectCard({ config }: GalleryEntry) {
   )
 }
 
-// Opening a folder goes *into* it — ?status=… is a place, and that page drops
-// the sibling folders and offers a breadcrumb back. Folders are not filter
-// chips; you are either at the top level or inside one.
-function StatusFolder({ status, count }: { status: ProjectStatus; count: number }) {
-  const fill = STATUS_FOLDER[status]
+// Opening a folder goes *into* it — ?platform=… is a place, and that page drops
+// the sibling folders and offers a breadcrumb back. Folders are the products;
+// status is the chip row (below), which filters wherever you happen to be.
+function PlatformFolder({ platform, count }: { platform: Platform; count: number }) {
+  const fill = PLATFORM_COLOR[platform]
   return (
-    <Link href={`/?status=${status}`} className="group flex flex-col rounded-12">
+    <Link href={`/?platform=${platform}`} className="group flex flex-col rounded-12">
       {/* The tab — a short flap that makes the block below read as a folder. */}
       <span className={`h-8 w-40 rounded-t-4 ${fill.tab}`} />
       <span
@@ -129,9 +152,46 @@ function StatusFolder({ status, count }: { status: ProjectStatus; count: number 
         <span className="text-12 font-regular text-neutral-white opacity-90">
           {count === 1 ? '1 prototype' : `${count} prototypes`}
         </span>
-        <span className="text-16 font-bold text-neutral-white">{STATUS_LABEL[status]}</span>
+        <span className="text-16 font-bold text-neutral-white">{PLATFORM_LABEL[platform]}</span>
       </span>
     </Link>
+  )
+}
+
+// Status is a filter, not a destination: the chips toggle the grid in place and
+// keep whatever folder you are standing in. Pill shape, per the button rule.
+function StatusChips({
+  platform,
+  active,
+  counts,
+}: {
+  platform: Platform | null
+  active: ProjectStatus | null
+  counts: Record<ProjectStatus, number>
+}) {
+  const href = (status: ProjectStatus | null) => {
+    const params = [
+      platform ? `platform=${platform}` : null,
+      status ? `status=${status}` : null,
+    ].filter(Boolean)
+    return params.length === 0 ? '/' : `/?${params.join('&')}`
+  }
+  const chip = (selected: boolean) =>
+    selected
+      ? 'rounded-full border border-primary-500 bg-primary-500 px-12 py-4 text-12 font-bold text-neutral-white'
+      : 'rounded-full border border-default bg-neutral-white px-12 py-4 text-12 font-regular text-caption hover:border-primary-500 hover:text-link dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:text-neutral-50'
+
+  return (
+    <div className="flex flex-wrap items-center gap-8">
+      <Link href={href(null)} className={chip(active === null)}>
+        All
+      </Link>
+      {STATUS_ORDER.map((status) => (
+        <Link key={status} href={href(status)} className={chip(active === status)}>
+          {STATUS_LABEL[status]} · {counts[status]}
+        </Link>
+      ))}
+    </div>
   )
 }
 
@@ -156,26 +216,51 @@ function isStatus(value: string | undefined): value is ProjectStatus {
   return value !== undefined && (STATUS_ORDER as string[]).includes(value)
 }
 
+function isPlatform(value: string | undefined): value is Platform {
+  return value !== undefined && (PLATFORM_ORDER as string[]).includes(value)
+}
+
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value
+}
+
 export default async function Home({
   searchParams,
 }: {
-  searchParams?: { status?: string | string[] }
+  searchParams?: { status?: string | string[]; platform?: string | string[] }
 }) {
   const entries = await loadEntries()
 
-  const raw = Array.isArray(searchParams?.status) ? searchParams?.status[0] : searchParams?.status
-  const filter = isStatus(raw) ? raw : null
+  const rawStatus = first(searchParams?.status)
+  const rawPlatform = first(searchParams?.platform)
+  const status = isStatus(rawStatus) ? rawStatus : null
+  const platform = isPlatform(rawPlatform) ? rawPlatform : null
 
-  const counts = STATUS_ORDER.map((status) => ({
-    status,
-    count: entries.filter((e) => e.config.status === status).length,
-  }))
-  const shown = filter ? entries.filter((e) => e.config.status === filter) : entries
+  // The chips count within the folder you are standing in, so a chip never
+  // promises rows the grid below it cannot show.
+  const inFolder = platform ? entries.filter((e) => e.config.platform === platform) : entries
+  const statusCounts = Object.fromEntries(
+    STATUS_ORDER.map((s) => [s, inFolder.filter((e) => e.config.status === s).length]),
+  ) as Record<ProjectStatus, number>
+  const shown = status ? inFolder.filter((e) => e.config.status === status) : inFolder
 
-  // Inside a folder the page IS that folder: the sibling folders go away and a
-  // breadcrumb is the way back out — the mental model is a place you entered,
-  // not a filter chip you toggled.
-  if (filter) {
+  const grid =
+    shown.length === 0 ? (
+      <p className="text-14 text-caption dark:text-neutral-400">
+        {status ? `Nothing in ${STATUS_LABEL[status].toLowerCase()} here yet.` : 'Nothing here yet.'}
+      </p>
+    ) : (
+      <section className="grid grid-cols-1 gap-16 sm:grid-cols-2 lg:grid-cols-3">
+        {shown.map((e) => (
+          <ProjectCard key={e.config.slug} config={e.config} />
+        ))}
+      </section>
+    )
+
+  // Inside a folder the page IS that product: the sibling folders go away and a
+  // breadcrumb is the way back out — the mental model is a place you entered.
+  // The status chips come with you, because a filter is not a place.
+  if (platform) {
     return (
       <div className="mx-auto flex max-w-screen-lg flex-col gap-24 px-16 py-32">
         <div className="flex flex-col gap-8">
@@ -193,22 +278,13 @@ export default async function Home({
             Back
           </Link>
           <PageHeader
-            title={STATUS_LABEL[filter]}
+            title={PLATFORM_LABEL[platform]}
             subtitle={shown.length === 1 ? '1 prototype' : `${shown.length} prototypes`}
           />
         </div>
 
-        {shown.length === 0 ? (
-          <p className="text-14 text-caption dark:text-neutral-400">
-            Nothing in {STATUS_LABEL[filter].toLowerCase()} yet.
-          </p>
-        ) : (
-          <section className="grid grid-cols-1 gap-16 sm:grid-cols-2 lg:grid-cols-3">
-            {shown.map((e) => (
-              <ProjectCard key={e.config.slug} config={e.config} />
-            ))}
-          </section>
-        )}
+        <StatusChips platform={platform} active={status} counts={statusCounts} />
+        {grid}
       </div>
     )
   }
@@ -221,19 +297,22 @@ export default async function Home({
         <EmptyState />
       ) : (
         <>
-          <section className="grid grid-cols-2 gap-16 sm:grid-cols-4">
-            {counts.map(({ status, count }) => (
-              <StatusFolder key={status} status={status} count={count} />
+          <section className="grid grid-cols-2 gap-16 sm:grid-cols-3">
+            {PLATFORM_ORDER.map((p) => (
+              <PlatformFolder
+                key={p}
+                platform={p}
+                count={entries.filter((e) => e.config.platform === p).length}
+              />
             ))}
           </section>
 
-          <h2 className="text-16 font-bold text-default dark:text-neutral-50">All prototypes</h2>
+          <div className="flex flex-col gap-12">
+            <h2 className="text-16 font-bold text-default dark:text-neutral-50">All prototypes</h2>
+            <StatusChips platform={null} active={status} counts={statusCounts} />
+          </div>
 
-          <section className="grid grid-cols-1 gap-16 sm:grid-cols-2 lg:grid-cols-3">
-            {entries.map((e) => (
-              <ProjectCard key={e.config.slug} config={e.config} />
-            ))}
-          </section>
+          {grid}
         </>
       )}
     </div>

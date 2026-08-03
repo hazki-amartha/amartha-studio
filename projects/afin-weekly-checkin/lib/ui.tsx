@@ -13,11 +13,9 @@ import {
   ChatCircleQuestion,
   Check,
   ChevronRight,
-  Coin,
   Eye,
   EyeSlash,
   Headset,
-  Majelis,
   Minus,
   Plus,
   Promo,
@@ -26,87 +24,20 @@ import {
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import {
-  GROUP_SIZE,
-  TOTAL_WEEKS,
-  groupStatus,
-  nextWindow,
-  rupiah,
-  weeksToWindow,
-  type GroupStatus,
-  type WeekCell,
-} from './data'
-import { store, useApp, type AppState } from './store'
-
-// --- The pot ---------------------------------------------------------------
-// What four good weeks actually pay. Nobody withdraws weekly in practice, so
-// the reward never hands over cash — it raises what the next disbursement
-// window pays out. That also separates earning from borrowing: she banks the
-// increment in a calm moment and decides about debt in a different one.
-
-export function windowLine(s: AppState): string {
-  const left = weeksToWindow(s)
-  if (left === 0) return 'Pencairan dibuka minggu ini'
-  return `Dicairkan minggu ${nextWindow(s)} · ${left} minggu lagi`
-}
+import { rupiah, type GroupStatus, type WeekCell } from './data'
+import { useApp } from './store'
 
 // --- The majelis -----------------------------------------------------------
-// A card of its own rather than a lane inside the personal one: the group has a
-// different owner and a different cadence, and home is already dense. Three
-// lines here, everything real on the detail page behind it.
-//
-// The good state carries NO numbers. A count appears only in the state where
-// there is something to do about it — which is the whole "fewer numbers" rule
-// applied properly: a figure earns its place by being actionable.
+// The group has a different owner and a different cadence from her own weeks,
+// so it never carries a grade of its own. The good state carries NO numbers
+// either: a count appears only where there is something to do about it, which
+// is the "fewer numbers" rule applied properly — a figure earns its place by
+// being actionable.
 
-const GROUP_COPY: Record<GroupStatus, { badge: string; line: string }> = {
-  baik: {
-    badge: 'Baik',
-    line: 'Pertahankan untuk tambahan limit di akhir tenor',
-  },
-  jaga: {
-    badge: 'Perlu dijaga',
-    line: '',
-  },
-  lewat: {
-    badge: 'Tidak tercapai',
-    line: 'Tambahan limit dari kelompok tidak tercapai tenor ini',
-  },
-}
-
-export function MajelisCard() {
-  const flow = useFlow()
-  const s = useApp()
-  const status = groupStatus(s)
-  const copy = GROUP_COPY[status]
-
-  return (
-    <button
-      type="button"
-      onClick={() => flow.go('majelis')}
-      className="flex w-full items-center gap-12 rounded-16 border border-default bg-neutral-white p-12 text-left"
-    >
-      <span
-        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-full ${
-          status === 'lewat' ? 'bg-neutral-50 text-neutral-500' : 'bg-primary-50 text-primary-500'
-        }`}
-      >
-        <Majelis size={24} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-8">
-          <span className="truncate text-14 font-bold text-default">Kelompok Melati</span>
-          <GroupBadge status={status} />
-        </span>
-        <span className="mt-2 block text-12 text-caption">
-          {status === 'jaga'
-            ? `${GROUP_SIZE - s.groupShort} dari ${GROUP_SIZE} sudah bayar minggu ini`
-            : copy.line}
-        </span>
-      </span>
-      <ChevronRight size={20} className="shrink-0 text-neutral-500" />
-    </button>
-  )
+const GROUP_COPY: Record<GroupStatus, { badge: string }> = {
+  baik: { badge: 'Baik' },
+  jaga: { badge: 'Perlu dijaga' },
+  lewat: { badge: 'Tidak tercapai' },
 }
 
 export function GroupBadge({ status }: { status: GroupStatus }) {
@@ -224,135 +155,13 @@ function Dot({ on }: { on: boolean }) {
   )
 }
 
-// --- The two halves of a good week -----------------------------------------
-// The actions themselves, kept to one compact row. Paying and attending are
-// what the tiles are made of, so they belong inside the same card — but as two
-// short lines, not the three-figure block they replace.
-
-export function TaskRow({
-  icon,
-  label,
-  done,
-  cta,
-  hint,
-  onClick,
-}: {
-  icon: ReactNode
-  label: string
-  done: boolean
-  /** The button, for the half the mitra actually performs in the app. */
-  cta?: string
-  /** Shown instead of a button for the half that records itself. */
-  hint?: string
-  onClick?: () => void
-}) {
-  return (
-    <div className="flex items-center gap-12">
-      <span
-        className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-full ${
-          done ? 'bg-green-50 text-green-500' : 'bg-primary-50 text-primary-500'
-        }`}
-      >
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1 truncate text-14 text-default">{label}</span>
-      {done ? (
-        <span className="flex shrink-0 items-center gap-4 text-12 font-bold text-green-500">
-          <Check size={16} /> Selesai
-        </span>
-      ) : cta && onClick ? (
-        <button
-          type="button"
-          onClick={onClick}
-          className="shrink-0 rounded-full bg-primary-500 px-16 py-4 text-12 font-bold text-neutral-white"
-        >
-          {cta}
-        </button>
-      ) : (
-        <span className="shrink-0 text-12 text-caption">{hint}</span>
-      )}
-    </div>
-  )
-}
-
-/**
- * What a week is made of, stated outright — because the tile fills itself and
- * nothing else on the card would ever say how.
- *
- * There is no Absen button: attendance is recorded for her at the majelis, so
- * the only thing to tap here is the instalment. The week stamps once both
- * halves are in, and if that stamp closes a chapter we go straight to the
- * celebration — the one place the destination is allowed to get loud.
- */
-export function WeekTasks() {
-  const flow = useFlow()
-  const s = useApp()
-
-  const stamp = () => {
-    const next = store.get()
-    if (next.paid && next.attended) {
-      const closed = store.stampWeek()
-      if (closed) flow.go('milestone')
-    }
-  }
-
-  const pay = () => {
-    store.pay()
-    stamp()
-    // Attendance arrives from the majelis a moment later, on its own.
-    window.setTimeout(() => {
-      store.attend()
-      stamp()
-    }, 1400)
-  }
-
-  return (
-    <div className="flex flex-col gap-12">
-      <p className="text-12 text-caption">
-        Minggu ini terisi sendiri kalau Ibu melakukan 2 hal:
-      </p>
-      <TaskRow
-        icon={<Coin size={16} />}
-        label={`Bayar angsuran ${rupiah(112_000)}`}
-        done={s.paid}
-        cta="Bayar"
-        onClick={pay}
-      />
-      <TaskRow
-        icon={<Majelis size={16} />}
-        label="Datang kumpulan Kamis"
-        done={s.attended}
-        hint="Dicatat otomatis"
-      />
-    </div>
-  )
-}
-
 // --- Into the detail page --------------------------------------------------
-// One ladder now, counted in WEEKS. Both remaining options count the same way,
-// so there is a single detail page and no chance of a card pointing at a page
-// that counts in a different unit.
-
-export function LadderLink() {
-  const flow = useFlow()
-
-  return (
-    <button
-      type="button"
-      onClick={() => flow.go('progress-weeks')}
-      className="flex w-full items-center justify-center gap-8 bg-primary-50 p-12 text-12 font-bold text-primary-500"
-    >
-      Lihat semua {TOTAL_WEEKS} minggu
-      <ArrowRight size={16} />
-    </button>
-  )
-}
 
 /**
- * Option B's footer. B's home quotes ONE benefit — what the next twelve weeks
- * add — so the second benefit and the grades themselves need a door, and this
- * is it. It points at the status page rather than the week ladder because the
- * status is what B anchors on; the 48 weeks are one further tap, from there.
+ * Home's footer. Home quotes ONE benefit — what the next twelve weeks add — so
+ * the second benefit and the grades themselves need a door, and this is it. It
+ * points at the status page, which is what home anchors on; the weeks
+ * themselves are one further tap, from there.
  *
  * Drawn as a quiet row on the card's own white behind a divider, not a tinted
  * bar: the card already has a purple band and a purple track, and a third
@@ -385,7 +194,15 @@ export function HomeShell({ children }: { children: ReactNode }) {
   const flow = useFlow()
 
   return (
-    <Screen statusBar="none" canvas="white">
+    <Screen
+      statusBar="none"
+      canvas="white"
+      // The greeting row is chrome: it rides in Screen's pinned slot and stays
+      // put while the page scrolls under it. The fill sits on the slot so the
+      // purple reaches the very top of the display.
+      chromeClassName={BAND_FILL}
+      topBar={<BrandHeader />}
+    >
       <BrandBand>
         <PoketWidget />
       </BrandBand>
@@ -421,7 +238,7 @@ export function HomeShell({ children }: { children: ReactNode }) {
               id: 'pinjaman',
               label: 'Pinjaman',
               icon: <NavIcon name="modal" />,
-              onClick: () => flow.go('progress-weeks'),
+              onClick: () => flow.go('progress-tier'),
             },
             { id: 'scan', label: 'Scan', icon: <NavIcon name="scan" /> },
             { id: 'celengan', label: 'Celengan', icon: <NavIcon name="celengan" /> },
@@ -447,9 +264,39 @@ function ShortcutRow() {
   )
 }
 
+// The band's purple fill. Horizontal rather than diagonal: the band is split
+// across two elements — the pinned header and the sag below it — and only a
+// left-to-right gradient carries across that seam invisibly.
+const BAND_FILL = 'bg-gradient-to-r from-primary-400 to-primary-500'
+
+// The greeting row, handed to Screen as its `topBar` so it stays pinned. It
+// carries no fill of its own — Screen paints the whole pinned block, status
+// strip included, via `chromeClassName`.
+function BrandHeader() {
+  return (
+    <div className="flex items-center gap-12 px-16 pb-16 pt-16">
+      <ChromeIcon>
+        <User size={20} />
+      </ChromeIcon>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-12 text-neutral-white">Hello</span>
+        <span className="truncate text-14 font-bold text-neutral-white underline">Ibu Siti</span>
+      </span>
+      <ChromeIcon badge="8">
+        <Promo size={20} />
+      </ChromeIcon>
+      <ChromeIcon badge="8">
+        <Bell size={20} />
+      </ChromeIcon>
+    </div>
+  )
+}
+
+// What is left of the band below the pinned header: the last flat 16px, the
+// sag, and the wallet sitting across the join.
 function BrandBand({ children }: { children: ReactNode }) {
   return (
-    <div className="-mx-16 -mt-48">
+    <div className="-mx-16 -mt-16">
       {/* The band's bottom edge is a bezier, not a radius: the production mask
           leaves each side corner already angled downward, which an elliptical
           border-radius cannot do (it is tangent-vertical at the sides and
@@ -461,27 +308,8 @@ function BrandBand({ children }: { children: ReactNode }) {
           <path d="M1 0 C1 0 0.8067 1 0.5 1 C0.1933 1 0 0 0 0 Z" />
         </clipPath>
       </svg>
-      <div className="bg-gradient-to-r from-primary-400 to-primary-500 px-16 pb-16 pt-48">
-        <div className="flex items-center gap-12 pb-16">
-          <ChromeIcon>
-            <User size={20} />
-          </ChromeIcon>
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="text-12 text-neutral-white">Hello</span>
-            <span className="truncate text-14 font-bold text-neutral-white underline">Ibu Siti</span>
-          </span>
-          <ChromeIcon badge="8">
-            <Promo size={20} />
-          </ChromeIcon>
-          <ChromeIcon badge="8">
-            <Bell size={20} />
-          </ChromeIcon>
-        </div>
-      </div>
-      <div
-        className="h-24 w-full bg-gradient-to-r from-primary-400 to-primary-500"
-        style={{ clipPath: 'url(#checkin-band-sag)' }}
-      />
+      <div className={`h-16 w-full ${BAND_FILL}`} />
+      <div className={`h-24 w-full ${BAND_FILL}`} style={{ clipPath: 'url(#checkin-band-sag)' }} />
       {/* `relative` is load-bearing: a clip-path makes the sag strip above its
           own stacking context, which would otherwise paint over this in-flow
           sibling and cut the wallet in half. */}

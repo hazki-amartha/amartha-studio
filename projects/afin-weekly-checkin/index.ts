@@ -9,85 +9,48 @@ import {
   groupLost,
   groupWatch,
   lateCaught,
-  midChapter,
-  missedWeek,
-  mixedRepayments,
-  nearFinal,
   recovered,
-  rewardReady,
   windowEve,
 } from './lib/demo'
 
-// The same four conditions apply to every screen here, because every screen
-// reads the same journey. Three of them cannot be reached by tapping.
+// The same conditions apply to every screen here, because every screen reads
+// the same journey — the 12-week grading and the majelis. Most of them cannot
+// be reached by tapping: a week has to have gone by unpaid, or twelve weeks
+// have to have already been graded against her.
 const journeyStates: ScreenState[] = [
   {
-    id: 'mid-chapter',
-    label: 'Tengah chapter',
-    description: 'Dua minggu lancar, dua lagi sampai hadiah.',
-    apply: midChapter,
-  },
-  {
-    id: 'reward-ready',
-    label: 'Hadiah terbuka',
-    description: 'Minggu keempat baru terisi — Rp500rb siap dicairkan.',
-    apply: rewardReady,
-  },
-  {
-    id: 'missed-week',
-    label: 'Ada minggu terlewat',
-    description: 'Minggu 14 kosong: barisan bertambah satu, hadiahnya tidak bergeser.',
-    apply: missedWeek,
-  },
-  {
-    id: 'near-final',
-    label: 'Menjelang minggu 48',
-    description: 'Dua minggu dari kenaikan limit — garis tujuan hampir penuh.',
-    apply: nearFinal,
-  },
-  {
-    id: 'mixed-repayments',
-    label: 'Bayar, telat, belum bayar',
-    description:
-      'Ketiga status di satu papan: minggu 7 telat, minggu 8 belum dibayar — blok 2 tidak menambah apa pun.',
-    apply: mixedRepayments,
-  },
-  // Option B's six, all about the 12-week grading. Four of them cannot be
-  // tapped to at all: a week has to have gone by unpaid, or twelve weeks have
-  // to have already been graded against her.
-  {
     id: 'first-window',
-    label: 'Penilaian pertama (B)',
+    label: 'Penilaian pertama',
     description: 'Minggu 6, belum ada penambahan sama sekali — status modal sudah Sangat Baik.',
     apply: firstWindow,
   },
   {
     id: 'at-risk',
-    label: 'Perlu Ditingkatkan (B)',
+    label: 'Perlu Ditingkatkan',
     description: 'Minggu 17 belum dibayar, 12 minggu ini belum selesai. Masih bisa diselamatkan.',
     apply: atRisk,
   },
   {
     id: 'late-caught',
-    label: 'Baik, bukan Sangat Baik (B)',
+    label: 'Baik, bukan Sangat Baik',
     description: 'Dua minggu dibayar terlambat: status turun ke Baik, penambahannya lebih kecil.',
     apply: lateCaught,
   },
   {
     id: 'window-eve',
-    label: 'Sehari sebelum penilaian (B)',
+    label: 'Sehari sebelum penilaian',
     description: 'Minggu 24, semua lancar — satu tap dari penambahan penuh.',
     apply: windowEve,
   },
   {
     id: 'tier-dropped',
-    label: 'Status modal turun (B)',
+    label: 'Status modal turun',
     description: 'Minggu 22 belum dibayar sampai penilaian ke-2 selesai: Tidak Lancar.',
     apply: dropped,
   },
   {
     id: 'tier-recovered',
-    label: 'Status modal pulih (B)',
+    label: 'Status modal pulih',
     description: 'Tunggakan lunas: status naik lagi ke Baik, penambahan berikutnya di minggu 36.',
     apply: recovered,
   },
@@ -115,16 +78,10 @@ export const project: ProjectModule = {
   config,
   screens: [
     {
-      id: 'home-a',
-      title: 'Home A — Anchor limit',
-      component: lazyScreen(() => import('./screens/home-a'), 'HomeAScreen'),
-      entry: true,
-      states: journeyStates,
-    },
-    {
       id: 'home-b',
-      title: 'Home B — Anchor status modal',
+      title: 'Beranda — Status modal',
       component: lazyScreen(() => import('./screens/home-b'), 'HomeBScreen'),
+      entry: true,
       states: journeyStates,
     },
     {
@@ -135,26 +92,14 @@ export const project: ProjectModule = {
     },
     {
       id: 'progress-tier',
-      title: 'Detail B — Status modal & penambahan',
+      title: 'Status modal & penambahan',
       component: lazyScreen(() => import('./screens/progress-tier'), 'ProgressTierScreen'),
       states: journeyStates,
     },
     {
       id: 'window-close',
-      title: '12 minggu selesai — penilaian (B)',
+      title: '12 minggu selesai — penilaian',
       component: lazyScreen(() => import('./screens/window-close'), 'WindowCloseScreen'),
-      states: journeyStates,
-    },
-    {
-      id: 'progress-weeks',
-      title: 'Detail A — Angsuran & pencairan',
-      component: lazyScreen(() => import('./screens/progress-weeks'), 'ProgressWeeksScreen'),
-      states: journeyStates,
-    },
-    {
-      id: 'milestone',
-      title: 'Empat minggu lancar',
-      component: lazyScreen(() => import('./screens/milestone'), 'MilestoneScreen'),
       states: journeyStates,
     },
   ],
