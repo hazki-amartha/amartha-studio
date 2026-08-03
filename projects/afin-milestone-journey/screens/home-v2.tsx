@@ -17,7 +17,7 @@
 // to repay yet: her nearest goal is the first disbursement.
 
 import { useState, type ReactNode } from 'react'
-import { NavigationBar } from '@/design-system/components'
+import { NavigationBar, OfferCard } from '@/design-system/components'
 import { ServiceIcon, Wordmark } from '@/design-system/assets'
 import {
   ArrowRight,
@@ -213,26 +213,15 @@ export function HomeV2Screen() {
 
       <SectionTitle>Rekomendasi untuk Anda</SectionTitle>
       <div className="flex flex-col gap-12">
-        <RecCard
+        <OfferCard
+          product="celengan"
           title="Penempatan dana dari Rp10.000"
-          titleClassName="text-green-500"
-          body="Dananya tumbuh dan bisa ditarik kapan pun."
-          brand={
-            <span className="flex items-center gap-8 text-green-500">
-              <IconPiggy size={20} />
-              <span className="text-14 font-bold">Celengan</span>
-            </span>
-          }
+          description="Dananya tumbuh dan bisa ditarik kapan pun."
         />
-        <RecCard
-          title="Mulai jualan pulsa, listrik, dengan biaya paling murah!"
-          titleClassName="text-red-400"
-          brand={
-            <span className="text-16 font-bold">
-              <span className="text-primary-500">amartha</span>
-              <span className="text-orange-500">link</span>
-            </span>
-          }
+        <OfferCard
+          product="amartha-link"
+          title="Mulai jualan pulsa, listrik,"
+          description="dengan biaya paling murah!"
         />
       </div>
 
@@ -446,38 +435,8 @@ function Shortcut({ icon, label }: { icon: ReactNode; label: string }) {
   )
 }
 
-// --- Recommendation card ---------------------------------------------------
-// A cross-sell tile: coloured headline, an optional line of body copy, a brand
-// lockup at the foot, and an arrow that signals "there's more here". Drawn, not
-// wired — like the shortcut rail above it.
-
-function RecCard({
-  title,
-  titleClassName,
-  body,
-  brand,
-}: {
-  title: string
-  titleClassName: string
-  body?: string
-  brand: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      className="flex w-full items-start gap-12 rounded-12 border border-default bg-neutral-white p-16 text-left"
-    >
-      <div className="flex flex-1 flex-col gap-8">
-        <p className={`text-16 font-bold ${titleClassName}`}>{title}</p>
-        {body ? <p className="text-14 text-default">{body}</p> : null}
-        <div className="mt-4">{brand}</div>
-      </div>
-      <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-neutral-50 text-default">
-        <ArrowRight size={16} />
-      </span>
-    </button>
-  )
-}
+// The cross-sell tile that used to live here is now the shared `OfferCard` in
+// @/design-system/components, carrying the real product lockups.
 
 // --- The capital-journey timeline ------------------------------------------
 // A node on the horizontal journey line: the filled target ring marks where she

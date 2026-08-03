@@ -457,6 +457,51 @@ export function groupGoodWeeks(s: AppState): number {
   return s.week - 1 - s.groupBroken.length
 }
 
+// --- The roster ------------------------------------------------------------
+// Who has paid this week, name by name. This page USED to withhold it — a count
+// and no names, on the argument that a majelis meets face to face and a
+// screenshot-able list of who is behind adds a permanent record to a room that
+// has none. Overruled by the designer 2026-08-03: the group's standing is a
+// shared obligation she is asked to protect, and a bare count is something she
+// cannot act on. Same shape as the majelis page in afin-milestone-journey.
+
+export interface Member {
+  name: string
+  /** Has this week's instalment posted? */
+  bayar: boolean
+  /** Her own row, pulled out of the list under "Anda". */
+  you?: boolean
+}
+
+/**
+ * The five members the page names, besides her. Fifteen rows is a scroll for no
+ * gain — the ones worth reading are the ones still owing, so `groupShort` lands
+ * on the top of this list and the rest of the majelis stays a count.
+ */
+const ROSTER = ['Ibu Ratna', 'Ibu Yuni', 'Ibu Dewi', 'Ibu Marni', 'Ibu Wati']
+
+export function members(s: AppState): Member[] {
+  // The short ones sort to the top, so the list and the count on the card can
+  // never disagree with each other on screen.
+  const short = Math.min(s.groupShort, ROSTER.length)
+  return [
+    { name: 'Ibu Siti', bayar: s.paid, you: true },
+    ...ROSTER.map((name, i) => ({ name, bayar: i >= short })),
+  ]
+}
+
+/** Members the page does not name. All current — anyone owing is named above. */
+export const UNNAMED_MEMBERS = GROUP_SIZE - 1 - ROSTER.length
+
+/**
+ * How many of the majelis have paid this week. Counted off the roster rather
+ * than off `groupShort`, so the sentence on home and the rows on the majelis
+ * page can never disagree — her own unpaid week counts here too.
+ */
+export function paidThisWeek(s: AppState): number {
+  return GROUP_SIZE - members(s).filter((m) => !m.bayar).length
+}
+
 // --- Weeks and formatting ---------------------------------------------------
 
 /** Inclusive integer range — the weeks already behind her. */

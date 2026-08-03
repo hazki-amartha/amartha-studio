@@ -27,32 +27,48 @@ import { useFlow } from '@/platform/runtime'
 import { rupiah, type GroupStatus, type WeekCell } from './data'
 import { useApp } from './store'
 
+// --- One status pill -------------------------------------------------------
+// The majelis and the mitra inside it are read in the same glance, so they are
+// drawn the same way: one pill, three tones, whatever the subject. A group that
+// needs watching and a member who has not paid are the same colour on purpose —
+// they are the same fact at two scales, and giving the member her own red would
+// say the person is the problem rather than the week.
+
+export type PillTone = 'good' | 'warn' | 'muted'
+
+const PILL_TONE: Record<PillTone, string> = {
+  good: 'bg-green-50 text-green-500',
+  warn: 'bg-orange-50 text-orange-500',
+  muted: 'bg-neutral-200 text-neutral-700',
+}
+
+export function StatusPill({ tone, children }: { tone: PillTone; children: ReactNode }) {
+  return (
+    <span
+      className={`shrink-0 whitespace-nowrap rounded-full px-12 py-4 text-12 font-bold ${PILL_TONE[tone]}`}
+    >
+      {children}
+    </span>
+  )
+}
+
 // --- The majelis -----------------------------------------------------------
 // The group has a different owner and a different cadence from her own weeks,
-// so it never carries a grade of its own. The good state carries NO numbers
-// either: a count appears only where there is something to do about it, which
-// is the "fewer numbers" rule applied properly — a figure earns its place by
-// being actionable.
+// so it never carries a grade of its own — just the same pill her members wear.
 
-const GROUP_COPY: Record<GroupStatus, { badge: string }> = {
-  baik: { badge: 'Baik' },
-  jaga: { badge: 'Perlu dijaga' },
-  lewat: { badge: 'Tidak tercapai' },
+const GROUP_COPY: Record<GroupStatus, { label: string; tone: PillTone }> = {
+  baik: { label: 'Baik', tone: 'good' },
+  jaga: { label: 'Perlu dijaga', tone: 'warn' },
+  lewat: { label: 'Tidak tercapai', tone: 'muted' },
 }
 
 export function GroupBadge({ status }: { status: GroupStatus }) {
-  const tone =
-    status === 'baik'
-      ? 'bg-green-50 text-green-500'
-      : status === 'jaga'
-        ? 'bg-orange-50 text-orange-500'
-        : 'bg-neutral-200 text-neutral-700'
+  return <StatusPill tone={GROUP_COPY[status].tone}>{GROUP_COPY[status].label}</StatusPill>
+}
 
-  return (
-    <span className={`shrink-0 rounded-full px-8 py-2 text-10 font-bold ${tone}`}>
-      {GROUP_COPY[status].badge}
-    </span>
-  )
+/** The same pill, on one mitra's week. */
+export function PaymentPill({ bayar }: { bayar: boolean }) {
+  return <StatusPill tone={bayar ? 'good' : 'warn'}>{bayar ? 'Sudah bayar' : 'Belum bayar'}</StatusPill>
 }
 
 export function Meter({ percent, tone = 'primary' }: { percent: number; tone?: 'primary' | 'yellow' }) {

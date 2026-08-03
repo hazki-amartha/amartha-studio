@@ -6,6 +6,8 @@ Project-local components (design system has no equivalent):
 - `Meter` (`lib/ui.tsx`) — the progress bar on the majelis page.
 - `GroupBadge` (`lib/ui.tsx`) — the majelis's qualitative status chip.
 - `WeekLegend` (`lib/ui.tsx`) — key for the three repayment verdicts, lives next to the tile styles it explains.
+- `StatusPill` (`lib/ui.tsx`) — the one status pill, three tones. `GroupBadge` and `PaymentPill` are both it, so the group and a member inside it read in the same language.
+- `MemberRow` (`screens/majelis.tsx`) — one mitra's week: name, and this week's payment pill.
 - `Milestone` / `Quote` / `Habit` (`screens/home-b.tsx`) — the four-stop 12/24/36/48 track, the next-addition quote box, and the two-habit rows.
 - `CriterionRow` / `WindowBlock` (`screens/progress-tier.tsx`) — the criteria rows, and one graded 12-week stretch as a collapsible block.
 - `StatusLink` (`lib/ui.tsx`) — the home card's footer into the status page.
@@ -41,6 +43,14 @@ concept, B, on a 12-week clock.
 - Twelve clean weeks **add to a balance**, they do not open a window. It never
   expires and she may take part of it. Partial withdrawal is **not wired** —
   `Cairkan` still takes the whole balance.
+
+The majelis page **names who has not paid** as of 2026-08-03, reversing an
+earlier rule that withheld it (a face-to-face group already knows, and a
+screenshot-able list adds a permanent record to a room that has none). It now
+follows `afin-milestone-journey`'s majelis page: her own row under "Anda", the
+rest under "Anggota", a pill on every line. `paidThisWeek` in `lib/data.ts`
+counts off that roster rather than off `groupShort`, so home's sentence and the
+rows can never disagree.
 
 The status page's header carried the two benefits (the next increment, the
 week-48 limit rise) until 2026-08-03; the designer cut them. The twelve weeks
