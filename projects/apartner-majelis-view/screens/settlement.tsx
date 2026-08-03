@@ -40,6 +40,7 @@ import {
   Card,
   NavigationHeader,
 } from '@/design-system/components'
+import { ChevronDown, ChevronUp } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
@@ -100,6 +101,17 @@ export function SettlementScreen() {
     setDeselected((prev) => {
       const next = new Set(prev)
       keys.forEach((k) => (on ? next.delete(k) : next.add(k)))
+      return next
+    })
+
+  // Which majelis are opened to their mitra. Closed by default — the common
+  // case is settling whole groups, and seven rosters expanded at once is a wall
+  // of names between her and the method she came here to pick.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const toggleExpand = (taskId: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      next.has(taskId) ? next.delete(taskId) : next.add(taskId)
       return next
     })
 
@@ -286,47 +298,91 @@ export function SettlementScreen() {
         {sources.map((g) => {
           const keys = g.leaves.map((l) => l.key)
           const allOn = keys.every((k) => isOn(k))
+          const someOn = keys.some((k) => isOn(k))
+          // What THIS group contributes to the handover: the ticked leaves, not
+          // the group's whole cash. Collapsed, that figure is the only thing
+          // saying a majelis is partly in — so it has to be the picked sum.
+          const picked = g.leaves.reduce((sum, l) => sum + (isOn(l.key) ? l.cash : 0), 0)
+          const open = expanded.has(g.taskId)
           return (
             <Card key={g.taskId}>
               {g.perMitra ? (
                 <div className="flex flex-col gap-12">
-                  {/* The visit kind and its name over the mitra rows, with the
-                      "select all" toggle on the title line. */}
-                  <div className="flex items-start justify-between gap-8">
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="text-10 font-bold uppercase text-caption">{g.kindLabel}</span>
-                      <span className="truncate text-14 font-bold text-default">{g.title}</span>
-                    </div>
+                  {/* The majelis line: tick it to take the whole group, or open
+                      it to pick the women inside. The two live on one row and
+                      do different things, so the checkbox is its own hit target
+                      and the rest of the row opens the group. */}
+                  <div className="flex items-center gap-12">
+                    <CheckBox
+                      checked={allOn}
+                      partial={someOn && !allOn}
+                      onToggle={() => setGroup(keys, !allOn)}
+                    />
                     <button
                       type="button"
-                      onClick={() => setGroup(keys, !allOn)}
-                      className="shrink-0 pt-12 text-12 font-bold text-link"
+                      onClick={() => toggleExpand(g.taskId)}
+                      aria-expanded={open}
+                      className="flex min-w-0 flex-1 items-center gap-8 text-left"
                     >
-                      {allOn ? 'Kosongkan' : 'Pilih semua'}
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="text-10 font-bold uppercase text-caption">
+                          {g.kindLabel}
+                        </span>
+                        <span className="truncate text-14 font-bold text-default">{g.title}</span>
+                      </span>
+                      <span className="shrink-0 text-14 font-bold text-default">
+                        {rupiah(picked)}
+                      </span>
+                      <span className="shrink-0 text-caption">
+                        {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </span>
                     </button>
                   </div>
-                  <div className="flex flex-col gap-8">
-                    {g.leaves.map((l) => (
-                      <SelectRow
-                        key={l.key}
-                        label={l.name ?? g.title}
-                        cash={l.cash}
-                        checked={isOn(l.key)}
-                        onToggle={() => toggle(l.key)}
-                      />
-                    ))}
-                  </div>
+                  {/* The mitra inside. Collapsed by default: seven groups of
+                      five women is a wall of names, and the common case is
+                      settling whole groups. Opening one is how she gets to the
+                      woman whose money is staying in the bag. */}
+                  {open ? (
+                    <div className="flex flex-col gap-8 border-t border-light pl-36 pt-12">
+                      {g.leaves.map((l) => (
+                        <SelectRow
+                          key={l.key}
+                          label={l.name ?? g.title}
+                          cash={l.cash}
+                          checked={isOn(l.key)}
+                          onToggle={() => toggle(l.key)}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               ) : (
-                <div className="flex flex-col gap-8">
-                  {/* One selectable line — the kind over its own row. */}
-                  <span className="text-10 font-bold uppercase text-caption">{g.kindLabel}</span>
-                  <SelectRow
-                    label={g.title}
-                    cash={g.leaves[0].cash}
-                    checked={isOn(g.leaves[0].key)}
-                    onToggle={() => toggle(g.leaves[0].key)}
+                /* No roster to open — but the SAME line as a majelis, because
+                   these are peers in one list: a source of cash she is either
+                   putting down or not. Only the chevron differs, and the space
+                   it would occupy is held open so every amount on the list
+                   lands on one right edge. */
+                <div className="flex items-center gap-12">
+                  <CheckBox
+                    checked={allOn}
+                    onToggle={() => setGroup(keys, !allOn)}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setGroup(keys, !allOn)}
+                    className="flex min-w-0 flex-1 items-center gap-8 text-left"
+                  >
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-10 font-bold uppercase text-caption">
+                        {g.kindLabel}
+                      </span>
+                      <span className="truncate text-14 font-bold text-default">{g.title}</span>
+                    </span>
+                    <span className="shrink-0 text-14 font-bold text-default">
+                      {rupiah(picked)}
+                    </span>
+                    <span className="h-16 w-16 shrink-0" aria-hidden />
+                  </button>
                 </div>
               )}
             </Card>
@@ -610,6 +666,47 @@ function CaptureRow({
 // One selectable line in the "pilih yang mau disetor" list: a checkbox, the
 // name (a mitra, or a whole task), and its cash on the right. The whole row is
 // the tap target, so she never has to hit the small box.
+/**
+ * The tick on its own, as a hit target of its own. On a majelis line it has to
+ * be separable from the rest of the row: tapping the name opens the group,
+ * tapping the box takes the whole thing, and one control doing both would make
+ * "show me the mitra" and "settle all of them" the same gesture.
+ *
+ * `partial` is the state a collapsed group needs most — some women ticked, some
+ * not. Neither empty nor full says that, and a collapsed group that reads as
+ * fully selected when it isn't is how the wrong amount gets sent.
+ */
+function CheckBox({
+  checked,
+  partial,
+  onToggle,
+}: {
+  checked: boolean
+  partial?: boolean
+  onToggle: () => void
+}) {
+  const on = checked || partial
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={partial ? 'mixed' : checked}
+      onClick={onToggle}
+      className={`flex h-24 w-24 shrink-0 items-center justify-center rounded-8 border ${
+        on
+          ? 'border-primary-500 bg-primary-500 text-neutral-white'
+          : 'border-neutral-400 bg-neutral-white'
+      }`}
+    >
+      {partial ? (
+        <span className="h-2 w-12 rounded-full bg-neutral-white" />
+      ) : checked ? (
+        <IconCheck size={16} />
+      ) : null}
+    </button>
+  )
+}
+
 function SelectRow({
   label,
   cash,
