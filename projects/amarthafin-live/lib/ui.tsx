@@ -271,42 +271,5 @@ export function ProgressBar({ percent }: { percent: number }) {
   )
 }
 
-/** The products the recommendation cards can advertise. */
-export type OfferProduct = 'modal' | 'ggs' | 'celengan' | 'amartha-link'
-
-const OFFER_TONE = {
-  modal: 'text-blue-500',
-  ggs: 'text-green-500',
-  celengan: 'text-green-500',
-  'amartha-link': 'text-orange-500',
-} as const
-
-// A recommendation card. The foot is the product's full LOCKUP — mark plus
-// name as artwork — not the bare mark, because the copy above never says which
-// product it is selling.
-export function OfferCard({
-  product,
-  title,
-  description,
-  onClick,
-}: {
-  product: OfferProduct
-  title: string
-  description: string
-  onClick?: () => void
-}) {
-  return (
-    <Card onClick={onClick}>
-      <div className="flex items-start justify-between gap-8">
-        <div className="min-w-0">
-          <p className={`text-16 font-bold ${OFFER_TONE[product]}`}>{title}</p>
-          <p className="mt-4 text-16 text-caption">{description}</p>
-        </div>
-        <ArrowRight size={16} className="mt-2 shrink-0 text-caption" />
-      </div>
-      <div className="mt-12">
-        <Wordmark name={product} height={20} />
-      </div>
-    </Card>
-  )
-}
+// The recommendation card that used to live here is now the shared
+// `OfferCard` in @/design-system/components — the second homepage wanted it.

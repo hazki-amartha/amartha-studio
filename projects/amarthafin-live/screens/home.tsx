@@ -12,7 +12,7 @@
 // Everything below those two is identical in both. Static, like every screen in
 // this project: it documents production, it isn't a click-through.
 
-import { Button, Card, NavigationBar } from '@/design-system/components'
+import { Button, Card, NavigationBar, OfferCard } from '@/design-system/components'
 import { NavIcon, ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
 import {
   ArrowRight,
@@ -29,7 +29,6 @@ import {
   BrandHeader,
   Countdown,
   MenuTile,
-  OfferCard,
   PageStrip,
   PoketWidget,
   ProgressBar,

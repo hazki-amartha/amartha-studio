@@ -18,6 +18,7 @@ import { Button, Badge } from '@/design-system/components'
 | `Badge` | `import { Badge } from '@/design-system/components'` | Status labels |
 | `Toggle` | `import { Toggle } from '@/design-system/components'` | On/off settings |
 | `SelectableCard` | `import { SelectableCard } from '@/design-system/components'` | Radio/checkbox cards |
+| `OfferCard` | `import { OfferCard } from '@/design-system/components'` | Product recommendation cards |
 | `Modal` | `import { Modal } from '@/design-system/components'` | Dialog overlays |
 | `BottomSheet` | `import { BottomSheet } from '@/design-system/components'` | Mobile drawers |
 | `NavigationBar` | `import { NavigationBar } from '@/design-system/components'` | Bottom tab bar |

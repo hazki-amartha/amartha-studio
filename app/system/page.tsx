@@ -23,6 +23,7 @@ const GUIDELINE_FILES: Record<string, string> = {
   'components/list-row': 'components/list-row.md',
   'components/toggle': 'components/toggle.md',
   'components/selectable-card': 'components/selectable-card.md',
+  'components/offer-card': 'components/offer-card.md',
   'components/modal': 'components/modal.md',
   'components/bottom-sheet': 'components/bottom-sheet.md',
   'components/navigation-bar': 'components/navigation-bar.md',
