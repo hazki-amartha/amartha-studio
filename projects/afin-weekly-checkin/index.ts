@@ -9,6 +9,8 @@ import {
   groupLost,
   groupWatch,
   lateCaught,
+  neverWithdrew,
+  newMitra,
   recovered,
   windowEve,
 } from './lib/demo'
@@ -18,6 +20,20 @@ import {
 // be reached by tapping: a week has to have gone by unpaid, or twelve weeks
 // have to have already been graded against her.
 const journeyStates: ScreenState[] = [
+  {
+    id: 'new-mitra',
+    label: 'Belum cair sama sekali',
+    description:
+      'Disetujui, belum pernah ditarik. Home jadi satu tombol — angsuran dan kumpulan belum ada.',
+    apply: newMitra,
+  },
+  {
+    id: 'never-withdrew',
+    label: 'Punya saldo, belum dicairkan',
+    description:
+      'Dua penilaian lancar dan belum satu pun diambil: Rp2,5jt menunggu di halaman status modal.',
+    apply: neverWithdrew,
+  },
   {
     id: 'first-window',
     label: 'Penilaian pertama',

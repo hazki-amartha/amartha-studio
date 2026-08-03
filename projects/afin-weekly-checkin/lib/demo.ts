@@ -24,11 +24,40 @@ const base: AppState = {
   absent: [],
   windowLog: ['full'],
   disbursedWindows: 0,
+  principalTaken: true,
 }
 
 function seed(patch: Partial<AppState>) {
   return () => store.seed({ ...base, ...patch })
 }
+
+// --- Money still sitting there ---------------------------------------------
+
+/**
+ * Approved, and the financing has never been drawn. Week 1 has not started —
+ * nothing is graded, no instalment is due — so home is one button and the
+ * habits stay off the page until she takes it. The only state where the amount
+ * on offer is the whole limit rather than an increment.
+ */
+export const newMitra = seed({
+  week: 1,
+  done: [],
+  tier: 'mitra',
+  windowLog: [],
+  principalTaken: false,
+})
+
+/**
+ * Two stretches closed clean and she has taken neither. The balance is real
+ * money she has not noticed — the case that argues for putting the button on
+ * home at all, rather than one tap deep on the status page.
+ */
+export const neverWithdrew = seed({
+  week: 26,
+  done: range(1, 25),
+  windowLog: ['full', 'full'],
+  disbursedWindows: 0,
+})
 
 // --- The standing, window by window -----------------------------------------
 // The states are about the 12-week window, and four of them cannot be tapped
