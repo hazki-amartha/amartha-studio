@@ -101,22 +101,22 @@ export function MilestoneRung({
   const collapsed = state === 'missed' || (state === 'unlocked' && !cta)
 
   // A rung further up the ladder is drained of colour entirely — grey date,
-  // grey figure, grey status. It is real and worth seeing, but it is not what
-  // she should be working on: the next rung is, and it can only look urgent if
-  // the ones behind it are quiet. The status still says what it says; it just
-  // stops competing for the eye.
+  // grey figure — and drops its status label outright. "Sesuai rencana" on a
+  // goal thirty weeks out is a reading of habits she has not had the chance to
+  // keep yet; it filled the loudest slot on the card with the least useful
+  // thing on it. The next rung is what she should be working on, and it can
+  // only look urgent if the ones behind it are quiet.
   const muted = state === 'locked'
   const ink = muted ? 'text-disabled' : undefined
 
-  const pill = status ? (
-    <span
-      className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${
-        muted ? 'bg-neutral-200 text-caption' : STATUS_TONE[status.tone]
-      }`}
-    >
-      {status.label}
-    </span>
-  ) : null
+  const pill =
+    status && !muted ? (
+      <span
+        className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${STATUS_TONE[status.tone]}`}
+      >
+        {status.label}
+      </span>
+    ) : null
 
   return (
     <div className="flex gap-12">
