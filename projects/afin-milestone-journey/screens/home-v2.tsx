@@ -124,13 +124,16 @@ export function HomeV2Screen() {
               <div className="min-w-0 flex-1">
                 <p className="text-12 font-bold text-primary-500">Hari ini</p>
               </div>
+              {/* Label and figure sit at the date's size, not a step under it:
+                  the date alone says nothing useful, and the two lines that
+                  give it meaning were the ones being whispered. */}
               <div className="min-w-0 flex-1 text-center">
                 <p className="text-12 font-bold text-default">6 Okt &rsquo;26</p>
-                <p className="text-10 text-caption">Pencairan</p>
+                <p className="text-12 text-caption">Pencairan</p>
                 {/* "s/d" on both chips: the disbursement is a ceiling too, so
                     the near and far figures are hedged the same way. */}
                 <span
-                  className={`mt-4 inline-block rounded-full px-8 py-2 text-10 font-bold ${
+                  className={`mt-4 inline-block rounded-full px-8 py-2 text-12 font-bold ${
                     rewardAtRisk ? 'bg-red-50 text-red-600' : 'bg-primary-50 text-primary-500'
                   }`}
                 >
@@ -139,12 +142,12 @@ export function HomeV2Screen() {
               </div>
               <div className="min-w-0 flex-1 text-right">
                 <p className="text-12 font-bold text-default">23 Mar &rsquo;27</p>
-                {/* "Peluang" and "s/d", not "Naik limit / Rp8jt": the rise is
-                    assessed at the end of the tenor and the figure is a ceiling,
-                    so stating it flat reads as a promise the product has not
-                    made. Hedged here and everywhere else it appears. */}
-                <p className="text-10 text-caption">Peluang naik limit</p>
-                <span className="mt-4 inline-block rounded-full bg-green-50 px-8 py-2 text-10 font-bold text-green-600">
+                {/* The hedge now rides on the chip alone — "s/d Rp8jt", not
+                    "Rp8jt". The rise is assessed at the end of the tenor and
+                    the figure is a ceiling, so stating it flat would read as a
+                    promise the product has not made. */}
+                <p className="text-12 text-caption">Naik limit</p>
+                <span className="mt-4 inline-block rounded-full bg-green-50 px-8 py-2 text-12 font-bold text-green-600">
                   s/d Rp8jt
                 </span>
               </div>
