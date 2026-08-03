@@ -81,16 +81,37 @@ export function PreviousCycleLink() {
   )
 }
 
+/**
+ * Which rung is the ONE live card on the ladder.
+ *
+ * A ladder where four cards all carry a coloured amount and a button asks the
+ * mitra to work out which one is hers to act on today. Exactly one is: the rung
+ * that has money on the table now — reached, with its `cta` still unspent — and
+ * failing that, the nearest goal she is working toward. Everything else is
+ * either behind her or too far off to do anything about, so it greys out.
+ */
+export function activeIndexOf(milestones: Milestone[]) {
+  const claimable = milestones.findIndex((m) => m.state === 'unlocked' && m.cta)
+  return claimable !== -1 ? claimable : milestones.findIndex((m) => m.state === 'next')
+}
+
 export function MilestoneRung({
   milestone,
   showConnector,
+  active,
   onOpen,
 }: {
   milestone: Milestone
   showConnector: boolean
+  /** The single live rung — see `activeIndexOf`. Everything else greys out. */
+  active: boolean
   onOpen?: () => void
 }) {
   const { label, status, countdown, actionLabel, amount, state, cta } = milestone
+  // Locked rungs carry no figures at all. A rupiah amount and a week count on a
+  // goal she cannot reach for months is arithmetic she has no use for yet, and
+  // it was the loudest thing on a card that should have been the quietest.
+  const locked = state === 'locked'
 
   return (
     <div className="flex gap-12">
@@ -108,16 +129,20 @@ export function MilestoneRung({
         ) : null}
         <span
           className={`relative z-10 flex h-40 w-40 items-center justify-center rounded-full ${
-            state === 'unlocked'
-              ? 'bg-green-500 text-neutral-white'
-              : state === 'next'
-                ? 'bg-primary-500 text-neutral-white'
-                : state === 'missed'
-                  ? 'bg-red-500 text-neutral-white'
-                  : 'bg-neutral-50 text-neutral-400'
+            !active
+              ? 'bg-neutral-50 text-neutral-400'
+              : state === 'unlocked'
+                ? 'bg-green-500 text-neutral-white'
+                : state === 'next'
+                  ? 'bg-primary-500 text-neutral-white'
+                  : state === 'missed'
+                    ? 'bg-red-500 text-neutral-white'
+                    : 'bg-neutral-50 text-neutral-400'
           }`}
         >
-          {state === 'unlocked' ? (
+          {locked ? (
+            <LockKey size={20} />
+          ) : state === 'unlocked' ? (
             <Check size={20} />
           ) : state === 'next' ? (
             <span className="text-16">🎯</span>
@@ -129,16 +154,30 @@ export function MilestoneRung({
         </span>
       </div>
 
-      <div className="min-w-0 flex-1 rounded-12 border border-default bg-neutral-white p-16">
+      <div
+        className={`min-w-0 flex-1 rounded-12 border p-16 ${
+          active ? 'border-primary-500 bg-neutral-white' : 'border-default bg-neutral-50'
+        }`}
+      >
         {/* Date + countdown on the left, the status pill on the right. */}
         <div className="flex items-start gap-8">
           <div className="min-w-0 flex-1">
-            <span className="text-16 font-bold text-default">{label}</span>
-            {countdown ? <p className="mt-2 text-12 text-caption">{countdown}</p> : null}
+            <span className={`text-16 font-bold ${active ? 'text-default' : 'text-caption'}`}>
+              {label}
+            </span>
+            {countdown && !locked ? (
+              <p className="mt-2 text-12 text-caption">{countdown}</p>
+            ) : null}
           </div>
           {status ? (
             <span
-              className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${STATUS_TONE[status.tone]}`}
+              className={`shrink-0 rounded-full px-8 py-2 text-12 font-bold ${
+                // A missed goal keeps its red wherever it sits: greying "Gagal"
+                // into the furniture would hide the one thing she must not miss.
+                active || state === 'missed'
+                  ? STATUS_TONE[status.tone]
+                  : 'bg-neutral-200 text-caption'
+              }`}
             >
               {status.label}
             </span>
@@ -147,27 +186,29 @@ export function MilestoneRung({
 
         <div className="my-16 border-t border-light" />
 
-        {/* The reward on the left, the way in on the right — on one row. */}
+        {/* The reward on the left, the way in on the right — on one row. The
+            amount belongs to the live card only; repeated down the ladder it
+            read as four payouts pending rather than one. */}
         <div className="flex items-center gap-8">
           <div className="min-w-0 flex-1">
-            <p className="text-14 text-caption">{actionLabel}</p>
-            {amount ? <p className="mt-2 text-18 font-bold text-green-600">{amount}</p> : null}
+            <p className={`text-14 ${active ? 'text-caption' : 'text-disabled'}`}>{actionLabel}</p>
+            {amount && active ? (
+              <p className="mt-2 text-18 font-bold text-green-600">{amount}</p>
+            ) : null}
           </div>
-          {cta && onOpen ? (
+          {onOpen ? (
             <button
               type="button"
               onClick={onOpen}
-              className="shrink-0 rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white"
+              className={`shrink-0 rounded-full px-16 py-8 text-14 font-bold ${
+                active && cta
+                  ? 'bg-primary-500 text-neutral-white'
+                  : active
+                    ? 'border border-primary-500 text-primary-500'
+                    : 'border border-default text-caption'
+              }`}
             >
-              {cta}
-            </button>
-          ) : onOpen ? (
-            <button
-              type="button"
-              onClick={onOpen}
-              className="shrink-0 rounded-full border border-primary-500 px-16 py-8 text-14 font-bold text-primary-500"
-            >
-              Lihat
+              {active && cta ? cta : 'Lihat'}
             </button>
           ) : null}
         </div>

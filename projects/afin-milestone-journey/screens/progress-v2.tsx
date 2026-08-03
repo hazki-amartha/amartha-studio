@@ -17,13 +17,19 @@ import { useFlow } from '@/platform/runtime'
 import { HISTORY, MEMBERS, MILESTONE_SETS, hasPreviousCycle } from '../lib/data'
 import { useApp } from '../lib/store'
 import { healthOf } from '../lib/milestone-tracker'
-import { MilestoneRung, PreviousCycleLink, ProgressMenuItem } from '../lib/journey'
+import {
+  activeIndexOf,
+  MilestoneRung,
+  PreviousCycleLink,
+  ProgressMenuItem,
+} from '../lib/journey'
 
 export function ProgressV2Screen() {
   const flow = useFlow()
   const { journeyPhase } = useApp()
 
   const milestones = MILESTONE_SETS[journeyPhase]
+  const activeIndex = activeIndexOf(milestones)
 
   const weeks = HISTORY.length
   const personal = healthOf(
@@ -62,6 +68,7 @@ export function ProgressV2Screen() {
             key={m.label}
             milestone={m}
             showConnector={i < milestones.length - 1}
+            active={i === activeIndex}
             onOpen={() => flow.go(m.detail)}
           />
         ))}
