@@ -12,6 +12,7 @@ import {
   Modal,
   NavigationBar,
   NavigationHeader,
+  OfferCard,
   SelectableCard,
   Toggle,
 } from '@/design-system/components'
@@ -474,6 +475,16 @@ export function Manifest({ guidelines }: { guidelines: Guidelines }) {
             </div>
             <CodeBlock code={'<SelectableCard title="Tenor 12 Bulan" description="Rp 500rb / bulan" inputType="radio" name="tenor" />'} copied={copied} copy={copy} />
             <Guideline source={guidelines['components/selectable-card']} />
+          </Section>
+
+          {/* -------------------------------------------------- Offer Card */}
+          <Section id="offer-cards" title="Offer Card" description="Product recommendation card — headline in the product's colour, its lockup along the foot.">
+            <div className="flex flex-col gap-8 rounded-12 border border-default bg-neutral-white p-16">
+              <OfferCard product="celengan" title="Penempatan dana dari Rp10.000" description="Dananya tumbuh dan bisa ditarik kapan pun." />
+              <OfferCard product="amartha-link" title="Mulai jualan pulsa, listrik," description="dengan biaya paling murah!" />
+            </div>
+            <CodeBlock code={'<OfferCard product="celengan" title="Penempatan dana dari Rp10.000" description="Dananya tumbuh dan bisa ditarik kapan pun." />'} copied={copied} copy={copy} />
+            <Guideline source={guidelines['components/offer-card']} />
           </Section>
 
           {/* -------------------------------------------------- Modal */}

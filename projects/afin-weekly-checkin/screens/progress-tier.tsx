@@ -1,26 +1,21 @@
 'use client'
 
-// Detail B — the Status Modal page. Option A's detail page (progress-weeks) is
-// frozen and still counts in weeks with Rp500rb per four-week chapter on it;
-// this page counts in twelve-week stretches, and the two never link to each
-// other on purpose. A page built on "four weeks pay you Rp500rb" and a page
-// built on "twelve weeks are graded, and the grade decides the increment"
-// cannot sit in one flow without one of them lying.
+// The Status Modal page — the whole tenor read as four twelve-week stretches.
 //
 // The status is the page's HEADER — a coloured band in the page's own chrome,
 // the way the homepage carries its brand band, rather than a purple card in the
-// middle of a page already about it. The band carries the grade AND what the
-// grade is worth, because a status and its benefits are one statement: the two
-// benefits sat in a white card underneath repeating the header's subject. Two
-// benefit lines and nothing else — the grade is already the title and the count
-// beside it is already its evidence, so a heading and a scale above them were
-// the band introducing itself twice before saying anything.
+// middle of a page already about it. The band says one thing only: the grade,
+// what earns it, and the count that evidences it. The benefits used to sit on
+// the band too; they were the page answering "what is this worth" before it had
+// said what it is, and the block below already answers it with the weeks
+// attached.
 //
 // Then three blocks, in the order the questions actually arrive:
 //
 //   1. The money — what she can take out today.
-//   2. Where it came from — the four additions, each drawn as the twelve weeks
-//      it is made of (detail A's block, on B's clock), four boxes to a row.
+//   2. Where it came from — the four additions. Each one opens to reveal the
+//      twelve weeks behind it; twelve boxes standing open, four times over, is
+//      forty-eight boxes on one page and nobody reads that.
 //   3. What keeps it — where she stands on each criterion, then the three
 //      rules. The ONLY place allowed to carry numbers, because they are about
 //      her behaviour rather than our money.
@@ -30,16 +25,15 @@
 //   · Twelve clean weeks do not OPEN a window that shuts again — they ADD to a
 //     balance that never expires. She takes it whenever she likes, in part or
 //     in full. See WINDOW_DISBURSEMENT in lib/data.ts.
-//   · The majelis is not a status criterion. It appears once, inside the limit
-//     benefit, because that is the only thing it moves.
+//   · The majelis is not a status criterion. It has its own page, because the
+//     only thing it moves is the week-48 limit.
 
 import { Badge } from '@/design-system/components'
 import {
   ArrowLeft,
+  ChevronDown,
   CheckCircleFill,
-  Coins,
   LogoModal,
-  Majelis,
   Minus,
   TrendUp,
   Warning,
@@ -47,10 +41,8 @@ import {
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import type { ReactNode } from 'react'
+import { useState } from 'react'
 import {
-  GROUP_BONUS,
-  LIMIT_CEILING,
   QUOTE_FULL,
   QUOTE_REDUCED,
   STATUS_NAME,
@@ -61,11 +53,9 @@ import {
   currentWindow,
   disbursable,
   goodWeeks,
-  gradeIncrement,
   gradeInfo,
   gradeOf,
   gradeOfOutcome,
-  groupStatus,
   rupiah,
   short,
   weeksIntoWindow,
@@ -73,7 +63,6 @@ import {
   windowQuote,
   windowRows,
   type Criterion,
-  type Grade,
   type WindowRow,
 } from '../lib/data'
 import { store, useApp } from '../lib/store'
@@ -84,6 +73,10 @@ export function ProgressTierScreen() {
   const s = useApp()
   const grade = gradeOf(s)
   const ready = disbursable(s)
+  // Which stretch has its weeks showing. Null — everything closed — is the
+  // default: the figures read on their own, and the boxes are there for the
+  // one she wants to check.
+  const [open, setOpen] = useState<number | null>(null)
 
   return (
     <Screen statusBar="none">
@@ -116,7 +109,7 @@ export function ProgressTierScreen() {
             <LogoModal size={24} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-24 font-bold text-neutral-white">{gradeInfo(grade).label}</p>
+            <p className="text-16 font-bold text-neutral-white">{gradeInfo(grade).label}</p>
             <p className="mt-2 text-12 text-neutral-200">{gradeInfo(grade).earned}</p>
           </div>
           <div className="shrink-0 text-right">
@@ -126,11 +119,6 @@ export function ProgressTierScreen() {
             <p className="text-12 text-neutral-200">minggu lancar</p>
           </div>
         </div>
-
-        {/* What the status is WORTH, on the purple. It was a white card under
-            the header saying the same thing the header was about; a status and
-            its benefits are one statement, so they are one block. */}
-        <Worth grade={grade} />
       </div>
 
       {/* 1. The balance, and the four things that build it — one card, because
@@ -153,13 +141,6 @@ export function ProgressTierScreen() {
           </span>
         </div>
 
-        {/* The rule in one breath, and the only place it is stated in full:
-            the money is not a window, it is a balance. */}
-        <p className="mt-12 text-12 text-caption">
-          Jumlah ini bertambah setiap {WINDOW_LENGTH} minggu lancar. Tidak hangus — Ibu bisa
-          mencairkan kapan saja, sebagian dulu atau semuanya.
-        </p>
-
         <button
           type="button"
           disabled={ready === 0}
@@ -173,31 +154,33 @@ export function ProgressTierScreen() {
 
       </div>
 
-      {/* 2. The four additions, drawn the way detail A draws its blocks — as the
-          weeks they are made of. A stretch is twelve boxes wide and the figure
-          it produced is a line UNDER them, because the figure is the result of
-          the twelve and not a thirteenth thing to collect. */}
+      {/* 2. The four additions. Each row states its verdict and its figure on
+             its own, and OPENS to show the twelve weeks behind it — collapsed
+             by default, because forty-eight boxes standing open on one page is
+             a wall, and the weeks are the evidence for the figure rather than
+             the point of it. One open at a time, so the page never grows past
+             a stretch and a half. */}
       <div>
-        <h2 className="text-16 font-bold text-default">
-          Empat kali penambahan dalam {TOTAL_WEEKS} minggu
-        </h2>
+        <h2 className="text-16 font-bold text-default">Keuntungan yang bisa Ibu dapatkan</h2>
         <p className="mt-4 text-12 text-caption">
-          Besar penambahannya mengikuti status modal Ibu di {WINDOW_LENGTH} minggu itu.
+          Jaga status modal di Sangat Baik untuk dapat keuntungan maksimal.
         </p>
       </div>
 
-      <WeekLegend />
-
       <div className="flex flex-col gap-12">
         {windowRows(s).map((row) => (
-          <WindowBlock key={row.index} row={row} />
+          <WindowBlock
+            key={row.index}
+            row={row}
+            open={open === row.index}
+            onToggle={() => setOpen(open === row.index ? null : row.index)}
+          />
         ))}
       </div>
 
       {/* 3. What keeps it — and, at the top of it, where she actually stands on
-             each criterion. The criteria used to sit on the band as the proof
-             for the grade; the band now carries the benefits instead, so the
-             live state moves next to the rules it is measured against. */}
+             each criterion. The live state sits next to the rules it is
+             measured against. */}
       <div className="rounded-12 border border-default bg-neutral-white p-16">
         <h2 className="text-16 font-bold text-default">Yang perlu Ibu jaga</h2>
 
@@ -228,59 +211,6 @@ export function ProgressTierScreen() {
 }
 
 /**
- * What the status is worth: two benefits and nothing else. The four grade names
- * and the "Keuntungan Ibu" heading are gone — the grade is already the header's
- * title and the count beside it is already its evidence, so both were the band
- * introducing itself twice before saying anything.
- *
- * The figures are HER grade's, never the best one: quoting the top increment to
- * a mitra sitting at Baik would be the page telling her she has something she
- * does not.
- */
-function Worth({ grade }: { grade: Grade }) {
-  const s = useApp()
-
-  return (
-    /* Two benefits, and only two. They run on different clocks, and the order
-       says so: the increment is recurring, twelve weeks away and concrete; the
-       limit lands once, at week 48, and stays hedged. */
-    <div className="mt-20 flex flex-col gap-16">
-      {/* "s/d", never an exact figure: the amount a window releases is the
-          engine's on the day, and the grade only sets its ceiling. */}
-      <Benefit
-        icon={<Coins size={20} />}
-        title={
-          gradeIncrement(grade) > 0
-            ? `Tambah s/d ${short(gradeIncrement(grade))} di pencairan berikutnya`
-            : 'Pencairan tidak bertambah'
-        }
-      />
-
-      <Benefit icon={<TrendUp size={20} />} title={`Naik limit hingga ${rupiah(LIMIT_CEILING)}`}>
-        <span className="mt-2 block text-12 text-neutral-200">
-          {gradeIncrement(grade) > 0
-            ? `Kalau status modal Ibu terjaga sampai minggu ${TOTAL_WEEKS}.`
-            : `Limit baru naik kalau status modal Ibu pulih dan terjaga sampai minggu ${TOTAL_WEEKS}.`}
-        </span>
-        {/* The majelis, named once — under the benefit it actually moves, never
-            as a criterion of her own grade. One line: what the group is worth,
-            not an arithmetic of two limits she has to hold in her head. */}
-        <span className="mt-8 flex items-center gap-8 rounded-8 bg-primary-700 px-8 py-4">
-          <span className="shrink-0 text-neutral-white">
-            <Majelis size={16} />
-          </span>
-          <span className="min-w-0 flex-1 text-12 text-neutral-200">
-            {groupStatus(s) === 'lewat'
-              ? `Tambahan ${short(GROUP_BONUS)} dari majelis tidak tercapai`
-              : `+${short(GROUP_BONUS)} dari majelis lancar`}
-          </span>
-        </span>
-      </Benefit>
-    </div>
-  )
-}
-
-/**
  * One criterion — where she actually stands, next to the rules it is measured
  * against. Three states, carried by the mark's own colour: met, at risk, gone.
  */
@@ -307,67 +237,117 @@ function CriterionRow({ item }: { item: Criterion }) {
 }
 
 /**
- * One of the four additions, as a block of its twelve weeks — detail A's shape,
- * on B's clock. A closed stretch carries the grade it was given and what that
- * grade ADDED, because those two facts together are the argument the whole page
- * makes; the boxes above them are the evidence for the grade.
+ * One of the four additions. Closed at rest: the weeks it is made of live
+ * behind a tap, because twelve boxes times four stretches is the whole page and
+ * the boxes are evidence rather than the subject.
  *
- * The ones still ahead carry a RANGE, never a figure. What twelve weeks end up
+ * A closed stretch carries the grade it was given and what that grade ADDED,
+ * because those two facts together are the argument the whole page makes. The
+ * ones still ahead carry a RANGE, never a figure: what twelve weeks end up
  * adding is the engine's to say on the day, and the two ends of the range are
  * the two outcomes the mitra herself controls — clean, or clean but late. A
  * single number here would be a promise; the range is the rule.
  */
-function WindowBlock({ row }: { row: WindowRow }) {
+function WindowBlock({
+  row,
+  open,
+  onToggle,
+}: {
+  row: WindowRow
+  open: boolean
+  onToggle: () => void
+}) {
   const s = useApp()
   const closed = row.status === 'closed'
   const added = closed ? windowQuote(row.outcome) : 0
+  // A stretch that already paid out is settled history: it recedes to the
+  // canvas tint so the open one and the ones still ahead are what the eye
+  // lands on, and the check carries "done" without a word.
+  const earned = added > 0
 
   return (
     <div
-      className={`rounded-12 border bg-neutral-white p-12 ${
-        row.status === 'open' ? 'border-primary-500' : 'border-default'
+      className={`overflow-hidden rounded-12 border ${
+        row.status === 'open'
+          ? 'border-primary-500 bg-neutral-white'
+          : closed
+            ? 'border-default bg-neutral-50'
+            : 'border-default bg-neutral-white'
       }`}
     >
-      <div className="flex items-center gap-8">
-        <span className="min-w-0 flex-1 text-14 font-bold text-default">
-          Minggu {row.from}–{row.to}
-        </span>
-        {row.status === 'open' ? (
-          <Badge intent="primary" variant="solid" size="sm">
-            Sekarang
-          </Badge>
-        ) : row.final ? (
-          <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-yellow-50 text-yellow-600">
-            <TrendUp size={16} />
-          </span>
-        ) : null}
-      </div>
-
-      {/* Twelve boxes, four to a row — the same four-wide rhythm detail A uses,
-          stacked three deep. Twelve across one phone width is a 24px tile with
-          no room for its own week number. */}
-      <div className="mt-12 grid grid-cols-4 gap-8">
-        {windowCells(s, row.index).map((cell) => (
-          <WeekTile key={cell.week} cell={cell} size="sm" />
-        ))}
-      </div>
-
-      <div className="mt-12 flex items-baseline gap-8 border-t border-default pt-12">
-        <span className="min-w-0 flex-1 text-12 text-caption">{windowLabel(row)}</span>
-        {closed ? (
+      {/* The row itself is the control: the whole summary is tappable, so the
+          caret is an affordance rather than the only target. */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="w-full p-12 text-left"
+      >
+        <div className="flex items-center gap-8">
           <span
-            className={`shrink-0 text-14 font-bold ${
-              added > 0 ? 'text-primary-500' : 'text-caption'
+            className={`min-w-0 flex-1 text-14 font-bold ${
+              closed ? 'text-caption' : 'text-default'
             }`}
           >
-            {added > 0 ? `+${rupiah(added)}` : <Minus size={16} />}
+            Minggu {row.from}–{row.to}
           </span>
-        ) : (
-          <span className="shrink-0 text-14 font-bold text-caption">
-            {short(QUOTE_REDUCED)}–{short(QUOTE_FULL)}
+          {row.status === 'open' ? (
+            <Badge intent="primary" variant="solid" size="sm">
+              Sekarang
+            </Badge>
+          ) : row.final ? (
+            <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-yellow-50 text-yellow-600">
+              <TrendUp size={16} />
+            </span>
+          ) : null}
+        </div>
+
+        <div className="mt-8 flex items-baseline gap-8">
+          <span className="min-w-0 flex-1 text-12 text-caption">{windowLabel(row)}</span>
+          {closed ? (
+            <span
+              className={`flex shrink-0 items-center gap-4 text-14 font-bold ${
+                earned ? 'text-primary-500' : 'text-caption'
+              }`}
+            >
+              {earned ? (
+                <>
+                  <CheckCircleFill size={16} className="text-green-500" />+{rupiah(added)}
+                </>
+              ) : (
+                <Minus size={16} />
+              )}
+            </span>
+          ) : (
+            <span className="shrink-0 text-14 font-bold text-caption">
+              {short(QUOTE_REDUCED)}–{short(QUOTE_FULL)}
+            </span>
+          )}
+          <span
+            className={`shrink-0 text-neutral-500 ${open ? 'rotate-180' : ''}`}
+            aria-hidden
+          >
+            <ChevronDown size={16} />
           </span>
-        )}
-      </div>
+        </div>
+      </button>
+
+      {/* Twelve boxes, four to a row, stacked three deep — twelve across one
+          phone width is a 24px tile with no room for its own week number. The
+          key travels with them: it is only readable next to the fills it
+          explains, and only worth the space while they are on screen. */}
+      {open ? (
+        <div className="border-t border-default p-12">
+          <div className="grid grid-cols-4 gap-8">
+            {windowCells(s, row.index).map((cell) => (
+              <WeekTile key={cell.week} cell={cell} size="sm" />
+            ))}
+          </div>
+          <div className="mt-12">
+            <WeekLegend />
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -375,10 +355,14 @@ function WindowBlock({ row }: { row: WindowRow }) {
 /** What the line under the twelve boxes says — the grade, or why there isn't one yet. */
 function windowLabel(row: WindowRow): string {
   if (row.status === 'closed') {
-    const label = gradeInfo(gradeOfOutcome(row.outcome)).label
-    if (row.outcome === 'failed') return `${label} — ada angsuran yang belum dibayar`
-    if (row.outcome === 'reduced') return `${label} — ada angsuran telat`
-    return `${label} · tambahan pencairan`
+    // A settled stretch leads with what it DID, not with the grade it was
+    // given: the grade is the reason, and the reason only earns a mention
+    // where the outcome was short of the full one.
+    if (row.outcome === 'failed') {
+      return `${gradeInfo(gradeOfOutcome(row.outcome)).label} — ada angsuran yang belum dibayar`
+    }
+    if (row.outcome === 'reduced') return 'Keuntungan tercapai — ada angsuran telat'
+    return 'Keuntungan tercapai'
   }
   if (row.status === 'open') {
     return row.final
@@ -387,27 +371,4 @@ function windowLabel(row: WindowRow): string {
   }
   if (row.final) return 'Limit Ibu ditentukan di sini'
   return `Kalau ${WINDOW_LENGTH} minggu ini lancar`
-}
-
-/** One benefit, on the band: white on purple, with the glyph on the darker tint. */
-function Benefit({
-  icon,
-  title,
-  children,
-}: {
-  icon: ReactNode
-  title: string
-  children?: ReactNode
-}) {
-  return (
-    <div className="flex items-start gap-12">
-      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-12 bg-primary-700 text-neutral-white">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-16 font-bold text-neutral-white">{title}</span>
-        {children}
-      </span>
-    </div>
-  )
 }

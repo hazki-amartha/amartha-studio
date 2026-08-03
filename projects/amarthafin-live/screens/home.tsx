@@ -12,7 +12,7 @@
 // Everything below those two is identical in both. Static, like every screen in
 // this project: it documents production, it isn't a click-through.
 
-import { Button, Card, NavigationBar } from '@/design-system/components'
+import { Button, Card, NavigationBar, OfferCard } from '@/design-system/components'
 import { NavIcon, ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
 import {
   ArrowRight,
@@ -24,10 +24,11 @@ import {
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import {
+  BAND_FILL,
   BrandBand,
+  BrandHeader,
   Countdown,
   MenuTile,
-  OfferCard,
   PageStrip,
   PoketWidget,
   ProgressBar,
@@ -42,7 +43,15 @@ export function AmarthaFinHomeScreen() {
   const { modalActive, amarthaLinkActive } = useHomeState()
 
   return (
-    <Screen statusBar="none" canvas="white">
+    <Screen
+      statusBar="none"
+      canvas="white"
+      // The greeting row is chrome, so it rides in Screen's pinned slot and
+      // stays put while the page scrolls under it; the fill is on the slot so
+      // the purple reaches the top of the display.
+      chromeClassName={BAND_FILL}
+      topBar={<BrandHeader />}
+    >
       <BrandBand>
         <PoketWidget balance="Rp100.000" />
       </BrandBand>

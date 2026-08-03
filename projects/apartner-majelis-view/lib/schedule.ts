@@ -301,6 +301,17 @@ export interface AgentLocation {
   /** When it shuts, for the "tutup HH.MM" line on a counter still open now. */
   closes: string
   open: boolean
+  /**
+   * The counter the app would send her to, weighing three things at once:
+   * distance, the odds the agent's Poket balance can absorb her cash, and
+   * whether the agent takes the subsidy that makes the handover free for her.
+   *
+   * Deliberately NOT the nearest one. A recommendation that always agreed with
+   * the top of a distance-sorted list would be a second badge saying the same
+   * thing — the label only earns its space when the two disagree, because that
+   * is the moment she has a decision to make.
+   */
+  recommended?: boolean
 }
 
 /**
@@ -326,6 +337,9 @@ export const NEAREST_AGENTS: AgentLocation[] = [
     hours: '08.00–20.00',
     closes: '20.00',
     open: true,
+    // 700m further than the nearest, and still the one to walk to: it holds
+    // enough Poket to take a full bag, and it takes the subsidy.
+    recommended: true,
   },
   {
     id: 'ag3',

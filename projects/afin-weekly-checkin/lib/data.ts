@@ -1,38 +1,26 @@
 // The rules of the check-in, and the derivations every screen reads.
 //
-// A "chapter" is the stretch between two milestones: four GOOD weeks, not four
-// calendar weeks. Missing a week delays the milestone rather than cancelling it,
-// so a chapter with one missed week is five tiles long — the row grows, the
-// reward at its end does not move.
+// The tenor is 48 weeks read as four 12-week stretches. Each stretch is graded
+// on how she paid inside it, and the grade decides what that stretch adds to
+// the amount she can disburse.
 
 import type { AppState } from './store'
 
 export const TOTAL_WEEKS = 48
-/** Good weeks between one milestone and the next. */
-export const CHAPTER_LENGTH = 4
-/** Chapters in the whole tenor: 12. */
-export const TOTAL_CHAPTERS = TOTAL_WEEKS / CHAPTER_LENGTH
 
-export const MILESTONE_REWARD = 500_000
 export const FINAL_LIMIT = 7_000_000
 export const CURRENT_LIMIT = 5_000_000
-export const LIMIT_INCREASE = FINAL_LIMIT - CURRENT_LIMIT
 
-// --- The status (option B) -------------------------------------------------
-// B used to name a TIER — a club she joined at week 12 and could be thrown out
-// of. That was wrong about its own mechanics: the thing moves down mid-tenor
-// and recovers, which is a reading of how the loan is going, not a membership.
-// So it is a GRADE now, on the financing rather than on her: Status Modal.
+// --- The status ------------------------------------------------------------
+// It is a GRADE on the financing rather than a membership she joins: the thing
+// moves down mid-tenor and recovers, which is a reading of how the loan is
+// going. Three things fall out of that, and they are why it is a
+// simplification rather than a re-skin:
 //
-// Three things fall out of the rename, and they are why it is a simplification
-// rather than a re-skin:
-//
-//   · There is no "earning" state. A tier had to be won before it could be
-//     shown, so B's first twelve weeks displayed an empty promise. A grade
-//     exists from week 1 — a new mitra is already Baik — so the card is never
-//     about something she does not have.
-//   · Nothing to compare. The Mitra-versus-Mitra-Juara table is gone: there is
-//     one loan, and the four grades below are the whole of its scale.
+//   · There is no "earning" state. A grade exists from week 1 — a new mitra is
+//     already Baik — so the card is never about something she does not have.
+//   · Nothing to compare. There is one loan, and the four grades below are the
+//     whole of its scale.
 //   · Losing it reads as "this stretch was not clean", not as demotion. In a
 //     majelis that meets face to face, that difference is the whole design.
 //
@@ -56,9 +44,9 @@ export interface GradeInfo {
 
 /**
  * The ladder. Only the top two add anything, and they add different amounts —
- * which is the one place in B where a grade has a price attached, and the
- * reason the scale is worth naming at all. A grade with no consequence is
- * decoration and invites gaming.
+ * which is the one place a grade has a price attached, and the reason the scale
+ * is worth naming at all. A grade with no consequence is decoration and invites
+ * gaming.
  *
  * The bottom two are one outcome (nothing is added) wearing two names, because
  * they are two different situations for HER: one is this stretch going wrong
@@ -92,22 +80,16 @@ export function gradeInfo(id: Grade): GradeInfo {
 }
 
 // ===========================================================================
-// Option B — the window model
+// The window model
 // ===========================================================================
-//
-// Everything from here to the next banner belongs to B alone. A is FROZEN: it
-// keeps the chapter/pot arithmetic below, which frames four good weeks as
-// banking Rp500rb toward the next disbursement. That framing is wrong about
-// what a disbursement IS, and B is the correction.
 //
 // What a disbursement actually is: she re-borrows principal she has already
 // repaid. Nothing is banked on her behalf, so nothing can be forfeited — and
 // holding a window shut is a credit decision, not a withheld reward. Which is
-// why B computes no payout arithmetic at all. The risk engine owns the figure;
-// this model owns the standing and the direction.
+// why this model computes no payout arithmetic at all. The risk engine owns the
+// figure; this model owns the standing and the direction.
 //
-// The rule of numbers B is built to, and the reason the constants below are so
-// thin:
+// The rule of numbers, and the reason the constants below are so thin:
 //
 //   · QUOTED figures are fine — her limit, her instalment, the amount actually
 //     offered at a window. They are engine output, shown as fact at the moment
@@ -119,7 +101,7 @@ export function gradeInfo(id: Grade): GradeInfo {
 //     12 kumpulan" is not a money promise, it is the ask. The vagueness belongs
 //     on the payout, never on what is expected of her.
 
-/** The disbursement window: 12 weeks, four to a tenor. B's whole cadence. */
+/** The disbursement window: 12 weeks, four to a tenor. The whole cadence. */
 export const WINDOW_LENGTH = 12
 export const WINDOWS_IN_TENOR = TOTAL_WEEKS / WINDOW_LENGTH
 
@@ -137,12 +119,12 @@ export const ABSENCE_BUDGET = WINDOW_LENGTH - KUMPULAN_REQUIRED
 
 /**
  * The three rules, in the mitra's own terms. Concrete because they are about
- * her behaviour, not about our money — this is the one list in B allowed to
- * carry a number, and the reason the rest of B can afford to be vague.
+ * her behaviour, not about our money — this is the one list allowed to carry a
+ * number, and the reason the rest can afford to be vague.
  *
  * All three are hers alone. The majelis is not here on purpose (see the status
- * banner at the top of this file); it is named once, under the limit benefit,
- * where it actually does something.
+ * banner at the top of this file); it is named once, on the majelis page, where
+ * it actually does something.
  */
 export const STATUS_RULES = [
   {
@@ -164,14 +146,12 @@ export const STATUS_RULES = [
  * every screen has to keep it: twelve clean weeks do not open a door that shuts
  * again, they raise a balance. That balance never expires and is hers to take
  * whenever she wants it — all of it, or part of it, at week 12 or at week 29.
- * It is the same shape as option A; A just increments every four weeks instead
- * of every twelve.
  *
  * So "pencairan terbuka" is the wrong verb everywhere: the behaviour gates the
  * INCREMENT, never the withdrawal.
  *
- * The figure itself: a quarter of her limit, because over the 48
- * weeks she repays the whole of it and the window is a quarter of the tenor.
+ * The figure itself: a quarter of her limit, because over the 48 weeks she
+ * repays the whole of it and the window is a quarter of the tenor.
  *
  * This one figure is safe to print ahead of time, and the distinction matters:
  * it is arithmetic on HER OWN contract — the principal she will have repaid by
@@ -235,11 +215,6 @@ export function weeksIntoWindow(s: AppState): number {
   return s.week - windowStart(currentWindow(s)) + 1
 }
 
-/** Progress through the open window, 0–100. B's bar counts 12, never 48. */
-export function windowPercent(s: AppState): number {
-  return Math.round(((weeksIntoWindow(s) - 1) / WINDOW_LENGTH) * 100)
-}
-
 /** Weeks left before the window closes and the decision is made. */
 export function weeksLeftInWindow(s: AppState): number {
   return windowEnd(currentWindow(s)) - s.week
@@ -275,7 +250,7 @@ export function attendanceLost(s: AppState): boolean {
 }
 
 /**
- * The grade right now — the one derivation every B screen reads.
+ * The grade right now — the one derivation every screen reads.
  *
  * It is a reading of the stretch she is INSIDE, not of the whole tenor: twelve
  * weeks is the unit the increment is paid on, so it is the unit the status is
@@ -368,15 +343,6 @@ export function accessWeek(s: AppState): number {
   return windowEnd(currentWindow(s))
 }
 
-/**
- * Full or reduced — direction only, and the ONE thing about the amount this
- * model is willing to state ahead of the window. A late week means less; the
- * figure itself waits for the engine.
- */
-export function amountDirection(s: AppState): 'full' | 'reduced' {
-  return lateIn(s, currentWindow(s)).length > 0 ? 'reduced' : 'full'
-}
-
 /** How the window containing `week` closed, or would close right now. */
 export function outcomeOf(s: AppState, index: number): WindowOutcome {
   if (outstandingIn(s, index).length > 0 || absencesIn(s, index).length > ABSENCE_BUDGET) {
@@ -398,11 +364,6 @@ export interface WindowRow {
   final: boolean
 }
 
-/**
- * The four beats of the tenor: earn, hold, hold, graduate. This strip is B's
- * spine and replaces the 48-tile ladder — under this model four weeks buys
- * rhythm and nothing else, so the chapter has no place on B's pages.
- */
 /** full < reduced < failed. A window is only ever graded down, never up. */
 const OUTCOME_RANK: Record<WindowOutcome, number> = { full: 0, reduced: 1, failed: 2 }
 
@@ -420,6 +381,7 @@ function gradedOutcome(s: AppState, index: number): WindowOutcome {
   return OUTCOME_RANK[logged] >= OUTCOME_RANK[fromWeeks] ? logged : fromWeeks
 }
 
+/** The four beats of the tenor: earn, hold, hold, graduate. */
 export function windowRows(s: AppState): WindowRow[] {
   const now = currentWindow(s)
   return Array.from({ length: WINDOWS_IN_TENOR }, (_, i) => {
@@ -437,10 +399,8 @@ export function windowRows(s: AppState): WindowRow[] {
 }
 
 /**
- * The twelve weeks of one window, each with its own verdict. B's detail page
- * draws a stretch the way A draws a chapter — as the weeks it is made of —
- * because a grade with no visible weeks behind it is the same unsupported
- * opinion the home band would be without its count.
+ * The twelve weeks of one window, each with its own verdict — because a grade
+ * with no visible weeks behind it is an unsupported opinion.
  */
 export function windowCells(s: AppState, index: number): WeekCell[] {
   return range(windowStart(index), windowEnd(index)).map((week) => ({
@@ -448,33 +408,6 @@ export function windowCells(s: AppState, index: number): WeekCell[] {
     status: paymentStatus(s, week),
   }))
 }
-
-/** True on the last week of a window — the week that triggers the decision. */
-export function closesWindow(s: AppState): boolean {
-  return s.week === windowEnd(currentWindow(s))
-}
-
-// ===========================================================================
-// Option A — frozen
-// ===========================================================================
-
-// --- The two currencies ----------------------------------------------------
-// Keeping these apart is what makes the whole thing explainable: the POT is
-// what Ibu can take out at the next disbursement window, the LIMIT is how big
-// her next loan can be. Four good weeks add to the pot. Week 48 and the majelis
-// move the limit.
-//
-// The four-week reward is NOT cash and never lands in her hand on the day: it
-// is an increment on what the next window will disburse. Three good chapters
-// inside a window means Rp1,5jt at that window; miss one and the window pays
-// Rp1jt. That is why nothing in this prototype says "hadiah cair sekarang".
-
-/** Weeks between withdrawal windows — every three months. */
-export const WINDOW_EVERY = 12
-/** Good chapters that fit inside one window: 3, so a full window pays Rp1,5jt. */
-export const CHAPTERS_PER_WINDOW = WINDOW_EVERY / CHAPTER_LENGTH
-/** The most one window can disburse when no week is missed. */
-export const WINDOW_CEILING = CHAPTERS_PER_WINDOW * MILESTONE_REWARD
 
 // --- The majelis lever -----------------------------------------------------
 // 90% of the tenor must be weeks where the WHOLE group was complete: 43 of 48,
@@ -496,116 +429,6 @@ export const GROUP_THRESHOLD_WEEKS = 43
 export const GROUP_SLACK = TOTAL_WEEKS - GROUP_THRESHOLD_WEEKS
 /** How far back the displayed status looks. Recent, so it can be recovered. */
 export const GROUP_RECENT_WEEKS = 8
-
-/** Inclusive integer range — the weeks already behind her. */
-export function range(from: number, to: number): number[] {
-  return Array.from({ length: to - from + 1 }, (_, i) => from + i)
-}
-
-/** Short rupiah, the way the amount is spoken: Rp500rb, Rp2jt. */
-export function short(amount: number): string {
-  // Nothing is spoken as "Rp0rb" — an empty pot is a flat Rp0.
-  if (amount < 1_000) return 'Rp0'
-  if (amount >= 1_000_000) {
-    const jt = amount / 1_000_000
-    return `Rp${Number.isInteger(jt) ? jt : jt.toFixed(1).replace('.', ',')}jt`
-  }
-  return `Rp${Math.round(amount / 1_000)}rb`
-}
-
-/** Full rupiah, for the places that state an exact figure. */
-export function rupiah(amount: number): string {
-  return `Rp${amount.toLocaleString('id-ID')}`
-}
-
-/**
- * What a week is worth once it is behind her.
- *
- * `done` is paid on time, `late` is paid after its own week had passed, and
- * `missed` is never paid at all. Three verdicts, not two, because the middle one
- * is the whole reason the increase can come out smaller than Rp500rb instead of
- * simply not coming.
- */
-export type CellStatus = 'done' | 'late' | 'missed' | 'active' | 'future'
-
-export interface WeekCell {
-  week: number
-  status: CellStatus
-}
-
-// --- Derivations -----------------------------------------------------------
-
-/** Good weeks banked so far, across the whole journey. */
-export function goodWeeks(s: AppState): number {
-  return s.done.length
-}
-
-/** How far along the 48 weeks she is, 0–100. Drives the destination bar. */
-export function journeyPercent(s: AppState): number {
-  return Math.round((goodWeeks(s) / TOTAL_WEEKS) * 100)
-}
-
-/** Milestones already reached. */
-export function milestonesEarned(s: AppState): number {
-  return Math.floor(goodWeeks(s) / CHAPTER_LENGTH)
-}
-
-/** The tiles of the chapter now in progress — four, plus one per missed week. */
-export function chapterCells(s: AppState): WeekCell[] {
-  const missed = s.missed.filter((w) => w >= s.chapterStart)
-  const length = CHAPTER_LENGTH + missed.length
-  const cells: WeekCell[] = []
-  for (let i = 0; i < length; i++) {
-    const week = s.chapterStart + i
-    cells.push({ week, status: cellStatus(s, week) })
-  }
-  return cells
-}
-
-function cellStatus(s: AppState, week: number): CellStatus {
-  if (s.done.includes(week)) return 'done'
-  if (s.missed.includes(week)) return 'missed'
-  if (week === s.week) return 'active'
-  return 'future'
-}
-
-/** Good weeks banked inside the current chapter. */
-export function chapterProgress(s: AppState): number {
-  return s.done.filter((w) => w >= s.chapterStart).length
-}
-
-/** Good weeks still owed before the next reward opens. */
-export function weeksToReward(s: AppState): number {
-  return Math.max(0, CHAPTER_LENGTH - chapterProgress(s))
-}
-
-/** True the moment the chapter's fourth good week lands. */
-export function rewardReady(s: AppState): boolean {
-  return chapterProgress(s) >= CHAPTER_LENGTH
-}
-
-/** Is the current chapter the last one — the limit increase rather than a payout? */
-export function onFinalChapter(s: AppState): boolean {
-  return milestonesEarned(s) >= TOTAL_CHAPTERS - 1
-}
-
-// --- The pot and its window ------------------------------------------------
-
-/** Everything the milestones have banked and she has not taken out yet. */
-export function pot(s: AppState): number {
-  return (milestonesEarned(s) - s.withdrawnMilestones) * MILESTONE_REWARD
-}
-
-/** The next week a withdrawal is actually possible. */
-export function nextWindow(s: AppState): number {
-  return Math.min(Math.ceil(s.week / WINDOW_EVERY) * WINDOW_EVERY, TOTAL_WEEKS)
-}
-
-export function weeksToWindow(s: AppState): number {
-  return Math.max(0, nextWindow(s) - s.week)
-}
-
-// --- The majelis -----------------------------------------------------------
 
 export type GroupStatus = 'baik' | 'jaga' | 'lewat'
 
@@ -634,155 +457,99 @@ export function groupGoodWeeks(s: AppState): number {
   return s.week - 1 - s.groupBroken.length
 }
 
-/** The limit increase still on the table: hers alone, or hers plus the group's. */
-export function limitOnOffer(s: AppState): number {
-  return groupStatus(s) === 'lewat' ? LIMIT_INCREASE : LIMIT_INCREASE + GROUP_BONUS
+// --- The roster ------------------------------------------------------------
+// Who has paid this week, name by name. This page USED to withhold it — a count
+// and no names, on the argument that a majelis meets face to face and a
+// screenshot-able list of who is behind adds a permanent record to a room that
+// has none. Overruled by the designer 2026-08-03: the group's standing is a
+// shared obligation she is asked to protect, and a bare count is something she
+// cannot act on. Same shape as the majelis page in afin-milestone-journey.
+
+export interface Member {
+  name: string
+  /** Has this week's instalment posted? */
+  bayar: boolean
+  /** Her own row, pulled out of the list under "Anda". */
+  you?: boolean
 }
 
-// --- The full ladder, for the progress page --------------------------------
+/**
+ * The five members the page names, besides her. Fifteen rows is a scroll for no
+ * gain — the ones worth reading are the ones still owing, so `groupShort` lands
+ * on the top of this list and the rest of the majelis stays a count.
+ */
+const ROSTER = ['Ibu Ratna', 'Ibu Yuni', 'Ibu Dewi', 'Ibu Marni', 'Ibu Wati']
 
-export type ChapterStatus = 'done' | 'current' | 'locked'
-
-export interface Chapter {
-  index: number
-  status: ChapterStatus
-  cells: WeekCell[]
-  /** The last chapter pays a limit increase instead of a disbursement. */
-  final: boolean
+export function members(s: AppState): Member[] {
+  // The short ones sort to the top, so the list and the count on the card can
+  // never disagree with each other on screen.
+  const short = Math.min(s.groupShort, ROSTER.length)
+  return [
+    { name: 'Ibu Siti', bayar: s.paid, you: true },
+    ...ROSTER.map((name, i) => ({ name, bayar: i >= short })),
+  ]
 }
 
-// ===========================================================================
-// The repayment tracker — what the detail page actually is
-// ===========================================================================
-//
-// The 48 weeks read as the repayment schedule they are. Every week behind her
-// carries one of three verdicts — paid, paid late, not paid — and every FOUR
-// weeks those verdicts settle into one figure: what that block added to the
-// amount she can disburse.
-//
-//   · four clean weeks     → +Rp500rb
-//   · a late week          → a quarter off, per late week
-//   · a week never paid    → the block adds nothing at all
-//
-// A block is four CALENDAR weeks, not four good ones. That is the difference
-// from `ladder` above, and it is deliberate: the schedule does not grow to make
-// room for a week she skipped, because the due dates did not move either. Which
-// is also why every row on the page is exactly four boxes wide.
+/** Members the page does not name. All current — anyone owing is named above. */
+export const UNNAMED_MEMBERS = GROUP_SIZE - 1 - ROSTER.length
 
-/** What one late week costs the block: a quarter of the increase. */
-export const LATE_REDUCTION = MILESTONE_REWARD / CHAPTER_LENGTH
+/**
+ * How many of the majelis have paid this week. Counted off the roster rather
+ * than off `groupShort`, so the sentence on home and the rows on the majelis
+ * page can never disagree — her own unpaid week counts here too.
+ */
+export function paidThisWeek(s: AppState): number {
+  return GROUP_SIZE - members(s).filter((m) => !m.bayar).length
+}
 
-export type CycleStatus = 'closed' | 'open' | 'future'
+// --- Weeks and formatting ---------------------------------------------------
 
-export interface Cycle {
-  /** 1-based, 1–12. */
-  index: number
-  from: number
-  to: number
-  status: CycleStatus
-  /** Always exactly CHAPTER_LENGTH cells. */
-  cells: WeekCell[]
-  late: number
-  unpaid: number
-  /** What these four weeks add to what she can disburse. */
-  increment: number
+/** Inclusive integer range — the weeks already behind her. */
+export function range(from: number, to: number): number[] {
+  return Array.from({ length: to - from + 1 }, (_, i) => from + i)
+}
+
+/** Short rupiah, the way the amount is spoken: Rp500rb, Rp2jt. */
+export function short(amount: number): string {
+  // Nothing is spoken as "Rp0rb" — an empty balance is a flat Rp0.
+  if (amount < 1_000) return 'Rp0'
+  if (amount >= 1_000_000) {
+    const jt = amount / 1_000_000
+    return `Rp${Number.isInteger(jt) ? jt : jt.toFixed(1).replace('.', ',')}jt`
+  }
+  return `Rp${Math.round(amount / 1_000)}rb`
+}
+
+/** Full rupiah, for the places that state an exact figure. */
+export function rupiah(amount: number): string {
+  return `Rp${amount.toLocaleString('id-ID')}`
+}
+
+/**
+ * What a week is worth once it is behind her.
+ *
+ * `done` is paid on time, `late` is paid after its own week had passed, and
+ * `missed` is never paid at all. Three verdicts, not two, because the middle one
+ * is the whole reason the increase can come out smaller instead of simply not
+ * coming.
+ */
+export type CellStatus = 'done' | 'late' | 'missed' | 'active' | 'future'
+
+export interface WeekCell {
+  week: number
+  status: CellStatus
 }
 
 /** The verdict on a single week. Order matters: unpaid beats late beats paid. */
 export function paymentStatus(s: AppState, week: number): CellStatus {
-  if (s.unpaid.includes(week) || s.missed.includes(week)) return 'missed'
+  if (s.unpaid.includes(week)) return 'missed'
   if (s.late.includes(week)) return 'late'
   if (s.done.includes(week)) return 'done'
   if (week === s.week) return 'active'
   return 'future'
 }
 
-/** The one rule of the tracker, in one line. */
-export function cycleIncrement(late: number, unpaid: number): number {
-  if (unpaid > 0) return 0
-  return Math.max(0, MILESTONE_REWARD - late * LATE_REDUCTION)
-}
-
-/** The twelve four-week blocks of the tenor. */
-export function cycles(s: AppState): Cycle[] {
-  return Array.from({ length: TOTAL_CHAPTERS }, (_, i) => {
-    const from = i * CHAPTER_LENGTH + 1
-    const to = from + CHAPTER_LENGTH - 1
-    const cells = range(from, to).map((week) => ({ week, status: paymentStatus(s, week) }))
-    const late = cells.filter((c) => c.status === 'late').length
-    const unpaid = cells.filter((c) => c.status === 'missed').length
-
-    return {
-      index: i + 1,
-      from,
-      to,
-      status: to < s.week ? 'closed' : from <= s.week ? 'open' : 'future',
-      cells,
-      late,
-      unpaid,
-      increment: cycleIncrement(late, unpaid),
-    }
-  })
-}
-
-/**
- * What she can take out right now: everything the CLOSED blocks added and she
- * has not disbursed yet. `withdrawnMilestones` counts the blocks already taken,
- * so an open block never contributes — a figure the four weeks have not
- * finished earning is not hers to see as available.
- */
-export function withdrawable(s: AppState): number {
-  return cycles(s)
-    .filter((c) => c.status === 'closed' && c.index > s.withdrawnMilestones)
-    .reduce((total, c) => total + c.increment, 0)
-}
-
-/** The week the open block closes — when the amount can next move. */
-export function disbursementWeek(s: AppState): number {
-  return Math.min(Math.ceil(s.week / CHAPTER_LENGTH) * CHAPTER_LENGTH, TOTAL_WEEKS)
-}
-
-export function weeksToDisbursement(s: AppState): number {
-  return Math.max(0, disbursementWeek(s) - s.week)
-}
-
-/**
- * All twelve chapters. Past ones are the weeks she actually banked; the current
- * one is live; future ones are nominal — they assume no further missed weeks,
- * because there is no honest way to predict one.
- */
-export function ladder(s: AppState): Chapter[] {
-  const earned = milestonesEarned(s)
-  const banked = [...s.done].sort((a, b) => a - b)
-  const live = chapterCells(s)
-  const out: Chapter[] = []
-
-  for (let i = 0; i < TOTAL_CHAPTERS; i++) {
-    const final = i === TOTAL_CHAPTERS - 1
-    if (i < earned) {
-      out.push({
-        index: i,
-        status: 'done',
-        cells: banked
-          .slice(i * CHAPTER_LENGTH, (i + 1) * CHAPTER_LENGTH)
-          .map((week) => ({ week, status: 'done' as const })),
-        final,
-      })
-    } else if (i === earned) {
-      out.push({ index: i, status: 'current', cells: live, final })
-    } else {
-      const start = live[live.length - 1].week + 1 + (i - earned - 1) * CHAPTER_LENGTH
-      out.push({
-        index: i,
-        status: 'locked',
-        cells: Array.from({ length: CHAPTER_LENGTH }, (_, k) => ({
-          week: start + k,
-          status: 'future' as const,
-        })),
-        final,
-      })
-    }
-  }
-
-  return out
+/** Good weeks banked so far, across the whole journey. */
+export function goodWeeks(s: AppState): number {
+  return s.done.length
 }

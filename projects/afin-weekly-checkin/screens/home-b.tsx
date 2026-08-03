@@ -37,6 +37,7 @@ import {
   gradeInfo,
   gradeOf,
   groupStatus,
+  paidThisWeek,
   outcomeOf,
   rupiah,
   weeksLeftInWindow,
@@ -401,7 +402,7 @@ function MajelisHabit() {
         <span className="block text-16 text-default">Jaga kelancaran majelis</span>
         {status === 'jaga' ? (
           <span className="mt-2 block text-12 text-orange-500">
-            {GROUP_SIZE - s.groupShort} dari {GROUP_SIZE} sudah bayar minggu ini
+            {paidThisWeek(s)} dari {GROUP_SIZE} sudah bayar minggu ini
           </span>
         ) : status === 'lewat' ? (
           <span className="mt-2 block text-12 text-caption">
