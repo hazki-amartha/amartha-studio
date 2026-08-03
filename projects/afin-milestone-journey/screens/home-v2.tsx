@@ -7,8 +7,9 @@
 // The shape that won:
 //   · the brand band and the Poket wallet above the fold, so the goal card is
 //     seen in its actual company rather than at the top of an empty screen;
-//   · limit, goal rail, tasks and the 48-week link folded into ONE card, so the
-//     figures and the habits read as one argument instead of three blocks;
+//   · goal rail and tasks folded into ONE card, so the figures and the habits
+//     read as one argument instead of two blocks — with "Lihat semua" in the
+//     card's header as the single way into the full 48-week ladder;
 //   · the top-up / bill-payment shortcuts below it.
 //
 // Only "Isi Saldo" navigates — the other shortcuts are drawn, not wired.
@@ -21,7 +22,6 @@ import { NavigationBar } from '@/design-system/components'
 import {
   ArrowRight,
   Bell,
-  ChartLineUp,
   ChatCircleQuestion,
   Check,
   ChevronRight,
@@ -83,10 +83,20 @@ export function HomeV2Screen() {
             two stops on the way — the near top-up and the far limit rise — on
             one timeline, so short and long term read as one story. */}
         <div className="p-16">
-          <p className="flex items-center gap-4 text-14 font-bold text-default">
-            Tingkatkan limit dari Rp5jt ke Rp8jt
-            <ChartLineUp size={16} className="shrink-0 text-primary-500" />
-          </p>
+          {/* The card names the nearest goal and hands the whole ladder to one
+              link — the header is the way in, so there is no footer bar. */}
+          <div className="flex items-center gap-8">
+            <p className="min-w-0 flex-1 text-16 font-bold text-default">
+              Gol pinjaman Anda selanjutnya
+            </p>
+            <button
+              type="button"
+              onClick={() => flow.go('progress')}
+              className="shrink-0 text-14 font-bold text-primary-500"
+            >
+              Lihat semua
+            </button>
+          </div>
 
           <div className="mt-24">
             <div className="flex items-center">
@@ -106,18 +116,19 @@ export function HomeV2Screen() {
             </div>
             <div className="mt-8 flex gap-4">
               <div className="min-w-0 flex-1">
-                <p className="text-12 font-bold text-primary-500">Sekarang</p>
-                <p className="text-10 text-caption">Di sini</p>
+                <p className="text-12 font-bold text-primary-500">Hari ini</p>
               </div>
               <div className="min-w-0 flex-1 text-center">
                 <p className="text-12 font-bold text-default">6 Okt &rsquo;26</p>
-                <p className="text-10 text-caption">{isNew ? 'Pencairan awal' : '10 minggu lagi'}</p>
+                <p className="text-10 text-caption">Pencairan</p>
+                {/* "s/d" on both chips: the disbursement is a ceiling too, so
+                    the near and far figures are hedged the same way. */}
                 <span
                   className={`mt-4 inline-block rounded-full px-8 py-2 text-10 font-bold ${
                     rewardAtRisk ? 'bg-red-50 text-red-600' : 'bg-primary-50 text-primary-500'
                   }`}
                 >
-                  Cair Rp1,25jt
+                  s/d Rp1,25jt
                 </span>
               </div>
               <div className="min-w-0 flex-1 text-right">
@@ -144,7 +155,7 @@ export function HomeV2Screen() {
             </div>
           ) : (
             <p className="mb-16 mt-16 text-14 text-neutral-700">
-              Tetap lakukan hal berikut untuk mencapai goal:
+              Lakukan hal-hal berikut untuk mencapai goal:
             </p>
           )}
 
@@ -191,17 +202,6 @@ export function HomeV2Screen() {
             )}
           </div>
         </div>
-
-        {/* The way into the full ladder. It is the card's last line rather than a
-            card of its own: it is where this card's argument continues. */}
-        <button
-          type="button"
-          onClick={() => flow.go('progress')}
-          className="flex w-full items-center justify-center gap-8 bg-primary-50 p-16 text-14 font-bold text-primary-500"
-        >
-          Lihat perjalanan ibu untuk 48 minggu
-          <ArrowRight size={16} />
-        </button>
       </div>
 
       <SectionTitle>Top-up dan bayar tagihan</SectionTitle>
