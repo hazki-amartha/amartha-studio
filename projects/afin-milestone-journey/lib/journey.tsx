@@ -187,13 +187,11 @@ export function MilestoneRung({
             <div className="flex items-center gap-8">
               <div className="min-w-0 flex-1">
                 <p className="text-14 text-caption">{actionLabel}</p>
+                {/* One size for every figure, estimate or not: the ladder is
+                    read by comparing rungs, and a range that shrank to fit
+                    would read as the smaller reward. */}
                 {amount ? (
-                  // An estimate is two figures and a dash — it needs the small
-                  // size to stay on one line beside the button, and reading
-                  // quieter than a settled figure is the right hierarchy anyway.
-                  <p
-                    className={`mt-2 font-bold text-green-600 ${amountTo ? 'text-12' : 'text-18'}`}
-                  >
+                  <p className="mt-2 text-18 font-bold text-green-600">
                     {amountTo ? `${amount} - ${amountTo}` : amount}
                   </p>
                 ) : null}
@@ -206,7 +204,10 @@ export function MilestoneRung({
                 >
                   {cta}
                 </button>
-              ) : onOpen ? (
+              ) : state === 'next' && onOpen ? (
+                // Only the rung she is working toward is worth opening. A
+                // locked rung further up has no progress of its own to show
+                // yet, so it gets no control and the card stays inert.
                 <button
                   type="button"
                   onClick={onOpen}

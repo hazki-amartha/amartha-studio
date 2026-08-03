@@ -111,9 +111,11 @@ export interface Milestone {
    *  missed) it is what the rung WAS — "Pencairan tambahan". The two never
    *  appear on the same rung. */
   actionLabel: string
-  /** The reward figure. A rung she can act on states it exactly, because the
-   *  amount is settled; a rung still ahead states the band it is estimated at,
-   *  with the upper bound in `amountTo`. */
+  /** The reward figure, always in the short "Rp1,25jt" form — a ladder is read
+   *  by comparing rungs, and full rupiah runs to a different width on every
+   *  one. A rung she can act on states one figure, because the amount is
+   *  settled; a rung still ahead states the band it is estimated at, with the
+   *  upper bound in `amountTo`. */
   amount?: string
   amountTo?: string
   /** What could lift the figure beyond `amount` — on the limit rise, the
@@ -124,7 +126,8 @@ export interface Milestone {
   status?: MilestoneStatus
   state: 'unlocked' | 'next' | 'locked' | 'missed'
   /** The primary button's label when the rung can be acted on now — solid and
-   *  purple, e.g. "Cairkan" / "Mulai". Absent rungs get an outline "Lihat". */
+   *  purple, e.g. "Cairkan" / "Mulai". Without one, only the `next` rung gets a
+   *  control: an outline "Lihat" into its tracker. */
   cta?: string
   /** Screen id of this milestone's dedicated tracker, opened from its card. */
   detail: string
@@ -133,7 +136,7 @@ export interface Milestone {
 /** Every pencairan rung still ahead of her carries the same estimate — the
  *  band the disbursement is expected to land in, not a single figure the
  *  product has not committed to yet. */
-const PENCAIRAN_ESTIMATE = { amount: 'Rp1.250.000', amountTo: 'Rp1.500.000' }
+const PENCAIRAN_ESTIMATE = { amount: 'Rp1,25jt', amountTo: 'Rp1,5jt' }
 
 /** The majelis condition on the limit rise. Her own record earns the figure on
  *  the card; the majelis's record is what lifts it to the ceiling — so the
@@ -214,7 +217,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '28 Apr',
       status: { label: 'Terbuka', tone: 'green' },
       actionLabel: 'Dapat dicairkan',
-      amount: 'Rp2.500.000',
+      amount: 'Rp2,5jt',
       state: 'unlocked',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
@@ -229,7 +232,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '14 Jul 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
       actionLabel: 'Cairkan dana',
-      amount: 'Rp1.250.000',
+      amount: 'Rp1,25jt',
       state: 'unlocked',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
@@ -318,7 +321,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '6 Okt 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
       actionLabel: 'Cairkan dana',
-      amount: 'Rp1.250.000',
+      amount: 'Rp1,25jt',
       state: 'unlocked',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
@@ -357,7 +360,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '6 Okt 2026',
       status: { label: 'Berhasil diraih', tone: 'green' },
       actionLabel: 'Cairkan dana',
-      amount: 'Rp1.250.000',
+      amount: 'Rp1,25jt',
       state: 'unlocked',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
@@ -429,7 +432,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '15 Jun 2027',
       status: { label: 'Berhasil diraih', tone: 'green' },
       actionLabel: 'Cairkan dana',
-      amount: 'Rp2.000.000',
+      amount: 'Rp2jt',
       state: 'unlocked',
       cta: 'Cairkan',
       detail: 'milestone-unlocked',
@@ -439,8 +442,8 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       status: { label: 'Sesuai rencana', tone: 'blue' },
       countdown: '12 minggu lagi',
       actionLabel: 'Cairkan dana',
-      amount: 'Rp2.000.000',
-      amountTo: 'Rp2.400.000',
+      amount: 'Rp2jt',
+      amountTo: 'Rp2,4jt',
       state: 'next',
       detail: 'milestone-progress',
     },
