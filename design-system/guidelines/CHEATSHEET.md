@@ -89,6 +89,10 @@ All props below are optional except where marked **required**.
 // SelectableCard
 <SelectableCard size="sm|md" title description prefixIcon secondary />
 
+// OfferCard — the homepage product recommendation card. Headline in the
+// product's colour, its lockup along the foot, sized by the component.
+<OfferCard product="modal|ggs|celengan|amartha-link" title description onClick />
+
 // Modal — open required
 <Modal open onClose size="sm|md|lg" variant="default|dialog"
        intent="success|warning|error|info"
