@@ -25,6 +25,7 @@
 import type { ReactNode } from 'react'
 import {
   ABSENCE_BUDGET,
+  CURRENT_LIMIT,
   GROUP_SIZE,
   STATUS_NAME,
   TOTAL_WEEKS,
@@ -60,6 +61,7 @@ import {
   TrendUp,
   Users,
   Warning,
+  Withdraw,
 } from '@/design-system/icons'
 
 export function HomeBScreen() {
@@ -104,6 +106,10 @@ export function HomeBScreen() {
 
           {owing.length > 0 ? <Outstanding weeks={owing} grade={grade} /> : null}
 
+          {/* The first draw, and only the first. Everything a later stretch
+              adds is withdrawn from the status page — see DisburseCard. */}
+          {s.principalTaken ? null : <DisburseCard />}
+
           <h2 className="text-16 font-bold text-default">Keuntungan Ibu</h2>
 
           {/* Four stops, not one 48-week bar. A bar says "you are 17% of the way
@@ -124,35 +130,85 @@ export function HomeBScreen() {
 
           <Quote grade={grade} />
 
-          <p className="mt-20 text-14 text-caption">{askLine(grade)}</p>
+          {/* Until the financing is drawn there is no instalment to pay and no
+              kumpulan to be at, so the two habits are not on the page. Showing
+              "Bayar angsuran Rp112.000" to a mitra who has not received money
+              is the card asking for something that does not exist yet. */}
+          {s.principalTaken ? (
+            <>
+              <p className="mt-20 text-14 text-caption">{askLine(grade)}</p>
 
-          <div className="mt-16 flex flex-col gap-16">
-            <Habit
-              icon={<CreditCard size={20} />}
-              label={`Bayar angsuran ${rupiah(112_000)}`}
-              done={s.paid}
-              trailing={<PayAction />}
-            />
-            <Habit
-              icon={<Users size={20} />}
-              label="Datang kumpulan hari Kamis"
-              done={s.attended}
-              note={
-                absencesLeft(s) < ABSENCE_BUDGET
-                  ? `Sisa ${absencesLeft(s)} kali tidak hadir di ${WINDOW_LENGTH} minggu ini`
-                  : undefined
-              }
-              trailing={
-                s.attended ? null : <span className="text-12 text-caption">Dicatat otomatis</span>
-              }
-            />
-            <MajelisHabit />
-          </div>
+              <div className="mt-16 flex flex-col gap-16">
+                <Habit
+                  icon={<CreditCard size={20} />}
+                  label={`Bayar angsuran ${rupiah(112_000)}`}
+                  done={s.paid}
+                  trailing={<PayAction />}
+                />
+                <Habit
+                  icon={<Users size={20} />}
+                  label="Datang kumpulan hari Kamis"
+                  done={s.attended}
+                  note={
+                    absencesLeft(s) < ABSENCE_BUDGET
+                      ? `Sisa ${absencesLeft(s)} kali tidak hadir di ${WINDOW_LENGTH} minggu ini`
+                      : undefined
+                  }
+                  trailing={
+                    s.attended ? null : (
+                      <span className="text-12 text-caption">Dicatat otomatis</span>
+                    )
+                  }
+                />
+                <MajelisHabit />
+              </div>
+            </>
+          ) : (
+            <p className="mt-20 text-14 text-caption">
+              Angsuran mingguan dan kumpulan dimulai setelah pendanaan Ibu cair.
+            </p>
+          )}
         </div>
 
         <StatusLink />
       </div>
     </HomeShell>
+  )
+}
+
+/**
+ * The financing itself, for a mitra who is approved and has never drawn it.
+ * Nothing else on home can be tapped in that state, so the button is the page.
+ *
+ * It appears for HER ONLY. Once the money has moved, the balance the closed
+ * stretches add lives on the status page and nowhere else — a Cairkan button
+ * standing on home for the whole tenor would make withdrawing the thing the
+ * page is for, when what home is actually for is the two habits that raise the
+ * amount. Taking it out is a decision about debt; the card should not be
+ * nudging her toward it every week.
+ */
+function DisburseCard() {
+  return (
+    <div className="mb-20 rounded-12 border border-primary-200 bg-primary-50 p-12">
+      <div className="flex items-center gap-12">
+        <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-500 text-neutral-white">
+          <Withdraw size={20} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-12 text-caption">Pendanaan Ibu siap dicairkan</span>
+          <span className="mt-2 block text-20 font-bold text-default">
+            {rupiah(CURRENT_LIMIT)}
+          </span>
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => store.takePrincipal()}
+        className="mt-12 w-full rounded-full bg-primary-500 py-8 text-14 font-bold text-neutral-white"
+      >
+        Cairkan
+      </button>
+    </div>
   )
 }
 

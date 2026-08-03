@@ -8,6 +8,7 @@ Project-local components (design system has no equivalent):
 - `WeekLegend` (`lib/ui.tsx`) — key for the three repayment verdicts, lives next to the tile styles it explains.
 - `StatusPill` (`lib/ui.tsx`) — the one status pill, three tones. `GroupBadge` and `PaymentPill` are both it, so the group and a member inside it read in the same language.
 - `MemberRow` (`screens/majelis.tsx`) — one mitra's week: name, and this week's payment pill.
+- `DisburseCard` (`screens/home-b.tsx`) — the first draw, on home, for a mitra who has never taken the financing. Off the page for everyone else.
 - `Milestone` / `Quote` / `Habit` (`screens/home-b.tsx`) — the four-stop 12/24/36/48 track, the next-addition quote box, and the two-habit rows.
 - `CriterionRow` / `WindowBlock` (`screens/progress-tier.tsx`) — the criteria rows, and one graded 12-week stretch as a collapsible block.
 - `StatusLink` (`lib/ui.tsx`) — the home card's footer into the status page.
@@ -43,6 +44,15 @@ concept, B, on a 12-week clock.
 - Twelve clean weeks **add to a balance**, they do not open a window. It never
   expires and she may take part of it. Partial withdrawal is **not wired** —
   `Cairkan` still takes the whole balance.
+
+Home carries a **Cairkan** button for a **new mitra only** (2026-08-03).
+`principalTaken` in `lib/store.ts` is the flag: false only for someone approved
+who has never drawn the financing. In that state home offers the whole limit and
+the two habits are **off the page** — there is no instalment to pay before the
+money moves. Once the money has moved the button is gone for good: the balance
+the closed stretches add is withdrawn from the status page, because a Cairkan
+button standing on home all tenor would make withdrawing what home is for.
+Presets: *Belum cair sama sekali* and *Punya saldo, belum dicairkan*.
 
 The majelis page **names who has not paid** as of 2026-08-03, reversing an
 earlier rule that withheld it (a face-to-face group already knows, and a

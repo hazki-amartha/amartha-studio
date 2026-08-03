@@ -44,6 +44,13 @@ export interface AppState {
   windowLog: WindowOutcome[]
   /** Windows already taken out. */
   disbursedWindows: number
+  /**
+   * Has she taken the financing itself yet? False only for a mitra who is
+   * approved and has never withdrawn — the state before week 1, where the whole
+   * page is one button and no instalment is due yet. Every other journey starts
+   * true, because a tenor in progress means the money already moved.
+   */
+  principalTaken: boolean
 }
 
 // Week 15 — the third week of window 2, with window 1 closed clean behind her.
@@ -65,6 +72,7 @@ const initial: AppState = {
   // Window 1 closed clean at week 12 and she has not taken it out yet — which
   // is the ordinary case, not an edge one: nobody disburses on the day.
   disbursedWindows: 0,
+  principalTaken: true,
 }
 
 let state: AppState = initial
@@ -140,6 +148,14 @@ export const store = {
    */
   disburse() {
     store.set({ disbursedWindows: state.windowLog.length })
+  },
+  /**
+   * She takes the financing itself. The tenor starts: week 1 is live and the
+   * first instalment is due, which is why the two habits only appear on home
+   * once this has happened.
+   */
+  takePrincipal() {
+    store.set({ principalTaken: true, week: 1 })
   },
   subscribe(listener: () => void) {
     listeners.add(listener)
