@@ -48,6 +48,13 @@ export interface AppState {
   /** Rupiah settled against this week's bill so far. */
   paidAmount: number
   poketBalance: number
+  /** Autodebit is armed: the bill is pulled from Poket on its due date. It
+   *  survives navigation because the top-up it sends her to is another screen. */
+  autodebit: boolean
+  /** Where the top-up screen goes back to. Poket can be topped up from home,
+   *  from a shortfall, and now from the autodebit banner, and only the screen
+   *  that sent her there knows which. */
+  topupReturn: string
   billState: BillState
   mitraStage: MitraStage
   /**
@@ -80,6 +87,8 @@ const initial: AppState = {
   method: null,
   paidAmount: 0,
   poketBalance: 151000,
+  autodebit: false,
+  topupReturn: 'home',
   billState: 'idle',
   mitraStage: 'active',
   atRisk: false,
@@ -123,6 +132,13 @@ export const store = {
   },
   setDiscount(discount: number) {
     store.set({ discount })
+  },
+  setAutodebit(autodebit: boolean) {
+    store.set({ autodebit })
+  },
+  /** Send her to the top-up screen and remember where she came from. */
+  goTopUp(topupReturn: string) {
+    store.set({ topupReturn })
   },
 
   /** An off-app method was used — the money is claimed but not yet verified. */

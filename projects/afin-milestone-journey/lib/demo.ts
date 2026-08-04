@@ -27,6 +27,8 @@ const reset = () =>
     method: null,
     paidAmount: 0,
     poketBalance: 151000,
+    autodebit: false,
+    topupReturn: 'home',
     billState: 'idle',
     atRisk: false,
     hadirKumpulan: false,
@@ -158,6 +160,23 @@ export const limitTerbuka = () => {
 // --- Payment flow ----------------------------------------------------------
 
 /** A full weekly bill against a wallet that can cover it. */
+/** Autodebit has never been set up — the banner is the offer to turn it on. */
+export const autodebitMati = () => {
+  reset()
+}
+
+/** Armed, but the wallet cannot cover the bill — the banner leads with Top-up. */
+export const autodebitKurang = () => {
+  reset()
+  store.set({ autodebit: true, poketBalance: 80000 })
+}
+
+/** Armed and funded — the banner simply states when the money will be pulled. */
+export const autodebitAktif = () => {
+  reset()
+  store.set({ autodebit: true, poketBalance: 200000 })
+}
+
 export const poketCukup = () => {
   reset()
   store.set({ amount: WEEKLY_BILL, method: 'poket', poketBalance: 200000 })
