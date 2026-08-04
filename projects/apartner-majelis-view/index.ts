@@ -315,7 +315,7 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/growth'), 'GrowthScreen'),
       notes: [
         'Offers come last, after the money. Pitching a savings product before collecting would mean asking a woman to open an account with the instalment she has not handed over yet.',
-        'Only mitra with a real recommendation appear — four rows out of 22, not a list for everyone — in the same order and the same card as the two stages before. Tawarkan opens a page, exactly as Tagih does, so both actions on a visit card behave the same way. The whole stage can be skipped: a tail that blocks the close of a visit has stopped being a tail.',
+        'Only mitra with a real recommendation appear — four rows out of 22, not a list for everyone — in the same order and the same card as the two stages before. The offer is settled ON the card: the sentence to say, the reason it is being said, and two equal buttons. The one follow-up each answer needs — “sudah diproses?” for a yes, a reason for a no — comes up as a sheet over the queue, so answering never leaves the room. The whole stage can be skipped: a tail that blocks the close of a visit has stopped being a tail.',
       ],
       states: [
         {
@@ -338,36 +338,9 @@ export const project: ProjectModule = {
         },
       ],
       flowsTo: [
-        { to: 'offer', label: 'Tawarkan' },
         { to: 'proof', label: 'Lanjut' },
         { to: 'mitra', label: 'ketuk nama mitra' },
       ],
-    },
-    {
-      id: 'offer',
-      title: 'Tawarkan Produk',
-      component: lazyScreen(() => import('./screens/offer'), 'OfferScreen'),
-      states: [
-        {
-          id: 'fresh',
-          label: 'Nothing answered',
-          description: 'The page as “Tawarkan” opens it — the offer, and no result yet',
-          apply: demo.offerFresh,
-        },
-        {
-          id: 'carried',
-          label: 'Yes, but not processed',
-          description: 'She agreed; there was no time to open it — next kumpulan inherits it',
-          apply: demo.offerCarried,
-        },
-        {
-          id: 'declined',
-          label: 'No, with her reason',
-          description: 'Declined because she already has one — a note about the offer, not her',
-          apply: demo.offerDeclined,
-        },
-      ],
-      flowsTo: [{ to: 'growth', label: 'Simpan Hasil' }],
     },
     {
       id: 'proof',
@@ -376,7 +349,7 @@ export const project: ProjectModule = {
       notes: [
         'The visit’s last step carries two things: a recap of what the room paid — the cash she is walking away with from this majelis, over a lunas / sebagian / belum bayar breakdown — and the photo that closes the visit. The recap is where the three working stages land as one figure she can settle against.',
         'The cash figure counts only the mitra SHE recorded an outcome for, not the ones who had already settled through the app before she arrived — that money was never in her bag.',
-        'One CTA: Selesaikan Tugas. It finishes the visit and hands straight to the WhatsApp preview, where the group’s receipt is sent. That send used to be an optional second button opening a sheet; the group’s recap is the natural close of a majelis, so it is the next step now rather than a control competing with “finish”.',
+        'Two buttons: Kembali, and Simpan. Simpan finishes the visit and hands straight to the WhatsApp preview, where the group’s receipt is sent — the natural close of a majelis rather than an optional control competing with “finish”. The photo, the instruction that governs it and the geotag it comes back with are one card: the BP reads the instruction before she shoots and the read-back after.',
       ],
       states: [
         {
@@ -398,7 +371,7 @@ export const project: ProjectModule = {
           apply: demo.visitProofGaps,
         },
       ],
-      flowsTo: [{ to: 'proof-wa', label: 'Selesaikan Tugas — ke pratinjau WhatsApp' }],
+      flowsTo: [{ to: 'proof-wa', label: 'Simpan — ke pratinjau WhatsApp' }],
     },
     {
       id: 'proof-wa',

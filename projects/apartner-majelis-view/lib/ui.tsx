@@ -427,8 +427,11 @@ export function WeekGrid({ weeks }: { weeks: Week[] }) {
  * before she opens the group.
  */
 export function ProductBadge({ product }: { product: 'Modal' | 'GL' | 'Hybrid' }) {
-  const ink =
-    product === 'Modal' ? 'text-blue-500' : product === 'GL' ? 'text-primary-500' : 'text-caption'
+  // GL is unlabelled: it is the product a mitra is on unless something is said,
+  // so printing it spends a chip on every card to report the default. The label
+  // now marks the EXCEPTION — Modal, or a group carrying both.
+  if (product === 'GL') return null
+  const ink = product === 'Modal' ? 'text-blue-500' : 'text-caption'
   return (
     <span className={`flex shrink-0 items-center gap-4 ${ink}`}>
       {product === 'Modal' ? <ProductLogo name="modal" size={16} /> : null}

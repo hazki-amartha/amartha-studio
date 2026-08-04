@@ -655,40 +655,13 @@ export const offersAll = () => {
   growthMembers().forEach((m, i) => {
     if (i === 2) {
       growthResults[m.id] = 'tidak'
-      growthReasons[m.id] = 'Belum butuh saat ini'
+      growthReasons[m.id] = 'Belum ada kebutuhan'
       return
     }
     growthResults[m.id] = 'ya'
     growthFollowUps[m.id] = i === 1 ? 'lanjut' : 'selesai'
   })
   store.set({ openMajelis: 'mawar', growthResults, growthFollowUps, growthReasons })
-}
-
-// --- One offer -------------------------------------------------------------
-
-export const offerFresh = () =>
-  store.set({ openMitra: growthMembers()[0].id, ...clearGrowth })
-
-/** A yes she agreed to but nobody had time to process — next kumpulan inherits it. */
-export const offerCarried = () => {
-  const mitra = growthMembers()[0]
-  store.set({
-    openMitra: mitra.id,
-    growthResults: { [mitra.id]: 'ya' },
-    growthFollowUps: { [mitra.id]: 'lanjut' },
-    growthReasons: {},
-  })
-}
-
-/** The no that is about the OFFER, not about her — she already has one. */
-export const offerDeclined = () => {
-  const mitra = growthMembers()[2]
-  store.set({
-    openMitra: mitra.id,
-    growthResults: { [mitra.id]: 'tidak' },
-    growthReasons: { [mitra.id]: 'Tidak sesuai — sudah punya / sudah renew' },
-    growthFollowUps: {},
-  })
 }
 
 // --- Stage 4: the proof ----------------------------------------------------
