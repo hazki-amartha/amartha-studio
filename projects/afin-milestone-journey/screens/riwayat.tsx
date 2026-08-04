@@ -11,7 +11,7 @@
 import { NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { HISTORY, LOAN_OUTSTANDING, WEEKS_LEFT, rupiah } from '../lib/data'
+import { HISTORY, LOAN_OUTSTANDING, LOAN_PRINCIPAL, WEEKS_LEFT, rupiah } from '../lib/data'
 import { WeekGrid } from '../lib/week-tiles'
 
 export function RiwayatScreen() {
@@ -29,7 +29,7 @@ export function RiwayatScreen() {
           opens the loan's own journey — the full ladder. */}
       <div className="rounded-12 border border-default p-16">
         <div className="flex items-start gap-8">
-          <p className="min-w-0 flex-1 text-16 font-bold text-default">Sisa tunggakan</p>
+          <p className="min-w-0 flex-1 text-16 text-caption">Sisa angsuran</p>
           <button
             type="button"
             onClick={() => flow.go('progress')}
@@ -38,14 +38,18 @@ export function RiwayatScreen() {
             Lihat detail
           </button>
         </div>
-        <p className="mt-4 text-24 font-bold text-default">{rupiah(LOAN_OUTSTANDING)}</p>
-        <p className="mt-2 text-14 text-caption">{WEEKS_LEFT} minggu lagi</p>
+        {/* Balance and time left on one line: they are one fact, and splitting
+            them made the page read as two headlines. */}
+        <p className="mt-4 text-20 font-bold text-default">
+          {rupiah(LOAN_OUTSTANDING)} ({WEEKS_LEFT} minggu lagi)
+        </p>
+        <p className="mt-2 text-14 text-caption">dari {rupiah(LOAN_PRINCIPAL)}</p>
       </div>
 
       {/* The record that justifies the headline — its two counters as a summary,
           between the heading and the tiles. */}
       <div>
-        <p className="mb-12 text-14 font-bold text-default">Riwayat mingguan</p>
+        <p className="mb-12 text-16 font-bold text-default">Riwayat mingguan</p>
         <div className="mb-12 flex gap-12">
           <Summary label="Bayar tepat waktu" value={`${bayarCount}/${total}`} tone="green" />
           <Summary label="Hadir kumpulan" value={`${kumpulanCount}/${total}`} tone="primary" />
