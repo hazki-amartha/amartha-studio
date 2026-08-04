@@ -159,11 +159,11 @@ export function GrowthScreen() {
               mitra={mitra}
               // Identical to stages 1 and 2. See attendance.tsx.
               meta={null}
-              // See attendance.tsx — the product leads the label row under the
-              // name on all three stages.
+              // See attendance.tsx — the product labels the card from the right
+              // edge of the name row on all three stages.
+              titleBadge={<ProductBadge product={mitra.product} />}
               labels={
                 <>
-                  <ProductBadge product={mitra.product} />
                   <KetuaBadge mitra={mitra} />
                   <DpdBadge dpd={mitra.dpd} format="short" />
                 </>
