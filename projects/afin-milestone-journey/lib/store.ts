@@ -22,8 +22,16 @@ import {
   type MethodId,
 } from './data'
 
-/** Where the weekly instalment task has got to, as the home screen shows it. */
-export type BillState = 'idle' | 'pending' | 'paid'
+/**
+ * Where the weekly instalment task has got to, as the home screen shows it.
+ *
+ * `pending` and `titip` are both "money handed over, not yet confirmed", but
+ * they are not the same wait and the mitra can act on only one of them:
+ * `pending` is an off-app transfer she can chase a status on, `titip` is cash
+ * given to the field officer, which is settled to head office on his round and
+ * has nothing for her to press in the meantime.
+ */
+export type BillState = 'idle' | 'pending' | 'titip' | 'paid'
 
 /** Which mitra the home screen is drawn for. A brand-new mitra has no repayment
  *  history yet, so her nearest goal is the first disbursement, not a milestone. */

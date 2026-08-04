@@ -75,6 +75,23 @@ export const menungguKonfirmasi = () => {
   })
 }
 
+/**
+ * Cash handed to the field officer, who has not yet settled it to head office.
+ * Her side of the bargain is done — hence a tick — but the money has not landed
+ * anywhere that counts yet, so the tick is grey rather than green and there is
+ * nothing for her to press: the next move is the officer's.
+ */
+export const titipBayar = () => {
+  reset()
+  store.set({
+    mitraStage: 'active',
+    amount: WEEKLY_BILL,
+    method: 'amartha-link',
+    paidAmount: WEEKLY_BILL,
+    billState: 'titip',
+  })
+}
+
 /** A short payment landed, so the rest is arrears and the task says "Bayar sisa". */
 export const sisaTunggakan = () => {
   reset()

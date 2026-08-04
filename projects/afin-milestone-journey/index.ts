@@ -33,6 +33,12 @@ const homeStates = [
     apply: demo.menungguKonfirmasi,
   },
   {
+    id: 'titip-bayar',
+    label: 'Sudah titip bayar',
+    description: 'Cash handed to the field officer, not yet settled to head office — a grey tick, and nothing for her to press.',
+    apply: demo.titipBayar,
+  },
+  {
     id: 'sisa-tunggakan',
     label: 'Sisa tunggakan',
     description: 'A Rp50.000 part-payment landed, so Rp100.000 is now arrears.',

@@ -228,7 +228,15 @@ export function HomeV2Screen() {
                     A part-payment does neither — it is still simply to do, so it
                     keeps the empty circle and says how much is left. */}
                 <Task
-                  status={isSettled(s) ? 'done' : s.atRisk ? 'alert' : 'todo'}
+                  status={
+                    isSettled(s)
+                      ? 'done'
+                      : s.billState === 'titip'
+                        ? 'pending'
+                        : s.atRisk
+                          ? 'alert'
+                          : 'todo'
+                  }
                   title="Bayar angsuran"
                   description={<BillLine />}
                   action={<BayarButton onPay={goToPayment} />}
@@ -563,8 +571,11 @@ function JourneyDot({
 
 // --- Tasks -----------------------------------------------------------------
 
-/** Where a habit stands this week: still to do, kept, or slipped. */
-type TaskStatus = 'todo' | 'done' | 'alert'
+/**
+ * Where a habit stands this week: still to do, kept, slipped, or done on her
+ * side and waiting on someone else's.
+ */
+type TaskStatus = 'todo' | 'done' | 'alert' | 'pending'
 
 function Task({
   status,
@@ -611,6 +622,15 @@ function TaskMark({ status }: { status: TaskStatus }) {
       </span>
     )
   }
+  // Ticked, but grey: she has done her part and the confirmation is somebody
+  // else's move. Green would claim the money has landed when it has not.
+  if (status === 'pending') {
+    return (
+      <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-neutral-500 text-neutral-white">
+        <Check size={16} />
+      </span>
+    )
+  }
   if (status === 'alert') {
     return (
       <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-red-500 text-14 font-bold text-neutral-white">
@@ -639,6 +659,12 @@ function BillLine() {
         {rupiah(WEEKLY_BILL)} ({BILL_DUE})
       </p>
     )
+  }
+  // Cash is with the field officer. No date and no brackets: the deadline is
+  // no longer the point once she has handed the money over, and what she wants
+  // to read back is that the handover was registered.
+  if (s.billState === 'titip') {
+    return <p>{rupiah(WEEKLY_BILL)} - Sudah titip bayar</p>
   }
   // Part-paid: what is LEFT, not what the week cost. Orange, because it is a
   // shortfall to close rather than a deadline already missed.
@@ -681,9 +707,14 @@ function BayarButton({ onPay }: { onPay: () => void }) {
       </TaskButton>
     )
   }
-  // Settled: no control at all. The dead "Lunas" pill was a button that could
-  // not be pressed, sitting where every other row keeps a real one — the tick
-  // at the head of the row says the same thing without the false affordance.
+  // Cash with the officer, or settled: no control in either case. Nothing is
+  // hers to chase once the money has left her hands — the next move is his —
+  // and the dead "Lunas" pill was a button that could not be pressed, sitting
+  // where every other row keeps a real one. The mark at the head of the row
+  // says it without the false affordance.
+  if (s.billState === 'titip') {
+    return null
+  }
   if (s.billState === 'paid' && s.paidAmount >= WEEKLY_BILL) {
     return null
   }
