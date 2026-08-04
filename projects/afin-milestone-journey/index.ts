@@ -45,6 +45,18 @@ const homeStates = [
     apply: demo.rewardBerisiko,
   },
   {
+    id: 'sudah-hadir',
+    label: 'Sudah hadir kumpulan',
+    description: 'She turned up this week — the kumpulan row ticks while the bill is still outstanding.',
+    apply: demo.sudahHadir,
+  },
+  {
+    id: 'semua-beres',
+    label: 'Semua beres',
+    description: 'Every row ticked: week paid, kumpulan attended, nobody in the majelis behind.',
+    apply: demo.semuaBeres,
+  },
+  {
     id: 'limit-terbuka',
     label: 'Limit siap cair',
     description: 'A goal is reached and the money still undrawn, so the card carries a disbursement row under the tasks.',

@@ -14,7 +14,13 @@
 // open bottom sheet — stays as useState in the screen that owns it.
 
 import { useSyncExternalStore } from 'react'
-import { WEEKLY_BILL, MILESTONE_AMOUNT, type JourneyPhase, type MethodId } from './data'
+import {
+  MEMBERS,
+  WEEKLY_BILL,
+  MILESTONE_AMOUNT,
+  type JourneyPhase,
+  type MethodId,
+} from './data'
 
 /** Where the weekly instalment task has got to, as the home screen shows it. */
 export type BillState = 'idle' | 'pending' | 'paid'
@@ -38,6 +44,15 @@ export interface AppState {
    * Drives the goal card's warning treatment on the home screen.
    */
   atRisk: boolean
+  /** She has turned up to this week's kumpulan — the checklist row ticks. */
+  hadirKumpulan: boolean
+  /**
+   * Every member is current on their payments. It overrides the roster rather
+   * than sitting beside it (see `members`), because five screens read that
+   * roster and a majelis that is healthy on home and behind on its own page is
+   * the kind of thing a walkthrough dies on.
+   */
+  majelisLancar: boolean
   /** Who the reminder goes to, set by the majelis screen for the compose screen. */
   waTarget: string
   waMessage: string
@@ -55,6 +70,8 @@ const initial: AppState = {
   billState: 'idle',
   mitraStage: 'active',
   atRisk: false,
+  hadirKumpulan: false,
+  majelisLancar: false,
   waTarget: '',
   waMessage: '',
   lastDisburse: MILESTONE_AMOUNT,
@@ -128,6 +145,18 @@ export function useApp(): AppState {
 }
 
 // --- Derivations -----------------------------------------------------------
+
+/**
+ * The majelis roster as the prototype currently stands. Every screen that reads
+ * members goes through here rather than touching MEMBERS directly, so the
+ * `majelisLancar` demo state moves home's checklist, the majelis page, both
+ * progress reads and the limit tracker together.
+ */
+export const members = (s: AppState) =>
+  s.majelisLancar ? MEMBERS.map((m) => ({ ...m, bayar: true })) : MEMBERS
+
+/** How many in the majelis are behind on payments. */
+export const tunggakan = (s: AppState) => members(s).filter((m) => !m.bayar).length
 
 /** What is still owed on this week's bill. */
 export const outstanding = (s: AppState) => Math.max(0, WEEKLY_BILL - s.paidAmount)

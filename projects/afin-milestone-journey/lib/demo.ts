@@ -28,6 +28,8 @@ const reset = () =>
     poketBalance: 151000,
     billState: 'idle',
     atRisk: false,
+    hadirKumpulan: false,
+    majelisLancar: false,
   })
 
 // --- Home ------------------------------------------------------------------
@@ -95,6 +97,33 @@ export const sisaTunggakan = () => {
 export const rewardBerisiko = () => {
   reset()
   store.set({ mitraStage: 'active', atRisk: true })
+}
+
+/** She has turned up this week, so the kumpulan row ticks while the bill is
+ *  still outstanding — the two habits move independently. */
+export const sudahHadir = () => {
+  reset()
+  store.set({ mitraStage: 'active', hadirKumpulan: true })
+}
+
+/**
+ * Every row ticked: the week paid, the kumpulan attended, and nobody in the
+ * majelis behind. The only state that reaches the checklist's all-green
+ * picture, and the only one that shows the majelis row in the condition it is
+ * named for.
+ */
+export const semuaBeres = () => {
+  reset()
+  store.set({
+    mitraStage: 'active',
+    amount: WEEKLY_BILL,
+    method: 'poket',
+    paidAmount: WEEKLY_BILL,
+    poketBalance: 1000,
+    billState: 'paid',
+    hadirKumpulan: true,
+    majelisLancar: true,
+  })
 }
 
 /**

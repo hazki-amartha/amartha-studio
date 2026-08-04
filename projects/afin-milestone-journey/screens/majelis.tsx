@@ -13,8 +13,8 @@ import { NavigationHeader } from '@/design-system/components'
 import { ChevronRight, File, Headset, User, WhatsappLogo } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { MEMBERS, type Member } from '../lib/data'
-import { store } from '../lib/store'
+import { type Member } from '../lib/data'
+import { members, store, useApp } from '../lib/store'
 import { StatRow } from '../lib/ui'
 
 const WA_GROUP = 'Grup WhatsApp Majelis Melati 07'
@@ -22,10 +22,11 @@ const WA_GROUP = 'Grup WhatsApp Majelis Melati 07'
 export function MajelisScreen() {
   const flow = useFlow()
 
-  const total = MEMBERS.length
-  const you = MEMBERS.find((m) => m.ketua) ?? MEMBERS[0]
-  const others = MEMBERS.filter((m) => m !== you)
-  const belumBayar = MEMBERS.filter((m) => !m.bayar)
+  const roster = members(useApp())
+  const total = roster.length
+  const you = roster.find((m) => m.ketua) ?? roster[0]
+  const others = roster.filter((m) => m !== you)
+  const belumBayar = roster.filter((m) => !m.bayar)
 
   const overall =
     belumBayar.length === 0

@@ -24,7 +24,7 @@ import {
   ArrowRight,
   Bell,
   ChatCircleQuestion,
-  CheckCircle,
+  Check,
   ChevronRight,
   Clipboard,
   Coins,
@@ -37,13 +37,12 @@ import {
   QrCode,
   Transfer,
   User,
-  WarningCircle,
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { MEMBERS, WEEKLY_BILL, claimableOf, rupiah } from '../lib/data'
+import { WEEKLY_BILL, claimableOf, rupiah } from '../lib/data'
 import { IconPiggy } from '../lib/icons'
-import { isSettled, outstanding, store, useApp } from '../lib/store'
+import { isSettled, outstanding, store, tunggakan, useApp } from '../lib/store'
 import { Notice, SectionTitle, TaskButton } from '../lib/ui'
 
 /** How far past due the unpaid week is, in the at-risk state. */
@@ -82,7 +81,7 @@ export function HomeV2Screen() {
 
   // How many in her majelis are behind on payments — the majelis row's status
   // line, the mark it carries, and the reason its "Ingatkan" CTA exists.
-  const tunggakanCount = MEMBERS.filter((m) => !m.bayar).length
+  const tunggakanCount = tunggakan(s)
 
   // Read off the ladder rather than held here: whatever the journey page says
   // is hers to take is exactly what home offers, figure included.
@@ -219,7 +218,7 @@ export function HomeV2Screen() {
                   action={<BayarButton onPay={goToPayment} />}
                 />
                 <Task
-                  status={s.atRisk ? 'alert' : 'todo'}
+                  status={s.hadirKumpulan ? 'done' : s.atRisk ? 'alert' : 'todo'}
                   title="Datang kumpulan"
                   description="Kamis, 11.30"
                 />
@@ -576,19 +575,35 @@ function Task({
 }
 
 /**
- * The mark at the head of a row. It replaced a tinted avatar per habit, which
- * said what kind of thing the row was — something the title already said — and
- * left no room to say the one thing the list is for: whether she has done it.
- * An empty circle is a box still to tick.
+ * The mark at the head of a row — a checkbox, literally. It replaced a tinted
+ * avatar per habit, which said what KIND of thing the row was (something the
+ * title already said) and left no room for the one thing a list of habits is
+ * for: whether she has done it.
+ *
+ * A box rather than a circle, because that is what a thing you tick looks like.
+ * `rounded-8` is the system's input radius, and a checkbox is an input.
  */
 function TaskMark({ status }: { status: TaskStatus }) {
   if (status === 'done') {
-    return <CheckCircle size={24} className="shrink-0 text-green-500" />
+    return (
+      <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-8 bg-green-500 text-neutral-white">
+        <Check size={16} />
+      </span>
+    )
   }
+  // Unticked and now late. It stays a box — the thing is still not done — and
+  // says so in red, rather than becoming a different kind of mark from the
+  // rows around it.
   if (status === 'alert') {
-    return <WarningCircle size={24} className="shrink-0 text-red-500" />
+    return (
+      <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-8 border-2 border-red-500 bg-red-50 text-14 font-bold text-red-500">
+        !
+      </span>
+    )
   }
-  return <span className="h-24 w-24 shrink-0 rounded-full bg-neutral-200" />
+  return (
+    <span className="h-24 w-24 shrink-0 rounded-8 border-2 border-neutral-400 bg-neutral-white" />
+  )
 }
 
 /** What is owed, stated four ways: due, settled, short, or late. */

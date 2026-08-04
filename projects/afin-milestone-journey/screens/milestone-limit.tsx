@@ -5,7 +5,8 @@
 // habits: her weekly payment, her attendance, and the majelis paying on time.
 
 import { useFlow } from '@/platform/runtime'
-import { HISTORY, MEMBERS } from '../lib/data'
+import { HISTORY } from '../lib/data'
+import { members, useApp } from '../lib/store'
 import { MilestoneTracker, healthOf } from '../lib/milestone-tracker'
 
 export function MilestoneLimitScreen() {
@@ -14,8 +15,9 @@ export function MilestoneLimitScreen() {
   const weeks = HISTORY.length
   const bayar = HISTORY.filter((e) => e.bayar).length
   const hadir = HISTORY.filter((e) => e.kumpulan).length
-  const members = MEMBERS.length
-  const membersBayar = MEMBERS.filter((m) => m.bayar).length
+  const roster = members(useApp())
+  const memberCount = roster.length
+  const membersBayar = roster.filter((m) => m.bayar).length
 
   return (
     <MilestoneTracker
@@ -45,7 +47,7 @@ export function MilestoneLimitScreen() {
         {
           who: 'Majelis Melati 07',
           habit: 'Lancar bayar angsuran',
-          health: healthOf(membersBayar, members),
+          health: healthOf(membersBayar, memberCount),
           onOpen: () => flow.go('majelis'),
         },
       ]}
