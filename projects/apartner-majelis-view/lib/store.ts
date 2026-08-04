@@ -219,6 +219,13 @@ export interface AppState {
    * kumpulan. Absent = she said no, or nothing recorded.
    */
   growthFollowUps: Record<string, GrowthFollowUp>
+  /**
+   * mitraId → the screenshot behind a yes that was PROCESSED in the room. Same
+   * job as `poketProof` on the collection stage: the BP is claiming she filed
+   * something in another app, and ops can only reconcile that against a
+   * picture. Absent = no proof attached, which a carried-over yes never has.
+   */
+  growthProofs: Record<string, boolean>
   /** Which mitra the mitra page and collect page render. */
   openMitra: string
   /** The receipt the success screen prints. Null before any collection. */
@@ -469,6 +476,7 @@ const initial: AppState = {
   growthResults: {},
   growthReasons: {},
   growthFollowUps: {},
+  growthProofs: {},
   openMitra: 'm1',
   lastCollect: null,
   photo: false,
@@ -648,6 +656,7 @@ export const store = {
       growthResults: {},
       growthReasons: {},
       growthFollowUps: {},
+      growthProofs: {},
       lastCollect: null,
       photo: false,
       geo: false,
@@ -1081,6 +1090,7 @@ export const store = {
     result: GrowthResult,
     reason?: string,
     followUp?: GrowthFollowUp,
+    proof?: boolean,
   ) {
     const growthReasons = { ...state.growthReasons }
     if (result === 'tidak' && reason) growthReasons[mitraId] = reason
@@ -1093,10 +1103,18 @@ export const store = {
     if (result === 'ya' && followUp) growthFollowUps[mitraId] = followUp
     else delete growthFollowUps[mitraId]
 
+    // The screenshot belongs to a yes that was PROCESSED. A carried-over yes has
+    // nothing to photograph yet, and a re-answered no has to drop the picture
+    // with the answer it was proof of.
+    const growthProofs = { ...state.growthProofs }
+    if (result === 'ya' && followUp === 'selesai' && proof) growthProofs[mitraId] = true
+    else delete growthProofs[mitraId]
+
     store.set({
       growthResults: { ...state.growthResults, [mitraId]: result },
       growthReasons,
       growthFollowUps,
+      growthProofs,
     })
   },
   /**
