@@ -207,13 +207,10 @@ export const project: ProjectModule = {
       id: 'riwayat',
       title: 'Progress pribadi',
       component: lazyScreen(() => import('./screens/riwayat'), 'RiwayatScreen'),
-      // The same conditions home is drawn for: this page now shows the
-      // instalment row and the payout tile, so it has the same variants to show.
-      states: homeStates,
+      // A static read now — outstanding balance and the weekly record — so no
+      // demo states and nothing to act on but the way into the loan detail.
       flowsTo: [
-        { to: 'disburse-amount', label: 'cairkan sisa limit' },
-        { to: 'amount', label: 'bayar angsuran' },
-        { to: 'pending', label: 'cek status' },
+        { to: 'progress', label: 'lihat detail' },
         { to: 'home', label: 'kembali' },
       ],
     },
