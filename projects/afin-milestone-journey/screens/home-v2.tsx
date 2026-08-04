@@ -24,7 +24,7 @@ import {
   ArrowRight,
   Bell,
   ChatCircleQuestion,
-  Check,
+  CheckCircle,
   ChevronRight,
   Clipboard,
   Coins,
@@ -32,21 +32,19 @@ import {
   EyeSlash,
   Headset,
   House,
-  Majelis,
-  MapPin,
   Plus,
   Promo,
   QrCode,
   Transfer,
   User,
-  Wallet,
+  WarningCircle,
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MEMBERS, WEEKLY_BILL, claimableOf, rupiah } from '../lib/data'
 import { IconPiggy } from '../lib/icons'
-import { outstanding, store, useApp } from '../lib/store'
-import { IconTile, Notice, SectionTitle, TaskButton } from '../lib/ui'
+import { isSettled, outstanding, store, useApp } from '../lib/store'
+import { Notice, SectionTitle, TaskButton } from '../lib/ui'
 
 /** How far past due the unpaid week is, in the at-risk state. */
 const DAYS_LATE = 3
@@ -82,8 +80,8 @@ export function HomeV2Screen() {
     flow.go('amount')
   }
 
-  // How many in her majelis are behind on payments — the "Majelis sehat" task's
-  // status line, and the reason its "Ingatkan" CTA exists.
+  // How many in her majelis are behind on payments — the majelis row's status
+  // line, the mark it carries, and the reason its "Ingatkan" CTA exists.
   const tunggakanCount = MEMBERS.filter((m) => !m.bayar).length
 
   // Read off the ladder rather than held here: whatever the journey page says
@@ -200,8 +198,7 @@ export function HomeV2Screen() {
           <div className="flex flex-col gap-16">
             {isNew ? (
               <Task
-                tint="primary"
-                icon={<Wallet size={20} />}
+                status="todo"
                 title="Cairkan Rp5jt"
                 description="Limit tersedia Rp5jt"
                 action={
@@ -212,34 +209,37 @@ export function HomeV2Screen() {
               />
             ) : (
               <>
+                {/* Settled ticks the box; behind on the week raises the alarm.
+                    A part-payment does neither — it is still simply to do, so it
+                    keeps the empty circle and says how much is left. */}
                 <Task
-                  tint="blue"
-                  icon={<Wallet size={20} />}
+                  status={isSettled(s) ? 'done' : s.atRisk ? 'alert' : 'todo'}
                   title="Bayar angsuran"
                   description={<BillLine />}
                   action={<BayarButton onPay={goToPayment} />}
                 />
-                {/* All three tiles blue. They are one list of things to do, and
-                    a different tint per row implied a difference in kind that
-                    the rows do not have. */}
-                {/* A pin for kumpulan — it is somewhere to turn up, and the
-                    row already says when. The three-person glyph moves down to
-                    Majelis sehat, which is the row actually about the group. */}
                 <Task
-                  tint="blue"
-                  icon={<MapPin size={20} />}
+                  status={s.atRisk ? 'alert' : 'todo'}
                   title="Datang kumpulan"
                   description="Kamis, 11.30"
                 />
+                {/* Named for the state it should be in rather than the one it is
+                    in: the row reads "Majelis lancar bayar" either way, and the
+                    mark beside it says whether that is true this week. */}
                 <Task
-                  tint="blue"
-                  icon={<Majelis size={20} />}
-                  title="Majelis sehat"
-                  description={`${tunggakanCount} anggota punya tunggakan`}
+                  status={tunggakanCount === 0 ? 'done' : 'alert'}
+                  title="Majelis lancar bayar"
+                  description={
+                    tunggakanCount === 0
+                      ? 'Semua anggota lancar bayar'
+                      : `${tunggakanCount} anggota punya tunggakan`
+                  }
                   action={
-                    <TaskButton tone="primary" onClick={() => flow.go('majelis')}>
-                      Ingatkan
-                    </TaskButton>
+                    tunggakanCount === 0 ? undefined : (
+                      <TaskButton tone="primary" onClick={() => flow.go('majelis')}>
+                        Ingatkan
+                      </TaskButton>
+                    )
                   }
                 />
               </>
@@ -548,15 +548,16 @@ function JourneyDot({
 
 // --- Tasks -----------------------------------------------------------------
 
+/** Where a habit stands this week: still to do, kept, or slipped. */
+type TaskStatus = 'todo' | 'done' | 'alert'
+
 function Task({
-  tint,
-  icon,
+  status,
   title,
   description,
   action,
 }: {
-  tint: 'primary' | 'blue' | 'green'
-  icon: ReactNode
+  status: TaskStatus
   title: string
   description: ReactNode
   /** The trailing control. Omit for an informational row with no action. */
@@ -564,9 +565,7 @@ function Task({
 }) {
   return (
     <div className="flex items-center gap-12">
-      <IconTile tint={tint} round>
-        {icon}
-      </IconTile>
+      <TaskMark status={status} />
       <div className="min-w-0 flex-1">
         <p className="text-14 font-bold text-default">{title}</p>
         <div className="mt-4 text-12 text-neutral-700">{description}</div>
@@ -576,24 +575,41 @@ function Task({
   )
 }
 
-/** What is owed, stated three ways: due, settled, or short. */
+/**
+ * The mark at the head of a row. It replaced a tinted avatar per habit, which
+ * said what kind of thing the row was — something the title already said — and
+ * left no room to say the one thing the list is for: whether she has done it.
+ * An empty circle is a box still to tick.
+ */
+function TaskMark({ status }: { status: TaskStatus }) {
+  if (status === 'done') {
+    return <CheckCircle size={24} className="shrink-0 text-green-500" />
+  }
+  if (status === 'alert') {
+    return <WarningCircle size={24} className="shrink-0 text-red-500" />
+  }
+  return <span className="h-24 w-24 shrink-0 rounded-full bg-neutral-200" />
+}
+
+/** What is owed, stated four ways: due, settled, short, or late. */
 function BillLine() {
   const s = useApp()
+  // Settled reads plain. The strikethrough it used to carry was saying "done"
+  // a second time, and the tick beside the row already says it better.
   if (s.billState === 'paid' && s.paidAmount >= WEEKLY_BILL) {
-    return <span className="text-disabled line-through">{rupiah(WEEKLY_BILL)}</span>
+    return <>{rupiah(WEEKLY_BILL)}</>
   }
+  // Part-paid: what is LEFT, not what the week cost. Orange, because it is a
+  // shortfall to close rather than a deadline already missed.
   if (s.billState === 'paid') {
-    return <span className="text-red-500">{rupiah(outstanding(s))} (sisa tunggakan)</span>
+    return <span className="text-orange-500">Kurang {rupiah(outstanding(s))}</span>
   }
   // Unpaid and behind: the amount alone doesn't say the week has already
   // slipped, which is the reason the reward is on the line.
   if (s.atRisk) {
     return (
-      <span className="flex flex-wrap items-center gap-8">
-        {rupiah(WEEKLY_BILL)}
-        <span className="rounded-full bg-red-50 px-8 py-2 text-10 font-bold text-red-600">
-          Telat {DAYS_LATE} hari
-        </span>
+      <span className="text-red-500">
+        {rupiah(WEEKLY_BILL)} (Telat {DAYS_LATE} hari)
       </span>
     )
   }
@@ -611,19 +627,11 @@ function BayarButton({ onPay }: { onPay: () => void }) {
       </TaskButton>
     )
   }
+  // Settled: no control at all. The dead "Lunas" pill was a button that could
+  // not be pressed, sitting where every other row keeps a real one — the tick
+  // at the head of the row says the same thing without the false affordance.
   if (s.billState === 'paid' && s.paidAmount >= WEEKLY_BILL) {
-    return (
-      <TaskButton tone="green" disabled>
-        <Check size={16} /> Lunas
-      </TaskButton>
-    )
-  }
-  if (s.billState === 'paid') {
-    return (
-      <TaskButton tone="primary" onClick={onPay}>
-        Bayar sisa
-      </TaskButton>
-    )
+    return null
   }
   return (
     <TaskButton tone="primary" onClick={onPay}>
