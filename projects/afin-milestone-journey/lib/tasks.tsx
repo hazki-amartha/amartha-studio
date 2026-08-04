@@ -107,9 +107,12 @@ function TaskMark({ status }: { status: TaskStatus }) {
       </span>
     )
   }
+  // Amber, not red, and tinted rather than solid: the warning is a nudge to act
+  // this week, not an error. The 500-on-50 pairing is the design system's status
+  // treatment (see CHEATSHEET), so it reads as the same caution as the Badge.
   if (status === 'alert') {
     return (
-      <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-red-500 text-14 font-bold text-neutral-white">
+      <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-orange-50 text-14 font-bold text-orange-500">
         !
       </span>
     )

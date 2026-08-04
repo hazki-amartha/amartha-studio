@@ -198,29 +198,31 @@ function AutodebitBanner({
   onTopUp: () => void
 }) {
   return (
-    <div className="-mx-16 -mt-16 bg-blue-50 px-16 py-12">
-      <div className="flex items-center gap-12">
-        <span className="flex-1 text-14 font-bold text-default">
-          {on ? 'Autodebit' : 'Aktifkan pembayaran Autodebit'}
-        </span>
+    <div className="-mx-16 -mt-16 bg-blue-50 px-16 py-16">
+      <div className="flex items-center gap-8">
+        <span className="text-16 font-bold text-default">Autodebit angsuran</span>
         {on ? (
           <Badge intent="green" variant="subtle" size="sm">
             Sudah aktif
           </Badge>
         ) : null}
       </div>
-      <p className="mt-2 text-12 text-caption">
+      <p className="mt-4 text-14 text-caption">
         {!on ? (
           <>
-            Bisa bayar otomatis dari saldo Poket.{' '}
+            Bayar angsuran otomatis dari saldo Poket setiap jatuh tempo.{' '}
             <BannerLink onClick={onEnable}>Aktifkan</BannerLink>
           </>
         ) : short ? (
           <>
-            Saldo Poket kurang. <BannerLink onClick={onTopUp}>Top-up</BannerLink>
+            Saldo Poket belum cukup untuk tagihan berikutnya.{' '}
+            <BannerLink onClick={onTopUp}>Isi saldo</BannerLink>
           </>
         ) : (
-          `Penarikan akan dilakukan ${BILL_DUE}`
+          <>
+            Tagihan berikutnya ditarik otomatis pada{' '}
+            <span className="font-bold text-default">{BILL_DUE}</span>.
+          </>
         )}
       </p>
     </div>

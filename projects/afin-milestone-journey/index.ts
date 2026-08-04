@@ -207,12 +207,18 @@ export const project: ProjectModule = {
       id: 'riwayat',
       title: 'Progress pribadi',
       component: lazyScreen(() => import('./screens/riwayat'), 'RiwayatScreen'),
-      // A static read now — outstanding balance and the weekly record — so no
-      // demo states and nothing to act on but the way into the loan detail.
+      // A static read — outstanding balance and the weekly record — whose one
+      // action is Detail, opening the loan-level list of disbursements.
       flowsTo: [
-        { to: 'progress', label: 'lihat detail' },
+        { to: 'pencairan', label: 'detail — semua pencairan' },
         { to: 'home', label: 'kembali' },
       ],
+    },
+    {
+      id: 'pencairan',
+      title: 'Semua pencairan',
+      component: lazyScreen(() => import('./screens/pencairan'), 'PencairanScreen'),
+      flowsTo: [{ to: 'riwayat', label: 'kembali' }],
     },
     {
       id: 'majelis',

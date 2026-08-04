@@ -17,7 +17,9 @@ import { WeekGrid } from '../lib/week-tiles'
 export function RiwayatScreen() {
   const flow = useFlow()
   const total = HISTORY.length
-  const bayarCount = HISTORY.filter((e) => e.bayar).length
+  // "Tepat waktu" is on-time, so a paid-but-late week does not count here — it
+  // still shows its amount on the tile, just not a green mark.
+  const bayarCount = HISTORY.filter((e) => e.bayar && !e.late).length
   const kumpulanCount = HISTORY.filter((e) => e.kumpulan).length
 
   return (
@@ -25,24 +27,27 @@ export function RiwayatScreen() {
       canvas="white"
       topBar={<NavigationHeader title="Ibu Siti" onBack={() => flow.go('home')} />}
     >
-      {/* What she still owes, and how long is left to clear it. "Lihat detail"
-          opens the loan's own journey — the full ladder. */}
+      {/* What she still owes, and how long is left to clear it. "Detail" opens
+          the loan-level list of every disbursement she has taken. */}
       <div className="rounded-12 border border-default p-16">
         <div className="flex items-start gap-8">
           <p className="min-w-0 flex-1 text-16 text-caption">Sisa angsuran</p>
           <button
             type="button"
-            onClick={() => flow.go('progress')}
+            onClick={() => flow.go('pencairan')}
             className="shrink-0 text-14 font-bold text-primary-500"
           >
-            Lihat detail
+            Detail
           </button>
         </div>
-        {/* Balance and time left on one line: they are one fact, and splitting
-            them made the page read as two headlines. */}
-        <p className="mt-4 text-20 font-bold text-default">
-          {rupiah(LOAN_OUTSTANDING)} ({WEEKS_LEFT} minggu lagi)
-        </p>
+        {/* Balance and time left on one line: the weeks-left rides as a quiet
+            pill beside the figure so it reads as one fact, not two headlines. */}
+        <div className="mt-4 flex items-center gap-8">
+          <p className="text-20 font-bold text-default">{rupiah(LOAN_OUTSTANDING)}</p>
+          <span className="rounded-full bg-neutral-100 px-8 py-4 text-12 font-bold text-neutral-700">
+            {WEEKS_LEFT} minggu lagi
+          </span>
+        </div>
         <p className="mt-2 text-14 text-caption">dari {rupiah(LOAN_PRINCIPAL)}</p>
       </div>
 
@@ -51,8 +56,8 @@ export function RiwayatScreen() {
       <div>
         <p className="mb-12 text-16 font-bold text-default">Riwayat mingguan</p>
         <div className="mb-12 flex gap-12">
-          <Summary label="Bayar tepat waktu" value={`${bayarCount}/${total}`} tone="green" />
-          <Summary label="Hadir kumpulan" value={`${kumpulanCount}/${total}`} tone="primary" />
+          <Summary label="Bayar tepat waktu" value={`${bayarCount}/${total}`} />
+          <Summary label="Hadir kumpulan" value={`${kumpulanCount}/${total}`} />
         </div>
         {/* HISTORY is already newest-first, so this week takes the first tile. */}
         <WeekGrid weeks={HISTORY} highlightWeek={HISTORY[0]?.week} />
@@ -61,21 +66,14 @@ export function RiwayatScreen() {
   )
 }
 
-function Summary({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: string
-  tone: 'green' | 'primary'
-}) {
-  const toneClass =
-    tone === 'green' ? 'bg-green-50 text-green-500' : 'bg-primary-50 text-primary-500'
+// Bordered rather than tinted: the two counters are a quiet reference under the
+// heading, so they sit in plain outlined boxes and let the tiles below carry the
+// colour.
+function Summary({ label, value }: { label: string; value: string }) {
   return (
-    <div className={`flex-1 rounded-12 p-16 ${toneClass}`}>
-      <p className="text-12 font-regular">{label}</p>
-      <p className="mt-4 text-24 font-bold">{value}</p>
+    <div className="flex-1 rounded-12 border border-default p-16">
+      <p className="text-12 font-regular text-caption">{label}</p>
+      <p className="mt-4 text-24 font-bold text-default">{value}</p>
     </div>
   )
 }
