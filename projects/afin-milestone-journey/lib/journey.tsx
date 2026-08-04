@@ -225,7 +225,7 @@ export function MilestoneRung({
                   onClick={onOpen}
                   className="shrink-0 rounded-full border border-primary-500 px-16 py-8 text-14 font-bold text-primary-500"
                 >
-                  Lihat
+                  Detail
                 </button>
               ) : null}
             </div>

@@ -38,23 +38,23 @@ export function ProgressScreen() {
 
   return (
     <Screen
-      topBar={<NavigationHeader title="Perjalanan pendanaan" onBack={() => flow.go('home')} />}
+      topBar={<NavigationHeader title="Perjalanan naik limit" onBack={() => flow.go('home')} />}
     >
       {/* Pulled to the display edges and up against the header: one white band,
           two rows, a hairline between them and one under the band. */}
       <div className="-mx-16 -mt-16 border-b border-light bg-neutral-white">
         <ProgressMenuItem
           inset
-          label="Progress pribadi"
-          subtitle="Berpengaruh ke semua goal"
+          label="Status pribadi"
+          subtitle="Mempengaruhi semua tahapan kenaikan limit."
           health={personal}
           onOpen={() => flow.go('riwayat')}
         />
         <div className="mx-16 h-px bg-neutral-200" />
         <ProgressMenuItem
           inset
-          label="Progress majelis"
-          subtitle="Berpengaruh ke goal kenaikan limit"
+          label="Status majelis"
+          subtitle="Mempengaruhi kenaikan limit akhir."
           health={majelis}
           onOpen={() => flow.go('majelis')}
         />
