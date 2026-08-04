@@ -4,6 +4,12 @@
 /** The weekly instalment every screen in the payment flow is denominated in. */
 export const WEEKLY_BILL = 150000
 
+/** Her approved credit limit, and how much of it she has already drawn. What
+ *  is left is the difference — the same figure the ladder offers as claimable,
+ *  because an undrawn limit IS what there is to disburse. */
+export const LOAN_LIMIT = 5000000
+export const LOAN_DRAWN = 3750000
+
 /** When this week's instalment is due. The same week the record in HISTORY ends
  *  on and the first milestone is dated to, so the bill, the record and the goal
  *  all refer to one week rather than three. */
