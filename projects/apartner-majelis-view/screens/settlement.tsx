@@ -21,13 +21,16 @@
 //      amount is the sum of what she ticks; leaving some unticked leaves it in
 //      the bag for a later drop.
 //   3. WHICH ROAD — a VA she transfers to, or an AmarthaLink agent she hands
-//      the cash to. The receipt number (a VA, or a kode unik) appears inside
-//      the road she picks, because a code with no chosen destination is a
-//      number she cannot use yet.
-//   4. PROOF — the same photo gesture as every visit, asked in the sheet the
-//      confirm opens, once there is a method for it to be proof OF.
+//      the cash to. Picking a road is all this step does; the number that road
+//      actually uses lives on the NEXT step, together with the proof, because
+//      that is the moment she needs it — reading it here and again there would
+//      be the same number twice before she can act on either showing.
+//   4. THE NUMBER, AND PROOF — one sheet, combined: the VA (or kode unik) she
+//      transfers/hands cash to, and the camera gesture that proves it went,
+//      slot for slot. She reaches it by tapping Lanjut, not by confirming she
+//      has already sent anything — the sending happens FROM this sheet.
 //
-// The confirm is gated on a chosen amount and a method. The header carries a
+// "Lanjut" is gated on a chosen amount and a method. The header carries a
 // Riwayat link onto the day's cash story — what came in, what went out, and by
 // which road — because a BP mid-settlement is exactly the person who wants to
 // check what she already put down.
@@ -395,11 +398,11 @@ export function SettlementScreen() {
         })}
       </div>
 
-      {/* --- Which road the cash takes, and how the amount is split to travel it.
-          The VA road caps per transfer, so it goes as TWO transfers to two VA
-          numbers; the agent road takes the whole sum at one counter, so it stays
-          one figure and one kode unik. The amount anchors to the method she
-          picks — that is why nothing shows until she picks one. */}
+      {/* --- Which road the cash takes. Just the choice — the VA numbers and
+          the kode unik that road actually uses live on the NEXT step, together
+          with the proof that it went, because showing them here too would put
+          the same number in front of her twice before she can act on either
+          showing. */}
       <SectionTitle>Metode Setoran</SectionTitle>
       <div className="flex flex-col gap-8">
         <OptionCard
@@ -407,26 +410,7 @@ export function SettlementScreen() {
           title="Transfer ke Virtual Account"
           description="Setor lewat mobile banking ke 2 VA cabang"
           onSelect={() => store.setDepositMethod('va')}
-        >
-          <div className="flex flex-col gap-8 rounded-8 bg-neutral-white p-12">
-            <span className="text-12 text-caption">{DEPOSIT.bank} · {DEPOSIT.holder}</span>
-            {[
-              { label: 'Transfer 1 dari 2', va: va1, amount: vaAmount1 },
-              { label: 'Transfer 2 dari 2', va: va2, amount: vaAmount2 },
-            ].map((row) => (
-              <div key={row.label} className="flex flex-col gap-2 border-t border-default pt-8 first:border-t-0 first:pt-0">
-                <span className="text-10 font-bold uppercase text-caption">{row.label}</span>
-                <div className="flex items-center gap-8">
-                  <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">{row.va}</span>
-                  <span className="shrink-0 text-14 font-bold text-primary-500">{rupiah(row.amount)}</span>
-                </div>
-              </div>
-            ))}
-            <span className="text-10 text-disabled">
-              Dua nomor VA berbeda — pastikan nominal tiap transfer sesuai.
-            </span>
-          </div>
-        </OptionCard>
+        />
 
         <OptionCard
           selected={s.depositMethod === 'agent'}
@@ -434,19 +418,9 @@ export function SettlementScreen() {
           description="Serahkan seluruh uang tunai ke agen terdekat pakai kode unik"
           onSelect={() => store.setDepositMethod('agent')}
         >
-          <div className="flex flex-col gap-8 rounded-8 bg-neutral-white p-12">
-            <div className="flex items-center gap-8">
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <span className="text-12 text-caption">Kode Unik · Agen {AGENT.name}</span>
-                <span className="truncate text-18 font-bold text-default">{code}</span>
-              </div>
-              <span className="shrink-0 text-14 font-bold text-primary-500">{rupiah(amount)}</span>
-            </div>
-            <span className="text-10 text-disabled">{AGENT.hint}</span>
-          </div>
-          {/* The code is useless without a counter to read it out at, so the way
-              to FIND one sits right under it — the one thing this road needs
-              that the VA road does not. */}
+          {/* The kode unik itself waits for the next step, but WHERE to walk it
+              to is a step-1 question — she may want to check there is a counter
+              on her route before she commits to this road at all. */}
           <button
             type="button"
             onClick={() => flow.go('agent-locator')}
@@ -470,17 +444,17 @@ export function SettlementScreen() {
         {hint ? (
           <span className="text-center text-12 font-bold text-orange-500">{hint}</span>
         ) : null}
-        {/* Confirming she has transferred opens the proof sheet — she uploads
-            the bukti there, then it settles the bag and drops her back on the
-            schedule. The day is where a settlement ends; if there is still
-            cash, the widget is waiting there saying so. */}
+        {/* Lanjut, not a confirm — the sheet it opens is where the number
+            appears and where she actually sends the money, so this button
+            can't claim she's already done that. It settles the bag and drops
+            her back on the schedule once every proof slot is filled. */}
         <Button
           size="lg"
           className="w-full"
           disabled={!ready}
           onClick={() => setProofOpen(true)}
         >
-          Saya Sudah Setor {rupiah(amount)}
+          Lanjut
         </Button>
       </StickyBar>
 
@@ -514,15 +488,16 @@ export function SettlementScreen() {
 }
 
 // --- ProofSheet ------------------------------------------------------------
-// The bukti, moved off the page and behind the confirm. She taps "Saya Sudah
-// Setor" once the money has actually left her banking app, and THEN uploads the
-// receipt — so proof is the last gesture, not a step blocking her from starting.
+// Where the VA/kode unik and the bukti finally live together. She reaches it
+// by tapping Lanjut, not by confirming she has already sent anything — this
+// sheet is where the number appears and where she sends the money, so it
+// cannot open on a claim that jumped ahead of what she's actually done.
 //
 // The VA road asks for TWO photos, one per transfer, because the amount left in
 // two transfers to two different VA numbers and the branch reconciles each on
 // its own — a single screenshot cannot prove both. The agent road is one
-// counter, one struk, so it asks once. The confirm stays disabled until every
-// slot the chosen road needs is filled.
+// counter, one struk, so it asks once. Konfirmasi Setoran stays disabled until
+// every slot the chosen road needs is filled.
 
 interface Transfer {
   label: string
