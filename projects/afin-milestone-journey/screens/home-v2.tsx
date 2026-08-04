@@ -33,12 +33,12 @@ import {
   Headset,
   House,
   Majelis,
+  MapPin,
   Plus,
   Promo,
   QrCode,
   Transfer,
   User,
-  Users,
   Wallet,
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
@@ -105,13 +105,15 @@ export function HomeV2Screen() {
           </div>
 
           <div className="mt-24">
-            {/* Purple runs from today only as far as the next goal, and
+            {/* Blue runs from today only as far as the next goal, and
                 everything past it is grey. The rail is one claim — "this is the
                 stretch you are on" — and colouring the far half too made three
-                stops compete when only one is hers to work on. */}
+                stops compete when only one is hers to work on. Blue rather than
+                brand purple keeps the card's only purple on things she can
+                press: "Lihat semua", and the buttons on the rows below. */}
             <div className="flex items-center">
               <JourneyDot current />
-              <span className="mx-4 h-2 flex-1 rounded-full bg-primary-500" />
+              <span className="mx-4 h-2 flex-1 rounded-full bg-blue-500" />
               <JourneyDot next />
               {/* Small dots: the pelunasan and other milestones that fall between
                   the next top-up and the far limit rise. */}
@@ -126,7 +128,8 @@ export function HomeV2Screen() {
             </div>
             <div className="mt-8 flex gap-4">
               <div className="min-w-0 flex-1">
-                <p className="text-12 font-bold text-primary-500">Hari ini</p>
+                {/* Blue, following its own marker on the rail above it. */}
+                <p className="text-12 font-bold text-blue-500">Hari ini</p>
               </div>
               {/* Label and figure sit at the date's size, not a step under it:
                   the date alone says nothing useful, and the two lines that
@@ -197,15 +200,18 @@ export function HomeV2Screen() {
                 {/* All three tiles blue. They are one list of things to do, and
                     a different tint per row implied a difference in kind that
                     the rows do not have. */}
+                {/* A pin for kumpulan — it is somewhere to turn up, and the
+                    row already says when. The three-person glyph moves down to
+                    Majelis sehat, which is the row actually about the group. */}
                 <Task
                   tint="blue"
-                  icon={<Majelis size={20} />}
+                  icon={<MapPin size={20} />}
                   title="Datang kumpulan"
                   description="Kamis, 11.30"
                 />
                 <Task
                   tint="blue"
-                  icon={<Users size={20} />}
+                  icon={<Majelis size={20} />}
                   title="Majelis sehat"
                   description={`${tunggakanCount} anggota punya tunggakan`}
                   action={
@@ -492,17 +498,17 @@ function Shortcut({ icon, label }: { icon: ReactNode; label: string }) {
 function JourneyDot({ current, next }: { current?: boolean; next?: boolean }) {
   if (current) {
     return (
-      <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 border-primary-500">
-        <span className="h-8 w-8 rounded-full bg-primary-500" />
+      <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 border-blue-500">
+        <span className="h-8 w-8 rounded-full bg-blue-500" />
       </span>
     )
   }
-  // The goal she is walking toward: purple like today's marker, empty because
+  // The goal she is walking toward: blue like today's marker, empty because
   // she has not arrived, and a size larger than the far node so the rail has an
   // obvious destination rather than two identical rings.
   if (next) {
     return (
-      <span className="h-24 w-24 shrink-0 rounded-full border-2 border-primary-500 bg-neutral-white" />
+      <span className="h-24 w-24 shrink-0 rounded-full border-2 border-blue-500 bg-neutral-white" />
     )
   }
   return <span className="h-20 w-20 shrink-0 rounded-full border-2 border-neutral-200 bg-neutral-white" />
