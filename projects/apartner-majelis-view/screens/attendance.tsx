@@ -56,22 +56,20 @@ import {
 // meeting are few and known. Free text would slow the one gesture the stage
 // repeats and give ops a column it can't sort.
 //
-// "Salah majelis" is the odd one out: it is not about the mitra at all, it is
-// the roster being wrong. She is on this list because of a transfer nobody
-// recorded, and marking her absent week after week hides a data fix behind an
-// attendance figure — so it gets its own reason rather than landing in "tanpa
-// kabar", where it is indistinguishable from a woman who simply didn't come.
-//
 // "Meninggal dunia" is the one absence that is not about this week. It ends the
 // membership and hands the loan to a settlement process nobody in the room can
 // run, so it cannot be logged as a sick day — and stage 2 has to know, which is
-// why the reason travels onto her card there.
+// why the reason travels onto her card there (see `home-brief.tsx` and
+// `collection.tsx`, both of which key off this exact string).
 const ABSENCE_REASONS = [
-  'Sedang bekerja',
+  'Sedang bekerja/berdagang',
+  'Ada keperluan pribadi/keluarga',
+  'Bermasalah di majelis',
+  'Pindah rumah',
+  'Terjadi bencana alam',
   'Sakit',
-  'Salah majelis',
   'Meninggal dunia',
-  'Tanpa kabar',
+  'Lainnya/tidak ada kabar',
 ]
 
 type FilterId = 'semua' | 'sudah' | 'belum'
@@ -113,8 +111,8 @@ export function AttendanceScreen() {
   // from the group when the roster opened it. Skipping records against it.
   const taskId = s.activeTask ?? taskForMajelis(group.id)?.id ?? null
 
-  function skip() {
-    if (taskId) store.skipVisit(taskId)
+  function skip(reason: string) {
+    if (taskId) store.skipVisit(taskId, reason)
     setSkipping(false)
     flow.go('today')
   }

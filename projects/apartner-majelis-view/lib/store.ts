@@ -38,8 +38,13 @@ import {
   type TaskKind,
 } from './schedule'
 
-/** Who actually answered the door on a home visit. */
-export type MetWith = 'mitra' | 'pj' | 'nobody'
+/**
+ * Who actually answered the door on a home visit. `pj`, `tetangga`, and
+ * `kepalaRt` all record the SAME outcome — a payment dicatat atas nama mitra,
+ * not taken from her hand — kept as separate values only so the three rows
+ * can be selected apart; nothing downstream tells them apart otherwise.
+ */
+export type MetWith = 'mitra' | 'pj' | 'tetangga' | 'kepalaRt' | 'nobody'
 
 /**
  * The outcome picked inline on a home visit.
@@ -353,6 +358,10 @@ export interface AppState {
    * what make "I went, it didn't gather" auditable rather than a gap.
    */
   skips: Record<string, boolean>
+  /** taskId → why the visit was skipped. Same pairing as `absenceReasons` — a
+   *  fixed reason travels with the proof, because a skip nobody can explain is a
+   *  gap in the register whoever reads it later has to chase down by hand. */
+  skipReasons: Record<string, string>
 
   // --- The daily close -----------------------------------------------------
 
@@ -506,6 +515,7 @@ const initial: AppState = {
   reschedules: {},
   rejects: {},
   skips: {},
+  skipReasons: {},
   deposits: {},
   settlements: [],
   depositAmount: null,
@@ -814,9 +824,10 @@ export const store = {
    * is captured. Like a reschedule it leaves `doneTasks` untouched — a skipped
    * visit is not finished work — and clears any half-started state.
    */
-  skipVisit(taskId: string) {
+  skipVisit(taskId: string, reason: string) {
     store.set({
       skips: { ...state.skips, [taskId]: true },
+      skipReasons: { ...state.skipReasons, [taskId]: reason },
       startedTasks: state.startedTasks.filter((id) => id !== taskId),
     })
   },

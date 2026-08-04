@@ -18,7 +18,7 @@
 // Kirim. Meeting the mitra or her PJ instead carries on to Tagih as normal.
 
 import { useState } from 'react'
-import { BottomSheet, Button, Input, Modal, NavigationHeader } from '@/design-system/components'
+import { BottomSheet, Button, Modal, NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { ContactRow, HomeMitraCard } from '../lib/home-card'
@@ -56,16 +56,21 @@ const WHO: { value: MetWith; title: string; description: string }[] = [
   },
   {
     value: 'pj',
-    title: 'Penanggung jawab/keluarga',
+    title: 'Penanggung jawab',
+    description: 'Pembayaran akan dicatat atas nama mitra.',
+  },
+  {
+    value: 'tetangga',
+    title: 'Tetangga',
+    description: 'Pembayaran akan dicatat atas nama mitra.',
+  },
+  {
+    value: 'kepalaRt',
+    title: 'Kepala RT',
     description: 'Pembayaran akan dicatat atas nama mitra.',
   },
   { value: 'nobody', title: 'Tidak ada orang', description: 'Tidak ada pembayaran hari ini.' },
 ]
-
-// Why nobody was there. Relocation and death both open a different case
-// entirely, which is why "pindah" asks for a new address and "meninggal" needs
-// no revisit date.
-const ABSENT_REASONS = ['Sedang bekerja', 'Pergi tanpa kabar', 'Pindah rumah', 'Meninggal dunia']
 
 // Why the mitra herself was out when the PJ answered. No "pindah"/"meninggal"
 // here: someone from the household is standing at the door, so the case is a
@@ -90,7 +95,9 @@ export function HomeBriefScreen() {
 
   const met = s.metWith[mitra.id]
   const absent = met === 'nobody'
-  const metPj = met === 'pj'
+  // pj/tetangga/kepalaRt share one outcome — dicatat atas nama mitra — and one
+  // reason, so they share this check too.
+  const metPj = met === 'pj' || met === 'tetangga' || met === 'kepalaRt'
   const note = s.nonPayments[mitra.id]
   const pjReason = s.mitraAbsence[mitra.id]
 
@@ -116,16 +123,16 @@ export function HomeBriefScreen() {
     flow.go('today')
   }
 
-  // Meeting the PJ or finding nobody home both require a reason before she can
-  // move on — the record has to say why the borrower was absent.
-  const canContinue = met === 'mitra' ? true : metPj ? !!pjReason : absent ? !!note?.reason : false
-
-  function pickReason(value: string) {
-    store.setNonPayment(mitra, { reason: value, ptp: note?.ptp ?? null })
-  }
+  // Meeting a third party requires a reason before she can move on — the
+  // record has to say why the borrower was absent. Finding nobody home only
+  // requires a revisit date to be PICKED, even if the pick is "Tidak ada
+  // janji" — there is no reason to ask for any more, now that the visit note
+  // is just the next date to try again.
+  const canContinue =
+    met === 'mitra' ? true : metPj ? !!pjReason : absent ? note?.ptp !== undefined : false
 
   function pickPtp(value: string | null) {
-    store.setNonPayment(mitra, { reason: note?.reason ?? '', ptp: value })
+    store.setNonPayment(mitra, { reason: '', ptp: value })
   }
 
   return (
@@ -210,16 +217,13 @@ export function HomeBriefScreen() {
             {WHO.map((option) => {
               const selected = met === option.value
               // A one-line recap of what the sheet captured, shown on the chosen
-              // row: the reason, plus the revisit date when nobody was home.
+              // row: the reason for pj/tetangga/kepalaRt, the revisit date for
+              // "Tidak ada orang".
               let summary: string | null = null
-              if (selected && option.value === 'pj') {
+              if (selected && (option.value === 'pj' || option.value === 'tetangga' || option.value === 'kepalaRt')) {
                 summary = pjReason ?? null
-              } else if (selected && option.value === 'nobody' && note?.reason) {
-                const revisit =
-                  note.ptp !== undefined
-                    ? (PTP_OPTIONS.find((o) => o.value === note.ptp)?.label ?? null)
-                    : null
-                summary = revisit ? `${note.reason} · ${revisit}` : note.reason
+              } else if (selected && option.value === 'nobody' && note?.ptp !== undefined) {
+                summary = PTP_OPTIONS.find((o) => o.value === note.ptp)?.label ?? null
               }
               return (
                 <PickRow
@@ -250,8 +254,9 @@ export function HomeBriefScreen() {
         </Button>
       </StickyBar>
 
-      {/* --- The follow-up, in a sheet. PJ asks only why she was out; nobody
-          also asks for a new address (if she moved) and when to come back. --- */}
+      {/* --- The follow-up, in a sheet. A third party asks only why she was
+          out; nobody home asks only when to come back — no reason, since
+          there is nobody to have said one to her. --- */}
       <BottomSheet
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
@@ -271,42 +276,15 @@ export function HomeBriefScreen() {
           ) : null}
 
           {absent ? (
-            <>
-              <SelectList
-                label="Kenapa tidak ada di rumah?"
-                items={ABSENT_REASONS.map((option) => ({
-                  key: option,
-                  label: option,
-                  selected: note?.reason === option,
-                  onClick: () => pickReason(option),
-                }))}
-              />
-
-              {/* Relocation needs more than a label — an address is what turns
-                  "pindah" into something ops can act on rather than a dead end. */}
-              {note?.reason === 'Pindah rumah' ? (
-                <Input
-                  label="Alamat baru (jika diketahui)"
-                  value={s.newAddress[mitra.id] ?? ''}
-                  onChange={(e) => store.setNewAddress(mitra.id, e.target.value)}
-                  helperText="Kosongkan jika belum tahu — akan dibuat tugas pelacakan."
-                />
-              ) : null}
-
-              {/* Asked only once there is a reason: a revisit date with nothing
-                  attached to it is not a record of anything. */}
-              {note?.reason && note.reason !== 'Meninggal dunia' ? (
-                <SelectList
-                  label="Kunjungan ulang"
-                  items={PTP_OPTIONS.map((option) => ({
-                    key: option.label,
-                    label: option.label,
-                    selected: note.ptp === option.value,
-                    onClick: () => pickPtp(option.value),
-                  }))}
-                />
-              ) : null}
-            </>
+            <SelectList
+              label="Kunjungan ulang"
+              items={PTP_OPTIONS.map((option) => ({
+                key: option.label,
+                label: option.label,
+                selected: note?.ptp === option.value,
+                onClick: () => pickPtp(option.value),
+              }))}
+            />
           ) : null}
 
           {/* The sheet carries the Lanjut itself — fill the reason (and revisit
