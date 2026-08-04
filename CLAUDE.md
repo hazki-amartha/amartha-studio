@@ -360,28 +360,28 @@ shows them a login wall instead of their prototype. This is the *only* thing tha
 changes about the push flow; everything above still applies, and you still call
 it the "preview link".
 
-**One server, always on port 4000.** Start it with `npm run dev -- -p 4000`, and
-**before you start anything, check whether it is already up**:
+**One server, always on port 4000 — `npm run dev`.** The preview link is always
+`http://localhost:4000/p/<slug>`, this session and every other one.
 
-```bash
-lsof -nP -iTCP:4000 -sTCP:LISTEN   # empty → start one; otherwise reuse it
-```
+You do not have to check whether a server is already running: `npm run dev` is
+**idempotent**. If one is up it prints the link and starts nothing; if none is,
+it starts one pinned to 4000. So run it whenever you need the link, and never
+reach for `next dev` directly — that is what used to start rivals.
 
-Never start a second server for this repo. Two `next dev` processes on one
-folder share a single `.next` build cache and overwrite each other's compiled
-output, so the page the designer has open goes stale or half-broken after an
-edit and only a kill-and-restart clears it. That is the cause of "I have to
-restart it every time" — not hot reload being unreliable. With one server, an
-edit appears on refresh and the studio needs no restarting.
+Why this is a script and not a habit (`scripts/dev.mjs` spells it out): two
+`next dev` processes on this folder share one `.next` cache and overwrite each
+other's compiled output, so the designer's open page goes stale after an edit
+and only a kill-and-restart clears it — indistinguishable from "hot reload is
+broken", which is how it kept getting misdiagnosed. And bare `next dev` silently
+drifts to the next free port, leaving the designer's bookmarked tab pointed at a
+server that is gone.
 
-The fixed port matters as much as the single process: letting the server drift
-to whatever port is free (`3000` → `3001` → `3002`) means the designer keeps an
-old tab open on yesterday's port, pointed at a server that is gone or serving
-another checkout. Port 4000 is the studio's, every session, so the link they
-bookmarked keeps working.
-
-If a preview really is stuck, the fix is `rm -rf .next` and one fresh server —
-and check for duplicates first, because a duplicate is usually why.
+- **Never restart the server as a matter of course after making changes.** Hot
+  reload works; an edit shows up on refresh. Restarting by habit hides the real
+  problem and costs the designer a wait.
+- If a preview genuinely is stuck: `npm run dev:restart` (stops the old process,
+  then starts one — it never leaves two), or `npm run dev -- --fresh` to clear
+  `.next` first.
 
 **How to speak.** The only words are "commit", "committed", "push", "pushed",
 "live", "preview link", and — for shared changes — "pending review". **Never say
