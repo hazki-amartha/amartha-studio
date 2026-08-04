@@ -11,41 +11,59 @@
 // =============================================================================
 
 import { Suspense } from 'react'
-import type { ScreenDef } from '@/platform/types'
+import type { DeviceKind, ScreenDef } from '@/platform/types'
 import { FlowContext } from '@/platform/runtime'
-import { SCALE, SCREEN_H, SCREEN_W, THUMB_H, THUMB_W } from './geometry'
+import { DEVICE_SPECS } from '@/platform/frame/device'
+import { THUMB_H, THUMB_W } from './geometry'
 
 const INERT_FLOW = {
   go() {},
   back() {},
 }
 
-export function ScreenThumb({ screen }: { screen: ScreenDef }) {
+export function ScreenThumb({
+  screen,
+  device = 'mobile',
+}: {
+  screen: ScreenDef
+  device?: DeviceKind
+}) {
   const Component = screen.component
+  const spec = DEVICE_SPECS[device]
+  // Scale to the node's width, not its height: the lattice in layout.ts is
+  // built on a fixed node box, so a desktop screen is letterboxed inside the
+  // same box rather than reshaping the whole canvas. For the phone this is
+  // exactly the old 0.25.
+  const scale = THUMB_W / spec.width
   return (
     <div
-      className="pointer-events-none select-none overflow-hidden rounded-8 border border-default bg-neutral-white"
+      className="pointer-events-none flex select-none items-center overflow-hidden rounded-8 border border-default bg-neutral-white"
       style={{ width: THUMB_W, height: THUMB_H }}
     >
-      {/* overflow-hidden here, on the full-size 390×844 box, is load-bearing:
-          it makes THIS the nearest scrolling ancestor, so a screen's
-          `sticky bottom-0` chrome resolves against the real screen height.
-          Without it the outer thumb (SCREEN_H × SCALE ≈ 211px) is the
-          scrollport and sticky bars land ~25% down the screen, over content. */}
-      <div
-        className="overflow-hidden"
-        style={{
-          width: SCREEN_W,
-          height: SCREEN_H,
-          transform: `scale(${SCALE})`,
-          transformOrigin: 'top left',
-        }}
-      >
-        <FlowContext.Provider value={{ ...INERT_FLOW, current: screen.id }}>
-          <Suspense fallback={null}>
-            <Component />
-          </Suspense>
-        </FlowContext.Provider>
+      {/* The scaled-down slot, centred: a desktop screen is much wider than it
+          is tall relative to the node box, so it letterboxes instead of
+          filling. */}
+      <div style={{ height: spec.height * scale, flex: 'none', width: THUMB_W }}>
+        {/* overflow-hidden here, on the FULL-SIZE screen box, is load-bearing:
+            it makes THIS the nearest scrolling ancestor, so a screen's
+            `sticky bottom-0` chrome resolves against the real screen height.
+            Without it the scaled slot above is the scrollport and sticky bars
+            land partway down the screen, over content. */}
+        <div
+          className="overflow-hidden"
+          style={{
+            width: spec.width,
+            height: spec.height,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          <FlowContext.Provider value={{ ...INERT_FLOW, current: screen.id }}>
+            <Suspense fallback={null}>
+              <Component />
+            </Suspense>
+          </FlowContext.Provider>
+        </div>
       </div>
     </div>
   )
