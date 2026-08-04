@@ -228,6 +228,12 @@ export interface AppState {
   growthProofs: Record<string, boolean>
   /** Which mitra the mitra page and collect page render. */
   openMitra: string
+  /**
+   * Which pencairan the loan detail page renders, by loan id. Empty falls back
+   * to her active cycle — the one a BP means when she says "pencairan" without
+   * qualifying it.
+   */
+  openLoan: string
   /** The receipt the success screen prints. Null before any collection. */
   lastCollect: LastCollect | null
   /** Proof photo captured. Gates submission. */
@@ -478,6 +484,7 @@ const initial: AppState = {
   growthFollowUps: {},
   growthProofs: {},
   openMitra: 'm1',
+  openLoan: '',
   lastCollect: null,
   photo: false,
   geo: false,
@@ -998,6 +1005,9 @@ export const store = {
 
   openMitraPage(mitraId: string) {
     store.set({ openMitra: mitraId })
+  },
+  openLoanPage(loanId: string) {
+    store.set({ openLoan: loanId })
   },
   setAttendance(mitraId: string, value: Attendance) {
     // Marking present clears any absence reason left behind by a mis-tapped

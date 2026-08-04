@@ -12,7 +12,7 @@
 // disagree. The finished ones are generated from her name, which means the same
 // mitra has the same history every time she is opened, from any screen.
 
-import { fullDate, type Mitra } from './data'
+import { dateWithYear, fullDate, type Mitra } from './data'
 
 export interface Disbursement {
   /** "3234567" — what the BP reads out to ops. */
@@ -21,6 +21,13 @@ export interface Disbursement {
   no: number
   /** "23 April 2025" — when the money landed. */
   cairDate: string
+  /**
+   * The same date as a count of weeks back from today — the anchor the
+   * instalment schedule is generated from. Kept beside the printed date rather
+   * than parsed back out of it: a schedule derived from a formatted string is a
+   * schedule that breaks the first time the format changes.
+   */
+  cairWeeksBack: number
   /** Cycle length in weeks. */
   tenor: number
   /** Instalments settled in full. */
@@ -75,6 +82,7 @@ export function loansOf(mitra: Mitra): Disbursement[] {
     no: past + 1,
     // Week 1 of the current ledger is when this money landed.
     cairDate: fullDate(mitra.week - 1),
+    cairWeeksBack: mitra.week - 1,
     tenor: mitra.totalWeeks,
     paidCount,
     weekly: mitra.weekly,
@@ -91,6 +99,7 @@ export function loansOf(mitra: Mitra): Disbursement[] {
       id: `${i}${String(200_000 + ((h * (i + 3)) % 800_000)).slice(0, 6)}`,
       no: i,
       cairDate: fullDate(weeksBack),
+      cairWeeksBack: weeksBack,
       tenor: mitra.totalWeeks,
       paidCount: mitra.totalWeeks,
       // Earlier cycles were smaller — the ladder's whole premise is that modal
@@ -102,4 +111,58 @@ export function loansOf(mitra: Mitra): Disbursement[] {
   }
 
   return [active, ...settled]
+}
+
+/**
+ * One row of the schedule: what was due, when, and whether it has been answered.
+ *
+ * `belum` covers both a week that was missed and the one falling due right now.
+ * The distinction the BP acts on is answered vs not — a red "Belum Bayar" beside
+ * an amount is the same instruction either way, and splitting it would put two
+ * shades of red in a column of fifty rows.
+ */
+export interface Instalment {
+  no: number
+  amount: number
+  /** "23 Des 2025" — carries the year, because a 50-week list crosses one. */
+  due: string
+  status: 'lunas' | 'belum' | 'akan'
+  /** What actually landed that week. Absent on anything not yet answered. */
+  paid?: number
+}
+
+/**
+ * The full schedule for one cycle, generated from its cair date.
+ *
+ * The ACTIVE cycle reads its answered weeks off the mitra's own ledger rather
+ * than re-deciding them here, so this page and her week strip cannot disagree
+ * about which weeks she paid. Everything past today is the same instalment
+ * repeating on the same weekday, which is what the contract says it is.
+ */
+export function scheduleOf(mitra: Mitra, loan: Disbursement): Instalment[] {
+  return Array.from({ length: loan.tenor }, (_, i) => {
+    const no = i + 1
+    // Instalment n falls a week after the one before it, counting forward from
+    // the cair date — so its "weeks back from today" runs DOWN as n runs up,
+    // and goes negative for the ones still ahead.
+    const due = dateWithYear(loan.cairWeeksBack - no)
+    if (loan.status === 'lunas') {
+      return { no, amount: loan.weekly, due, status: 'lunas' as const, paid: loan.weekly }
+    }
+    const week = mitra.weeks[i]
+    if (!week) return { no, amount: loan.weekly, due, status: 'akan' as const }
+    return {
+      no,
+      amount: week.due,
+      due,
+      status: week.status === 'lunas' ? ('lunas' as const) : ('belum' as const),
+      paid: week.paid,
+    }
+  })
+}
+
+/** The cycle a loan id names, or her active one when nothing matches. */
+export function findLoan(mitra: Mitra, id: string): Disbursement {
+  const loans = loansOf(mitra)
+  return loans.find((l) => l.id === id) ?? loans[0]
 }

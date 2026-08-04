@@ -1063,6 +1063,7 @@ export function ChoiceList({
   value,
   onPick,
   hideLabel,
+  plain,
 }: {
   label: string
   options: Choice[]
@@ -1075,7 +1076,56 @@ export function ChoiceList({
    * twice, one of them in grey.
    */
   hideLabel?: boolean
+  /**
+   * Bare rows — a radio at the left, no box around it — instead of the bordered
+   * cards. For a sheet asking TWO questions in a row: nine boxed rows stacked
+   * under two captions read as nine objects, where the reference draws one list
+   * with two headings, and the radio column is what tells them apart.
+   */
+  plain?: boolean
 }) {
+  if (plain) {
+    return (
+      <div className="flex flex-col gap-8">
+        {hideLabel ? null : <span className="text-12 text-caption">{label}</span>}
+        <div role="radiogroup" aria-label={label} className="flex flex-col">
+          {options.map((option) => {
+            const text = typeof option === 'string' ? option : option.label
+            const description = typeof option === 'string' ? undefined : option.description
+            const selected = text === value
+            return (
+              <button
+                key={text}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => onPick(text)}
+                className="flex items-center gap-12 py-8 text-left"
+              >
+                {/* The mark leads the row here, where a boxed row puts it at the
+                    edge: with no border to hold the row together, the column of
+                    radios IS the list's left edge. */}
+                <span
+                  className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 ${
+                    selected ? 'border-primary-500' : 'border-default'
+                  }`}
+                >
+                  {selected ? <span className="h-12 w-12 rounded-full bg-primary-500" /> : null}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-2">
+                  <span className="text-14 text-default">{text}</span>
+                  {description ? (
+                    <span className="text-12 text-caption">{description}</span>
+                  ) : null}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-8">
       {hideLabel ? null : <span className="text-12 text-caption">{label}</span>}
@@ -1692,24 +1742,19 @@ export function StickyBar({ children }: { children: ReactNode }) {
 // options fit, and ops needs to read what actually went wrong.
 
 /** Why a visit gets moved — BP-side reasons, distinct from a mitra's absence. */
-const RESCHEDULE_REASONS = [
-  'Mitra minta waktu lain',
-  'Waktu tidak cukup hari ini',
-  'Rumah sulit dijangkau',
-  'Menunggu koordinasi PJ',
-]
+const RESCHEDULE_REASONS = ['Tidak cukup waktu', 'Lokasi terlalu jauh', 'Bencana alam']
 
 // When to move it to — tomorrow through next week, so a BP who can't get back
 // this week can still land the task somewhere real. A reschedule needs a date,
 // so there is no "no date". "Besok" and "Minggu depan" anchor the two ends; the
 // weekday is spelled on each so she isn't counting days off a bare number.
 const RESCHEDULE_DATES = [
-  'Besok, Rabu 22 Jul',
-  'Kamis, 23 Jul',
-  'Jumat, 24 Jul',
-  'Sabtu, 25 Jul',
-  'Senin, 27 Jul',
-  'Minggu depan, Selasa 28 Jul',
+  'Rabu, 22 Juli (besok)',
+  'Kamis, 23 Juli',
+  'Jumat, 24 Juli',
+  'Sabtu, 25 Juli',
+  'Senin, 27 Juli',
+  'Selasa, 28 Juli (minggu depan)',
 ]
 
 export function RescheduleSheet({
@@ -1764,7 +1809,7 @@ export function RescheduleSheet({
       description={
         rejecting
           ? `${subjectNoun} ${subject} ditutup dan tidak dijadwalkan lagi.`
-          : `${subjectNoun} ${subject} dipindah ke hari lain.`
+          : `${subjectNoun} ${subject} dijadwalkan di waktu lain.`
       }
       secondaryAction={
         <Button variant="outline" size="lg" className="w-full" onClick={onClose}>
@@ -1778,7 +1823,7 @@ export function RescheduleSheet({
           disabled={!ready}
           onClick={() => (rejecting ? onReject?.(rejectReason.trim()) : onConfirm(reason, date))}
         >
-          {rejecting ? 'Tolak tugas' : 'Jadwalkan ulang'}
+          {rejecting ? 'Tolak tugas' : 'Simpan'}
         </Button>
       }
     >
@@ -1814,21 +1859,26 @@ export function RescheduleSheet({
             onChange={(e) => setRejectReason(e.target.value)}
           />
         ) : (
+          // Two questions, one under the other, as bare radio lists — the
+          // reference's shape. Chips were the wrong form for the dates: six
+          // weekdays of uneven length wrap into a ragged block that has to be
+          // read before it can be tapped, and a date is picked by scanning down
+          // a column, which is how a calendar is read everywhere else.
           <>
-            <ChipGroup label="Alasan">
-              {RESCHEDULE_REASONS.map((option) => (
-                <Chip key={option} selected={reason === option} onClick={() => setReason(option)}>
-                  {option}
-                </Chip>
-              ))}
-            </ChipGroup>
-            <ChipGroup label="Jadwal baru">
-              {RESCHEDULE_DATES.map((option) => (
-                <Chip key={option} selected={date === option} onClick={() => setDate(option)}>
-                  {option}
-                </Chip>
-              ))}
-            </ChipGroup>
+            <ChoiceList
+              plain
+              label="Alasan"
+              options={RESCHEDULE_REASONS}
+              value={reason || undefined}
+              onPick={setReason}
+            />
+            <ChoiceList
+              plain
+              label="Jadwal baru"
+              options={RESCHEDULE_DATES}
+              value={date || undefined}
+              onPick={setDate}
+            />
           </>
         )}
       </div>
