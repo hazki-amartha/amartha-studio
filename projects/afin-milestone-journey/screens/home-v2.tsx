@@ -105,18 +105,22 @@ export function HomeV2Screen() {
           </div>
 
           <div className="mt-24">
+            {/* Purple runs from today only as far as the next goal, and
+                everything past it is grey. The rail is one claim — "this is the
+                stretch you are on" — and colouring the far half too made three
+                stops compete when only one is hers to work on. */}
             <div className="flex items-center">
               <JourneyDot current />
-              <span className="mx-4 h-2 flex-1 rounded-full bg-blue-400" />
-              <JourneyDot />
+              <span className="mx-4 h-2 flex-1 rounded-full bg-primary-500" />
+              <JourneyDot next />
               {/* Small dots: the pelunasan and other milestones that fall between
                   the next top-up and the far limit rise. */}
               <span className="mx-4 flex flex-1 items-center gap-4">
-                <span className="h-2 flex-1 rounded-full bg-green-400" />
-                <span className="h-8 w-8 shrink-0 rounded-full border border-green-400 bg-neutral-white" />
-                <span className="h-2 flex-1 rounded-full bg-green-400" />
-                <span className="h-8 w-8 shrink-0 rounded-full border border-green-400 bg-neutral-white" />
-                <span className="h-2 flex-1 rounded-full bg-green-400" />
+                <span className="h-2 flex-1 rounded-full bg-neutral-200" />
+                <span className="h-8 w-8 shrink-0 rounded-full border border-neutral-400 bg-neutral-white" />
+                <span className="h-2 flex-1 rounded-full bg-neutral-200" />
+                <span className="h-8 w-8 shrink-0 rounded-full border border-neutral-400 bg-neutral-white" />
+                <span className="h-2 flex-1 rounded-full bg-neutral-200" />
               </span>
               <JourneyDot />
             </div>
@@ -130,11 +134,13 @@ export function HomeV2Screen() {
               <div className="min-w-0 flex-1 text-center">
                 <p className="text-12 font-bold text-default">6 Okt &rsquo;26</p>
                 <p className="text-12 text-caption">Pencairan</p>
-                {/* "s/d" on both chips: the disbursement is a ceiling too, so
-                    the near and far figures are hedged the same way. */}
+                {/* Both chips green, and "s/d" on both: they are the same kind
+                    of thing — money this stretch could be worth — so they are
+                    hedged the same way and tinted the same way. Purple is the
+                    rail's colour here, and a purple chip read as a control. */}
                 <span
                   className={`mt-4 inline-block rounded-full px-8 py-2 text-12 font-bold ${
-                    rewardAtRisk ? 'bg-red-50 text-red-600' : 'bg-primary-50 text-primary-500'
+                    rewardAtRisk ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
                   }`}
                 >
                   s/d Rp1,25jt
@@ -188,14 +194,17 @@ export function HomeV2Screen() {
                   description={<BillLine />}
                   action={<BayarButton onPay={goToPayment} />}
                 />
+                {/* All three tiles blue. They are one list of things to do, and
+                    a different tint per row implied a difference in kind that
+                    the rows do not have. */}
                 <Task
-                  tint="green"
+                  tint="blue"
                   icon={<Majelis size={20} />}
                   title="Datang kumpulan"
                   description="Kamis, 11.30"
                 />
                 <Task
-                  tint="primary"
+                  tint="blue"
                   icon={<Users size={20} />}
                   title="Majelis sehat"
                   description={`${tunggakanCount} anggota punya tunggakan`}
@@ -480,12 +489,20 @@ function Shortcut({ icon, label }: { icon: ReactNode; label: string }) {
 // A node on the horizontal journey line: the filled target ring marks where she
 // is now, hollow rings the stops still ahead.
 
-function JourneyDot({ current }: { current?: boolean }) {
+function JourneyDot({ current, next }: { current?: boolean; next?: boolean }) {
   if (current) {
     return (
       <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 border-primary-500">
         <span className="h-8 w-8 rounded-full bg-primary-500" />
       </span>
+    )
+  }
+  // The goal she is walking toward: purple like today's marker, empty because
+  // she has not arrived, and a size larger than the far node so the rail has an
+  // obvious destination rather than two identical rings.
+  if (next) {
+    return (
+      <span className="h-24 w-24 shrink-0 rounded-full border-2 border-primary-500 bg-neutral-white" />
     )
   }
   return <span className="h-20 w-20 shrink-0 rounded-full border-2 border-neutral-200 bg-neutral-white" />
