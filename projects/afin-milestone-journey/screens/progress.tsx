@@ -16,14 +16,15 @@
 import { NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { HISTORY, MEMBERS, MILESTONE_SETS, hasPreviousCycle } from '../lib/data'
-import { useApp } from '../lib/store'
+import { HISTORY, MILESTONE_SETS, hasPreviousCycle } from '../lib/data'
+import { members, useApp } from '../lib/store'
 import { healthOf } from '../lib/milestone-tracker'
 import { MilestoneRung, PreviousCycleLink, ProgressMenuItem } from '../lib/journey'
 
 export function ProgressScreen() {
   const flow = useFlow()
-  const { journeyPhase } = useApp()
+  const app = useApp()
+  const { journeyPhase } = app
 
   const milestones = MILESTONE_SETS[journeyPhase]
 
@@ -32,7 +33,8 @@ export function ProgressScreen() {
     Math.min(HISTORY.filter((e) => e.bayar).length, HISTORY.filter((e) => e.kumpulan).length),
     weeks,
   )
-  const majelis = healthOf(MEMBERS.filter((m) => m.bayar).length, MEMBERS.length)
+  const roster = members(app)
+  const majelis = healthOf(roster.filter((m) => m.bayar).length, roster.length)
 
   return (
     <Screen

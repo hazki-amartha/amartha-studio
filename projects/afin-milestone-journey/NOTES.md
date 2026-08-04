@@ -10,6 +10,7 @@ Project-local components (§4 missing-component protocol) — all in `lib/ui.tsx
 - **IconTile** — tinted square or circle behind an icon. Used across `home`, `method`, `majelis`.
 - **CopyBlock / InfoBlock / Notice / Steps / Hero / ResultHeader / StatRow / Chip / StatusMark / SectionTitle / Caption** — the shared vocabulary of the payment-instruction and outcome screens.
 - **`lib/icons.tsx`** — `IconWalletOff` (empty/crossed-out wallet) and `IconPiggy` (Celengan). Everything else moved to `@/design-system/icons` once the shared FunDS set landed.
+- **`lib/tasks.tsx`** — `Task`, `BillLine`, `BayarButton`, `PayoutTile` and `billStatus`, the goal card's checklist rows and payout tile. Shared by `home` and `riwayat` so the two cannot disagree about what is owed or what is claimable.
 - **`lib/milestone-tracker.tsx`** — `MilestoneTracker`, the shared shape behind each milestone's dedicated tracker page (`milestone-progress`, `milestone-pelunasan`, `milestone-limit`): date header, reward card, and a list of habit rows with a health chip. Keeps the per-milestone screens thin.
 - **`lib/journey.tsx`** — `MilestoneRung`, `ProgressMenuItem` and `PreviousCycleLink`, shared by the two Perjalanan pendanaan layouts (`progress`, `progress-alt`) so the alternative only differs at the top of the page.
 - **`lib/week-tiles.tsx`** — `WeekGrid`, the weekly bayar/hadir record as dated tiles (date, payment mark, amount, attendance line). Used by `riwayat`; kept out of the screen so a second surface can show the same record rather than redraw it.

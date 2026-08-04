@@ -1,46 +1,106 @@
 'use client'
 
-// Riwayat — the receipts behind the discipline claim. Progress says a payout is
-// coming; this is the record that earns it, week by week.
+// Her page. It began as the receipts behind the discipline claim — the ledger
+// that earns the payout — and grew into the whole personal picture, because a
+// mitra opening it wants two different things and used to have to go elsewhere
+// for one of them: how her loan stands, and how she has been keeping up.
 //
-// The two counters at the top are the only aggregate on the page. Everything
-// below is the raw ledger, because the mitra opening this screen has usually
-// come to check one specific week she is unsure about, and a summary cannot
-// answer that.
+// So the page reads top to bottom as: what she has (limit, and what is left of
+// it), what she can do about it right now (draw the remainder, pay the week),
+// and then the record that justifies both. The ledger keeps the bottom of the
+// page rather than the top: it is the evidence, not the headline.
 //
-// The ledger itself is `WeekGrid` (lib/week-tiles) — one tile per week, on a
-// flat white ground. Newest first: the week she opened this screen to check is
-// nearly always the current one, and it should be the first tile she lands on.
+// A brand-new mitra has none of that middle: no loan drawn, no week owed, no
+// history behind her. Her whole page is the one thing she can do — draw the
+// limit she was just approved for — so that is all it shows.
+//
+// The limit block and the ledger are this page's own; the payout tile and the
+// instalment row are the SAME components home draws (lib/tasks), not copies, so
+// the two screens cannot disagree about what is owed or what is claimable.
 
 import { NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { HISTORY } from '../lib/data'
+import { HISTORY, LOAN_DRAWN, LOAN_LIMIT, claimableOf, rupiah } from '../lib/data'
+import { store, useApp } from '../lib/store'
+import { BayarButton, BillLine, PayoutTile, Task, billStatus } from '../lib/tasks'
+import { Meter } from '../lib/ui'
 import { WeekGrid } from '../lib/week-tiles'
 
 export function RiwayatScreen() {
   const flow = useFlow()
+  const s = useApp()
+  const isNew = s.mitraStage === 'new'
+
   const total = HISTORY.length
   const bayarCount = HISTORY.filter((e) => e.bayar).length
   const kumpulanCount = HISTORY.filter((e) => e.kumpulan).length
 
+  // A new mitra has drawn nothing, so her whole limit is what is claimable —
+  // stated the same way home states it. An active mitra reads the figure off
+  // the ladder, which is undrawn limit under another name.
+  const claimableAmount = isNew ? 'Rp5jt' : claimableOf(s.journeyPhase)?.amount
+
+  const goToPayment = () => {
+    store.startPayment()
+    flow.go('amount')
+  }
+
   return (
     <Screen
       canvas="white"
-      topBar={
-        <NavigationHeader
-          title="Riwayat pembayaran & kehadiran"
-          onBack={() => flow.go('home')}
-        />
-      }
+      topBar={<NavigationHeader title="Ibu Siti" onBack={() => flow.go('home')} />}
     >
-      <div className="flex gap-12">
-        <Summary label="Bayar tepat waktu" value={`${bayarCount}/${total}`} tone="green" />
-        <Summary label="Hadir kumpulan" value={`${kumpulanCount}/${total}`} tone="primary" />
-      </div>
+      {/* What is LEFT leads, not the limit: the headline figure should be the
+          one she can act on, and "Terpakai" underneath supplies the context
+          that makes it mean something. A new mitra has drawn nothing and owes
+          nothing, so this whole block — and the instalment row below it — has
+          nothing to say and is left off. */}
+      {isNew ? null : (
+        <div>
+          <p className="text-14 text-caption">Sisa Limit Pinjaman</p>
+          <p className="mt-2 text-24 font-bold text-default">{rupiah(LOAN_LIMIT - LOAN_DRAWN)}</p>
+          <p className="mt-4 text-14 text-caption">
+            Terpakai (<span className="font-bold text-default">{rupiah(LOAN_DRAWN)}</span> /{' '}
+            {rupiah(LOAN_LIMIT)})
+          </p>
+          <div className="mt-8">
+            <Meter percent={(LOAN_DRAWN / LOAN_LIMIT) * 100} />
+          </div>
+        </div>
+      )}
 
-      {/* HISTORY is already newest-first, so this week takes the first tile. */}
-      <WeekGrid title="Riwayat mingguan" weeks={HISTORY} highlightWeek={HISTORY[0]?.week} />
+      {/* The things she can do about the numbers above, in the order the money
+          moves: take what is open, then settle what is due. */}
+      {claimableAmount ? (
+        <PayoutTile amount={claimableAmount} onCairkan={() => flow.go('disburse-amount')} />
+      ) : null}
+
+      {isNew ? null : (
+        <div className="rounded-12 border border-default p-12">
+          <Task
+            status={billStatus(s)}
+            title="Bayar angsuran"
+            description={<BillLine />}
+            action={<BayarButton onPay={goToPayment} />}
+          />
+        </div>
+      )}
+
+      {/* The record that justifies all of the above — with the two counters as
+          its summary, between the heading and the tiles. A new mitra has no
+          record yet, so the whole section is left off. */}
+      {isNew ? null : (
+        <div>
+          <p className="mb-12 text-14 font-bold text-default">Riwayat mingguan</p>
+          <div className="mb-12 flex gap-12">
+            <Summary label="Bayar tepat waktu" value={`${bayarCount}/${total}`} tone="green" />
+            <Summary label="Hadir kumpulan" value={`${kumpulanCount}/${total}`} tone="primary" />
+          </div>
+          {/* HISTORY is already newest-first, so this week takes the first tile. */}
+          <WeekGrid weeks={HISTORY} highlightWeek={HISTORY[0]?.week} />
+        </div>
+      )}
     </Screen>
   )
 }

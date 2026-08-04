@@ -18,14 +18,15 @@ import { BottomSheet, NavigationHeader } from '@/design-system/components'
 import { LightbulbFilament } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { HISTORY, MEMBERS, MILESTONE_SETS, hasPreviousCycle } from '../lib/data'
-import { useApp } from '../lib/store'
+import { HISTORY, MILESTONE_SETS, hasPreviousCycle } from '../lib/data'
+import { members, useApp } from '../lib/store'
 import { healthOf } from '../lib/milestone-tracker'
 import { MilestoneRung, PreviousCycleLink, ProgressMenuItem } from '../lib/journey'
 
 export function ProgressAltScreen() {
   const flow = useFlow()
-  const { journeyPhase } = useApp()
+  const app = useApp()
+  const { journeyPhase } = app
   const [progressOpen, setProgressOpen] = useState(false)
 
   // Which snapshot of the ladder to draw — the demo-state controls set the phase.
@@ -38,7 +39,8 @@ export function ProgressAltScreen() {
     Math.min(HISTORY.filter((e) => e.bayar).length, HISTORY.filter((e) => e.kumpulan).length),
     weeks,
   )
-  const majelis = healthOf(MEMBERS.filter((m) => m.bayar).length, MEMBERS.length)
+  const roster = members(app)
+  const majelis = healthOf(roster.filter((m) => m.bayar).length, roster.length)
 
   return (
     <Screen

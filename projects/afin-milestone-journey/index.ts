@@ -33,6 +33,12 @@ const homeStates = [
     apply: demo.menungguKonfirmasi,
   },
   {
+    id: 'titip-bayar',
+    label: 'Sudah titip bayar',
+    description: 'Cash handed to the field officer, not yet settled to head office — a grey tick, and nothing for her to press.',
+    apply: demo.titipBayar,
+  },
+  {
     id: 'sisa-tunggakan',
     label: 'Sisa tunggakan',
     description: 'A Rp50.000 part-payment landed, so Rp100.000 is now arrears.',
@@ -43,6 +49,18 @@ const homeStates = [
     label: 'Reward berisiko',
     description: 'She has fallen behind — the goal card warns the reward can be forfeited unless she pays and attends this week.',
     apply: demo.rewardBerisiko,
+  },
+  {
+    id: 'sudah-hadir',
+    label: 'Sudah hadir kumpulan',
+    description: 'She turned up this week — the kumpulan row ticks while the bill is still outstanding.',
+    apply: demo.sudahHadir,
+  },
+  {
+    id: 'semua-beres',
+    label: 'Semua beres',
+    description: 'Every row ticked: week paid, kumpulan attended, nobody in the majelis behind.',
+    apply: demo.semuaBeres,
   },
   {
     id: 'limit-terbuka',
@@ -187,9 +205,17 @@ export const project: ProjectModule = {
     },
     {
       id: 'riwayat',
-      title: 'Riwayat bayar & hadir',
+      title: 'Progress pribadi',
       component: lazyScreen(() => import('./screens/riwayat'), 'RiwayatScreen'),
-      flowsTo: [{ to: 'home', label: 'kembali' }],
+      // The same conditions home is drawn for: this page now shows the
+      // instalment row and the payout tile, so it has the same variants to show.
+      states: homeStates,
+      flowsTo: [
+        { to: 'disburse-amount', label: 'cairkan sisa limit' },
+        { to: 'amount', label: 'bayar angsuran' },
+        { to: 'pending', label: 'cek status' },
+        { to: 'home', label: 'kembali' },
+      ],
     },
     {
       id: 'majelis',

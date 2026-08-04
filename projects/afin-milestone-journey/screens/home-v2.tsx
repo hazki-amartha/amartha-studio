@@ -24,27 +24,21 @@ import {
   ArrowRight,
   Bell,
   ChatCircleQuestion,
-  Check,
   ChevronRight,
   Eye,
   EyeSlash,
   Headset,
-  Majelis,
-  MapPin,
   Plus,
   Promo,
   Transfer,
   User,
-  Wallet,
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { MEMBERS, WEEKLY_BILL, claimableOf, rupiah } from '../lib/data'
-import { outstanding, store, useApp } from '../lib/store'
-import { IconTile, Notice, SectionTitle, TaskButton } from '../lib/ui'
-
-/** How far past due the unpaid week is, in the at-risk state. */
-const DAYS_LATE = 3
+import { claimableOf, rupiah } from '../lib/data'
+import { outstanding, store, tunggakan, useApp } from '../lib/store'
+import { BayarButton, BillLine, PayoutTile, Task, billStatus } from '../lib/tasks'
+import { Notice, SectionTitle, TaskButton } from '../lib/ui'
 
 /**
  * The rail's two moods. Normally blue — a neutral "here is your stretch".
@@ -77,9 +71,9 @@ export function HomeV2Screen() {
     flow.go('amount')
   }
 
-  // How many in her majelis are behind on payments — the "Majelis sehat" task's
-  // status line, and the reason its "Ingatkan" CTA exists.
-  const tunggakanCount = MEMBERS.filter((m) => !m.bayar).length
+  // How many in her majelis are behind on payments — the majelis row's status
+  // line, the mark it carries, and the reason its "Ingatkan" CTA exists.
+  const tunggakanCount = tunggakan(s)
 
   // Read off the ladder rather than held here: whatever the journey page says
   // is hers to take is exactly what home offers, figure included.
@@ -104,18 +98,28 @@ export function HomeV2Screen() {
             one timeline, so short and long term read as one story. */}
         <div className="p-16">
           {/* The card names the nearest goal and hands the whole ladder to one
-              link — the header is the way in, so there is no footer bar. */}
+              link — the header is the way in, so there is no footer bar.
+
+              A brand-new mitra gets neither. She has no goal yet and no journey
+              to look at, so the card is titled for what she DOES have — a
+              pinjaman, waiting to be drawn — and "Lihat semua" would open a
+              ladder with nothing on it. */}
           <div className="flex items-center gap-8">
-            <p className="min-w-0 flex-1 text-16 font-bold text-default">Gol pinjaman Anda</p>
-            <button
-              type="button"
-              onClick={() => flow.go('progress')}
-              className="shrink-0 text-14 font-bold text-primary-500"
-            >
-              Lihat semua
-            </button>
+            <p className="min-w-0 flex-1 text-16 font-bold text-default">
+              {isNew ? 'Pinjaman Anda' : 'Gol pinjaman Anda'}
+            </p>
+            {isNew ? null : (
+              <button
+                type="button"
+                onClick={() => flow.go('progress')}
+                className="shrink-0 text-14 font-bold text-primary-500"
+              >
+                Lihat semua
+              </button>
+            )}
           </div>
 
+          {isNew ? null : (
           <div className="mt-24">
             {/* Colour runs from today only as far as the next goal, and
                 everything past it is grey. The rail is one claim — "this is the
@@ -179,8 +183,11 @@ export function HomeV2Screen() {
               </div>
             </div>
           </div>
+          )}
 
-          {rewardAtRisk ? (
+          {/* The intro line belongs to a list of habits. A new mitra has one
+              row and it is not a habit, so it would be introducing nothing. */}
+          {isNew ? null : rewardAtRisk ? (
             <div className="mb-16 mt-16">
               <Notice tone="orange">
                 Reward Ibu bisa hangus. Bayar tunggakan angsuran agar reward tetap didapat.
@@ -192,13 +199,15 @@ export function HomeV2Screen() {
             </p>
           )}
 
-          <div className="flex flex-col gap-16">
+          <div className={`flex flex-col gap-16 ${isNew ? 'mt-24' : ''}`}>
             {isNew ? (
+              // Her whole card: the money is already hers to take, so the row
+              // states the figure the way the payout band does rather than
+              // burying it in a caption.
               <Task
-                tint="primary"
-                icon={<Wallet size={20} />}
-                title="Cairkan Rp5jt"
-                description="Limit tersedia Rp5jt"
+                status="todo"
+                title="Dana siap dicairkan"
+                description={<span className="text-18 font-bold text-green-600">Rp5jt</span>}
                 action={
                   <TaskButton tone="primary" onClick={() => flow.go('disburse-amount')}>
                     Cairkan
@@ -207,34 +216,37 @@ export function HomeV2Screen() {
               />
             ) : (
               <>
+                {/* Settled ticks the box; behind on the week raises the alarm.
+                    A part-payment does neither — it is still simply to do, so it
+                    keeps the empty circle and says how much is left. */}
                 <Task
-                  tint="blue"
-                  icon={<Wallet size={20} />}
+                  status={billStatus(s)}
                   title="Bayar angsuran"
                   description={<BillLine />}
                   action={<BayarButton onPay={goToPayment} />}
                 />
-                {/* All three tiles blue. They are one list of things to do, and
-                    a different tint per row implied a difference in kind that
-                    the rows do not have. */}
-                {/* A pin for kumpulan — it is somewhere to turn up, and the
-                    row already says when. The three-person glyph moves down to
-                    Majelis sehat, which is the row actually about the group. */}
                 <Task
-                  tint="blue"
-                  icon={<MapPin size={20} />}
+                  status={s.hadirKumpulan ? 'done' : s.atRisk ? 'alert' : 'todo'}
                   title="Datang kumpulan"
                   description="Kamis, 11.30"
                 />
+                {/* Named for the state it should be in rather than the one it is
+                    in: the row reads "Majelis lancar bayar" either way, and the
+                    mark beside it says whether that is true this week. */}
                 <Task
-                  tint="blue"
-                  icon={<Majelis size={20} />}
-                  title="Majelis sehat"
-                  description={`${tunggakanCount} anggota punya tunggakan`}
+                  status={tunggakanCount === 0 ? 'done' : 'alert'}
+                  title="Majelis lancar bayar"
+                  description={
+                    tunggakanCount === 0
+                      ? 'Semua anggota lancar bayar'
+                      : `${tunggakanCount} anggota punya tunggakan`
+                  }
                   action={
-                    <TaskButton tone="primary" onClick={() => flow.go('majelis')}>
-                      Ingatkan
-                    </TaskButton>
+                    tunggakanCount === 0 ? undefined : (
+                      <TaskButton tone="primary" onClick={() => flow.go('majelis')}>
+                        Ingatkan
+                      </TaskButton>
+                    )
                   }
                 />
               </>
@@ -253,26 +265,17 @@ export function HomeV2Screen() {
 
             Absent unless a rung has been reached and left undrawn, so a mitra
             with nothing open never sees an empty promise. */}
-        {!isNew && claimable ? (
+        {!isNew && claimable?.amount ? (
           <>
             {/* `border-default`, not the `border-light` used elsewhere in this
                 card: it is the only rule left on the card now, so it carries
                 the whole separation between habits and payout on its own. */}
             <div className="border-t border-default" />
             <div className="p-12">
-              <div className="flex items-center gap-12 rounded-12 bg-blue-50 p-12">
-                <div className="min-w-0 flex-1">
-                  <p className="text-12 text-neutral-700">Dana siap dicairkan</p>
-                  <p className="text-18 font-bold text-green-600">{claimable.amount}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => flow.go('disburse-amount')}
-                  className="shrink-0 rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white"
-                >
-                  Cairkan
-                </button>
-              </div>
+              <PayoutTile
+                amount={claimable.amount}
+                onCairkan={() => flow.go('disburse-amount')}
+              />
             </div>
           </>
         ) : null}
@@ -526,89 +529,6 @@ function JourneyDot({
 
 // --- Tasks -----------------------------------------------------------------
 
-function Task({
-  tint,
-  icon,
-  title,
-  description,
-  action,
-}: {
-  tint: 'primary' | 'blue' | 'green'
-  icon: ReactNode
-  title: string
-  description: ReactNode
-  /** The trailing control. Omit for an informational row with no action. */
-  action?: ReactNode
-}) {
-  return (
-    <div className="flex items-center gap-12">
-      <IconTile tint={tint} round>
-        {icon}
-      </IconTile>
-      <div className="min-w-0 flex-1">
-        <p className="text-14 font-bold text-default">{title}</p>
-        <div className="mt-4 text-12 text-neutral-700">{description}</div>
-      </div>
-      {action}
-    </div>
-  )
-}
-
-/** What is owed, stated three ways: due, settled, or short. */
-function BillLine() {
-  const s = useApp()
-  if (s.billState === 'paid' && s.paidAmount >= WEEKLY_BILL) {
-    return <span className="text-disabled line-through">{rupiah(WEEKLY_BILL)}</span>
-  }
-  if (s.billState === 'paid') {
-    return <span className="text-red-500">{rupiah(outstanding(s))} (sisa tunggakan)</span>
-  }
-  // Unpaid and behind: the amount alone doesn't say the week has already
-  // slipped, which is the reason the reward is on the line.
-  if (s.atRisk) {
-    return (
-      <span className="flex flex-wrap items-center gap-8">
-        {rupiah(WEEKLY_BILL)}
-        <span className="rounded-full bg-red-50 px-8 py-2 text-10 font-bold text-red-600">
-          Telat {DAYS_LATE} hari
-        </span>
-      </span>
-    )
-  }
-  return <>{rupiah(WEEKLY_BILL)}</>
-}
-
-function BayarButton({ onPay }: { onPay: () => void }) {
-  const flow = useFlow()
-  const s = useApp()
-
-  if (s.billState === 'pending') {
-    return (
-      <TaskButton tone="orange" onClick={() => flow.go('pending')}>
-        Cek status
-      </TaskButton>
-    )
-  }
-  if (s.billState === 'paid' && s.paidAmount >= WEEKLY_BILL) {
-    return (
-      <TaskButton tone="green" disabled>
-        <Check size={16} /> Lunas
-      </TaskButton>
-    )
-  }
-  if (s.billState === 'paid') {
-    return (
-      <TaskButton tone="primary" onClick={onPay}>
-        Bayar sisa
-      </TaskButton>
-    )
-  }
-  return (
-    <TaskButton tone="primary" onClick={onPay}>
-      Bayar
-    </TaskButton>
-  )
-}
 
 function QuickLink({ icon, label }: { icon: ReactNode; label: string }) {
   return (
