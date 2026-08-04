@@ -17,7 +17,7 @@
 // =============================================================================
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import type { ProjectConfig, ScreenDef } from '@/platform/types'
+import type { DeviceKind, ProjectConfig, ScreenDef } from '@/platform/types'
 import {
   PrototypeProvider,
   ScreenStage,
@@ -35,6 +35,7 @@ import {
 import { InspectLayer, InspectorPanel } from '@/platform/inspect'
 import { ChevronLeftIcon, ChevronRightIcon } from '@/platform/chrome/icons'
 import { DeviceFrame } from './DeviceFrame'
+import { DEVICE_SPECS, outerSize } from './device'
 import styles from './prototype.module.css'
 
 const DESKTOP_QUERY = '(min-width: 768px)' // Tailwind `md` breakpoint
@@ -80,16 +81,22 @@ function BridgePublisher({ slug, screens }: { slug: string; screens: ScreenDef[]
  *  screen so it inherits the frame's scale. Mobile passes nothing, so the layer
  *  never mounts there. */
 function AppViewport({
+  device = 'mobile',
   inspect,
   pinned,
   onPin,
 }: {
+  device?: DeviceKind
   inspect?: boolean
   pinned?: Element | null
   onPin?: (el: Element | null) => void
 } = {}) {
   return (
-    <div className={styles.viewport} data-inspect={inspect ? 'on' : undefined}>
+    <div
+      className={styles.viewport}
+      data-device={device}
+      data-inspect={inspect ? 'on' : undefined}
+    >
       <ScreenStage />
       {inspect && onPin ? <InspectLayer pinned={pinned ?? null} onPin={onPin} /> : null}
     </div>
@@ -99,16 +106,21 @@ function AppViewport({
 function AnnotationPanel({
   screens,
   projectNotes,
+  /** Defaults to the fixed right-hand column of the phone layout. The desktop
+   *  layout passes `w-full` instead, because there the panel lives in a drawer
+   *  that already has the width. */
+  className = styles.annotations,
 }: {
   screens: ScreenDef[]
   projectNotes?: string[]
+  className?: string
 }) {
   const { current } = useFlow()
   const active = screens.find((s) => s.id === current)
   const notes = active?.notes && active.notes.length > 0 ? active.notes : (projectNotes ?? [])
 
   return (
-    <aside className={`flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${styles.annotations}`}>
+    <aside className={`flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${className}`}>
       <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">Notes</span>
       {active ? <h2 className="text-16 font-bold text-default dark:text-neutral-50">{active.title}</h2> : null}
       {notes.length > 0 ? (
@@ -138,7 +150,14 @@ function AnnotationPanel({
  * mean reading project internals. It resets when the screen changes, so a stale
  * highlight never survives a navigation.
  */
-function StatesPanel({ screens }: { screens: ScreenDef[] }) {
+function StatesPanel({
+  screens,
+  /** See AnnotationPanel — the desktop layout supplies its own width. */
+  className = styles.states,
+}: {
+  screens: ScreenDef[]
+  className?: string
+}) {
   const { current } = useFlow()
   const active = screens.find((s) => s.id === current)
   const states = active?.states ?? []
@@ -148,10 +167,10 @@ function StatesPanel({ screens }: { screens: ScreenDef[] }) {
 
   // No states declared → the column goes back to being the invisible spacer
   // that balances the annotations, and the device stays optically centred.
-  if (states.length === 0) return <div aria-hidden className={styles.states} />
+  if (states.length === 0) return <div aria-hidden className={className} />
 
   return (
-    <aside className={`flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${styles.states}`}>
+    <aside className={`flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${className}`}>
       <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">States</span>
       <div className="flex flex-col gap-8">
         {states.map((state) => {
@@ -188,15 +207,17 @@ function StatesPanel({ screens }: { screens: ScreenDef[] }) {
   )
 }
 
-// Outer device dimensions: 390×844 screen + 12px bezel on each side.
-// Hardware specs, not design tokens.
-const DEVICE_W = 414
-const DEVICE_H = 868
+// Outer phone dimensions: 390×844 screen + 12px bezel on each side.
+const PHONE = outerSize(DEVICE_SPECS.mobile)
 
-/** Scales the device frame down (never up) so it always fits the height this
- *  view was given — whatever chrome surrounds it — without page scroll, while
- *  screens keep their 390px layout. The wrapper is measured (not the window)
- *  so headers/sidebars around the view are automatically accounted for. */
+/** Scales the phone down (never up) so it always fits the height this view was
+ *  given — whatever chrome surrounds it — without page scroll, while screens
+ *  keep their 390px layout. The wrapper is measured (not the window) so
+ *  headers/sidebars around the view are automatically accounted for.
+ *
+ *  Height-only is right for the phone: it is narrow, so the column it sits in
+ *  is sized by the frame rather than the other way round. The desktop frame is
+ *  the opposite case — see FittedDevice. */
 function ScaledDevice({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -205,23 +226,70 @@ function ScaledDevice({ children }: { children: ReactNode }) {
     const el = ref.current
     if (!el) return
     const ro = new ResizeObserver(() => {
-      setScale(Math.min(1, el.clientHeight / DEVICE_H))
+      setScale(Math.min(1, el.clientHeight / PHONE.height))
     })
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
   return (
-    <div ref={ref} className="h-full flex-none" style={{ width: DEVICE_W * scale }}>
+    <div ref={ref} className="h-full flex-none" style={{ width: PHONE.width * scale }}>
       <div
         style={{
-          width: DEVICE_W,
-          height: DEVICE_H,
+          width: PHONE.width,
+          height: PHONE.height,
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
         }}
       >
         {children}
+      </div>
+    </div>
+  )
+}
+
+/** Scales a desktop frame down to fit BOTH axes of the space it was given.
+ *  1440 is wider than most laptop viewports once the studio chrome is
+ *  subtracted, so width is normally the binding constraint — the phone's
+ *  height-only rule would overflow horizontally on every screen smaller than a
+ *  27" monitor.
+ *
+ *  The measured element is `min-w-0 flex-1`, so its own width comes from the
+ *  container and never from the scaled child. Sizing it from the scale (what
+ *  ScaledDevice does) would feed the observer its own output. */
+function FittedDevice({
+  spec,
+  children,
+}: {
+  spec: { width: number; height: number }
+  children: ReactNode
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      setScale(Math.min(1, el.clientWidth / spec.width, el.clientHeight / spec.height))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [spec.width, spec.height])
+
+  return (
+    <div ref={ref} className="flex h-full min-w-0 flex-1 items-center justify-center">
+      <div style={{ width: spec.width * scale, height: spec.height * scale }}>
+        <div
+          style={{
+            width: spec.width,
+            height: spec.height,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   )
@@ -279,7 +347,9 @@ function DeviceStepper({ children }: { children: ReactNode }) {
   )
 }
 
-function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
+/** Inspect-mode plumbing shared by both framed layouts: the mode flag, and the
+ *  pinned element that must be dropped whenever the screen under it remounts. */
+function useInspectState() {
   const inspect = useSyncExternalStore(
     subscribeInspectMode,
     getInspectMode,
@@ -294,6 +364,12 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
   useEffect(() => {
     if (!inspect) setPinned(null)
   }, [inspect])
+
+  return { inspect, pinned, setPinned, current }
+}
+
+function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
+  const { inspect, pinned, setPinned, current } = useInspectState()
 
   return (
     <div
@@ -322,6 +398,115 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
       ) : (
         <AnnotationPanel screens={screens} projectNotes={config.notes} />
       )}
+    </div>
+  )
+}
+
+/** A toggle for one of the desktop drawers. Only rendered when the drawer has
+ *  something in it, so a project with no notes and no states shows no chrome at
+ *  all beyond the frame and its arrows. */
+function DrawerTab({
+  side,
+  open,
+  onClick,
+  label,
+}: {
+  side: 'left' | 'right'
+  open: boolean
+  onClick: () => void
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      className={`absolute top-24 z-20 rounded-full border px-12 py-4 text-12 font-bold ${
+        side === 'left' ? 'left-16' : 'right-16'
+      } ${
+        open
+          ? 'border-primary-500 bg-primary-50 text-link dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50'
+          : 'border-default bg-neutral-white text-caption hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+/**
+ * The desktop-device layout. The frame is 1440 wide before anything surrounds
+ * it, so unlike the phone it cannot share the row with two 264px panels: notes
+ * and states become drawers over the canvas, mounted only when the project has
+ * any. The inspector opens the right drawer by itself, since turning inspect on
+ * IS the request to see it.
+ */
+function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
+  const { inspect, pinned, setPinned, current } = useInspectState()
+  const [notesOpen, setNotesOpen] = useState(false)
+  const [statesOpen, setStatesOpen] = useState(false)
+
+  const active = screens.find((s) => s.id === current)
+  const hasStates = (active?.states?.length ?? 0) > 0
+  const hasNotes =
+    (active?.notes?.length ?? 0) > 0 || (config.notes?.length ?? 0) > 0
+
+  const spec = DEVICE_SPECS.desktop
+  const rightOpen = inspect || (hasNotes && notesOpen)
+
+  return (
+    <div
+      className={`relative h-full min-h-0 w-full overflow-hidden bg-neutral-50 px-16 py-24 dark:bg-ink-950 ${styles.desktopDevice}`}
+    >
+      <DeviceStepper>
+        <FittedDevice spec={outerSize(spec)}>
+          <DeviceFrame device="desktop">
+            <AppViewport device="desktop" inspect={inspect} pinned={pinned} onPin={setPinned} />
+          </DeviceFrame>
+        </FittedDevice>
+      </DeviceStepper>
+
+      {hasStates ? (
+        <DrawerTab
+          side="left"
+          open={statesOpen}
+          onClick={() => setStatesOpen((v) => !v)}
+          label="States"
+        />
+      ) : null}
+      {hasNotes && !inspect ? (
+        <DrawerTab
+          side="right"
+          open={notesOpen}
+          onClick={() => setNotesOpen((v) => !v)}
+          label="Notes"
+        />
+      ) : null}
+
+      {hasStates && statesOpen ? (
+        <div
+          className={`rounded-16 bg-neutral-white p-12 dark:bg-ink-900 ${styles.drawer} ${styles.drawerLeft}`}
+        >
+          <StatesPanel screens={screens} className="w-full" />
+        </div>
+      ) : null}
+      {rightOpen ? (
+        <div
+          className={`rounded-16 bg-neutral-white p-12 dark:bg-ink-900 ${styles.drawer} ${styles.drawerRight}`}
+        >
+          {inspect ? (
+            <InspectorPanel
+              className="w-full"
+              pinned={pinned}
+              onPin={setPinned}
+              slug={config.slug}
+              screenId={current}
+            />
+          ) : (
+            <AnnotationPanel screens={screens} projectNotes={config.notes} className="w-full" />
+          )}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -381,7 +566,17 @@ export function PrototypeView({ config, initialScreenId }: PrototypeViewProps) {
   return (
     <PrototypeProvider screens={screens} initialScreenId={initialScreenId}>
       <BridgePublisher slug={config.slug} screens={screens} />
-      {isDesktop ? <DesktopLayout config={config} screens={screens} /> : <MobileLayout />}
+      {config.device === 'desktop' ? (
+        // A 1440-wide app has no full-page mode to fall back to: on a narrow
+        // browser it stays framed and simply scales further down, which is
+        // still readable-ish, where an unframed 1440 layout in a 375px window
+        // is not a prototype at all.
+        <DesktopDeviceLayout config={config} screens={screens} />
+      ) : isDesktop ? (
+        <DesktopLayout config={config} screens={screens} />
+      ) : (
+        <MobileLayout />
+      )}
     </PrototypeProvider>
   )
 }

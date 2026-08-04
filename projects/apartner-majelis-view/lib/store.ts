@@ -219,8 +219,21 @@ export interface AppState {
    * kumpulan. Absent = she said no, or nothing recorded.
    */
   growthFollowUps: Record<string, GrowthFollowUp>
+  /**
+   * mitraId → the screenshot behind a yes that was PROCESSED in the room. Same
+   * job as `poketProof` on the collection stage: the BP is claiming she filed
+   * something in another app, and ops can only reconcile that against a
+   * picture. Absent = no proof attached, which a carried-over yes never has.
+   */
+  growthProofs: Record<string, boolean>
   /** Which mitra the mitra page and collect page render. */
   openMitra: string
+  /**
+   * Which pencairan the loan detail page renders, by loan id. Empty falls back
+   * to her active cycle — the one a BP means when she says "pencairan" without
+   * qualifying it.
+   */
+  openLoan: string
   /** The receipt the success screen prints. Null before any collection. */
   lastCollect: LastCollect | null
   /** Proof photo captured. Gates submission. */
@@ -469,7 +482,9 @@ const initial: AppState = {
   growthResults: {},
   growthReasons: {},
   growthFollowUps: {},
+  growthProofs: {},
   openMitra: 'm1',
+  openLoan: '',
   lastCollect: null,
   photo: false,
   geo: false,
@@ -648,6 +663,7 @@ export const store = {
       growthResults: {},
       growthReasons: {},
       growthFollowUps: {},
+      growthProofs: {},
       lastCollect: null,
       photo: false,
       geo: false,
@@ -990,6 +1006,9 @@ export const store = {
   openMitraPage(mitraId: string) {
     store.set({ openMitra: mitraId })
   },
+  openLoanPage(loanId: string) {
+    store.set({ openLoan: loanId })
+  },
   setAttendance(mitraId: string, value: Attendance) {
     // Marking present clears any absence reason left behind by a mis-tapped
     // "Tidak" — she was here, so why she wasn't is no longer true.
@@ -1081,6 +1100,7 @@ export const store = {
     result: GrowthResult,
     reason?: string,
     followUp?: GrowthFollowUp,
+    proof?: boolean,
   ) {
     const growthReasons = { ...state.growthReasons }
     if (result === 'tidak' && reason) growthReasons[mitraId] = reason
@@ -1093,10 +1113,18 @@ export const store = {
     if (result === 'ya' && followUp) growthFollowUps[mitraId] = followUp
     else delete growthFollowUps[mitraId]
 
+    // The screenshot belongs to a yes that was PROCESSED. A carried-over yes has
+    // nothing to photograph yet, and a re-answered no has to drop the picture
+    // with the answer it was proof of.
+    const growthProofs = { ...state.growthProofs }
+    if (result === 'ya' && followUp === 'selesai' && proof) growthProofs[mitraId] = true
+    else delete growthProofs[mitraId]
+
     store.set({
       growthResults: { ...state.growthResults, [mitraId]: result },
       growthReasons,
       growthFollowUps,
+      growthProofs,
     })
   },
   /**

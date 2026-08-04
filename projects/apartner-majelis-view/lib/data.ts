@@ -38,8 +38,8 @@ export interface Growth {
    */
   kind: 'celengan' | 'disburse' | 'renewal'
   /**
-   * What the offer is called. It names the offer on the OFFER page and on a card
-   * that has already been answered — a record of what was put to her.
+   * What the offer is called. It names the offer on a card that has already been
+   * answered — a record of what was put to her.
    */
   label: string
   /**
@@ -55,15 +55,22 @@ export interface Growth {
    * was the same word on all four cards and left the BP to work out what to do
    * about it. Caption states the fact, value states the move.
    *
-   * The MOVE only — no rupiah. It carried the figure ("Tawarkan renewal
-   * Rp9.000.000") and ran two lines deep on a card that already had a photo, a
-   * name, two badges and a button in it. The amount is not lost: it is the
-   * headline on the offer page one tap away, which is where it gets said out
-   * loud anyway, and where changing it is possible.
+   * The MOVE, without its figure — the card appends `value` to it, so the
+   * headline reads "Tawarkan renewal Rp9.000.000." in one line. A celengan has
+   * no figure to append: what it costs is a weekly amount she chooses, which is
+   * a conversation rather than a number the card can state.
    */
   suggestion: string
   /** The headline figure, said out loud when the subject is opened. */
   value: string
+  /**
+   * WHY this is being put to her, in the BP's own reading order: the fact that
+   * triggered the recommendation and what to do about it. It sits under the
+   * headline on the stage-3 card, which is where the offer is now decided —
+   * the BP answers in the room, so the argument has to be on the card rather
+   * than a tap away on a page she no longer opens.
+   */
+  rationale: string
   /** Past tense, for once it has been done. */
   done: string
 }
@@ -146,6 +153,17 @@ function weekDate(weeksBack: number): string {
   const d = new Date(TODAY)
   d.setDate(d.getDate() - weeksBack * 7)
   return `${d.getDate()} ${MONTHS_ID[d.getMonth()]}`
+}
+
+/**
+ * "23 Des 2025" — a date carrying its YEAR, for a list that runs past the turn
+ * of one. An instalment schedule 50 weeks long does exactly that, and "23 Des"
+ * beside "6 Jan" in the same column is two years pretending to be one.
+ */
+export function dateWithYear(weeksBack: number): string {
+  const d = new Date(TODAY)
+  d.setDate(d.getDate() - weeksBack * 7)
+  return `${d.getDate()} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`
 }
 
 const MONTHS_FULL = [
@@ -292,6 +310,8 @@ const ACTIVE: Mitra[] = [
       suggestion: 'Tawarkan celengan',
       value: 'Mulai Rp10.000/minggu',
       done: 'Celengan dibuka',
+      rationale:
+        'Mitra belum pernah menabung di Amartha. Ajak mulai dari Rp10.000 per minggu, disetor bersama angsuran.',
     },
   },
   {
@@ -312,6 +332,8 @@ const ACTIVE: Mitra[] = [
       suggestion: 'Lanjutkan celengan',
       value: 'Mulai Rp10.000/minggu',
       done: 'Celengan dilanjutkan',
+      rationale:
+        'Setoran celengan mitra sudah berhenti selama 3 minggu. Ajak kembali menabung supaya kebiasaannya tidak putus.',
     },
   },
   {
@@ -331,6 +353,8 @@ const ACTIVE: Mitra[] = [
       suggestion: 'Tawarkan disbursement',
       value: 'Rp5.000.000',
       done: 'Pengajuan dikirim',
+      rationale:
+        'Limit mitra masih tersedia Rp5.000.000 dan angsurannya lancar. Tawarkan bertahap untuk menjaga kualitas angsuran.',
     },
   },
   {
@@ -355,6 +379,8 @@ const ACTIVE: Mitra[] = [
       suggestion: 'Tawarkan renewal',
       value: 'Rp9.000.000',
       done: 'Pengajuan dikirim',
+      rationale:
+        'Pinjaman mitra tinggal 6 minggu lagi. Ajukan perpanjangan sebelum siklus habis supaya modal usahanya tidak berhenti.',
     },
   },
   {

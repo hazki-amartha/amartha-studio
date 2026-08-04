@@ -45,6 +45,13 @@ import {
   VisitTitle,
 } from '../lib/ui'
 
+// What the shot carries with it. Fixed, like the rest of the prototype's clock
+// (see data.ts): a demo that re-dates itself overnight is worse than one that is
+// honestly pinned, and the coordinates exist to be READ — the row is a
+// read-back, not a route out to a map.
+const PHOTO_TAKEN_AT = 'Selasa 21/07/26, 10.24 WIB'
+const PHOTO_COORDS = 'Lat -6.4521398 Long 106.6710254'
+
 export function ProofScreen() {
   const flow = useFlow()
   const s = useApp()
@@ -91,14 +98,14 @@ export function ProofScreen() {
 
       {/* --- Summary: the cash this majelis put in her bag, and the room behind
           the figure. */}
-      <SectionTitle>Ringkasan pembayaran</SectionTitle>
+      <SectionTitle>Jumlah dibayar</SectionTitle>
       <Card>
         <div className="flex items-center gap-12">
           <IconTile tint="green">
             <IconWallet size={20} />
           </IconTile>
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-12 text-caption">Tunai terkumpul dari majelis ini</span>
+            <span className="text-12 text-caption">Tunai/Poket</span>
             <span className="text-24 font-bold text-default">{rupiah(cashCollected)}</span>
           </div>
         </div>
@@ -117,28 +124,56 @@ export function ProofScreen() {
         </div>
       </Card>
 
-      {/* --- Bukti: the photo that closes the visit. */}
-      <SectionTitle>Bukti pelayanan</SectionTitle>
-      <div className="flex">
-        <ProofTile
-          done={s.photo}
-          label="Ambil foto"
-          doneLabel="Foto tersimpan"
-          icon={<IconCamera size={24} />}
-          onClick={() => store.setPhoto(!s.photo)}
-        />
-      </div>
-      {s.photo ? (
-        <Card>
-          <div className="flex items-center gap-8">
-            <span className="shrink-0 text-caption">
-              <PinMark size={16} />
-            </span>
-            <span className="flex-1 text-12 text-caption">{group.place}</span>
-            <span className="shrink-0 text-12 text-caption">±8 m</span>
-          </div>
-        </Card>
-      ) : null}
+      {/* --- Bukti: the photo that closes the visit, and the geotag it carries.
+          One card, per the reference: the instruction, the shot, and where the
+          shot says it was taken are one object — the BP reads the instruction
+          BEFORE she shoots and the read-back after, and two cards would put a
+          page gap between a sentence and the thing it governs. */}
+      <SectionTitle>Bukti foto tugas</SectionTitle>
+      <Card>
+        <div className="flex flex-col gap-12">
+          <span className="text-12 text-caption">
+            Pastikan GPS aktif dan Anda berada di lokasi mitra/kumpulan, lalu ambil foto bersama
+            mitra jika ada.
+          </span>
+          {s.photo ? (
+            <>
+              {/* The geotag is read back UNDER the shot rather than confirmed as
+                  a second step: the photo is geotagged whether or not anyone
+                  presses a button, so asking her to confirm the location is
+                  asking her to perform a step the phone already did. */}
+              <div className="flex items-center gap-12 rounded-8 border border-default p-8">
+                <span className="flex h-48 w-48 shrink-0 items-center justify-center rounded-8 bg-neutral-200 text-neutral-500">
+                  <IconCamera size={20} />
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <span className="truncate text-14 font-bold text-default">{group.place}</span>
+                  <span className="truncate text-12 text-caption">{PHOTO_TAKEN_AT}</span>
+                  <span className="flex items-center gap-4 text-12 text-caption">
+                    <span className="shrink-0">
+                      <PinMark size={16} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{PHOTO_COORDS}</span>
+                  </span>
+                </div>
+              </div>
+              <Button variant="outline" className="w-full" onClick={() => store.setPhoto(false)}>
+                Ubah
+              </Button>
+            </>
+          ) : (
+            <div className="flex">
+              <ProofTile
+                done={false}
+                label="Ambil foto"
+                doneLabel="Foto tersimpan"
+                icon={<IconCamera size={24} />}
+                onClick={() => store.setPhoto(true)}
+              />
+            </div>
+          )}
+        </div>
+      </Card>
 
       {/* A warning, not a block. The field decides whether a mitra who never
           turned up is worth waiting for; the app's job is to make sure the BP
@@ -160,11 +195,13 @@ export function ProofScreen() {
             Ambil foto dulu untuk mengirim
           </span>
         ) : null}
-        {/* One button now. Finishing hands straight to the WhatsApp preview,
-            where the group's receipt is sent — the natural close of the visit
-            rather than an optional control beside "finish". */}
+        {/* One button. Saving hands straight to the WhatsApp preview, where the
+            group's receipt is sent — the natural close of the visit rather than
+            an optional control beside "finish". Going back is the top bar's job;
+            a second button here only competed with the one thing this step is
+            for. */}
         <Button size="lg" className="w-full" disabled={!s.photo} onClick={submit}>
-          Selesaikan Tugas
+          Simpan
         </Button>
       </StickyBar>
     </Screen>

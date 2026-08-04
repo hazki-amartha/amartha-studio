@@ -19,32 +19,26 @@
 
 import { useState, type ReactNode } from 'react'
 import { NavigationBar, OfferCard } from '@/design-system/components'
-import { ServiceIcon, Wordmark } from '@/design-system/assets'
+import { NavIcon, ServiceIcon, Wordmark } from '@/design-system/assets'
 import {
   ArrowRight,
   Bell,
   ChatCircleQuestion,
   ChevronRight,
-  Clipboard,
-  Coins,
   Eye,
   EyeSlash,
   Headset,
-  House,
   Plus,
   Promo,
-  QrCode,
   Transfer,
   User,
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { claimableOf, rupiah } from '../lib/data'
-import { IconPiggy } from '../lib/icons'
 import { outstanding, store, tunggakan, useApp } from '../lib/store'
 import { BayarButton, BillLine, PayoutTile, Task, billStatus } from '../lib/tasks'
 import { Notice, SectionTitle, TaskButton } from '../lib/ui'
-
 
 /**
  * The rail's two moods. Normally blue — a neutral "here is your stretch".
@@ -318,33 +312,16 @@ export function HomeV2Screen() {
       <div className="sticky bottom-0 -mx-16 mt-auto">
         <NavigationBar
           items={[
-            {
-              id: 'home',
-              label: 'Home',
-              icon: <House size={24} />,
-              active: true,
-            },
+            { id: 'home', label: 'Home', icon: <NavIcon name="home" active />, active: true },
             {
               id: 'pinjaman',
               label: 'Pinjaman',
-              icon: <Coins size={24} />,
+              icon: <NavIcon name="modal" />,
               onClick: () => flow.go('progress'),
             },
-            {
-              id: 'scan',
-              label: 'Scan',
-              icon: <QrCode size={24} />,
-            },
-            {
-              id: 'celengan',
-              label: 'Celengan',
-              icon: <IconPiggy size={24} />,
-            },
-            {
-              id: 'transaksi',
-              label: 'Transaksi',
-              icon: <Clipboard size={24} />,
-            },
+            { id: 'scan', label: 'Scan', icon: <NavIcon name="scan" /> },
+            { id: 'celengan', label: 'Celengan', icon: <NavIcon name="celengan" /> },
+            { id: 'transaksi', label: 'Transaksi', icon: <NavIcon name="transaction" /> },
           ]}
         />
       </div>
