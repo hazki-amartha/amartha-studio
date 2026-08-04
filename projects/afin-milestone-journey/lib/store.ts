@@ -26,6 +26,10 @@ export type MitraStage = 'active' | 'new'
 export interface AppState {
   /** Rupiah being paid in the current pass through the payment flow. */
   amount: number
+  /** Promo taken on the confirmation screen. It lowers what the wallet is
+   *  charged, not what the bill settles — so it lives beside `amount` rather
+   *  than inside it. */
+  discount: number
   method: MethodId | null
   /** Rupiah settled against this week's bill so far. */
   paidAmount: number
@@ -49,6 +53,7 @@ export interface AppState {
 
 const initial: AppState = {
   amount: 0,
+  discount: 0,
   method: null,
   paidAmount: 0,
   poketBalance: 151000,
@@ -83,7 +88,7 @@ export const store = {
 
   /** Enter the payment flow. A fresh pass always starts with no amount picked. */
   startPayment() {
-    store.set({ amount: 0, method: null })
+    store.set({ amount: 0, discount: 0, method: null })
   },
   setAmount(amount: number) {
     store.set({ amount })
@@ -91,15 +96,20 @@ export const store = {
   setMethod(method: MethodId) {
     store.set({ method })
   },
+  setDiscount(discount: number) {
+    store.set({ discount })
+  },
 
   /** An off-app method was used — the money is claimed but not yet verified. */
   markPending() {
     store.set({ paidAmount: state.paidAmount + state.amount, billState: 'pending' })
   },
-  /** Poket paid instantly: the balance moves and the bill settles in one step. */
+  /** Poket paid instantly: the balance moves and the bill settles in one step.
+   *  A discount comes off the wallet, not off the instalment — she still owes
+   *  the bill she agreed to. */
   payWithPoket() {
     store.set({
-      poketBalance: state.poketBalance - state.amount,
+      poketBalance: state.poketBalance - chargeable(state),
       paidAmount: state.paidAmount + state.amount,
       billState: 'paid',
     })
@@ -135,5 +145,8 @@ export const outstanding = (s: AppState) => Math.max(0, WEEKLY_BILL - s.paidAmou
 /** True once the week's instalment is fully settled. */
 export const isSettled = (s: AppState) => s.billState === 'paid' && s.paidAmount >= WEEKLY_BILL
 
+/** What the chosen method is actually charged — the amount less any promo. */
+export const chargeable = (s: AppState) => Math.max(0, s.amount - s.discount)
+
 /** How far the Poket balance falls short of the amount being paid. */
-export const shortfall = (s: AppState) => Math.max(0, s.amount - s.poketBalance)
+export const shortfall = (s: AppState) => Math.max(0, chargeable(s) - s.poketBalance)

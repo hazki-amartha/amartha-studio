@@ -89,7 +89,7 @@ export function TopupScreen() {
           disabled={!canTopup}
           onClick={() => {
             store.topUp(value)
-            flow.go(clearingShortfall ? 'poket-confirm' : 'home')
+            flow.go(clearingShortfall ? 'konfirmasi' : 'home')
           }}
         >
           Isi Saldo

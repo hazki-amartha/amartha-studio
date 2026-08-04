@@ -15,7 +15,7 @@ import { Bank, MapPin, PaperPlaneTilt, Storefront } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { store, useApp } from '../lib/store'
+import { chargeable, store, useApp } from '../lib/store'
 import {
   CopyBlock,
   FullWidthButton,
@@ -29,7 +29,7 @@ import {
 export function InstructionScreen() {
   const flow = useFlow()
   const s = useApp()
-  const amt = rupiah(s.amount)
+  const amt = rupiah(chargeable(s))
 
   const done = () => {
     store.markPending()
@@ -51,7 +51,7 @@ export function InstructionScreen() {
           : 'Cara pembayaran'
 
   return (
-    <Screen topBar={<NavigationHeader title={title} onBack={() => flow.go('method')} />}>
+    <Screen topBar={<NavigationHeader title={title} onBack={() => flow.go('konfirmasi')} />}>
       {isVa ? (
         <>
           <Hero
