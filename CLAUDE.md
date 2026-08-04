@@ -356,10 +356,32 @@ dev server (`npm run dev`, in the background) and give them the `localhost` link
 it prints, or surface it in the agent runtime's preview window. Never hand a
 designer a `*.vercel.app` deployment or preview URL: those are auth-gated behind
 a Vercel account with team access, which designers here do not have, so the link
-shows them a login wall instead of their prototype. Read the port off the dev
-server's own output rather than assuming `3000` — it moves when the port is
-taken. This is the *only* thing that changes about the push flow; everything
-above still applies, and you still call it the "preview link".
+shows them a login wall instead of their prototype. This is the *only* thing that
+changes about the push flow; everything above still applies, and you still call
+it the "preview link".
+
+**One server, always on port 4000.** Start it with `npm run dev -- -p 4000`, and
+**before you start anything, check whether it is already up**:
+
+```bash
+lsof -nP -iTCP:4000 -sTCP:LISTEN   # empty → start one; otherwise reuse it
+```
+
+Never start a second server for this repo. Two `next dev` processes on one
+folder share a single `.next` build cache and overwrite each other's compiled
+output, so the page the designer has open goes stale or half-broken after an
+edit and only a kill-and-restart clears it. That is the cause of "I have to
+restart it every time" — not hot reload being unreliable. With one server, an
+edit appears on refresh and the studio needs no restarting.
+
+The fixed port matters as much as the single process: letting the server drift
+to whatever port is free (`3000` → `3001` → `3002`) means the designer keeps an
+old tab open on yesterday's port, pointed at a server that is gone or serving
+another checkout. Port 4000 is the studio's, every session, so the link they
+bookmarked keeps working.
+
+If a preview really is stuck, the fix is `rm -rf .next` and one fresh server —
+and check for duplicates first, because a duplicate is usually why.
 
 **How to speak.** The only words are "commit", "committed", "push", "pushed",
 "live", "preview link", and — for shared changes — "pending review". **Never say
