@@ -959,3 +959,9 @@ export const kpiNothingYet = () => store.set({ kpiPeriod: 'nothing-yet' })
 
 /** Everything met — collection clear, so growth pays and the gate is invisible. */
 export const kpiAllClear = () => store.set({ kpiPeriod: 'Juni 2026' })
+
+/** Version B's own wipe-out: a score that pays, voided by the boom factor. */
+export const kpiBoom = () => store.set({ kpiPeriod: 'boom' })
+
+/** Version B's ceiling: past 100% AND both boosts — Rp600rb + Rp100rb. */
+export const kpiBoosted = () => store.set({ kpiPeriod: 'boosted' })

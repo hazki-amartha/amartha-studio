@@ -29,10 +29,12 @@ export interface KpiRowDef {
    * min is non-performing, the min itself pays nothing, and everything past it
    * earns. The target still sits above as the number she is actually aiming at.
    *
-   * Only `dpd0` carries a figure the business gave us (min 170 against a target
-   * of 180). The other six are PLACEHOLDERS at the same ~94% ratio — plausible
-   * enough to design against, and wrong enough that they must be replaced
-   * before anyone quotes them.
+   * All five targets now come from the "KPI Business Partner" table the
+   * business shared (Sales & Growth + Risk & Portfolio Management, 100%
+   * across five rows on a 100-mitra book) — but that table states TARGETS and
+   * WEIGHTS only, not a gate. Every `min` below is still a PLACEHOLDER at
+   * roughly 94% of its target, wrong enough that it must be replaced with a
+   * real figure before anyone quotes it.
    */
   min: number
   /** Flat Rp bonus earned when this parameter's target is met — the v1 model. */
@@ -58,48 +60,147 @@ export interface KpiRowDef {
 /** `collection` — the DPD buckets. `growth` — disbursement and cross-sell. */
 export type KpiGroup = 'collection' | 'growth'
 
-export const KPI_DEF: KpiRowDef[] = [
-  // min 75.6% of 225 = 170 mitra against a target of 180 — the one pair the
-  // business actually gave us. Every other `min` below is a placeholder.
-  { k: 'dpd0', n: 'Mitra DPD 0', unit: '%', target: 80, min: 75.6, base: 225, baseLabel: 'mitra', bonus: 400000, weight: 16, group: 'collection' },
-  // Lower-is-better: the min is a LOOSER ceiling than the target, so it sits
-  // above it in the raw number and below it in how hard it is to clear.
-  { k: 'dpd30', n: 'Mitra DPD 1–30', unit: '%', target: 15, min: 16, base: 225, baseLabel: 'mitra', lower: true, bonus: 300000, weight: 12, group: 'collection' },
-  { k: 'dpd90', n: 'Mitra DPD 31–90', unit: '%', target: 5, min: 5.5, base: 225, baseLabel: 'mitra', lower: true, bonus: 200000, weight: 8, group: 'collection' },
-  { k: 'mitraNew', n: 'Pencairan mitra baru per bulan', unit: 'mitra', target: 15, min: 14, bonus: 500000, weight: 20, group: 'growth' },
-  { k: 'renewal', n: 'Pencairan mitra lama per bulan', unit: '%', target: 80, min: 76, base: 27, baseLabel: 'mitra jatuh tempo', bonus: 500000, weight: 20, group: 'growth' },
-  { k: 'celengan', n: 'Mitra saldo Celengan', unit: '%', target: 50, min: 47, base: 225, baseLabel: 'mitra', bonus: 300000, weight: 12, group: 'growth' },
-  { k: 'ppob', n: 'Mitra transaksi PPOB', unit: '%', target: 50, min: 47, base: 225, baseLabel: 'mitra', bonus: 300000, weight: 12, group: 'growth' },
-]
-
-export const KPI_MAX_BONUS = KPI_DEF.reduce((s, r) => s + r.bonus, 0) // Rp2.500.000
+/** The BP's book: ten majelis, a hundred mitra. */
+export const BP_TOTAL_MITRA = 100
+export const BP_TOTAL_MAJELIS = 10
 
 /**
- * The v2 bonus ladder — three tiers hung off overall completion, not off any one
- * parameter. Reach 50% of the weighted score and Rp500.000 is banked; 75% lifts
- * it to Rp1.500.000; a full 100% pays Rp2.000.000. The amounts are the tier's
- * total, not additive — landing at 80% pays the 75% tier, nothing more.
+ * The DPD rows are NOT measured against the full 100-mitra book — a mitra only
+ * has a DPD status while she has an installment due this cycle, and not all 100
+ * do at once. `DPD_POOL` is that smaller, plausible pool (illustrative, not a
+ * real figure): the ~40 mitra with a payment due this month, which DPD 0,
+ * DPD 1–30, and DPD 31–90 are three mutually exclusive readings of.
+ *
+ * Restating a 98% target against the full 100 would print "diatas 98 mitra" —
+ * almost the entire book current on the same day, which overstates what the
+ * number means. Against a 40-mitra pool it prints "diatas 39 mitra", a figure
+ * that could actually be true of one BP in one month.
  */
-export interface KpiTier {
+export const DPD_POOL = 40
+
+/**
+ * FIVE parameters, not seven. Celengan and PPOB came off the scoreboard: in the
+ * model the business actually runs they are not scored at all, they are the two
+ * BOOST conditions that top the incentive up (see `KPI_BOOSTS`). Scoring them
+ * AND paying a bonus for them would count the same behaviour twice.
+ *
+ * The weights are round and repayment-heavy — 60 points of collection against
+ * 40 of growth — matching the shape of the BM scorecard, where repayment is
+ * half the score on its own.
+ */
+export const KPI_DEF: KpiRowDef[] = [
+  // "% Repayment rate DPD 0", target 98%, bobot 30% — matches the BP table on
+  // both numbers. Base is the DPD_POOL, not the full book — see its doc.
+  // min is a placeholder (~94% of target).
+  { k: 'dpd0', n: 'Mitra DPD 0', unit: '%', target: 98, min: 93, base: DPD_POOL, baseLabel: 'mitra', bonus: 400000, weight: 30, group: 'collection' },
+  // "% Repayment rate 1–30 dari tunggakan", target 50%, bobot 20%. The BP
+  // table's Definisi computes paid ÷ total-in-bucket — a COLLECTION rate, not
+  // a population share — so unlike the old model this is higher-is-better: a
+  // 50% CEILING on how much of the book sits in DPD1–30 would be an
+  // implausibly loose cap, but 50% RECOVERED on what's already overdue in that
+  // bucket is a plausible floor. Flagging this directional read for
+  // confirmation — it is the one inference in this table, not a stated fact.
+  { k: 'dpd30', n: 'Mitra DPD 1–30', unit: '%', target: 50, min: 47, base: DPD_POOL, baseLabel: 'mitra', bonus: 300000, weight: 20, group: 'collection' },
+  // "% Repayment rate 31–90 min 1x angsuran", target 5%, bobot 10%. Same
+  // Definisi shape as DPD1–30, so the same directional read applies — this
+  // used to be a ≤5% population ceiling and is now a ≥5% collection floor. The
+  // NUMBER is unchanged from before; only what it MEANS moved.
+  //
+  // min is 3%, not the usual ~94%-of-target: at DPD_POOL=40, 5% and 4.5% both
+  // round to the same 2-mitra target, which erases the gap the gate needs. 3%
+  // rounds to 1 — the smallest count below 2 that still leaves visible daylight
+  // at this pool size.
+  { k: 'dpd90', n: 'Mitra DPD 31–90', unit: '%', target: 5, min: 3, base: DPD_POOL, baseLabel: 'mitra', bonus: 200000, weight: 10, group: 'collection' },
+  // "# Mitra Cair New per Bulan", target 20, bobot 20%.
+  { k: 'mitraNew', n: 'Pencairan mitra baru per bulan', unit: 'mitra', target: 20, min: 19, bonus: 500000, weight: 20, group: 'growth' },
+  // "% Renewal Mitra Cair per Bulan", target 85%, bobot 20%. Denominator is
+  // "mitra yang melunasi loannya" — its own subset of the 100-mitra book,
+  // distinct from the DPD_POOL above — so `base` stays its own plausible count.
+  { k: 'renewal', n: 'Pencairan mitra lama per bulan', unit: '%', target: 85, min: 80, base: 12, baseLabel: 'mitra jatuh tempo', bonus: 500000, weight: 20, group: 'growth' },
+]
+
+export const KPI_MAX_BONUS = KPI_DEF.reduce((s, r) => s + r.bonus, 0) // Rp1.900.000
+
+// --- Version B: one weighted score, then three modifiers -------------------
+//
+// The model the business actually runs. The five weights roll into ONE score,
+// and everything after that is a band or a modifier on the rupiah:
+//
+//   score < 90%          → nothing
+//   score 90–100%        → Rp300.000
+//   score > 100%         → Rp600.000
+//   boom factor tripped  → Rp0, whatever the score said
+//   BOTH boosts met      → +Rp100.000
+//
+// The score is deliberately UNCAPPED: >100% is a real band, so a parameter that
+// beats its target has to be able to carry the total past 100.
+
+export interface KpiBand {
+  /** Inclusive floor of the band, in score %. */
   at: number
-  bonus: number
+  nominal: number
+  label: string
 }
 
-export const KPI_TIERS: KpiTier[] = [
-  { at: 50, bonus: 500000 },
-  { at: 75, bonus: 1500000 },
-  { at: 100, bonus: 2000000 },
+export const KPI_BANDS: KpiBand[] = [
+  { at: 90, nominal: 300_000, label: '90–100%' },
+  { at: 100.001, nominal: 600_000, label: 'di atas 100%' },
 ]
+
+/**
+ * The boom factor: one portfolio condition that zeroes the whole incentive
+ * however well the five parameters went. It is not a sixth parameter and must
+ * not read as one — a weight can be traded off against another weight, and this
+ * cannot be traded off against anything.
+ */
+export const KPI_BOOM = {
+  k: 'cohortDpd7',
+  label: 'Cohort DPD 7+ WOB6',
+  /** Above this, the incentive is zero. */
+  limit: 5,
+  rule: '>5% Cohort DPD 7+ WOB6',
+}
+
+/**
+ * The two boost conditions. Both must be met — the pair pays Rp100.000, either
+ * one alone pays nothing, which is why they are shown as one AND rather than as
+ * two independent bonuses.
+ *
+ * These are exactly the two things that came OFF the scoreboard. In this model
+ * cross-sell is not scored, it is a top-up.
+ */
+export interface KpiBoostDef {
+  k: string
+  label: string
+  rule: string
+  target: number
+}
+
+export const KPI_BOOSTS: KpiBoostDef[] = [
+  { k: 'celengan', label: 'Mitra saldo Celengan', rule: '≥50% mitra saldo >Rp50rb', target: 50 },
+  { k: 'ppob', label: 'Transaksi PPOB', rule: '≥30% mitra transaksi PPOB', target: 30 },
+]
+
+export const KPI_BOOST_BONUS = 100_000
 
 export const KPI_PERIODS = ['Juli 2026', 'Juni 2026', 'Mei 2026']
 
 /** Days left in the running period — the deadline the hero card closes on. */
 export const KPI_DAYS_LEFT = 12
 
+// Rewritten against the new targets (98 / 50 / 5 / 20 / 85). dpd30 and dpd90
+// flipped to higher-is-better, so a value that used to read as a near-miss
+// reads as a comfortable clear now — every scenario below was re-tuned rather
+// than left with numbers written for the old direction.
 const PERIOD_VALS: Record<string, Record<string, number>> = {
-  'Juli 2026': { dpd0: 82, dpd30: 12, dpd90: 6, mitraNew: 12, renewal: 74, celengan: 62, ppob: 44 },
-  'Juni 2026': { dpd0: 88, dpd30: 9, dpd90: 3, mitraNew: 16, renewal: 85, celengan: 71, ppob: 58 },
-  'Mei 2026': { dpd0: 76, dpd30: 18, dpd90: 8, mitraNew: 9, renewal: 62, celengan: 48, ppob: 40 },
+  // dpd90 misses (3%, below the new 5% floor), so version A's gate closes on
+  // the mitra-baru row she DID win — the annulment worth demonstrating.
+  // Tuned so version B lands in the FIRST paying band (98% → Rp300.000), not
+  // the top one: the running month is the base case both versions argue from,
+  // and a default that already maxes out hides the rule the model is built on.
+  'Juli 2026': { dpd0: 99, dpd30: 55, dpd90: 3, mitraNew: 21, renewal: 78, celengan: 62, ppob: 44, cohortDpd7: 3 },
+  'Juni 2026': { dpd0: 100, dpd30: 60, dpd90: 6, mitraNew: 22, renewal: 90, celengan: 71, ppob: 58, cohortDpd7: 2 },
+  'Mei 2026': { dpd0: 90, dpd30: 30, dpd90: 2, mitraNew: 12, renewal: 60, celengan: 48, ppob: 40, cohortDpd7: 7 },
 
   // --- Demo-only scenarios, not offered as periods ------------------------
   //
@@ -108,9 +209,13 @@ const PERIOD_VALS: Record<string, Record<string, number>> = {
 
   /** Every growth target won, every collection target missed — the gate's
    *  worst case: a full month of work paying nothing. */
-  'gate-zero': { dpd0: 70, dpd30: 20, dpd90: 9, mitraNew: 18, renewal: 88, celengan: 64, ppob: 57 },
+  'gate-zero': { dpd0: 85, dpd30: 40, dpd90: 2, mitraNew: 25, renewal: 92, celengan: 64, ppob: 57, cohortDpd7: 4 },
   /** Nothing met anywhere. Rp0 with nothing held behind it. */
-  'nothing-yet': { dpd0: 62, dpd30: 24, dpd90: 11, mitraNew: 6, renewal: 48, celengan: 31, ppob: 22 },
+  'nothing-yet': { dpd0: 70, dpd30: 25, dpd90: 1, mitraNew: 8, renewal: 45, celengan: 31, ppob: 22, cohortDpd7: 4 },
+  /** Version B's own worst case: a score that pays, wiped by the boom factor. */
+  'boom': { dpd0: 99, dpd30: 55, dpd90: 6, mitraNew: 21, renewal: 88, celengan: 64, ppob: 41, cohortDpd7: 8 },
+  /** Over 100% AND both boosts — the top of the version B table, Rp700.000. */
+  'boosted': { dpd0: 100, dpd30: 58, dpd90: 7, mitraNew: 23, renewal: 92, celengan: 66, ppob: 38, cohortDpd7: 2 },
 }
 
 export interface KpiRow extends KpiRowDef {
@@ -132,11 +237,59 @@ export interface KpiRow extends KpiRowDef {
   annulled: boolean
   /**
    * How far this parameter has come toward its target, 0–100 — the graded
-   * version of `met`, and what the v2 roll-up weighs. A met parameter is 100;
-   * a lagging one is the fraction of the way there (target/val for the
+   * version of `met`, and what the version A meter reads. A met parameter is
+   * 100; a lagging one is the fraction of the way there (target/val for the
    * lower-is-better DPD buckets, val/target everywhere else).
    */
   progress: number
+  /**
+   * The same fraction with the cap taken OFF, which is what version B's SCORE
+   * weighs. A BP who beats a target has to be able to carry the total past
+   * 100%, because "di atas 100%" is a real band paying double — capping every
+   * row at 100 would make that band unreachable by construction.
+   *
+   * Computed from the raw percentages (val/target), not from `count`/
+   * `targetCount` — at DPD_POOL's small size those two derivations round
+   * differently often enough to matter (1 mitra achieved against a target of
+   * 2 is 50% by the count, but the underlying 3%-against-5% is 60%). The score
+   * uses the true, unrounded rate; `countProgress` below is the one that has
+   * to agree with the mitra figures printed on the card.
+   */
+  rawProgress: number
+  /**
+   * Achievement over target as mitra COUNTS — the number B2's row card shows,
+   * because that card also prints "Target: diatas N mitra" and an achieved
+   * figure has to divide by that same N or a reader doing the arithmetic by
+   * eye catches the mismatch. Uncapped, same reasoning as `rawProgress`.
+   */
+  countProgress: number
+}
+
+/** One of the two conditions that, together, top the incentive up. */
+export interface KpiBoost extends KpiBoostDef {
+  val: number
+  met: boolean
+}
+
+/** Version B's whole answer: the score, the band it lands in, and the two
+ *  modifiers that can wipe it or raise it. */
+export interface KpiScore {
+  /** Weighted roll-up of every row's uncapped progress. Can exceed 100. */
+  score: number
+  /** What the band alone pays, before boom and boost. */
+  bandNominal: number
+  band: KpiBand | null
+  /** The next band up, or null once she is in the top one. */
+  nextBand: KpiBand | null
+  /** The portfolio condition that zeroes everything. */
+  boomVal: number
+  boomTriggered: boolean
+  boosts: KpiBoost[]
+  /** Both boosts met — the pair pays, either one alone does not. */
+  boostsMet: boolean
+  boostBonus: number
+  /** What she actually takes home. */
+  total: number
 }
 
 export interface KpiView {
@@ -147,12 +300,8 @@ export interface KpiView {
   totalParams: number
   totalMitra: number
   totalMajelis: number
-  /** v2: the weighted roll-up of every row's progress, 0–100. */
-  completion: number
-  /** v2: the tier the completion currently pays, or null below the first. */
-  currentTier: KpiTier | null
-  /** v2: the next tier still to reach, or null once every tier is cleared. */
-  nextTier: KpiTier | null
+  /** Version B's score and everything hanging off it. */
+  scored: KpiScore
   /** Whether every collection parameter is met — the gate on all growth pay. */
   collectionMet: boolean
   /** What the annulment is costing her: growth bonus met but not payable. */
@@ -175,12 +324,17 @@ export const buildKpi = (period: string): KpiView => {
     const met = r.lower ? val <= r.target : val >= r.target
     // Strictly past the gate — "if only achieving this, no bonus is granted".
     const incentivised = r.lower ? val < r.min : val > r.min
-    const progress = met
-      ? 100
-      : r.lower
-        ? Math.round((r.target / val) * 100)
-        : Math.round((val / r.target) * 100)
-    return { ...r, val, count, targetCount, minCount, incentivised, met, progress }
+    // Uncapped: beating a target has to be able to push the version B score
+    // past 100, or its top band could never be reached.
+    const rawProgress = Math.round((r.lower ? r.target / Math.max(val, 0.01) : val / r.target) * 100)
+    const progress = Math.min(100, rawProgress)
+    // The count-based twin of rawProgress — same uncapped shape, but divides
+    // the two ROUNDED mitra figures instead of the raw percentages, so it
+    // agrees with "Target: diatas N mitra" on the same card.
+    const countProgress = Math.round(
+      (r.lower ? targetCount / Math.max(count, 0.01) : count / targetCount) * 100,
+    )
+    return { ...r, val, count, targetCount, minCount, incentivised, met, progress, rawProgress, countProgress }
   })
 
   // The gate. Every collection parameter has to be performing before a single
@@ -201,12 +355,33 @@ export const buildKpi = (period: string): KpiView => {
     return { ...r, annulled, earned: r.incentivised && !annulled ? r.bonus : 0 }
   })
 
-  // The weighted roll-up: each row contributes its progress scaled by its
-  // weight, and the weights sum to 100, so the total is itself a percentage.
-  const completion = Math.round(rows.reduce((s, r) => s + r.weight * r.progress, 0) / 100)
+  // --- Version B ----------------------------------------------------------
+  //
+  // The weighted roll-up: each row contributes its UNCAPPED progress scaled by
+  // its weight, and the weights sum to 100, so the total is itself a percentage
+  // — one that can pass 100 when she beats her targets.
+  const score = Math.round(rows.reduce((s, r) => s + r.weight * r.rawProgress, 0) / 100)
 
-  const currentTier = [...KPI_TIERS].reverse().find((t) => completion >= t.at) ?? null
-  const nextTier = KPI_TIERS.find((t) => completion < t.at) ?? null
+  const band = [...KPI_BANDS].reverse().find((b) => score >= b.at) ?? null
+  const nextBand = KPI_BANDS.find((b) => score < b.at) ?? null
+  const bandNominal = band?.nominal ?? 0
+
+  const boomVal = vals[KPI_BOOM.k]
+  const boomTriggered = boomVal > KPI_BOOM.limit
+
+  const boosts: KpiBoost[] = KPI_BOOSTS.map((b) => ({
+    ...b,
+    val: vals[b.k],
+    met: vals[b.k] >= b.target,
+  }))
+  const boostsMet = boosts.every((b) => b.met)
+
+  // Order of operations, and it matters: the boom wipes everything, including a
+  // boost pair she genuinely earned. The boost only tops up an incentive that
+  // exists — adding Rp100.000 to a score that paid nothing would invent an
+  // incentive out of a condition the table calls a BONUS.
+  const boostBonus = !boomTriggered && bandNominal > 0 && boostsMet ? KPI_BOOST_BONUS : 0
+  const total = boomTriggered ? 0 : bandNominal + boostBonus
 
   return {
     rows,
@@ -214,12 +389,21 @@ export const buildKpi = (period: string): KpiView => {
     maxBonus: KPI_MAX_BONUS,
     metCount: rows.filter((r) => r.met).length,
     totalParams: rows.length,
-    totalMitra: 225,
-    totalMajelis: 15,
+    totalMitra: BP_TOTAL_MITRA,
+    totalMajelis: BP_TOTAL_MAJELIS,
     collectionMet,
     annulledTotal: rows.reduce((s, r) => s + (r.annulled ? r.bonus : 0), 0),
-    completion,
-    currentTier,
-    nextTier,
+    scored: {
+      score,
+      bandNominal,
+      band,
+      nextBand,
+      boomVal,
+      boomTriggered,
+      boosts,
+      boostsMet,
+      boostBonus,
+      total,
+    },
   }
 }
