@@ -20,7 +20,7 @@ import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, rupiah } from '../lib/data'
 import { dpdBucket, loansOf, type Disbursement } from '../lib/loans'
-import { useApp } from '../lib/store'
+import { store, useApp } from '../lib/store'
 
 export function LoansScreen() {
   const flow = useFlow()
@@ -30,6 +30,11 @@ export function LoansScreen() {
   const loans = loansOf(mitra)
   const active = loans.filter((l) => l.status === 'aktif')
   const settled = loans.filter((l) => l.status === 'lunas')
+
+  function openLoan(id: string) {
+    store.openLoanPage(id)
+    flow.go('loan')
+  }
 
   return (
     <Screen
@@ -41,7 +46,7 @@ export function LoansScreen() {
       </div>
       <div className="flex flex-col gap-12">
         {active.map((loan) => (
-          <LoanCard key={loan.id} loan={loan} />
+          <LoanCard key={loan.id} loan={loan} onOpen={() => openLoan(loan.id)} />
         ))}
       </div>
 
@@ -50,7 +55,7 @@ export function LoansScreen() {
           <h2 className="text-16 font-bold text-default">Pencairan Lunas</h2>
           <div className="flex flex-col gap-12 pb-16">
             {settled.map((loan) => (
-              <LoanCard key={loan.id} loan={loan} />
+              <LoanCard key={loan.id} loan={loan} onOpen={() => openLoan(loan.id)} />
             ))}
           </div>
         </>
@@ -67,13 +72,22 @@ export function LoansScreen() {
  * A settled cycle keeps every number and loses only its colour. It is still the
  * thing a BP quotes — "dua belas dari dua belas, tepat waktu" — and greying it
  * into a summary line would throw away the proof to save a card.
+ *
+ * The whole card opens the cycle's schedule. No chevron: every card in the list
+ * goes somewhere, so a tell on each one says nothing that the four identical
+ * cards below it don't already.
  */
-function LoanCard({ loan }: { loan: Disbursement }) {
+function LoanCard({ loan, onOpen }: { loan: Disbursement; onOpen: () => void }) {
   const done = loan.status === 'lunas'
 
   return (
     <Card>
-      <div className="flex flex-col gap-12">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Buka jadwal angsuran pencairan ${loan.no}`}
+        className="flex w-full flex-col gap-12 text-left"
+      >
         <div className="flex items-center gap-12">
           <span
             className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-8 ${
@@ -112,7 +126,7 @@ function LoanCard({ loan }: { loan: Disbursement }) {
             <Fact label="Angsuran per minggu" value={rupiah(loan.weekly)} />
           </div>
         </div>
-      </div>
+      </button>
     </Card>
   )
 }

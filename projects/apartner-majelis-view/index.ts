@@ -752,7 +752,22 @@ export const project: ProjectModule = {
         'A settled cycle keeps every number and loses only its colour. It is still the thing she quotes, and greying it down to a summary line would throw away the proof to save a card.',
         'One active pencairan, always. Every number on the mitra page derives from a single ledger, and a second live loan would make “total tagihan” mean different things on different screens.',
       ],
-      flowsTo: [{ to: 'mitra', label: 'kembali' }],
+      flowsTo: [
+        { to: 'loan', label: 'ketuk kartu pencairan' },
+        { to: 'mitra', label: 'kembali' },
+      ],
+    },
+    {
+      id: 'loan',
+      title: 'Detail Pencairan',
+      component: lazyScreen(() => import('./screens/loan'), 'LoanScreen'),
+      notes: [
+        'One cycle’s full instalment schedule, opened by tapping its card. The list of pencairan answers “how many cycles, and how did they go”; this answers the question a mitra actually argues with — “minggu ke berapa yang belum kebayar?” — so it is every instalment, not a summary of them.',
+        'Fifty rows is the point rather than a problem to solve: the mitra page already summarises the recent weeks, and a BP opens this when the summary is being disputed — which it only is about a week off the edge of that summary.',
+        'The rail makes fifty rows a sequence rather than fifty cards. Discs are filled where the week has been answered and hollow where it is still ahead, so how far in she is reads before any figure does. A week still ahead states a plan: grey amount, date on the right. An answered week states an outcome: solid amount, its due date underneath, and the badge at the edge.',
+        'Every row opens, because the argument is never about the amount — it is about what happened that week. A part-payment is the case that earns it: “Lunas” and “Belum Bayar” both hide the week she handed over half.',
+      ],
+      flowsTo: [{ to: 'loans', label: 'kembali' }],
     },
     {
       id: 'collect',

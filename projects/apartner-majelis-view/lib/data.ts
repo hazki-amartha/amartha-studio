@@ -155,6 +155,17 @@ function weekDate(weeksBack: number): string {
   return `${d.getDate()} ${MONTHS_ID[d.getMonth()]}`
 }
 
+/**
+ * "23 Des 2025" — a date carrying its YEAR, for a list that runs past the turn
+ * of one. An instalment schedule 50 weeks long does exactly that, and "23 Des"
+ * beside "6 Jan" in the same column is two years pretending to be one.
+ */
+export function dateWithYear(weeksBack: number): string {
+  const d = new Date(TODAY)
+  d.setDate(d.getDate() - weeksBack * 7)
+  return `${d.getDate()} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`
+}
+
 const MONTHS_FULL = [
   'Januari',
   'Februari',
