@@ -40,7 +40,7 @@ import {
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { WEEKLY_BILL, claimableOf, rupiah } from '../lib/data'
+import { BILL_DUE, WEEKLY_BILL, claimableOf, rupiah } from '../lib/data'
 import { IconPiggy } from '../lib/icons'
 import { isSettled, outstanding, store, tunggakan, useApp } from '../lib/store'
 import { Notice, SectionTitle, TaskButton } from '../lib/ui'
@@ -621,29 +621,44 @@ function TaskMark({ status }: { status: TaskStatus }) {
   return <span className="h-24 w-24 shrink-0 rounded-full bg-neutral-200" />
 }
 
-/** What is owed, stated four ways: due, settled, short, or late. */
+/** The instalment row's two lines: what is owed, and by when. */
 function BillLine() {
+  return (
+    <>
+      <BillAmount />
+      {/* The deadline rides under every variant — due, settled, short or late.
+          A figure on its own is a standing amount; with the date it is a
+          specific week's bill, which is the thing she is actually being asked
+          about. Quieter than the amount: it qualifies the figure, and on a
+          late row the amount is already carrying the alarm. */}
+      <p className="mt-2 text-disabled">Sebelum {BILL_DUE}</p>
+    </>
+  )
+}
+
+/** What is owed, stated four ways: due, settled, short, or late. */
+function BillAmount() {
   const s = useApp()
   // Settled reads plain. The strikethrough it used to carry was saying "done"
   // a second time, and the tick beside the row already says it better.
   if (s.billState === 'paid' && s.paidAmount >= WEEKLY_BILL) {
-    return <>{rupiah(WEEKLY_BILL)}</>
+    return <p>{rupiah(WEEKLY_BILL)}</p>
   }
   // Part-paid: what is LEFT, not what the week cost. Orange, because it is a
   // shortfall to close rather than a deadline already missed.
   if (s.billState === 'paid') {
-    return <span className="text-orange-500">Kurang {rupiah(outstanding(s))}</span>
+    return <p className="text-orange-500">Kurang {rupiah(outstanding(s))}</p>
   }
   // Unpaid and behind: the amount alone doesn't say the week has already
   // slipped, which is the reason the reward is on the line.
   if (s.atRisk) {
     return (
-      <span className="text-red-500">
+      <p className="text-red-500">
         {rupiah(WEEKLY_BILL)} (Telat {DAYS_LATE} hari)
-      </span>
+      </p>
     )
   }
-  return <>{rupiah(WEEKLY_BILL)}</>
+  return <p>{rupiah(WEEKLY_BILL)}</p>
 }
 
 function BayarButton({ onPay }: { onPay: () => void }) {
