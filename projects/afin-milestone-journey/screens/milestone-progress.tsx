@@ -12,7 +12,9 @@ export function MilestoneProgressScreen() {
   const flow = useFlow()
 
   const weeks = HISTORY.length
-  const bayar = HISTORY.filter((e) => e.bayar).length
+  // On-time payments — a paid-but-late week is not "lancar", same as it counts
+  // on the progress page's "tepat waktu" tally.
+  const bayar = HISTORY.filter((e) => e.bayar && !e.late).length
 
   return (
     <MilestoneTracker
