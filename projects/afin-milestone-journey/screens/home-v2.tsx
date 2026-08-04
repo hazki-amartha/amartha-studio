@@ -575,35 +575,34 @@ function Task({
 }
 
 /**
- * The mark at the head of a row — a checkbox, literally. It replaced a tinted
- * avatar per habit, which said what KIND of thing the row was (something the
- * title already said) and left no room for the one thing a list of habits is
- * for: whether she has done it.
+ * The mark at the head of a row. It replaced a tinted avatar per habit, which
+ * said what KIND of thing the row was (something the title already said) and
+ * left no room for the one thing a list of habits is for: whether she has done
+ * it.
  *
- * A box rather than a circle, because that is what a thing you tick looks like.
- * `rounded-8` is the system's input radius, and a checkbox is an input.
+ * Circles, and deliberately NOT checkboxes. None of these three states are hers
+ * to set — paying ticks the bill, turning up ticks the kumpulan, and the
+ * majelis row is nine other people — so a box with a border would promise a
+ * control she cannot use, and would compete with the real button sitting at the
+ * other end of the same row. A filled circle reads as a status reached; the
+ * empty one is a slot waiting, with no border to invite a tap.
  */
 function TaskMark({ status }: { status: TaskStatus }) {
   if (status === 'done') {
     return (
-      <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-8 bg-green-500 text-neutral-white">
+      <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-green-500 text-neutral-white">
         <Check size={16} />
       </span>
     )
   }
-  // Unticked and now late. It stays a box — the thing is still not done — and
-  // says so in red, rather than becoming a different kind of mark from the
-  // rows around it.
   if (status === 'alert') {
     return (
-      <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-8 border-2 border-red-500 bg-red-50 text-14 font-bold text-red-500">
+      <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-red-500 text-14 font-bold text-neutral-white">
         !
       </span>
     )
   }
-  return (
-    <span className="h-24 w-24 shrink-0 rounded-8 border-2 border-neutral-400 bg-neutral-white" />
-  )
+  return <span className="h-24 w-24 shrink-0 rounded-full bg-neutral-200" />
 }
 
 /** What is owed, stated four ways: due, settled, short, or late. */
