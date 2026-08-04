@@ -33,12 +33,12 @@ import {
   Headset,
   House,
   Majelis,
+  MapPin,
   Plus,
   Promo,
   QrCode,
   Transfer,
   User,
-  Users,
   Wallet,
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
@@ -51,6 +51,20 @@ import { IconTile, Notice, SectionTitle, TaskButton } from '../lib/ui'
 /** How far past due the unpaid week is, in the at-risk state. */
 const DAYS_LATE = 3
 
+/**
+ * The rail's two moods. Normally blue — a neutral "here is your stretch".
+ * Orange when the reward is at risk, borrowing the warning notice's own tone
+ * (`bg-orange-50 text-orange-700`) so the rail reads as the same alarm rather
+ * than a second one. Solid 500 for the marks, 700 for the label, because a
+ * 500-weight orange is legible as a dot but thin as text.
+ */
+const RAIL = {
+  blue: { ring: 'border-blue-500', fill: 'bg-blue-500', ink: 'text-blue-500' },
+  orange: { ring: 'border-orange-500', fill: 'bg-orange-500', ink: 'text-orange-700' },
+} as const
+
+type RailTone = keyof typeof RAIL
+
 export function HomeV2Screen() {
   const flow = useFlow()
   const s = useApp()
@@ -59,6 +73,9 @@ export function HomeV2Screen() {
   // state, and a short payment that left arrears behind. Both owe money this
   // week, so both get the warning and the red disbursement chip.
   const rewardAtRisk = !isNew && (s.atRisk || (s.billState === 'paid' && outstanding(s) > 0))
+  // The rail and the warning notice below it share one condition, so they share
+  // one colour.
+  const railTone: RailTone = rewardAtRisk ? 'orange' : 'blue'
 
   const goToPayment = () => {
     store.startPayment()
@@ -105,24 +122,35 @@ export function HomeV2Screen() {
           </div>
 
           <div className="mt-24">
+            {/* Colour runs from today only as far as the next goal, and
+                everything past it is grey. The rail is one claim — "this is the
+                stretch you are on" — and colouring the far half too made three
+                stops compete when only one is hers to work on. Blue rather than
+                brand purple keeps the card's only purple on things she can
+                press: "Lihat semua", and the buttons on the rows below.
+
+                When the reward is at risk the whole stretch turns the warning's
+                own orange, so the rail and the notice below it are visibly
+                about the same thing rather than two unrelated alarms. */}
             <div className="flex items-center">
-              <JourneyDot current />
-              <span className="mx-4 h-2 flex-1 rounded-full bg-blue-400" />
-              <JourneyDot />
+              <JourneyDot current tone={railTone} />
+              <span className={`mx-4 h-2 flex-1 rounded-full ${RAIL[railTone].fill}`} />
+              <JourneyDot next tone={railTone} />
               {/* Small dots: the pelunasan and other milestones that fall between
                   the next top-up and the far limit rise. */}
               <span className="mx-4 flex flex-1 items-center gap-4">
-                <span className="h-2 flex-1 rounded-full bg-green-400" />
-                <span className="h-8 w-8 shrink-0 rounded-full border border-green-400 bg-neutral-white" />
-                <span className="h-2 flex-1 rounded-full bg-green-400" />
-                <span className="h-8 w-8 shrink-0 rounded-full border border-green-400 bg-neutral-white" />
-                <span className="h-2 flex-1 rounded-full bg-green-400" />
+                <span className="h-2 flex-1 rounded-full bg-neutral-200" />
+                <span className="h-8 w-8 shrink-0 rounded-full border border-neutral-400 bg-neutral-white" />
+                <span className="h-2 flex-1 rounded-full bg-neutral-200" />
+                <span className="h-8 w-8 shrink-0 rounded-full border border-neutral-400 bg-neutral-white" />
+                <span className="h-2 flex-1 rounded-full bg-neutral-200" />
               </span>
               <JourneyDot />
             </div>
             <div className="mt-8 flex gap-4">
               <div className="min-w-0 flex-1">
-                <p className="text-12 font-bold text-primary-500">Hari ini</p>
+                {/* Follows its own marker on the rail above it. */}
+                <p className={`text-12 font-bold ${RAIL[railTone].ink}`}>Hari ini</p>
               </div>
               {/* Label and figure sit at the date's size, not a step under it:
                   the date alone says nothing useful, and the two lines that
@@ -130,13 +158,16 @@ export function HomeV2Screen() {
               <div className="min-w-0 flex-1 text-center">
                 <p className="text-12 font-bold text-default">6 Okt &rsquo;26</p>
                 <p className="text-12 text-caption">Pencairan</p>
-                {/* "s/d" on both chips: the disbursement is a ceiling too, so
-                    the near and far figures are hedged the same way. */}
-                <span
-                  className={`mt-4 inline-block rounded-full px-8 py-2 text-12 font-bold ${
-                    rewardAtRisk ? 'bg-red-50 text-red-600' : 'bg-primary-50 text-primary-500'
-                  }`}
-                >
+                {/* Both chips green, and "s/d" on both: they are the same kind
+                    of thing — money this stretch could be worth — so they are
+                    hedged the same way and tinted the same way.
+
+                    Green even when the reward is at risk. The figure has not
+                    changed and is still what she stands to get; reddening it
+                    said the money had been lost, when the whole point of the
+                    warning is that it is still there to save. The rail and the
+                    notice carry the alarm. */}
+                <span className="mt-4 inline-block rounded-full bg-green-50 px-8 py-2 text-12 font-bold text-green-600">
                   s/d Rp1,25jt
                 </span>
               </div>
@@ -153,8 +184,6 @@ export function HomeV2Screen() {
               </div>
             </div>
           </div>
-
-          <div className="-mx-16 mt-16 border-t border-light" />
 
           {rewardAtRisk ? (
             <div className="mb-16 mt-16">
@@ -190,15 +219,21 @@ export function HomeV2Screen() {
                   description={<BillLine />}
                   action={<BayarButton onPay={goToPayment} />}
                 />
+                {/* All three tiles blue. They are one list of things to do, and
+                    a different tint per row implied a difference in kind that
+                    the rows do not have. */}
+                {/* A pin for kumpulan — it is somewhere to turn up, and the
+                    row already says when. The three-person glyph moves down to
+                    Majelis sehat, which is the row actually about the group. */}
                 <Task
-                  tint="green"
-                  icon={<Majelis size={20} />}
+                  tint="blue"
+                  icon={<MapPin size={20} />}
                   title="Datang kumpulan"
                   description="Kamis, 11.30"
                 />
                 <Task
-                  tint="primary"
-                  icon={<Users size={20} />}
+                  tint="blue"
+                  icon={<Majelis size={20} />}
                   title="Majelis sehat"
                   description={`${tunggakanCount} anggota punya tunggakan`}
                   action={
@@ -213,30 +248,38 @@ export function HomeV2Screen() {
 
         </div>
 
-        {/* Money already on the table. It gets a band of its own at the foot of
-            the card — green, the colour every figure in this prototype uses for
-            money — because it is not the same kind of thing as the rows above
-            it: those are habits to keep in order to earn the next goal, this is
+        {/* Money already on the table. A full-width rule closes the habit rows
+            off, and below it the payout sits in a tinted box of its own, inset
+            from the card's edge — not the same kind of thing as the rows above
+            it, which are habits to keep in order to earn the next goal. This is
             a goal already earned and waiting to be taken. No avatar tile, so it
-            reads as a payout strip rather than a fourth task, and a solid
-            button rather than the outline the tasks carry.
+            reads as a payout rather than a fourth task, and a solid button
+            rather than the outline the tasks carry.
 
             Absent unless a rung has been reached and left undrawn, so a mitra
             with nothing open never sees an empty promise. */}
         {!isNew && claimable ? (
-          <div className="flex items-center gap-12 border-t border-light bg-green-50 p-16">
-            <div className="min-w-0 flex-1">
-              <p className="text-12 text-neutral-700">Dana siap dicairkan</p>
-              <p className="text-18 font-bold text-green-600">{claimable.amount}</p>
+          <>
+            {/* `border-default`, not the `border-light` used elsewhere in this
+                card: it is the only rule left on the card now, so it carries
+                the whole separation between habits and payout on its own. */}
+            <div className="border-t border-default" />
+            <div className="p-12">
+              <div className="flex items-center gap-12 rounded-12 bg-blue-50 p-12">
+                <div className="min-w-0 flex-1">
+                  <p className="text-12 text-neutral-700">Dana siap dicairkan</p>
+                  <p className="text-18 font-bold text-green-600">{claimable.amount}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => flow.go('disburse-amount')}
+                  className="shrink-0 rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white"
+                >
+                  Cairkan
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => flow.go('disburse-amount')}
-              className="shrink-0 rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white"
-            >
-              Cairkan
-            </button>
-          </div>
+          </>
         ) : null}
       </div>
 
@@ -474,13 +517,31 @@ function Shortcut({ icon, label }: { icon: ReactNode; label: string }) {
 // A node on the horizontal journey line: the filled target ring marks where she
 // is now, hollow rings the stops still ahead.
 
-function JourneyDot({ current }: { current?: boolean }) {
+function JourneyDot({
+  current,
+  next,
+  tone = 'blue',
+}: {
+  current?: boolean
+  next?: boolean
+  /** Only read by the two coloured nodes — the far one is grey in every mood. */
+  tone?: RailTone
+}) {
+  const t = RAIL[tone]
   if (current) {
     return (
-      <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 border-primary-500">
-        <span className="h-8 w-8 rounded-full bg-primary-500" />
+      <span
+        className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 ${t.ring}`}
+      >
+        <span className={`h-8 w-8 rounded-full ${t.fill}`} />
       </span>
     )
+  }
+  // The goal she is walking toward: the rail's colour like today's marker,
+  // empty because she has not arrived, and a size larger than the far node so
+  // the rail has an obvious destination rather than two identical rings.
+  if (next) {
+    return <span className={`h-24 w-24 shrink-0 rounded-full border-2 bg-neutral-white ${t.ring}`} />
   }
   return <span className="h-20 w-20 shrink-0 rounded-full border-2 border-neutral-200 bg-neutral-white" />
 }
