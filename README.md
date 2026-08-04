@@ -25,7 +25,7 @@ git clone <this-repo-url>
 cd amartha-studio
 npm install
 gh auth login        # once — this is what lets "push it" work
-npm run dev          # open http://localhost:3000
+npm run dev          # open http://localhost:4000 (always this port)
 ```
 
 Then point your AI agent (Claude Code) at this repo. The agent reads `CLAUDE.md`
@@ -99,7 +99,8 @@ Figma.
 
 | Command | Does |
 |---------|------|
-| `npm run dev` | Local dev server |
+| `npm run dev` | Local dev server on port 4000 — safe to run twice; it reuses a running one instead of starting a second |
+| `npm run dev:restart` | Stops the server on 4000 and starts one fresh (add `-- --fresh` to clear `.next` too) |
 | `npm run build` | Production build (type-checks all screens) |
 | `npm run lint` | ESLint incl. token-lock (no arbitrary Tailwind values) |
 | `npm run check:flows` | Validates screen ids, single entry, and `flowsTo` targets |

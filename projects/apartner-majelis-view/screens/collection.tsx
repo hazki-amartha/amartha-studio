@@ -245,11 +245,11 @@ export function CollectionScreen() {
               mitra={mitra}
               // Identical to stage 1, deliberately. See attendance.tsx.
               meta={null}
-              // See attendance.tsx — the product labels the card from the right
-              // edge of the name row on all three stages.
-              titleBadge={<ProductBadge product={mitra.product} />}
+              // See attendance.tsx — the product leads the label row under the
+              // name on all three stages.
               labels={
                 <>
+                  <ProductBadge product={mitra.product} />
                   <KetuaBadge mitra={mitra} />
                   <DpdBadge dpd={mitra.dpd} format="short" />
                   {/* Red only for the absence that ends the membership — the

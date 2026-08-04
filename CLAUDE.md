@@ -356,10 +356,32 @@ dev server (`npm run dev`, in the background) and give them the `localhost` link
 it prints, or surface it in the agent runtime's preview window. Never hand a
 designer a `*.vercel.app` deployment or preview URL: those are auth-gated behind
 a Vercel account with team access, which designers here do not have, so the link
-shows them a login wall instead of their prototype. Read the port off the dev
-server's own output rather than assuming `3000` — it moves when the port is
-taken. This is the *only* thing that changes about the push flow; everything
-above still applies, and you still call it the "preview link".
+shows them a login wall instead of their prototype. This is the *only* thing that
+changes about the push flow; everything above still applies, and you still call
+it the "preview link".
+
+**One server, always on port 4000 — `npm run dev`.** The preview link is always
+`http://localhost:4000/p/<slug>`, this session and every other one.
+
+You do not have to check whether a server is already running: `npm run dev` is
+**idempotent**. If one is up it prints the link and starts nothing; if none is,
+it starts one pinned to 4000. So run it whenever you need the link, and never
+reach for `next dev` directly — that is what used to start rivals.
+
+Why this is a script and not a habit (`scripts/dev.mjs` spells it out): two
+`next dev` processes on this folder share one `.next` cache and overwrite each
+other's compiled output, so the designer's open page goes stale after an edit
+and only a kill-and-restart clears it — indistinguishable from "hot reload is
+broken", which is how it kept getting misdiagnosed. And bare `next dev` silently
+drifts to the next free port, leaving the designer's bookmarked tab pointed at a
+server that is gone.
+
+- **Never restart the server as a matter of course after making changes.** Hot
+  reload works; an edit shows up on refresh. Restarting by habit hides the real
+  problem and costs the designer a wait.
+- If a preview genuinely is stuck: `npm run dev:restart` (stops the old process,
+  then starts one — it never leaves two), or `npm run dev -- --fresh` to clear
+  `.next` first.
 
 **How to speak.** The only words are "commit", "committed", "push", "pushed",
 "live", "preview link", and — for shared changes — "pending review". **Never say

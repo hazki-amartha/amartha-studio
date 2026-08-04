@@ -412,7 +412,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
                           : 'ring-1 ring-transparent'
                     }`}
                   >
-                    <ScreenThumb screen={n.screen} />
+                    <ScreenThumb screen={n.screen} device={mod?.config.device} />
                     {active ? (
                       <div className="absolute right-4 top-4 flex items-center gap-2">
                         <span
