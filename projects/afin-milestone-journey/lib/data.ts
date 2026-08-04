@@ -9,6 +9,10 @@ export const WEEKLY_BILL = 150000
  *  the twelve weeks already in HISTORY. */
 export const LOAN_OUTSTANDING = 4250000
 export const WEEKS_LEFT = 36
+/** What the loan started at. The outstanding figure only means something next
+ *  to it — Rp4,25jt is most of the way through a Rp5jt loan, or barely into a
+ *  Rp20jt one, and the page's whole job is to say which. */
+export const LOAN_PRINCIPAL = 5000000
 
 /** When this week's instalment is due. The same week the record in HISTORY ends
  *  on and the first milestone is dated to, so the bill, the record and the goal
