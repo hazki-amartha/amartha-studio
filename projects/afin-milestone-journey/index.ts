@@ -266,7 +266,30 @@ export const project: ProjectModule = {
       id: 'amount',
       title: 'Jumlah pembayaran',
       component: lazyScreen(() => import('./screens/amount'), 'AmountScreen'),
-      flowsTo: [{ to: 'konfirmasi', label: 'lanjut' }],
+      states: [
+        {
+          id: 'autodebit-mati',
+          label: 'Autodebit belum aktif',
+          description: 'The banner offers it — "Bisa bayar otomatis dari saldo Poket".',
+          apply: demo.autodebitMati,
+        },
+        {
+          id: 'autodebit-kurang',
+          label: 'Autodebit — saldo kurang',
+          description: 'Armed against a Rp80.000 wallet, so the banner leads with Top-up.',
+          apply: demo.autodebitKurang,
+        },
+        {
+          id: 'autodebit-aktif',
+          label: 'Autodebit siap',
+          description: 'Armed and funded — the banner states the withdrawal date.',
+          apply: demo.autodebitAktif,
+        },
+      ],
+      flowsTo: [
+        { to: 'konfirmasi', label: 'lanjut' },
+        { to: 'topup', label: 'top-up (autodebit kurang)' },
+      ],
     },
     {
       id: 'konfirmasi',

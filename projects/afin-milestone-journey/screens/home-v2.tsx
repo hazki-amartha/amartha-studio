@@ -438,7 +438,10 @@ function PoketWidget() {
           </button>
         </div>
       </div>
-      <WalletAction icon={<Plus size={16} />} label="Isi Saldo" onClick={() => flow.go('topup')} />
+      <WalletAction icon={<Plus size={16} />} label="Isi Saldo" onClick={() => {
+          store.goTopUp('home')
+          flow.go('topup')
+        }} />
       <WalletAction icon={<Transfer size={16} />} label="Transfer" />
     </div>
   )

@@ -12,11 +12,11 @@
 // not a thing this flow supports, and silently clamping is kinder than an error.
 
 import { useState } from 'react'
-import { BottomSheet, NavigationHeader } from '@/design-system/components'
+import { Badge, BottomSheet, NavigationHeader } from '@/design-system/components'
 import { ChevronRight } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { rupiah } from '../lib/data'
+import { BILL_DUE, rupiah } from '../lib/data'
 import { outstanding, store, useApp } from '../lib/store'
 import { FullWidthButton, Meter, OptionCard, SectionTitle, StickyBar } from '../lib/ui'
 
@@ -57,13 +57,23 @@ export function AmountScreen() {
 
   return (
     <Screen topBar={<NavigationHeader title="Bayar angsuran" onBack={() => flow.go('home')} />}>
+      <AutodebitBanner
+        on={s.autodebit}
+        short={s.poketBalance < cap}
+        onEnable={() => store.setAutodebit(true)}
+        onTopUp={() => {
+          store.goTopUp('amount')
+          flow.go('topup')
+        }}
+      />
+
       <div className="rounded-12 border border-default bg-neutral-white p-20 text-center">
         <p className="text-12 text-caption">Tagihan minggu ini</p>
         <p className="my-4 text-24 font-bold text-default">{rupiah(headline)}</p>
         <p className="text-12 text-caption">
           {s.paidAmount > 0
-            ? 'Sisa tunggakan • Jatuh tempo 19 Agu 2024'
-            : 'Jatuh tempo 19 Agu 2024'}
+            ? `Sisa tunggakan • Jatuh tempo ${BILL_DUE}`
+            : `Jatuh tempo ${BILL_DUE}`}
         </p>
         <button
           type="button"
@@ -135,7 +145,7 @@ export function AmountScreen() {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         title="Detail tagihan minggu ini"
-        description="Jatuh tempo 19 Agu 2024"
+        description={`Jatuh tempo ${BILL_DUE}`}
         slot={
           <div className="flex flex-col gap-8">
             <LoanCard
@@ -164,6 +174,66 @@ export function AmountScreen() {
         }
       />
     </Screen>
+  )
+}
+
+// The band above the bill. Autodebit is a standing arrangement, not a payment
+// method, so it belongs here — before she picks an amount — rather than beside
+// Poket in the method sheet.
+//
+// Three readings, because "on" is not one state: armed and funded is a promise
+// the app can keep, and armed with an empty wallet is a promise it can't. The
+// second one leads with the fix (Top-up) instead of the date, since a date it
+// cannot honour is the least useful thing to state.
+function AutodebitBanner({
+  on,
+  short,
+  onEnable,
+  onTopUp,
+}: {
+  on: boolean
+  /** Poket cannot cover this week's bill, so the pull would fail. */
+  short: boolean
+  onEnable: () => void
+  onTopUp: () => void
+}) {
+  return (
+    <div className="-mx-16 -mt-16 bg-blue-50 px-16 py-12">
+      <div className="flex items-center gap-12">
+        <span className="flex-1 text-14 font-bold text-default">
+          {on ? 'Autodebit' : 'Aktifkan pembayaran Autodebit'}
+        </span>
+        {on ? (
+          <Badge intent="green" variant="subtle" size="sm">
+            Sudah aktif
+          </Badge>
+        ) : null}
+      </div>
+      <p className="mt-2 text-12 text-caption">
+        {!on ? (
+          <>
+            Bisa bayar otomatis dari saldo Poket.{' '}
+            <BannerLink onClick={onEnable}>Aktifkan</BannerLink>
+          </>
+        ) : short ? (
+          <>
+            Saldo Poket kurang. <BannerLink onClick={onTopUp}>Top-up</BannerLink>
+          </>
+        ) : (
+          `Penarikan akan dilakukan ${BILL_DUE}`
+        )}
+      </p>
+    </div>
+  )
+}
+
+/** The one inline link in the banner — underlined, because it sits inside a
+ *  sentence and colour alone is not enough to read as tappable there. */
+function BannerLink({ onClick, children }: { onClick: () => void; children: string }) {
+  return (
+    <button type="button" onClick={onClick} className="font-bold text-primary-500 underline">
+      {children}
+    </button>
   )
 }
 
