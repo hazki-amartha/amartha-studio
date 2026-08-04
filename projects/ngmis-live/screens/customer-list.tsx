@@ -23,6 +23,7 @@ import {
   Users,
 } from '@/design-system/icons'
 import {
+  CONTROL_H,
   DataTable,
   MisShell,
   Pagination,
@@ -119,7 +120,8 @@ export function CustomerListScreen() {
             onSearchChange={setSearch}
             onFilter={() => undefined}
             action={
-              <Button size="sm" onClick={() => undefined}>
+              // Same height as the search field and the filter — see CONTROL_H.
+              <Button size="sm" onClick={() => undefined} style={{ height: CONTROL_H }}>
                 Action Button
               </Button>
             }

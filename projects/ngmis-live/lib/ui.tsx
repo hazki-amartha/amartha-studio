@@ -267,6 +267,11 @@ export function Tabs({
 
 // --- Toolbar ----------------------------------------------------------------
 
+/** Every control on the toolbar row is this tall, which is what the reference
+ *  frame does and what stops the row looking ragged: FunDS sizes its controls
+ *  by padding, so `Input size="sm"` and `Button size="sm"` land ~4px apart. */
+export const CONTROL_H = 32
+
 export function Toolbar({
   search,
   onSearchChange,
@@ -281,16 +286,32 @@ export function Toolbar({
   return (
     <div className="flex shrink-0 items-center justify-between gap-8 p-16">
       <div className="flex items-center gap-8">
-        <div style={{ width: 240 }}>
+        {/* The magnifier sits INSIDE the field. Input's `prefix` renders a
+            separate bordered segment (the "Rp" shape), which is a different
+            component of the search field the reference draws. */}
+        <div className="relative" style={{ width: 240 }}>
+          <span className="pointer-events-none absolute left-8 top-8 text-caption">
+            <MagnifyingGlass size={16} />
+          </span>
           <Input
             size="sm"
             placeholder="Search by Keyword"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            prefix={<MagnifyingGlass size={16} />}
+            // Inline rather than `h-32 pl-32`: the height and the icon inset
+            // have to beat .ds-inp-sm's padding shorthand, and which of two
+            // equal-specificity rules wins would otherwise depend on stylesheet
+            // order.
+            style={{ height: CONTROL_H, paddingLeft: 32 }}
           />
         </div>
-        <Button variant="outline" size="sm" onClick={onFilter}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onFilter}
+          className="flex items-center"
+          style={{ height: CONTROL_H }}
+        >
           <span className="flex items-center gap-8">
             Filter
             <Sliders size={16} />
