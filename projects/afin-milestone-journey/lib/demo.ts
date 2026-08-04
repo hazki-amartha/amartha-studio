@@ -23,6 +23,7 @@ import { store } from './store'
 const reset = () =>
   store.set({
     amount: 0,
+    discount: 0,
     method: null,
     paidAmount: 0,
     poketBalance: 151000,

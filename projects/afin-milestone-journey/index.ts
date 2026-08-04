@@ -266,12 +266,12 @@ export const project: ProjectModule = {
       id: 'amount',
       title: 'Jumlah pembayaran',
       component: lazyScreen(() => import('./screens/amount'), 'AmountScreen'),
-      flowsTo: [{ to: 'method', label: 'lanjut' }],
+      flowsTo: [{ to: 'konfirmasi', label: 'lanjut' }],
     },
     {
-      id: 'method',
-      title: 'Metode pembayaran',
-      component: lazyScreen(() => import('./screens/method'), 'MethodScreen'),
+      id: 'konfirmasi',
+      title: 'Konfirmasi',
+      component: lazyScreen(() => import('./screens/konfirmasi'), 'KonfirmasiScreen'),
       states: [
         {
           id: 'poket-cukup',
@@ -293,7 +293,7 @@ export const project: ProjectModule = {
         },
       ],
       flowsTo: [
-        { to: 'poket-confirm', label: 'poket, saldo cukup' },
+        { to: 'success', label: 'poket, saldo cukup' },
         { to: 'poket-shortfall', label: 'poket, saldo kurang' },
         { to: 'instruction', label: 'metode lain' },
         { to: 'amount', label: 'ubah jumlah' },
@@ -331,16 +331,7 @@ export const project: ProjectModule = {
       ],
       flowsTo: [
         { to: 'pending', label: 'saya sudah bayar' },
-        { to: 'method', label: 'ganti metode' },
-      ],
-    },
-    {
-      id: 'poket-confirm',
-      title: 'Konfirmasi Poket',
-      component: lazyScreen(() => import('./screens/poket-confirm'), 'PoketConfirmScreen'),
-      flowsTo: [
-        { to: 'success', label: 'bayar sekarang' },
-        { to: 'method', label: 'ganti metode' },
+        { to: 'konfirmasi', label: 'ganti metode' },
       ],
     },
     {
@@ -349,7 +340,7 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/poket-shortfall'), 'PoketShortfallScreen'),
       flowsTo: [
         { to: 'topup', label: 'isi saldo' },
-        { to: 'method', label: 'pilih metode lain' },
+        { to: 'konfirmasi', label: 'pilih metode lain' },
       ],
     },
     {
@@ -357,7 +348,7 @@ export const project: ProjectModule = {
       title: 'Isi Saldo Poket',
       component: lazyScreen(() => import('./screens/topup'), 'TopupScreen'),
       flowsTo: [
-        { to: 'poket-confirm', label: 'isi saldo (menutup kekurangan)' },
+        { to: 'konfirmasi', label: 'isi saldo (menutup kekurangan)' },
         { to: 'home', label: 'isi saldo (dari Poket)' },
       ],
     },

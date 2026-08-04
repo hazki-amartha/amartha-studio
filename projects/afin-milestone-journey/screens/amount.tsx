@@ -121,7 +121,7 @@ export function AmountScreen() {
           disabled={!canContinue}
           onClick={() => {
             store.setAmount(effective)
-            flow.go('method')
+            flow.go('konfirmasi')
           }}
         >
           Lanjut
