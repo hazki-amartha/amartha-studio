@@ -349,16 +349,14 @@ export function WeekGrid({ weeks }: { weeks: Week[] }) {
   }, [weeks])
 
   return (
-    // One lightest-grey panel, no dividers and no outer border: the cells are
-    // told apart by their spacing on a single ground, so the row reads as one
-    // calendar band rather than six boxed cells. The grey is what carries the
-    // history's edge on a page that has dropped its cards.
-    <div
-      ref={rail}
-      className="flex snap-x snap-mandatory overflow-x-auto rounded-8 bg-neutral-50 p-4"
-    >
+    // Each week is its own tile — its own grey ground, its own radius, a gap
+    // between it and the next — rather than six columns sharing one panel. A
+    // week is the unit the BP argues about ("minggu ini belum, Bu"), so it gets
+    // an edge of its own, and the current week can then be tinted as a whole
+    // cell rather than by colouring its text alone.
+    <div ref={rail} className="flex snap-x snap-mandatory overflow-x-auto">
       {pages.map((page) => (
-        <div key={page[0]?.no} className="flex w-full shrink-0 snap-start">
+        <div key={page[0]?.no} className="flex w-full shrink-0 snap-start gap-8">
           {/* A short page is always the OLDEST one, and its empty slots sit at
               the left — before its earliest week — so the six columns line up
               page to page and the dates still run left-to-right unbroken. */}
@@ -368,7 +366,12 @@ export function WeekGrid({ weeks }: { weeks: Week[] }) {
           {page.map((w) => {
             const current = w.status === 'jatuh-tempo'
             return (
-              <div key={w.no} className="flex flex-1 flex-col items-center gap-8 px-4 py-8">
+              <div
+                key={w.no}
+                className={`flex flex-1 flex-col items-center gap-8 rounded-8 px-4 py-8 ${
+                  current ? 'bg-primary-50' : 'bg-neutral-50'
+                }`}
+              >
                 <span
                   className={`text-10 ${current ? 'font-bold text-primary-500' : 'text-caption'}`}
                 >
@@ -860,13 +863,16 @@ export function ResultRow({
   const t = RESULT_TONE[tone]
   return (
     <div className="flex flex-col gap-8">
-      <div className={`flex items-center gap-12 rounded-8 p-8 ${t.band}`}>
+      {/* The band sets its news at 14 in every tone — this is the line that says
+          what happened on the visit, and it was reading smaller than the rows
+          that merely ask for something. Vertical padding 12 to match. */}
+      <div className={`flex items-center gap-12 rounded-8 px-8 py-12 ${t.band}`}>
         <span className={`flex min-w-0 flex-1 items-center gap-4 ${t.ink}`}>
           <span className="shrink-0">
             {tone === 'red' ? <CrossCircleFill size={16} /> : <CheckCircleFill size={16} />}
           </span>
-          <span className="truncate text-12">{label}</span>
-          {amount ? <span className="shrink-0 text-12 font-bold">{amount}</span> : null}
+          <span className="truncate text-14">{label}</span>
+          {amount ? <span className="shrink-0 text-14 font-bold">{amount}</span> : null}
         </span>
         {onEdit ? (
           <Button variant="outline" size="xs" onClick={onEdit}>
@@ -894,20 +900,12 @@ export function ResultRow({
             {/* The same honest placeholder the rest of the project uses for a
                 photo it does not have — a tinted tile with a glyph, not a stock
                 receipt pretending to be her screenshot. */}
+            {/* No edit control of its own: the band's "Ubah" reopens the sheet
+                that captured the photo, so a pencil here is a second way into
+                the same place on a row that is only a footnote. */}
             <span className="flex h-32 w-24 shrink-0 items-center justify-center rounded-4 border border-default bg-neutral-white text-disabled">
               <Image size={16} />
             </span>
-            <span className="flex-1" />
-            {onEdit ? (
-              <button
-                type="button"
-                onClick={onEdit}
-                aria-label="Ubah foto bukti"
-                className="shrink-0 text-primary-500"
-              >
-                <NotePencil size={20} />
-              </button>
-            ) : null}
           </span>
         </NoteBlock>
       ) : null}
@@ -954,7 +952,10 @@ export function PickRow({
     >
       <span className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="text-14 font-bold text-default">{title}</span>
-        {description ? <span className="text-12 text-caption">{description}</span> : null}
+        {/* 14, not 12: the description under a pick row is usually the figure
+            the option commits to, and a rupiah amount the BP is about to record
+            should not be the smallest text on the row. */}
+        {description ? <span className="text-14 text-caption">{description}</span> : null}
         {detail ? (
           <span className="mt-4 border-t border-primary-200 pt-8 text-12 text-primary-500">
             {detail}

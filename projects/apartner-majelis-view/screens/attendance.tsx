@@ -193,12 +193,13 @@ export function AttendanceScreen() {
               // gets in there, so the BP re-reads nothing as she moves between
               // stages — only the row under the rule changes.
               meta={null}
-              // Her product sits level with her name, at the card's right edge:
-              // it is the one fact here that will not change all visit, so it
-              // labels the card rather than joining the row of things that do.
-              titleBadge={<ProductBadge product={mitra.product} />}
               labels={
                 <>
+                  {/* Her product leads the label row under her name, where the
+                      rest of her standing facts already are — one row of chips
+                      to scan rather than one chip level with the name and the
+                      others below it. */}
+                  <ProductBadge product={mitra.product} />
                   <KetuaBadge mitra={mitra} />
                   <DpdBadge dpd={mitra.dpd} format="short" />
                 </>

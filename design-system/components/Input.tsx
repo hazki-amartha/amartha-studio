@@ -3,7 +3,12 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react
 export type InputSize = 'sm' | 'md' | 'lg'
 export type InputState = 'default' | 'focus' | 'valid' | 'error'
 
-export type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> & {
+// `prefix` is omitted alongside `size` because HTMLAttributes already declares
+// one (the deprecated string attribute). Left in, the intersection narrows our
+// ReactNode prefix to `string & ReactNode`, so passing the icon the component
+// was built to accept is a type error — it happened to go unnoticed because the
+// only caller so far passes "Rp".
+export type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'size' | 'prefix'> & {
   size?: InputSize
   state?: InputState
   label?: ReactNode
