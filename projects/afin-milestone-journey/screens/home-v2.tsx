@@ -621,44 +621,53 @@ function TaskMark({ status }: { status: TaskStatus }) {
   return <span className="h-24 w-24 shrink-0 rounded-full bg-neutral-200" />
 }
 
-/** The instalment row's two lines: what is owed, and by when. */
+/**
+ * The instalment, on ONE line: the figure, then in brackets the thing that
+ * qualifies it. Normally that is the week it falls due; on a late row the
+ * lateness takes the slot instead, being the more urgent of the two facts and
+ * the one that makes the date redundant. Keeping it to a single line holds the
+ * row to two, level with the ones beneath it.
+ */
 function BillLine() {
-  return (
-    <>
-      <BillAmount />
-      {/* The deadline rides under every variant — due, settled, short or late.
-          A figure on its own is a standing amount; with the date it is a
-          specific week's bill, which is the thing she is actually being asked
-          about. Quieter than the amount: it qualifies the figure, and on a
-          late row the amount is already carrying the alarm. */}
-      <p className="mt-2 text-disabled">Sebelum {BILL_DUE}</p>
-    </>
-  )
-}
-
-/** What is owed, stated four ways: due, settled, short, or late. */
-function BillAmount() {
   const s = useApp()
-  // Settled reads plain. The strikethrough it used to carry was saying "done"
-  // a second time, and the tick beside the row already says it better.
+
+  // Settled: struck through and muted. The tick at the head of the row says
+  // "done"; the strike says this particular figure is no longer owed.
   if (s.billState === 'paid' && s.paidAmount >= WEEKLY_BILL) {
-    return <p>{rupiah(WEEKLY_BILL)}</p>
+    return (
+      <p className="text-disabled line-through">
+        {rupiah(WEEKLY_BILL)} ({BILL_DUE})
+      </p>
+    )
   }
   // Part-paid: what is LEFT, not what the week cost. Orange, because it is a
   // shortfall to close rather than a deadline already missed.
   if (s.billState === 'paid') {
-    return <p className="text-orange-500">Kurang {rupiah(outstanding(s))}</p>
-  }
-  // Unpaid and behind: the amount alone doesn't say the week has already
-  // slipped, which is the reason the reward is on the line.
-  if (s.atRisk) {
     return (
-      <p className="text-red-500">
-        {rupiah(WEEKLY_BILL)} (Telat {DAYS_LATE} hari)
+      <p className="text-orange-500">
+        Kurang {rupiah(outstanding(s))} <DueDate />
       </p>
     )
   }
-  return <p>{rupiah(WEEKLY_BILL)}</p>
+  // Unpaid and behind: the whole line reddens, and the brackets carry the
+  // lateness. She does not need telling when it was due once it is not.
+  if (s.atRisk) {
+    return (
+      <p className="text-red-500">
+        {rupiah(WEEKLY_BILL)} (Telat {DAYS_LATE} Hari)
+      </p>
+    )
+  }
+  return (
+    <p>
+      {rupiah(WEEKLY_BILL)} <DueDate />
+    </p>
+  )
+}
+
+/** The week it falls due, a shade quieter than the figure it qualifies. */
+function DueDate() {
+  return <span className="text-disabled">({BILL_DUE})</span>
 }
 
 function BayarButton({ onPay }: { onPay: () => void }) {
