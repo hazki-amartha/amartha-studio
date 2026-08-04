@@ -106,7 +106,7 @@ export function HomeV2Screen() {
               ladder with nothing on it. */}
           <div className="flex items-center gap-8">
             <p className="min-w-0 flex-1 text-16 font-bold text-default">
-              {isNew ? 'Pinjaman Anda' : 'Gol pinjaman Anda'}
+              {isNew ? 'Pinjaman Anda' : 'Perjalanan naik limit'}
             </p>
             {isNew ? null : (
               <button
@@ -190,12 +190,12 @@ export function HomeV2Screen() {
           {isNew ? null : rewardAtRisk ? (
             <div className="mb-16 mt-16">
               <Notice tone="orange">
-                Reward Ibu bisa hangus. Bayar tunggakan angsuran agar reward tetap didapat.
+                Kesempatan naik limit bisa hilang! Yuk, segera bayar tunggakan Anda sekarang.
               </Notice>
             </div>
           ) : (
             <p className="mb-16 mt-16 text-14 text-neutral-700">
-              Lakukan hal-hal berikut untuk mencapai goal:
+              Lakukan ini untuk bisa naik limit:
             </p>
           )}
 
@@ -206,7 +206,7 @@ export function HomeV2Screen() {
               // burying it in a caption.
               <Task
                 status="todo"
-                title="Dana siap dicairkan"
+                title="Bisa dicairkan sekarang"
                 description={<span className="text-18 font-bold text-green-600">Rp5jt</span>}
                 action={
                   <TaskButton tone="primary" onClick={() => flow.go('disburse-amount')}>
@@ -227,24 +227,22 @@ export function HomeV2Screen() {
                 />
                 <Task
                   status={s.hadirKumpulan ? 'done' : s.atRisk ? 'alert' : 'todo'}
-                  title="Datang kumpulan"
+                  title="Hadiri kumpulan"
                   description="Kamis, 11.30"
                 />
-                {/* Named for the state it should be in rather than the one it is
-                    in: the row reads "Majelis lancar bayar" either way, and the
-                    mark beside it says whether that is true this week. */}
+                {/* Named for the habit to keep rather than this week's state: the
+                    row reads "Jaga disiplin majelis" either way, and the mark
+                    beside it says whether the majelis is holding to it. */}
                 <Task
                   status={tunggakanCount === 0 ? 'done' : 'alert'}
-                  title="Majelis lancar bayar"
+                  title="Jaga disiplin majelis"
                   description={
-                    tunggakanCount === 0
-                      ? 'Semua anggota lancar bayar'
-                      : `${tunggakanCount} anggota punya tunggakan`
+                    tunggakanCount === 0 ? 'Disiplin majelis terjaga' : 'Disiplin perlu ditingkatkan'
                   }
                   action={
                     tunggakanCount === 0 ? undefined : (
                       <TaskButton tone="primary" onClick={() => flow.go('majelis')}>
-                        Ingatkan
+                        Lihat
                       </TaskButton>
                     )
                   }

@@ -33,7 +33,7 @@ export function PayoutTile({ amount, onCairkan }: { amount: string; onCairkan: (
   return (
     <div className="flex items-center gap-12 rounded-12 bg-blue-50 p-12">
       <div className="min-w-0 flex-1">
-        <p className="text-12 text-neutral-700">Dana siap dicairkan</p>
+        <p className="text-12 text-neutral-700">Bisa dicairkan sekarang</p>
         <p className="text-18 font-bold text-green-600">{amount}</p>
       </div>
       <button

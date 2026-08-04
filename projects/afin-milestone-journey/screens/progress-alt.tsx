@@ -32,7 +32,7 @@ export function ProgressAltScreen() {
   // Which snapshot of the ladder to draw — the demo-state controls set the phase.
   const milestones = MILESTONE_SETS[journeyPhase]
 
-  // The two reads behind the "Lihat progress" menu, from the same data their
+  // The two reads behind the "Lihat status" menu, from the same data their
   // detail pages use: her own bayar/hadir record, and the majelis's payments.
   const weeks = HISTORY.length
   const personal = healthOf(
@@ -44,7 +44,7 @@ export function ProgressAltScreen() {
 
   return (
     <Screen
-      topBar={<NavigationHeader title="Perjalanan pendanaan" onBack={() => flow.go('home')} />}
+      topBar={<NavigationHeader title="Perjalanan naik limit" onBack={() => flow.go('home')} />}
     >
       <div className="flex flex-col gap-16 pb-16">
         {/* A tip that frames the ladder — discipline compounds toward a bigger
@@ -54,14 +54,14 @@ export function ProgressAltScreen() {
             <LightbulbFilament size={24} />
           </span>
           <p className="text-14 text-caption">
-            Setiap pembayaran tepat waktu yang Ibu dan teman-teman satu majelis lakukan, membawa
-            Ibu lebih dekat ke modal yang lebih besar.{' '}
+            Pembayaran dan kehadiran rutin Ibu dan anggota majelis lainnya bisa menghasilkan limit
+            yang lebih besar.{' '}
             <button
               type="button"
               onClick={() => setProgressOpen(true)}
               className="p-0 align-baseline text-14 font-bold text-primary-500"
             >
-              Lihat progress
+              Lihat status
             </button>
           </p>
         </div>
@@ -83,8 +83,8 @@ export function ProgressAltScreen() {
       <BottomSheet open={progressOpen} onClose={() => setProgressOpen(false)} title="Progress Ibu">
         <div className="flex flex-col">
           <ProgressMenuItem
-            label="Progress pribadi"
-            subtitle="Berpengaruh ke semua goal"
+            label="Status pribadi"
+            subtitle="Mempengaruhi semua tahapan kenaikan limit."
             health={personal}
             onOpen={() => {
               setProgressOpen(false)
@@ -93,8 +93,8 @@ export function ProgressAltScreen() {
           />
           <div className="h-px bg-neutral-200" />
           <ProgressMenuItem
-            label="Progress majelis"
-            subtitle="Berpengaruh ke goal kenaikan limit"
+            label="Status majelis"
+            subtitle="Mempengaruhi kenaikan limit akhir."
             health={majelis}
             onOpen={() => {
               setProgressOpen(false)

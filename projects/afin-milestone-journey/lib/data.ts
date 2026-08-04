@@ -224,25 +224,25 @@ const majelisUplift = (ceiling: string) => ({
 export const MILESTONES: Milestone[] = [
   {
     label: '14 Jul 2026',
-    status: { label: 'Sesuai rencana', tone: 'blue' },
+    status: { label: 'Lancar', tone: 'blue' },
     countdown: '2 minggu lagi',
-    actionLabel: 'Cairkan dana',
+    actionLabel: 'Bisa dicairkan',
     ...PENCAIRAN_ESTIMATE,
     state: 'next',
     detail: 'milestone-progress',
   },
   {
     label: '6 Okt 2026',
-    status: { label: 'Sesuai rencana', tone: 'blue' },
+    status: { label: 'Lancar', tone: 'blue' },
     countdown: '14 minggu lagi',
-    actionLabel: 'Cairkan dana',
+    actionLabel: 'Bisa dicairkan',
     ...PENCAIRAN_ESTIMATE,
     state: 'locked',
     detail: 'milestone-progress',
   },
   {
     label: '26 Jan 2027',
-    status: { label: 'Sesuai rencana', tone: 'blue' },
+    status: { label: 'Lancar', tone: 'blue' },
     countdown: '30 minggu lagi',
     actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
     state: 'locked',
@@ -303,8 +303,8 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
   jul: [
     {
       label: '14 Jul 2026',
-      status: { label: 'Berhasil diraih', tone: 'green' },
-      actionLabel: 'Cairkan dana',
+      status: { label: 'Sudah dicapai', tone: 'green' },
+      actionLabel: 'Bisa dicairkan',
       amount: 'Rp1,25jt',
       state: 'unlocked',
       cta: 'Cairkan',
@@ -312,16 +312,16 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
     },
     {
       label: '6 Okt 2026',
-      status: { label: 'Sesuai rencana', tone: 'blue' },
+      status: { label: 'Lancar', tone: 'blue' },
       countdown: '10 minggu lagi',
-      actionLabel: 'Cairkan dana',
+      actionLabel: 'Bisa dicairkan',
       ...PENCAIRAN_ESTIMATE,
       state: 'next',
       detail: 'milestone-progress',
     },
     {
       label: '26 Jan 2027',
-      status: { label: 'Sesuai rencana', tone: 'blue' },
+      status: { label: 'Lancar', tone: 'blue' },
       countdown: '26 minggu lagi',
       actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
       state: 'locked',
@@ -351,16 +351,16 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
     },
     {
       label: '6 Okt 2026',
-      status: { label: 'Sesuai rencana', tone: 'blue' },
+      status: { label: 'Lancar', tone: 'blue' },
       countdown: '10 minggu lagi',
-      actionLabel: 'Cairkan dana',
+      actionLabel: 'Bisa dicairkan',
       ...PENCAIRAN_ESTIMATE,
       state: 'next',
       detail: 'milestone-progress',
     },
     {
       label: '26 Jan 2027',
-      status: { label: 'Sesuai rencana', tone: 'blue' },
+      status: { label: 'Lancar', tone: 'blue' },
       countdown: '26 minggu lagi',
       actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
       state: 'locked',
@@ -392,15 +392,15 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
   okt: [
     {
       label: '14 Jul 2026',
-      status: { label: 'Berhasil diraih', tone: 'green' },
+      status: { label: 'Sudah dicapai', tone: 'green' },
       actionLabel: 'Pencairan tambahan',
       state: 'unlocked',
       detail: 'milestone-unlocked',
     },
     {
       label: '6 Okt 2026',
-      status: { label: 'Berhasil diraih', tone: 'green' },
-      actionLabel: 'Cairkan dana',
+      status: { label: 'Sudah dicapai', tone: 'green' },
+      actionLabel: 'Bisa dicairkan',
       amount: 'Rp2,5jt',
       state: 'unlocked',
       cta: 'Cairkan',
@@ -408,7 +408,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
     },
     {
       label: '26 Jan 2027',
-      status: { label: 'Sesuai rencana', tone: 'blue' },
+      status: { label: 'Lancar', tone: 'blue' },
       countdown: '16 minggu lagi',
       actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
       state: 'next',
@@ -433,15 +433,15 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
   jan: [
     {
       label: '14 Jul 2026',
-      status: { label: 'Berhasil diraih', tone: 'green' },
+      status: { label: 'Sudah dicapai', tone: 'green' },
       actionLabel: 'Pencairan tambahan',
       state: 'unlocked',
       detail: 'milestone-unlocked',
     },
     {
       label: '6 Okt 2026',
-      status: { label: 'Berhasil diraih', tone: 'green' },
-      actionLabel: 'Cairkan dana',
+      status: { label: 'Sudah dicapai', tone: 'green' },
+      actionLabel: 'Bisa dicairkan',
       amount: 'Rp2,5jt',
       state: 'unlocked',
       cta: 'Cairkan',
@@ -449,7 +449,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
     },
     {
       label: '26 Jan 2027',
-      status: { label: 'Berhasil diraih', tone: 'green' },
+      status: { label: 'Sudah dicapai', tone: 'green' },
       actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
       state: 'unlocked',
       cta: 'Mulai',
@@ -473,21 +473,21 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
   mar: [
     {
       label: '14 Jul 2026',
-      status: { label: 'Berhasil diraih', tone: 'green' },
+      status: { label: 'Sudah dicapai', tone: 'green' },
       actionLabel: 'Pencairan tambahan',
       state: 'unlocked',
       detail: 'milestone-unlocked',
     },
     {
       label: '6 Okt 2026',
-      status: { label: 'Berhasil diraih', tone: 'green' },
+      status: { label: 'Sudah dicapai', tone: 'green' },
       actionLabel: 'Pencairan tambahan',
       state: 'unlocked',
       detail: 'milestone-unlocked',
     },
     {
       label: '26 Jan 2027',
-      status: { label: 'Berhasil diraih', tone: 'green' },
+      status: { label: 'Sudah dicapai', tone: 'green' },
       actionLabel: 'Pelunasan dini',
       state: 'unlocked',
       detail: 'milestone-pelunasan',
@@ -496,7 +496,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       // Reached, so the ceiling is settled and stated flat — no "s/d", and no
       // majelis footnote: there is nothing left to condition it on.
       label: '23 Mar 2027 🏆',
-      status: { label: 'Berhasil diraih', tone: 'green' },
+      status: { label: 'Sudah dicapai', tone: 'green' },
       actionLabel: 'Peningkatan limit',
       amount: 'Rp8jt',
       state: 'next',
@@ -512,8 +512,8 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
   newloan: [
     {
       label: '15 Jun 2027',
-      status: { label: 'Berhasil diraih', tone: 'green' },
-      actionLabel: 'Cairkan dana',
+      status: { label: 'Sudah dicapai', tone: 'green' },
+      actionLabel: 'Bisa dicairkan',
       amount: 'Rp2jt',
       state: 'unlocked',
       cta: 'Cairkan',
@@ -521,9 +521,9 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
     },
     {
       label: '7 Sep 2027',
-      status: { label: 'Sesuai rencana', tone: 'blue' },
+      status: { label: 'Lancar', tone: 'blue' },
       countdown: '12 minggu lagi',
-      actionLabel: 'Cairkan dana',
+      actionLabel: 'Bisa dicairkan',
       amount: 'Rp2jt',
       amountTo: 'Rp2,4jt',
       state: 'next',
@@ -531,7 +531,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
     },
     {
       label: '30 Nov 2027',
-      status: { label: 'Sesuai rencana', tone: 'blue' },
+      status: { label: 'Lancar', tone: 'blue' },
       countdown: '24 minggu lagi',
       actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
       state: 'locked',
