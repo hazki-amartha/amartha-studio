@@ -154,8 +154,6 @@ export function HomeV2Screen() {
             </div>
           </div>
 
-          <div className="-mx-16 mt-16 border-t border-light" />
-
           {rewardAtRisk ? (
             <div className="mb-16 mt-16">
               <Notice tone="orange">
@@ -225,7 +223,10 @@ export function HomeV2Screen() {
             with nothing open never sees an empty promise. */}
         {!isNew && claimable ? (
           <>
-            <div className="border-t border-light" />
+            {/* `border-default`, not the `border-light` used elsewhere in this
+                card: it is the only rule left on the card now, so it carries
+                the whole separation between habits and payout on its own. */}
+            <div className="border-t border-default" />
             <div className="p-12">
               <div className="flex items-center gap-12 rounded-12 bg-blue-50 p-12">
                 <div className="min-w-0 flex-1">
