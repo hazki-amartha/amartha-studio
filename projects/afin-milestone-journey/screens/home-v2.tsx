@@ -106,18 +106,28 @@ export function HomeV2Screen() {
             one timeline, so short and long term read as one story. */}
         <div className="p-16">
           {/* The card names the nearest goal and hands the whole ladder to one
-              link — the header is the way in, so there is no footer bar. */}
+              link — the header is the way in, so there is no footer bar.
+
+              A brand-new mitra gets neither. She has no goal yet and no journey
+              to look at, so the card is titled for what she DOES have — a
+              pinjaman, waiting to be drawn — and "Lihat semua" would open a
+              ladder with nothing on it. */}
           <div className="flex items-center gap-8">
-            <p className="min-w-0 flex-1 text-16 font-bold text-default">Gol pinjaman Anda</p>
-            <button
-              type="button"
-              onClick={() => flow.go('progress')}
-              className="shrink-0 text-14 font-bold text-primary-500"
-            >
-              Lihat semua
-            </button>
+            <p className="min-w-0 flex-1 text-16 font-bold text-default">
+              {isNew ? 'Pinjaman Anda' : 'Gol pinjaman Anda'}
+            </p>
+            {isNew ? null : (
+              <button
+                type="button"
+                onClick={() => flow.go('progress')}
+                className="shrink-0 text-14 font-bold text-primary-500"
+              >
+                Lihat semua
+              </button>
+            )}
           </div>
 
+          {isNew ? null : (
           <div className="mt-24">
             {/* Colour runs from today only as far as the next goal, and
                 everything past it is grey. The rail is one claim — "this is the
@@ -181,8 +191,11 @@ export function HomeV2Screen() {
               </div>
             </div>
           </div>
+          )}
 
-          {rewardAtRisk ? (
+          {/* The intro line belongs to a list of habits. A new mitra has one
+              row and it is not a habit, so it would be introducing nothing. */}
+          {isNew ? null : rewardAtRisk ? (
             <div className="mb-16 mt-16">
               <Notice tone="orange">
                 Reward Ibu bisa hangus. Bayar tunggakan angsuran agar reward tetap didapat.
@@ -194,12 +207,15 @@ export function HomeV2Screen() {
             </p>
           )}
 
-          <div className="flex flex-col gap-16">
+          <div className={`flex flex-col gap-16 ${isNew ? 'mt-24' : ''}`}>
             {isNew ? (
+              // Her whole card: the money is already hers to take, so the row
+              // states the figure the way the payout band does rather than
+              // burying it in a caption.
               <Task
                 status="todo"
-                title="Cairkan Rp5jt"
-                description="Limit tersedia Rp5jt"
+                title="Dana siap dicairkan"
+                description={<span className="text-18 font-bold text-green-600">Rp5jt</span>}
                 action={
                   <TaskButton tone="primary" onClick={() => flow.go('disburse-amount')}>
                     Cairkan
