@@ -200,7 +200,7 @@ function AutodebitBanner({
   return (
     <div className="-mx-16 -mt-16 bg-blue-50 px-16 py-16">
       <div className="flex items-center gap-8">
-        <span className="text-16 font-bold text-default">Autodebit angsuran</span>
+        <span className="text-16 font-bold text-default">Pembayaran autodebit</span>
         {on ? (
           <Badge intent="green" variant="subtle" size="sm">
             Sudah aktif
@@ -215,13 +215,16 @@ function AutodebitBanner({
           </>
         ) : short ? (
           <>
-            Saldo Poket belum cukup untuk tagihan berikutnya.{' '}
-            <BannerLink onClick={onTopUp}>Isi saldo</BannerLink>
+            Tagihan berikutnya ditarik otomatis pada{' '}
+            <span className="font-bold text-default">{BILL_DUE}</span>. Saldo Poket
+            belum cukup.{' '}
+            <BannerLink onClick={onTopUp}>Isi Saldo</BannerLink>
           </>
         ) : (
           <>
             Tagihan berikutnya ditarik otomatis pada{' '}
-            <span className="font-bold text-default">{BILL_DUE}</span>.
+            <span className="font-bold text-default">{BILL_DUE}</span>. Pastikan
+            Saldo Poket Anda cukup.
           </>
         )}
       </p>

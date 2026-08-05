@@ -274,12 +274,6 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/amount'), 'AmountScreen'),
       states: [
         {
-          id: 'autodebit-mati',
-          label: 'Autodebit not active',
-          description: 'The banner offers it — "Bisa bayar otomatis dari saldo Poket".',
-          apply: demo.autodebitMati,
-        },
-        {
           id: 'autodebit-kurang',
           label: 'Autodebit — balance short',
           description: 'Armed against a Rp80.000 wallet, so the banner leads with Top-up.',
