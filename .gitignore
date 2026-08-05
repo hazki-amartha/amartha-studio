@@ -3,6 +3,8 @@
 
 # next.js
 /.next/
+# Verification builds (NEXT_DIST_DIR), kept out of the dev server's cache.
+/.next-verify/
 /out/
 
 # production

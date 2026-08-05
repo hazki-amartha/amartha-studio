@@ -308,12 +308,21 @@ Run these three and confirm all pass. They take about **12 seconds** together �
 there is no reason to skip them, and no reason to do more.
 
 - `npm run lint` — clean (catches arbitrary values / off-system classes).
-- `npm run build` — clean (type-checks every screen, so every `go()` target and
-  import is verified).
+- `NEXT_DIST_DIR=.next-verify npm run build` — clean (type-checks every screen,
+  so every `go()` target and import is verified).
 - `npm run check:flows` — unique `entry`, unique screen ids, and every
   `flowsTo.to` resolves.
 
 If any fails, fix it before telling the designer the work is done.
+
+**Always pass `NEXT_DIST_DIR` when you build.** A bare `npm run build` writes to
+`.next` — the same cache the designer's dev server is serving from — and
+overwrites its compiled output mid-session. Their open page then 500s with
+"missing required error components", which looks exactly like "your change
+didn't work": they refresh, see the old page or an error, and report the feature
+broken while the code is fine. `NEXT_DIST_DIR` sends the check somewhere
+harmless and leaves the preview up. CI and Vercel leave it unset, so they still
+build to `.next`.
 
 **That is the whole gate. Do not add to it.** Specifically: **do not open a
 browser, drive a headless session, or take screenshots to "verify" a UI change.**

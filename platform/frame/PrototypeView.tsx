@@ -540,7 +540,9 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
 
 /** The way out of an explicitly-requested full screen. Floating rather than in a
  *  bar, because a bar is chrome and bare mode's whole point is that there isn't
- *  any: it sits over the bottom-right corner, where app UI least often is. */
+ *  any. Top-right, where the Full screen button in the shell's top bar was: the
+ *  control that leaves a mode should be near the one that entered it, so the eye
+ *  goes back to where it just clicked. */
 function ExitFullScreen() {
   return (
     <button
@@ -548,7 +550,7 @@ function ExitFullScreen() {
       onClick={() => setBareMode(false)}
       aria-label="Exit full screen"
       title="Exit full screen (Esc)"
-      className="fixed bottom-24 right-24 z-30 flex items-center gap-8 rounded-full border border-default bg-neutral-white px-16 py-8 text-12 font-bold text-caption shadow-sm hover:bg-neutral-50 hover:text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+      className="fixed right-24 top-24 z-30 flex items-center gap-8 rounded-full border border-default bg-neutral-white px-16 py-8 text-12 font-bold text-caption shadow-sm hover:bg-neutral-50 hover:text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
     >
       <CloseIcon className="size-16" />
       Exit full screen
