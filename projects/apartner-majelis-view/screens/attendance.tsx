@@ -123,7 +123,7 @@ export function AttendanceScreen() {
         <NavigationHeader
           title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
           onBack={() => flow.back()}
-          link="Skip"
+          link="Lewati"
           onLinkClick={() => setSkipping(true)}
         />
       }
@@ -146,24 +146,27 @@ export function AttendanceScreen() {
         </div>
       </div>
 
-      {/* "Catat semua" — the whole group turned up, said once. The common case
-          at a healthy majelis is a full room, and 22 taps to record it is 22
-          chances to mis-tap on the one stage that gates everything after it. It
-          only fills the BLANKS: an absence already recorded, with its reason
+      {/* "Catat semua hadir" — the whole group turned up, said once. The common
+          case at a healthy majelis is a full room, and 22 taps to record it is
+          22 chances to mis-tap on the one stage that gates everything after it.
+          It only fills the BLANKS: an absence already recorded, with its reason
           attached, is an answer, and a bulk control that overwrote one would
-          make the register unsafe to use. */}
+          make the register unsafe to use.
+
+          Once the register is full the same control flips to "Kosongkan semua",
+          because that is the moment the bulk mark can be WRONG — a BP who hits
+          it on the wrong majelis needs one tap back, not 22, and the flip keeps
+          the undo where the mistake was made rather than hiding it in a menu. */}
       <div className="flex items-center gap-8">
         <SectionTitle>Daftar Mitra</SectionTitle>
         <span className="flex-1" />
-        {settled < total ? (
-          <button
-            type="button"
-            onClick={() => store.markAllPresent()}
-            className="shrink-0 text-12 font-bold text-primary-500"
-          >
-            Catat semua
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={() => (settled < total ? store.markAllPresent() : store.clearAllAttendance())}
+          className="shrink-0 text-12 font-bold text-primary-500"
+        >
+          {settled < total ? 'Catat semua hadir' : 'Kosongkan semua'}
+        </button>
       </div>
 
       {/* "Who is left" — the same question, the same chips, as stage 2. */}
