@@ -36,7 +36,7 @@ import {
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { claimableOf, rupiah } from '../lib/data'
-import { outstanding, store, tunggakan, useApp } from '../lib/store'
+import { rewardAtRisk as isRewardAtRisk, store, tunggakan, useApp } from '../lib/store'
 import { BayarButton, BillLine, PayoutTile, Task, billStatus } from '../lib/tasks'
 import { Notice, SectionTitle, TaskButton } from '../lib/ui'
 
@@ -59,9 +59,9 @@ export function HomeV2Screen() {
   const s = useApp()
   const isNew = s.mitraStage === 'new'
   // The reward is at risk in two conditions, not one: the deliberate at-risk
-  // state, and a short payment that left arrears behind. Both owe money this
-  // week, so both get the warning and the red disbursement chip.
-  const rewardAtRisk = !isNew && (s.atRisk || (s.billState === 'paid' && outstanding(s) > 0))
+  // state, and a short payment that left arrears behind. The condition lives in
+  // the store so the progress ladder marks the same goal Berisiko off it.
+  const rewardAtRisk = isRewardAtRisk(s)
   // The rail and the warning notice below it share one condition, so they share
   // one colour.
   const railTone: RailTone = rewardAtRisk ? 'orange' : 'blue'

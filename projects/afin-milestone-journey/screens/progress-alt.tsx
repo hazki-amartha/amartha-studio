@@ -19,9 +19,9 @@ import { LightbulbFilament } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { HISTORY, MILESTONE_SETS, hasPreviousCycle } from '../lib/data'
-import { members, useApp } from '../lib/store'
+import { members, rewardAtRisk, useApp } from '../lib/store'
 import { healthOf } from '../lib/milestone-tracker'
-import { MilestoneRung, PreviousCycleLink, ProgressMenuItem } from '../lib/journey'
+import { MilestoneRung, PreviousCycleLink, ProgressMenuItem, withRewardRisk } from '../lib/journey'
 
 export function ProgressAltScreen() {
   const flow = useFlow()
@@ -30,7 +30,7 @@ export function ProgressAltScreen() {
   const [progressOpen, setProgressOpen] = useState(false)
 
   // Which snapshot of the ladder to draw — the demo-state controls set the phase.
-  const milestones = MILESTONE_SETS[journeyPhase]
+  const milestones = withRewardRisk(MILESTONE_SETS[journeyPhase], rewardAtRisk(app))
 
   // The two reads behind the "Lihat status" menu, from the same data their
   // detail pages use: her own bayar/hadir record, and the majelis's payments.
