@@ -66,10 +66,10 @@ it for you. What happens then depends on what you touched:
 | You changed | What happens |
 |---|---|
 | Only your own `projects/<slug>/` | Merges by itself once CI is green. No review, usually a minute or two. |
-| `design-system/`, `platform/`, or config | Waits for Hazki to review. Normal, not a failure. |
+| `design-system/`, `platform/`, or config | Waits for a review. Normal, not a failure. |
 
 Either way, **you get a preview link as soon as the build finishes** — even for a
-change that's waiting on Hazki. So "waiting on review" never means "can't show
+change that's waiting on review. So "waiting on review" never means "can't show
 anyone"; you can share the live preview the whole time it waits.
 
 Agents are allowed to *edit* the design system and platform — they just can't
@@ -90,7 +90,7 @@ which paths need a review.
 | `CLAUDE.md` | The agent contract — the most important file |
 
 Design-system changes are owner-gated **at the merge**: an agent may edit
-`design-system/`, but the PR blocks until Hazki reviews it. The cheaper path is
+`design-system/`, but the PR blocks until the studio owner reviews it. The cheaper path is
 still a project-local component plus a `NOTES.md` promotion proposal — the owner
 promotes it upstream later, and uses `/ingest` to bring new components in from
 Figma.

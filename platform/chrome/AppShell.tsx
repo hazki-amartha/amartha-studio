@@ -16,9 +16,22 @@ import {
   setInspectMode,
   subscribeInspectMode,
 } from '@/platform/runtime/inspectBridge'
+import {
+  getBareMode,
+  getBareServerSnapshot,
+  setBareMode,
+  subscribeBareMode,
+} from '@/platform/runtime/presentBridge'
 import styles from './chrome.module.css'
 import { HeaderStatusProvider, useHeaderStatus } from './headerStatus'
-import { ChevronRightIcon, DeviceIcon, FlowIcon, InspectIcon, PanelIcon } from './icons'
+import {
+  ChevronRightIcon,
+  DeviceIcon,
+  ExpandIcon,
+  FlowIcon,
+  InspectIcon,
+  PanelIcon,
+} from './icons'
 import { MobileTopNav } from './MobileTopNav'
 import { NavRail, type RailSection } from './NavRail'
 import { ScreenSidebar } from './ScreenSidebar'
@@ -140,6 +153,31 @@ function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
   )
 }
 
+/**
+ * Full screen — hands the whole browser window to the prototype.
+ *
+ * It sets a flag rather than navigating: the route is already right, and
+ * remounting PrototypeView would reset the visit stack, dropping the viewer
+ * back on the entry screen at exactly the moment they wanted to show something.
+ * Same reasoning as the Inspect button beside it.
+ *
+ * Only on the prototype route — the flow view is a diagram, and there is
+ * nothing to present bare.
+ */
+function FullScreenButton() {
+  return (
+    <button
+      type="button"
+      onClick={() => setBareMode(true)}
+      aria-label="Full screen"
+      title="Full screen"
+      className="flex size-32 shrink-0 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+    >
+      <ExpandIcon className="size-20" />
+    </button>
+  )
+}
+
 function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-8">
@@ -235,6 +273,7 @@ function AppShellInner({
 }) {
   const pathname = usePathname() ?? '/'
   const [collapsed, setCollapsed] = useState(false)
+  const bare = useSyncExternalStore(subscribeBareMode, getBareMode, getBareServerSnapshot)
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(STORAGE_KEY) === '1')
@@ -256,6 +295,20 @@ function AppShellInner({
   // Below md the rail and sidebar never render: prototype routes go fullscreen
   // (TripleTapExit is the way back), every other route gets MobileTopNav.
   const isProto = currentSlug != null
+
+  // Bare presentation — the prototype gets the window and the shell steps out
+  // entirely. TripleTapExit still wraps it: the prototype view drops its own
+  // floating exit button on a phone viewport (where it would cover real UI),
+  // and this is what the viewer is left with.
+  if (isProto && bare) {
+    return (
+      <div className="h-screen overflow-hidden bg-neutral-50 dark:bg-ink-950">
+        <TripleTapExit className="h-full touch-manipulation overflow-y-auto">
+          {children}
+        </TripleTapExit>
+      </div>
+    )
+  }
   // Inside a project the sidebar becomes its page explorer; an unknown slug
   // (the 404 route) falls back to the project list.
   const currentProject = currentSlug
@@ -300,6 +353,7 @@ function AppShellInner({
           <div className="ml-auto flex shrink-0 items-center gap-12">
             <HeaderStatusView />
             {currentSlug ? <ViewToggle slug={currentSlug} isFlow={isFlow} /> : null}
+            {currentSlug && !isFlow ? <FullScreenButton /> : null}
           </div>
         </header>
 
