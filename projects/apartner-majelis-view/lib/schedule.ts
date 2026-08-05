@@ -18,7 +18,13 @@
 // target are paid out of the same seven KPI parameters and worked in the same
 // eight hours; giving prospecting its own tab would let it be the thing she
 // gets to if there is time, which is precisely how it stops happening.
-export type TaskKind = 'majelis' | 'home-visit' | 'setoran' | 'sosialisasi' | 'follow-up'
+export type TaskKind =
+  | 'majelis'
+  | 'home-visit'
+  | 'setoran'
+  | 'sosialisasi'
+  | 'follow-up'
+  | 'reminder'
 
 export interface Task {
   id: string
@@ -59,6 +65,20 @@ export interface Task {
 }
 
 export const TASKS: Task[] = [
+  // First thing, before any balai opens: one message out to every group meeting
+  // today. It sits on the schedule as a task rather than living inside each
+  // majelis visit because it is done ONCE for the whole day and it is done from
+  // the house — folding it into the visit would ask her to send a reminder to a
+  // room she is already standing in.
+  {
+    id: 't0',
+    kind: 'reminder',
+    time: '07.00',
+    until: '07.15',
+    title: 'Ingatkan Majelis Hari Ini',
+    place: 'Kirim pesan ke grup WhatsApp majelis',
+    reason: '3 majelis ada kumpulan hari ini',
+  },
   {
     id: 't1',
     kind: 'majelis',
@@ -68,7 +88,7 @@ export const TASKS: Task[] = [
     place: 'Balai RW 04, Ciseeng',
     reason: '3 mitra menunggak · pelayanan rutin',
     majelisId: 'mawar',
-    distanceKm: 1.2,
+    distanceKm: 1.5,
   },
   {
     id: 't2',
@@ -405,7 +425,14 @@ export const splitDeposit = (total: number): [number, number] => {
 export const taskCode = (taskId: string): string => {
   const kind = TASKS.find((t) => t.id === taskId)?.kind
   if (!kind) return ''
-  return { majelis: 'MV', 'home-visit': 'HV', sosialisasi: 'Sos', 'follow-up': 'FU', setoran: 'Setor' }[kind]
+  return {
+    majelis: 'MV',
+    'home-visit': 'HV',
+    sosialisasi: 'Sos',
+    'follow-up': 'FU',
+    setoran: 'Setor',
+    reminder: 'Ingat',
+  }[kind]
 }
 
 /**
@@ -597,6 +624,15 @@ export const findMajelisEntry = (id: string): MajelisEntry =>
 /** The schedule row behind a visit — carries the pre-reasoned "why now" line. */
 export const findTask = (id: string | null): Task | undefined =>
   id ? TASKS.find((t) => t.id === id) : undefined
+
+/**
+ * Every majelis with a kumpulan on today's schedule — who the reminder goes to.
+ *
+ * Derived from TASKS rather than listed again, so the reminder screen and the
+ * agenda can never disagree about which groups are meeting: move a pelayanan to
+ * tomorrow and the group drops off the reminder by itself.
+ */
+export const todayMajelisTasks = (): Task[] => TASKS.filter((t) => t.kind === 'majelis')
 
 /**
  * The scheduled pelayanan for a group, if the day has one. This is what lets a
