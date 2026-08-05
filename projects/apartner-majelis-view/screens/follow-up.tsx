@@ -24,7 +24,6 @@
 
 import { useState } from 'react'
 import { Badge, Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
 import {
@@ -39,7 +38,7 @@ import {
 import { LeadIdentityCard } from '../lib/lead-card'
 import { findMajelisEntry } from '../lib/schedule'
 import { openLead, rescheduleCount, store, useApp } from '../lib/store'
-import { Chip, ChipGroup, RescheduleSheet, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
+import { AppScreen, Chip, ChipGroup, RescheduleSheet, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
 
 const NEXT_STEPS: { value: 'siap' | 'lanjut' | 'tidak'; title: string; description: string }[] = [
   {
@@ -136,7 +135,7 @@ export function FollowUpScreen() {
   }
 
   return (
-    <Screen
+    <AppScreen
       topBar={
         <NavigationHeader
           title={<VisitTitle title={lead.name} when="Follow up · Selasa, 11.45" />}
@@ -156,7 +155,7 @@ export function FollowUpScreen() {
         <div className="flex flex-col gap-8">
           <span className="text-14 font-bold text-default">Sebelum menghubungi</span>
           {lastLog ? (
-            <div className="flex flex-col gap-2 rounded-8 bg-neutral-50 px-12 py-8">
+            <div className="flex flex-col gap-2 rounded-8 bg-canvas-blue px-12 py-8">
               <span className="text-12 font-bold text-default">
                 {lastLog.at} · {lastLog.outcome}
               </span>
@@ -395,6 +394,6 @@ export function FollowUpScreen() {
         onConfirm={reschedule}
         onReject={reject}
       />
-    </Screen>
+    </AppScreen>
   )
 }

@@ -210,7 +210,7 @@ export function HomeBriefScreen() {
           edges — the shift from reading about her to recording the visit.
           Grows to fill, so the input zone owns the lower screen. Picking PJ or
           nobody opens the follow-up in a bottom sheet, not inline. ---------- */}
-      <section className="-mx-16 flex flex-1 flex-col gap-12 bg-neutral-50 px-16 py-16">
+      <section className="-mx-16 flex flex-1 flex-col gap-12 bg-canvas-blue px-16 py-16">
         <div className="flex flex-col gap-8">
           <SectionTitle>Siapa yang ditemui?</SectionTitle>
           <div className="flex flex-col gap-8">

@@ -48,7 +48,7 @@ export function WaSendSheet({
       description={description}
     >
       <div className="flex flex-col gap-12">
-        <div className="flex items-center gap-8 rounded-8 bg-neutral-50 p-12">
+        <div className="flex items-center gap-8 rounded-8 bg-canvas-blue p-12">
           <span className="shrink-0 text-green-500">
             <WhatsappLogo size={20} />
           </span>

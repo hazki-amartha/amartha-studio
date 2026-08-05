@@ -44,7 +44,6 @@ import {
   NavigationHeader,
 } from '@/design-system/components'
 import { ChevronDown, ChevronUp } from '@/design-system/icons'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
 import { AGENT, DEPOSIT, agentCodeFor, splitDeposit, vaFor } from '../lib/schedule'
@@ -58,13 +57,7 @@ import {
   unsettledTotal,
   useApp,
 } from '../lib/store'
-import {
-  IconTile,
-  OptionCard,
-  SectionTitle,
-  SettlementHistorySheet,
-  StickyBar,
-} from '../lib/ui'
+import { AppScreen, IconTile, OptionCard, SectionTitle, SettlementHistorySheet, StickyBar } from '../lib/ui'
 
 export function SettlementScreen() {
   const flow = useFlow()
@@ -154,7 +147,7 @@ export function SettlementScreen() {
   // neither is a form.
   if (entries.length === 0) {
     return (
-      <Screen
+      <AppScreen
         topBar={
           <NavigationHeader
             title="Setoran"
@@ -205,7 +198,7 @@ export function SettlementScreen() {
         </StickyBar>
 
         <SettlementHistorySheet open={historyOpen} onClose={() => setHistoryOpen(false)} />
-      </Screen>
+      </AppScreen>
     )
   }
 
@@ -215,7 +208,7 @@ export function SettlementScreen() {
   // offer a button that cannot fire.
   if (s.settlements.length >= DEPOSIT.maxPerDay) {
     return (
-      <Screen
+      <AppScreen
         topBar={
           <NavigationHeader
             title="Setoran"
@@ -252,12 +245,12 @@ export function SettlementScreen() {
         </StickyBar>
 
         <SettlementHistorySheet open={historyOpen} onClose={() => setHistoryOpen(false)} />
-      </Screen>
+      </AppScreen>
     )
   }
 
   return (
-    <Screen
+    <AppScreen
       topBar={
         <NavigationHeader
           title={`Setoran ${no}`}
@@ -483,7 +476,7 @@ export function SettlementScreen() {
       />
 
       <SettlementHistorySheet open={historyOpen} onClose={() => setHistoryOpen(false)} />
-    </Screen>
+    </AppScreen>
   )
 }
 

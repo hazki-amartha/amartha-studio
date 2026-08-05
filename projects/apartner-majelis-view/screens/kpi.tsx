@@ -41,13 +41,13 @@
 
 import { useState } from 'react'
 import { Badge, Card } from '@/design-system/components'
-import { Screen, TopBar } from '@/platform/primitives'
+import { TopBar } from '@/platform/primitives'
 import { ringkas, rupiah } from '../lib/data'
 import { KPI_BANDS, KPI_DAYS_LEFT, buildKpi, type KpiRow } from '../lib/kpi'
 import { IconCheck } from '../lib/icons'
 import { TabBar } from '../lib/tabs'
 import { useApp } from '../lib/store'
-import { Meter, SectionTitle } from '../lib/ui'
+import { AppScreen, Meter, SectionTitle } from '../lib/ui'
 
 /**
  * A: the per-parameter rupiah model. B1/B2: the weighted-score model, which
@@ -77,14 +77,14 @@ export function KpiScreen() {
   const d = buildKpi(kpiPeriod)
 
   return (
-    <Screen
+    <AppScreen
       topBar={
         <TopBar>
           <span className="flex-1">KPI</span>
           {/* The one control on the page: swap the whole scoreboard between the
               per-parameter rupiah model and the two readings of the
               weighted-score model. */}
-          <div className="flex items-center gap-2 rounded-full border border-default bg-neutral-50 p-2">
+          <div className="flex items-center gap-2 rounded-full border border-default bg-canvas-blue p-2">
             {KPI_VERSIONS.map((v) => (
               <button
                 key={v}
@@ -115,7 +115,7 @@ export function KpiScreen() {
       )}
 
       <TabBar active="kpi" />
-    </Screen>
+    </AppScreen>
   )
 }
 

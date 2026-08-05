@@ -9,6 +9,7 @@
 // actually introduces.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Screen, type ScreenProps } from '@/platform/primitives'
 import { Badge, BottomSheet, Button, Input, SelectableCard } from '@/design-system/components'
 import { ProductLogo } from '@/design-system/assets'
 import {
@@ -113,6 +114,26 @@ export const STAGE_LABELS = ['Kehadiran', 'Penagihan', 'Penawaran', 'Bukti']
 // since there is nothing to tagih from a locked door. Otherwise the Tagih step
 // settles the money against the ledger, then Bukti & Kirim proves the visit.
 export const HOME_STAGE_LABELS = ['Kunjungi', 'Tagih', 'Kirim bukti']
+
+/**
+ * The BP app's page frame: a platform `Screen` on this direction's own cool
+ * canvas (`canvas-blue`, #F3F6FD) instead of the studio-wide warm neutral-50.
+ *
+ * A project-local wrapper rather than a new `canvas` option on `Screen`,
+ * because only this direction wants the cool ground — every other prototype,
+ * and the shipped AmarthaFin screens, still sit on the warm one.
+ *
+ * Screens that are deliberately WHITE pages (Penagihan, Home visit, Brief,
+ * Mitra) do not use this: they keep a plain `Screen` and paint their own white
+ * ground. Only the grey they already had becomes blue.
+ *
+ * The `!` is load-bearing. `Screen` puts its own `bg-canvas-blue` on the same
+ * element, so without the important flag which of the two wins would depend on
+ * their order in Tailwind's generated CSS rather than on anything stated here.
+ */
+export function AppScreen({ className, ...props }: ScreenProps) {
+  return <Screen {...props} className={`!bg-canvas-blue ${className ?? ''}`.trim()} />
+}
 
 export function StageBar({
   current,
@@ -369,7 +390,7 @@ export function WeekGrid({ weeks }: { weeks: Week[] }) {
               <div
                 key={w.no}
                 className={`flex flex-1 flex-col items-center gap-8 rounded-8 px-4 py-8 ${
-                  current ? 'bg-primary-50' : 'bg-neutral-50'
+                  current ? 'bg-primary-50' : 'bg-canvas-blue'
                 }`}
               >
                 <span
@@ -741,7 +762,7 @@ export function ReasonNote({
   // against. Neutral, not primary: the rule is punctuation, and this block is
   // already the quiet half of a card whose answer is coloured above it.
   return (
-    <div className="flex items-start gap-8 rounded-r-8 border-l-2 border-default bg-neutral-50 p-8">
+    <div className="flex items-start gap-8 rounded-r-8 border-l-2 border-default bg-canvas-blue p-8">
       <span className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="truncate text-12 text-caption">{label}</span>
         <span className="break-words text-12 text-default">{value}</span>
@@ -828,7 +849,7 @@ const RESULT_TONE: Record<ResultTone, { band: string; ink: string }> = {
  */
 function NoteBlock({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-4 rounded-r-8 border-l-2 border-neutral-400 bg-neutral-50 px-12 py-4">
+    <div className="flex flex-col gap-4 rounded-r-8 border-l-2 border-neutral-400 bg-canvas-blue px-12 py-4">
       {children}
     </div>
   )
@@ -1513,7 +1534,7 @@ export function Meter({
           it reads as a different place to be rather than more of the same. */}
       {mark == null ? null : (
         <div
-          className="absolute inset-y-0 right-0 rounded-r-full bg-neutral-50"
+          className="absolute inset-y-0 right-0 rounded-r-full bg-canvas-blue"
           style={{ left: `${mark}%` }}
         />
       )}
@@ -1682,7 +1703,7 @@ export function ContactButton({
         : tone === 'primary'
           ? 'text-primary-500'
           : 'text-default'
-  const shared = `flex h-40 w-40 shrink-0 items-center justify-center rounded-full border border-default bg-neutral-50 ${ink}`
+  const shared = `flex h-40 w-40 shrink-0 items-center justify-center rounded-full border border-default bg-canvas-blue ${ink}`
   if (href) {
     return (
       <a href={href} target="_blank" rel="noreferrer" aria-label={label} className={shared}>
@@ -1924,11 +1945,11 @@ export function SettlementHistorySheet({ open, onClose }: { open: boolean; onClo
         <div className="flex flex-col gap-8">
           <SectionTitle>Setoran hari ini</SectionTitle>
           {s.settlements.length === 0 ? (
-            <div className="rounded-12 bg-neutral-50 px-12 py-16 text-center text-12 text-caption">
+            <div className="rounded-12 bg-canvas-blue px-12 py-16 text-center text-12 text-caption">
               Belum ada setoran hari ini.
             </div>
           ) : (
-            <div className="rounded-12 bg-neutral-50">
+            <div className="rounded-12 bg-canvas-blue">
               {s.settlements.map((x, i) => (
                 <div
                   key={x.no}
@@ -1952,7 +1973,7 @@ export function SettlementHistorySheet({ open, onClose }: { open: boolean; onClo
             settlement breakdown draws from. */}
         <div className="flex flex-col gap-8">
           <SectionTitle>Uang tunai terkumpul</SectionTitle>
-          <div className="rounded-12 bg-neutral-50">
+          <div className="rounded-12 bg-canvas-blue">
             {entries.map((e, i) => (
               <div
                 key={e.taskId}
@@ -1984,7 +2005,7 @@ function SummaryTile({
 }) {
   const ink = tone === 'green' ? 'text-green-500' : tone === 'orange' ? 'text-orange-500' : 'text-default'
   return (
-    <div className="flex flex-1 flex-col gap-2 rounded-12 bg-neutral-50 p-12">
+    <div className="flex flex-1 flex-col gap-2 rounded-12 bg-canvas-blue p-12">
       <span className="truncate text-10 text-caption">{label}</span>
       <span className={`truncate text-14 font-bold ${ink}`}>{value}</span>
     </div>

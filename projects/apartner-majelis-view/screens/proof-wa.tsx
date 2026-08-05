@@ -22,12 +22,11 @@
 import { useState } from 'react'
 import { Button, NavigationHeader } from '@/design-system/components'
 import { Copy } from '@/design-system/icons'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, rupiah } from '../lib/data'
 import { collectStatus, collectedTotal, paidOf, pendingMembers, useApp, openMajelisEntry } from '../lib/store'
 import { IconCheck } from '../lib/icons'
-import { SectionTitle, StickyBar } from '../lib/ui'
+import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
 
 export function ProofWaScreen() {
   const flow = useFlow()
@@ -68,7 +67,7 @@ export function ProofWaScreen() {
   ].join('\n')
 
   return (
-    <Screen
+    <AppScreen
       topBar={<NavigationHeader title="Kirim rekap ke grup" onBack={() => flow.back()} />}
     >
       {/* No "Pesan dikirim ke …" banner: the app no longer does the sending,
@@ -109,6 +108,6 @@ export function ProofWaScreen() {
           </>
         )}
       </StickyBar>
-    </Screen>
+    </AppScreen>
   )
 }

@@ -20,13 +20,12 @@
 import { useState } from 'react'
 import { Button, NavigationHeader } from '@/design-system/components'
 import { Copy } from '@/design-system/icons'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
 import { DAYS } from '../lib/schedule'
 import { openHomeMitra, paidOf, useApp } from '../lib/store'
 import { IconCheck } from '../lib/icons'
-import { SectionTitle, StickyBar } from '../lib/ui'
+import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
 
 export function HomeProofWaScreen() {
   const flow = useFlow()
@@ -53,7 +52,7 @@ export function HomeProofWaScreen() {
   ].join('\n')
 
   return (
-    <Screen
+    <AppScreen
       topBar={<NavigationHeader title="Kirim bukti bayar" onBack={() => flow.back()} />}
     >
       {/* No "Pesan dikirim ke …" banner: the app no longer does the sending,
@@ -94,6 +93,6 @@ export function HomeProofWaScreen() {
           </>
         )}
       </StickyBar>
-    </Screen>
+    </AppScreen>
   )
 }

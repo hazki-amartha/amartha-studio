@@ -341,7 +341,7 @@ function CircleButton({
 }) {
   const ink =
     tone === 'green' ? 'text-green-500' : tone === 'red' ? 'text-red-500' : 'text-default'
-  const shared = `flex h-40 w-40 shrink-0 items-center justify-center rounded-full border border-default bg-neutral-50 ${ink}`
+  const shared = `flex h-40 w-40 shrink-0 items-center justify-center rounded-full border border-default bg-canvas-blue ${ink}`
   if (href) {
     return (
       <a href={href} target="_blank" rel="noreferrer" aria-label={label} className={shared}>

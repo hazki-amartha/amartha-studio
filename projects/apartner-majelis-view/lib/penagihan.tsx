@@ -261,7 +261,7 @@ export function PenagihanCard({ mitra }: { mitra: Mitra }) {
 function PtpRow({ mitra }: { mitra: Mitra }) {
   if (!mitra.ptp) {
     return (
-      <div className="rounded-8 bg-neutral-50 px-12 py-8">
+      <div className="rounded-8 bg-canvas-blue px-12 py-8">
         <span className="text-12 text-caption">Belum ada janji bayar</span>
       </div>
     )
@@ -293,7 +293,7 @@ function EffortRow({ effort, first }: { effort: Effort; first?: boolean }) {
   return (
     <div className={`flex gap-12 ${first ? '' : '-mx-12 border-t border-default px-12 pt-12'}`}>
       <span
-        className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-8 bg-neutral-50 ${kind.ink}`}
+        className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-8 bg-canvas-blue ${kind.ink}`}
       >
         <Glyph size={16} />
       </span>
@@ -303,7 +303,7 @@ function EffortRow({ effort, first }: { effort: Effort; first?: boolean }) {
           {kind.label} · {effort.date} · {effort.by}
         </span>
         {effort.note ? (
-          <span className="rounded-8 bg-neutral-50 px-12 py-8 text-12 text-default">
+          <span className="rounded-8 bg-canvas-blue px-12 py-8 text-12 text-default">
             {effort.note}
           </span>
         ) : null}

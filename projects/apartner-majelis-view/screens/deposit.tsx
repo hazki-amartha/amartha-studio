@@ -24,13 +24,12 @@
 // and doorsteps recorded — so closing is a confirmation, not data entry.
 
 import { Button, Card, NavigationHeader } from '@/design-system/components'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
 import { SETTLE_METHOD_LABEL, TASKS, taskCode } from '../lib/schedule'
 import { IconCheck } from '../lib/icons'
 import { depositExpected, settledTotal, store, unsettledTotal, useApp } from '../lib/store'
-import { SectionTitle, StickyBar } from '../lib/ui'
+import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
 
 export function DepositScreen() {
   const flow = useFlow()
@@ -61,7 +60,7 @@ export function DepositScreen() {
   // cannot prove it landed. The branch confirms, and that is tomorrow.
   if (s.depositDone) {
     return (
-      <Screen topBar={<NavigationHeader title="Closing" hideBack />}>
+      <AppScreen topBar={<NavigationHeader title="Closing" hideBack />}>
         <Card>
           <div className="flex flex-col items-center gap-8 py-24 text-center">
             <span className="flex h-48 w-48 items-center justify-center rounded-full bg-green-50 text-green-500">
@@ -88,12 +87,12 @@ export function DepositScreen() {
             Selesai
           </Button>
         </StickyBar>
-      </Screen>
+      </AppScreen>
     )
   }
 
   return (
-    <Screen topBar={<NavigationHeader title="Closing" onBack={() => flow.back()} />}>
+    <AppScreen topBar={<NavigationHeader title="Closing" onBack={() => flow.back()} />}>
       <SectionTitle>Sebelum tutup hari</SectionTitle>
 
       {/* --- Check 1: tasks done. ----------------------------------------- */}
@@ -211,7 +210,7 @@ export function DepositScreen() {
           Selesaikan Closing
         </Button>
       </StickyBar>
-    </Screen>
+    </AppScreen>
   )
 }
 
