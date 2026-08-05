@@ -249,6 +249,20 @@ export const project: ProjectModule = {
       ],
     },
     {
+      id: 'reminder',
+      title: 'Ingatkan Majelis',
+      component: lazyScreen(() => import('./screens/reminder'), 'ReminderScreen'),
+      notes: [
+        'The morning reminder, as ONE task rather than one per majelis. A BP sends these in a single sitting before she leaves the house, so three separate schedule rows would be three rows she ticks in ten seconds and then re-reads all day.',
+        'Which groups appear is derived from today’s schedule, not listed again here: move a pelayanan to tomorrow and that group drops off the reminder by itself. A second hand-kept list of “who meets today” is the kind that quietly stops matching the agenda above it.',
+        'The app writes the message; it does not send it. She copies and pastes it into the group herself — WhatsApp owns the send, and the copy/paste is also what keeps the flow inside the device frame.',
+        'Each group carries its own tick, and it is held in the store rather than on the screen — it is a record she comes back to: two groups messaged before she rides out, the third at 11.00 when the ketua finally answers. A tick local to the screen would greet her with a clean slate and no way to tell which group she still owes.',
+        'Copying and ticking are two gestures on purpose. Copying is not evidence she SENT it — she still has to switch apps and paste — so the app must not tick the row on her behalf and then be wrong about a group that never got the message.',
+        'The task does not close until every group is ticked — the same gate the attendance register runs on, and for the same reason: a majelis that never got its message and a majelis nobody ticked read identically afterwards. The tick is hers to give, so a group she messaged from her own phone still clears the gate; what it refuses is calling the job done while one is unaccounted for.',
+      ],
+      flowsTo: [{ to: 'today', label: 'Selesai — kembali ke jadwal' }],
+    },
+    {
       id: 'attendance',
       title: 'Majelis Visit 1 — Kehadiran',
       component: lazyScreen(() => import('./screens/attendance'), 'AttendanceScreen'),

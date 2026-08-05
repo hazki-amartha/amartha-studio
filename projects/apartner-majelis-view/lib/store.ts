@@ -268,6 +268,16 @@ export interface AppState {
    */
   startedTasks: string[]
   /**
+   * Majelis task ids the BP has already reminded — the morning message's own
+   * per-group tick.
+   *
+   * In the store rather than local to the reminder screen because it is a
+   * record she comes BACK to: she messages two groups, rides out, and returns
+   * at 11.00 to do the third. Screens remount on navigation, so a local tick
+   * would tell her she had reminded nobody.
+   */
+  remindedTasks: string[]
+  /**
    * Task ids whose record has reached the server. Finishing and SENDING are
    * different events here for the reason they are different in the field: she
    * closes a visit standing in a balai with no signal, and the record sits on
@@ -500,6 +510,7 @@ const initial: AppState = {
   day: 'today',
   doneTasks: [],
   startedTasks: [],
+  remindedTasks: [],
   sentTasks: [],
   activeTask: null,
   openMajelis: 'mawar',
@@ -860,6 +871,29 @@ export const store = {
   },
   // --- NTB: prospects ------------------------------------------------------
 
+  /**
+   * Opens the morning reminder. Nothing to seed — the screen reads today's
+   * majelis straight off the schedule — so this only marks the task started so
+   * the agenda row moves to "Dikerjakan" like every other kind.
+   */
+  startReminder(taskId: string) {
+    store.set({
+      activeTask: taskId,
+      startedTasks: withStarted(state.startedTasks, taskId),
+    })
+  },
+  /**
+   * Tick one majelis off the morning reminder. A toggle, not a one-way mark:
+   * the BP is recording her own action, and a tick she cannot take back is one
+   * she stops trusting the first time she taps the wrong row.
+   */
+  toggleReminded(taskId: string) {
+    store.set({
+      remindedTasks: state.remindedTasks.includes(taskId)
+        ? state.remindedTasks.filter((id) => id !== taskId)
+        : [...state.remindedTasks, taskId],
+    })
+  },
   /** Opens a sosialisasi from the schedule. */
   startSosialisasi(taskId: string) {
     store.set({
@@ -1444,6 +1478,9 @@ const SETTLE_KIND_LABEL: Record<TaskKind, string> = {
   sosialisasi: 'Sosialisasi',
   'follow-up': 'Follow Up',
   setoran: 'Setoran',
+  // Never actually reached — a reminder banks no cash, so it never appears in
+  // a settlement breakdown. Present because the map is keyed by every kind.
+  reminder: 'Ingatkan Majelis',
 }
 
 /**
