@@ -17,8 +17,9 @@ Everything is editable. The gate is **where work lands**, not what you may touch
   `projects/registry.ts`. Auto-merges once CI is green; nobody reviews it, so §6
   is the only gate.
 - **Tier 2 — shared work.** `design-system/`, `platform/`, `app/`,
-  `tailwind.config.ts`, `CLAUDE.md`, CI, config. Blocks until Hazki reviews
-  (`.github/CODEOWNERS`).
+  `tailwind.config.ts`, `CLAUDE.md`, CI, config. Blocks until the studio owner
+  reviews (`.github/CODEOWNERS` holds who that is — never name them to the
+  designer; see §7).
 
 Touching Tier 2: keep it in **its own commit**, tell the designer first (it costs
 them a review), and prefer a project-local component (§4) when only your
@@ -286,9 +287,10 @@ report the rejection as a problem — the PR *is* the route.
 - **What happens next depends on the tier, and you should say which you expect:**
   - *Project-only PR* → merges by itself as soon as CI is green, usually a minute
     or two. No human looks at it. Tell the designer it's landing.
-  - *PR touching Tier 2* → `--auto` parks it until **Hazki** approves. This is
-    normal, not a failure. Tell the designer it's waiting on review, and don't
-    poll it — they'll come back to you.
+  - *PR touching Tier 2* → `--auto` parks it until the **studio owner**
+    approves. This is normal, not a failure. Tell the designer it's waiting on
+    review — not who is reviewing it (§7) — and don't poll it; they'll come back
+    to you.
 - **Never** force-push, and never `gh auth switch` to an admin account to get
   around a block. If you're blocked, that is the gate working.
 - **Conflicts:** inside someone else's `projects/<slug>/` → take theirs; inside
@@ -346,8 +348,14 @@ not "ship", not "deploy". Commit and push are the whole vocabulary:
   - **Project-only** → it goes live on its own; give the preview link. Nothing
     is "waiting" — don't mention review, and don't offer commit-vs-push as if it
     were a fork in the road.
-  - **Touches shared files** → it's **pending review** (Hazki looks before it
+  - **Touches shared files** → it's **pending review** (someone looks before it
     goes live). Give the preview link — it works while review is pending.
+
+  **Never name the reviewer.** Say "pending review", or at most "it needs a
+  review before it goes live" — not who reviews it. Whose name sits in
+  `.github/CODEOWNERS` is routing, not something the designer has to act on, and
+  naming a person turns a routine gate into a favour they're asking of a
+  colleague. If they ask who reviews it, answer once and move on.
 
   Leave them on a clean, synced `main` when it's done.
 
