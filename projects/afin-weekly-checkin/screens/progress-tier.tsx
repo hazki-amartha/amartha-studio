@@ -16,9 +16,9 @@
 //   2. Where it came from — the four additions. Each one opens to reveal the
 //      twelve weeks behind it; twelve boxes standing open, four times over, is
 //      forty-eight boxes on one page and nobody reads that.
-//   3. What keeps it — where she stands on each criterion, then the three
-//      rules. The ONLY place allowed to carry numbers, because they are about
-//      her behaviour rather than our money.
+//   3. What keeps it — where she stands on each criterion. The rule list that
+//      used to sit under it said the same things a second time, in the same
+//      words, so the criteria carry it alone.
 //
 // Two corrections this page carries, both from the designer:
 //
@@ -46,7 +46,6 @@ import {
   QUOTE_FULL,
   QUOTE_REDUCED,
   STATUS_NAME,
-  STATUS_RULES,
   TOTAL_WEEKS,
   WINDOW_LENGTH,
   criteria,
@@ -58,6 +57,7 @@ import {
   gradeOfOutcome,
   rupiah,
   short,
+  weekDate,
   weeksIntoWindow,
   windowCells,
   windowQuote,
@@ -194,15 +194,6 @@ export function ProgressTierScreen() {
           Dinilai tiap {WINDOW_LENGTH} minggu. Sekarang minggu ke-{weeksIntoWindow(s)} dari{' '}
           {WINDOW_LENGTH} di penilaian ke-{currentWindow(s)}.
         </p>
-
-        <div className="mt-16 flex flex-col gap-16 border-t border-default pt-16">
-          {STATUS_RULES.map((item) => (
-            <div key={item.rule}>
-              <p className="text-14 font-bold text-default">{item.rule}</p>
-              <p className="mt-2 text-12 text-caption">{item.note}</p>
-            </div>
-          ))}
-        </div>
       </div>
 
       <div className="pb-16" />
@@ -289,7 +280,10 @@ function WindowBlock({
               closed ? 'text-caption' : 'text-default'
             }`}
           >
-            Minggu {row.from}–{row.to}
+            {/* The date the stretch lands on, not "Minggu 1–12" — the same
+                unit home's track uses, and the only end that matters is the
+                one it closes on. */}
+            {weekDate(row.to)}
           </span>
           {row.status === 'open' ? (
             <Badge intent="primary" variant="solid" size="sm">
@@ -306,7 +300,7 @@ function WindowBlock({
           <span className="min-w-0 flex-1 text-12 text-caption">{windowLabel(row)}</span>
           {closed ? (
             <span
-              className={`flex shrink-0 items-center gap-4 text-14 font-bold ${
+              className={`flex shrink-0 items-center gap-4 text-16 font-bold ${
                 earned ? 'text-primary-500' : 'text-caption'
               }`}
             >
