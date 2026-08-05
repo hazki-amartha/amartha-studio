@@ -400,7 +400,7 @@ function ChromeIcon({ badge, children }: { badge?: string; children: ReactNode }
     >
       {children}
       {badge ? (
-        <span className="absolute -right-8 -top-8 flex h-20 min-w-20 items-center justify-center rounded-full bg-red-500 px-4 text-10 font-bold text-neutral-white">
+        <span className="absolute -right-8 -top-8 flex h-20 min-w-20 items-center justify-center rounded-full bg-red-500 px-4 text-12 font-bold text-neutral-white">
           {badge}
         </span>
       ) : null}
