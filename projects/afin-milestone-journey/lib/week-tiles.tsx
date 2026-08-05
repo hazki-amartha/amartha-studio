@@ -56,9 +56,11 @@ export function WeekGrid({
               <span className={`text-12 ${today ? 'font-bold text-primary-500' : 'text-caption'}`}>
                 {shortDate(w.date)}
               </span>
+              {/* Three marks, not two: paid on time is green, paid late is amber
+                  (she paid, just not on the day), and unpaid is a red cross. */}
               <span
                 className={`flex h-24 w-24 items-center justify-center rounded-full text-neutral-white ${
-                  w.bayar ? 'bg-green-500' : 'bg-red-500'
+                  !w.bayar ? 'bg-red-500' : w.late ? 'bg-orange-500' : 'bg-green-500'
                 }`}
               >
                 {w.bayar ? <Check size={16} /> : <Cross size={16} />}
@@ -71,11 +73,11 @@ export function WeekGrid({
                 {ringkas(w.bayarAmount)}
               </span>
               {/* Attendance, ranked below the money: an icon and a word, never a
-                  second circle. Grey when she came — a good week should not add
-                  colour to a tile whose story is already told above it. */}
+                  second circle. Green when she came, red when she missed — the
+                  colour echoes the mark above so the tile reads at a glance. */}
               <span
                 className={`flex items-center gap-2 text-10 font-bold ${
-                  w.kumpulan ? 'text-caption' : 'text-red-500'
+                  w.kumpulan ? 'text-green-600' : 'text-red-500'
                 }`}
               >
                 <Users size={16} />

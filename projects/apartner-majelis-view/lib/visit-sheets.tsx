@@ -13,7 +13,19 @@
 import { useEffect, useState } from 'react'
 import { BottomSheet, Button } from '@/design-system/components'
 import { Camera } from '@/design-system/icons'
-import { PinMark } from './ui'
+import { ChoiceList, PinMark } from './ui'
+
+// Why the visit is being skipped. A fixed list, same reasoning as the
+// attendance reasons: the BP is standing at an empty balai, not composing a
+// note, and a skip nobody can explain is a gap whoever reads the register
+// later has to chase down by hand.
+const SKIP_REASONS = [
+  'Jadwal kumpulan bentrok',
+  'Ketua tidak hadir',
+  'Majelis sudah tidak kumpulan',
+  'Kesalahan sistem',
+  'Lainnya',
+]
 
 /**
  * The gate. Before the roster opens: can this visit be worked at all?
@@ -67,7 +79,10 @@ export function VisitGateSheet({
  * gesture bills her twice for a fact the camera already carried.
  *
  * The draft resets every time the sheet opens, so a cancelled skip leaves
- * nothing behind on the next group.
+ * nothing behind on the next group. The reason is asked ABOVE the photo — she
+ * knows why before she has to aim the camera — and the confirm waits on both:
+ * a photo with no reason is proof of an empty balai but not of why, and a
+ * reason with no photo is a claim nobody can check.
  */
 export function SkipVisitSheet({
   open,
@@ -79,12 +94,16 @@ export function SkipVisitSheet({
   /** Where the shot was taken — the balai, read back off the geotag. */
   place: string
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: (reason: string) => void
 }) {
   const [photo, setPhoto] = useState(false)
+  const [reason, setReason] = useState<string | null>(null)
 
   useEffect(() => {
-    if (open) setPhoto(false)
+    if (open) {
+      setPhoto(false)
+      setReason(null)
+    }
   }, [open])
 
   return (
@@ -99,23 +118,37 @@ export function SkipVisitSheet({
         </Button>
       }
       primaryAction={
-        <Button size="lg" className="w-full" disabled={!photo} onClick={onConfirm}>
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={!photo || !reason}
+          onClick={() => reason && onConfirm(reason)}
+        >
           Lewati Kunjungan
         </Button>
       }
     >
-      {photo ? (
-        <GeoProof place={place} onRetake={() => setPhoto(false)} />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setPhoto(true)}
-          className="flex w-full flex-col items-center gap-4 rounded-8 border border-default bg-neutral-50 p-16 text-caption"
-        >
-          <Camera size={24} />
-          <span className="text-14 text-default">Ambil Foto</span>
-        </button>
-      )}
+      <div className="flex flex-col gap-16">
+        <ChoiceList
+          label="Kenapa kunjungan dilewati?"
+          options={SKIP_REASONS}
+          value={reason ?? undefined}
+          onPick={setReason}
+        />
+
+        {photo ? (
+          <GeoProof place={place} onRetake={() => setPhoto(false)} />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPhoto(true)}
+            className="flex w-full flex-col items-center gap-4 rounded-8 border border-default bg-neutral-50 p-16 text-caption"
+          >
+            <Camera size={24} />
+            <span className="text-14 text-default">Ambil Foto</span>
+          </button>
+        )}
+      </div>
     </BottomSheet>
   )
 }

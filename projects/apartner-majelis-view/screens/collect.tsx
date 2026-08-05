@@ -48,7 +48,6 @@ import { paidOf, paidViaPoket, store, useApp } from '../lib/store'
 import { AngsuranCard, JanjiBayarCard } from '../lib/mitra-card'
 import { ChoiceList, PickRow, ProofTile, SectionTitle, StickyBar } from '../lib/ui'
 import {
-  DROPOUT_REASONS,
   PTP_OPTIONS,
   REASONS,
   SHORTFALL_REASONS,
@@ -77,14 +76,10 @@ import {
  * other. What differs is only where the money went and that a screenshot backs
  * it, not how much of the bill it closed.
  *
- * `keluar` is the fifth, and the only one that is not about this week's money at
- * all: she is leaving the program. It carries a reason and NO janji bayar,
- * because there is no next date to chase — it opens a case ops picks up. The
- * home visit has always been able to record it; the majelis could not, which
- * left the BP entering "tidak bayar" with a promise nobody would ever collect
- * on for a woman who had already gone.
+ * A mitra leaving the program is recorded from the home visit, not from here —
+ * majelis collection stays about this week's money.
  */
-type Mode = 'bayar' | 'tidak' | 'tanggung' | 'poket' | 'keluar'
+type Mode = 'bayar' | 'tidak' | 'tanggung' | 'poket'
 
 /**
  * What the BP picks on the page, which is not quite what the sheets are: a full
@@ -92,7 +87,7 @@ type Mode = 'bayar' | 'tidak' | 'tanggung' | 'poket' | 'keluar'
  * they are two different sentences to say out loud to a mitra, and the page is
  * where they have to be told apart.
  */
-type Pick = 'lunas' | 'sebagian' | 'poket' | 'tanggung' | 'tidak' | 'keluar'
+type Pick = 'lunas' | 'sebagian' | 'poket' | 'tanggung' | 'tidak'
 
 export function CollectScreen() {
   const flow = useFlow()
@@ -109,23 +104,20 @@ export function CollectScreen() {
   const refusal = s.nonPayments[mitra.id]
   const settledByGroup = s.payMode[mitra.id] === 'tanggung' && existing > 0
   const settledViaPoket = paidViaPoket(s, mitra)
-  const dropReason = s.dropOut[mitra.id]
 
   // What is already on file, read back as the row that produced it. A fresh
   // "Tagih" has none and opens with nothing picked.
   const recorded: Pick | null = refusal
     ? 'tidak'
-    : dropReason
-      ? 'keluar'
-      : settledByGroup
-        ? 'tanggung'
-        : settledViaPoket
-          ? 'poket'
-          : existing >= owed.total && existing > 0
-            ? 'lunas'
-            : existing > 0
-              ? 'sebagian'
-              : null
+    : settledByGroup
+      ? 'tanggung'
+      : settledViaPoket
+        ? 'poket'
+        : existing >= owed.total && existing > 0
+          ? 'lunas'
+          : existing > 0
+            ? 'sebagian'
+            : null
   const [pick, setPick] = useState<Pick | null>(recorded)
 
   const [sheet, setSheet] = useState<Mode | null>(
@@ -146,7 +138,6 @@ export function CollectScreen() {
   // The screenshot. Held on the page rather than written straight to the store,
   // so backing out of the sheet leaves no half-recorded claim behind.
   const [proof, setProof] = useState(s.poketProof[mitra.id] ?? false)
-  const [drop, setDrop] = useState<string | null>(dropReason ?? null)
 
   const typed = Number(draft.replace(/\D/g, '')) || 0
   // Short is a fact about the FIGURE, not about which row was tapped: anything
@@ -166,18 +157,16 @@ export function CollectScreen() {
   const step1Done =
     sheet === 'tidak'
       ? reason !== null
-      : sheet === 'keluar'
-        ? drop !== null
-        : sheet === 'bayar'
-          ? typed > 0 && (!short || shortfall !== null)
-          : sheet === 'poket'
-            ? // Same rules as a cash payment — an amount, and a reason if it fell
-              // short — plus the screenshot, which is what makes it more than one
-              // person's word that a payment nobody's system has seen happened.
-              typed > 0 && (!short || shortfall !== null) && proof
-            : // Tanggung renteng has nothing to fill in: the amount is the whole
-              // bill and the payer is the group. One tap is the whole record.
-              sheet === 'tanggung'
+      : sheet === 'bayar'
+        ? typed > 0 && (!short || shortfall !== null)
+        : sheet === 'poket'
+          ? // Same rules as a cash payment — an amount, and a reason if it fell
+            // short — plus the screenshot, which is what makes it more than one
+            // person's word that a payment nobody's system has seen happened.
+            typed > 0 && (!short || shortfall !== null) && proof
+          : // Tanggung renteng has nothing to fill in: the amount is the whole
+            // bill and the payer is the group. One tap is the whole record.
+            sheet === 'tanggung'
 
   const onLastStep = !hasPtpStep || step === 2
   const canAdvance = step === 1 ? step1Done : ptp !== undefined
@@ -227,11 +216,6 @@ export function CollectScreen() {
       store.setPayMode(mitra.id, 'tidak')
       store.setNonPayment(mitra, { reason: reason as string, ptp: ptp ?? null })
       store.clearDropOut(mitra.id)
-    } else if (sheet === 'keluar') {
-      // `setDropOut` retracts any payment, reason and promise already on file:
-      // a mitra leaving the program cannot also be carrying a janji bayar.
-      store.setPayMode(mitra.id, 'keluar')
-      store.setDropOut(mitra, drop as string)
     } else if (sheet === 'poket') {
       store.recordPoket(mitra, typed, short ? (shortfall as string) : undefined)
       store.setPartialPtp(mitra.id, short ? (ptp ?? null) : null)
@@ -335,13 +319,6 @@ export function CollectScreen() {
             selected={pick === 'tidak'}
             onSelect={() => setPick('tidak')}
           />
-          {/* Last, and apart from the rest in what it means: not a bill she did
-              not pay this week, but a mitra who is leaving. */}
-          <PickRow
-            title="Berhenti"
-            selected={pick === 'keluar'}
-            onSelect={() => setPick('keluar')}
-          />
         </div>
       </div>
 
@@ -374,13 +351,11 @@ export function CollectScreen() {
               ? 'Janji Bayar'
               : sheet === 'tidak'
                 ? 'Alasan Tidak Bayar'
-                : sheet === 'keluar'
-                  ? 'Alasan Berhenti Pinjam'
-                  : sheet === 'tanggung'
-                    ? 'Tanggung Renteng'
-                    : sheet === 'poket'
-                      ? 'Sudah Bayar via Poket'
-                      : undefined
+                : sheet === 'tanggung'
+                  ? 'Tanggung Renteng'
+                  : sheet === 'poket'
+                    ? 'Sudah Bayar via Poket'
+                    : undefined
         }
         primaryAction={
           <Button
@@ -393,13 +368,11 @@ export function CollectScreen() {
               ? 'Lanjut'
               : sheet === 'tidak'
                 ? 'Simpan Catatan'
-                : sheet === 'keluar'
-                  ? 'Catat Berhenti Pinjam'
-                  : sheet === 'tanggung'
-                    ? 'Catat Tanggung Renteng'
-                    : sheet === 'poket'
-                      ? 'Catat Pembayaran'
-                      : 'Terima Tunai'}
+                : sheet === 'tanggung'
+                  ? 'Catat Tanggung Renteng'
+                  : sheet === 'poket'
+                    ? 'Catat Pembayaran'
+                    : 'Terima Tunai'}
           </Button>
         }
       >
@@ -507,19 +480,6 @@ export function CollectScreen() {
             options={REASONS}
             value={reason ?? undefined}
             onPick={setReason}
-          />
-        ) : null}
-
-        {/* One step, and no janji bayar behind it: there is no next date on a
-            mitra who has left the program, and asking for one would file a
-            promise nobody is going to collect on. */}
-        {sheet === 'keluar' ? (
-          <ChoiceList
-            hideLabel
-            label="Alasan berhenti pinjam"
-            options={DROPOUT_REASONS}
-            value={drop ?? undefined}
-            onPick={setDrop}
           />
         ) : null}
 

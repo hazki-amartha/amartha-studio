@@ -105,7 +105,7 @@ export function ProofScreen() {
             <IconWallet size={20} />
           </IconTile>
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-12 text-caption">Tunai/Poket</span>
+            <span className="text-12 text-caption">Pembayaran diterima dari kunjungan ini</span>
             <span className="text-24 font-bold text-default">{rupiah(cashCollected)}</span>
           </div>
         </div>

@@ -33,7 +33,7 @@ export function PayoutTile({ amount, onCairkan }: { amount: string; onCairkan: (
   return (
     <div className="flex items-center gap-12 rounded-12 bg-blue-50 p-12">
       <div className="min-w-0 flex-1">
-        <p className="text-12 text-neutral-700">Dana siap dicairkan</p>
+        <p className="text-12 text-neutral-700">Bisa dicairkan sekarang</p>
         <p className="text-18 font-bold text-green-600">{amount}</p>
       </div>
       <button
@@ -107,9 +107,12 @@ function TaskMark({ status }: { status: TaskStatus }) {
       </span>
     )
   }
+  // Amber, not red, and tinted rather than solid: the warning is a nudge to act
+  // this week, not an error. The 500-on-50 pairing is the design system's status
+  // treatment (see CHEATSHEET), so it reads as the same caution as the Badge.
   if (status === 'alert') {
     return (
-      <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-red-500 text-14 font-bold text-neutral-white">
+      <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-orange-50 text-14 font-bold text-orange-500">
         !
       </span>
     )

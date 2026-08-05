@@ -153,6 +153,18 @@ export const project: ProjectModule = {
           description: 'Penagihan bersih, jadi growth cair dan gate-nya tak terlihat',
           apply: demo.kpiAllClear,
         },
+        {
+          id: 'kpi-boom',
+          label: 'Versi B — Boom factor kena',
+          description: 'Skor cukup untuk dibayar, tapi Cohort DPD 7+ lewat 5%: insentif Rp0',
+          apply: demo.kpiBoom,
+        },
+        {
+          id: 'kpi-boosted',
+          label: 'Versi B — skor >100% + boost',
+          description: 'Puncak tabel: Rp600rb dari band, plus Rp100rb karena dua boost tercapai',
+          apply: demo.kpiBoosted,
+        },
       ],
       flowsTo: [
         { to: 'today', label: 'tab Jadwal' },

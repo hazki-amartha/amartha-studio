@@ -17,16 +17,16 @@ import { NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { HISTORY, MILESTONE_SETS, hasPreviousCycle } from '../lib/data'
-import { members, useApp } from '../lib/store'
+import { members, rewardAtRisk, useApp } from '../lib/store'
 import { healthOf } from '../lib/milestone-tracker'
-import { MilestoneRung, PreviousCycleLink, ProgressMenuItem } from '../lib/journey'
+import { MilestoneRung, PreviousCycleLink, ProgressMenuItem, withRewardRisk } from '../lib/journey'
 
 export function ProgressScreen() {
   const flow = useFlow()
   const app = useApp()
   const { journeyPhase } = app
 
-  const milestones = MILESTONE_SETS[journeyPhase]
+  const milestones = withRewardRisk(MILESTONE_SETS[journeyPhase], rewardAtRisk(app))
 
   const weeks = HISTORY.length
   const personal = healthOf(
@@ -38,23 +38,23 @@ export function ProgressScreen() {
 
   return (
     <Screen
-      topBar={<NavigationHeader title="Perjalanan pendanaan" onBack={() => flow.go('home')} />}
+      topBar={<NavigationHeader title="Perjalanan naik limit" onBack={() => flow.go('home')} />}
     >
       {/* Pulled to the display edges and up against the header: one white band,
           two rows, a hairline between them and one under the band. */}
       <div className="-mx-16 -mt-16 border-b border-light bg-neutral-white">
         <ProgressMenuItem
           inset
-          label="Progress pribadi"
-          subtitle="Berpengaruh ke semua goal"
+          label="Status pribadi"
+          subtitle="Mempengaruhi semua tahapan kenaikan limit."
           health={personal}
           onOpen={() => flow.go('riwayat')}
         />
         <div className="mx-16 h-px bg-neutral-200" />
         <ProgressMenuItem
           inset
-          label="Progress majelis"
-          subtitle="Berpengaruh ke goal kenaikan limit"
+          label="Status majelis"
+          subtitle="Mempengaruhi kenaikan limit akhir."
           health={majelis}
           onOpen={() => flow.go('majelis')}
         />

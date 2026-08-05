@@ -36,7 +36,7 @@ import {
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { claimableOf, rupiah } from '../lib/data'
-import { outstanding, store, tunggakan, useApp } from '../lib/store'
+import { rewardAtRisk as isRewardAtRisk, store, tunggakan, useApp } from '../lib/store'
 import { BayarButton, BillLine, PayoutTile, Task, billStatus } from '../lib/tasks'
 import { Notice, SectionTitle, TaskButton } from '../lib/ui'
 
@@ -59,9 +59,9 @@ export function HomeV2Screen() {
   const s = useApp()
   const isNew = s.mitraStage === 'new'
   // The reward is at risk in two conditions, not one: the deliberate at-risk
-  // state, and a short payment that left arrears behind. Both owe money this
-  // week, so both get the warning and the red disbursement chip.
-  const rewardAtRisk = !isNew && (s.atRisk || (s.billState === 'paid' && outstanding(s) > 0))
+  // state, and a short payment that left arrears behind. The condition lives in
+  // the store so the progress ladder marks the same goal Berisiko off it.
+  const rewardAtRisk = isRewardAtRisk(s)
   // The rail and the warning notice below it share one condition, so they share
   // one colour.
   const railTone: RailTone = rewardAtRisk ? 'orange' : 'blue'
@@ -106,7 +106,7 @@ export function HomeV2Screen() {
               ladder with nothing on it. */}
           <div className="flex items-center gap-8">
             <p className="min-w-0 flex-1 text-16 font-bold text-default">
-              {isNew ? 'Pinjaman Anda' : 'Gol pinjaman Anda'}
+              {isNew ? 'Pinjaman Anda' : 'Perjalanan naik limit'}
             </p>
             {isNew ? null : (
               <button
@@ -190,12 +190,12 @@ export function HomeV2Screen() {
           {isNew ? null : rewardAtRisk ? (
             <div className="mb-16 mt-16">
               <Notice tone="orange">
-                Reward Ibu bisa hangus. Bayar tunggakan angsuran agar reward tetap didapat.
+                Kesempatan naik limit bisa hilang! Yuk, segera bayar tunggakan Anda sekarang.
               </Notice>
             </div>
           ) : (
             <p className="mb-16 mt-16 text-14 text-neutral-700">
-              Lakukan hal-hal berikut untuk mencapai goal:
+              Lakukan ini untuk bisa naik limit:
             </p>
           )}
 
@@ -206,7 +206,7 @@ export function HomeV2Screen() {
               // burying it in a caption.
               <Task
                 status="todo"
-                title="Dana siap dicairkan"
+                title="Bisa dicairkan sekarang"
                 description={<span className="text-18 font-bold text-green-600">Rp5jt</span>}
                 action={
                   <TaskButton tone="primary" onClick={() => flow.go('disburse-amount')}>
@@ -227,24 +227,22 @@ export function HomeV2Screen() {
                 />
                 <Task
                   status={s.hadirKumpulan ? 'done' : s.atRisk ? 'alert' : 'todo'}
-                  title="Datang kumpulan"
+                  title="Hadiri kumpulan"
                   description="Kamis, 11.30"
                 />
-                {/* Named for the state it should be in rather than the one it is
-                    in: the row reads "Majelis lancar bayar" either way, and the
-                    mark beside it says whether that is true this week. */}
+                {/* Named for the habit to keep rather than this week's state: the
+                    row reads "Jaga disiplin majelis" either way, and the mark
+                    beside it says whether the majelis is holding to it. */}
                 <Task
                   status={tunggakanCount === 0 ? 'done' : 'alert'}
-                  title="Majelis lancar bayar"
+                  title="Jaga disiplin majelis"
                   description={
-                    tunggakanCount === 0
-                      ? 'Semua anggota lancar bayar'
-                      : `${tunggakanCount} anggota punya tunggakan`
+                    tunggakanCount === 0 ? 'Disiplin majelis terjaga' : 'Disiplin perlu ditingkatkan'
                   }
                   action={
                     tunggakanCount === 0 ? undefined : (
                       <TaskButton tone="primary" onClick={() => flow.go('majelis')}>
-                        Ingatkan
+                        Lihat
                       </TaskButton>
                     )
                   }

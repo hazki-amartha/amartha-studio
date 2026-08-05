@@ -22,6 +22,19 @@ export const HEALTH_LABEL: Record<Health, { label: string; tone: keyof typeof ST
   buruk: { label: 'Tidak sehat', tone: 'red' },
 }
 
+/**
+ * When the reward is at risk, the goal she is working toward is no longer on
+ * track: the `next` rung's pill flips to Berisiko so the ladder agrees with the
+ * home card's orange rail. Reached and locked rungs are left as they are — the
+ * risk is to the goal in progress, not to what she has already banked or to
+ * goals she has not started. */
+export function withRewardRisk(milestones: Milestone[], atRisk: boolean): Milestone[] {
+  if (!atRisk) return milestones
+  return milestones.map((m): Milestone =>
+    m.state === 'next' ? { ...m, status: { label: 'Berisiko', tone: 'orange' } } : m,
+  )
+}
+
 export function ProgressMenuItem({
   label,
   subtitle,
@@ -225,7 +238,7 @@ export function MilestoneRung({
                   onClick={onOpen}
                   className="shrink-0 rounded-full border border-primary-500 px-16 py-8 text-14 font-bold text-primary-500"
                 >
-                  Lihat
+                  Detail
                 </button>
               ) : null}
             </div>

@@ -485,8 +485,8 @@ export function TodayScreen() {
     setSkipping(task)
   }
 
-  function confirmSkip(task: Task) {
-    store.skipVisit(task.id)
+  function confirmSkip(task: Task, reason: string) {
+    store.skipVisit(task.id, reason)
     setSkipping(null)
   }
 
@@ -864,7 +864,7 @@ export function TodayScreen() {
         open={Boolean(skipping)}
         place={findMajelisEntry(skipping?.majelisId ?? 'mawar').place}
         onClose={() => setSkipping(null)}
-        onConfirm={() => skipping && confirmSkip(skipping)}
+        onConfirm={(reason) => skipping && confirmSkip(skipping, reason)}
       />
 
       <OptionSheet
