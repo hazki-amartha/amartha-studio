@@ -15,16 +15,17 @@
 // handoff to a real map is the engineer's problem, not the prototype's.
 
 import { Badge, NavigationHeader } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { AGENT, DEPOSIT, NEAREST_AGENTS, kmShort } from '../lib/schedule'
 import { IconInfo, IconPin, IconStore } from '../lib/icons'
-import { AppScreen, SectionTitle } from '../lib/ui'
+import { SectionTitle } from '../lib/ui'
 
 export function AgentLocatorScreen() {
   const flow = useFlow()
 
   return (
-    <AppScreen
+    <Screen
       topBar={<NavigationHeader title={`Agen ${AGENT.name} terdekat`} onBack={() => flow.back()} />}
     >
       {/* What the list is FOR, said once. She lands here mid-settlement, so the
@@ -119,6 +120,6 @@ export function AgentLocatorScreen() {
           </div>
         ))}
       </div>
-    </AppScreen>
+    </Screen>
   )
 }

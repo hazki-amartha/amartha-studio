@@ -1,10 +1,11 @@
 'use client'
 
 import { Card, NavigationHeader } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { TAG_BG } from '../lib/comms'
 import { openedComm, useApp } from '../lib/store'
-import { AppScreen, BannerTag } from '../lib/ui'
+import { BannerTag } from '../lib/ui'
 
 export function BannerDetailScreen() {
   const flow = useFlow()
@@ -12,7 +13,7 @@ export function BannerDetailScreen() {
   const comm = openedComm(s)
 
   return (
-    <AppScreen topBar={<NavigationHeader title="Detail" onBack={flow.back} />}>
+    <Screen topBar={<NavigationHeader title="Detail" onBack={flow.back} />}>
       <div className={`-mx-16 -mt-16 flex flex-col gap-8 p-16 ${TAG_BG[comm.tag]}`}>
         <BannerTag>{comm.tag}</BannerTag>
         <div>
@@ -27,6 +28,6 @@ export function BannerDetailScreen() {
           Setiap banner membuka halamannya sendiri. Isi halaman ini menyusul.
         </p>
       </Card>
-    </AppScreen>
+    </Screen>
   )
 }

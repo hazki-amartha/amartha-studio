@@ -18,11 +18,20 @@
 // an optional second button competing with "finish".
 
 import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
 import { profileOf } from '../lib/profile'
 import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
-import { AppScreen, HOME_STAGE_LABELS, IconTile, PinMark, ProofTile, SectionTitle, StageBar, StickyBar } from '../lib/ui'
+import {
+  HOME_STAGE_LABELS,
+  IconTile,
+  PinMark,
+  ProofTile,
+  SectionTitle,
+  StageBar,
+  StickyBar,
+} from '../lib/ui'
 import { IconCamera, IconWallet } from '../lib/icons'
 
 export function HomeProofScreen() {
@@ -51,7 +60,7 @@ export function HomeProofScreen() {
   }
 
   return (
-    <AppScreen
+    <Screen
       topBar={<NavigationHeader title="Bukti & Kirim" onBack={() => flow.back()} />}
     >
       <StageBar current={3} labels={HOME_STAGE_LABELS} />
@@ -112,6 +121,6 @@ export function HomeProofScreen() {
           Selesaikan Tugas
         </Button>
       </StickyBar>
-    </AppScreen>
+    </Screen>
   )
 }

@@ -24,6 +24,7 @@
 
 import { Button, NavigationHeader } from '@/design-system/components'
 import { useState } from 'react'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { KumpulanCard } from '../lib/kumpulan-card'
 import { MAJELIS, type Mitra } from '../lib/data'
@@ -38,7 +39,17 @@ import {
   useApp,
   openMajelisEntry,
 } from '../lib/store'
-import { AppScreen, AttendanceChoice, ChoiceList, ProductBadge, ReasonNote, RosterFilter, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
+import {
+  AttendanceChoice,
+  ChoiceList,
+  ProductBadge,
+  ReasonNote,
+  RosterFilter,
+  SectionTitle,
+  StageBar,
+  StickyBar,
+  VisitTitle,
+} from '../lib/ui'
 
 // Why a mitra isn't at the majelis. A fixed list, not free text: the BP is
 // running a register in a room, and the reasons a member misses a weekly
@@ -107,7 +118,7 @@ export function AttendanceScreen() {
   }
 
   return (
-    <AppScreen
+    <Screen
       topBar={
         <NavigationHeader
           title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
@@ -285,6 +296,6 @@ export function AttendanceScreen() {
         onClose={() => setSkipping(false)}
         onConfirm={skip}
       />
-    </AppScreen>
+    </Screen>
   )
 }

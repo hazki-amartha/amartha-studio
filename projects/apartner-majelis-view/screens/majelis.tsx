@@ -29,13 +29,23 @@ import { useState } from 'react'
 import { Badge, BottomSheet, Button, NavigationHeader } from '@/design-system/components'
 import { Sort } from '@/design-system/icons'
 import { WaSendSheet } from '../lib/wa-sheet'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, type Mitra } from '../lib/data'
 import { IconArrowRight, IconCalendar, IconChevronRight, IconUsers } from '../lib/icons'
 import { DpdBadge, KetuaBadge, MitraCard } from '../lib/mitra-card'
 import { taskForMajelis } from '../lib/schedule'
 import { openMajelisEntry, store, useApp } from '../lib/store'
-import { AppScreen, EmptyState, OptionSheet, PinMark, ProductBadge, SearchField, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
+import {
+  EmptyState,
+  OptionSheet,
+  PinMark,
+  ProductBadge,
+  SearchField,
+  SectionTitle,
+  StickyBar,
+  VisitTitle,
+} from '../lib/ui'
 
 type Sort = 'tunggakan' | 'nama'
 type Sheet = 'edit' | 'reminder' | 'sort' | null
@@ -68,7 +78,7 @@ export function MajelisScreen() {
   const onSchedule = Boolean(taskForMajelis(group.id))
 
   return (
-    <AppScreen
+    <Screen
       topBar={
         <NavigationHeader
           // The kumpulan SLOT rides in the subtitle — "kapan majelis ini?" is
@@ -207,7 +217,7 @@ export function MajelisScreen() {
         }}
         onClose={() => setSheet(null)}
       />
-    </AppScreen>
+    </Screen>
   )
 }
 

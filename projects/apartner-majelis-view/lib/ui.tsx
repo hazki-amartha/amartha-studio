@@ -9,7 +9,6 @@
 // actually introduces.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Screen, type ScreenProps } from '@/platform/primitives'
 import { Badge, BottomSheet, Button, Input, SelectableCard } from '@/design-system/components'
 import { ProductLogo } from '@/design-system/assets'
 import {
@@ -114,24 +113,6 @@ export const STAGE_LABELS = ['Kehadiran', 'Penagihan', 'Penawaran', 'Bukti']
 // since there is nothing to tagih from a locked door. Otherwise the Tagih step
 // settles the money against the ledger, then Bukti & Kirim proves the visit.
 export const HOME_STAGE_LABELS = ['Kunjungi', 'Tagih', 'Kirim bukti']
-
-/**
- * The BP app's page frame: a platform `Screen` on this direction's own cool
- * canvas (`canvas-blue`, #F3F6FD) rather than the studio-wide warm neutral-50.
- *
- * It is a project-local wrapper and not a new `canvas` option on `Screen`
- * because only this direction wants the cool ground — the shipped AmarthaFin
- * screens and every other prototype still sit on the warm one, and a shared
- * option would invite them to drift onto it by accident.
- *
- * The `!` is load-bearing. `Screen` puts its own `bg-neutral-50` on the same
- * element, so without the important flag which of the two wins would depend on
- * their order in Tailwind's generated CSS rather than on anything stated here —
- * exactly the ambiguity `Screen`'s own docs warn about.
- */
-export function AppScreen({ className, ...props }: ScreenProps) {
-  return <Screen {...props} className={`!bg-canvas-blue ${className ?? ''}`.trim()} />
-}
 
 export function StageBar({
   current,

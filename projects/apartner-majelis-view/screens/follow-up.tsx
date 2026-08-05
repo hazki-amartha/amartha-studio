@@ -24,6 +24,7 @@
 
 import { useState } from 'react'
 import { Badge, Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
 import {
@@ -38,7 +39,7 @@ import {
 import { LeadIdentityCard } from '../lib/lead-card'
 import { findMajelisEntry } from '../lib/schedule'
 import { openLead, rescheduleCount, store, useApp } from '../lib/store'
-import { AppScreen, Chip, ChipGroup, RescheduleSheet, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
+import { Chip, ChipGroup, RescheduleSheet, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
 
 const NEXT_STEPS: { value: 'siap' | 'lanjut' | 'tidak'; title: string; description: string }[] = [
   {
@@ -135,7 +136,7 @@ export function FollowUpScreen() {
   }
 
   return (
-    <AppScreen
+    <Screen
       topBar={
         <NavigationHeader
           title={<VisitTitle title={lead.name} when="Follow up · Selasa, 11.45" />}
@@ -394,6 +395,6 @@ export function FollowUpScreen() {
         onConfirm={reschedule}
         onReject={reject}
       />
-    </AppScreen>
+    </Screen>
   )
 }
