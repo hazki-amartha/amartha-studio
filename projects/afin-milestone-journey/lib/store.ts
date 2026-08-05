@@ -198,6 +198,16 @@ export const outstanding = (s: AppState) => Math.max(0, WEEKLY_BILL - s.paidAmou
 /** True once the week's instalment is fully settled. */
 export const isSettled = (s: AppState) => s.billState === 'paid' && s.paidAmount >= WEEKLY_BILL
 
+/**
+ * The reward is at risk when she still owes money this week — either the
+ * deliberate at-risk state, or a part-payment that left arrears behind. Home
+ * turns its rail orange on this, and the progress ladder marks the goal she is
+ * working toward Berisiko, so the two surfaces read the same. A new mitra has no
+ * reward streak yet, so it never applies to her.
+ */
+export const rewardAtRisk = (s: AppState) =>
+  s.mitraStage !== 'new' && (s.atRisk || (s.billState === 'paid' && outstanding(s) > 0))
+
 /** What the chosen method is actually charged — the amount less any promo. */
 export const chargeable = (s: AppState) => Math.max(0, s.amount - s.discount)
 
