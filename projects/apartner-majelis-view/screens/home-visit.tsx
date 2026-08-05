@@ -25,12 +25,22 @@
 import { useState } from 'react'
 import { BottomSheet, Button, InputNominal, NavigationHeader } from '@/design-system/components'
 import { Image as ImageIcon } from '@/design-system/icons'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
 import { AngsuranCard, JanjiBayarCard } from '../lib/mitra-card'
 import { DAYS } from '../lib/schedule'
 import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
-import { AppScreen, ChoiceList, HOME_STAGE_LABELS, PickRow, ProductBadge, ProofTile, SectionTitle, StageBar, StickyBar } from '../lib/ui'
+import {
+  ChoiceList,
+  HOME_STAGE_LABELS,
+  PickRow,
+  ProductBadge,
+  ProofTile,
+  SectionTitle,
+  StageBar,
+  StickyBar,
+} from '../lib/ui'
 import {
   DROPOUT_REASONS,
   PTP_OPTIONS,
@@ -176,7 +186,7 @@ export function HomeVisitScreen() {
   }
 
   return (
-    <AppScreen
+    <Screen
       className="bg-neutral-white"
       topBar={
         <NavigationHeader
@@ -464,6 +474,6 @@ export function HomeVisitScreen() {
           </Button>
         </div>
       </StickyBar>
-    </AppScreen>
+    </Screen>
   )
 }

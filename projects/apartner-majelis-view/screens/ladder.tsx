@@ -18,12 +18,13 @@
 // recorded where the BP is already being asked for it.
 
 import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, rupiah } from '../lib/data'
 import { IconChat, IconCheck, IconWallet } from '../lib/icons'
 import { ladderOf, type Rung } from '../lib/ladder'
 import { useApp } from '../lib/store'
-import { AppScreen, Meter, Overline } from '../lib/ui'
+import { Meter, Overline } from '../lib/ui'
 
 export function LadderScreen() {
   const flow = useFlow()
@@ -34,7 +35,7 @@ export function LadderScreen() {
   const held = ladder.status === 'tertahan'
 
   return (
-    <AppScreen topBar={<NavigationHeader title="Jalur Naik Modal" onBack={() => flow.back()} />}>
+    <Screen topBar={<NavigationHeader title="Jalur Naik Modal" onBack={() => flow.back()} />}>
       <Card>
         <div className="flex items-center gap-12">
           <div className="flex min-w-0 flex-1 flex-col">
@@ -126,7 +127,7 @@ export function LadderScreen() {
           Kembali ke Detail Mitra
         </Button>
       </div>
-    </AppScreen>
+    </Screen>
   )
 }
 

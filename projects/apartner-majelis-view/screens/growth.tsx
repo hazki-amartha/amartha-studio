@@ -24,13 +24,23 @@
 
 import { useState } from 'react'
 import { Badge, BottomSheet, Button, NavigationHeader } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { growthMembers, type Growth } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
 import { IconCamera, IconCheck } from '../lib/icons'
 import { DpdBadge, KetuaBadge, MitraCard } from '../lib/mitra-card'
 import { growthDoneCount, store, useApp, openMajelisEntry, type GrowthFollowUp } from '../lib/store'
-import { ActionRow, AppScreen, ChoiceList, ProductBadge, ProofTile, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
+import {
+  ActionRow,
+  ChoiceList,
+  ProductBadge,
+  ProofTile,
+  SectionTitle,
+  StageBar,
+  StickyBar,
+  VisitTitle,
+} from '../lib/ui'
 
 // Why she said no. Without a reason on file every "tidak tertarik" looks the
 // same, and next week's BP can't tell a settled no from a "not right now".
@@ -116,7 +126,7 @@ export function GrowthScreen() {
   }
 
   return (
-    <AppScreen
+    <Screen
       topBar={
         <NavigationHeader
           title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
@@ -295,6 +305,6 @@ export function GrowthScreen() {
           </Button>
         </div>
       </StickyBar>
-    </AppScreen>
+    </Screen>
   )
 }

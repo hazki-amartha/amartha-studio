@@ -26,6 +26,7 @@
 import { useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, Card } from '@/design-system/components'
 import type { BadgeIntent } from '@/design-system/components/Badge'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
 import {
@@ -60,7 +61,17 @@ import {
   type TaskStatus,
 } from '../lib/store'
 import { TabBar } from '../lib/tabs'
-import { AppScreen, EmptyState, FilterBar, FilterChip, HeaderAction, OptionSheet, Overline, ResetLink, SettlementHistorySheet, type Tint } from '../lib/ui'
+import {
+  EmptyState,
+  FilterBar,
+  FilterChip,
+  HeaderAction,
+  OptionSheet,
+  Overline,
+  ResetLink,
+  SettlementHistorySheet,
+  type Tint,
+} from '../lib/ui'
 
 // The two NTB kinds get their own tints rather than borrowing purple. Purple is
 // the colour of servicing a majelis on this schedule, and a prospecting stop
@@ -515,7 +526,7 @@ export function TodayScreen() {
   // because tomorrow has neither a state nor anywhere to go.
   if (s.day === 'tomorrow') {
     return (
-      <AppScreen topBar={header}>
+      <Screen topBar={header}>
         <Overline>Jadwal besok</Overline>
         <div className="flex flex-col gap-8">
           {tomorrow.map((task) => (
@@ -529,12 +540,12 @@ export function TodayScreen() {
         </div>
         <DayPicker open={picking} onClose={() => setPicking(false)} />
         <TabBar active="today" />
-      </AppScreen>
+      </Screen>
     )
   }
 
   return (
-    <AppScreen topBar={header}>
+    <Screen topBar={header}>
       {/* --- Setoran: what is in her bag right now, and the button that puts
           it down. It replaced "Terkumpul hari ini", which was a progress bar
           against a target — a number to feel something about rather than act
@@ -882,6 +893,6 @@ export function TodayScreen() {
       />
       <SettlementHistorySheet open={historyOpen} onClose={() => setHistoryOpen(false)} />
       <TabBar active="today" />
-    </AppScreen>
+    </Screen>
   )
 }

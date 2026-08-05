@@ -1,7 +1,5 @@
 'use client'
 
-import { AppScreen } from '../lib/ui'
-
 // One pencairan, opened from the list of all of them.
 //
 // The list answers "how many cycles, and how did they go". This answers the
@@ -18,6 +16,7 @@ import { AppScreen } from '../lib/ui'
 
 import { useState } from 'react'
 import { Badge, NavigationHeader } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, rupiah } from '../lib/data'
 import { findLoan, scheduleOf, type Instalment } from '../lib/loans'
@@ -37,7 +36,7 @@ export function LoanScreen() {
   const sisa = total - paidCount * loan.weekly
 
   return (
-    <AppScreen
+    <Screen
       topBar={
         <NavigationHeader title={`Pencairan ${loan.no}`} onBack={() => flow.back()} />
       }
@@ -78,7 +77,7 @@ export function LoanScreen() {
           <ScheduleRow key={row.no} row={row} last={i === schedule.length - 1} />
         ))}
       </div>
-    </AppScreen>
+    </Screen>
   )
 }
 
