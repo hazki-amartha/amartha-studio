@@ -92,7 +92,12 @@ export function HomeV2Screen() {
         <PoketWidget />
       </BrandBand>
 
-      <div className="overflow-hidden rounded-12 border border-light bg-neutral-white">
+      {/* `border-default`, the same light grey rule the payout tile and the
+          service tiles carry. It used to be `border-light`, which is neutral-50
+          — a white card outlined in near-white, so the card had no edge at all
+          and floated against the page instead of sitting on it like its
+          neighbours. */}
+      <div className="overflow-hidden rounded-16 border border-default bg-neutral-white">
         {/* The capital journey. What discipline grows her limit into, and the
             two stops on the way — the near top-up and the far limit rise — on
             one timeline, so short and long term read as one story. */}
