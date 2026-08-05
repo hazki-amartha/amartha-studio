@@ -176,6 +176,11 @@ const config: Config = {
       },
       backgroundColor: {
         'overlay': 'rgba(17, 25, 40, 0.8)',
+        // A cool page canvas, distinct from the warm neutral-50 one. The BP
+        // app's 2026 direction puts white cards on this rather than on the
+        // warm tint; it is a page ground only, which is why it lives here as a
+        // background alias and not as a step on the neutral ramp.
+        'canvas-blue': '#F3F6FD',
       },
     },
   },
