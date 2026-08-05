@@ -25,5 +25,7 @@ export const configs: ConfigRegistry = {
   'afin-weekly-checkin': () => import('./afin-weekly-checkin/project.config').then((m) => m.config),
   'amarthafin-live': () => import('./amarthafin-live/project.config').then((m) => m.config),
   'ngmis-live': () => import('./ngmis-live/project.config').then((m) => m.config),
+  'agent-dashboard': () =>
+    import('./agent-dashboard/project.config').then((m) => m.config),
   // <append new projects above this line — one line per project>
 }
