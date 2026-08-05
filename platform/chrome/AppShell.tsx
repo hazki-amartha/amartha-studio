@@ -296,19 +296,14 @@ function AppShellInner({
   // (TripleTapExit is the way back), every other route gets MobileTopNav.
   const isProto = currentSlug != null
 
-  // Bare presentation — the prototype gets the window and the shell steps out
-  // entirely. TripleTapExit still wraps it: the prototype view drops its own
-  // floating exit button on a phone viewport (where it would cover real UI),
-  // and this is what the viewer is left with.
-  if (isProto && bare) {
-    return (
-      <div className="h-screen overflow-hidden bg-neutral-50 dark:bg-ink-950">
-        <TripleTapExit className="h-full touch-manipulation overflow-y-auto">
-          {children}
-        </TripleTapExit>
-      </div>
-    )
-  }
+  // Bare presentation — the chrome steps out and the prototype gets the window.
+  //
+  // Every piece hides IN PLACE rather than the shell returning a different
+  // tree: swapping the tree unmounts `children`, and PrototypeView resets the
+  // mode when it unmounts, so entering full screen instantly left it again.
+  // JSX slots hold their position when a branch renders null, so nulling the
+  // chrome here does not move `children` and does not remount the prototype.
+  const bareProto = isProto && bare
   // Inside a project the sidebar becomes its page explorer; an unknown slug
   // (the 404 route) falls back to the project list.
   const currentProject = currentSlug
@@ -317,9 +312,9 @@ function AppShellInner({
 
   return (
     <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-ink-950">
-      <NavRail active={active} className="hidden md:flex" />
+      <NavRail active={active} className={bareProto ? 'hidden' : 'hidden md:flex'} />
 
-      {collapsed ? null : (
+      {collapsed || bareProto ? null : (
         <aside
           className={`${styles.secondary} hidden shrink-0 overflow-y-auto border-r border-default bg-neutral-white px-8 py-16 dark:border-ink-700 dark:bg-ink-900 md:block`}
         >
@@ -337,7 +332,7 @@ function AppShellInner({
         {isProto ? null : <MobileTopNav active={active} />}
 
         <header
-          className={`${isProto ? 'hidden md:flex' : 'flex'} h-48 shrink-0 items-center gap-12 border-b border-default bg-neutral-white px-16 dark:border-ink-700 dark:bg-ink-900`}
+          className={`${bareProto ? 'hidden' : isProto ? 'hidden md:flex' : 'flex'} h-48 shrink-0 items-center gap-12 border-b border-default bg-neutral-white px-16 dark:border-ink-700 dark:bg-ink-900`}
         >
           <button
             type="button"
