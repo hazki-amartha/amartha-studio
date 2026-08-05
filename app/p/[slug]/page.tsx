@@ -11,7 +11,7 @@ import { PrototypeView } from '@/platform/frame'
 
 interface PageProps {
   params: { slug: string }
-  searchParams: { screen?: string | string[] }
+  searchParams: { screen?: string | string[]; full?: string | string[] }
 }
 
 /** Pre-render a static page per registered project. */
@@ -53,6 +53,10 @@ export default async function PrototypePage({ params, searchParams }: PageProps)
   // server render of the route.
   const config = await loader()
   const initialScreenId = firstValue(searchParams.screen)
+  // ?full=1 — open straight into bare presentation. Presence is enough; only an
+  // explicit "0" turns it back off, so ?full also works.
+  const initialBare = firstValue(searchParams.full) !== undefined
+    && firstValue(searchParams.full) !== '0'
 
   return (
     <PrototypeView
@@ -60,6 +64,7 @@ export default async function PrototypePage({ params, searchParams }: PageProps)
       key={initialScreenId ?? 'entry'}
       config={config}
       initialScreenId={initialScreenId}
+      initialBare={initialBare}
     />
   )
 }

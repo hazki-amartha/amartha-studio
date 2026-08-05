@@ -2,12 +2,26 @@
 
 // =============================================================================
 // WS-A · PrototypeView — the responsive presentation of a running prototype.
-//   • < md  → full-page app (no frame), feels like the real app.
-//   • ≥ md  → device frame centered on neutral-50, flanked by arrows that step
-//             through the declared screen order, with the annotation panel
-//             pinned to the right edge showing the active screen's notes
-//             (falling back to the project's notes), and the states panel
-//             mirroring it on the left.
+//
+// Two axes, deliberately orthogonal (see platform/runtime/presentBridge):
+//
+//   PRESENTATION — studio (frame + arrows + panels: the review surface) or bare
+//   (the app fills the browser window, nothing around it: the demo surface).
+//   Bare is either asked for — the shell's Full screen toggle, or ?full=1 — or
+//   implied, when a phone prototype is opened on a phone, which is the case
+//   that used to be this file's whole "< md" branch.
+//
+//   DEVICE — mobile (390×844) or desktop (1440×900). It decides what gets
+//   framed and how bare fills the window; it does NOT decide the presentation.
+//
+// In studio mode:
+//   • mobile  → device frame centered on neutral-50, flanked by arrows that step
+//               through the declared screen order, with the annotation panel
+//               pinned to the right edge showing the active screen's notes
+//               (falling back to the project's notes), and the states panel
+//               mirroring it on the left.
+//   • desktop → the same, but 1440 wide leaves no room for two columns, so the
+//               panels become drawers over the canvas.
 // The two panels are the two axes of a walkthrough: the arrows and the states
 // reach any screen in any condition without tapping through the setup first.
 // The arrows exist because not every screen is reachable by tapping: component
@@ -32,8 +46,14 @@ import {
   setInspectMode,
   subscribeInspectMode,
 } from '@/platform/runtime/inspectBridge'
+import {
+  getBareMode,
+  getBareServerSnapshot,
+  setBareMode,
+  subscribeBareMode,
+} from '@/platform/runtime/presentBridge'
 import { InspectLayer, InspectorPanel } from '@/platform/inspect'
-import { ChevronLeftIcon, ChevronRightIcon } from '@/platform/chrome/icons'
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '@/platform/chrome/icons'
 import { DeviceFrame } from './DeviceFrame'
 import { DEVICE_SPECS, outerSize } from './device'
 import styles from './prototype.module.css'
@@ -259,9 +279,15 @@ function ScaledDevice({ children }: { children: ReactNode }) {
  *  ScaledDevice does) would feed the observer its own output. */
 function FittedDevice({
   spec,
+  /** Framed, the device is hardware and never grows past life size. Bare, the
+   *  request was "use the whole window", so a 1440 layout on a 1920 display
+   *  scales up rather than sitting in a letterbox — it's a transform on live
+   *  DOM, so text stays crisp at any factor. */
+  upscale = false,
   children,
 }: {
   spec: { width: number; height: number }
+  upscale?: boolean
   children: ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -271,11 +297,12 @@ function FittedDevice({
     const el = ref.current
     if (!el) return
     const ro = new ResizeObserver(() => {
-      setScale(Math.min(1, el.clientWidth / spec.width, el.clientHeight / spec.height))
+      const fit = Math.min(el.clientWidth / spec.width, el.clientHeight / spec.height)
+      setScale(upscale ? fit : Math.min(1, fit))
     })
     ro.observe(el)
     return () => ro.disconnect()
-  }, [spec.width, spec.height])
+  }, [spec.width, spec.height, upscale])
 
   return (
     <div ref={ref} className="flex h-full min-w-0 flex-1 items-center justify-center">
@@ -511,10 +538,75 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
   )
 }
 
-function MobileLayout() {
+/** The way out of an explicitly-requested full screen. Floating rather than in a
+ *  bar, because a bar is chrome and bare mode's whole point is that there isn't
+ *  any: it sits over the bottom-right corner, where app UI least often is. */
+function ExitFullScreen() {
   return (
-    <div className="h-full w-full bg-neutral-white">
-      <AppViewport />
+    <button
+      type="button"
+      onClick={() => setBareMode(false)}
+      aria-label="Exit full screen"
+      title="Exit full screen (Esc)"
+      className="fixed bottom-24 right-24 z-30 flex items-center gap-8 rounded-full border border-default bg-neutral-white px-16 py-8 text-12 font-bold text-caption shadow-sm hover:bg-neutral-50 hover:text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+    >
+      <CloseIcon className="size-16" />
+      Exit full screen
+    </button>
+  )
+}
+
+/**
+ * Bare presentation — the app, the window, and nothing else.
+ *
+ * `fill` is the phone-on-a-phone case (and the only one that existed before
+ * this was a mode): the viewport already IS the device, so the app takes it
+ * literally, unscaled, exactly as the real app would. Every other bare view has
+ * a window that doesn't match the design size — a 1440 back-office on a laptop,
+ * or a 390 phone flow on a projector — so the layout keeps its design width and
+ * scales to fit, centred on the canvas.
+ *
+ * The exit button is tied to `explicit`, not to the mode: implicit bare has no
+ * studio view to return to, and a floating button over a phone screen would
+ * cover real UI for no gain (the triple-tap escape hatch already serves there).
+ */
+function BareLayout({
+  device,
+  fill,
+  explicit,
+}: {
+  device: DeviceKind
+  fill: boolean
+  explicit: boolean
+}) {
+  // Esc is the reflex for leaving anything full screen, so it works even when
+  // the button is deliberately absent.
+  useEffect(() => {
+    if (!explicit) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setBareMode(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [explicit])
+
+  if (fill) {
+    return (
+      <div className="h-full w-full bg-neutral-white">
+        <AppViewport device={device} />
+        {explicit ? <ExitFullScreen /> : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full w-full items-center justify-center overflow-hidden bg-neutral-50 dark:bg-ink-950">
+      <FittedDevice spec={DEVICE_SPECS[device]} upscale>
+        <div className="h-full w-full overflow-hidden bg-neutral-white">
+          <AppViewport device={device} />
+        </div>
+      </FittedDevice>
+      {explicit ? <ExitFullScreen /> : null}
     </div>
   )
 }
@@ -523,6 +615,9 @@ export interface PrototypeViewProps {
   config: ProjectConfig
   /** Deep-link target from ?screen=<id>; falls back to the entry screen. */
   initialScreenId?: string
+  /** Deep-link from ?full=1 — opens straight into bare presentation, so a link
+   *  handed round before a demo needs no click to get there. */
+  initialBare?: boolean
 }
 
 /** The project's screen list, loaded client-side from the registry.
@@ -550,13 +645,37 @@ function useScreens(slug: string): ScreenDef[] | null {
   return screens
 }
 
-export function PrototypeView({ config, initialScreenId }: PrototypeViewProps) {
+export function PrototypeView({ config, initialScreenId, initialBare }: PrototypeViewProps) {
   const isDesktop = useIsDesktop()
   const screens = useScreens(config.slug)
 
-  // The mode flag outlives this route, so leaving for the gallery or the flow
-  // view would otherwise strand the toggle lit with nothing to inspect.
-  useEffect(() => () => setInspectMode(false), [])
+  const explicitBare = useSyncExternalStore(
+    subscribeBareMode,
+    getBareMode,
+    getBareServerSnapshot,
+  )
+
+  // Both mode flags outlive this route, so leaving for the gallery or the flow
+  // view would otherwise strand the shell in a mode with nothing to apply it to.
+  useEffect(
+    () => () => {
+      setInspectMode(false)
+      setBareMode(false)
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (initialBare) setBareMode(true)
+  }, [initialBare])
+
+  const device = config.device ?? 'mobile'
+  // A phone prototype on a phone viewport: bare without anyone asking, because
+  // there is no room for the studio around it — the rule that used to be a
+  // layout branch. A 1440-wide desktop prototype never qualifies: unframed on a
+  // 375px window it isn't a prototype at all, so it stays framed and scales.
+  const impliedBare = device === 'mobile' && !isDesktop
+  const bare = explicitBare || impliedBare
 
   // The provider seeds its visit stack from the screen list, so it must not
   // mount before the list is there. The canvas underneath is the same colour
@@ -566,16 +685,12 @@ export function PrototypeView({ config, initialScreenId }: PrototypeViewProps) {
   return (
     <PrototypeProvider screens={screens} initialScreenId={initialScreenId}>
       <BridgePublisher slug={config.slug} screens={screens} />
-      {config.device === 'desktop' ? (
-        // A 1440-wide app has no full-page mode to fall back to: on a narrow
-        // browser it stays framed and simply scales further down, which is
-        // still readable-ish, where an unframed 1440 layout in a 375px window
-        // is not a prototype at all.
+      {bare ? (
+        <BareLayout device={device} fill={impliedBare} explicit={explicitBare} />
+      ) : device === 'desktop' ? (
         <DesktopDeviceLayout config={config} screens={screens} />
-      ) : isDesktop ? (
-        <DesktopLayout config={config} screens={screens} />
       ) : (
-        <MobileLayout />
+        <DesktopLayout config={config} screens={screens} />
       )}
     </PrototypeProvider>
   )

@@ -82,6 +82,16 @@ export const DeviceIcon = icon(
   </>,
 )
 
+// Full screen — four arrows pushing out to the corners of the window.
+export const ExpandIcon = icon(
+  <>
+    <path d="M9 3H3v6" />
+    <path d="M15 3h6v6" />
+    <path d="M9 21H3v-6" />
+    <path d="M15 21h6v-6" />
+  </>,
+)
+
 // Theme toggle — moon (in dark, offering light) and sun (in light, offering dark).
 export const MoonIcon = icon(<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />)
 export const SunIcon = icon(
