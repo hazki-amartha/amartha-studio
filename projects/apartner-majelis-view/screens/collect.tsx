@@ -269,7 +269,7 @@ export function CollectScreen() {
       <div
         role="radiogroup"
         aria-label="Berapa yang dibayar"
-        className="-mx-16 flex flex-1 flex-col gap-12 border-t border-default bg-neutral-50 px-16 pb-16 pt-16"
+        className="-mx-16 flex flex-1 flex-col gap-12 border-t border-default bg-canvas-blue px-16 pb-16 pt-16"
       >
         <SectionTitle>Berapa yang dibayar?</SectionTitle>
 
@@ -413,7 +413,7 @@ export function CollectScreen() {
         {/* Nothing to fill in — a read-back of what the one tap will record,
             the same card the home visit shows when this outcome is picked. */}
         {sheet === 'tanggung' ? (
-          <div className="flex flex-col gap-4 rounded-12 bg-neutral-50 p-12">
+          <div className="flex flex-col gap-4 rounded-12 bg-canvas-blue p-12">
             <span className="text-12 text-caption">Ditanggung kelompok</span>
             <span className="text-20 font-bold text-default">{rupiah(owed.total)}</span>
             <span className="text-12 text-caption">

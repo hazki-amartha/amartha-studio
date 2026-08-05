@@ -20,7 +20,6 @@
 // is making a cold call to a stranger the app told her was warm.
 
 import { Badge, Button, Card, Input, NavigationHeader } from '@/design-system/components'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
 import {
@@ -34,7 +33,7 @@ import {
 import { LeadIdentityCard } from '../lib/lead-card'
 import { MAJELIS_DIRECTORY, findMajelisEntry } from '../lib/schedule'
 import { openLead, store, useApp } from '../lib/store'
-import { Chip, ChipGroup, SectionTitle, StatRows, StickyBar, VisitTitle } from '../lib/ui'
+import { AppScreen, Chip, ChipGroup, SectionTitle, StatRows, StickyBar, VisitTitle } from '../lib/ui'
 
 export function LeadScreen() {
   const flow = useFlow()
@@ -55,7 +54,7 @@ export function LeadScreen() {
   }
 
   return (
-    <Screen
+    <AppScreen
       topBar={
         <NavigationHeader
           title={
@@ -82,7 +81,7 @@ export function LeadScreen() {
           </div>
           {interest ? <span className="text-12 text-caption">{interest.hint}</span> : null}
           {lead.reason ? (
-            <div className="rounded-8 bg-neutral-50 px-12 py-8 text-12 text-default">
+            <div className="rounded-8 bg-canvas-blue px-12 py-8 text-12 text-default">
               {lead.reason}
             </div>
           ) : null}
@@ -150,7 +149,7 @@ export function LeadScreen() {
           </ChipGroup>
 
           {lead.hasOtherLoan ? (
-            <div className="flex flex-col gap-16 rounded-12 bg-neutral-50 p-12">
+            <div className="flex flex-col gap-16 rounded-12 bg-canvas-blue p-12">
               <ChipGroup label="Dari mana">
                 {LENDERS.map((lender) => (
                   <Chip
@@ -253,6 +252,6 @@ export function LeadScreen() {
           {lead.stage === 'siap' ? 'Sudah diajukan' : 'Follow Up Sekarang'}
         </Button>
       </StickyBar>
-    </Screen>
+    </AppScreen>
   )
 }

@@ -125,7 +125,7 @@ export function LeadIdentityCard({
             conversation from a stranger at a warung, and losing that turns a
             warm introduction back into a cold call. */}
         {lead.source === 'referral' && lead.referredBy ? (
-          <div className="rounded-8 bg-neutral-50 px-12 py-8 text-12 text-default">
+          <div className="rounded-8 bg-canvas-blue px-12 py-8 text-12 text-default">
             Direferensikan oleh {lead.referredBy}
           </div>
         ) : null}

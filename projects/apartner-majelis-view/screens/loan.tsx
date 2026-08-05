@@ -1,5 +1,7 @@
 'use client'
 
+import { AppScreen } from '../lib/ui'
+
 // One pencairan, opened from the list of all of them.
 //
 // The list answers "how many cycles, and how did they go". This answers the
@@ -16,7 +18,6 @@
 
 import { useState } from 'react'
 import { Badge, NavigationHeader } from '@/design-system/components'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, rupiah } from '../lib/data'
 import { findLoan, scheduleOf, type Instalment } from '../lib/loans'
@@ -36,7 +37,7 @@ export function LoanScreen() {
   const sisa = total - paidCount * loan.weekly
 
   return (
-    <Screen
+    <AppScreen
       topBar={
         <NavigationHeader title={`Pencairan ${loan.no}`} onBack={() => flow.back()} />
       }
@@ -46,7 +47,7 @@ export function LoanScreen() {
           under it is what makes the number arguable rather than announced. A
           tinted panel rather than a card: it is the page's own header, not the
           first item in a list of cards. */}
-      <div className="flex flex-col gap-12 rounded-16 bg-neutral-50 p-12">
+      <div className="flex flex-col gap-12 rounded-16 bg-canvas-blue p-12">
         <div className="flex flex-col gap-2">
           <span className="text-12 text-caption">Sisa angsuran</span>
           <span className="text-24 font-bold text-default">{rupiah(sisa)}</span>
@@ -77,7 +78,7 @@ export function LoanScreen() {
           <ScheduleRow key={row.no} row={row} last={i === schedule.length - 1} />
         ))}
       </div>
-    </Screen>
+    </AppScreen>
   )
 }
 
@@ -153,7 +154,7 @@ function ScheduleRow({ row, last }: { row: Instalment; last: boolean }) {
             A part-payment is the case that makes it worth having: "Lunas" and
             "Belum Bayar" both hide the week she handed over half. */}
         {open ? (
-          <span className="flex flex-col gap-2 rounded-8 bg-neutral-50 px-12 py-8">
+          <span className="flex flex-col gap-2 rounded-8 bg-canvas-blue px-12 py-8">
             <span className="text-12 text-caption">
               {row.status === 'akan'
                 ? `Jatuh tempo ${row.due}`
