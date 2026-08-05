@@ -238,14 +238,18 @@ export function HomeVisitScreen() {
         <div
           role="radiogroup"
           aria-label="Berapa yang dibayar"
-          className="-mx-16 flex flex-1 flex-col gap-12 border-t border-default bg-neutral-50 px-16 pb-16 pt-16"
+          className="-mx-16 flex flex-1 flex-col gap-12 border-t border-default bg-canvas-blue px-16 pb-16 pt-16"
         >
           <SectionTitle>Berapa yang dibayar?</SectionTitle>
           <div className="flex flex-col gap-8">
+            {/* No `detail` read-back here. Lunas means the whole bill was
+                handed over, so "Diterima Rp1.500.000" under a description that
+                already says Rp1.500.000 states the figure twice. The partial
+                row below still carries one, because there the amount taken and
+                the amount owed are genuinely different numbers. */}
             <PickRow
               title="Lunas"
               description={rupiah(owed.total)}
-              detail={mode === 'penuh' ? `Diterima ${rupiah(paid)}` : null}
               selected={pick === 'lunas'}
               onSelect={() => setPick('lunas')}
             />

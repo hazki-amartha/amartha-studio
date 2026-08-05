@@ -142,7 +142,7 @@ export function SkipVisitSheet({
           <button
             type="button"
             onClick={() => setPhoto(true)}
-            className="flex w-full flex-col items-center gap-4 rounded-8 border border-default bg-neutral-50 p-16 text-caption"
+            className="flex w-full flex-col items-center gap-4 rounded-8 border border-default bg-canvas-blue p-16 text-caption"
           >
             <Camera size={24} />
             <span className="text-14 text-default">Ambil Foto</span>
