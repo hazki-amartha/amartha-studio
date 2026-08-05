@@ -28,10 +28,14 @@ html[data-theme='dark'] body {
   color: var(--neutral-50);
 }
 
-/* The gallery card is a .ds-card, and .ds-card's border is unlayered CSS that
-   outranks Tailwind's dark: utilities (they live in @layer utilities). This
-   scoped, unlayered override wins the cascade for the homepage cards without
-   touching the same .ds-card in FunDS specimens or the prototype device. */
+/* The gallery card is a .ds-card, and .ds-card's border and background are
+   unlayered CSS that outranks Tailwind's dark: utilities (they live in
+   @layer utilities). This scoped, unlayered override wins the cascade for the
+   homepage cards without touching the same .ds-card in FunDS specimens or the
+   prototype device. Background matters as much as the border: .ds-card-flush
+   clips its children to the 16px radius, so a white card underneath shows as
+   white slivers in the rounded corners. */
 html[data-theme='dark'] .gallery-card {
   border-color: var(--ink-700);
+  background: var(--ink-900);
 }
