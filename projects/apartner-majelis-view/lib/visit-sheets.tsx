@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from 'react'
 import { BottomSheet, Button } from '@/design-system/components'
-import { Camera, ChecklistDocFill, ChatCircleQuestion } from '@/design-system/icons'
+import { Camera } from '@/design-system/icons'
 import { ChoiceList, PinMark } from './ui'
 
 // Why the visit is being skipped. A fixed list, same reasoning as the
@@ -56,8 +56,6 @@ export function VisitGateSheet({
       onClose={onClose}
       title="Apakah tugas dapat dikerjakan?"
       description="Kerjakan tugas bila mitra ada yang hadir. Jika mitra tidak hadir semua, silahkan lewati tugas."
-      slot={<GateArt />}
-      slotPosition="above"
     >
       <div className="flex flex-col gap-8 pt-8">
         <Button size="lg" className="w-full" onClick={onWork}>
@@ -68,22 +66,6 @@ export function VisitGateSheet({
         </Button>
       </div>
     </BottomSheet>
-  )
-}
-
-/**
- * The illustration slot, drawn from system parts rather than an image. The
- * prototype has no artwork pipeline, and a stock picture standing in for one is
- * the kind of realism that reads as finished when it isn't — so this is an
- * honest placeholder in the brand tint: the task, and the question being asked
- * about it.
- */
-function GateArt() {
-  return (
-    <div className="flex items-center justify-center gap-8 rounded-12 bg-primary-50 py-48 text-primary-500">
-      <ChecklistDocFill size={24} />
-      <ChatCircleQuestion size={24} />
-    </div>
   )
 }
 
