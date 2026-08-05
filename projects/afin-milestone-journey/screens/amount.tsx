@@ -264,7 +264,7 @@ function LoanCard({
         <div className="text-16 font-bold text-primary-500">{amount}</div>
       </div>
       <Meter percent={percent} />
-      <div className="mt-8 flex gap-8 text-10 text-caption">
+      <div className="mt-8 flex gap-8 text-12 text-caption">
         <span className="flex-1">{caption}</span>
         <span className="font-bold">{remaining}</span>
       </div>

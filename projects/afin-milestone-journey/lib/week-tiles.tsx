@@ -76,7 +76,7 @@ export function WeekGrid({
                   second circle. Green when she came, red when she missed — the
                   colour echoes the mark above so the tile reads at a glance. */}
               <span
-                className={`flex items-center gap-2 text-10 font-bold ${
+                className={`flex items-center gap-2 text-12 font-bold ${
                   w.kumpulan ? 'text-green-600' : 'text-red-500'
                 }`}
               >

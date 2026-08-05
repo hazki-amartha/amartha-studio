@@ -102,7 +102,7 @@ export function DisburseAmountScreen() {
         </div>
       </div>
 
-      <p className="text-center text-10 text-disabled">*Simulasi, angka bukan final</p>
+      <p className="text-center text-12 text-disabled">*Simulasi, angka bukan final</p>
 
       <StickyBar>
         <FullWidthButton

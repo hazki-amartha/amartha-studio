@@ -88,10 +88,10 @@ export function MajelisScreen() {
           <p className="text-12 text-caption">{total} mitra</p>
         </div>
 
-        <p className="mt-12 text-10 font-bold uppercase text-caption">Anda</p>
+        <p className="mt-12 text-12 font-bold uppercase text-caption">Anda</p>
         <MemberRow member={you} />
 
-        <p className="mt-8 text-10 font-bold uppercase text-caption">Anggota</p>
+        <p className="mt-8 text-12 font-bold uppercase text-caption">Anggota</p>
         <button
           type="button"
           className="mt-8 flex w-full items-center gap-12 rounded-12 border border-neutral-400 bg-neutral-50 p-12 text-left"
@@ -110,7 +110,7 @@ export function MajelisScreen() {
       </div>
 
       <div className="rounded-12 border border-default bg-neutral-white p-16">
-        <p className="mb-8 text-10 font-bold uppercase text-caption">Info majelis</p>
+        <p className="mb-8 text-12 font-bold uppercase text-caption">Info majelis</p>
         <StatRow label="Petugas Ibu" value="Fadhil Maulana" border />
         <StatRow label="Jadwal kumpulan" value="Senin, 11.30 – 12.00" border />
         <StatRow label="Lokasi kumpulan" value="Jl. Melati No. 7" border />
@@ -190,7 +190,7 @@ function MemberRow({ member, divider }: { member: Member; divider?: boolean }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-14 font-bold text-default">{member.name}</p>
         {member.ketua ? (
-          <span className="mt-2 inline-block rounded-full border border-default px-8 py-2 text-10 text-caption">
+          <span className="mt-2 inline-block rounded-full border border-default px-8 py-2 text-12 text-caption">
             Ketua
           </span>
         ) : null}

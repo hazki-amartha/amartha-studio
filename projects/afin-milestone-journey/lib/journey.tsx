@@ -248,7 +248,7 @@ export function MilestoneRung({
               qualifies the number without competing with it. */}
           {footnote ? (
             <div className="border-t border-light bg-neutral-50 px-16 py-8">
-              <p className={`text-12 ${ink ?? 'text-caption'}`}>
+              <p className={`text-14 ${ink ?? 'text-caption'}`}>
                 {footnote.before}{' '}
                 <span className={`font-bold ${ink ?? 'text-default'}`}>{footnote.strong}</span>{' '}
                 {footnote.after}
