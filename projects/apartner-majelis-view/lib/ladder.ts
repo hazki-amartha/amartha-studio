@@ -44,6 +44,18 @@ export interface Rung {
   detail: string | null
   /** 0–100 for the rung being climbed; null everywhere else. */
   progress: number | null
+  /**
+   * The calendar date this rung falls on — "6 Okt 2026". The rail leads with it
+   * rather than with "10 Bulan" because a month count is measured from a start
+   * date the mitra has to remember; a date is the thing she can put against her
+   * own calendar without doing arithmetic.
+   */
+  date: string
+  /**
+   * Weeks between today and this rung. Negative once it is behind her, which is
+   * why the card reads `state` rather than the sign of this number.
+   */
+  weeksAway: number
 }
 
 export interface Ladder {
@@ -105,6 +117,9 @@ function weeksAgo(weeks: number): string {
   return `${d.getDate()} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`
 }
 
+/** The same formatter reading forward — `weeksAgo` with the sign flipped. */
+const weeksAhead = (weeks: number): string => weeksAgo(-weeks)
+
 export function ladderOf(mitra: Mitra): Ladder {
   // Her contract value today — what a top up is quoted against. Rungs escalate
   // off it so the ladder actually climbs: a second rung worth the same as the
@@ -117,18 +132,37 @@ export function ladderOf(mitra: Mitra): Ladder {
   const arrears = owed.missed + owed.partial
   const status: Ladder['status'] = arrears > 0 ? 'tertahan' : 'berjalan'
 
-  // The first rung she has not cleared. Everything after it is locked.
-  const currentIndex = MILESTONES.findIndex((m) => m.month > monthsIn)
+  // The first rung she has not passed THROUGH. Compared in weeks, and with
+  // `>=`, so a rung she has exactly reached is the one that is open to her now
+  // rather than one already behind her — landing on week 40 is the moment
+  // pelunasan dini becomes available, not the moment it expires.
+  const currentIndex = MILESTONES.findIndex((m) => m.month * 4 >= mitra.week)
 
   const rungs: Rung[] = MILESTONES.map((m, i) => {
+    const weeksAway = m.month * 4 - mitra.week
+    // The pelunasan rung carries a figure only for a mitra who has actually
+    // been granted early settlement: what she would settle is her own contract,
+    // so it is her limit rather than a multiple of it. Without the grant the
+    // rung stays a statement of the right, with no amount attached.
+    const amount =
+      m.kind === 'pelunasan'
+        ? mitra.pelunasanDini
+          ? mitra.loan
+          : null
+        : m.factor === null
+          ? null
+          : round50(plafond * m.factor)
+
     const base = {
       id: `bulan-${m.month}`,
       month: m.month,
       title: `${m.month} Bulan`,
       badge: m.badge,
       kind: m.kind,
-      lead: m.lead,
-      amount: m.factor === null ? null : round50(plafond * m.factor),
+      lead: m.kind === 'pelunasan' && amount !== null ? 'Bisa dilunasi' : m.lead,
+      amount,
+      date: weeksAway >= 0 ? weeksAhead(weeksAway) : weeksAgo(-weeksAway),
+      weeksAway,
     }
 
     if (currentIndex === -1 || i < currentIndex) {
@@ -141,7 +175,14 @@ export function ladderOf(mitra: Mitra): Ladder {
     }
 
     if (i > currentIndex) {
-      return { ...base, state: 'terkunci', detail: null, progress: null }
+      // A locked rung still says WHEN — the rail is a calendar the mitra reads,
+      // and a date with no distance beside it is one she has to count out.
+      return {
+        ...base,
+        state: 'terkunci',
+        detail: `${base.weeksAway} minggu lagi`,
+        progress: null,
+      }
     }
 
     // The rung she is on. Progress spans THIS rung, not the whole cycle — "3
@@ -158,7 +199,11 @@ export function ladderOf(mitra: Mitra): Ladder {
       detail:
         status === 'tertahan'
           ? `Tertahan — ${missedWeeks} minggu belum dibayar`
-          : `${weeksTotal - weeksDone} minggu tersisa`,
+          : weeksTotal - weeksDone <= 0
+            ? // She is standing on it. "0 minggu lagi" is a countdown that has
+              // finished and still reads as waiting.
+              'Bisa sekarang'
+            : `${weeksTotal - weeksDone} minggu lagi`,
       progress: Math.round((weeksDone / weeksTotal) * 100),
     }
   })
@@ -169,8 +214,18 @@ export function ladderOf(mitra: Mitra): Ladder {
   // approaching "pelunasan dini" is being told that clearing her arrears earns
   // her the right to pay EARLY, which is not an argument — it is a joke at her
   // expense. So the pitch skips ahead to the next rung that pays her in modal.
+  //
+  // Unless she has been GRANTED early settlement, in which case that rung is
+  // the pitch: the joke above only holds when "you may pay early" is a
+  // consolation prize. Once it is an approved offer with her own limit on it,
+  // it is the thing she is working toward.
+  const ahead = currentIndex === -1 ? [] : rungs.slice(currentIndex)
   const reward =
-    currentIndex === -1 ? null : (rungs.slice(currentIndex).find((r) => r.amount !== null) ?? current)
+    currentIndex === -1
+      ? null
+      : ((mitra.pelunasanDini ? ahead.find((r) => r.kind === 'pelunasan') : undefined) ??
+        ahead.find((r) => r.amount !== null) ??
+        current)
 
   // "Bu Rina", not "Bu Marlina" — the given name leads, as it is said aloud.
   const first = mitra.name.split(' ')[0]
@@ -217,12 +272,22 @@ function scriptFor(
   const prize =
     reward.amount === null
       ? 'Ibu bisa melunasi lebih awal'
-      : reward.kind === 'limit'
-        ? `limit Ibu naik jadi ${rupiah(reward.amount)}`
-        : `Ibu bisa tambah modal ${rupiah(reward.amount)}`
+      : reward.kind === 'pelunasan'
+        ? `Ibu bisa melunasi lebih awal ${rupiah(reward.amount)}`
+        : reward.kind === 'limit'
+          ? `limit Ibu naik jadi ${rupiah(reward.amount)}`
+          : `Ibu bisa tambah modal ${rupiah(reward.amount)}`
 
   if (status === 'tertahan') {
     return `Bu ${first}, jalur naik modal Ibu sedang tertahan. Kalau tunggakan ${rupiah(arrears)} ini lunas, jalurnya jalan lagi — di ${reward.month} bulan ${prize}.`
+  }
+
+  // Early settlement gets its own line, because it is the one prize that also
+  // ENDS something: she is not adding modal on top of a running loan, she is
+  // closing every loan she has here. A BP who pitches it as a top-up leaves
+  // the mitra to discover that at signing.
+  if (reward.kind === 'pelunasan' && reward.amount !== null) {
+    return `Bu ${first} sudah bisa pelunasan dini dan dapat mencairkan ${rupiah(reward.amount)} ya. Pelunasan dini akan melunasi semua pinjaman Ibu di Amartha ya.`
   }
 
   // The rung she is on carries the countdown; the rung being pitched carries the

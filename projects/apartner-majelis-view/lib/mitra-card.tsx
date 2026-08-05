@@ -279,6 +279,8 @@ export function MitraBadges({ mitra }: { mitra: Mitra }) {
       )}
 
       {mitra.keringanan ? <Badge intent="neutral">Dapat Keringanan</Badge> : null}
+
+      {mitra.pelunasanDini ? <Badge intent="neutral">Dapat Pelunasan Dini</Badge> : null}
     </>
   )
 }

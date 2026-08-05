@@ -18,6 +18,7 @@
 // recorded where the BP is already being asked for it.
 
 import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
+import { Crosshair, LockKey } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, rupiah } from '../lib/data'
 import { IconChat, IconCheck, IconWallet } from '../lib/icons'
@@ -115,7 +116,7 @@ export function LadderScreen() {
         <Overline>Jalur</Overline>
         <div className="flex flex-col">
           {ladder.rungs.map((rung, i) => (
-            <RungRow key={rung.id} rung={rung} index={i} last={i === ladder.rungs.length - 1} />
+            <RungRow key={rung.id} rung={rung} last={i === ladder.rungs.length - 1} />
           ))}
         </div>
       </section>
@@ -135,7 +136,7 @@ export function LadderScreen() {
 // rather than promoted to lib/: nothing else in the project has a milestone
 // path, and a component earns promotion by being wanted twice.
 
-function RungRow({ rung, index, last }: { rung: Rung; index: number; last: boolean }) {
+function RungRow({ rung, last }: { rung: Rung; last: boolean }) {
   const done = rung.state === 'tercapai'
   const held = rung.state === 'tertahan'
   const active = held || rung.state === 'berjalan'
@@ -153,48 +154,72 @@ function RungRow({ rung, index, last }: { rung: Rung; index: number; last: boole
 
   const card = held ? 'border-orange-200' : active ? 'border-primary-200' : 'border-default'
 
+  const locked = rung.state === 'terkunci'
+
   return (
     <div className="flex gap-12">
       <div className="flex w-32 shrink-0 flex-col items-center">
+        {/* A locked rung wears a padlock instead of its number. The numbers
+            only ever counted the rungs, which the rail already does by
+            stacking them — what the mitra needs to know at a glance is which
+            ones are open to her. */}
         <span
-          className={`flex h-32 w-32 items-center justify-center rounded-full text-12 font-bold ${node}`}
+          className={`flex h-32 w-32 items-center justify-center rounded-full text-12 font-bold ${
+            locked ? 'text-disabled' : node
+          }`}
         >
-          {done ? <IconCheck size={16} /> : index + 1}
+          {done ? (
+            <IconCheck size={16} />
+          ) : locked ? (
+            <LockKey size={20} />
+          ) : (
+            <Crosshair size={20} />
+          )}
         </span>
         {last ? null : <span className={`w-2 flex-1 ${done ? 'bg-green-500' : 'bg-neutral-200'}`} />}
       </div>
 
       <div
-        className={`mb-12 flex min-w-0 flex-1 flex-col gap-8 rounded-12 border bg-neutral-white p-12 ${card}`}
+        className={`mb-12 flex min-w-0 flex-1 flex-col gap-12 rounded-12 border bg-neutral-white p-12 ${card}`}
       >
-        <div className="flex flex-wrap items-center gap-8">
-          <span className="text-16 font-bold text-default">{rung.title}</span>
-          <Badge intent={held ? 'orange' : 'primary'}>{rung.badge}</Badge>
+        {/* The DATE leads, not "10 Bulan" — see the note on `Rung.date`. The
+            month count survives as the badge's company, since it is how the
+            programme names its own rungs. */}
+        <div className="flex items-start gap-8">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <span
+              className={`text-16 font-bold ${locked ? 'text-caption' : 'text-default'}`}
+            >
+              {rung.date}
+            </span>
+            {rung.detail ? (
+              <span className={`text-12 ${done ? 'text-green-500' : 'text-caption'}`}>
+                {rung.detail}
+              </span>
+            ) : null}
+          </div>
+          <Badge intent={held ? 'orange' : locked ? 'neutral' : 'primary'}>{rung.badge}</Badge>
         </div>
 
-        <div className="flex flex-col">
+        {/* The reward, under a rule. Separating it from the date says the two
+            are different facts — WHEN it opens, and WHAT it is worth — rather
+            than one run-on block the eye reads as a single sentence. */}
+        <div className="flex flex-col gap-2 border-t border-default pt-12">
           <span className="text-12 text-caption">{rung.lead}</span>
           {rung.amount === null ? null : (
             <span
-              className={`text-20 font-bold ${
-                rung.state === 'terkunci' ? 'text-caption' : 'text-primary-500'
-              }`}
+              className={`text-20 font-bold ${locked ? 'text-caption' : 'text-primary-500'}`}
             >
               {rung.kind === 'topup' ? '+' : ''}
               {rupiah(rung.amount)}
             </span>
           )}
+          {rung.progress === null ? null : (
+            <div className="mt-8">
+              <Meter progress={rung.progress} tone={held ? 'muted' : 'primary'} />
+            </div>
+          )}
         </div>
-
-        {rung.detail ? (
-          <span className={`text-12 ${done ? 'text-green-500' : 'text-caption'}`}>
-            {rung.detail}
-          </span>
-        ) : null}
-
-        {rung.progress === null ? null : (
-          <Meter progress={rung.progress} tone={held ? 'muted' : 'primary'} />
-        )}
       </div>
     </div>
   )

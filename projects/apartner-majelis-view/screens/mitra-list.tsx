@@ -137,6 +137,9 @@ export function MitraListScreen() {
                 <ProductBadge product={mitra.product} />
                 {mitra.ptp ? <Badge intent="blue">Janji bayar {mitra.ptp}</Badge> : null}
                 {mitra.keringanan ? <Badge intent="yellow">Dapat keringanan</Badge> : null}
+                {mitra.pelunasanDini ? (
+                  <Badge intent="green">Dapat pelunasan dini</Badge>
+                ) : null}
               </>
             }
             trailing={<DpdBadge dpd={mitra.dpd} format="short" />}
