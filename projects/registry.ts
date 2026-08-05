@@ -18,5 +18,6 @@ export const registry: Registry = {
   'afin-weekly-checkin': () => import('./afin-weekly-checkin').then((m) => m.project),
   'amarthafin-live': () => import('./amarthafin-live').then((m) => m.project),
   'ngmis-live': () => import('./ngmis-live').then((m) => m.project),
+  'agent-dashboard': () => import('./agent-dashboard').then((m) => m.project),
   // <append new projects above this line — one line per project>
 }
