@@ -11,39 +11,27 @@
 // =============================================================================
 
 import { Suspense } from 'react'
-import type { DeviceKind, ScreenDef } from '@/platform/types'
+import type { ScreenDef } from '@/platform/types'
 import { FlowContext } from '@/platform/runtime'
-import { DEVICE_SPECS } from '@/platform/frame/device'
-import { THUMB_H, THUMB_W } from './geometry'
+import type { NodeBox } from './geometry'
 
 const INERT_FLOW = {
   go() {},
   back() {},
 }
 
-export function ScreenThumb({
-  screen,
-  device = 'mobile',
-}: {
-  screen: ScreenDef
-  device?: DeviceKind
-}) {
+export function ScreenThumb({ screen, box }: { screen: ScreenDef; box: NodeBox }) {
   const Component = screen.component
-  const spec = DEVICE_SPECS[device]
-  // Scale to the node's width, not its height: the lattice in layout.ts is
-  // built on a fixed node box, so a desktop screen is letterboxed inside the
-  // same box rather than reshaping the whole canvas. For the phone this is
-  // exactly the old 0.25.
-  const scale = THUMB_W / spec.width
+  // No letterboxing: the node box was built from this device (geometry.ts), so
+  // the scaled screen fills it exactly — a phone node is portrait, an NG-MIS
+  // node is landscape, and both are the same height on the canvas.
+  const { scale, screenW, screenH, thumbW, thumbH } = box
   return (
     <div
       className="pointer-events-none flex select-none items-center overflow-hidden rounded-8 border border-default bg-neutral-white"
-      style={{ width: THUMB_W, height: THUMB_H }}
+      style={{ width: thumbW, height: thumbH }}
     >
-      {/* The scaled-down slot, centred: a desktop screen is much wider than it
-          is tall relative to the node box, so it letterboxes instead of
-          filling. */}
-      <div style={{ height: spec.height * scale, flex: 'none', width: THUMB_W }}>
+      <div style={{ height: thumbH, flex: 'none', width: thumbW }}>
         {/* overflow-hidden here, on the FULL-SIZE screen box, is load-bearing:
             it makes THIS the nearest scrolling ancestor, so a screen's
             `sticky bottom-0` chrome resolves against the real screen height.
@@ -52,8 +40,8 @@ export function ScreenThumb({
         <div
           className="overflow-hidden"
           style={{
-            width: spec.width,
-            height: spec.height,
+            width: screenW,
+            height: screenH,
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
           }}

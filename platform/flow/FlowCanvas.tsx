@@ -19,16 +19,7 @@ import { Edges } from './Edges'
 import { ScreenThumb } from './ScreenThumb'
 import { computeLayout } from './layout'
 import { loadOffsets, saveOffsets, type OffsetMap } from './offsets'
-import {
-  CANVAS_PAD,
-  MAX_ZOOM,
-  MIN_ZOOM,
-  NODE_W,
-  SNAP_X,
-  SNAP_Y,
-  TITLE_H,
-  THUMB_H,
-} from './geometry'
+import { CANVAS_PAD, MAX_ZOOM, MIN_ZOOM, TITLE_H, nodeBox } from './geometry'
 
 type LoadState = 'loading' | 'missing' | 'ready'
 
@@ -117,7 +108,10 @@ export function FlowCanvas({ slug }: { slug: string }) {
     }
   }, [slug])
 
-  const layout = useMemo(() => (mod ? computeLayout(mod.screens) : null), [mod])
+  // The node box comes from the project's device, so an NG-MIS flow lays out on
+  // landscape nodes rather than letterboxing 1440×900 inside a phone.
+  const box = useMemo(() => nodeBox(mod?.config.device), [mod?.config.device])
+  const layout = useMemo(() => (mod ? computeLayout(mod.screens, box) : null), [mod, box])
 
   // Auto-layout + saved deltas + the live drag = where nodes actually render.
   // Edges read these same coordinates, so they follow a node as it moves.
@@ -236,11 +230,11 @@ export function FlowCanvas({ slug }: { slug: string }) {
 
       setDragging({
         id: d.nodeId,
-        dx: snap(dx, d.baseDx, SNAP_X),
-        dy: snap(dy, d.baseDy, SNAP_Y),
+        dx: snap(dx, d.baseDx, box.snapX),
+        dy: snap(dy, d.baseDy, box.snapY),
       })
     },
-    [view.zoom],
+    [view.zoom, box.snapX, box.snapY],
   )
 
   const onPointerUp = useCallback(
@@ -388,7 +382,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
                   key={n.screen.id}
                   data-node-id={n.screen.id}
                   className="absolute cursor-pointer"
-                  style={{ left: n.x, top: n.y, width: NODE_W, height: TITLE_H + THUMB_H }}
+                  style={{ left: n.x, top: n.y, width: box.nodeW, height: box.nodeH }}
                 >
                   <div
                     className="flex items-center gap-4 truncate"
@@ -412,7 +406,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
                           : 'ring-1 ring-transparent'
                     }`}
                   >
-                    <ScreenThumb screen={n.screen} device={mod?.config.device} />
+                    <ScreenThumb screen={n.screen} box={box} />
                     {active ? (
                       <div className="absolute right-4 top-4 flex items-center gap-2">
                         <span

@@ -10,6 +10,7 @@
 // =============================================================================
 
 import { Fragment } from 'react'
+import type { NodeBox } from './geometry'
 import type { FlowLayout, FlowNode } from './layout'
 import { leftAnchor, rightAnchor } from './layout'
 
@@ -19,9 +20,9 @@ interface EdgesProps {
   selected: string | null
 }
 
-function edgePath(from: FlowNode, to: FlowNode): string {
-  const a = rightAnchor(from)
-  const b = leftAnchor(to)
+function edgePath(from: FlowNode, to: FlowNode, box: NodeBox): string {
+  const a = rightAnchor(from, box)
+  const b = leftAnchor(to, box)
   // If the target sits left of / level with the source (back-edge), route out
   // to the right and loop back so the curve stays legible.
   const forward = b.x >= a.x
@@ -64,9 +65,9 @@ export function Edges({ layout, selected }: EdgesProps) {
         const to = byId.get(link.to)
         if (!from || !to) return null
 
-        const d = edgePath(from, to)
-        const a = rightAnchor(from)
-        const b = leftAnchor(to)
+        const d = edgePath(from, to, layout.box)
+        const a = rightAnchor(from, layout.box)
+        const b = leftAnchor(to, layout.box)
         const midX = (a.x + b.x) / 2
         const midY = (a.y + b.y) / 2
 
