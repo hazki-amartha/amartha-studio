@@ -27,5 +27,6 @@ export const configs: ConfigRegistry = {
   'ngmis-live': () => import('./ngmis-live/project.config').then((m) => m.config),
   'agent-dashboard': () =>
     import('./agent-dashboard/project.config').then((m) => m.config),
+  'hello-world': () => import('./hello-world/project.config').then((m) => m.config),
   // <append new projects above this line — one line per project>
 }
