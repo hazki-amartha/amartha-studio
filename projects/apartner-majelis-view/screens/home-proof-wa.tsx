@@ -18,14 +18,13 @@
 import { useState } from 'react'
 import { Button, NavigationHeader } from '@/design-system/components'
 import { PaperPlaneTilt } from '@/design-system/icons'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { outstandingOf, rupiah } from '../lib/data'
 import { profileOf } from '../lib/profile'
 import { DAYS } from '../lib/schedule'
 import { openHomeMitra, paidOf, useApp } from '../lib/store'
 import { IconCheck, IconChatFill } from '../lib/icons'
-import { SectionTitle, StickyBar } from '../lib/ui'
+import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
 
 export function HomeProofWaScreen() {
   const flow = useFlow()
@@ -53,7 +52,7 @@ export function HomeProofWaScreen() {
   ].join('\n')
 
   return (
-    <Screen
+    <AppScreen
       topBar={<NavigationHeader title="Kirim bukti bayar" onBack={() => flow.back()} />}
     >
       {/* Who it lands with — the mitra's own WhatsApp, since a doorstep receipt
@@ -102,6 +101,6 @@ export function HomeProofWaScreen() {
           </>
         )}
       </StickyBar>
-    </Screen>
+    </AppScreen>
   )
 }

@@ -40,13 +40,12 @@
 
 import { useState } from 'react'
 import { BottomSheet, Button, InputNominal, NavigationHeader } from '@/design-system/components'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, outstandingOf, rupiah } from '../lib/data'
 import { Image as ImageIcon } from '@/design-system/icons'
 import { paidOf, paidViaPoket, store, useApp } from '../lib/store'
 import { AngsuranCard, JanjiBayarCard } from '../lib/mitra-card'
-import { ChoiceList, PickRow, ProofTile, SectionTitle, StickyBar } from '../lib/ui'
+import { AppScreen, ChoiceList, PickRow, ProofTile, SectionTitle, StickyBar } from '../lib/ui'
 import {
   PTP_OPTIONS,
   REASONS,
@@ -242,7 +241,7 @@ export function CollectScreen() {
   return (
     // A white canvas: the top block sits on it directly, and the options section
     // lays its own grey band over it to drop to the lower level.
-    <Screen
+    <AppScreen
       // Her NAME is the page title — the page is about one woman, and a generic
       // "Tagih Pembayaran" over an identity block spent a card re-drawing who
       // she was when the top bar could simply say it.
@@ -494,7 +493,7 @@ export function CollectScreen() {
           />
         ) : null}
       </BottomSheet>
-    </Screen>
+    </AppScreen>
   )
 }
 
