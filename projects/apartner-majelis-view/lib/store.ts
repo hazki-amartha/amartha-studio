@@ -1053,6 +1053,16 @@ export const store = {
       absenceReasons: { ...state.absenceReasons, [mitraId]: reason },
     })
   },
+  /**
+   * The undo for "Catat semua hadir": empties the whole register back to
+   * unmarked. It is the same control flipped, so it clears everything the bulk
+   * mark could have written — including the absences it deliberately left
+   * alone, since a BP reaching for "Kosongkan semua" is starting the roster
+   * over, not unpicking one row.
+   */
+  clearAllAttendance() {
+    store.set({ attendance: {}, absenceReasons: {} })
+  },
   /** Reopens the reason list on a card already marked absent — its "Ubah". */
   clearAbsenceReason(mitraId: string) {
     const absenceReasons = { ...state.absenceReasons }
