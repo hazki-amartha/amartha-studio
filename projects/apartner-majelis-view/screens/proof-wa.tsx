@@ -17,12 +17,11 @@
 import { useState } from 'react'
 import { Button, NavigationHeader } from '@/design-system/components'
 import { PaperPlaneTilt } from '@/design-system/icons'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, rupiah } from '../lib/data'
 import { collectStatus, collectedTotal, paidOf, pendingMembers, useApp, openMajelisEntry } from '../lib/store'
 import { IconCheck, IconChatFill } from '../lib/icons'
-import { SectionTitle, StickyBar } from '../lib/ui'
+import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
 
 export function ProofWaScreen() {
   const flow = useFlow()
@@ -63,7 +62,7 @@ export function ProofWaScreen() {
   ].join('\n')
 
   return (
-    <Screen
+    <AppScreen
       topBar={<NavigationHeader title="Kirim rekap ke grup" onBack={() => flow.back()} />}
     >
       {/* Who it lands with, said plainly. It goes to the group's own WhatsApp,
@@ -113,6 +112,6 @@ export function ProofWaScreen() {
           </>
         )}
       </StickyBar>
-    </Screen>
+    </AppScreen>
   )
 }

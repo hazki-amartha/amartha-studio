@@ -21,7 +21,6 @@
 
 import { useState } from 'react'
 import { Badge, BottomSheet, Button, Card, Input, NavigationHeader } from '@/design-system/components'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import {
   FOLLOW_UP_OPTIONS,
@@ -36,16 +35,7 @@ import {
 import { LeadRow } from '../lib/lead-card'
 import { IconUserPlus } from '../lib/icons'
 import { eventProgress, leadsOfEvent, openEvent, rescheduleCount, store, useApp } from '../lib/store'
-import {
-  Chip,
-  ChipGroup,
-  PinMark,
-  ProgressCard,
-  RescheduleSheet,
-  SectionTitle,
-  StickyBar,
-  VisitTitle,
-} from '../lib/ui'
+import { AppScreen, Chip, ChipGroup, PinMark, ProgressCard, RescheduleSheet, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
 
 const SOURCES: { value: LeadSource; label: string }[] = [
   { value: 'sosialisasi', label: 'Hadir di sosialisasi' },
@@ -82,7 +72,7 @@ export function SosialisasiScreen() {
   }
 
   return (
-    <Screen
+    <AppScreen
       topBar={
         <NavigationHeader
           title={<VisitTitle title={event.title} when="Sosialisasi · Selasa, 14.00" />}
@@ -177,7 +167,7 @@ export function SosialisasiScreen() {
         onConfirm={reschedule}
         onReject={reject}
       />
-    </Screen>
+    </AppScreen>
   )
 }
 

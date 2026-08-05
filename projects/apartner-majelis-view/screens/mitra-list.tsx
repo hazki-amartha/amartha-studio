@@ -18,23 +18,13 @@
 
 import { useState } from 'react'
 import { Badge, NavigationHeader } from '@/design-system/components'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import { DPD_BUCKETS, bucketOf, portfolio, sourceMitraId, type DpdBucket } from '../lib/portfolio'
 import { MAJELIS_DIRECTORY } from '../lib/schedule'
 import { store } from '../lib/store'
 import { TabBar } from '../lib/tabs'
-import {
-  EmptyState,
-  FilterBar,
-  FilterChip,
-  OptionSheet,
-  ProductBadge,
-  ResetLink,
-  SearchField,
-  VisitTitle,
-} from '../lib/ui'
+import { AppScreen, EmptyState, FilterBar, FilterChip, OptionSheet, ProductBadge, ResetLink, SearchField, VisitTitle } from '../lib/ui'
 
 type MenuId = 'dpd' | 'majelis' | null
 
@@ -75,7 +65,7 @@ export function MitraListScreen() {
   const filtered = Boolean(dpd || majelis)
 
   return (
-    <Screen
+    <AppScreen
       topBar={
         // Same header as the Majelis tab: title with the count as its subtitle
         // on the left. The count used to sit pinned to the far edge, which read
@@ -184,6 +174,6 @@ export function MitraListScreen() {
         }}
         onClose={() => setMenu(null)}
       />
-    </Screen>
+    </AppScreen>
   )
 }

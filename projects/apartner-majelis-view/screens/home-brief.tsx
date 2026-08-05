@@ -19,7 +19,6 @@
 
 import { useState } from 'react'
 import { BottomSheet, Button, Modal, NavigationHeader } from '@/design-system/components'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { ContactRow, HomeMitraCard } from '../lib/home-card'
 import { MitraPhoto, mapsUrl } from '../lib/mitra-card'
@@ -32,16 +31,7 @@ import {
   useApp,
   type MetWith,
 } from '../lib/store'
-import {
-  HOME_STAGE_LABELS,
-  PickRow,
-  ProductBadge,
-  RescheduleSheet,
-  SectionTitle,
-  SelectList,
-  StageBar,
-  StickyBar,
-} from '../lib/ui'
+import { AppScreen, HOME_STAGE_LABELS, PickRow, ProductBadge, RescheduleSheet, SectionTitle, SelectList, StageBar, StickyBar } from '../lib/ui'
 import { IconChevronDown, IconChevronUp } from '../lib/icons'
 
 // The description says what the ANSWER means for the record, not what the BP
@@ -136,7 +126,7 @@ export function HomeBriefScreen() {
   }
 
   return (
-    <Screen
+    <AppScreen
       className="bg-neutral-white"
       topBar={
         <NavigationHeader
@@ -318,6 +308,6 @@ export function HomeBriefScreen() {
         onConfirm={reschedule}
         onReject={reject}
       />
-    </Screen>
+    </AppScreen>
   )
 }

@@ -24,7 +24,6 @@
 
 import { useState } from 'react'
 import { Badge, NavigationHeader } from '@/design-system/components'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import {
   KUMPULAN_DAYS,
@@ -35,16 +34,7 @@ import {
 } from '../lib/schedule'
 import { store, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
-import {
-  EmptyState,
-  FilterBar,
-  FilterChip,
-  OptionSheet,
-  ProductBadge,
-  ResetLink,
-  SearchField,
-  VisitTitle,
-} from '../lib/ui'
+import { AppScreen, EmptyState, FilterBar, FilterChip, OptionSheet, ProductBadge, ResetLink, SearchField, VisitTitle } from '../lib/ui'
 
 type MenuId = 'day' | 'status' | null
 
@@ -76,7 +66,7 @@ export function MajelisListScreen() {
   const filtered = Boolean(s.majelisDay || s.majelisStatus)
 
   return (
-    <Screen
+    <AppScreen
       topBar={
         // The count reads as a subtitle rather than as a figure pinned to the
         // far edge: it is what the title is ABOUT — how many groups she carries
@@ -162,7 +152,7 @@ export function MajelisListScreen() {
         }}
         onClose={() => setMenu(null)}
       />
-    </Screen>
+    </AppScreen>
   )
 }
 
