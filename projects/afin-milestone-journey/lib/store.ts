@@ -87,7 +87,7 @@ const initial: AppState = {
   method: null,
   paidAmount: 0,
   poketBalance: 151000,
-  autodebit: false,
+  autodebit: true,
   topupReturn: 'home',
   billState: 'idle',
   mitraStage: 'active',
