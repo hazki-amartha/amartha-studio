@@ -114,6 +114,13 @@ export interface Mitra {
    * to happen, not a bucket.
    */
   predisburse?: boolean
+  /**
+   * She has been granted an early settlement — she may close the contract ahead
+   * of its 50 weeks. It rides beside her DPD rather than replacing it: unlike a
+   * pre-disbursement mitra she has a real ledger and a real bucket, and the
+   * standing fact is what she is ALLOWED to do, not where she stands.
+   */
+  pelunasanDini?: boolean
   /** The contract's principal — "Pinjaman Rp8.000.000" in the page header. */
   loan: number
   /** The weekly instalment. Constant across the cycle. */
@@ -582,13 +589,59 @@ export const HOME_MITRA: Mitra[] = [
   },
 ]
 
+/**
+ * Mitra who exist in the DIRECTORY only — they carry a real record and open a
+ * real page, but they are not on Mawar's roster, so they never join the majelis
+ * visit's attendance gate or its recap. That separation is the point: the Mitra
+ * tab has to be able to show a standing a pelayanan flow has no way to reach.
+ */
+export const DIRECTORY_MITRA: Mitra[] = [
+  {
+    id: 'd1',
+    name: 'Naura Nugroho',
+    product: 'Modal',
+    // Lancar — nothing missed, so the ledger runs clean and DPD is 0.
+    dpd: 0,
+    pelunasanDini: true,
+    loan: 8_000_000,
+    weekly: 200_000,
+    // Week 40 of 50 — exactly the 10-bulan rung, where pelunasan dini opens.
+    // She is standing ON it rather than short of it, so the offer is something
+    // the BP can put to her in the room today.
+    week: 40,
+    totalWeeks: 50,
+    weeks: ledger(200_000, 40),
+    growth: {
+      kind: 'renewal',
+      label: 'Pelunasan Dini',
+      suggestion: 'Pelunasan dini dan naik limit menjadi',
+      value: 'Rp8.000.000',
+      done: 'Pelunasan dini diajukan',
+      rationale:
+        'Selama ini pembayaran lancar dan mitra sudah di minggu 40 dari 50, jadi ia sudah bisa mengambil pelunasan dini sekaligus kenaikan limit.',
+    },
+  },
+]
+
 export const findMitra = (id: string): Mitra =>
   MAJELIS.members.find((m) => m.id === id) ??
   HOME_MITRA.find((m) => m.id === id) ??
+  DIRECTORY_MITRA.find((m) => m.id === id) ??
   MAJELIS.members[0]
 
-/** Everyone with something to offer — the third stage's list. */
-export const growthMembers = (): Mitra[] => MAJELIS.members.filter((m) => m.growth)
+/**
+ * Everyone with something to offer — the third stage's list.
+ *
+ * Directory mitra slot in SECOND, not last: the stage is a queue the BP works
+ * top-down in the room, so an offer that lands at the bottom of it is the one
+ * she runs out of time for. Second rather than first leaves the roster's own
+ * opener where it was.
+ */
+export const growthMembers = (): Mitra[] => {
+  const roster = MAJELIS.members.filter((m) => m.growth)
+  const directory = DIRECTORY_MITRA.filter((m) => m.growth)
+  return [...roster.slice(0, 1), ...directory, ...roster.slice(1)]
+}
 
 /**
  * "Rp1.400.000" — the format everywhere the number is the subject.

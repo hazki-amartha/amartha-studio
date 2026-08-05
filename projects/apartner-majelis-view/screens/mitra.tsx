@@ -53,7 +53,13 @@ export function MitraScreen() {
       ? 'Siklus selesai — bisa ajukan pembiayaan baru'
       : ladder.reward.amount === null
         ? `Bisa melunasi lebih awal dalam ${ladder.weeksLeft} minggu`
-        : `Bisa cairkan ${rupiah(ladder.reward.amount)} dalam ${ladder.weeksLeft} minggu`
+        : // An early-settlement rung states BOTH things it grants, in one
+          // sentence. It used to ride in a second card of its own beside this
+          // one, which split a single offer across two rows and made the page
+          // ask the BP to add them up herself.
+          ladder.reward.kind === 'pelunasan'
+          ? `Pelunasan dini dan naik limit ${rupiah(ladder.reward.amount)}`
+          : `Bisa cairkan ${rupiah(ladder.reward.amount)} dalam ${ladder.weeksLeft} minggu`
 
   // The nav carries the PAGE, not the mitra: a generic "Detail Mitra" title and
   // the two things a BP does WITH her — chat and route — as pinned buttons. Her

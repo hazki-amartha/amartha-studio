@@ -12,7 +12,7 @@
 // duplicate name in a searchable list does not read as a shared fixture; it
 // reads as a bug, and it makes the one gesture this screen exists for useless.
 
-import { MAJELIS, type Mitra } from './data'
+import { DIRECTORY_MITRA, MAJELIS, type Mitra } from './data'
 import { MAJELIS_DIRECTORY, type MajelisEntry } from './schedule'
 
 // One name per mitra in every group except Mawar, which keeps its own — 100 of
@@ -87,6 +87,9 @@ export function portfolio(): PortfolioMitra[] {
     // one group you can actually walk a pelayanan through.
     if (group.id === MAJELIS.id) {
       roster.forEach((mitra) => out.push({ mitra, group }))
+      // Directory-only mitra hang off Mawar so their card can name a majelis
+      // like every other row, without joining the roster the visit flow walks.
+      DIRECTORY_MITRA.forEach((mitra) => out.push({ mitra, group }))
       return
     }
 
