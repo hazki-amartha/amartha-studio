@@ -59,6 +59,14 @@ import { AppScreen, Meter, SectionTitle } from '../lib/ui'
 type KpiVersion = 'A' | 'B1' | 'B2'
 const KPI_VERSIONS: KpiVersion[] = ['A', 'B1', 'B2']
 
+/**
+ * The one condition every version closes on. Shared rather than typed out
+ * three times: it is the same rule in all three, so it has to read the same
+ * in all three — and a sentence copied per version is one that drifts the
+ * first time anyone edits a single copy of it.
+ */
+const KPI_GATE_NOTE = 'Mitra DPD 0 harus tercapai untuk mendapatkan insentif'
+
 export function KpiScreen() {
   const [version, setVersion] = useState<KpiVersion>('A')
 
@@ -165,33 +173,30 @@ function ClassicBody({ d }: { d: ReturnType<typeof buildKpi> }) {
             money is behind a condition she can still clear, and a word that
             reads as final is how you make a BP with 12 days left stop trying.
             It only becomes annulled when the month closes on it. */}
+        {/* The standing condition rides INSIDE the banner when money is
+            actually being held — the rule and the consequence of breaking it
+            are one thought, and splitting them across a divider made the
+            reader match them up themselves. With nothing held there is no
+            banner, so it stands on its own instead.
+
+            The other zero — nothing met, nothing held — still gets no extra
+            line: the card already says it three times over, and what
+            separates the two zeros is this banner's ABSENCE. */}
         {d.annulledTotal > 0 ? (
           <div className="mt-12 rounded-8 bg-red-50 p-12">
             <p className="text-12 font-bold text-red-600">
               {rupiah(d.annulledTotal)} tertahan
             </p>
-            <p className="mt-2 text-12 text-red-600">
-              {d.earned === 0
-                ? 'Semua target yang sudah kamu capai ada di pencairan dan cross-sell, dan itu belum bisa cair selama target penagihan belum tercapai.'
-                : 'Target penagihan belum tercapai, jadi insentif pencairan dan cross-sell belum bisa cair.'}{' '}
-              Penuhi semua target DPD untuk membukanya.
-            </p>
+            {/* The explanation came off — the gate note below says the same
+                thing in one line, and the paragraph was a third telling of a
+                rule the amount above already makes felt. */}
+            <p className="mt-2 text-12 text-red-600">{KPI_GATE_NOTE}</p>
           </div>
-        ) : null}
-
-        {/* The other zero — nothing met, nothing held — gets NO extra line. The
-            card already says it three times over: "Penuhi 7 target lagi", the
-            days left on the overline, and the full Rp2,5jt still on the table.
-            What separates the two zeros is the held banner above, and its
-            ABSENCE is the signal here. */}
-
-        {/* The standing condition, same line all three versions close on. It
-            is not the same thing as the red banner above: that one fires only
-            once money is actually being held, this one states the rule
-            whether or not it is currently biting. */}
-        <p className="mt-8 border-t border-default pt-12 text-12 text-caption">
-          Mitra DPD 0 harus tercapai untuk mendapatkan insentif
-        </p>
+        ) : (
+          <p className="mt-8 border-t border-default pt-12 text-12 text-caption">
+            {KPI_GATE_NOTE}
+          </p>
+        )}
       </Card>
 
       <section className="flex flex-col gap-8 pb-16">
@@ -232,8 +237,11 @@ function ClassicRowCard({ r }: { r: KpiRow }) {
   const label = r.baseLabel || 'mitra'
   const gap = r.lower ? r.count - r.targetCount : r.targetCount - r.count
 
-  const pct = railPos(r.val, r.target, r.lower)
-  const minMark = railPos(r.min, r.target, r.lower)
+  // Earning the incentive fills the bar. The rail anchors the target at
+  // TARGET_MARK to leave room for overshoot, which meant a row that had won
+  // its money still drew four-fifths full — a progress bar that stops short
+  // of the end reads as work outstanding, and there is none.
+  const pct = r.incentivised ? 100 : railPos(r.val, r.target, r.lower)
 
   // The only number on the card the BP has to do anything with. "Kurangi" for
   // the DPD buckets, where the target is a ceiling and the work is moving women
@@ -305,17 +313,19 @@ function ClassicRowCard({ r }: { r: KpiRow }) {
         <Meter
           progress={pct}
           tone={r.annulled ? 'muted' : r.incentivised ? 'green' : r.lower ? 'red' : 'orange'}
-          threshold={minMark}
+          threshold={TARGET_MARK}
         />
-        {/* The gate needs naming once, or the notch is a decorative tick. The
-            labels split ON it — "min" ends where the mark is, "insentif" begins
-            in the stretch it applies to — so the words sit over the geometry
-            they describe. The target is not labelled here: it is spelled out in
-            full on the line below, and two numbers under a 320px rail four
-            percent apart is two numbers nobody can read. */}
+        {/* The notch is the TARGET, and "insentif" names the stretch past it —
+            the two labels split ON the mark, so the words sit over the
+            geometry they describe. The notch used to sit on the min with
+            "insentif" beside it, which read as though clearing the min
+            already paid. The min is not drawn here at all: it lands four
+            percent from the target on a ~320px rail, and two marks that close
+            together are two marks nobody can tell apart. It is spelled out in
+            words on the line below instead. */}
         <p className="mt-4 flex text-10 text-caption">
-          <span className="pr-4 text-right" style={{ width: `${minMark}%` }}>
-            min {r.minCount}
+          <span className="pr-4 text-right" style={{ width: `${TARGET_MARK}%` }}>
+            target {r.targetCount}
           </span>
           {/* Pinned to the far edge — "insentif" names the whole stretch from
               the notch to the end of the rail, so sitting at its far end is
@@ -324,12 +334,13 @@ function ClassicRowCard({ r }: { r: KpiRow }) {
         </p>
       </div>
 
-      {/* The threshold — a BP does get asked what it is, and nobody recites
-          five of them, so it earns real weight rather than disappearing into
-          10px grey. Still the quietest line on the card: default ink, not
-          bold, one size down from the verdict above it. */}
+      {/* Both thresholds, in words, because only one of them is drawable on
+          the rail (see the note above) and a BP does get asked what each is.
+          Stated in the order they bite: the floor she has to hold, then the
+          bar the money starts above. */}
       <p className="mt-8 text-14 text-default">
-        Target: {r.lower ? 'dibawah' : 'diatas'} {r.targetCount} {label}
+        Minimum {r.minCount} {label} · insentif {r.lower ? 'dibawah' : 'diatas'} {r.targetCount}{' '}
+        {label}
       </p>
     </div>
   )
@@ -366,7 +377,7 @@ function ScoredBody({ d }: { d: ReturnType<typeof buildKpi> }) {
             boom line, the boost top-up — was three different sentences the
             figure above already accounts for. */}
         <p className="mt-8 border-t border-default pt-12 text-12 text-caption">
-          Mitra DPD 0 harus tercapai untuk mendapatkan insentif
+          {KPI_GATE_NOTE}
         </p>
       </Card>
 
@@ -464,7 +475,7 @@ function ScoredBodyB2({ d }: { d: ReturnType<typeof buildKpi> }) {
         <ScoreTrackB2 score={b.score} />
 
         <p className="mt-8 border-t border-default pt-12 text-12 text-caption">
-          Mitra DPD 0 harus tercapai untuk mendapatkan insentif
+          {KPI_GATE_NOTE}
         </p>
       </Card>
 

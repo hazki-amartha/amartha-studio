@@ -49,10 +49,12 @@ export interface KpiRowDef {
   weight: number
   /**
    * Which half of the job this parameter belongs to, and the reason the two are
-   * named apart: collection GATES growth. Miss a DPD bucket and the incentive on
+   * named apart: collection GATES growth. Miss Mitra DPD 0 and the incentive on
    * every growth parameter is annulled, however well she did on it — the book
    * she is lending against has to be healthy before selling more into it counts
    * for anything.
+   *
+   * DPD 0 alone is the gate, not every collection row — see `collectionMet`.
    */
   group: KpiGroup
 }
@@ -302,7 +304,7 @@ export interface KpiView {
   totalMajelis: number
   /** Version B's score and everything hanging off it. */
   scored: KpiScore
-  /** Whether every collection parameter is met — the gate on all growth pay. */
+  /** Whether Mitra DPD 0 is met — the one gate on all growth pay. */
   collectionMet: boolean
   /** What the annulment is costing her: growth bonus met but not payable. */
   annulledTotal: number
@@ -322,8 +324,12 @@ export const buildKpi = (period: string): KpiView => {
     const minCount =
       r.unit === '%' && r.base != null ? Math.round((r.min / 100) * r.base) : r.min
     const met = r.lower ? val <= r.target : val >= r.target
-    // Strictly past the gate — "if only achieving this, no bonus is granted".
-    const incentivised = r.lower ? val < r.min : val > r.min
+    // The TARGET is the incentive bar, not the min. The two used to run the
+    // other way round — min was the looser gate that paid, target was an
+    // aspiration above it — which put "min 37" and "insentif" on the same
+    // rail and read as though clearing 37 already earned. It does not: 37 is
+    // the floor she has to hold, and the money starts above the target.
+    const incentivised = met
     // Uncapped: beating a target has to be able to push the version B score
     // past 100, or its top band could never be reached.
     const rawProgress = Math.round((r.lower ? r.target / Math.max(val, 0.01) : val / r.target) * 100)
@@ -337,20 +343,19 @@ export const buildKpi = (period: string): KpiView => {
     return { ...r, val, count, targetCount, minCount, incentivised, met, progress, rawProgress, countProgress }
   })
 
-  // The gate. Every collection parameter has to be performing before a single
-  // growth rupiah is payable — so this is computed across the whole set BEFORE
-  // any row is told what it earned.
+  // The gate, and it is ONE row: Mitra DPD 0. Growth pay is held only when
+  // she is below that target — which is exactly what the screens say
+  // ("Mitra DPD 0 harus tercapai untuk mendapatkan insentif").
   //
-  // The bar here is the incentive gate, not the target: the same threshold that
-  // decides whether a row pays is the one that decides whether it blocks. A
-  // collection row sitting between its min and its target is performing, and
-  // holding growth pay hostage to a target she is already past the gate on
-  // would be a second, stricter rule nobody stated.
-  const collectionMet = graded.every((r) => r.group !== 'collection' || r.incentivised)
+  // It used to require every collection row, so a miss on DPD 31–90 held
+  // growth money the stated rule never said it would: the card showed a
+  // struck-through incentive and a "tertahan" banner on a month whose DPD 0
+  // was clean. A gate the copy does not describe is a gate nobody can act on.
+  //
+  // Computed across the whole set BEFORE any row is told what it earned.
+  const collectionMet = graded.find((r) => r.k === 'dpd0')?.incentivised ?? true
 
   const rows: KpiRow[] = graded.map((r) => {
-    // Pay hangs off the GATE, not the target — "beyond the min will be
-    // incentivised". Landing between min and target still earns.
     const annulled = r.incentivised && r.group === 'growth' && !collectionMet
     return { ...r, annulled, earned: r.incentivised && !annulled ? r.bonus : 0 }
   })

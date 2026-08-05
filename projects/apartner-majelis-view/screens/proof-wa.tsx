@@ -5,22 +5,27 @@
 // A majelis settles TOGETHER: the women hold each other to it, so the room's
 // receipt goes to the group, not to ops. This screen shows the message the app
 // has already written — mitra by mitra, with the total received — and hands the
-// BP one trigger: Kirim ke Grup WhatsApp. The message is a read-back, not a
-// field; everything in it is derived from what she just recorded, so the version
-// the app writes is the correct one and an editable box would only invite a
+// BP one trigger: Salin pesan. The message is a read-back, not a field;
+// everything in it is derived from what she just recorded, so the version the
+// app writes is the correct one and an editable box would only invite a
 // mistake she did not come here to make.
 //
+// The BP COPIES rather than sends, and the difference is the point: the app
+// does not own the send, WhatsApp does. She pastes it into the group herself,
+// which is also why the prototype can show this at all — an app that really
+// opened WhatsApp would throw the viewer out of the device frame (CLAUDE.md §3).
+//
 // It is reached from Summary & Bukti, after the visit is already finished — so
-// this is a courtesy she performs, not a gate the task waits on. "Nanti saja"
-// leaves without sending; the schedule is where the visit ends either way.
+// this is a courtesy she performs, not a gate the task waits on. "Tutup" leaves
+// without copying; the schedule is where the visit ends either way.
 
 import { useState } from 'react'
 import { Button, NavigationHeader } from '@/design-system/components'
-import { PaperPlaneTilt } from '@/design-system/icons'
+import { Copy } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, rupiah } from '../lib/data'
 import { collectStatus, collectedTotal, paidOf, pendingMembers, useApp, openMajelisEntry } from '../lib/store'
-import { IconCheck, IconChatFill } from '../lib/icons'
+import { IconCheck } from '../lib/icons'
 import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
 
 export function ProofWaScreen() {
@@ -65,18 +70,9 @@ export function ProofWaScreen() {
     <AppScreen
       topBar={<NavigationHeader title="Kirim rekap ke grup" onBack={() => flow.back()} />}
     >
-      {/* Who it lands with, said plainly. It goes to the group's own WhatsApp,
-          which is where the majelis already talks — a recap arriving as 22
-          private messages is one the ketua cannot reinforce. */}
-      <div className="flex items-center gap-8 rounded-8 bg-canvas-blue p-12">
-        <span className="shrink-0 text-green-500">
-          <IconChatFill size={20} />
-        </span>
-        <span className="min-w-0 flex-1 text-12 text-default">
-          Pesan dikirim ke <span className="font-bold">Grup WhatsApp {group.name}</span>
-        </span>
-      </div>
-
+      {/* No "Pesan dikirim ke …" banner: the app no longer does the sending,
+          so naming a destination would promise something this screen does not
+          do. She copies, then picks where it goes herself. */}
       <SectionTitle>Pratinjau pesan</SectionTitle>
       <p className="whitespace-pre-line rounded-12 border border-default bg-neutral-white p-12 text-12 text-default">
         {message}
@@ -88,7 +84,7 @@ export function ProofWaScreen() {
             <IconCheck size={16} />
           </span>
           <span className="text-12 font-bold text-green-500">
-            Rekap terkirim ke grup {group.name}
+            Pesan tersalin — tinggal tempel di grup {group.name}
           </span>
         </div>
       ) : null}
@@ -102,12 +98,12 @@ export function ProofWaScreen() {
           <>
             <Button size="lg" className="w-full" onClick={() => setSent(true)}>
               <span className="flex items-center justify-center gap-8">
-                <PaperPlaneTilt size={20} />
-                Kirim ke Grup WhatsApp
+                <Copy size={20} />
+                Salin pesan
               </span>
             </Button>
             <Button size="lg" variant="ghost" className="w-full" onClick={() => flow.go('today')}>
-              Nanti saja
+              Tutup
             </Button>
           </>
         )}
