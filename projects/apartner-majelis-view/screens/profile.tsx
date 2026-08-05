@@ -16,14 +16,14 @@
 
 import { Badge, Card, ListRow } from '@/design-system/components'
 import { GearSix, Headset, ShieldCheck, SignOut, User } from '@/design-system/icons'
-import { TopBar } from '@/platform/primitives'
+import { Screen, TopBar } from '@/platform/primitives'
 import { BP } from '../lib/schedule'
 import { TabBar } from '../lib/tabs'
-import { AppScreen, Avatar } from '../lib/ui'
+import { Avatar } from '../lib/ui'
 
 export function ProfileScreen() {
   return (
-    <AppScreen topBar={<TopBar>Profil</TopBar>}>
+    <Screen topBar={<TopBar>Profil</TopBar>}>
       <Card>
         <div className="flex items-center gap-12">
           <Avatar name={BP.name} />
@@ -64,6 +64,6 @@ export function ProfileScreen() {
       <p className="pb-16 text-center text-10 text-disabled">{BP.version}</p>
 
       <TabBar active="profile" />
-    </AppScreen>
+    </Screen>
   )
 }

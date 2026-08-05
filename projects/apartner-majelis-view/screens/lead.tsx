@@ -20,6 +20,7 @@
 // is making a cold call to a stranger the app told her was warm.
 
 import { Badge, Button, Card, Input, NavigationHeader } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
 import {
@@ -33,7 +34,7 @@ import {
 import { LeadIdentityCard } from '../lib/lead-card'
 import { MAJELIS_DIRECTORY, findMajelisEntry } from '../lib/schedule'
 import { openLead, store, useApp } from '../lib/store'
-import { AppScreen, Chip, ChipGroup, SectionTitle, StatRows, StickyBar, VisitTitle } from '../lib/ui'
+import { Chip, ChipGroup, SectionTitle, StatRows, StickyBar, VisitTitle } from '../lib/ui'
 
 export function LeadScreen() {
   const flow = useFlow()
@@ -54,7 +55,7 @@ export function LeadScreen() {
   }
 
   return (
-    <AppScreen
+    <Screen
       topBar={
         <NavigationHeader
           title={
@@ -252,6 +253,6 @@ export function LeadScreen() {
           {lead.stage === 'siap' ? 'Sudah diajukan' : 'Follow Up Sekarang'}
         </Button>
       </StickyBar>
-    </AppScreen>
+    </Screen>
   )
 }

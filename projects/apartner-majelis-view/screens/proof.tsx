@@ -21,6 +21,7 @@
 // It is the visit's FOURTH step, in the same bar as the three before it.
 
 import { Button, Card, NavigationHeader } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, rupiah } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
@@ -34,7 +35,15 @@ import {
   useApp,
   openMajelisEntry,
 } from '../lib/store'
-import { AppScreen, IconTile, PinMark, ProofTile, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
+import {
+  IconTile,
+  PinMark,
+  ProofTile,
+  SectionTitle,
+  StageBar,
+  StickyBar,
+  VisitTitle,
+} from '../lib/ui'
 
 // What the shot carries with it. Fixed, like the rest of the prototype's clock
 // (see data.ts): a demo that re-dates itself overnight is worse than one that is
@@ -73,7 +82,7 @@ export function ProofScreen() {
   }
 
   return (
-    <AppScreen
+    <Screen
       topBar={
         <NavigationHeader
           title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
@@ -195,6 +204,6 @@ export function ProofScreen() {
           Simpan
         </Button>
       </StickyBar>
-    </AppScreen>
+    </Screen>
   )
 }

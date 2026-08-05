@@ -6,10 +6,11 @@
 
 import { useState } from 'react'
 import { Badge, Card, NavigationHeader } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { COMMS_TAGS, TIME_OPTS, inWindow } from '../lib/comms'
 import { store, unreadComms, useApp } from '../lib/store'
-import { AppScreen, EmptyState, FilterBar, FilterChip, OptionSheet, ResetLink } from '../lib/ui'
+import { EmptyState, FilterBar, FilterChip, OptionSheet, ResetLink } from '../lib/ui'
 
 type MenuId = 'time' | 'tag' | null
 
@@ -30,7 +31,7 @@ export function CommsScreen() {
   ]
 
   return (
-    <AppScreen topBar={<NavigationHeader title="Informasi & Program" onBack={flow.back} />}>
+    <Screen topBar={<NavigationHeader title="Informasi & Program" onBack={flow.back} />}>
       <FilterBar>
         <FilterChip
           label={time === null ? 'Waktu' : (TIME_OPTS.find((o) => o.value === time)?.label ?? 'Waktu')}
@@ -119,6 +120,6 @@ export function CommsScreen() {
         }}
         onClose={() => setMenu(null)}
       />
-    </AppScreen>
+    </Screen>
   )
 }

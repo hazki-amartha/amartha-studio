@@ -1,7 +1,5 @@
 'use client'
 
-import { AppScreen } from '../lib/ui'
-
 // Semua Pencairan — every cycle she has taken, active first, settled below.
 //
 // The mitra page answers "what does she owe today". This answers "how long has
@@ -18,6 +16,7 @@ import { AppScreen } from '../lib/ui'
 
 import { Badge, Card, NavigationHeader } from '@/design-system/components'
 import { MoneyBag, Warning } from '@/design-system/icons'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { findMitra, rupiah } from '../lib/data'
 import { dpdBucket, loansOf, type Disbursement } from '../lib/loans'
@@ -38,7 +37,7 @@ export function LoansScreen() {
   }
 
   return (
-    <AppScreen
+    <Screen
       topBar={<NavigationHeader title="Semua pencairan" onBack={() => flow.back()} />}
     >
       <div className="flex items-center gap-8">
@@ -61,7 +60,7 @@ export function LoansScreen() {
           </div>
         </>
       ) : null}
-    </AppScreen>
+    </Screen>
   )
 }
 

@@ -24,6 +24,7 @@
 
 import { useState } from 'react'
 import { Badge, Button, NavigationHeader } from '@/design-system/components'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, isSelfServe, outstandingOf, rupiah, type Mitra } from '../lib/data'
 import { majelisWhen } from '../lib/schedule'
@@ -40,7 +41,18 @@ import {
   useApp,
   openMajelisEntry,
 } from '../lib/store'
-import { ActionRow, AppScreen, ProductBadge, ProgressCard, ResultRow, RosterFilter, SectionTitle, StageBar, StickyBar, type ResultTone, VisitTitle } from '../lib/ui'
+import {
+  ActionRow,
+  ProductBadge,
+  ProgressCard,
+  ResultRow,
+  type ResultTone,
+  RosterFilter,
+  SectionTitle,
+  StageBar,
+  StickyBar,
+  VisitTitle,
+} from '../lib/ui'
 
 type FilterId = 'semua' | 'sudah' | 'belum'
 
@@ -83,7 +95,7 @@ export function CollectionScreen() {
   }
 
   return (
-    <AppScreen
+    <Screen
       topBar={
         <NavigationHeader
           title={<VisitTitle title={group.name} when={majelisWhen(group)} />}
@@ -319,6 +331,6 @@ export function CollectionScreen() {
           </Button>
         </div>
       </StickyBar>
-    </AppScreen>
+    </Screen>
   )
 }
