@@ -339,17 +339,6 @@ export interface AgentLocation {
    * better one to ride to.
    */
   freeAdmin?: boolean
-  /**
-   * The counter the app would send her to, weighing three things at once:
-   * distance, the odds the agent's Poket balance can absorb her cash, and
-   * whether the agent takes the subsidy that makes the handover free for her.
-   *
-   * Deliberately NOT the nearest one. A recommendation that always agreed with
-   * the top of a distance-sorted list would be a second badge saying the same
-   * thing — the label only earns its space when the two disagree, because that
-   * is the moment she has a decision to make.
-   */
-  recommended?: boolean
 }
 
 /**
@@ -380,10 +369,9 @@ export const NEAREST_AGENTS: AgentLocation[] = [
     open: true,
     eta: '5-10 menit',
     lastActive: '1 jam yang lalu',
+    // 700m further than the nearest, and still worth the ride: it takes the
+    // subsidy, so the handover costs her nothing.
     freeAdmin: true,
-    // 700m further than the nearest, and still the one to walk to: it holds
-    // enough Poket to take a full bag, and it takes the subsidy.
-    recommended: true,
   },
   {
     id: 'ag3',
