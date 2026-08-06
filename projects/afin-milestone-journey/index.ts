@@ -190,6 +190,8 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/milestone-pelunasan'), 'MilestonePelunasanScreen'),
       flowsTo: [
         { to: 'riwayat', label: 'lihat progress bayar & hadir' },
+        { to: 'majelis', label: 'lihat progress majelis' },
+        { to: 'disburse-amount', label: 'mulai pelunasan dini (saat tercapai)' },
         { to: 'progress', label: 'kembali' },
       ],
     },
