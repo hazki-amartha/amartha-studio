@@ -62,7 +62,9 @@ export function MilestonePelunasanScreen() {
         action={{
           label: 'Mulai pelunasan dini',
           onAction: () => {
-            store.startDisburse(7000000, 2500000)
+            // The new loan first clears the Rp1.950.000 still owed on the old one;
+            // the disbursement screen breaks that out so she sees what she nets.
+            store.startDisburse(7000000, 2500000, 1950000)
             flow.go('disburse-amount')
           },
           secondaryLabel: 'Nanti saja',
