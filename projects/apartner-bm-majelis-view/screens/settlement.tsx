@@ -46,7 +46,7 @@ import {
 import { ChevronDown, ChevronUp } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { AGENT, DEPOSIT, splitDeposit, vaFor } from '../lib/schedule'
+import { AGENT, DEPOSIT, agentCodeFor, splitDeposit, vaFor } from '../lib/schedule'
 import { IconCamera, IconCheck, IconInfo, IconPin, IconWallet } from '../lib/icons'
 import {
   settledTotal,
@@ -117,10 +117,10 @@ export function SettlementScreen() {
 
   // Which settlement this will be within the day's three.
   const no = s.settlements.length + 1
+  const code = agentCodeFor(no)
   // The VA road splits into two transfers to two numbers; the agent road takes
-  // the whole amount at one counter, and its kode bayar now lives on the page
-  // that road opens. The split is derived from the figure she is settling, so
-  // ticking more re-splits both halves.
+  // the whole amount at one counter. The split is derived from the figure she
+  // is settling, so ticking more re-splits both halves.
   const va1 = vaFor(no, 1)
   const va2 = vaFor(no, 2)
   const [vaAmount1, vaAmount2] = splitDeposit(amount)
@@ -437,55 +437,39 @@ export function SettlementScreen() {
         {hint ? (
           <span className="text-center text-12 font-bold text-orange-500">{hint}</span>
         ) : null}
-        {/* Lanjut, not a confirm — what it opens is where the number appears
-            and where she actually sends the money, so this button can't claim
-            she's already done that.
-
-            The two roads now land in different containers, and the difference
-            is how long the step lasts. A VA transfer happens on this phone in
-            the next thirty seconds, so a sheet over the page she came from is
-            right. The agent road sends her to a COUNTER: she reads the kode
-            bayar out at a desk she has not ridden to yet, which means the
-            thing holding that number has to survive the phone going in her
-            pocket. A sheet is something you finish or dismiss — so that road
-            gets a page. */}
+        {/* Lanjut, not a confirm — the sheet it opens is where the number
+            appears and where she actually sends the money, so this button
+            can't claim she's already done that. It settles the bag and drops
+            her back on the schedule once every proof slot is filled. */}
         <Button
           size="lg"
           className="w-full"
           disabled={!ready}
-          onClick={() => {
-            // The picked nominal has to be recorded BEFORE either road opens:
-            // the store is what `settle()` reads, and on the agent road the
-            // screen holding the figure is a navigation away, where local
-            // state does not survive.
-            store.setDepositAmount(amount)
-            if (s.depositMethod === 'agent') {
-              flow.go('agent-payment')
-              return
-            }
-            setProofOpen(true)
-          }}
+          onClick={() => setProofOpen(true)}
         >
           Lanjut
         </Button>
       </StickyBar>
 
-      {/* Proof for the VA road, and only that road — it asks TWICE, one bukti
-          per transfer, because the money left in two transfers to two different
-          numbers and the branch reconciles each separately. Only after both
-          slots are filled does the bag settle. The agent road's proof now lives
-          on its own page, where the struk is captured after the walk. */}
+      {/* Proof, the same camera gesture as every visit today — but for the VA
+          road it asks TWICE, one bukti per transfer, because the money left in
+          two transfers to two different numbers and the branch reconciles each
+          separately. Only after every slot is filled does the bag settle. */}
       <ProofSheet
         open={proofOpen}
         onClose={() => setProofOpen(false)}
+        method={s.depositMethod}
         transfers={[
           { label: 'Transfer 1 dari 2', va: va1, amount: vaAmount1 },
           { label: 'Transfer 2 dari 2', va: va2, amount: vaAmount2 },
         ]}
+        agent={{ name: AGENT.name, code, amount }}
         onConfirm={() => {
           setProofOpen(false)
-          // The picked nominal was recorded when she tapped Lanjut, so the
-          // store already holds the sum she ticked rather than the whole bag.
+          // Record the picked nominal, then settle it: the store reads
+          // depositAmount, so setting it here is what makes the handover the
+          // sum she ticked rather than the whole bag.
+          store.setDepositAmount(amount)
           store.settle(false)
           flow.go('today')
         }}
@@ -497,20 +481,16 @@ export function SettlementScreen() {
 }
 
 // --- ProofSheet ------------------------------------------------------------
-// Where the VA numbers and the bukti live together. She reaches it by tapping
-// Lanjut, not by confirming she has already sent anything — this sheet is where
-// the numbers appear and where she sends the money, so it cannot open on a
-// claim that jumped ahead of what she's actually done.
+// Where the VA/kode unik and the bukti finally live together. She reaches it
+// by tapping Lanjut, not by confirming she has already sent anything — this
+// sheet is where the number appears and where she sends the money, so it
+// cannot open on a claim that jumped ahead of what she's actually done.
 //
-// It asks for TWO photos, one per transfer, because the amount left in two
-// transfers to two different VA numbers and the branch reconciles each on its
-// own — a single screenshot cannot prove both. Konfirmasi Setoran stays
-// disabled until both slots are filled.
-//
-// VA-ONLY. It used to serve the agent road too, in a one-slot variant, and that
-// was the wrong container for a step that happens at a counter across town: a
-// sheet is a thing you finish or dismiss, and the kode bayar has to survive the
-// phone going in her pocket. That road is now the `agent-payment` screen.
+// The VA road asks for TWO photos, one per transfer, because the amount left in
+// two transfers to two different VA numbers and the branch reconciles each on
+// its own — a single screenshot cannot prove both. The agent road is one
+// counter, one struk, so it asks once. Konfirmasi Setoran stays disabled until
+// every slot the chosen road needs is filled.
 
 interface Transfer {
   label: string
@@ -521,18 +501,23 @@ interface Transfer {
 function ProofSheet({
   open,
   onClose,
+  method,
   transfers,
+  agent,
   onConfirm,
 }: {
   open: boolean
   onClose: () => void
+  method: 'va' | 'agent' | null
   /** The two VA transfers, each proved by its own photo. */
   transfers: Transfer[]
+  /** The single agent handover, proved by the struk. */
+  agent: { name: string; code: string; amount: number }
   onConfirm: () => void
 }) {
-  // One boolean per slot. Local to the sheet: it is captured moments before the
-  // bag settles and the screen navigates away, so it never needs to survive a
-  // trip.
+  // One boolean per slot. Two are ever used (the VA road); the agent road only
+  // reads the first. Local to the sheet: it is captured moments before the bag
+  // settles and the screen navigates away, so it never needs to survive a trip.
   const [proofs, setProofs] = useState<[boolean, boolean]>([false, false])
 
   // Fresh every time it opens — a sheet dismissed and reopened for the same
@@ -545,16 +530,21 @@ function ProofSheet({
   const toggle = (i: 0 | 1) =>
     setProofs((p) => (i === 0 ? [!p[0], p[1]] : [p[0], !p[1]]))
 
-  const total = 2
-  const done = proofs.filter(Boolean).length
+  const isAgent = method === 'agent'
+  const total = isAgent ? 1 : 2
+  const done = proofs.slice(0, total).filter(Boolean).length
   const ready = done === total
 
   return (
     <BottomSheet
       open={open}
       onClose={onClose}
-      title="Bukti Transfer"
-      description="Foto bukti transfer untuk masing-masing nomor Virtual Account."
+      title={isAgent ? 'Bukti Setor' : 'Bukti Transfer'}
+      description={
+        isAgent
+          ? `Foto struk dari Agen ${agent.name} sebagai bukti setor tunai.`
+          : 'Foto bukti transfer untuk masing-masing nomor Virtual Account.'
+      }
       size="md"
       secondaryAction={
         <Button variant="outline" size="lg" className="w-full" onClick={onClose}>
@@ -568,22 +558,35 @@ function ProofSheet({
       }
     >
       <div className="flex flex-col gap-8">
-        {transfers.map((t, i) => (
+        {isAgent ? (
           <CaptureRow
-            key={t.label}
-            label={t.label}
-            code={t.va}
-            amount={t.amount}
-            done={proofs[i as 0 | 1]}
-            onClick={() => toggle(i as 0 | 1)}
+            label={`Kode Unik · Agen ${agent.name}`}
+            code={agent.code}
+            amount={agent.amount}
+            done={proofs[0]}
+            onClick={() => toggle(0)}
           />
-        ))}
+        ) : (
+          transfers.map((t, i) => (
+            <CaptureRow
+              key={t.label}
+              label={t.label}
+              code={t.va}
+              amount={t.amount}
+              done={proofs[i as 0 | 1]}
+              onClick={() => toggle(i as 0 | 1)}
+            />
+          ))
+        )}
 
         {/* Progress, not an alarm. Two transfers need two receipts, so the
-            count says how far along she is. */}
-        <span className="pt-4 text-center text-12 text-caption">
-          {done} dari {total} bukti terunggah
-        </span>
+            count says how far along she is; a single-slot agent handover has
+            nothing to pace, so it shows none. */}
+        {!isAgent ? (
+          <span className="pt-4 text-center text-12 text-caption">
+            {done} dari {total} bukti terunggah
+          </span>
+        ) : null}
       </div>
     </BottomSheet>
   )

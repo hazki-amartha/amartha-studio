@@ -29,5 +29,7 @@ export const configs: ConfigRegistry = {
     import('./agent-dashboard/project.config').then((m) => m.config),
   'ngmis-bm-monitoring': () =>
     import('./ngmis-bm-monitoring/project.config').then((m) => m.config),
+  'apartner-bm-majelis-view': () =>
+    import('./apartner-bm-majelis-view/project.config').then((m) => m.config),
   // <append new projects above this line — one line per project>
 }

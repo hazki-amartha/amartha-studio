@@ -322,24 +322,6 @@ export interface AgentLocation {
   closes: string
   open: boolean
   /**
-   * How long the ride takes, as a range rather than a figure — "2-5 menit".
-   * Distance alone under-describes the errand on a kampung road, where 500m of
-   * gang and 500m of jalan raya are not the same two minutes.
-   */
-  eta: string
-  /**
-   * How recently the counter transacted — "13 menit yang lalu". A desk with a
-   * warm till has someone behind it; the hours only say when it is SUPPOSED to
-   * be open, which is a different claim and the weaker of the two.
-   */
-  lastActive: string
-  /**
-   * The agent takes the subsidy, so the handover costs her nothing. Not every
-   * counter does, and it is the one fact that can make a further desk the
-   * better one to ride to.
-   */
-  freeAdmin?: boolean
-  /**
    * The counter the app would send her to, weighing three things at once:
    * distance, the odds the agent's Poket balance can absorb her cash, and
    * whether the agent takes the subsidy that makes the handover free for her.
@@ -366,9 +348,6 @@ export const NEAREST_AGENTS: AgentLocation[] = [
     hours: '07.00–21.00',
     closes: '21.00',
     open: true,
-    eta: '2-5 menit',
-    lastActive: '13 menit yang lalu',
-    freeAdmin: true,
   },
   {
     id: 'ag2',
@@ -378,9 +357,6 @@ export const NEAREST_AGENTS: AgentLocation[] = [
     hours: '08.00–20.00',
     closes: '20.00',
     open: true,
-    eta: '5-10 menit',
-    lastActive: '1 jam yang lalu',
-    freeAdmin: true,
     // 700m further than the nearest, and still the one to walk to: it holds
     // enough Poket to take a full bag, and it takes the subsidy.
     recommended: true,
@@ -393,8 +369,6 @@ export const NEAREST_AGENTS: AgentLocation[] = [
     hours: '08.00–17.00',
     closes: '17.00',
     open: true,
-    eta: '10-15 menit',
-    lastActive: '17 menit yang lalu',
   },
   {
     id: 'ag4',
@@ -404,8 +378,6 @@ export const NEAREST_AGENTS: AgentLocation[] = [
     hours: '06.00–22.00',
     closes: '22.00',
     open: true,
-    eta: '> 15 menit',
-    lastActive: '1 hari yang lalu',
   },
 ]
 
@@ -468,13 +440,60 @@ export const taskCode = (taskId: string): string => {
  * about her rather than about her portfolio, and it is authored here rather
  * than in the profile screen so the branch matches the VA the deposit goes to.
  */
-export const BP = {
-  name: 'Siti Rahayu',
-  initials: 'SR',
-  role: 'Business Partner · BP-10482',
+/**
+ * Whose handset this is. A Branch Manager, not a Business Partner: she does not
+ * carry a majelis of her own, she carries the BPs who do.
+ */
+export const ME = {
+  name: 'Nurhayati',
+  initials: 'NH',
+  role: 'Branch Manager · BM-2041',
   branch: 'Cabang Ciseeng, Bogor',
   version: 'A-Partner v2.0.0',
 }
+
+/**
+ * The BM's day, and it is two fixed appointments rather than a route: she opens
+ * the branch day with the BPs at the Amartha Point and closes it with them in
+ * the same room. Everything between the two is theirs to ride, not hers.
+ *
+ * A separate shape from `Task` on purpose. A briefing has no majelis, no mitra
+ * and no lead behind it, so threading it through a union built for field stops
+ * would give every one of those screens a case it never renders.
+ */
+export interface Briefing {
+  id: string
+  /** The two-letter tile — the BM's own shorthand, same idea as MV / HV. */
+  code: string
+  title: string
+  /** Start of the slot, "HH.MM" — Indonesian clock convention. */
+  time: string
+  place: string
+  distanceKm: number
+  /** The screen id this card opens. */
+  screen: string
+}
+
+export const BRIEFINGS: Briefing[] = [
+  {
+    id: 'mb',
+    code: 'MB',
+    title: 'Morning briefing',
+    time: '08.00',
+    place: 'Amartha Point Ciseeng',
+    distanceKm: 1.2,
+    screen: 'briefing-morning',
+  },
+  {
+    id: 'eb',
+    code: 'EB',
+    title: 'Evening briefing',
+    time: '18.30',
+    place: 'Amartha Point Ciseeng',
+    distanceKm: 1.2,
+    screen: 'briefing-evening',
+  },
+]
 
 /** Which day the schedule tab is showing. */
 export type DayKey = 'today' | 'tomorrow'
@@ -541,6 +560,8 @@ export interface MajelisEntry {
   menunggak: number
   type: MajelisType
   status: MajelisStatus
+  /** The Business Partner who carries this group — a `BUSINESS_PARTNERS` id. */
+  bpId: string
 }
 
 /** The days a kumpulan can fall on. Saturday and Sunday are not worked. */
@@ -557,6 +578,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 0,
     type: 'Hybrid',
     status: 'aktif',
+    bpId: 'bp1',
   },
   {
     id: 'mawar',
@@ -571,6 +593,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     // be contradicted by the first card inside it.
     type: 'Hybrid',
     status: 'aktif',
+    bpId: 'bp1',
   },
   {
     id: 'melati',
@@ -582,6 +605,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 1,
     type: 'GL',
     status: 'aktif',
+    bpId: 'bp1',
   },
   {
     id: 'kenanga',
@@ -593,6 +617,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 4,
     type: 'Hybrid',
     status: 'aktif',
+    bpId: 'bp2',
   },
   {
     id: 'dahlia',
@@ -604,6 +629,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 2,
     type: 'GL',
     status: 'aktif',
+    bpId: 'bp2',
   },
   {
     id: 'anggrek',
@@ -615,6 +641,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 0,
     type: 'Modal',
     status: 'aktif',
+    bpId: 'bp3',
   },
   // The two she is still building. Nearly-there and barely-started, so the
   // shortfall reads as a real range rather than one decorative case.
@@ -628,6 +655,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 0,
     type: 'Modal',
     status: 'draft',
+    bpId: 'bp3',
   },
   {
     id: 'teratai',
@@ -639,6 +667,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 0,
     type: 'GL',
     status: 'draft',
+    bpId: 'bp2',
   },
 ]
 
