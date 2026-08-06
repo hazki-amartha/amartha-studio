@@ -210,13 +210,15 @@ export const queueEveryOutcome = () => {
 // "hari ini", since the focus card only exists there.
 
 /** Start of day: the first majelis is the active task. */
-export const scheduleMajelis = () => store.set({ day: 'today', doneTasks: [] })
+export const scheduleMajelis = () =>
+  store.set({ day: 'today', doneTasks: [], remindedTasks: [] })
 
 /** Everything before the 13.00 door is done — a home visit is now "Sekarang". */
 export const scheduleHomeVisit = () =>
   store.set({
     day: 'today',
-    doneTasks: ['t1', 't2', 't2b'],
+    doneTasks: ['t0', 't1', 't2', 't2b'],
+    remindedTasks: REMINDED,
     sentTasks: [],
     // The finished visits BANK their cash, or the settlement widget on this
     // screen has nothing to be about. Two majelis in the bag by midday is
@@ -235,6 +237,7 @@ export const scheduleClosing = () =>
   store.set({
     day: 'today',
     doneTasks: CLOSING_DONE,
+    remindedTasks: REMINDED,
     sentTasks: CLOSING_DONE,
     // Mawar's roster seeded so the settlement opens it per mitra.
     payments: mawarPaid(),
@@ -254,6 +257,7 @@ export const scheduleCloseable = () =>
   store.set({
     day: 'today',
     doneTasks: CLOSING_DONE,
+    remindedTasks: REMINDED,
     sentTasks: CLOSING_DONE,
     deposits: bankedDay,
     settlements: [
@@ -277,10 +281,11 @@ export const scheduleCloseable = () =>
 export const scheduleCapped = () =>
   store.set({
     day: 'today',
-    doneTasks: ['t1', 't2', 't2b', 't3', 't4', 't5'],
+    doneTasks: ['t0', 't1', 't2', 't2b', 't3', 't4', 't5'],
+    remindedTasks: REMINDED,
     // Everything sent, so the late majelis's cash IS settleable — it is the cap,
     // not a missing sync, that keeps it in the bag.
-    sentTasks: ['t1', 't2', 't2b', 't3', 't4', 't5'],
+    sentTasks: ['t0', 't1', 't2', 't2b', 't3', 't4', 't5'],
     // The 16.30 majelis banked after the third handover, so there is cash in
     // the bag with no settlement left in the day's three to put it down with.
     deposits: {
@@ -310,6 +315,7 @@ export const scheduleClosed = () =>
   store.set({
     day: 'today',
     doneTasks: CLOSING_DONE,
+    remindedTasks: REMINDED,
     sentTasks: CLOSING_DONE,
     deposits: bankedDay,
     settlements: [
@@ -354,8 +360,17 @@ const bankedDay: Record<string, DepositEntry> = {
   },
 }
 
-// Every task on the day except the closing itself — what check 1 counts.
-const CLOSING_DONE = ['t1', 't2', 't2b', 't3', 't3b', 't4', 't5']
+// Every task on the day except the closing itself — what check 1 counts. The
+// 07.00 reminder is one of them: it is a task on the schedule like any other,
+// and a seed that leaves it out hands the walkthrough a day that says "7 dari 8"
+// and refuses to close over a message that was sent before the day began.
+const CLOSING_DONE = ['t0', 't1', 't2', 't2b', 't3', 't3b', 't4', 't5']
+
+// The three groups meeting today, ticked off the morning reminder. Seeded
+// alongside CLOSING_DONE so the reminder screen agrees with the schedule row:
+// a finished task whose own page still shows "tandai 3 grup lagi" reads as a
+// bug in the tick, not as a shortcut a demo state took.
+const REMINDED = ['t1', 't2', 't5']
 
 /** The banked lines for a set of finished tasks — only the ones that took cash. */
 /**
@@ -393,14 +408,22 @@ const depositsFor = (ids: string[]): Record<string, DepositEntry> => {
 
 /** Nothing started: every task still open, nothing to deposit. */
 export const closingFresh = () =>
-  store.set({ day: 'today', doneTasks: [], deposits: {}, depositProof: false, depositDone: false })
+  store.set({
+    day: 'today',
+    doneTasks: [],
+    remindedTasks: [],
+    deposits: {},
+    depositProof: false,
+    depositDone: false,
+  })
 
 /** Mid-day: four stops done, three still open — the incomplete checklist. */
 export const closingPartial = () => {
-  const done = ['t1', 't2', 't2b', 't3']
+  const done = ['t0', 't1', 't2', 't2b', 't3']
   store.set({
     day: 'today',
     doneTasks: done,
+    remindedTasks: REMINDED,
     deposits: depositsFor(done),
     depositProof: false,
     depositDone: false,
@@ -412,6 +435,7 @@ export const closingReady = () =>
   store.set({
     day: 'today',
     doneTasks: CLOSING_DONE,
+    remindedTasks: REMINDED,
     deposits: bankedDay,
     depositProof: false,
     depositDone: false,
@@ -422,6 +446,7 @@ export const closingSettled = () =>
   store.set({
     day: 'today',
     doneTasks: CLOSING_DONE,
+    remindedTasks: REMINDED,
     deposits: bankedDay,
     depositProof: true,
     depositDone: false,
@@ -432,6 +457,7 @@ export const closingSent = () =>
   store.set({
     day: 'today',
     doneTasks: CLOSING_DONE,
+    remindedTasks: REMINDED,
     deposits: bankedDay,
     depositProof: true,
     depositDone: true,
@@ -851,8 +877,9 @@ const MIDDAY_BANKED = bankedDay.t1.cash + bankedDay.t2.cash
 export const bagFirstHandover = () => {
   store.set({
     day: 'today',
-    doneTasks: ['t1', 't2', 't2b'],
-    sentTasks: ['t1', 't2', 't2b'],
+    doneTasks: ['t0', 't1', 't2', 't2b'],
+    remindedTasks: REMINDED,
+    sentTasks: ['t0', 't1', 't2', 't2b'],
     payments: mawarPaid(),
     deposits: depositsFor(['t1', 't2']),
     settlements: [],
@@ -872,8 +899,9 @@ export const bagFirstHandover = () => {
 export const bagShort = () =>
   store.set({
     day: 'today',
-    doneTasks: ['t1', 't2', 't2b'],
-    sentTasks: ['t1', 't2', 't2b'],
+    doneTasks: ['t0', 't1', 't2', 't2b'],
+    remindedTasks: REMINDED,
+    sentTasks: ['t0', 't1', 't2', 't2b'],
     deposits: depositsFor(['t1', 't2']),
     settlements: [],
     depositAmount: MIDDAY_BANKED - 200_000,

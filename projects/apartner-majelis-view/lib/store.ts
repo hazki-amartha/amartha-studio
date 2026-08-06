@@ -848,13 +848,17 @@ export const store = {
   /**
    * Closes the schedule row the finished visit belongs to.
    *
+   * Takes the id outright when the caller knows it — the morning reminder does,
+   * and its screen is reachable without a schedule row having set `activeTask`,
+   * where the majelis fallback below would close the wrong task entirely.
+   *
    * Falls back to the group's own scheduled slot when no task was carried in —
    * a pelayanan opened from the Majelis tab is the same work as the one the day
    * rostered, and leaving it open on the schedule would ask the BP to do it
    * twice. Only the route differed.
    */
-  finishTask() {
-    const id = state.activeTask ?? taskForMajelis(state.openMajelis)?.id
+  finishTask(taskId?: string) {
+    const id = taskId ?? state.activeTask ?? taskForMajelis(state.openMajelis)?.id
     if (!id || state.doneTasks.includes(id)) {
       store.set({ activeTask: null })
       return
