@@ -24,9 +24,8 @@ export function EveningReportScreen() {
         { label: 'Activity' },
         { label: 'Evening report', current: true },
       ]}
+      header={<PageHeading title="Evening report" meta="Penjelasan untuk 27 Sep 2025" />}
     >
-      <PageHeading title="Evening report" meta="Penjelasan untuk 27 Sep 2025" />
-
       <div className="pb-16">
         <Panel>
           <div className="flex items-center justify-between gap-16">

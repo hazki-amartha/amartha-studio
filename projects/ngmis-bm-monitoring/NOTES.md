@@ -6,7 +6,8 @@ promotion candidates there are the same ones here:
 
 - `MisShell` / `SideNav` — the desktop chrome. Sidebar-first: the amartha lockup sits at the top of the 216px sidebar instead of in a 40px header strip, which is the frame the BM portal screenshot uses. Used by `lib/shell.tsx`, which every screen wraps in.
 - `SidebarPromo` — the "We've updated our portal!" card above Report/Settings. Same file.
-- `Breadcrumbs`, `PageHeading`, `Panel`, `PanelHeading` — content-column chrome. All four screens.
+- `Breadcrumbs`, `PageHeading`, `Panel`, `PanelHeading` — content-column chrome. All four screens. `MisShell`'s `header` slot renders the title, filter row and tabs as one full-bleed white block above the tinted body.
+- `Tabs` — Overview / Repayment / Disbursement under the page title. Each tab narrows which KPIs and which table columns show, so switching changes the read rather than just the underline. `branch-summary`.
 - `Select` — FunDS has no select; a phone uses a bottom sheet for this. Used by the two dashboard filters, the per-page control and both report forms.
 - `Textarea` — same gap. `morning-report`, `evening-report`.
 - `StatCard` — the KPI tile: label, figure, day-on-day delta, month average, optional second figure ("New mitra"). `branch-summary`.

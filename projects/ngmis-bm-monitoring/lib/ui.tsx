@@ -194,18 +194,26 @@ export function SidebarPromo({
 export function MisShell({
   sidebar,
   breadcrumbs,
+  header,
   children,
 }: {
   sidebar: ReactNode
   breadcrumbs?: { label: string; current?: boolean }[]
+  /** Full-bleed white block above the tinted body: title, filters, tabs. */
+  header?: ReactNode
   children: ReactNode
 }) {
   return (
     <div className="flex h-full bg-neutral-white">
       {sidebar}
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-neutral-50 px-24 pb-24">
-        {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null}
-        {children}
+      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-neutral-50">
+        {breadcrumbs?.length || header ? (
+          <div className="shrink-0 border-b border-default bg-neutral-white px-24">
+            {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null}
+            {header}
+          </div>
+        ) : null}
+        <div className="flex min-h-0 flex-1 flex-col px-24 pb-24 pt-16">{children}</div>
       </div>
     </div>
   )
@@ -226,7 +234,9 @@ export function Breadcrumbs({ items }: { items: { label: string; current?: boole
   )
 }
 
-/** Page title + timestamp on the left, filters on the right. */
+/** Page title + timestamp on the left, filters on the right. The filter row
+ *  wraps rather than squeezing: six cascading selects do not fit beside a title
+ *  at every window width. */
 export function PageHeading({
   title,
   meta,
@@ -237,12 +247,48 @@ export function PageHeading({
   actions?: ReactNode
 }) {
   return (
-    <div className="flex shrink-0 items-start justify-between gap-16 pb-16">
+    <div className="flex shrink-0 flex-wrap items-start justify-between gap-16 py-16">
       <div className="flex flex-col gap-4">
         <h1 className="text-24 font-bold text-default">{title}</h1>
         {meta ? <span className="text-12 text-caption">{meta}</span> : null}
       </div>
-      {actions ? <div className="flex items-center gap-8">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap items-center gap-8">{actions}</div> : null}
+    </div>
+  )
+}
+
+// --- Tabs -------------------------------------------------------------------
+
+export function Tabs({
+  items,
+  activeId,
+  onChange,
+}: {
+  items: { id: string; label: string }[]
+  activeId: string
+  onChange: (id: string) => void
+}) {
+  return (
+    <div className="flex shrink-0">
+      {items.map((item) => {
+        const on = item.id === activeId
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onChange(item.id)}
+            // The first tab loses its left padding so it lines up with the
+            // page title above it, the way the reference header does.
+            className={`border-b-2 px-16 pb-12 text-14 first:pl-0 ${
+              on
+                ? 'border-primary-500 font-bold text-link'
+                : 'border-transparent font-regular text-caption hover:text-default'
+            }`}
+          >
+            {item.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -597,6 +643,29 @@ export function DataTable({
 
 // --- Pagination -------------------------------------------------------------
 
+/**
+ * The page numbers to draw: first, last, and the current page with a neighbour
+ * either side, `null` where the run is broken. 95 entries at 10/page is ten
+ * buttons and at 5/page it would be nineteen, so the row has to window or it
+ * becomes the widest thing on the screen.
+ */
+function pageWindow(page: number, pageCount: number): (number | null)[] {
+  if (pageCount <= 7) return Array.from({ length: pageCount }, (_, i) => i + 1)
+  const wanted = [1, page - 1, page, page + 1, pageCount]
+    .filter((n) => n >= 1 && n <= pageCount)
+    .sort((a, b) => a - b)
+
+  const out: (number | null)[] = []
+  let prev = 0
+  for (const n of wanted) {
+    if (n === prev) continue
+    if (prev && n - prev > 1) out.push(null)
+    out.push(n)
+    prev = n
+  }
+  return out
+}
+
 export function Pagination({
   page,
   pageCount,
@@ -624,21 +693,28 @@ export function Pagination({
         >
           <ChevronLeft size={16} />
         </PageArrow>
-        {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => onPageChange(n)}
-            aria-current={n === page ? 'page' : undefined}
-            className={`flex size-32 items-center justify-center rounded-full text-12 ${
-              n === page
-                ? 'border border-primary-500 font-bold text-link'
-                : 'font-regular text-caption hover:text-default'
-            }`}
-          >
-            {n}
-          </button>
-        ))}
+        {pageWindow(page, pageCount).map((n, i) =>
+          n === null ? (
+            // eslint-disable-next-line react/no-array-index-key -- gaps have no id
+            <span key={`gap-${i}`} className="px-4 text-caption">
+              …
+            </span>
+          ) : (
+            <button
+              key={n}
+              type="button"
+              onClick={() => onPageChange(n)}
+              aria-current={n === page ? 'page' : undefined}
+              className={`flex size-32 items-center justify-center rounded-full text-12 ${
+                n === page
+                  ? 'border border-primary-500 font-bold text-link'
+                  : 'font-regular text-caption hover:text-default'
+              }`}
+            >
+              {n}
+            </button>
+          ),
+        )}
         <PageArrow
           label="Halaman berikutnya"
           disabled={page === pageCount}

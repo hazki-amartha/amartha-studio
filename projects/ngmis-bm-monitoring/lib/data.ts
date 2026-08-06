@@ -65,6 +65,74 @@ export const KPIS: Kpi[] = [
   },
 ]
 
+// --- Header filters ---------------------------------------------------------
+//
+// The header narrows region → provinsi → kota, then branch, BP and majelis
+// within it. Only the kota list drives anything (it names the page); the rest
+// are drawn so the shape of the control row is right.
+
+export const REGIONS = [
+  { value: 'jawa', label: 'Jawa' },
+  { value: 'sumatera', label: 'Sumatera' },
+  { value: 'sulawesi', label: 'Sulawesi' },
+]
+
+export const PROVINCES = [
+  { value: 'jawa-barat', label: 'Jawa Barat' },
+  { value: 'jawa-tengah', label: 'Jawa Tengah' },
+  { value: 'jawa-timur', label: 'Jawa Timur' },
+]
+
+export const KOTA = [
+  { value: 'cirebon', label: 'Cirebon' },
+  { value: 'indramayu', label: 'Indramayu' },
+  { value: 'kuningan', label: 'Kuningan' },
+]
+
+export const BRANCHES = [
+  { value: 'all', label: 'Semua branch' },
+  { value: 'cirebon-1', label: 'Cirebon 1' },
+  { value: 'cirebon-2', label: 'Cirebon 2' },
+]
+
+export const BP_FILTER = [
+  { value: 'all', label: 'Semua BP' },
+  { value: 'fadhil', label: 'Fadhil Maulana' },
+  { value: 'sukma', label: 'Sukma Ayuningrum' },
+]
+
+export const MAJELIS_FILTER = [
+  { value: 'all', label: 'Semua Majelis' },
+  { value: 'bin-turatea', label: '123_BIN TURATEA' },
+  { value: 'bontoramba', label: '456_BONTORAMBA' },
+]
+
+// --- Tabs -------------------------------------------------------------------
+
+export const TABS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'repayment', label: 'Repayment' },
+  { id: 'disbursement', label: 'Disbursement' },
+]
+
+/** Which KPIs and which table columns each tab keeps. Overview is everything;
+ *  the other two narrow to the figures that tab is about, so switching tab
+ *  actually changes the read rather than just the underline. */
+export const TAB_VIEWS: Record<string, { kpis: string[]; columns: string[] }> = {
+  overview: {
+    kpis: KPIS.map((k) => k.id),
+    columns: ['name', 'majelis', 'repayment', 'dpd', 'tasks', 'disbursement'],
+  },
+  repayment: {
+    kpis: ['repayment', 'attendance', 'dpd-flow'],
+    columns: ['name', 'majelis', 'repayment', 'dpd', 'tasks'],
+  },
+  disbursement: {
+    kpis: ['disbursement-pengajuan', 'disbursement-pencairan', 'task-completion'],
+    columns: ['name', 'majelis', 'disbursement', 'tasks'],
+  },
+}
+
 export interface BpRow {
   id: string
   name: string

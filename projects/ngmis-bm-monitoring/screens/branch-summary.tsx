@@ -22,12 +22,25 @@ import {
   Select,
   StatCard,
   SunGlyph,
+  Tabs,
   type Column,
   type SortDir,
 } from '../lib/ui'
-import { BP_ROWS, BP_TOTAL, KPIS } from '../lib/data'
+import {
+  BP_FILTER,
+  BP_ROWS,
+  BP_TOTAL,
+  BRANCHES,
+  KOTA,
+  KPIS,
+  MAJELIS_FILTER,
+  PROVINCES,
+  REGIONS,
+  TABS,
+  TAB_VIEWS,
+} from '../lib/data'
 
-const COLUMNS: Column[] = [
+const ALL_COLUMNS: Column[] = [
   { id: 'name', header: 'Business Partner', sortable: true },
   { id: 'majelis', header: 'Majelis aktif', sortable: true },
   { id: 'repayment', header: 'Repayment  rate', sortable: true },
@@ -36,20 +49,13 @@ const COLUMNS: Column[] = [
   { id: 'disbursement', header: 'Disbursement', sortable: true },
 ]
 
-const BP_FILTER = [
-  { value: 'all', label: 'Semua BP' },
-  { value: 'fadhil', label: 'Fadhil Maulana' },
-  { value: 'sukma', label: 'Sukma Ayuningrum' },
-]
-
-const MAJELIS_FILTER = [
-  { value: 'all', label: 'Semua Majelis' },
-  { value: 'bin-turatea', label: '123_BIN TURATEA' },
-  { value: 'bontoramba', label: '456_BONTORAMBA' },
-]
-
 export function BranchSummaryScreen() {
   const flow = useFlow()
+  const [tab, setTab] = useState('overview')
+  const [region, setRegion] = useState('jawa')
+  const [province, setProvince] = useState('jawa-barat')
+  const [kota, setKota] = useState('cirebon')
+  const [branch, setBranch] = useState('all')
   const [bp, setBp] = useState('all')
   const [majelis, setMajelis] = useState('all')
   const [sort, setSort] = useState<{ columnId: string; dir: SortDir } | null>(null)
@@ -104,28 +110,46 @@ export function BranchSummaryScreen() {
 
   const pageCount = Math.ceil(BP_TOTAL / Number(perPage))
 
+  const view = TAB_VIEWS[tab]
+  const kpis = KPIS.filter((kpi) => view.kpis.includes(kpi.id))
+  const columns = ALL_COLUMNS.filter((col) => view.columns.includes(col.id))
+  const kotaLabel = KOTA.find((k) => k.value === kota)?.label ?? ''
+
   return (
     <BmShell
       breadcrumbs={[{ label: 'Home' }, { label: 'Branches' }, { label: 'Activity', current: true }]}
+      header={
+        <>
+          <PageHeading
+            title={`Performa: ${kotaLabel}`}
+            meta="Per 27 Sep 2025, 04.15 WIB"
+            actions={
+              <>
+                <Select label="Region" value={region} onChange={setRegion} options={REGIONS} />
+                <Select
+                  label="Provinsi"
+                  value={province}
+                  onChange={setProvince}
+                  options={PROVINCES}
+                />
+                <Select label="Kota" value={kota} onChange={setKota} options={KOTA} />
+                <Select label="Branch" value={branch} onChange={setBranch} options={BRANCHES} />
+                <Select label="Business Partner" value={bp} onChange={setBp} options={BP_FILTER} />
+                <Select
+                  label="Majelis"
+                  value={majelis}
+                  onChange={setMajelis}
+                  options={MAJELIS_FILTER}
+                />
+              </>
+            }
+          />
+          <Tabs items={TABS} activeId={tab} onChange={setTab} />
+        </>
+      }
     >
-      <PageHeading
-        title="Branch Summary"
-        meta="Per 27 Sep 2025, 04.15 WIB"
-        actions={
-          <>
-            <Select label="Filter BP" value={bp} onChange={setBp} options={BP_FILTER} />
-            <Select
-              label="Filter Majelis"
-              value={majelis}
-              onChange={setMajelis}
-              options={MAJELIS_FILTER}
-            />
-          </>
-        }
-      />
-
       <div className="grid grid-cols-3 gap-16 pb-16">
-        {KPIS.map((kpi) => (
+        {kpis.map((kpi) => (
           <StatCard
             key={kpi.id}
             label={kpi.label}
@@ -188,7 +212,7 @@ export function BranchSummaryScreen() {
       <Panel>
         <PanelHeading title="BP Performance" subtitle="Performa per BP di poin ini." />
         <DataTable
-          columns={COLUMNS}
+          columns={columns}
           rows={rows}
           sort={sort}
           onSortChange={(columnId) =>

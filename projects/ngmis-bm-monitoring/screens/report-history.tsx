@@ -49,17 +49,18 @@ export function ReportHistoryScreen() {
         { label: 'Activity' },
         { label: 'Riwayat report', current: true },
       ]}
+      header={
+        <PageHeading
+          title="Riwayat Daily Report"
+          meta="Cabang Cirebon — 7 hari terakhir"
+          actions={
+            <Button variant="outline" size="sm" onClick={() => flow.back()}>
+              Kembali
+            </Button>
+          }
+        />
+      }
     >
-      <PageHeading
-        title="Riwayat Daily Report"
-        meta="Cabang Jeneponto — 7 hari terakhir"
-        actions={
-          <Button variant="outline" size="sm" onClick={() => flow.back()}>
-            Kembali
-          </Button>
-        }
-      />
-
       <Panel>
         <PanelHeading title="Report terkirim" subtitle="Morning dan evening report per hari." />
         <DataTable columns={COLUMNS} rows={rows} sort={null} onSortChange={() => undefined} />

@@ -26,9 +26,8 @@ export function MorningReportScreen() {
         { label: 'Activity' },
         { label: 'Morning report', current: true },
       ]}
+      header={<PageHeading title="Morning report" meta="Rencana aksi untuk 27 Sep 2025" />}
     >
-      <PageHeading title="Morning report" meta="Rencana aksi untuk 27 Sep 2025" />
-
       <div className="pb-16">
         <Panel>
           <PanelHeading

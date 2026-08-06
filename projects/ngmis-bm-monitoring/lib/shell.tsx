@@ -41,9 +41,11 @@ const USER = { name: 'John Doe', role: 'Finance', initial: 'F' }
 
 export function BmShell({
   breadcrumbs,
+  header,
   children,
 }: {
   breadcrumbs?: { label: string; current?: boolean }[]
+  header?: ReactNode
   children: ReactNode
 }) {
   // Which nav item is lit is chrome, not flow: it never leaves the dashboard
@@ -53,6 +55,7 @@ export function BmShell({
   return (
     <MisShell
       breadcrumbs={breadcrumbs}
+      header={header}
       sidebar={
         <SideNav
           items={NAV}
