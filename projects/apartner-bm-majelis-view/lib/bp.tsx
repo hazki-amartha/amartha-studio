@@ -7,8 +7,6 @@
 // hers from the group she is in. Two lists of "who owns this woman" is how a
 // directory ends up disagreeing with itself.
 
-import { Badge } from '@/design-system/components'
-
 export interface BusinessPartner {
   id: string
   name: string
@@ -26,13 +24,15 @@ export const findBP = (id: string): BusinessPartner =>
   BUSINESS_PARTNERS.find((bp) => bp.id === id) ?? BUSINESS_PARTNERS[0]
 
 /**
- * How a BP is printed on a card. One component, so the list card and the detail
- * page cannot drift on how the same fact reads.
+ * How a BP is printed on a card: plain caption text directly under the majelis
+ * or mitra name, in the same slot on both. One component, so the two cards
+ * cannot drift on how the same fact reads.
  *
- * A grey pill rather than a line of prose: on a directory the BM is scanning a
- * column for one name, and a label is something you notice rather than read.
+ * It was a grey pill. It went back to text because a badge is for something
+ * that CHANGES — a status, a bucket — and whose book a group is on is a
+ * standing fact; among the real badges on these cards it read as a third state.
  */
-export function BpBadge({ bpId }: { bpId: string }) {
+export function BpLine({ bpId }: { bpId: string }) {
   const bp = findBP(bpId)
-  return <Badge intent="neutral">BP · {bp.name}</Badge>
+  return <span className="truncate text-12 text-caption">BP · {bp.name}</span>
 }

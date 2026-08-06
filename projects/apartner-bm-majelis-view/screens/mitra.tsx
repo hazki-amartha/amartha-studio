@@ -27,7 +27,7 @@ import { findMitra, rupiah } from '../lib/data'
 import { IconCheck, IconChevronRight, IconTrendUp } from '../lib/icons'
 import { ladderOf } from '../lib/ladder'
 import { profileOf } from '../lib/profile'
-import { findBP } from '../lib/bp'
+import { BpLine, findBP } from '../lib/bp'
 import { AngsuranCard, MitraBadges, MitraCard, MitraPhoto, mapsUrl } from '../lib/mitra-card'
 import { PenagihanCard } from '../lib/penagihan'
 import { openMajelisEntry, useApp } from '../lib/store'
@@ -97,10 +97,10 @@ export function MitraScreen() {
         flat
         meta={
           <>
+            <BpLine bpId={group.bpId} />
             <span className="truncate text-12 text-caption">
               {group.name} · {group.day}, {group.time}
             </span>
-            <span className="truncate text-12 text-caption">BP · {findBP(group.bpId).name}</span>
           </>
         }
         labels={<MitraBadges mitra={mitra} />}

@@ -20,7 +20,7 @@ export function BriefingMorningScreen() {
     <AppScreen
       topBar={
         <NavigationHeader
-          title={<VisitTitle title={briefing.title} when={`${briefing.time} · ${briefing.place}`} />}
+          title={<VisitTitle title={briefing.name} when={`${briefing.time} · ${briefing.place}`} />}
           onBack={() => flow.go('today')}
         />
       }

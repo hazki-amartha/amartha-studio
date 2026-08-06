@@ -61,13 +61,15 @@ export function TodayScreen() {
 }
 
 /**
- * The task card, kept in the shape the BP direction uses — the 40px code tile,
- * then title-and-time over the address, then the labels — so the two apps read
- * as one app seen from two chairs.
+ * The task card, in exactly the shape the BP direction uses: the 40px code
+ * tile, then a caption line carrying the kind and the clock with the state
+ * pinned to its right, then the name at reading size, the place, and the
+ * labels. Same four sizes in the same order, so the two apps read as one app
+ * seen from two chairs.
  *
- * The title carries the clock rather than a separate meta line above it: a
- * briefing is one appointment at one time, and splitting "Morning briefing" from
- * "08.00" across two lines made the card ask to be read twice.
+ * The kind and the name are the same two words here, which they are not on a
+ * BP's card — "Majelis Visit · 08.00" over "Majelis Mawar". That is what a
+ * briefing IS: the appointment and the thing being done have one name.
  */
 function BriefingRow({ briefing, onOpen }: { briefing: Briefing; onOpen: () => void }) {
   return (
@@ -81,7 +83,7 @@ function BriefingRow({ briefing, onOpen }: { briefing: Briefing; onOpen: () => v
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <span className="flex items-center gap-8">
-          <span className="min-w-0 flex-1 text-16 font-bold text-default">
+          <span className="min-w-0 flex-1 truncate text-14 font-regular text-caption">
             {briefing.title} · {briefing.time}
           </span>
           {/* Every briefing starts the day unstarted. The status stays on the
@@ -91,6 +93,7 @@ function BriefingRow({ briefing, onOpen }: { briefing: Briefing; onOpen: () => v
             <Badge intent="neutral">Belum mulai</Badge>
           </span>
         </span>
+        <span className="text-16 font-bold text-default">{briefing.name}</span>
         <span className="line-clamp-2 text-14 font-regular text-default">{briefing.place}</span>
         <span className="flex flex-wrap items-center gap-4 pt-2">
           <Badge intent="neutral">{kmShort(briefing.distanceKm)}</Badge>
