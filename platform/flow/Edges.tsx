@@ -12,16 +12,19 @@
 import { Fragment } from 'react'
 import type { FlowLayout, FlowNode } from './layout'
 import { leftAnchor, rightAnchor } from './layout'
+import type { NodeBox } from './geometry'
 
 interface EdgesProps {
   layout: FlowLayout
   /** Selected screen id — only its outgoing edges are drawn. */
   selected: string | null
+  /** The device's node geometry — where an edge meets a node box. */
+  box: NodeBox
 }
 
-function edgePath(from: FlowNode, to: FlowNode): string {
-  const a = rightAnchor(from)
-  const b = leftAnchor(to)
+function edgePath(from: FlowNode, to: FlowNode, box: NodeBox): string {
+  const a = rightAnchor(from, box)
+  const b = leftAnchor(to, box)
   // If the target sits left of / level with the source (back-edge), route out
   // to the right and loop back so the curve stays legible.
   const forward = b.x >= a.x
@@ -31,7 +34,7 @@ function edgePath(from: FlowNode, to: FlowNode): string {
   return `M ${a.x} ${a.y} C ${c1x} ${a.y}, ${c2x} ${b.y}, ${b.x} ${b.y}`
 }
 
-export function Edges({ layout, selected }: EdgesProps) {
+export function Edges({ layout, selected, box }: EdgesProps) {
   if (!selected) return null
 
   const byId = new Map(layout.nodes.map((n) => [n.screen.id, n] as const))
@@ -64,9 +67,9 @@ export function Edges({ layout, selected }: EdgesProps) {
         const to = byId.get(link.to)
         if (!from || !to) return null
 
-        const d = edgePath(from, to)
-        const a = rightAnchor(from)
-        const b = leftAnchor(to)
+        const d = edgePath(from, to, box)
+        const a = rightAnchor(from, box)
+        const b = leftAnchor(to, box)
         const midX = (a.x + b.x) / 2
         const midY = (a.y + b.y) / 2
 

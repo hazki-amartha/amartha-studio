@@ -6,7 +6,7 @@
 // =============================================================================
 
 import type { ScreenDef } from '@/platform/types'
-import { COL_GAP, NODE_H, NODE_W, ROW_GAP, TITLE_H, THUMB_H } from './geometry'
+import { COL_GAP, ROW_GAP, TITLE_H, type NodeBox } from './geometry'
 
 export interface FlowNode {
   screen: ScreenDef
@@ -33,11 +33,11 @@ export interface FlowLayout {
 }
 
 /** Anchor points on a node box, in canvas coordinates. */
-export function rightAnchor(n: FlowNode) {
-  return { x: n.x + NODE_W, y: n.y + TITLE_H + THUMB_H / 2 }
+export function rightAnchor(n: FlowNode, box: NodeBox) {
+  return { x: n.x + box.nodeW, y: n.y + TITLE_H + box.thumbH / 2 }
 }
-export function leftAnchor(n: FlowNode) {
-  return { x: n.x, y: n.y + TITLE_H + THUMB_H / 2 }
+export function leftAnchor(n: FlowNode, box: NodeBox) {
+  return { x: n.x, y: n.y + TITLE_H + box.thumbH / 2 }
 }
 
 function entryId(screens: ScreenDef[]): string | undefined {
@@ -56,14 +56,18 @@ function resolveLinks(screens: ScreenDef[]): FlowLink[] {
   return links
 }
 
-function positionColumns(columns: string[][], byId: Map<string, ScreenDef>): FlowNode[] {
+function positionColumns(
+  columns: string[][],
+  byId: Map<string, ScreenDef>,
+  box: NodeBox,
+): FlowNode[] {
   const nodes: FlowNode[] = []
   // Vertically centre each column against the tallest one.
   const tallest = Math.max(1, ...columns.map((c) => c.length))
-  const fullH = tallest * NODE_H + (tallest - 1) * ROW_GAP
+  const fullH = tallest * box.nodeH + (tallest - 1) * ROW_GAP
 
   columns.forEach((col, ci) => {
-    const colH = col.length * NODE_H + (col.length - 1) * ROW_GAP
+    const colH = col.length * box.nodeH + (col.length - 1) * ROW_GAP
     const y0 = (fullH - colH) / 2
     col.forEach((id, ri) => {
       const screen = byId.get(id)
@@ -72,15 +76,15 @@ function positionColumns(columns: string[][], byId: Map<string, ScreenDef>): Flo
         screen,
         col: ci,
         row: ri,
-        x: ci * (NODE_W + COL_GAP),
-        y: y0 + ri * (NODE_H + ROW_GAP),
+        x: ci * (box.nodeW + COL_GAP),
+        y: y0 + ri * (box.nodeH + ROW_GAP),
       })
     })
   })
   return nodes
 }
 
-function gridLayout(screens: ScreenDef[]): FlowNode[] {
+function gridLayout(screens: ScreenDef[], box: NodeBox): FlowNode[] {
   const cols = Math.max(1, Math.ceil(Math.sqrt(screens.length)))
   return screens.map((screen, i) => {
     const col = i % cols
@@ -89,29 +93,29 @@ function gridLayout(screens: ScreenDef[]): FlowNode[] {
       screen,
       col,
       row,
-      x: col * (NODE_W + COL_GAP),
-      y: row * (NODE_H + ROW_GAP),
+      x: col * (box.nodeW + COL_GAP),
+      y: row * (box.nodeH + ROW_GAP),
     }
   })
 }
 
-function bounds(nodes: FlowNode[]): { width: number; height: number } {
+function bounds(nodes: FlowNode[], box: NodeBox): { width: number; height: number } {
   let width = 0
   let height = 0
   for (const n of nodes) {
-    width = Math.max(width, n.x + NODE_W)
-    height = Math.max(height, n.y + NODE_H)
+    width = Math.max(width, n.x + box.nodeW)
+    height = Math.max(height, n.y + box.nodeH)
   }
   return { width, height }
 }
 
-export function computeLayout(screens: ScreenDef[]): FlowLayout {
+export function computeLayout(screens: ScreenDef[], box: NodeBox): FlowLayout {
   const byId = new Map(screens.map((s) => [s.id, s] as const))
   const links = resolveLinks(screens)
 
   if (links.length === 0) {
-    const nodes = gridLayout(screens)
-    return { nodes, links, ...bounds(nodes), isGrid: true }
+    const nodes = gridLayout(screens, box)
+    return { nodes, links, ...bounds(nodes, box), isGrid: true }
   }
 
   // Adjacency for BFS.
@@ -150,6 +154,6 @@ export function computeLayout(screens: ScreenDef[]): FlowLayout {
     columns[col].push(s.id)
   }
 
-  const nodes = positionColumns(columns, byId)
-  return { nodes, links, ...bounds(nodes), isGrid: false }
+  const nodes = positionColumns(columns, byId, box)
+  return { nodes, links, ...bounds(nodes, box), isGrid: false }
 }
