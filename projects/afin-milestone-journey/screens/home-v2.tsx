@@ -35,7 +35,7 @@ import {
 } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { claimableOf, rupiah } from '../lib/data'
+import { amountValue, claimableOf, rupiah } from '../lib/data'
 import { rewardAtRisk as isRewardAtRisk, store, tunggakan, useApp } from '../lib/store'
 import { BayarButton, BillLine, PayoutTile, Task, billStatus } from '../lib/tasks'
 import { Notice, SectionTitle, TaskButton } from '../lib/ui'
@@ -214,7 +214,13 @@ export function HomeV2Screen() {
                 title="Bisa dicairkan sekarang"
                 description={<span className="text-18 font-bold text-green-600">Rp5jt</span>}
                 action={
-                  <TaskButton tone="primary" onClick={() => flow.go('disburse-amount')}>
+                  <TaskButton
+                    tone="primary"
+                    onClick={() => {
+                      store.startDisburse(5000000)
+                      flow.go('disburse-amount')
+                    }}
+                  >
                     Cairkan
                   </TaskButton>
                 }
@@ -277,7 +283,10 @@ export function HomeV2Screen() {
             <div className="p-12">
               <PayoutTile
                 amount={claimable.amount}
-                onCairkan={() => flow.go('disburse-amount')}
+                onCairkan={() => {
+                  store.startDisburse(amountValue(claimable.amount))
+                  flow.go('disburse-amount')
+                }}
               />
             </div>
           </>

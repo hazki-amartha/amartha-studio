@@ -19,6 +19,9 @@ export const registry: Registry = {
   'amarthafin-live': () => import('./amarthafin-live').then((m) => m.project),
   'ngmis-live': () => import('./ngmis-live').then((m) => m.project),
   'agent-dashboard': () => import('./agent-dashboard').then((m) => m.project),
+  'ngmis-bm-monitoring': () => import('./ngmis-bm-monitoring').then((m) => m.project),
+  'apartner-bm-majelis-view': () =>
+    import('./apartner-bm-majelis-view').then((m) => m.project),
   'hello-world': () => import('./hello-world').then((m) => m.project),
   // <append new projects above this line — one line per project>
 }

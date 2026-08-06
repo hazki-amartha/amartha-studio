@@ -22,6 +22,17 @@ export const BILL_DUE = '14 Jul 2026'
 /** Rupiah, Indonesian grouping. The only number formatter this project uses. */
 export const rupiah = (n: number) => `Rp${Math.round(n).toLocaleString('id-ID')}`
 
+/** Read a display amount back to a number — "Rp8jt" → 8000000, "Rp2,5jt" →
+ *  2500000, "Rp2.500.000" → 2500000. The ladder keeps its figures as display
+ *  strings; the disbursement screen needs the number the card promised so its
+ *  ceiling tallies with the page that opened it. */
+export const amountValue = (display: string | undefined): number => {
+  if (!display) return 0
+  const s = display.replace(/rp|\s/gi, '')
+  if (/jt/i.test(s)) return Math.round(parseFloat(s.replace(/jt/i, '').replace(',', '.')) * 1_000_000)
+  return parseInt(s.replace(/\./g, ''), 10) || 0
+}
+
 // --- Payment methods -------------------------------------------------------
 
 export type MethodId =
@@ -244,7 +255,7 @@ export const MILESTONES: Milestone[] = [
     label: '26 Jan 2027',
     status: { label: 'Lancar', tone: 'blue' },
     countdown: '30 minggu lagi',
-    actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
+    actionLabel: 'Pelunasan dini dan mulai pinjaman baru (s/d Rp8jt)',
     state: 'locked',
     detail: 'milestone-pelunasan',
   },
@@ -323,7 +334,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '26 Jan 2027',
       status: { label: 'Lancar', tone: 'blue' },
       countdown: '26 minggu lagi',
-      actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
+      actionLabel: 'Pelunasan dini dan mulai pinjaman baru (s/d Rp8jt)',
       state: 'locked',
       detail: 'milestone-pelunasan',
     },
@@ -362,7 +373,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '26 Jan 2027',
       status: { label: 'Lancar', tone: 'blue' },
       countdown: '26 minggu lagi',
-      actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
+      actionLabel: 'Pelunasan dini dan mulai pinjaman baru (s/d Rp8jt)',
       state: 'locked',
       detail: 'milestone-pelunasan',
     },
@@ -410,7 +421,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '26 Jan 2027',
       status: { label: 'Lancar', tone: 'blue' },
       countdown: '16 minggu lagi',
-      actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
+      actionLabel: 'Pelunasan dini dan mulai pinjaman baru (s/d Rp8jt)',
       state: 'next',
       detail: 'milestone-pelunasan',
     },
@@ -450,7 +461,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
     {
       label: '26 Jan 2027',
       status: { label: 'Sudah dicapai', tone: 'green' },
-      actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
+      actionLabel: 'Pelunasan dini dan mulai pinjaman baru (s/d Rp8jt)',
       state: 'unlocked',
       cta: 'Mulai',
       detail: 'milestone-pelunasan',
@@ -533,7 +544,7 @@ export const MILESTONE_SETS: Record<JourneyPhase, Milestone[]> = {
       label: '30 Nov 2027',
       status: { label: 'Lancar', tone: 'blue' },
       countdown: '24 minggu lagi',
-      actionLabel: 'Pelunasan dini dan mulai pinjaman baru',
+      actionLabel: 'Pelunasan dini dan mulai pinjaman baru (s/d Rp8jt)',
       state: 'locked',
       detail: 'milestone-pelunasan',
     },

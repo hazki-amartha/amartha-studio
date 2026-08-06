@@ -18,7 +18,13 @@
 // target are paid out of the same seven KPI parameters and worked in the same
 // eight hours; giving prospecting its own tab would let it be the thing she
 // gets to if there is time, which is precisely how it stops happening.
-export type TaskKind = 'majelis' | 'home-visit' | 'setoran' | 'sosialisasi' | 'follow-up'
+export type TaskKind =
+  | 'majelis'
+  | 'home-visit'
+  | 'setoran'
+  | 'sosialisasi'
+  | 'follow-up'
+  | 'reminder'
 
 export interface Task {
   id: string
@@ -59,6 +65,20 @@ export interface Task {
 }
 
 export const TASKS: Task[] = [
+  // First thing, before any balai opens: one message out to every group meeting
+  // today. It sits on the schedule as a task rather than living inside each
+  // majelis visit because it is done ONCE for the whole day and it is done from
+  // the house — folding it into the visit would ask her to send a reminder to a
+  // room she is already standing in.
+  {
+    id: 't0',
+    kind: 'reminder',
+    time: '07.00',
+    until: '07.15',
+    title: 'Ingatkan Majelis Hari Ini',
+    place: 'Kirim pesan ke grup WhatsApp majelis',
+    reason: '3 majelis ada kumpulan hari ini',
+  },
   {
     id: 't1',
     kind: 'majelis',
@@ -68,7 +88,7 @@ export const TASKS: Task[] = [
     place: 'Balai RW 04, Ciseeng',
     reason: '3 mitra menunggak · pelayanan rutin',
     majelisId: 'mawar',
-    distanceKm: 1.2,
+    distanceKm: 1.5,
   },
   {
     id: 't2',
@@ -302,16 +322,23 @@ export interface AgentLocation {
   closes: string
   open: boolean
   /**
-   * The counter the app would send her to, weighing three things at once:
-   * distance, the odds the agent's Poket balance can absorb her cash, and
-   * whether the agent takes the subsidy that makes the handover free for her.
-   *
-   * Deliberately NOT the nearest one. A recommendation that always agreed with
-   * the top of a distance-sorted list would be a second badge saying the same
-   * thing — the label only earns its space when the two disagree, because that
-   * is the moment she has a decision to make.
+   * How long the ride takes, as a range rather than a figure — "2-5 menit".
+   * Distance alone under-describes the errand on a kampung road, where 500m of
+   * gang and 500m of jalan raya are not the same two minutes.
    */
-  recommended?: boolean
+  eta: string
+  /**
+   * How recently the counter transacted — "13 menit yang lalu". A desk with a
+   * warm till has someone behind it; the hours only say when it is SUPPOSED to
+   * be open, which is a different claim and the weaker of the two.
+   */
+  lastActive: string
+  /**
+   * The agent takes the subsidy, so the handover costs her nothing. Not every
+   * counter does, and it is the one fact that can make a further desk the
+   * better one to ride to.
+   */
+  freeAdmin?: boolean
 }
 
 /**
@@ -328,6 +355,9 @@ export const NEAREST_AGENTS: AgentLocation[] = [
     hours: '07.00–21.00',
     closes: '21.00',
     open: true,
+    eta: '2-5 menit',
+    lastActive: '13 menit yang lalu',
+    freeAdmin: true,
   },
   {
     id: 'ag2',
@@ -337,9 +367,11 @@ export const NEAREST_AGENTS: AgentLocation[] = [
     hours: '08.00–20.00',
     closes: '20.00',
     open: true,
-    // 700m further than the nearest, and still the one to walk to: it holds
-    // enough Poket to take a full bag, and it takes the subsidy.
-    recommended: true,
+    eta: '5-10 menit',
+    lastActive: '1 jam yang lalu',
+    // 700m further than the nearest, and still worth the ride: it takes the
+    // subsidy, so the handover costs her nothing.
+    freeAdmin: true,
   },
   {
     id: 'ag3',
@@ -349,6 +381,8 @@ export const NEAREST_AGENTS: AgentLocation[] = [
     hours: '08.00–17.00',
     closes: '17.00',
     open: true,
+    eta: '10-15 menit',
+    lastActive: '17 menit yang lalu',
   },
   {
     id: 'ag4',
@@ -358,6 +392,8 @@ export const NEAREST_AGENTS: AgentLocation[] = [
     hours: '06.00–22.00',
     closes: '22.00',
     open: true,
+    eta: '> 15 menit',
+    lastActive: '1 hari yang lalu',
   },
 ]
 
@@ -405,7 +441,14 @@ export const splitDeposit = (total: number): [number, number] => {
 export const taskCode = (taskId: string): string => {
   const kind = TASKS.find((t) => t.id === taskId)?.kind
   if (!kind) return ''
-  return { majelis: 'MV', 'home-visit': 'HV', sosialisasi: 'Sos', 'follow-up': 'FU', setoran: 'Setor' }[kind]
+  return {
+    majelis: 'MV',
+    'home-visit': 'HV',
+    sosialisasi: 'Sos',
+    'follow-up': 'FU',
+    setoran: 'Setor',
+    reminder: 'Ingat',
+  }[kind]
 }
 
 /**
@@ -597,6 +640,16 @@ export const findMajelisEntry = (id: string): MajelisEntry =>
 /** The schedule row behind a visit — carries the pre-reasoned "why now" line. */
 export const findTask = (id: string | null): Task | undefined =>
   id ? TASKS.find((t) => t.id === id) : undefined
+
+/**
+ * Every majelis with a kumpulan on today's schedule — who the reminder goes to.
+ *
+ * Derived from TASKS rather than listed again, so the reminder screen and the
+ * agenda can never disagree about which groups are meeting: move a pelayanan to
+ * tomorrow and the group drops off the reminder by itself.
+ */
+/** The morning reminder's own row on the schedule. */
+export const REMINDER_TASK_ID = 't0'
 
 /**
  * The scheduled pelayanan for a group, if the day has one. This is what lets a

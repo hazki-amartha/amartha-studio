@@ -55,6 +55,7 @@ import {
   scheduledFor,
   store,
   taskStatus,
+  todayTasks,
   unreadComms,
   useApp,
   type TaskStatus,
@@ -71,6 +72,9 @@ const KIND_TINT: Record<Task['kind'], Tint> = {
   setoran: 'green',
   sosialisasi: 'blue',
   'follow-up': 'orange',
+  // Purple, same as a pelayanan: reminding a majelis IS majelis work, done the
+  // morning before. The code below is what tells the two apart.
+  reminder: 'primary',
 }
 
 const kindTint = (kind: Task['kind']): Tint => KIND_TINT[kind]
@@ -84,6 +88,7 @@ const KIND_LABEL: Record<Task['kind'], string> = {
   setoran: 'Tutup',
   sosialisasi: 'Sos',
   'follow-up': 'FU',
+  reminder: 'Ingat',
 }
 
 /**
@@ -99,6 +104,7 @@ const KIND_NAME: Record<Task['kind'], string> = {
   setoran: 'Tutup Hari',
   sosialisasi: 'Sosialisasi',
   'follow-up': 'Follow Up',
+  reminder: 'Ingatkan Majelis',
 }
 
 /**
@@ -256,7 +262,7 @@ function TaskLabels({ task }: { task: Task }) {
   return (
     // Both labels on one row of pills under the address, because they qualify
     // the same stop and stacking them made a two-word fact take two lines. The
-    // distance drops to "1,2 km" here: beside the address it is going with,
+    // distance drops to "1,5 km" here: beside the address it is going with,
     // "dari lokasi Anda" is a sentence the pill has no room for and the BP does
     // not need.
     <span className="flex flex-wrap items-center gap-4 pt-2">
@@ -387,8 +393,9 @@ export function TodayScreen() {
   const rescheduled = rescheduledTasks(s)
   const rejected = rejectedTasks(s)
   const skipped = skippedTasks(s)
-  const onToday = (t: Task) => !s.reschedules[t.id] && !s.rejects[t.id] && !s.skips[t.id]
-  const todayCount = TASKS.length - rescheduled.length - rejected.length - skipped.length
+  const plate = todayTasks(s)
+  const onToday = (t: Task) => plate.includes(t)
+  const todayCount = plate.length
 
   const filtering = Boolean(kind || status)
   const matches = TASKS.filter(
@@ -451,6 +458,11 @@ export function TodayScreen() {
     if (task.kind === 'follow-up') {
       store.startFollowUp(task.id)
       flow.go('follow-up')
+      return
+    }
+    if (task.kind === 'reminder') {
+      store.startReminder(task.id)
+      flow.go('reminder')
       return
     }
     if (task.kind === 'setoran') {

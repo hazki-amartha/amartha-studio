@@ -1,0 +1,392 @@
+'use client'
+
+// The mitra page — one borrower, opened from her card on any stage.
+//
+// This is the reference's "Repayment Overview", rebuilt on this project's terms.
+// The week strip is the thing the whole direction turns on: it carries the
+// AMOUNT inside each week rather than a paid/unpaid dot, which is what lets a BP
+// say "Ibu kurang Rp50.000 di minggu 7" instead of "Ibu belum bayar".
+//
+// The page is a RECORD and only a record. It used to open on a "Yang perlu
+// dilakukan" card that named the bill and offered to collect it; that has been
+// taken out. Collecting is something the pelayanan queue sends her into with a
+// mitra in front of her — carrying a second door into it from a page she opens
+// to LOOK SOMETHING UP put the flow's most consequential action behind a
+// browsing gesture.
+//
+// What is left is ordered by how often it is wanted: her standing, the recent
+// ledger, what she owes today, the ladder, and — last, because it is looked up
+// rather than read — everything else on file about her.
+
+import type { ReactNode } from 'react'
+import { Card } from '@/design-system/components'
+import { ArrowLeft, Image as ImageIcon, WhatsappLogo } from '@/design-system/icons'
+import { Screen } from '@/platform/primitives'
+import { useFlow } from '@/platform/runtime'
+import { findMitra, rupiah } from '../lib/data'
+import { IconCheck, IconChevronRight, IconTrendUp } from '../lib/icons'
+import { ladderOf } from '../lib/ladder'
+import { profileOf } from '../lib/profile'
+import { BpLine, findBP } from '../lib/bp'
+import { AngsuranCard, MitraBadges, MitraCard, MitraPhoto, mapsUrl } from '../lib/mitra-card'
+import { PenagihanCard } from '../lib/penagihan'
+import { openMajelisEntry, useApp } from '../lib/store'
+import { PinMark } from '../lib/ui'
+
+export function MitraScreen() {
+  const flow = useFlow()
+  const s = useApp()
+
+  const mitra = findMitra(s.openMitra)
+  const profile = profileOf(mitra)
+  const ladder = ladderOf(mitra)
+  const group = openMajelisEntry(s)
+
+  // The row states the PRIZE, not the problem. It used to read "Tunggakan
+  // Rp450.000" whenever she was behind, which is the same figure the tagihan
+  // card two blocks up already prints — so the one row on this page that exists
+  // to open a conversation about growth was spending its line on the debt.
+  //
+  // Phrased as the GOAL now — what she can reach and how long it takes — so the
+  // card reads as the next thing to aim at rather than a status on a programme.
+  const goalLine =
+    ladder.reward === null || ladder.weeksLeft === null
+      ? 'Siklus selesai — bisa ajukan pembiayaan baru'
+      : ladder.reward.amount === null
+        ? `Bisa melunasi lebih awal dalam ${ladder.weeksLeft} minggu`
+        : // An early-settlement rung states BOTH things it grants, in one
+          // sentence. It used to ride in a second card of its own beside this
+          // one, which split a single offer across two rows and made the page
+          // ask the BP to add them up herself.
+          ladder.reward.kind === 'pelunasan'
+          ? `Pelunasan dini dan naik limit ${rupiah(ladder.reward.amount)}`
+          : `Bisa cairkan ${rupiah(ladder.reward.amount)} dalam ${ladder.weeksLeft} minggu`
+
+  // The nav carries the PAGE, not the mitra: a generic "Detail Mitra" title and
+  // the two things a BP does WITH her — chat and route — as pinned buttons. Her
+  // name and her badges moved off the bar and onto the page below, because the
+  // row of standing labels (product, DPD, and now relief / pre-disbursement) has
+  // outgrown a 48px bar the moment there is more than one of them.
+  const header = (
+    <header className="flex shrink-0 items-center gap-8 border-b border-default bg-neutral-white px-16 py-8">
+      <button
+        type="button"
+        onClick={() => flow.back()}
+        aria-label="Kembali"
+        className="-ml-4 flex h-32 w-32 shrink-0 items-center justify-center text-default"
+      >
+        <ArrowLeft size={20} />
+      </button>
+      <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">Detail Mitra</span>
+      <CircleButton label={`Chat WhatsApp ${mitra.name}`} tone="green">
+        <WhatsappLogo size={20} />
+      </CircleButton>
+      <PinButton label={`Rute ke rumah ${mitra.name}`} query={profile.address} />
+    </header>
+  )
+
+  return (
+    <Screen topBar={header} className="bg-neutral-white">
+      {/* --- Who she is, in the SAME card the Mitra directory lists her with —
+          flat, so it sits straight on the white canvas rather than in a box.
+          It carries the two lines that card carries: her majelis, and the BP
+          whose book she is on. Drawing the identity block twice is how the two
+          surfaces end up disagreeing about who owns her. */}
+      <MitraCard
+        mitra={mitra}
+        flat
+        meta={
+          <span className="truncate text-12 text-caption">
+            {group.name} · {group.day}, {group.time}
+          </span>
+        }
+        labels={
+          <>
+            <MitraBadges mitra={mitra} />
+            <span className="w-full">
+              <BpLine bpId={group.bpId} />
+            </span>
+          </>
+        }
+      />
+
+      {/* --- The recent cycle and what she owes, as one card. ---------------
+          The eight-week strip and the tagihan breakdown used to be two stacked
+          cards; they are read together, in one glance, so they are one card —
+          the same one the collect page opens on. "Lihat Semua" opens the full
+          ledger, which is where the week-by-week amounts live now that the strip
+          carries only outcomes. */}
+      <AngsuranCard mitra={mitra} onSeeAll={() => flow.go('loans')} />
+
+      {/* --- What has already been tried. -----------------------------------
+          Directly under the ledger, and only for a mitra who is behind: the
+          money card says what she owes, this one says how many times somebody
+          has already asked for it, who asked, and what she said. It sits here
+          rather than among the read-only details because it is the argument the
+          BP makes at the door — and because a mitra handed over from another BP
+          arrives with a DPD number and no story otherwise. */}
+      <PenagihanCard mitra={mitra} />
+
+      {/* --- The ladder, on its own. --------------------------------------- */}
+      {/* It used to be the first row inside a "Data mitra" card, sharing a
+          container with a phone number and two addresses. It is not a datum
+          about her — it is a conversation the BP is meant to have, and the only
+          thing on this page that leads anywhere she does something. */}
+      {/* White, like every other card on the page. The purple wash marked it as
+          the one thing here that leads somewhere — but the page has no other
+          card competing for that, and a tinted panel among white ones reads as
+          a notice rather than as a place to go. What earns the attention now is
+          SIZE: bigger tile, bigger title, and the offer set at reading size
+          instead of caption size, because that sentence is the whole card. */}
+      <button
+        type="button"
+        onClick={() => flow.go('ladder')}
+        className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left"
+      >
+        <span className="flex h-48 w-48 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-primary-500">
+          <IconTrendUp size={24} />
+        </span>
+        {/* A quiet label over the thing itself. The card used to lead with its
+            own name ("Jalur Naik Modal") and an On Track / At risk badge, which
+            spent the loudest line on what the PROGRAMME is called; what the BP
+            actually opens the conversation with is the prize and the date. So
+            the name becomes a caption and the offer becomes the sentence. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="text-12 text-caption">Goal berikutnya</span>
+          <span className="text-14 font-bold text-default">{goalLine}</span>
+        </div>
+        <span className="shrink-0 text-primary-500">
+          <IconChevronRight size={24} />
+        </span>
+      </button>
+
+      {/* --- Her products. ------------------------------------------------- */}
+      {/* What she carries with Amartha, not just the loan behind this ledger.
+          The one she is enrolled in is filled; the rest are what a BP can open a
+          conversation about — the reason this card sits above the read-only
+          details rather than among them. */}
+      <ProdukCard active={mitra.product} />
+
+      {/* --- Where to find her, and the majelis she belongs to. ------------- */}
+      <Card>
+        <div className="flex flex-col gap-12">
+          <span className="text-16 font-bold text-default">Detail</span>
+          <LabeledRow
+            first
+            label="Majelis"
+            value={group.name}
+            sub={`${group.day}, ${group.time}`}
+            trailing={
+              <span className="text-disabled">
+                <IconChevronRight size={20} />
+              </span>
+            }
+            onClick={() => flow.go('majelis')}
+          />
+          {/* Her BP, spelled out with his number — the card above says the
+              name, this says who to file her under. */}
+          <LabeledRow
+            label="Business Partner"
+            value={findBP(group.bpId).name}
+            sub={findBP(group.bpId).code}
+          />
+          <LabeledRow
+            label="Alamat rumah mitra"
+            value={profile.address}
+            footer={<PhotoLink label="Foto Rumah" />}
+            trailing={<PinButton label={`Rute ke rumah ${mitra.name}`} query={profile.address} />}
+          />
+          <LabeledRow
+            label="Alamat tempat usaha mitra"
+            value={profile.business}
+            footer={<PhotoLink label="Foto Usaha" />}
+            trailing={<PinButton label={`Rute ke usaha ${mitra.name}`} query={profile.business} />}
+          />
+        </div>
+      </Card>
+
+      {/* --- Who the BP calls when the mitra doesn't answer. ---------------- */}
+      <section className="pb-16">
+        <Card>
+          <div className="flex flex-col gap-12">
+            <span className="text-16 font-bold text-default">Penanggung Jawab</span>
+            <LabeledRow
+              first
+              label="Nama"
+              value={profile.pjName}
+              trailing={<MitraPhoto size={32} />}
+            />
+            <LabeledRow
+              label="Nomor HP penanggung jawab"
+              value={profile.pjPhone}
+              trailing={
+                <CircleButton label={`Chat WhatsApp ${profile.pjName}`} tone="green">
+                  <WhatsappLogo size={20} />
+                </CircleButton>
+              }
+            />
+            <LabeledRow
+              label="Alamat rumah penanggung jawab"
+              value={profile.address}
+              trailing={<PinButton label={`Rute ke rumah ${profile.pjName}`} query={profile.address} />}
+            />
+            <LabeledRow label="Hubungan dengan mitra" value={profile.pjRelation} />
+          </div>
+        </Card>
+      </section>
+    </Screen>
+  )
+}
+
+/**
+ * The product suite, as pills. The enrolled product is filled in primary with a
+ * check; the rest are outlined — available, not owned. A representative set
+ * rather than live data: the prototype's point is the shape of the card, and a
+ * BP reads "she has Modal, could have Proteksi" off exactly this.
+ */
+function ProdukCard({ active }: { active: string }) {
+  const products = [active, 'Proteksi', 'Celengan', 'Poket']
+  return (
+    <Card>
+      <div className="flex flex-col gap-12">
+        <span className="text-16 font-bold text-default">Produk</span>
+        <div className="flex flex-wrap gap-8">
+          {products.map((p) => {
+            const on = p === active
+            return (
+              <span
+                key={p}
+                className={`flex items-center gap-4 rounded-full border px-12 py-4 text-12 font-bold ${
+                  on
+                    ? 'border-primary-500 bg-primary-50 text-primary-500'
+                    : 'border-default bg-neutral-white text-caption'
+                }`}
+              >
+                {on ? <IconCheck size={16} /> : null}
+                {p}
+              </span>
+            )
+          })}
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+/**
+ * A label over its value inside a card, divided from the row above by a
+ * full-bleed hairline (`-mx-12` against the card's 12px padding). `trailing` is
+ * a control pinned right — a route pin, a WhatsApp button, a photo — and
+ * `footer` a link that hangs under the value. Rendered as a button when it opens
+ * something, a div when it only tells.
+ *
+ * Stacked label/value rather than label-left/value-right: an address is too long
+ * to sit in half a row, and a layout that works for "Suami" but wraps badly for
+ * the rest is a layout tuned to its shortest case.
+ */
+function LabeledRow({
+  label,
+  value,
+  sub,
+  trailing,
+  footer,
+  first,
+  onClick,
+}: {
+  label: string
+  value: string
+  sub?: string
+  trailing?: ReactNode
+  footer?: ReactNode
+  first?: boolean
+  onClick?: () => void
+}) {
+  const cls = `-mx-12 flex items-center gap-12 px-12 text-left ${
+    first ? '' : 'border-t border-default pt-12'
+  }`
+  const body = (
+    <>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="text-10 text-disabled">{label}</span>
+        <span className="break-words text-14 text-default">{value}</span>
+        {sub ? <span className="text-12 text-caption">{sub}</span> : null}
+        {footer}
+      </div>
+      {trailing ? <div className="flex shrink-0 items-center">{trailing}</div> : null}
+    </>
+  )
+  return onClick ? (
+    <button type="button" onClick={onClick} className={cls}>
+      {body}
+    </button>
+  ) : (
+    <div className={cls}>{body}</div>
+  )
+}
+
+/** A "Foto …" link under an address — opens the photo the surveyor took. */
+function PhotoLink({ label }: { label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => undefined}
+      className="mt-2 flex items-center gap-4 text-12 font-bold text-primary-500"
+    >
+      <ImageIcon size={16} />
+      {label}
+    </button>
+  )
+}
+
+/**
+ * A round, bordered icon button — the shape the reference puts every address's
+ * route pin and every contact's WhatsApp in. Bigger tap target than the header's
+ * bare glyph, because in a card it stands alone rather than in a row of chrome.
+ *
+ * Neutral DISC, tinted GLYPH, like `ContactButton`: this page carries five of
+ * them, and five saturated discs down one column is a colour code that codes
+ * nothing — the icon alone carries the channel.
+ */
+function CircleButton({
+  label,
+  tone = 'default',
+  onClick,
+  href,
+  children,
+}: {
+  label: string
+  /** Tints the GLYPH only — the disc and its hairline stay neutral. */
+  tone?: 'green' | 'red' | 'default'
+  onClick?: () => void
+  /** When set, renders as a link — used by the route pin to open maps. */
+  href?: string
+  children: ReactNode
+}) {
+  const ink =
+    tone === 'green' ? 'text-green-500' : tone === 'red' ? 'text-red-500' : 'text-default'
+  const shared = `flex h-40 w-40 shrink-0 items-center justify-center rounded-full border border-default bg-canvas-blue ${ink}`
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" aria-label={label} className={shared}>
+        {children}
+      </a>
+    )
+  }
+  return (
+    <button type="button" aria-label={label} onClick={onClick} className={shared}>
+      {children}
+    </button>
+  )
+}
+
+/**
+ * A route pin in a circle — red glyph on the same neutral disc every contact
+ * button uses. Given a `query` (an address), it opens Google Maps.
+ */
+function PinButton({ label, query }: { label: string; query?: string }) {
+  return (
+    <CircleButton label={label} tone="red" href={query ? mapsUrl(query) : undefined}>
+      <PinMark size={20} />
+    </CircleButton>
+  )
+}

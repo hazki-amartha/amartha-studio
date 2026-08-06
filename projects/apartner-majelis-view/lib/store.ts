@@ -268,6 +268,16 @@ export interface AppState {
    */
   startedTasks: string[]
   /**
+   * Majelis task ids the BP has already reminded — the morning message's own
+   * per-group tick.
+   *
+   * In the store rather than local to the reminder screen because it is a
+   * record she comes BACK to: she messages two groups, rides out, and returns
+   * at 11.00 to do the third. Screens remount on navigation, so a local tick
+   * would tell her she had reminded nobody.
+   */
+  remindedTasks: string[]
+  /**
    * Task ids whose record has reached the server. Finishing and SENDING are
    * different events here for the reason they are different in the field: she
    * closes a visit standing in a balai with no signal, and the record sits on
@@ -500,6 +510,7 @@ const initial: AppState = {
   day: 'today',
   doneTasks: [],
   startedTasks: [],
+  remindedTasks: [],
   sentTasks: [],
   activeTask: null,
   openMajelis: 'mawar',
@@ -837,13 +848,17 @@ export const store = {
   /**
    * Closes the schedule row the finished visit belongs to.
    *
+   * Takes the id outright when the caller knows it — the morning reminder does,
+   * and its screen is reachable without a schedule row having set `activeTask`,
+   * where the majelis fallback below would close the wrong task entirely.
+   *
    * Falls back to the group's own scheduled slot when no task was carried in —
    * a pelayanan opened from the Majelis tab is the same work as the one the day
    * rostered, and leaving it open on the schedule would ask the BP to do it
    * twice. Only the route differed.
    */
-  finishTask() {
-    const id = state.activeTask ?? taskForMajelis(state.openMajelis)?.id
+  finishTask(taskId?: string) {
+    const id = taskId ?? state.activeTask ?? taskForMajelis(state.openMajelis)?.id
     if (!id || state.doneTasks.includes(id)) {
       store.set({ activeTask: null })
       return
@@ -860,6 +875,29 @@ export const store = {
   },
   // --- NTB: prospects ------------------------------------------------------
 
+  /**
+   * Opens the morning reminder. Nothing to seed — the screen reads today's
+   * majelis straight off the schedule — so this only marks the task started so
+   * the agenda row moves to "Dikerjakan" like every other kind.
+   */
+  startReminder(taskId: string) {
+    store.set({
+      activeTask: taskId,
+      startedTasks: withStarted(state.startedTasks, taskId),
+    })
+  },
+  /**
+   * Tick one majelis off the morning reminder. A toggle, not a one-way mark:
+   * the BP is recording her own action, and a tick she cannot take back is one
+   * she stops trusting the first time she taps the wrong row.
+   */
+  toggleReminded(taskId: string) {
+    store.set({
+      remindedTasks: state.remindedTasks.includes(taskId)
+        ? state.remindedTasks.filter((id) => id !== taskId)
+        : [...state.remindedTasks, taskId],
+    })
+  },
   /** Opens a sosialisasi from the schedule. */
   startSosialisasi(taskId: string) {
     store.set({
@@ -1444,6 +1482,9 @@ const SETTLE_KIND_LABEL: Record<TaskKind, string> = {
   sosialisasi: 'Sosialisasi',
   'follow-up': 'Follow Up',
   setoran: 'Setoran',
+  // Never actually reached — a reminder banks no cash, so it never appears in
+  // a settlement breakdown. Present because the map is keyed by every kind.
+  reminder: 'Ingatkan Majelis',
 }
 
 /**
@@ -1520,11 +1561,18 @@ export const settlementsLeft = (s: AppState): number =>
  * left in the bag — the three obligations that used to be a closing task's
  * checklist, now the condition for the widget appearing at all.
  */
-export const canCloseDay = (s: AppState): boolean =>
-  !s.depositDone &&
-  TASKS.length > 0 &&
-  TASKS.every((t) => s.sentTasks.includes(t.id)) &&
-  unsettledTotal(s) === 0
+export const canCloseDay = (s: AppState): boolean => {
+  // Only the visits still on today's plate: a moved, rejected or skipped one
+  // can never be "sent", so counting it here would keep the widget away for a
+  // day that is genuinely finished.
+  const plate = todayTasks(s)
+  return (
+    !s.depositDone &&
+    plate.length > 0 &&
+    plate.every((t) => s.sentTasks.includes(t.id)) &&
+    unsettledTotal(s) === 0
+  )
+}
 
 /** Money that reached the company without her. Stated so it isn't asked about. */
 export const depositDigital = (s: AppState): number =>
@@ -1590,6 +1638,17 @@ export const openHomeMitra = (s: AppState): Mitra =>
   findMitra(findTask(s.openHome)?.mitraId ?? 'h1')
 
 export const openHomeTask = (s: AppState): Task | undefined => findTask(s.openHome)
+
+/**
+ * The day's actual plate: everything rostered, minus what she moved, rejected
+ * or skipped. Those three are OFF today — not to-do and not done — so anything
+ * that counts the day (the schedule's tally, the closing gate) counts this list
+ * and never `TASKS` itself. Counting the roster instead is what let a visit
+ * moved to Thursday, or a kumpulan skipped with photo proof, sit unfinishable
+ * in front of a closing it has nothing to do with.
+ */
+export const todayTasks = (s: AppState): Task[] =>
+  TASKS.filter((t) => !s.reschedules[t.id] && !s.rejects[t.id] && !s.skips[t.id])
 
 /** Visits the BP moved to another day — off today's plate, not done. */
 export const rescheduledTasks = (s: AppState): Task[] =>
