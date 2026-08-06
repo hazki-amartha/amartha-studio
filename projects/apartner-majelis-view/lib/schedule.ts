@@ -632,7 +632,8 @@ export const findTask = (id: string | null): Task | undefined =>
  * agenda can never disagree about which groups are meeting: move a pelayanan to
  * tomorrow and the group drops off the reminder by itself.
  */
-export const todayMajelisTasks = (): Task[] => TASKS.filter((t) => t.kind === 'majelis')
+/** The morning reminder's own row on the schedule. */
+export const REMINDER_TASK_ID = 't0'
 
 /**
  * The scheduled pelayanan for a group, if the day has one. This is what lets a

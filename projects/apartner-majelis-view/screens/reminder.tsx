@@ -11,10 +11,13 @@
 // a prototype that really opened it would throw the viewer out of the device
 // frame with no way back (CLAUDE.md §3).
 //
-// Which groups appear is DERIVED from today's schedule (`todayMajelisTasks`)
-// rather than listed here. The reminder is a fact about the day, and a
-// second hand-maintained list of "who meets today" is the kind that quietly
-// stops matching the agenda above it.
+// Which groups appear is DERIVED from today's schedule (`todayTasks`) rather
+// than listed here. The reminder is a fact about the day, and a second
+// hand-maintained list of "who meets today" is the kind that quietly stops
+// matching the agenda above it. That list is the day's PLATE, so a pelayanan
+// moved to another day or skipped drops off the reminder by itself — it also
+// stops that group's tick from being the one thing standing between the BP and
+// closing a day whose kumpulan is no longer happening.
 //
 // Each group carries its own TICK, held in the store rather than in this
 // screen. It is a record she comes back to: two groups messaged before she
@@ -25,8 +28,8 @@
 import { Badge, Button, NavigationHeader } from '@/design-system/components'
 import { CheckCircleFill, Copy } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { findMajelisEntry, todayMajelisTasks, type Task } from '../lib/schedule'
-import { store, useApp } from '../lib/store'
+import { REMINDER_TASK_ID, findMajelisEntry, type Task } from '../lib/schedule'
+import { store, todayTasks, useApp } from '../lib/store'
 import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
 
 /** What she pastes. Derived per group so the time and place are the real ones. */
@@ -46,13 +49,16 @@ function messageFor(task: Task): string {
 export function ReminderScreen() {
   const flow = useFlow()
   const s = useApp()
-  const tasks = todayMajelisTasks()
+  const tasks = todayTasks(s).filter((t) => t.kind === 'majelis')
 
   const doneCount = tasks.filter((t) => s.remindedTasks.includes(t.id)).length
   const left = tasks.length - doneCount
 
   function finish() {
-    store.finishTask()
+    // The reminder task by id, never `activeTask`'s fallback: opened from
+    // anywhere but the schedule row there is no active task, and finishTask's
+    // fallback would close a MAJELIS visit instead of this.
+    store.finishTask(s.activeTask ?? REMINDER_TASK_ID)
     flow.go('today')
   }
 
