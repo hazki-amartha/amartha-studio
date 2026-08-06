@@ -77,6 +77,12 @@ export interface AppState {
   waMessage: string
   /** Amount of the last disbursement, so the success screen can name it. */
   lastDisburse: number
+  /** How the "Cairkan modal tambahan" screen is sized — the ceiling it offers and
+   *  the floor its slider starts at. Set by whichever page sends her there, so the
+   *  figures on it tally with what that page promised (a Rp8jt limit rise and a
+   *  Rp1,25jt pencairan open the same screen at very different amounts). */
+  disburseCap: number
+  disburseFloor: number
   /** Which snapshot of the milestone ladder the progress page draws. */
   journeyPhase: JourneyPhase
 }
@@ -97,6 +103,8 @@ const initial: AppState = {
   waTarget: '',
   waMessage: '',
   lastDisburse: MILESTONE_AMOUNT,
+  disburseCap: MILESTONE_AMOUNT,
+  disburseFloor: 500000,
   journeyPhase: 'default',
 }
 
@@ -169,6 +177,11 @@ export const store = {
   },
 
   // --- Disbursement -------------------------------------------------------
+  /** Size the "Cairkan modal tambahan" screen for the page that opened it, so
+   *  its ceiling and floor tally with the amount that page promised. */
+  startDisburse(disburseCap: number, disburseFloor = 500000) {
+    store.set({ disburseCap, disburseFloor })
+  },
   disburse(lastDisburse: number) {
     store.set({ lastDisburse })
   },

@@ -22,6 +22,17 @@ export const BILL_DUE = '14 Jul 2026'
 /** Rupiah, Indonesian grouping. The only number formatter this project uses. */
 export const rupiah = (n: number) => `Rp${Math.round(n).toLocaleString('id-ID')}`
 
+/** Read a display amount back to a number — "Rp8jt" → 8000000, "Rp2,5jt" →
+ *  2500000, "Rp2.500.000" → 2500000. The ladder keeps its figures as display
+ *  strings; the disbursement screen needs the number the card promised so its
+ *  ceiling tallies with the page that opened it. */
+export const amountValue = (display: string | undefined): number => {
+  if (!display) return 0
+  const s = display.replace(/rp|\s/gi, '')
+  if (/jt/i.test(s)) return Math.round(parseFloat(s.replace(/jt/i, '').replace(',', '.')) * 1_000_000)
+  return parseInt(s.replace(/\./g, ''), 10) || 0
+}
+
 // --- Payment methods -------------------------------------------------------
 
 export type MethodId =

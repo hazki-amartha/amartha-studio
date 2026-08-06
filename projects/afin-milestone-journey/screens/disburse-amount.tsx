@@ -12,13 +12,14 @@ import { useMemo, useState } from 'react'
 import { NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { MILESTONE_AMOUNT, WEEKLY_BILL, rupiah } from '../lib/data'
-import { store } from '../lib/store'
+import { WEEKLY_BILL, rupiah } from '../lib/data'
+import { store, useApp } from '../lib/store'
 import { Chip, FullWidthButton, StatRow, StickyBar } from '../lib/ui'
 
 export function DisburseAmountScreen() {
   const flow = useFlow()
-  const [amount, setAmount] = useState(MILESTONE_AMOUNT)
+  const { disburseCap: cap, disburseFloor: floor } = useApp()
+  const [amount, setAmount] = useState(cap)
   const [tenor, setTenor] = useState<3 | 6>(3)
 
   const { weekly, total } = useMemo(() => {
@@ -33,36 +34,33 @@ export function DisburseAmountScreen() {
   return (
     <Screen
       topBar={
-        <NavigationHeader
-          title="Cairkan modal tambahan"
-          onBack={() => flow.go('milestone-unlocked')}
-        />
+        <NavigationHeader title="Cairkan modal tambahan" onBack={() => flow.back()} />
       }
     >
       <div className="flex items-center gap-12 rounded-12 bg-primary-50 p-12">
         <span className="flex-1 text-12 text-primary-400">Modal yang bisa dicairkan</span>
-        <span className="text-16 font-bold text-primary-500">{rupiah(MILESTONE_AMOUNT)}</span>
+        <span className="text-16 font-bold text-primary-500">{rupiah(cap)}</span>
       </div>
 
       <div className="flex flex-col gap-8">
         <div className="flex items-baseline gap-8">
           <span className="flex-1 text-12 font-bold text-caption">Pilih jumlah</span>
-          <span className="text-12 text-caption">Maks. {rupiah(MILESTONE_AMOUNT)}</span>
+          <span className="text-12 text-caption">Maks. {rupiah(cap)}</span>
         </div>
         <p className="text-24 font-bold text-default">{rupiah(amount)}</p>
         <input
           type="range"
           aria-label="Jumlah pencairan"
-          min={100000}
-          max={MILESTONE_AMOUNT}
+          min={floor}
+          max={cap}
           step={50000}
           value={amount}
           onChange={(e) => setAmount(Number(e.target.value))}
           className="w-full accent-primary-500"
         />
         <div className="flex text-12 text-caption">
-          <span className="flex-1">{rupiah(100000)}</span>
-          <span>{rupiah(MILESTONE_AMOUNT)}</span>
+          <span className="flex-1">{rupiah(floor)}</span>
+          <span>{rupiah(cap)}</span>
         </div>
       </div>
 
