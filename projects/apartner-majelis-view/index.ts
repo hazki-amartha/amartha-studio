@@ -584,10 +584,10 @@ export const project: ProjectModule = {
     },
     {
       id: 'agent-payment',
-      title: 'Setor Tunai',
+      title: 'Setor Tunai via Agen',
       component: lazyScreen(() => import('./screens/agent-payment'), 'AgentPaymentScreen'),
       flowsTo: [
-        { to: 'agent-locator', label: 'Buka Peta — dari baris agen' },
+        { to: 'agent-map', label: 'Buka Peta — dari baris agen' },
         { to: 'today', label: 'Konfirmasi Setoran — kembali ke jadwal' },
       ],
     },
@@ -595,7 +595,16 @@ export const project: ProjectModule = {
       id: 'agent-locator',
       title: 'Agen Terdekat',
       component: lazyScreen(() => import('./screens/agent-locator'), 'AgentLocatorScreen'),
-      flowsTo: [{ to: 'settlement', label: 'kembali' }],
+      flowsTo: [
+        { to: 'agent-map', label: 'Buka Peta — dari baris agen' },
+        { to: 'settlement', label: 'kembali' },
+      ],
+    },
+    {
+      id: 'agent-map',
+      title: 'Peta Agen',
+      component: lazyScreen(() => import('./screens/agent-map'), 'AgentMapScreen'),
+      flowsTo: [{ to: 'agent-locator', label: 'kembali' }],
     },
     {
       id: 'deposit',
