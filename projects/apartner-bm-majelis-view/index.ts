@@ -32,7 +32,13 @@ export const project: ProjectModule = {
       id: 'briefing-morning',
       title: 'Morning briefing',
       component: lazyScreen(() => import('./screens/briefing-morning'), 'BriefingMorningScreen'),
-      flowsTo: [{ to: 'today', label: 'kembali ke Tugas' }],
+      notes: [
+        'The meeting that opens the branch day, as a running order rather than a form: nothing is typed, everything is ticked. The whole card is the tap target, not a checkbox on its edge — she is talking to seven people while she uses this.',
+        'Absensi is drawn as taken and collapsed to its count. The BPs are in the room or the meeting has not started, so the register is confirmed at a glance and expanded only if a name is in question. Its seven names are the same seven the BP filter reads, not a second hand-kept list.',
+        'The NG-MIS paths are printed, not linked. NG-MIS is another system, and a prototype that navigates out of itself strands the review in an app nobody opened it to see.',
+        'Selesaikan Briefing is gated on every item ticked and the photo taken, and the bar says which is missing rather than only refusing. Orange, not red: nothing has gone wrong, the meeting is still running.',
+      ],
+      flowsTo: [{ to: 'today', label: 'Selesaikan Briefing — kembali ke Tugas' }],
     },
     {
       id: 'briefing-evening',

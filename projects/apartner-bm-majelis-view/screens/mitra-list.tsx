@@ -144,14 +144,9 @@ export function MitraListScreen() {
             // meets, because a mitra found by name is a mitra whose group the
             // BP does not yet know — which is the whole reason she is here.
             meta={
-              <>
-                {/* Who carries her, directly under her name — same slot, same
-                    plain styling as the majelis card gives its own BP. */}
-                <BpLine bpId={group.bpId} />
-                <span className="truncate text-12 text-caption">
-                  {group.name} · {group.day}, {group.time}
-                </span>
-              </>
+              <span className="truncate text-12 text-caption">
+                {group.name} · {group.day}, {group.time}
+              </span>
             }
             titleBadge={
               mitra.id === 'm3' ? <Badge intent="primary">KM</Badge> : null
@@ -164,6 +159,12 @@ export function MitraListScreen() {
                 {mitra.pelunasanDini ? (
                   <Badge intent="green">Dapat pelunasan dini</Badge>
                 ) : null}
+                {/* Last on the card, same slot as the majelis card's own BP
+                    line. It takes the whole width so it reads as a line rather
+                    than as another chip in the row it closes. */}
+                <span className="w-full">
+                  <BpLine bpId={group.bpId} />
+                </span>
               </>
             }
             trailing={<DpdBadge dpd={mitra.dpd} format="short" />}

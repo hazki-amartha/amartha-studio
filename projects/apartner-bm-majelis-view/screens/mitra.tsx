@@ -96,14 +96,18 @@ export function MitraScreen() {
         mitra={mitra}
         flat
         meta={
+          <span className="truncate text-12 text-caption">
+            {group.name} · {group.day}, {group.time}
+          </span>
+        }
+        labels={
           <>
-            <BpLine bpId={group.bpId} />
-            <span className="truncate text-12 text-caption">
-              {group.name} · {group.day}, {group.time}
+            <MitraBadges mitra={mitra} />
+            <span className="w-full">
+              <BpLine bpId={group.bpId} />
             </span>
           </>
         }
-        labels={<MitraBadges mitra={mitra} />}
       />
 
       {/* --- The recent cycle and what she owes, as one card. ---------------

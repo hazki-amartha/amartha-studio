@@ -34,7 +34,9 @@ export function TodayScreen() {
     <header className="flex shrink-0 items-center gap-8 bg-neutral-white px-16 py-8">
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-16 font-bold text-default">{day.date}</span>
-        <span className="text-12 font-regular text-caption">{BRIEFINGS.length} tugas hari ini</span>
+        <span className="text-12 font-regular text-caption">
+          {s.doneBriefings.length} dari {BRIEFINGS.length} selesai
+        </span>
       </div>
       <HeaderAction label="Kotak masuk" count={unreadComms(s)} onClick={() => flow.go('comms')}>
         <IconInbox size={20} />
@@ -50,6 +52,7 @@ export function TodayScreen() {
           <BriefingRow
             key={briefing.id}
             briefing={briefing}
+            done={s.doneBriefings.includes(briefing.id)}
             onOpen={() => flow.go(briefing.screen)}
           />
         ))}
@@ -71,7 +74,15 @@ export function TodayScreen() {
  * BP's card — "Majelis Visit · 08.00" over "Majelis Mawar". That is what a
  * briefing IS: the appointment and the thing being done have one name.
  */
-function BriefingRow({ briefing, onOpen }: { briefing: Briefing; onOpen: () => void }) {
+function BriefingRow({
+  briefing,
+  done,
+  onOpen,
+}: {
+  briefing: Briefing
+  done: boolean
+  onOpen: () => void
+}) {
   return (
     <button
       type="button"
@@ -86,11 +97,12 @@ function BriefingRow({ briefing, onOpen }: { briefing: Briefing; onOpen: () => v
           <span className="min-w-0 flex-1 truncate text-14 font-regular text-caption">
             {briefing.title} · {briefing.time}
           </span>
-          {/* Every briefing starts the day unstarted. The status stays on the
-              card because it is the column the BM skims — which of the two she
-              still owes — even when there are only two rows to skim. */}
+          {/* The status is the column the BM skims — which of the two she
+              still owes — even when there are only two rows to skim. Blue for
+              Selesai, matching the BP app: green is this app's colour for
+              settled, and a closed briefing settles nothing. */}
           <span className="flex shrink-0">
-            <Badge intent="neutral">Belum mulai</Badge>
+            <Badge intent={done ? 'blue' : 'neutral'}>{done ? 'Selesai' : 'Belum mulai'}</Badge>
           </span>
         </span>
         <span className="text-16 font-bold text-default">{briefing.name}</span>

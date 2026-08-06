@@ -14,10 +14,19 @@ export interface BusinessPartner {
   code: string
 }
 
+/**
+ * The seven she runs. The names are the ones on the briefing's roll call in the
+ * reference — that list IS the branch, so the directory filter and the absensi
+ * read off the same seven rather than off two hand-kept lists.
+ */
 export const BUSINESS_PARTNERS: BusinessPartner[] = [
-  { id: 'bp1', name: 'Siti Rahayu', code: 'BP-10482' },
-  { id: 'bp2', name: 'Dewi Lestari', code: 'BP-10517' },
-  { id: 'bp3', name: 'Ratna Sari', code: 'BP-10603' },
+  { id: 'bp1', name: 'Sari Handayani', code: 'BP-10482' },
+  { id: 'bp2', name: 'Rina Marlina', code: 'BP-10517' },
+  { id: 'bp3', name: 'Ani Suryani', code: 'BP-10603' },
+  { id: 'bp4', name: 'Dewi Lestari', code: 'BP-10644' },
+  { id: 'bp5', name: 'Siti Aminah', code: 'BP-10709' },
+  { id: 'bp6', name: 'Yanti Rohayati', code: 'BP-10755' },
+  { id: 'bp7', name: 'Eni Nuraeni', code: 'BP-10812' },
 ]
 
 export const findBP = (id: string): BusinessPartner =>

@@ -612,7 +612,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 1,
     type: 'GL',
     status: 'aktif',
-    bpId: 'bp1',
+    bpId: 'bp2',
   },
   {
     id: 'kenanga',
@@ -624,7 +624,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 4,
     type: 'Hybrid',
     status: 'aktif',
-    bpId: 'bp2',
+    bpId: 'bp3',
   },
   {
     id: 'dahlia',
@@ -636,7 +636,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 2,
     type: 'GL',
     status: 'aktif',
-    bpId: 'bp2',
+    bpId: 'bp4',
   },
   {
     id: 'anggrek',
@@ -648,7 +648,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 0,
     type: 'Modal',
     status: 'aktif',
-    bpId: 'bp3',
+    bpId: 'bp5',
   },
   // The two she is still building. Nearly-there and barely-started, so the
   // shortfall reads as a real range rather than one decorative case.
@@ -662,7 +662,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 0,
     type: 'Modal',
     status: 'draft',
-    bpId: 'bp3',
+    bpId: 'bp6',
   },
   {
     id: 'teratai',
@@ -674,7 +674,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
     menunggak: 0,
     type: 'GL',
     status: 'draft',
-    bpId: 'bp2',
+    bpId: 'bp7',
   },
 ]
 
