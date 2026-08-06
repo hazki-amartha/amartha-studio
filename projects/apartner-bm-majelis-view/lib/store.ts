@@ -181,6 +181,9 @@ export interface Settlement {
   closing: boolean
 }
 
+/** The three cuts of the morning briefing the presentation states switch between. */
+export type MorningVariant = 'default' | 'stepper' | 'live'
+
 export interface AppState {
   /** mitraId → hadir/tidak. Absent = not marked yet. */
   attendance: Record<string, Attendance>
@@ -319,6 +322,17 @@ export interface AppState {
    *  In the store rather than the screen because the Tugas card has to read the
    *  state back after she navigates away from the briefing that set it. */
   doneBriefings: string[]
+  /**
+   * Which cut of the morning briefing to draw. Three alternatives the designer
+   * flips between with the presentation states, not something the BM ever picks:
+   * - `default` — the single-page checklist (Alt-1).
+   * - `stepper` — the same running order, one card per page behind a stepper
+   *   (Alt-2), the shape the MV/HV visits use.
+   * - `live`    — Alt-2's stepper, but the repayment, disbursement and per-BP
+   *   tugas steps are worked INSIDE the app on dummy data instead of pointing
+   *   the BM out to NG-MIS (Alt-3).
+   */
+  morningVariant: MorningVariant
 
   openHome: string
   /**
@@ -527,6 +541,7 @@ const initial: AppState = {
   majelisStatus: null,
   majelisBp: null,
   doneBriefings: [],
+  morningVariant: 'default',
   openHome: 't3',
   metWith: {},
   payMode: {},
