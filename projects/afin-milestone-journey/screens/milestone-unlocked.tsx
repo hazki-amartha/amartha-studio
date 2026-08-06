@@ -18,7 +18,7 @@ import { Check, LockKeyOpen } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { claimableOf } from '../lib/data'
-import { useApp } from '../lib/store'
+import { store, useApp } from '../lib/store'
 import { FullWidthButton, StickyBar } from '../lib/ui'
 
 const REASONS = [
@@ -37,6 +37,7 @@ const LIMIT_RISE = {
   rewardLabel: 'Modal yang bisa dicairkan',
   rewardValue: 'Rp8.000.000',
   rewardSub: 'Limit kredit baru Ibu',
+  amount: 8000000,
 }
 
 const PENCAIRAN = {
@@ -46,6 +47,7 @@ const PENCAIRAN = {
   rewardLabel: 'Modal tambahan yang bisa dicairkan',
   rewardValue: 'Rp1.250.000',
   rewardSub: '25% dari plafon Ibu saat ini',
+  amount: 1250000,
 }
 
 export function MilestoneUnlockedScreen() {
@@ -84,7 +86,12 @@ export function MilestoneUnlockedScreen() {
       </div>
 
       <StickyBar>
-        <FullWidthButton onClick={() => flow.go('disburse-amount')}>
+        <FullWidthButton
+          onClick={() => {
+            store.startDisburse(copy.amount)
+            flow.go('disburse-amount')
+          }}
+        >
           Cairkan sekarang
         </FullWidthButton>
         <FullWidthButton variant="ghost" onClick={() => flow.go('progress')}>

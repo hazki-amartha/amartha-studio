@@ -11,7 +11,7 @@
 
 import { useFlow } from '@/platform/runtime'
 import { HISTORY, MILESTONE_SETS } from '../lib/data'
-import { members, useApp } from '../lib/store'
+import { members, store, useApp } from '../lib/store'
 import { MilestoneTracker, healthOf } from '../lib/milestone-tracker'
 
 const REACHED_REASONS = [
@@ -61,7 +61,10 @@ export function MilestonePelunasanScreen() {
         onBack={() => flow.go('progress')}
         action={{
           label: 'Mulai pelunasan dini',
-          onAction: () => flow.go('disburse-amount'),
+          onAction: () => {
+            store.startDisburse(7000000, 2500000)
+            flow.go('disburse-amount')
+          },
           secondaryLabel: 'Nanti saja',
           onSecondary: () => flow.go('progress'),
         }}
