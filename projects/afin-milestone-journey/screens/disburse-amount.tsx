@@ -16,11 +16,20 @@ import { WEEKLY_BILL, rupiah } from '../lib/data'
 import { store, useApp } from '../lib/store'
 import { Chip, FullWidthButton, StatRow, StickyBar } from '../lib/ui'
 
+// Flat admin fee held back from a pelunasan-dini disbursement, matched to the
+// confirmation the live app shows.
+const ADMIN_FEE = 120000
+
 export function DisburseAmountScreen() {
   const flow = useFlow()
-  const { disburseCap: cap, disburseFloor: floor } = useApp()
+  const { disburseCap: cap, disburseFloor: floor, disbursePayoff: payoff } = useApp()
   const [amount, setAmount] = useState(cap)
   const [tenor, setTenor] = useState<3 | 6>(3)
+
+  // A pelunasan dini spends the new loan on clearing the old one first, so the
+  // screen shows what she nets rather than her combined weekly load.
+  const isPelunasan = payoff > 0
+  const received = amount - payoff - ADMIN_FEE
 
   const { weekly, total } = useMemo(() => {
     const weeks = tenor === 3 ? 12 : 24
@@ -82,28 +91,48 @@ export function DisburseAmountScreen() {
         <StatRow label="Pembayaran pertama" value="08/05/2026" />
       </div>
 
-      <div className="rounded-12 bg-orange-50 p-16">
-        <p className="mb-8 text-12 font-bold text-orange-700">
-          Total kewajiban mingguan Ibu setelah ini
-        </p>
-        <div className="flex py-2 text-12">
-          <span className="flex-1 text-caption">Angsuran pinjaman saat ini</span>
-          <span className="text-default">{rupiah(WEEKLY_BILL)}</span>
+      {isPelunasan ? (
+        // The new loan pays off the old one first — so the breakdown is what she
+        // receives after the pelunasan, not her combined weekly obligation.
+        <div className="rounded-12 border border-default bg-neutral-white p-16">
+          <p className="mb-8 text-14 font-bold text-default">Detail pencairan</p>
+          <StatRow label="Pokok pinjaman" value={rupiah(amount)} border />
+          <StatRow label="Pelunasan Dini (15x)" value={`-${rupiah(payoff)}`} border />
+          <StatRow label="Biaya admin" value={`-${rupiah(ADMIN_FEE)}`} border />
+          <StatRow
+            label="Anda terima"
+            value={rupiah(received)}
+            tone={received < 0 ? 'red' : 'default'}
+            strong
+          />
         </div>
-        <div className="flex py-2 text-12">
-          <span className="flex-1 text-caption">Angsuran modal tambahan</span>
-          <span className="text-default">{rupiah(weekly)}</span>
+      ) : (
+        <div className="rounded-12 bg-orange-50 p-16">
+          <p className="mb-8 text-12 font-bold text-orange-700">
+            Total kewajiban mingguan Ibu setelah ini
+          </p>
+          <div className="flex py-2 text-12">
+            <span className="flex-1 text-caption">Angsuran pinjaman saat ini</span>
+            <span className="text-default">{rupiah(WEEKLY_BILL)}</span>
+          </div>
+          <div className="flex py-2 text-12">
+            <span className="flex-1 text-caption">Angsuran modal tambahan</span>
+            <span className="text-default">{rupiah(weekly)}</span>
+          </div>
+          <div className="mt-8 flex items-center border-t border-orange-200 pt-8">
+            <span className="flex-1 text-12 font-bold text-orange-700">Total per minggu</span>
+            <span className="text-18 font-bold text-orange-700">
+              {rupiah(WEEKLY_BILL + weekly)}
+            </span>
+          </div>
         </div>
-        <div className="mt-8 flex items-center border-t border-orange-200 pt-8">
-          <span className="flex-1 text-12 font-bold text-orange-700">Total per minggu</span>
-          <span className="text-18 font-bold text-orange-700">{rupiah(WEEKLY_BILL + weekly)}</span>
-        </div>
-      </div>
+      )}
 
       <p className="text-center text-12 text-disabled">*Simulasi, angka bukan final</p>
 
       <StickyBar>
         <FullWidthButton
+          disabled={isPelunasan && received <= 0}
           onClick={() => {
             store.disburse(amount)
             flow.go('disburse-success')

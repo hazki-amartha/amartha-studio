@@ -83,6 +83,11 @@ export interface AppState {
    *  Rp1,25jt pencairan open the same screen at very different amounts). */
   disburseCap: number
   disburseFloor: number
+  /** When the disbursement is a pelunasan dini, the new loan first clears the
+   *  remaining balance of the old one — this is that payoff, deducted from the
+   *  amount cair'd so the screen can show what she actually receives. 0 for an
+   *  ordinary pencairan, where nothing is being paid off. */
+  disbursePayoff: number
   /** Which snapshot of the milestone ladder the progress page draws. */
   journeyPhase: JourneyPhase
 }
@@ -105,6 +110,7 @@ const initial: AppState = {
   lastDisburse: MILESTONE_AMOUNT,
   disburseCap: MILESTONE_AMOUNT,
   disburseFloor: 500000,
+  disbursePayoff: 0,
   journeyPhase: 'default',
 }
 
@@ -179,8 +185,8 @@ export const store = {
   // --- Disbursement -------------------------------------------------------
   /** Size the "Cairkan modal tambahan" screen for the page that opened it, so
    *  its ceiling and floor tally with the amount that page promised. */
-  startDisburse(disburseCap: number, disburseFloor = 500000) {
-    store.set({ disburseCap, disburseFloor })
+  startDisburse(disburseCap: number, disburseFloor = 500000, disbursePayoff = 0) {
+    store.set({ disburseCap, disburseFloor, disbursePayoff })
   },
   disburse(lastDisburse: number) {
     store.set({ lastDisburse })
