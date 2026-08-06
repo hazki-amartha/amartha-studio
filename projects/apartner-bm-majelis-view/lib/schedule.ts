@@ -465,7 +465,12 @@ export interface Briefing {
   id: string
   /** The two-letter tile — the BM's own shorthand, same idea as MV / HV. */
   code: string
+  /** The caption line — the kind of appointment, beside its clock. */
   title: string
+  /** The name at reading size under it. Same words as `title`, capitalised:
+   *  a briefing's kind and its name are one thing, which is not true of a
+   *  majelis visit ("Majelis Visit · 08.00" over "Majelis Mawar"). */
+  name: string
   /** Start of the slot, "HH.MM" — Indonesian clock convention. */
   time: string
   place: string
@@ -479,6 +484,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'mb',
     code: 'MB',
     title: 'Morning briefing',
+    name: 'Morning Briefing',
     time: '08.00',
     place: 'Amartha Point Ciseeng',
     distanceKm: 1.2,
@@ -488,6 +494,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'eb',
     code: 'EB',
     title: 'Evening briefing',
+    name: 'Evening Briefing',
     time: '18.30',
     place: 'Amartha Point Ciseeng',
     distanceKm: 1.2,

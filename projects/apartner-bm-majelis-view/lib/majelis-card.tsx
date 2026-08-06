@@ -13,7 +13,7 @@
 // you are already on, so it renders as a plain block.
 
 import { Badge } from '@/design-system/components'
-import { BpBadge } from './bp'
+import { BpLine } from './bp'
 import { shortfallOf, type MajelisEntry } from './schedule'
 import { ProductBadge } from './ui'
 
@@ -36,6 +36,10 @@ export function MajelisCard({ entry, onOpen }: { entry: MajelisEntry; onOpen?: (
           <StatusBadge entry={entry} />
         </span>
       </span>
+      {/* Who carries the group, directly under its name and as plain text —
+          the same slot and the same styling the mitra card gives it, so the BP
+          is read the same way whichever directory the BM is in. */}
+      <BpLine bpId={entry.bpId} />
       <span className="line-clamp-2 text-14 font-regular text-default">{entry.place}</span>
       <span className="text-14 font-regular text-caption">
         {entry.day}, {entry.time} ·{' '}
@@ -43,10 +47,6 @@ export function MajelisCard({ entry, onOpen }: { entry: MajelisEntry; onOpen?: (
       </span>
       <span className="flex flex-wrap items-center gap-4 pt-2">
         <ProductBadge product={entry.type} />
-        {/* Who carries the group. It rides beside the product rather than above
-            it because both are standing facts about the majelis — what it runs
-            on, and whose book it is on. */}
-        <BpBadge bpId={entry.bpId} />
       </span>
       {/* A draft's whole story is the gap. "Draft" alone says the group isn't
           running; it doesn't say she is four women away from disbursing it. */}

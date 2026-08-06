@@ -15,7 +15,7 @@ export const project: ProjectModule = {
       entry: true,
       notes: [
         'The BM’s day is two cards long: a morning briefing that opens the branch day with her BPs and an evening briefing that closes it. The BP direction’s field stops — majelis, doorsteps, sosialisasi, the cash handover — are gone rather than hidden, because a day that lists eight rides a BM is not making reads as somebody else’s.',
-        'The card keeps the shape the BP app uses — a two-letter code tile, the appointment over its address, then its labels — so the two apps read as one app seen from two chairs. MB and EB sit where MV and HV sit.',
+        'The card is exactly the BP app’s task card: a two-letter code tile, a caption carrying the appointment and its clock with the state pinned right, the name at reading size, the place, then the distance. MB and EB sit where MV and HV sit. The kind and the name are the same two words here, which they are not on a BP’s card — that is what a briefing is.',
         'Both cards open a page that is deliberately empty. What a briefing actually asks of her is the next conversation, and drawing a guess at it now would answer it before it is asked.',
       ],
       flowsTo: [
@@ -83,50 +83,7 @@ export const project: ProjectModule = {
       title: 'KPI',
       component: lazyScreen(() => import('./screens/kpi'), 'KpiScreen'),
       notes: [
-        'Seven monthly parameters, each carrying a flat rupiah bonus — a parameter earns its bonus outright rather than feeding a combined score.',
-        'Every card answers one question: how many more women. The subtraction is done for her and the result IS the headline — “Kurangi 3 mitra lagi”, “Tambah 3 mitra lagi”, “Target tercapai”. A number that exists only to be subtracted from another number is a number the app should be holding, so the current count is not printed.',
-        'The hero says the same thing the same way: “Penuhi 4 target lagi” rather than “3 dari 7 tercapai” — work remaining rather than a score.',
-        'Collection GATES growth: miss a DPD bucket and the insentif on every pencairan and cross-sell row is held, however well she did on it. The held row keeps its “Target tercapai” — she did the work — but loses the green tick and the green meter, because green on this page means banked.',
-        'The two ways to reach Rp0 are the thing the hero has to tell apart. “Nothing met yet” and “everything you won is behind the gate” read identically on the bottom line and mean opposite things, so each gets its own sentence. And the money is “tertahan”, not “dianulir”, while the month is still running — it is recoverable, and a word that reads as final is how you make a BP stop trying.',
-        'The target survives as small print, because a BP does get asked what the threshold is and nobody recites seven of them, and the bonus as a pill, because it is what makes the gap worth closing. No card links out to the work: the schedule owns that, and hanging a task off a score turns the score into how you navigate.',
-      ],
-      states: [
-        {
-          id: 'kpi-running',
-          label: 'Bulan berjalan',
-          description: 'DPD 0 tercapai, jadi insentif pencairan tetap cair meski DPD 31–90 meleset',
-          apply: demo.kpiRunning,
-        },
-        {
-          id: 'kpi-all-held',
-          label: 'Semua tertahan — Rp0',
-          description: 'Semua target growth tercapai, semua DPD meleset: sebulan kerja, Rp0',
-          apply: demo.kpiAllHeld,
-        },
-        {
-          id: 'kpi-nothing',
-          label: 'Belum ada capaian — Rp0',
-          description: 'Rp0 tanpa ada yang tertahan — bedanya harus kebaca',
-          apply: demo.kpiNothingYet,
-        },
-        {
-          id: 'kpi-all-clear',
-          label: 'Semua target tercapai',
-          description: 'Penagihan bersih, jadi growth cair dan gate-nya tak terlihat',
-          apply: demo.kpiAllClear,
-        },
-        {
-          id: 'kpi-boom',
-          label: 'Versi B — Boom factor kena',
-          description: 'Skor cukup untuk dibayar, tapi Cohort DPD 7+ lewat 5%: insentif Rp0',
-          apply: demo.kpiBoom,
-        },
-        {
-          id: 'kpi-boosted',
-          label: 'Versi B — skor >100% + boost',
-          description: 'Puncak tabel: Rp600rb dari band, plus Rp100rb karena dua boost tercapai',
-          apply: demo.kpiBoosted,
-        },
+        'Blank on purpose. The BP direction’s scoreboard measures one field officer’s own collection and growth; a Branch Manager is scored on the BPs she runs, so keeping the seven parameters here would put a page of confident numbers in front of a reader that describe the wrong person. The tab stays, and what belongs on it is the next conversation.',
       ],
       flowsTo: [
         { to: 'today', label: 'tab Jadwal' },

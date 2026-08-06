@@ -7,9 +7,9 @@ briefings instead of the BP's field stops.
 
 ## Project-local components (§4)
 
-- `BpBadge` / `BUSINESS_PARTNERS` (`bp.tsx`) — the Business Partner as data and as a grey pill. Authored once and attached to the majelis; a mitra inherits hers from her group, so the two directories cannot disagree about who owns her. Used on the majelis card, the mitra card and the mitra page.
+- `BpLine` / `BUSINESS_PARTNERS` (`bp.tsx`) — the Business Partner as data and as one caption line directly under the majelis or mitra name. Authored once and attached to the majelis; a mitra inherits hers from her group, so the two directories cannot disagree about who owns her. It was a grey pill; a badge is for something that changes, and whose book a group is on is a standing fact that read as a third status among the real ones. Used on the majelis card, the mitra card and the mitra page.
 - `MajelisCard` (`majelis-card.tsx`) — the one majelis card, shared by the Majelis directory and the group's own page (where it replaced a one-line address strip). It was the directory's private row; lifted out so the BP line is drawn once. `onOpen` is what separates the two uses — tappable row in a list, plain header block on the page.
-- `BriefingRow` (`today.tsx`) — the BM's task card: a two-letter code tile (MB / EB), the briefing and its time on one line with the status pinned right, the Amartha Point under it, distance as a pill. Same shape as the BP app's task card so the two read as one app from two chairs.
+- `BriefingRow` (`today.tsx`) — the BM's task card, drawn as the BP app's `TaskBody`: a two-letter code tile (MB / EB), a caption carrying the appointment and its clock with the status pinned right, the name at reading size, the Amartha Point, then distance as a pill. The kind and the name are the same two words here, which they are not on a BP's card.
 
 - `BannerTag` — a pill for a tag sitting ON the inbox detail's coloured hero; `Badge`'s tints all assume a light ground. Used in `banner-detail.tsx`. Ported from `apartner-homepage-ia`.
 - `TabBar` — the three L0 destinations (Jadwal / Majelis / KPI), hidden inside a pelayanan. Ported from `apartner-task-first`.

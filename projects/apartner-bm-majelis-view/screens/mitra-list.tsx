@@ -19,7 +19,7 @@
 import { useState } from 'react'
 import { Badge, NavigationHeader } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
-import { BUSINESS_PARTNERS, findBP } from '../lib/bp'
+import { BUSINESS_PARTNERS, BpLine, findBP } from '../lib/bp'
 import { DpdBadge, MitraCard } from '../lib/mitra-card'
 import { DPD_BUCKETS, bucketOf, portfolio, sourceMitraId, type DpdBucket } from '../lib/portfolio'
 import { MAJELIS_DIRECTORY } from '../lib/schedule'
@@ -145,15 +145,11 @@ export function MitraListScreen() {
             // BP does not yet know — which is the whole reason she is here.
             meta={
               <>
+                {/* Who carries her, directly under her name — same slot, same
+                    plain styling as the majelis card gives its own BP. */}
+                <BpLine bpId={group.bpId} />
                 <span className="truncate text-12 text-caption">
                   {group.name} · {group.day}, {group.time}
-                </span>
-                {/* Who carries her. On the card rather than only on her page,
-                    because the BM's question about a mitra she found by name is
-                    usually "whose is she" — and answering it should not cost a
-                    page. */}
-                <span className="truncate text-12 text-caption">
-                  BP · {findBP(group.bpId).name}
                 </span>
               </>
             }
