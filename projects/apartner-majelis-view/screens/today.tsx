@@ -55,6 +55,7 @@ import {
   scheduledFor,
   store,
   taskStatus,
+  todayTasks,
   unreadComms,
   useApp,
   type TaskStatus,
@@ -392,8 +393,9 @@ export function TodayScreen() {
   const rescheduled = rescheduledTasks(s)
   const rejected = rejectedTasks(s)
   const skipped = skippedTasks(s)
-  const onToday = (t: Task) => !s.reschedules[t.id] && !s.rejects[t.id] && !s.skips[t.id]
-  const todayCount = TASKS.length - rescheduled.length - rejected.length - skipped.length
+  const plate = todayTasks(s)
+  const onToday = (t: Task) => plate.includes(t)
+  const todayCount = plate.length
 
   const filtering = Boolean(kind || status)
   const matches = TASKS.filter(

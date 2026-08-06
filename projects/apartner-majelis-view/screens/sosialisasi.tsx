@@ -197,12 +197,21 @@ function AddLeadSheet({ open, onClose }: { open: boolean; onClose: () => void })
   // else asks when to come back — which is the field this whole flow exists
   // for, since "tertarik" with no date is the lead nobody ever calls.
   const refused = interest === 'tidak'
-  const ready =
-    name.trim().length > 1 &&
-    phone.trim().length > 5 &&
-    interest !== null &&
-    (refused ? reason !== '' : followUpPicked) &&
-    (source === 'sosialisasi' || (referredBy.trim() !== '' && referralKind !== null))
+  // What is still missing, in the order the form asks it. A disabled CTA with
+  // nothing beside it reads as a broken button — the BP taps "Simpan", nothing
+  // happens, and the form never says which of six fields it is waiting on. So
+  // the gate names the next one, the same way closing names the visit still
+  // open rather than only refusing to close.
+  const missing: string[] = []
+  if (name.trim().length <= 1) missing.push('nama')
+  if (phone.trim().length <= 5) missing.push('no. WhatsApp')
+  if (source === 'referral' && referredBy.trim() === '') missing.push('nama perujuk')
+  if (source === 'referral' && referralKind === null) missing.push('hubungan perujuk')
+  if (interest === null) missing.push('tingkat minat')
+  else if (refused && reason === '') missing.push('alasan')
+  else if (!refused && !followUpPicked) missing.push('kapan dihubungi lagi')
+
+  const ready = missing.length === 0
 
   function reset() {
     setName('')
@@ -241,9 +250,16 @@ function AddLeadSheet({ open, onClose }: { open: boolean; onClose: () => void })
       size="fullscreen"
       title="Tambah Prospek"
       primaryAction={
-        <Button size="lg" className="w-full" disabled={!ready} onClick={save}>
-          Simpan Prospek
-        </Button>
+        <div className="flex w-full flex-col gap-8">
+          {!ready ? (
+            <span className="text-center text-12 font-bold text-orange-500">
+              Lengkapi dulu: {missing.join(', ')}
+            </span>
+          ) : null}
+          <Button size="lg" className="w-full" disabled={!ready} onClick={save}>
+            Simpan Prospek
+          </Button>
+        </div>
       }
     >
       <div className="flex flex-col gap-16">
