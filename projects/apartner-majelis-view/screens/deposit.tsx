@@ -26,9 +26,16 @@
 import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import { SETTLE_METHOD_LABEL, TASKS, taskCode } from '../lib/schedule'
+import { SETTLE_METHOD_LABEL, taskCode } from '../lib/schedule'
 import { IconCheck } from '../lib/icons'
-import { depositExpected, settledTotal, store, unsettledTotal, useApp } from '../lib/store'
+import {
+  depositExpected,
+  settledTotal,
+  store,
+  todayTasks,
+  unsettledTotal,
+  useApp,
+} from '../lib/store'
 import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
 
 export function DepositScreen() {
@@ -37,7 +44,14 @@ export function DepositScreen() {
 
   // --- Check 1: every task on the day except this closing itself. ---------
   // Every task on the day is a visit now — closing left the list.
-  const dayTasks = TASKS
+  //
+  // The DAY'S PLATE, not the roster. A visit she moved to another day, closed
+  // for good, or skipped with photo proof is already accounted for — it has its
+  // own section on the schedule and it is never going to be marked done — so
+  // counting it here would leave the day permanently unclosable over work that
+  // is not today's. `todayTasks` is the same list the schedule counts, so the
+  // two can't disagree about how big the day is.
+  const dayTasks = todayTasks(s)
   const doneIds = new Set(s.doneTasks)
   const pending = dayTasks.filter((t) => !doneIds.has(t.id))
   const doneCount = dayTasks.length - pending.length

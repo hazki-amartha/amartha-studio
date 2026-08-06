@@ -1557,11 +1557,18 @@ export const settlementsLeft = (s: AppState): number =>
  * left in the bag — the three obligations that used to be a closing task's
  * checklist, now the condition for the widget appearing at all.
  */
-export const canCloseDay = (s: AppState): boolean =>
-  !s.depositDone &&
-  TASKS.length > 0 &&
-  TASKS.every((t) => s.sentTasks.includes(t.id)) &&
-  unsettledTotal(s) === 0
+export const canCloseDay = (s: AppState): boolean => {
+  // Only the visits still on today's plate: a moved, rejected or skipped one
+  // can never be "sent", so counting it here would keep the widget away for a
+  // day that is genuinely finished.
+  const plate = todayTasks(s)
+  return (
+    !s.depositDone &&
+    plate.length > 0 &&
+    plate.every((t) => s.sentTasks.includes(t.id)) &&
+    unsettledTotal(s) === 0
+  )
+}
 
 /** Money that reached the company without her. Stated so it isn't asked about. */
 export const depositDigital = (s: AppState): number =>
@@ -1627,6 +1634,17 @@ export const openHomeMitra = (s: AppState): Mitra =>
   findMitra(findTask(s.openHome)?.mitraId ?? 'h1')
 
 export const openHomeTask = (s: AppState): Task | undefined => findTask(s.openHome)
+
+/**
+ * The day's actual plate: everything rostered, minus what she moved, rejected
+ * or skipped. Those three are OFF today — not to-do and not done — so anything
+ * that counts the day (the schedule's tally, the closing gate) counts this list
+ * and never `TASKS` itself. Counting the roster instead is what let a visit
+ * moved to Thursday, or a kumpulan skipped with photo proof, sit unfinishable
+ * in front of a closing it has nothing to do with.
+ */
+export const todayTasks = (s: AppState): Task[] =>
+  TASKS.filter((t) => !s.reschedules[t.id] && !s.rejects[t.id] && !s.skips[t.id])
 
 /** Visits the BP moved to another day — off today's plate, not done. */
 export const rescheduledTasks = (s: AppState): Task[] =>
