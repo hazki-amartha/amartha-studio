@@ -315,6 +315,11 @@ export interface AppState {
   // --- Home visit ----------------------------------------------------------
 
   /** Which home-visit task the two home screens render. */
+  /** Briefings the BM has closed today — a `BRIEFINGS` id per finished one.
+   *  In the store rather than the screen because the Tugas card has to read the
+   *  state back after she navigates away from the briefing that set it. */
+  doneBriefings: string[]
+
   openHome: string
   /**
    * mitraId → who answered the door. ONE question with three answers, rather
@@ -521,6 +526,7 @@ const initial: AppState = {
   majelisDay: null,
   majelisStatus: null,
   majelisBp: null,
+  doneBriefings: [],
   openHome: 't3',
   metWith: {},
   payMode: {},
@@ -697,6 +703,11 @@ export const store = {
       activeTask: taskId,
       startedTasks: withStarted(state.startedTasks, taskId),
     })
+  },
+  /** Closes a briefing — the one thing its page writes. */
+  finishBriefing(id: string) {
+    const done = store.get().doneBriefings
+    if (!done.includes(id)) store.set({ doneBriefings: [...done, id] })
   },
   /** Opens a group's roster from the Majelis tab, without starting any work. */
   openMajelisPage(majelisId: string) {
