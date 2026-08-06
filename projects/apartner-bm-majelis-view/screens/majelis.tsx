@@ -20,26 +20,23 @@
 // would make the count at the top a lie. Default is by arrears, because the
 // mitra worth reading about first are the ones who are behind.
 //
-// What the page OFFERS depends on the day. On the group's kumpulan day the
-// button starts the pelayanan; on any other day there is no visit to start, so
-// it becomes the thing a BP actually does from her sofa on a Thursday — send
-// the group its reminder.
+// The page has no footer action. Starting a pelayanan and sending a majelis its
+// reminder are BP work, done from the BP app — this is the BM's read-only view
+// of the same group, so it ends at the roster.
 
 import { useState } from 'react'
-import { Badge, BottomSheet, Button, NavigationHeader } from '@/design-system/components'
+import { Badge, BottomSheet, NavigationHeader } from '@/design-system/components'
 import { Sort } from '@/design-system/icons'
-import { WaSendSheet } from '../lib/wa-sheet'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, type Mitra } from '../lib/data'
 import { IconArrowRight, IconCalendar, IconChevronRight, IconUsers } from '../lib/icons'
 import { MajelisCard } from '../lib/majelis-card'
 import { DpdBadge, KetuaBadge, MitraCard } from '../lib/mitra-card'
-import { taskForMajelis } from '../lib/schedule'
 import { openMajelisEntry, store, useApp } from '../lib/store'
-import { AppScreen, EmptyState, OptionSheet, PinMark, ProductBadge, SearchField, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
+import { AppScreen, EmptyState, OptionSheet, PinMark, ProductBadge, SearchField, SectionTitle, VisitTitle } from '../lib/ui'
 
 type Sort = 'tunggakan' | 'nama'
-type Sheet = 'edit' | 'reminder' | 'sort' | null
+type Sheet = 'edit' | 'sort' | null
 
 const SORT_OPTIONS: { label: string; value: Sort }[] = [
   { label: 'Tunggakan terbanyak', value: 'tunggakan' },
@@ -63,10 +60,6 @@ export function MajelisScreen() {
     .sort((a, b) =>
       sort === 'nama' ? a.name.localeCompare(b.name) : b.dpd - a.dpd || a.name.localeCompare(b.name),
     )
-
-  // Whether the day's schedule actually sends her here. Everything about the
-  // footer hangs off this one fact.
-  const onSchedule = Boolean(taskForMajelis(group.id))
 
   return (
     <AppScreen
@@ -174,34 +167,7 @@ export function MajelisScreen() {
         ))}
       </div>
 
-      <StickyBar>
-        {onSchedule ? (
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={() => {
-              // No task id: this route didn't come from the schedule. Submitting
-              // still ticks the day's row for this group — the work is the same
-              // work, and only the way in differed.
-              store.startVisit(s.openMajelis)
-              flow.go('attendance')
-            }}
-          >
-            Mulai Pelayanan
-          </Button>
-        ) : (
-          <Button size="lg" className="w-full" onClick={() => setSheet('reminder')}>
-            Kirim Pengingat
-          </Button>
-        )}
-      </StickyBar>
-
       <EditSheet open={sheet === 'edit'} onClose={() => setSheet(null)} />
-      <ReminderSheet
-        open={sheet === 'reminder'}
-        group={group}
-        onClose={() => setSheet(null)}
-      />
       <OptionSheet
         open={sheet === 'sort'}
         title="Urutkan mitra"
@@ -301,43 +267,5 @@ function EditRow({
         <IconChevronRight size={20} />
       </span>
     </button>
-  )
-}
-
-/**
- * The reminder, already written. This is the whole point of the sheet: a BP
- * reminding six groups a week does not compose six messages, she composes one
- * and retypes it badly — so the app hands her the sentence with this group's
- * day, time and place already in it, and the only decision left is send.
- *
- * It goes to the WhatsApp GROUP rather than to 22 numbers. That is where the
- * group already talks, and a reminder that arrives as 22 private messages is a
- * reminder the ketua can't reinforce.
- */
-function ReminderSheet({
-  open,
-  group,
-  onClose,
-}: {
-  open: boolean
-  group: { name: string; day: string; time: string; place: string }
-  onClose: () => void
-}) {
-  const message =
-    `Assalamualaikum Ibu-ibu ${group.name} 🙏\n\n` +
-    `Mengingatkan kumpulan ${group.day} pukul ${group.time} di ${group.place}. ` +
-    `Mohon hadir tepat waktu dan siapkan angsuran minggu ini ya, Bu.\n\n` +
-    `Terima kasih.`
-
-  return (
-    <WaSendSheet
-      open={open}
-      onClose={onClose}
-      title="Kirim pengingat kumpulan"
-      description="Pesan dikirim ke grup WhatsApp majelis."
-      recipient={`Grup ${group.name}`}
-      message={message}
-      sendLabel="Kirim ke Grup WhatsApp"
-    />
   )
 }

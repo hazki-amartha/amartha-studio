@@ -993,3 +993,17 @@ export const kpiBoom = () => store.set({ kpiPeriod: 'boom' })
 
 /** Version B's ceiling: past 100% AND both boosts — Rp600rb + Rp100rb. */
 export const kpiBoosted = () => store.set({ kpiPeriod: 'boosted' })
+
+// --- Morning briefing cuts -------------------------------------------------
+// The three alternatives the designer flips the morning briefing between. Each
+// just writes `morningVariant`; the screen reads it and redraws (see
+// `screens/briefing-morning.tsx`).
+
+/** Alt-1 — the single-page checklist, absensi open and ticked as the room fills. */
+export const morningDefault = () => store.set({ morningVariant: 'default' })
+
+/** Alt-2 — the same running order, one card per page behind a stepper. */
+export const morningStepper = () => store.set({ morningVariant: 'stepper' })
+
+/** Alt-3 — the stepper, but repayment/disbursement/tugas are worked in-app. */
+export const morningLive = () => store.set({ morningVariant: 'live' })

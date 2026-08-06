@@ -26,11 +26,6 @@ export interface AgendaItem {
  */
 export const MORNING_AGENDA: AgendaItem[] = [
   {
-    id: 'doa',
-    title: 'Doa pembuka',
-    subtitle: 'Mulai doa bersama sesuai agama dan kepercayaan masing-masing',
-  },
-  {
     id: 'repayment',
     title: 'Bahas target repayment',
     subtitle: 'Buka NG-MIS: Branches / Monitoring / Repayment',
@@ -68,9 +63,6 @@ export const MORNING_AGENDA: AgendaItem[] = [
  * The mark is on the LEFT of the title and the whole card is the target: she is
  * running a meeting with seven people in front of her, and a checkbox sized for
  * a cursor is not something you hit while talking.
- *
- * Unchecked is a dashed ring rather than a solid one — it reads as a slot
- * waiting to be filled instead of as a control that does something else.
  */
 export function AgendaCard({
   item,
@@ -109,18 +101,25 @@ export function AgendaCard({
   )
 }
 
-/** The tick, at the one size every agenda row and every absensi row uses. */
-export function CheckMark({ done, size = 32 }: { done: boolean; size?: 24 | 32 }) {
-  const box = size === 24 ? 'h-24 w-24' : 'h-32 w-32'
+/**
+ * The tick, at ONE size everywhere — every agenda row and every absensi name
+ * carries the same 24px circle, so the two lists read as one checklist rather
+ * than two controls that happen to share a page.
+ *
+ * Unchecked is a solid neutral-400 ring, not a dashed hairline: the dashed
+ * `border-default` was too faint to read as "waiting to be ticked", so an empty
+ * row looked like it had no control at all.
+ */
+export function CheckMark({ done }: { done: boolean }) {
   return (
     <span
-      className={`flex ${box} shrink-0 items-center justify-center rounded-full ${
+      className={`flex h-24 w-24 shrink-0 items-center justify-center rounded-full ${
         done
           ? 'bg-primary-500 text-neutral-white'
-          : 'border border-dashed border-default bg-neutral-white'
+          : 'border border-neutral-400 bg-neutral-white'
       }`}
     >
-      {done ? <IconCheck size={size === 24 ? 16 : 20} /> : null}
+      {done ? <IconCheck size={16} /> : null}
     </span>
   )
 }
