@@ -43,7 +43,14 @@ import { BottomSheet, Button, NavigationHeader } from '@/design-system/component
 import { User } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { BUSINESS_PARTNERS } from '../lib/bp'
-import { AgendaCard, BriefingCard, CheckMark, MORNING_AGENDA, type AgendaItem } from '../lib/briefing'
+import {
+  AgendaCard,
+  AgendaSteps,
+  BriefingCard,
+  CheckMark,
+  MORNING_AGENDA,
+  type AgendaItem,
+} from '../lib/briefing'
 import { BookSections, BpTugasSections, DISBURSEMENT, REPAYMENT } from '../lib/briefing-live'
 import { IconCamera, IconChevronDown, IconChevronUp } from '../lib/icons'
 import { BRIEFINGS } from '../lib/schedule'
@@ -370,16 +377,7 @@ function PrintedAgenda({ item }: { item: AgendaItem }) {
       {item.subtitle ? (
         <span className="text-14 font-regular text-caption">{item.subtitle}</span>
       ) : null}
-      {item.steps ? (
-        <ol className="flex flex-col gap-8 border-t border-default pt-12">
-          {item.steps.map((s, i) => (
-            <li key={s} className="flex gap-12">
-              <span className="w-12 shrink-0 text-14 font-bold text-default">{i + 1}</span>
-              <span className="min-w-0 flex-1 text-14 font-regular text-default">{s}</span>
-            </li>
-          ))}
-        </ol>
-      ) : null}
+      <AgendaSteps item={item} topRule={Boolean(item.subtitle)} />
     </div>
   )
 }
