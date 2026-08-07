@@ -54,10 +54,12 @@ function Rank({ n }: { n: number }) {
 export function RepaymentView() {
   return (
     <Panel className="p-0">
-      <div className="min-w-0 overflow-x-auto">
+      {/* The table runs edge to edge in a p-0 Panel, so its square corners have
+          to be clipped back to the card's radius. */}
+      <div className="min-w-0 overflow-hidden rounded-12">
         <table className="w-full border-collapse text-left">
           <thead>
-            <tr className="bg-neutral-50">
+            <tr className="bg-neutral-white">
               <th
                 rowSpan={2}
                 className="border-b border-default px-16 py-12 text-12 font-bold text-default"
@@ -76,7 +78,7 @@ export function RepaymentView() {
                 </th>
               ))}
             </tr>
-            <tr className="bg-neutral-50">
+            <tr className="bg-neutral-white">
               {GROUPS.map((group) => (
                 <Fragment key={group.id}>
                   <th

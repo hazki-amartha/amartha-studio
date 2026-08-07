@@ -101,19 +101,20 @@ export const BP_FILTER = [
   { value: 'sukma', label: 'Sukma Ayuningrum' },
 ]
 
-export const MAJELIS_FILTER = [
-  { value: 'all', label: 'Semua Majelis' },
-  { value: 'bin-turatea', label: '123_BIN TURATEA' },
-  { value: 'bontoramba', label: '456_BONTORAMBA' },
-]
-
 // --- Tabs -------------------------------------------------------------------
 
 export const TABS = [
-  { id: 'task', label: 'Task' },
-  { id: 'repayment', label: 'Repayment' },
-  { id: 'disbursement', label: 'Disbursement' },
+  { id: 'task', label: 'Tugas' },
+  { id: 'disbursement', label: 'Pencairan' },
+  { id: 'repayment', label: 'Pembayaran' },
 ]
+
+/** The band under the tabs: what period the figures cover, and when they last
+ *  landed. Two different facts — the scope, and the freshness. */
+export const UPDATE_BAR = {
+  scope: 'Update: Minggu ini',
+  refreshed: 'Diperbarui Hari ini, 29 Dec 2025, 12:44',
+}
 
 /** Which KPIs and which table columns each tab keeps — so switching tab
  *  actually changes the read rather than just the underline. */
