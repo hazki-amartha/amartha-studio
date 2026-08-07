@@ -38,6 +38,7 @@ export function TaskMajelisScreen() {
       header={
         <PageHeading
           title={task.title}
+          onBack={() => flow.go('bp')}
           meta={`${kindLabel(task.kind)} · ${task.place} · ${task.time} · ${bp.name}`}
           actions={
             <Badge intent={task.done ? 'green' : 'red'} variant="subtle">

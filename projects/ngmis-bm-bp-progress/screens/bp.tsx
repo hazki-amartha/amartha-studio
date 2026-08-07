@@ -14,10 +14,12 @@ import {
   MONTH,
   PROGRESS_LABEL,
   TODAY,
+  TONE_TEXT,
   WEEK,
   bpById,
   n,
   onTarget,
+  paidTone,
   prevRate,
   progress,
   rate,
@@ -56,6 +58,7 @@ export function BpScreen() {
       header={
         <PageHeading
           title={bp.name}
+          onBack={() => flow.go('board')}
           meta={`${bp.majelis} majelis · ${TODAY}${bp.konteks ? ` · ${bp.konteks}` : ''}`}
           actions={
             <Badge
@@ -126,29 +129,42 @@ export function BpScreen() {
         />
       </Panel>
 
-      {/* --- Repayment minggu ini --- */}
+      {/* --- Repayment --- */}
       <Panel>
         <PanelHeading
-          title="Repayment minggu ini"
-          subtitle={`${WEEK}. Setiap bucket dinilai atas targetnya sendiri, dengan tiga minggu sebelumnya sebagai pembanding.`}
+          title="Repayment"
+          subtitle={`Minggu ini ${WEEK}, dan hari ini. Pasangan yang sama seperti di board — total loan lalu yang sudah terbayar — dengan target dan tiga minggu sebelumnya sebagai pembanding.`}
         />
         <SimpleTable
           columns={[
             { id: 'bucket', header: 'Bucket' },
-            { id: 'loan', header: 'Total loan', align: 'right' },
+            { id: 'loan', header: 'Total loan · minggu ini', align: 'right' },
             { id: 'paid', header: 'Terbayar', align: 'right' },
+            { id: 'loanDay', header: 'Total loan · hari ini', align: 'right' },
+            { id: 'paidDay', header: 'Terbayar', align: 'right' },
             { id: 'rr', header: '% RR minggu ini', align: 'right' },
             { id: 'target', header: 'Target', align: 'right' },
             { id: 'history', header: '3 minggu sebelumnya', align: 'right' },
           ]}
           rows={BUCKETS.map((bucket) => {
             const pair = bp.week[bucket.id]
+            const dayPair = bp.day[bucket.id]
             return {
               id: bucket.id,
               cells: {
                 bucket: <span className="text-14 font-bold text-default">{bucket.label}</span>,
-                loan: <span className="text-14 text-default">{n(pair[0])}</span>,
-                paid: <span className="text-14 text-default">{n(pair[1])}</span>,
+                loan: <span className="text-14 text-caption">{n(pair[0])}</span>,
+                paid: (
+                  <span className={`text-14 font-bold ${TONE_TEXT[paidTone(pair)]}`}>
+                    {n(pair[1])}
+                  </span>
+                ),
+                loanDay: <span className="text-14 text-caption">{n(dayPair[0])}</span>,
+                paidDay: (
+                  <span className={`text-14 font-bold ${TONE_TEXT[paidTone(dayPair)]}`}>
+                    {n(dayPair[1])}
+                  </span>
+                ),
                 rr: (
                   <RateCell
                     rate={rate(pair)}
