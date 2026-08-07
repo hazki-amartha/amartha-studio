@@ -24,31 +24,25 @@ const GROUPS = [
   { id: 'dpd90', header: 'DPD 90+', totalLabel: 'Total' },
 ] as const
 
-/** The oldest bucket gets a standing tint — it is the money that hurts most. */
-const OLDEST = 'dpd90'
-const OLDEST_TINT = 'bg-red-50'
-
 /** How far down the list still counts as "needs attention". */
 const FLAGGED_ROWS = 3
 
-function Paid({ bucket, band }: { bucket: Bucket; band: string }) {
-  const pct = rate(bucket)
-  const { good, fair } = RATE_BANDS[band]
-  const tone = pct >= good ? 'text-green-600' : pct >= fair ? 'text-yellow-700' : 'text-red-600'
-  return <span className={`font-bold ${tone}`}>{bucket.paid}</span>
-}
+/** One spacing rule for every cell in the table, so column edges line up down
+ *  the whole grid rather than each band setting its own inset. */
+const CELL_X = 'px-16'
 
-function Rank({ n }: { n: number }) {
-  const flagged = n <= FLAGGED_ROWS
-  return (
-    <span
-      className={`flex size-24 shrink-0 items-center justify-center rounded-6 text-12 font-bold ${
-        flagged ? 'bg-red-500 text-neutral-white' : 'bg-neutral-200 text-caption'
-      }`}
-    >
-      {n}
-    </span>
-  )
+/**
+ * A "Terbayar" figure, scored against a benchmark for its own bucket. A bucket
+ * with no band is not scored at all: DPD 90+ collects a little from almost
+ * nobody, so grading it paints the whole column one colour and says nothing.
+ */
+function Paid({ bucket, band }: { bucket: Bucket; band: string }) {
+  const scale = RATE_BANDS[band]
+  if (!scale) return <span className="font-bold text-default">{bucket.paid}</span>
+  const pct = rate(bucket)
+  const tone =
+    pct >= scale.good ? 'text-green-600' : pct >= scale.fair ? 'text-yellow-700' : 'text-red-600'
+  return <span className={`font-bold ${tone}`}>{bucket.paid}</span>
 }
 
 export function RepaymentView() {
@@ -62,7 +56,7 @@ export function RepaymentView() {
             <tr className="bg-neutral-white">
               <th
                 rowSpan={2}
-                className="border-b border-default px-16 py-12 text-12 font-bold text-default"
+                className={`border-b border-default ${CELL_X} pb-12 pt-16 text-12 font-bold text-default`}
               >
                 BP
               </th>
@@ -70,9 +64,7 @@ export function RepaymentView() {
                 <th
                   key={group.id}
                   colSpan={2}
-                  className={`border-b border-l border-default px-12 pt-12 text-center text-12 font-bold text-default ${
-                    group.id === OLDEST ? OLDEST_TINT : ''
-                  }`}
+                  className={`border-b border-l border-default ${CELL_X} pb-8 pt-16 text-center text-12 font-bold text-default`}
                 >
                   {group.header}
                 </th>
@@ -82,16 +74,12 @@ export function RepaymentView() {
               {GROUPS.map((group) => (
                 <Fragment key={group.id}>
                   <th
-                    className={`border-b border-l border-default px-12 pb-12 text-center text-12 font-regular text-caption ${
-                      group.id === OLDEST ? OLDEST_TINT : ''
-                    }`}
+                    className={`border-b border-l border-default ${CELL_X} pb-12 text-center text-12 font-regular text-caption`}
                   >
                     {group.totalLabel}
                   </th>
                   <th
-                    className={`border-b border-default px-12 pb-12 text-center text-12 font-regular text-caption ${
-                      group.id === OLDEST ? OLDEST_TINT : ''
-                    }`}
+                    className={`border-b border-default ${CELL_X} pb-12 text-center text-12 font-regular text-caption`}
                   >
                     Terbayar
                   </th>
@@ -107,26 +95,22 @@ export function RepaymentView() {
                   i < FLAGGED_ROWS ? 'bg-orange-50' : ''
                 }`}
               >
-                <td className="px-16 py-12">
-                  <span className="flex items-start gap-12">
-                    <Rank n={i + 1} />
-                    <span className="flex min-w-0 flex-col gap-2">
-                      <span className="text-14 font-bold text-default">{bp.name}</span>
-                      <span className="text-12 text-caption">{bp.majelis} majelis</span>
-                    </span>
+                <td className={`${CELL_X} py-16`}>
+                  <span className="flex min-w-0 flex-col gap-4">
+                    <span className="text-14 font-bold text-default">{bp.name}</span>
+                    <span className="text-12 text-caption">{bp.majelis} majelis</span>
                   </span>
                 </td>
                 {GROUPS.map((group) => {
                   const bucket = bp[group.id]
-                  const tint = group.id === OLDEST ? OLDEST_TINT : ''
                   return (
                     <Fragment key={group.id}>
                       <td
-                        className={`border-l border-default px-12 py-12 text-center text-14 text-caption ${tint}`}
+                        className={`border-l border-default ${CELL_X} py-16 text-center text-14 text-caption`}
                       >
                         {bucket.total}
                       </td>
-                      <td className={`px-12 py-12 text-center text-14 ${tint}`}>
+                      <td className={`${CELL_X} py-16 text-center text-14`}>
                         <Paid bucket={bucket} band={group.id} />
                       </td>
                     </Fragment>
