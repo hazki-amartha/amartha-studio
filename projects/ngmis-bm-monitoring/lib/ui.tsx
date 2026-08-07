@@ -335,19 +335,26 @@ export function Select({
   options,
   onChange,
   label,
+  disabled,
 }: {
   value: string
   options: { value: string; label: string }[]
   onChange: (value: string) => void
   label: string
+  /** A filter that has nothing left to narrow — greyed rather than hidden, so
+   *  the control row keeps its shape as you drill down. */
+  disabled?: boolean
 }) {
   return (
     <div className="relative">
       <select
         aria-label={label}
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        className="appearance-none rounded-8 border border-default bg-neutral-white pl-12 pr-32 text-14 font-regular text-default"
+        className={`appearance-none rounded-8 border border-default bg-neutral-white pl-12 pr-32 text-14 font-regular ${
+          disabled ? 'text-placeholder' : 'text-default'
+        }`}
         style={{ height: CONTROL_H }}
       >
         {options.map((o) => (
@@ -356,7 +363,11 @@ export function Select({
           </option>
         ))}
       </select>
-      <span className="pointer-events-none absolute right-8 top-8 text-caption">
+      <span
+        className={`pointer-events-none absolute right-8 top-8 ${
+          disabled ? 'text-placeholder' : 'text-caption'
+        }`}
+      >
         <ChevronDown size={16} />
       </span>
     </div>
@@ -581,11 +592,15 @@ export function DataTable({
       <table className="w-full border-collapse text-left">
         <thead>
           <tr className="bg-neutral-50">
-            {columns.map((col) => (
+            {columns.map((col, i) => (
               <th
                 key={col.id}
+                // The tinted header is a bar sitting inside a rounded card, so
+                // its outer corners follow the card rather than staying square.
                 className={`px-12 py-12 text-12 font-bold text-default ${
                   col.align === 'right' ? 'text-right' : ''
+                } ${i === 0 ? 'rounded-l-8' : ''} ${
+                  i === columns.length - 1 ? 'rounded-r-8' : ''
                 }`}
               >
                 {col.sortable ? (

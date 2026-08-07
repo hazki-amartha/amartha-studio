@@ -28,10 +28,10 @@ import {
   DEFAULT_TAB,
   KOTA,
   KPIS,
-  MAJELIS_FILTER,
   PROVINCES,
   REGIONS,
   TABS,
+  UPDATE_BAR,
   TAB_VIEWS,
 } from '../lib/data'
 
@@ -51,7 +51,6 @@ export function BranchSummaryScreen() {
   const [kota, setKota] = useState('cirebon')
   const [branch, setBranch] = useState('all')
   const [bp, setBp] = useState('all')
-  const [majelis, setMajelis] = useState('all')
   const [sort, setSort] = useState<{ columnId: string; dir: SortDir } | null>(null)
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState('10')
@@ -116,7 +115,6 @@ export function BranchSummaryScreen() {
         <>
           <PageHeading
             title={`Performa: ${kotaLabel}`}
-            meta="Per 27 Sep 2025, 04.15 WIB"
             actions={
               <>
                 <Select label="Region" value={region} onChange={setRegion} options={REGIONS} />
@@ -128,12 +126,12 @@ export function BranchSummaryScreen() {
                 />
                 <Select label="Kota" value={kota} onChange={setKota} options={KOTA} />
                 <Select label="Branch" value={branch} onChange={setBranch} options={BRANCHES} />
-                <Select label="Business Partner" value={bp} onChange={setBp} options={BP_FILTER} />
                 <Select
-                  label="Majelis"
-                  value={majelis}
-                  onChange={setMajelis}
-                  options={MAJELIS_FILTER}
+                  label="Business Partner"
+                  value={bp}
+                  onChange={setBp}
+                  options={BP_FILTER}
+                  disabled
                 />
               </>
             }
@@ -142,6 +140,12 @@ export function BranchSummaryScreen() {
         </>
       }
     >
+      {/* Scope on the left, freshness on the right — two different facts. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-16 pb-16">
+        <span className="text-16 font-bold text-default">{UPDATE_BAR.scope}</span>
+        <span className="text-12 text-caption">{UPDATE_BAR.refreshed}</span>
+      </div>
+
       {tab === 'repayment' ? (
         <RepaymentView />
       ) : (
