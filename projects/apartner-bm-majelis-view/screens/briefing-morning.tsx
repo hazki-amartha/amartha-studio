@@ -7,7 +7,7 @@
 // ticked. The whole card is the tap target rather than a checkbox on the edge
 // of one — she is talking while she uses this.
 //
-// The screen draws in one of THREE cuts, chosen by `morningVariant` — a
+// The screen draws in one of FIVE cuts, chosen by `morningVariant` — a
 // presentation switch for the designer, not something the BM picks:
 //   • default — the single-page checklist (Alt-1). Absensi is open and
 //     interactive: she ticks each BP present as the room fills.
@@ -16,6 +16,17 @@
 //   • live    — Alt-2's stepper, but the repayment, disbursement and per-BP
 //     tugas steps are worked INSIDE the app on dummy data (Alt-3) instead of
 //     printing an NG-MIS path for her to go and open elsewhere.
+//   • merged  — Alt-3 with no tugas step at all (Alt-4): each BP's stops for
+//     today sit inside her own repayment and disbursement card, each with what
+//     it is expected to add. A tugas is not a separate subject; it is how the
+//     target gets hit.
+//   • pointer — Alt-4 with the meters dropped (Alt-5): every figure states its
+//     gap as a sentence, so the card is a script she reads out rather than a
+//     chart she interprets.
+//
+// On every cut but Alt-1 the register is the BP app's own two-cell answer —
+// Tidak hadir / Hadir — rather than a tick, because "not marked yet" and
+// "marked absent" are different facts about a BP who is not in the room.
 //
 // On the two stepper cuts the closing photo is NOT its own page — it is a bottom
 // sheet that comes up over the last step when she taps "Selesaikan Briefing",
@@ -34,18 +45,26 @@ import {
   DISBURSEMENT,
   REPAYMENT,
   StatCard,
+  type Book,
   type StatRow,
 } from '../lib/briefing-live'
 import { IconCamera, IconChevronDown, IconChevronUp } from '../lib/icons'
 import { BRIEFINGS } from '../lib/schedule'
 import { store, useApp } from '../lib/store'
-import { AppScreen, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
+import {
+  AppScreen,
+  AttendanceChoice,
+  SectionTitle,
+  StageBar,
+  StickyBar,
+  VisitTitle,
+} from '../lib/ui'
 
 const agendaItem = (id: string): AgendaItem =>
   MORNING_AGENDA.find((a) => a.id === id) ?? MORNING_AGENDA[0]
 
-// The stepper's four pages, in the order of the running order. The closing
-// photo is not among them — it comes up as a sheet over the last one.
+// The stepper's pages, in the order of the running order. The closing photo is
+// not among them — it comes up as a sheet over the last one.
 const STEPS = [
   { id: 'absensi', label: 'Absensi', title: 'Absensi BP' },
   { id: 'repayment', label: 'Repayment', title: 'Bahas target repayment' },
@@ -53,14 +72,19 @@ const STEPS = [
   { id: 'tugas', label: 'Tugas', title: 'Bahas tugas hari ini' },
 ] as const
 
-const STEP_LABELS = STEPS.map((s) => s.label)
+// Alt-4 and Alt-5 have no tugas step: the stops are inside the two books.
+const MERGED_STEPS = STEPS.filter((s) => s.id !== 'tugas')
 
 export function BriefingMorningScreen() {
   const flow = useFlow()
   const s = useApp()
   const briefing = BRIEFINGS[0]
   const variant = s.morningVariant
-  const isLive = variant === 'live'
+  // Alt-4 and Alt-5 are Alt-3 with the books rearranged, so everything that
+  // asks "is this cut reading real data" has to say yes for all three.
+  const isMerged = variant === 'merged' || variant === 'pointer'
+  const isLive = variant === 'live' || isMerged
+  const steps = isMerged ? MERGED_STEPS : STEPS
 
   // Local state, not the store: none of it has to survive leaving the page.
   // What survives is the one fact the Tugas card reads back — that the briefing
@@ -68,7 +92,7 @@ export function BriefingMorningScreen() {
   //
   // The register starts EMPTY, not pre-marked 7/7: the BM ticks each BP as the
   // room fills, so the count on the card is the room she can see.
-  const [present, setPresent] = useState<string[]>([])
+  const [marks, setMarks] = useState<Record<string, 'hadir' | 'tidak'>>({})
   const [rollOpen, setRollOpen] = useState(true)
   const [ticked, setTicked] = useState<string[]>([])
   const [photo, setPhoto] = useState(false)
@@ -77,8 +101,18 @@ export function BriefingMorningScreen() {
   // The closing-photo sheet, opened from the last stepper step.
   const [photoSheet, setPhotoSheet] = useState(false)
 
+  const hadirCount = BUSINESS_PARTNERS.filter((bp) => marks[bp.id] === 'hadir').length
+  // Alt-1's tick is the same record with one of its two values: ticked means
+  // hadir, unticked means not answered yet.
   const togglePresent = (id: string) =>
-    setPresent((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+    setMarks((prev) => {
+      const next = { ...prev }
+      if (next[id] === 'hadir') delete next[id]
+      else next[id] = 'hadir'
+      return next
+    })
+  const mark = (id: string, value: 'hadir' | 'tidak') =>
+    setMarks((prev) => ({ ...prev, [id]: value }))
   const toggle = (id: string) =>
     setTicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
 
@@ -92,8 +126,8 @@ export function BriefingMorningScreen() {
     flow.go('today')
   }
 
-  // --- The register, shared by every cut. Each name is its own tap target,
-  // unticked by default: attendance is something she records in the room.
+  // --- The register on Alt-1: each name its own tap target, unticked by
+  // default, because attendance is something she records in the room.
   const rollCall = (
     <div className="flex flex-col gap-12">
       {BUSINESS_PARTNERS.map((bp) => (
@@ -101,15 +135,52 @@ export function BriefingMorningScreen() {
           key={bp.id}
           type="button"
           onClick={() => togglePresent(bp.id)}
-          aria-pressed={present.includes(bp.id)}
+          aria-pressed={marks[bp.id] === 'hadir'}
           className="flex items-center gap-12 text-left active:opacity-70"
         >
-          <CheckMark done={present.includes(bp.id)} />
+          <CheckMark done={marks[bp.id] === 'hadir'} />
           <span className="min-w-0 flex-1 truncate text-16 font-regular text-default">
             {bp.name}
           </span>
         </button>
       ))}
+    </div>
+  )
+
+  // --- The register on every stepper cut: the BP app's own two-cell answer,
+  // green for present and red for absent, the unchosen cell going quiet once
+  // she has answered. A tick cannot say "tidak hadir" — it can only fail to say
+  // "hadir", which is the same mark as a name she has not reached yet.
+  const rollCallChoice = (
+    <div className="flex flex-col gap-12">
+      {BUSINESS_PARTNERS.map((bp) => {
+        const answer = marks[bp.id]
+        return (
+          <div key={bp.id} className="flex flex-col gap-8">
+            <span className="min-w-0 truncate text-16 font-regular text-default">{bp.name}</span>
+            <div className="flex gap-8">
+              <AttendanceChoice
+                tone="red"
+                selected={answer === 'tidak'}
+                answered={Boolean(answer)}
+                label={`Tidak hadir — ${bp.name}`}
+                onClick={() => mark(bp.id, 'tidak')}
+              >
+                Tidak hadir
+              </AttendanceChoice>
+              <AttendanceChoice
+                tone="green"
+                selected={answer === 'hadir'}
+                answered={Boolean(answer)}
+                label={`Hadir — ${bp.name}`}
+                onClick={() => mark(bp.id, 'hadir')}
+              >
+                Hadir
+              </AttendanceChoice>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 
@@ -135,7 +206,7 @@ export function BriefingMorningScreen() {
               aria-expanded={rollOpen}
               className="flex items-center gap-4 text-14 font-bold text-link"
             >
-              {present.length}/{BUSINESS_PARTNERS.length} Hadir
+              {hadirCount}/{BUSINESS_PARTNERS.length} Hadir
               {rollOpen ? <IconChevronUp size={20} /> : <IconChevronDown size={20} />}
             </button>
           }
@@ -179,12 +250,12 @@ export function BriefingMorningScreen() {
     )
   }
 
-  // === Alt-2 / Alt-3 — the stepper ==========================================
-  const stepId = STEPS[step - 1].id
-  const isLast = step === STEPS.length
+  // === Alt-2 … Alt-5 — the stepper ==========================================
+  const stepId = steps[step - 1].id
+  const isLast = step === steps.length
 
   function next() {
-    if (step < STEPS.length) setStep(step + 1)
+    if (step < steps.length) setStep(step + 1)
   }
   function back() {
     if (step > 1) setStep(step - 1)
@@ -200,29 +271,43 @@ export function BriefingMorningScreen() {
         />
       }
     >
-      <StageBar current={step} labels={STEP_LABELS} />
+      <StageBar current={step} labels={steps.map((x) => x.label)} />
       {/* Alt-3's tugas page is a stack of BP sections, each with its own name
           header, so the step title over it would just be a third label saying
           "Tugas" after the stage bar already does. */}
-      {isLive && stepId === 'tugas' ? null : (
-        <SectionTitle>{STEPS[step - 1].title}</SectionTitle>
-      )}
+      {isLive && stepId === 'tugas' ? null : <SectionTitle>{steps[step - 1].title}</SectionTitle>}
 
       {stepId === 'absensi' ? (
         <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-12">
           <span className="text-14 font-regular text-caption">
-            Tandai setiap BP yang hadir. {present.length}/{BUSINESS_PARTNERS.length} hadir.
+            Tandai kehadiran setiap BP. {hadirCount}/{BUSINESS_PARTNERS.length} hadir.
           </span>
-          {rollCall}
+          {rollCallChoice}
         </div>
       ) : null}
 
       {stepId === 'repayment' ? (
-        isLive ? <LiveBook rows={REPAYMENT} /> : <PrintedAgenda item={agendaItem('repayment')} />
+        isLive ? (
+          <LiveBook
+            rows={REPAYMENT}
+            book={isMerged ? 'repayment' : undefined}
+            pointer={variant === 'pointer'}
+          />
+        ) : (
+          <PrintedAgenda item={agendaItem('repayment')} />
+        )
       ) : null}
 
       {stepId === 'disbursement' ? (
-        isLive ? <LiveBook rows={DISBURSEMENT} /> : <PrintedAgenda item={agendaItem('disbursement')} />
+        isLive ? (
+          <LiveBook
+            rows={DISBURSEMENT}
+            book={isMerged ? 'disbursement' : undefined}
+            pointer={variant === 'pointer'}
+          />
+        ) : (
+          <PrintedAgenda item={agendaItem('disbursement')} />
+        )
       ) : null}
 
       {stepId === 'tugas' ? (
@@ -282,16 +367,26 @@ function PrintedAgenda({ item }: { item: AgendaItem }) {
 }
 
 /**
- * Alt-3's repayment / disbursement step: the branch TOTAL first, then the same
- * two periods broken down by BP — the seven people she is briefing. Per-majelis
- * for the whole branch would be a hundred cards; per-BP is the seven she can
- * turn to in the room.
+ * The repayment / disbursement step on every in-app cut: the branch TOTAL
+ * first, then the same two periods broken down by BP — the seven people she is
+ * briefing. Per-majelis for the whole branch would be a hundred cards; per-BP is
+ * the seven she can turn to in the room. Alt-4 adds each BP's stops for today
+ * inside her own card, and Alt-5 swaps the meters for the sentence.
  */
-function LiveBook({ rows }: { rows: StatRow[] }) {
+function LiveBook({
+  rows,
+  book,
+  pointer,
+}: {
+  rows: StatRow[]
+  /** Set on Alt-4 / Alt-5 — each BP's stops ride inside her own card. */
+  book?: Book
+  pointer?: boolean
+}) {
   return (
     <div className="flex flex-col gap-8">
       {rows.map((r) => (
-        <StatCard key={`${r.title}-${r.subtitle ?? ''}`} {...r} />
+        <StatCard key={`${r.title}-${r.subtitle ?? ''}`} {...r} book={book} pointer={pointer} />
       ))}
     </div>
   )

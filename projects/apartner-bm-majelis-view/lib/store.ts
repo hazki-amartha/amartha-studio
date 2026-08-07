@@ -181,8 +181,8 @@ export interface Settlement {
   closing: boolean
 }
 
-/** The three cuts of the morning briefing the presentation states switch between. */
-export type MorningVariant = 'default' | 'stepper' | 'live'
+/** The cuts of the morning briefing the presentation states switch between. */
+export type MorningVariant = 'default' | 'stepper' | 'live' | 'merged' | 'pointer'
 
 export interface AppState {
   /** mitraId → hadir/tidak. Absent = not marked yet. */
@@ -331,6 +331,11 @@ export interface AppState {
    * - `live`    — Alt-2's stepper, but the repayment, disbursement and per-BP
    *   tugas steps are worked INSIDE the app on dummy data instead of pointing
    *   the BM out to NG-MIS (Alt-3).
+   * - `merged`  — Alt-3 without a tugas step: each BP's stops for today ride
+   *   inside her own repayment and disbursement card, with what each adds
+   *   (Alt-4).
+   * - `pointer` — Alt-4 with the meters dropped, the gap stated as a sentence
+   *   she can read out (Alt-5).
    */
   morningVariant: MorningVariant
 
