@@ -184,6 +184,15 @@ export interface Settlement {
 /** The cuts of the morning briefing the presentation states switch between. */
 export type MorningVariant = 'default' | 'stepper' | 'live' | 'merged' | 'pointer'
 
+/**
+ * The cuts of the evening briefing. Three, and they line up one-for-one with
+ * the morning's first three: the same question — is the meeting a printed
+ * script or does the handset hold the numbers — asked at the other end of the
+ * day. Deliberately NOT five: the morning's Alt-4 and Alt-5 are about folding
+ * TUGAS into the target, and the evening has no tugas to hand out.
+ */
+export type EveningVariant = 'default' | 'stepper' | 'live'
+
 export interface AppState {
   /** mitraId → hadir/tidak. Absent = not marked yet. */
   attendance: Record<string, Attendance>
@@ -338,6 +347,19 @@ export interface AppState {
    *   she can read out (Alt-5).
    */
   morningVariant: MorningVariant
+
+  /**
+   * Which cut of the EVENING briefing draws.
+   *
+   * - `default` — the whole closing on one page: absensi, then the three
+   *   subjects as ticked script cards with their NG-MIS paths (Alt-1).
+   * - `stepper` — the same script, one subject per page behind the stage bar
+   *   (Alt-2).
+   * - `live`    — Alt-2's stepper with the numbers ON the handset: awal hari
+   *   against setelah closing, and the named mitra behind every movement
+   *   (Alt-3).
+   */
+  eveningVariant: EveningVariant
 
   openHome: string
   /**
@@ -547,6 +569,7 @@ const initial: AppState = {
   majelisBp: null,
   doneBriefings: [],
   morningVariant: 'default',
+  eveningVariant: 'default',
   openHome: 't3',
   metWith: {},
   payMode: {},

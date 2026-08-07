@@ -23,7 +23,7 @@ import { rupiah } from './data'
 import { BUSINESS_PARTNERS } from './bp'
 import { KIND_TONE, type BpTaskKind } from './briefing-live'
 import { IconChevronDown, IconChevronUp } from './icons'
-import { EmptyState, StepSectionTitle } from './ui'
+import { StepSectionTitle } from './ui'
 
 // --- Step 1 · Tugas selesai -------------------------------------------------
 
@@ -665,13 +665,6 @@ export function DisbursementStep() {
         )
       })}
     </div>
-  )
-}
-
-/** Step 4 — the spec for it is the next conversation, so the page says so. */
-export function SalesStep() {
-  return (
-    <EmptyState title="Belum ada isi" body="Bagian sales pada briefing sore menyusul." />
   )
 }
 

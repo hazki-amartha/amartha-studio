@@ -79,7 +79,29 @@ export const project: ProjectModule = {
       id: 'briefing-evening',
       title: 'Evening briefing',
       component: lazyScreen(() => import('./screens/briefing-evening'), 'BriefingEveningScreen'),
-      flowsTo: [{ to: 'today', label: 'kembali ke Tugas' }],
+      states: [
+        {
+          id: 'alt1',
+          label: 'Alt-1 · Satu halaman',
+          description:
+            'The whole closing on one page — absensi, then three script cards with their NG-MIS paths',
+          apply: demo.eveningDefault,
+        },
+        {
+          id: 'alt2',
+          label: 'Alt-2 · Bertahap',
+          description: 'The same script, one subject per page behind the stepper',
+          apply: demo.eveningStepper,
+        },
+        {
+          id: 'alt3',
+          label: 'Alt-3 · Data di aplikasi',
+          description:
+            'Alt-2, but the day’s numbers are read in-app — awal hari against setelah closing',
+          apply: demo.eveningLive,
+        },
+      ],
+      flowsTo: [{ to: 'today', label: 'Selesaikan Briefing — kembali ke Tugas' }],
     },
     {
       id: 'majelis-list',
