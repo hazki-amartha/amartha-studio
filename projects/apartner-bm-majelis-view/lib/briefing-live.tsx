@@ -37,6 +37,9 @@ export interface StatRow {
   title: string
   /** The BP's code; omitted on the branch total. */
   subtitle?: string
+  /** Which BP this row is; omitted on the branch total. Alt-4/Alt-5 read it to
+   *  hang her day's tugas under her own numbers. */
+  bpId?: string
   /** Two periods: this month, then today. */
   periods: PeriodStat[]
 }
@@ -74,6 +77,7 @@ export const REPAYMENT: StatRow[] = [
   ...BUSINESS_PARTNERS.map((bp, i) => ({
     title: bp.name,
     subtitle: bp.code,
+    bpId: bp.id,
     periods: REPAYMENT_BP[i],
   })),
 ]
@@ -83,6 +87,7 @@ export const DISBURSEMENT: StatRow[] = [
   ...BUSINESS_PARTNERS.map((bp, i) => ({
     title: bp.name,
     subtitle: bp.code,
+    bpId: bp.id,
     periods: DISBURSEMENT_BP[i],
   })),
 ]
@@ -95,13 +100,44 @@ const pct = (actual: number, target: number): number =>
 const toneFor = (p: number): 'green' | 'orange' | 'red' =>
   p >= 100 ? 'green' : p >= 60 ? 'orange' : 'red'
 
+/** The sentence Alt-5 puts in her mouth instead of a bar: where the number is,
+ *  and what is still missing, in the words she would say out loud. */
+const pointerLine = (p: PeriodStat): string => {
+  const gap = p.target - p.actual
+  return gap > 0
+    ? `${rupiah(p.actual)} dari ${rupiah(p.target)} — kurang ${rupiah(gap)}`
+    : `${rupiah(p.actual)} dari ${rupiah(p.target)} — target tercapai`
+}
+
 /**
  * One row of the repayment / disbursement table — the branch total or a single
- * BP — with a meter and the money read out for each of its two periods. The
- * branch card and the seven BP cards are the same component, so a BP's row and
- * the total it rolls into cannot drift on how a number is drawn.
+ * BP — with the money read out for each of its two periods. The branch card and
+ * the seven BP cards are the same component, so a BP's row and the total it
+ * rolls into cannot drift on how a number is drawn.
+ *
+ * Two switches ride on top of it, for the two later cuts:
+ *   • `book` — Alt-4 and Alt-5 hang the BP's own tugas for today under her
+ *     numbers, each with what it is meant to add to them.
+ *   • `pointer` — Alt-5 drops the meter and states the gap as a sentence, so
+ *     the card reads as a script rather than as a chart.
  */
-export function StatCard({ title, subtitle, periods }: StatRow) {
+export function StatCard({
+  title,
+  subtitle,
+  bpId,
+  periods,
+  book,
+  pointer = false,
+}: StatRow & {
+  /** Set on Alt-4 / Alt-5 to merge this BP's tugas into the card. */
+  book?: Book
+  pointer?: boolean
+}) {
+  // "Hari ini" is the period the tugas are answerable for — a stop today cannot
+  // move the month except through today.
+  const today = periods[periods.length - 1]
+  const tasks = book && bpId ? contributionsFor(bpId, book, today.target) : []
+
   return (
     <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-12">
       <div className="flex min-w-0 flex-col">
@@ -119,14 +155,28 @@ export function StatCard({ title, subtitle, periods }: StatRow) {
                 </span>
                 <Badge intent={toneFor(percent)}>{percent}%</Badge>
               </span>
-              <Meter progress={percent} tone={toneFor(percent)} />
-              <span className="text-12 font-regular text-default">
-                {rupiah(p.actual)} <span className="text-caption">/ {rupiah(p.target)}</span>
-              </span>
+              {pointer ? (
+                <span className="text-14 font-regular text-default">{pointerLine(p)}</span>
+              ) : (
+                <>
+                  <Meter progress={percent} tone={toneFor(percent)} />
+                  <span className="text-12 font-regular text-default">
+                    {rupiah(p.actual)} <span className="text-caption">/ {rupiah(p.target)}</span>
+                  </span>
+                </>
+              )}
             </div>
           )
         })}
       </div>
+      {tasks.length > 0 ? (
+        <div className="flex flex-col gap-8 border-t border-default pt-12">
+          <span className="text-12 font-bold text-caption">Tugas hari ini</span>
+          {tasks.map((c) => (
+            <TaskContributionRow key={`${c.task.kind}-${c.task.time}-${c.task.title}`} {...c} />
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -183,9 +233,27 @@ interface HvSpec {
   insight?: string
 }
 
-/** Four MV + four HV, merged into one clock-ordered day. */
-function bpDay(mv: string[], hv: HvSpec[]): BpTask[] {
+/** A late-afternoon sosialisasi / follow-up — the growth end of a BP's day.
+ *  Only some BPs carry one, which is how a real day looks. */
+const sos = (title: string, place: string): BpTask => ({
+  kind: 'Sos',
+  name: 'Sosialisasi',
+  time: '15.30',
+  title,
+  place,
+})
+const fu = (title: string, place: string): BpTask => ({
+  kind: 'FU',
+  name: 'Follow Up',
+  time: '17.00',
+  title,
+  place,
+})
+
+/** Four MV + four HV plus whatever growth stops she has, in clock order. */
+function bpDay(mv: string[], hv: HvSpec[], extra: BpTask[] = []): BpTask[] {
   const tasks: BpTask[] = [
+    ...extra,
     ...mv.map((title, i) => ({
       kind: 'MV' as const,
       name: 'Majelis Visit',
@@ -214,6 +282,7 @@ export const BP_TASKS: Record<string, BpTask[]> = {
       { name: 'Ibu Darsih', insight: 'Janji bayar hari ini — sudah 2x tertunda' },
       { name: 'Ibu Sukaesih' },
     ],
+    [sos('Warung Bu Ida, Ciseeng', 'Kp. Ciseeng RT 03')],
   ),
   bp2: bpDay(
     ['Majelis Melati', 'Majelis Anggrek', 'Majelis Bakung', 'Majelis Lavender'],
@@ -223,6 +292,7 @@ export const BP_TASKS: Record<string, BpTask[]> = {
       { name: 'Ibu Rohaeti', insight: 'Menunggak 52 hari — eskalasi ke BM bila gagal' },
       { name: 'Ibu Enok' },
     ],
+    [fu('Ibu Ratna — prospek', 'Kp. Putat Nutug RT 01')],
   ),
   bp3: bpDay(
     ['Majelis Kenanga', 'Majelis Dahlia', 'Majelis Flamboyan', 'Majelis Aster'],
@@ -231,6 +301,10 @@ export const BP_TASKS: Record<string, BpTask[]> = {
       { name: 'Ibu Cicih' },
       { name: 'Ibu Titin', insight: 'Kemungkinan pindah rumah — konfirmasi alamat' },
       { name: 'Ibu Nani' },
+    ],
+    [
+      sos('Pengajian RW 02, Cibeuteung', 'Kp. Cibeuteung RT 04'),
+      fu('Ibu Dedeh — prospek', 'Kp. Ciseeng RT 06'),
     ],
   ),
   bp4: bpDay(
@@ -250,6 +324,7 @@ export const BP_TASKS: Record<string, BpTask[]> = {
       { name: 'Ibu Ipah' },
       { name: 'Ibu Sari Bulan' },
     ],
+    [fu('Ibu Sumini — prospek', 'Kp. Ciseeng RT 02')],
   ),
   bp6: bpDay(
     ['Majelis Gardenia', 'Majelis Zinnia', 'Majelis Alamanda', 'Majelis Kemuning'],
@@ -259,6 +334,7 @@ export const BP_TASKS: Record<string, BpTask[]> = {
       { name: 'Ibu Nengsih' },
       { name: 'Ibu Iis', insight: 'Janji bayar kemarin, belum masuk' },
     ],
+    [sos('Posyandu Melati, Putat Nutug', 'Kp. Putat Nutug RT 03')],
   ),
   bp7: bpDay(
     ['Majelis Nusa Indah', 'Majelis Bougenville', 'Majelis Sedap Malam', 'Majelis Melur'],
@@ -273,6 +349,76 @@ export const BP_TASKS: Record<string, BpTask[]> = {
 
 /** The BM's seven BPs, in the roll-call order — the order the runthrough walks. */
 export const BP_ROLL = BUSINESS_PARTNERS
+
+// --- Tugas as contributions (Alt-4 / Alt-5) --------------------------------
+// Alt-3 keeps the day's tugas as a step of their own, after the two books.
+// Alt-4 asks the sharper question: a tugas is not a separate subject, it is HOW
+// today's target gets hit — so each stop is filed under the book it moves, with
+// the amount it is expected to bring in.
+//
+// Which book a kind belongs to is a fact about the work: an MV collects and can
+// disburse, an HV only collects, and a sosialisasi or a follow-up is growth —
+// it belongs under disbursement, but it does not land today, so it carries no
+// figure rather than a made-up one.
+
+export type Book = 'repayment' | 'disbursement'
+
+const BOOK_KINDS: Record<Book, BpTaskKind[]> = {
+  repayment: ['MV', 'HV'],
+  disbursement: ['MV', 'Sos', 'FU'],
+}
+
+/** How much of today's target each kind is expected to carry. 0 = listed, but
+ *  with nothing landing today. */
+const BOOK_WEIGHT: Record<Book, Partial<Record<BpTaskKind, number>>> = {
+  repayment: { MV: 3, HV: 1 },
+  disbursement: { MV: 1 },
+}
+
+export interface TaskContribution {
+  task: BpTask
+  /** Rupiah this stop should add to today. Absent = it doesn't land today. */
+  amount?: number
+}
+
+/** Today's target split across the stops that carry it, to the nearest 100rb —
+ *  a briefing number, not an accounting one. */
+export function contributionsFor(bpId: string, book: Book, todayTarget: number): TaskContribution[] {
+  const tasks = (BP_TASKS[bpId] ?? []).filter((t) => BOOK_KINDS[book].includes(t.kind))
+  const weights = tasks.map((t) => BOOK_WEIGHT[book][t.kind] ?? 0)
+  const total = weights.reduce((a, b) => a + b, 0)
+  return tasks.map((task, i) => ({
+    task,
+    amount:
+      weights[i] > 0
+        ? Math.round((todayTarget * weights[i]) / total / 100_000) * 100_000
+        : undefined,
+  }))
+}
+
+/** One stop inside a BP's repayment / disbursement card: what it is, when, and
+ *  what it is meant to add. Deliberately a line rather than the full task card —
+ *  it is riding inside a card already, and the subject here is the number. */
+function TaskContributionRow({ task, amount }: TaskContribution) {
+  return (
+    <div className="flex items-center gap-8">
+      <span
+        className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-8 text-12 font-bold ${KIND_TONE[task.kind]}`}
+      >
+        {task.kind}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-14 font-regular text-default">{task.title}</span>
+        <span className="truncate text-12 font-regular text-caption">{task.time}</span>
+      </span>
+      <span
+        className={`shrink-0 text-12 ${amount === undefined ? 'font-regular text-caption' : 'font-bold text-default'}`}
+      >
+        {amount === undefined ? 'Belum menambah hari ini' : `+ ${rupiah(amount)}`}
+      </span>
+    </div>
+  )
+}
 
 /** One task in a BP's day, the BP app's card shrunk to a read-only line, with
  *  the insight — where there is one — as a ruled-off footer. */

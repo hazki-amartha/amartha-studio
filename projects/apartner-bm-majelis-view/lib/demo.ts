@@ -1007,3 +1007,9 @@ export const morningStepper = () => store.set({ morningVariant: 'stepper' })
 
 /** Alt-3 — the stepper, but repayment/disbursement/tugas are worked in-app. */
 export const morningLive = () => store.set({ morningVariant: 'live' })
+
+/** Alt-4 — Alt-3 with the tugas step dissolved into the two books. */
+export const morningMerged = () => store.set({ morningVariant: 'merged' })
+
+/** Alt-5 — Alt-4 with the meters replaced by spoken pointers. */
+export const morningPointer = () => store.set({ morningVariant: 'pointer' })

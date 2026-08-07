@@ -58,6 +58,20 @@ export const project: ProjectModule = {
             'Alt-2, but repayment, disbursement and each BP’s tugas are read in-app instead of in NG-MIS',
           apply: demo.morningLive,
         },
+        {
+          id: 'alt4',
+          label: 'Alt-4 · Tugas di dalam target',
+          description:
+            'Alt-3 without a tugas step — each BP’s stops sit under her own repayment and disbursement, with what each adds',
+          apply: demo.morningMerged,
+        },
+        {
+          id: 'alt5',
+          label: 'Alt-5 · Poin bicara',
+          description:
+            'Alt-4 with the meters dropped — every figure states its gap as a sentence she reads out',
+          apply: demo.morningPointer,
+        },
       ],
       flowsTo: [{ to: 'today', label: 'Selesaikan Briefing — kembali ke Tugas' }],
     },
