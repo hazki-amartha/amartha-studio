@@ -33,5 +33,6 @@ export const configs: ConfigRegistry = {
     import('./apartner-bm-majelis-view/project.config').then((m) => m.config),
   'ngmis-bm-bp-progress': () =>
     import('./ngmis-bm-bp-progress/project.config').then((m) => m.config),
+  'hello-world': () => import('./hello-world/project.config').then((m) => m.config),
   // <append new projects above this line — one line per project>
 }

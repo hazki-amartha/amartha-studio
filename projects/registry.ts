@@ -23,5 +23,6 @@ export const registry: Registry = {
   'apartner-bm-majelis-view': () =>
     import('./apartner-bm-majelis-view').then((m) => m.project),
   'ngmis-bm-bp-progress': () => import('./ngmis-bm-bp-progress').then((m) => m.project),
+  'hello-world': () => import('./hello-world').then((m) => m.project),
   // <append new projects above this line — one line per project>
 }
