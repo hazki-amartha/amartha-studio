@@ -37,10 +37,10 @@ import {
 const SIDEBAR_W = 216
 const NAV_ITEM_H = 40
 
-/** Every control on a toolbar row is this tall, which is what stops the row
+/** Every control on a filter row is this tall, which is what stops the row
  *  looking ragged: FunDS sizes its controls by padding, so `size="sm"` on two
  *  different components lands ~4px apart. */
-export const CONTROL_H = 32
+const CONTROL_H = 32
 
 // --- Brand lockup -----------------------------------------------------------
 
