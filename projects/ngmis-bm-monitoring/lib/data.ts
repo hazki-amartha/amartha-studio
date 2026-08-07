@@ -139,12 +139,12 @@ export const DEFAULT_TAB = TABS[0].id
 
 // --- Repayment ---------------------------------------------------------------
 //
-// One row per BP, ranked worst first. Each ageing bucket carries a total and
-// how much of it was paid; the four buckets always sum to the Total Loan pair,
-// so the row is internally consistent by construction.
+// One row per BP, ranked worst first. The unit is the MITRA, not the loan:
+// each mitra sits in exactly one ageing bucket, so the four buckets always sum
+// to the Total Mitra pair and the row is consistent by construction.
 //
-// A loan counts as paid once at least one angsuran lands on it ("loan paid min.
-// 1x angsuran").
+// A mitra counts as terbayar once at least one angsuran lands in the period
+// ("paid min. 1x angsuran").
 
 export interface Bucket {
   total: number
@@ -155,7 +155,7 @@ export interface RepaymentBp {
   id: string
   name: string
   majelis: number
-  loans: Bucket
+  mitra: Bucket
   dpd0: Bucket
   dpd130: Bucket
   dpd3190: Bucket
@@ -164,32 +164,32 @@ export interface RepaymentBp {
 
 export const REPAYMENT_BPS: RepaymentBp[] = [
   { id: 'bp-sukma', name: 'Sukma Ayuningrum', majelis: 6,
-    loans: { total: 270, paid: 158 }, dpd0: { total: 172, paid: 132 }, dpd130: { total: 50, paid: 18 }, dpd3190: { total: 30, paid: 6 }, dpd90: { total: 18, paid: 2 } },
+    mitra: { total: 270, paid: 158 }, dpd0: { total: 172, paid: 132 }, dpd130: { total: 50, paid: 18 }, dpd3190: { total: 30, paid: 6 }, dpd90: { total: 18, paid: 2 } },
   { id: 'bp-diski', name: 'Diski Tafa Ilham', majelis: 8,
-    loans: { total: 266, paid: 184 }, dpd0: { total: 184, paid: 158 }, dpd130: { total: 42, paid: 18 }, dpd3190: { total: 26, paid: 6 }, dpd90: { total: 14, paid: 2 } },
+    mitra: { total: 266, paid: 184 }, dpd0: { total: 184, paid: 158 }, dpd130: { total: 42, paid: 18 }, dpd3190: { total: 26, paid: 6 }, dpd90: { total: 14, paid: 2 } },
   { id: 'bp-cenli', name: 'Cenli Cencen', majelis: 8,
-    loans: { total: 258, paid: 174 }, dpd0: { total: 176, paid: 148 }, dpd130: { total: 44, paid: 18 }, dpd3190: { total: 24, paid: 6 }, dpd90: { total: 14, paid: 2 } },
+    mitra: { total: 258, paid: 174 }, dpd0: { total: 176, paid: 148 }, dpd130: { total: 44, paid: 18 }, dpd3190: { total: 24, paid: 6 }, dpd90: { total: 14, paid: 2 } },
   { id: 'bp-laili', name: 'Laili Maulidia', majelis: 8,
-    loans: { total: 292, paid: 222 }, dpd0: { total: 210, paid: 188 }, dpd130: { total: 44, paid: 22 }, dpd3190: { total: 26, paid: 10 }, dpd90: { total: 12, paid: 2 } },
+    mitra: { total: 292, paid: 222 }, dpd0: { total: 210, paid: 188 }, dpd130: { total: 44, paid: 22 }, dpd3190: { total: 26, paid: 10 }, dpd90: { total: 12, paid: 2 } },
   { id: 'bp-fadhil', name: 'Fadhil Maulana', majelis: 7,
-    loans: { total: 276, paid: 222 }, dpd0: { total: 208, paid: 192 }, dpd130: { total: 36, paid: 20 }, dpd3190: { total: 22, paid: 8 }, dpd90: { total: 10, paid: 2 } },
+    mitra: { total: 276, paid: 222 }, dpd0: { total: 208, paid: 192 }, dpd130: { total: 36, paid: 20 }, dpd3190: { total: 22, paid: 8 }, dpd90: { total: 10, paid: 2 } },
   { id: 'bp-ainur', name: 'Ainur Rohmah', majelis: 8,
-    loans: { total: 242, paid: 190 }, dpd0: { total: 178, paid: 164 }, dpd130: { total: 34, paid: 18 }, dpd3190: { total: 20, paid: 6 }, dpd90: { total: 10, paid: 2 } },
+    mitra: { total: 242, paid: 190 }, dpd0: { total: 178, paid: 164 }, dpd130: { total: 34, paid: 18 }, dpd3190: { total: 20, paid: 6 }, dpd90: { total: 10, paid: 2 } },
   { id: 'bp-rudi', name: 'Rudi Hartono', majelis: 6,
-    loans: { total: 248, paid: 208 }, dpd0: { total: 192, paid: 182 }, dpd130: { total: 30, paid: 18 }, dpd3190: { total: 18, paid: 6 }, dpd90: { total: 8, paid: 2 } },
+    mitra: { total: 248, paid: 208 }, dpd0: { total: 192, paid: 182 }, dpd130: { total: 30, paid: 18 }, dpd3190: { total: 18, paid: 6 }, dpd90: { total: 8, paid: 2 } },
   { id: 'bp-budi', name: 'Budi Ngurah', majelis: 6,
-    loans: { total: 256, paid: 224 }, dpd0: { total: 204, paid: 194 }, dpd130: { total: 30, paid: 20 }, dpd3190: { total: 16, paid: 8 }, dpd90: { total: 6, paid: 2 } },
+    mitra: { total: 256, paid: 224 }, dpd0: { total: 204, paid: 194 }, dpd130: { total: 30, paid: 20 }, dpd3190: { total: 16, paid: 8 }, dpd90: { total: 6, paid: 2 } },
   { id: 'bp-alif', name: 'M. Alif Rizqi', majelis: 8,
-    loans: { total: 270, paid: 234 }, dpd0: { total: 212, paid: 200 }, dpd130: { total: 32, paid: 22 }, dpd3190: { total: 18, paid: 8 }, dpd90: { total: 8, paid: 4 } },
+    mitra: { total: 270, paid: 234 }, dpd0: { total: 212, paid: 200 }, dpd130: { total: 32, paid: 22 }, dpd3190: { total: 18, paid: 8 }, dpd90: { total: 8, paid: 4 } },
   { id: 'bp-fauzan', name: 'Fauzan Aditama', majelis: 7,
-    loans: { total: 284, paid: 262 }, dpd0: { total: 236, paid: 226 }, dpd130: { total: 28, paid: 22 }, dpd3190: { total: 14, paid: 10 }, dpd90: { total: 6, paid: 4 } },
+    mitra: { total: 284, paid: 262 }, dpd0: { total: 236, paid: 226 }, dpd130: { total: 28, paid: 22 }, dpd3190: { total: 14, paid: 10 }, dpd90: { total: 6, paid: 4 } },
 ]
 
 /** What a healthy rate looks like in each bucket. A flat threshold would paint
  *  every DPD 90+ figure red and leave the BM with no signal at all — collecting
  *  little on the oldest bucket is the norm, not the exception. */
 export const RATE_BANDS: Record<string, { good: number; fair: number }> = {
-  loans: { good: 85, fair: 65 },
+  mitra: { good: 85, fair: 65 },
   dpd0: { good: 85, fair: 75 },
   dpd130: { good: 80, fair: 58 },
   dpd3190: { good: 80, fair: 60 },
