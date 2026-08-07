@@ -17,7 +17,7 @@ import { Panel } from './ui'
 import { RATE_BANDS, REPAYMENT_BPS, rate, type Bucket, type RepaymentBp } from './data'
 
 const GROUPS = [
-  { id: 'loans', header: 'Total Loan', totalLabel: 'Aktif' },
+  { id: 'mitra', header: 'Total Mitra', totalLabel: 'Aktif' },
   { id: 'dpd0', header: 'DPD 0', totalLabel: 'Total' },
   { id: 'dpd130', header: 'DPD 1-30', totalLabel: 'Total' },
   { id: 'dpd3190', header: 'DPD 31-90', totalLabel: 'Total' },
