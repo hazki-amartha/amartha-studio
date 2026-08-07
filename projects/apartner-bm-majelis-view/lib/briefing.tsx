@@ -8,6 +8,13 @@
 import type { ReactNode } from 'react'
 import { IconCheck } from './icons'
 
+/** A run of numbered steps under its own heading — "Keseluruhan cabang", then
+ *  "Per BP" — for an item whose script splits into scopes. */
+export interface StepGroup {
+  label: string
+  steps: string[]
+}
+
 export interface AgendaItem {
   id: string
   title: string
@@ -15,6 +22,10 @@ export interface AgendaItem {
   subtitle?: string
   /** The steps to work through, printed as a numbered list under a rule. */
   steps?: string[]
+  /** The steps grouped under sub-headings, when the script runs the same list
+   *  at two scopes (the whole branch, then each BP). Takes the place of
+   *  `steps` where present. */
+  groups?: StepGroup[]
 }
 
 /**
@@ -28,21 +39,29 @@ export const MORNING_AGENDA: AgendaItem[] = [
   {
     id: 'repayment',
     title: 'Bahas target repayment',
-    subtitle: 'Buka NG-MIS: Branches / Monitoring / Repayment',
-    steps: [
-      'Share target & capaian bulan ini',
-      'Share target & capaian minggu ini',
-      'Share target & capaian hari ini',
+    groups: [
+      {
+        label: 'Keseluruhan cabang',
+        steps: ['Share target & capaian bulan ini', 'Share target & capaian hari ini'],
+      },
+      {
+        label: 'Per BP',
+        steps: ['Share target & capaian bulan ini', 'Share target & capaian hari ini'],
+      },
     ],
   },
   {
     id: 'disbursement',
     title: 'Bahas target disbursement',
-    subtitle: 'Buka NG-MIS: Branches / Monitoring / Disbursement',
-    steps: [
-      'Share target & capaian bulan ini',
-      'Share target & capaian minggu ini',
-      'Share target & capaian hari ini',
+    groups: [
+      {
+        label: 'Keseluruhan cabang',
+        steps: ['Share target & capaian bulan ini', 'Share target & capaian hari ini'],
+      },
+      {
+        label: 'Per BP',
+        steps: ['Share target & capaian bulan ini', 'Share target & capaian hari ini'],
+      },
     ],
   },
   {
@@ -86,18 +105,57 @@ export function AgendaCard({
         {item.subtitle ? (
           <span className="text-14 font-regular text-caption">{item.subtitle}</span>
         ) : null}
-        {item.steps ? (
-          <ol className="mt-8 flex flex-col gap-8 border-t border-default pt-12">
-            {item.steps.map((step, i) => (
-              <li key={step} className="flex gap-12">
-                <span className="w-12 shrink-0 text-14 font-bold text-default">{i + 1}</span>
-                <span className="min-w-0 flex-1 text-14 font-regular text-default">{step}</span>
-              </li>
-            ))}
-          </ol>
-        ) : null}
+        <AgendaSteps item={item} />
       </div>
     </button>
+  )
+}
+
+/** A numbered step list. Where the item has `groups`, each scope gets its own
+ *  sub-heading over its own list; otherwise the flat `steps` are printed as one.
+ *  Shared by the single-page card (Alt-1) and the stepper page (Alt-2) so the
+ *  two draw the running order the same way.
+ *
+ *  `topRule` sets off the steps from whatever is above them — the card title on
+ *  Alt-1, the subtitle on Alt-2's tugas. A stepper card with no line above (the
+ *  repayment / disbursement scripts, which dropped their NG-MIS subtitle) turns
+ *  it off, so the card doesn't open on a rule with nothing over it. */
+export function AgendaSteps({ item, topRule = true }: { item: AgendaItem; topRule?: boolean }) {
+  const frame = topRule ? 'mt-8 border-t border-default pt-12' : ''
+  if (item.groups) {
+    return (
+      <div className={`flex flex-col gap-16 ${frame}`.trim()}>
+        {item.groups.map((group) => (
+          <div key={group.label} className="flex flex-col gap-8">
+            <span className="text-14 font-bold text-default">{group.label}</span>
+            <StepList steps={group.steps} />
+          </div>
+        ))}
+      </div>
+    )
+  }
+  if (item.steps) {
+    return topRule ? (
+      <div className={frame}>
+        <StepList steps={item.steps} />
+      </div>
+    ) : (
+      <StepList steps={item.steps} />
+    )
+  }
+  return null
+}
+
+function StepList({ steps }: { steps: string[] }) {
+  return (
+    <ol className="flex flex-col gap-8">
+      {steps.map((step, i) => (
+        <li key={step} className="flex gap-12">
+          <span className="w-12 shrink-0 text-14 font-bold text-default">{i + 1}</span>
+          <span className="min-w-0 flex-1 text-14 font-regular text-default">{step}</span>
+        </li>
+      ))}
+    </ol>
   )
 }
 

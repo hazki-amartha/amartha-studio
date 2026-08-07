@@ -21,7 +21,7 @@ import { useState, type ReactNode } from 'react'
 import { rupiah } from './data'
 import { BUSINESS_PARTNERS } from './bp'
 import { IconCalendar, IconCheck, IconInfo, IconUserPlus } from './icons'
-import { Badge, BottomSheet } from '@/design-system/components'
+import { BottomSheet } from '@/design-system/components'
 import { DotsThreeVertical } from '@/design-system/icons'
 import { Meter, StepSectionTitle } from './ui'
 
@@ -116,9 +116,9 @@ const pointerLine = (p: PeriodStat): string => {
 const BOOK_VERB: Record<Book, string> = { repayment: 'tagih', disbursement: 'cair' }
 
 /** The one-line reading of a stop for Alt-5: what it is, when, and — where it
- *  lands today — the money it brings. "MV Majelis Mawar jam 7.30, tagih Rp…" */
+ *  lands today — the money it brings. "MV Majelis Mawar (07.30), tagih Rp…" */
 const taskPointerLine = (c: TaskContribution, book: Book): string => {
-  const head = `${c.task.kind} ${c.task.title} jam ${c.task.time}`
+  const head = `${c.task.kind} ${c.task.title} (${c.task.time})`
   return c.amount === undefined ? head : `${head}, ${BOOK_VERB[book]} ${rupiah(c.amount)}`
 }
 
@@ -146,10 +146,12 @@ export function BookSections({
 }) {
   return (
     <div className="flex flex-col gap-16">
-      {rows.map((r) => (
+      {rows.map((r, i) => (
         <BpBookSection
           key={`${r.title}-${r.subtitle ?? ''}`}
           row={r}
+          index={i}
+          total={rows.length}
           book={book}
           pointer={pointer}
           withTasks={withTasks}
@@ -161,11 +163,16 @@ export function BookSections({
 
 function BpBookSection({
   row,
+  index,
+  total,
   book,
   pointer,
   withTasks,
 }: {
   row: StatRow
+  /** 0-based place in the run — the branch total is 0, the BPs follow. */
+  index: number
+  total: number
   book: Book
   pointer: boolean
   withTasks: boolean
@@ -177,7 +184,7 @@ function BpBookSection({
 
   return (
     <div className="flex flex-col gap-8">
-      <StepSectionTitle>{row.title}</StepSectionTitle>
+      <StepSectionTitle trailing={`${index + 1} dari ${total}`}>{row.title}</StepSectionTitle>
       {pointer ? (
         <PointerBlock periods={row.periods} tasks={tasks} book={book} />
       ) : (
@@ -197,26 +204,28 @@ function BpBookSection({
   )
 }
 
-/** The progress card under a section title: the two periods, each a meter with
- *  its capaian badge and the money under it. Just the numbers — the name is the
- *  section title above, and the stops are their own cards below. */
+/** The progress card under a section title: the two periods, each led by the
+ *  ONE number she can act on — how much is still to collect ("Tambah Rp… lagi")
+ *  — over a meter, with the target read quietly underneath. The capaian
+ *  percentage is gone: a BM chases the rupiah still short, not the ratio, so the
+ *  subtraction is done for her and its result is the headline (the same move the
+ *  KPI page makes). */
 function PeriodsCard({ periods }: { periods: PeriodStat[] }) {
   return (
-    <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-12">
+    <div className="flex flex-col gap-16 rounded-12 border border-default bg-neutral-white p-12">
       {periods.map((p) => {
         const percent = pct(p.actual, p.target)
+        const gap = p.target - p.actual
         return (
-          <div key={p.label} className="flex flex-col gap-4">
-            <span className="flex items-center gap-8">
-              <span className="min-w-0 flex-1 truncate text-14 font-regular text-caption">
-                {p.label}
+          <div key={p.label} className="flex flex-col gap-8">
+            <div className="flex flex-col gap-2">
+              <span className="text-14 font-regular text-caption">{p.label}</span>
+              <span className="text-20 font-bold text-default">
+                {gap > 0 ? `Tambah ${rupiah(gap)} lagi` : 'Target tercapai'}
               </span>
-              <Badge intent={toneFor(percent)}>{percent}%</Badge>
-            </span>
+            </div>
             <Meter progress={percent} tone={toneFor(percent)} />
-            <span className="text-12 font-regular text-default">
-              {rupiah(p.actual)} <span className="text-caption">/ {rupiah(p.target)}</span>
-            </span>
+            <span className="text-14 font-regular text-caption">Target: {rupiah(p.target)}</span>
           </div>
         )
       })}
@@ -237,28 +246,41 @@ function PointerBlock({
 }) {
   return (
     <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-12">
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-8">
         <span className="text-12 font-bold text-caption">Pencapaian</span>
-        {periods.map((p) => (
-          <span key={p.label} className="text-14 font-regular text-default">
-            {pointerLine(p)}
-          </span>
-        ))}
+        <ul className="flex flex-col gap-4">
+          {periods.map((p) => (
+            <PointerRow key={p.label}>{pointerLine(p)}</PointerRow>
+          ))}
+        </ul>
       </div>
       {tasks.length > 0 ? (
-        <div className="flex flex-col gap-4 border-t border-default pt-12">
+        <div className="flex flex-col gap-8 border-t border-default pt-12">
           <span className="text-12 font-bold text-caption">Tugas terkait hari ini</span>
-          {tasks.map((c) => (
-            <span
-              key={`${c.task.kind}-${c.task.time}-${c.task.title}`}
-              className="text-14 font-regular text-default"
-            >
-              {taskPointerLine(c, book)}
-            </span>
-          ))}
+          <ul className="flex flex-col gap-4">
+            {tasks.map((c) => (
+              <PointerRow key={`${c.task.kind}-${c.task.time}-${c.task.title}`}>
+                {taskPointerLine(c, book)}
+              </PointerRow>
+            ))}
+          </ul>
         </div>
       ) : null}
     </div>
+  )
+}
+
+/** One pointer sentence, bulleted and set at reading size — the cut is a script
+ *  the BM reads out, so its lines are the largest text on the card, not the
+ *  smallest. */
+function PointerRow({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex gap-8 text-16 font-regular text-default">
+      <span aria-hidden className="shrink-0">
+        •
+      </span>
+      <span className="min-w-0 flex-1">{children}</span>
+    </li>
   )
 }
 
