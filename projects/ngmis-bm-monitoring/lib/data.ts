@@ -193,7 +193,8 @@ export const RATE_BANDS: Record<string, { good: number; fair: number }> = {
   dpd0: { good: 85, fair: 75 },
   dpd130: { good: 80, fair: 58 },
   dpd3190: { good: 80, fair: 60 },
-  dpd90: { good: 90, fair: 75 },
+  // DPD 90+ is deliberately absent: almost nothing is collected there, so
+  // scoring it would colour the entire column the same and carry no signal.
 }
 
 export function rate({ total, paid }: Bucket) {
