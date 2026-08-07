@@ -27,6 +27,25 @@ import { Meter, StepSectionTitle } from './ui'
 
 // --- Repayment & disbursement ----------------------------------------------
 
+/**
+ * What a target is COUNTED IN.
+ *
+ * Rupiah is the books' own unit and the one the branch is measured on. Mitra is
+ * the same day counted in women: 21 due to pay today, 18 of them paid. The
+ * argument for it is that a BM cannot hand a BP a rupiah — she can hand her a
+ * name — so "kurang 3 mitra" is a shortfall somebody can be sent to fix, while
+ * "kurang Rp3.400.000" has to be turned into one first.
+ *
+ * It is a per-cut switch rather than a second set of screens: every card, every
+ * pointer sentence and every stop's contribution reads the same figure through
+ * this one flag.
+ */
+export type BookUnit = 'rupiah' | 'mitra'
+
+/** A figure said in the cut's own unit — "Rp1.500.000", or "4 mitra". */
+export const amountText = (value: number, unit: BookUnit): string =>
+  unit === 'rupiah' ? rupiah(value) : `${value} mitra`
+
 export interface PeriodStat {
   /** "Bulan ini" / "Hari ini". */
   label: string
@@ -74,23 +93,59 @@ const DISBURSEMENT_BP: PeriodStat[][] = [
   P(62_000_000, 33_000_000, 3_100_000, 0),
 ]
 
-export const REPAYMENT: StatRow[] = [
-  { title: 'Total Branch Ciseeng', periods: P(840_000_000, 726_000_000, 42_000_000, 28_400_000) },
-  ...BUSINESS_PARTNERS.map((bp, i) => ({
-    title: bp.name,
-    subtitle: bp.code,
-    bpId: bp.id,
-    periods: REPAYMENT_BP[i],
-  })),
+// The same seven days counted in WOMEN rather than money — the `mitra` cut.
+//
+// Authored beside the rupiah tables rather than divided out of them: an average
+// instalment is not a real number, and dividing by one would put a figure on
+// screen that no branch could reproduce. What IS carried across is each BP's
+// standing: whoever is behind on the rupiah is behind by the same margin here,
+// so the two cuts tell one story about the same seven people.
+const REPAYMENT_MITRA_BP: PeriodStat[][] = [
+  P(92, 90, 21, 20),
+  P(86, 84, 19, 19),
+  P(105, 67, 24, 10),
+  P(78, 64, 18, 12),
+  P(88, 83, 20, 18),
+  P(72, 42, 16, 6),
+  P(75, 36, 17, 5),
 ]
 
-export const DISBURSEMENT: StatRow[] = [
-  { title: 'Total Branch Ciseeng', periods: P(520_000_000, 388_000_000, 26_000_000, 14_000_000) },
+const DISBURSEMENT_MITRA_BP: PeriodStat[][] = [
+  P(32, 31, 2, 2),
+  P(30, 30, 2, 2),
+  P(36, 19, 3, 1),
+  P(28, 22, 2, 1),
+  P(31, 28, 2, 2),
+  P(26, 12, 2, 0),
+  P(25, 13, 2, 0),
+]
+
+/** The branch line for each book and unit. Authored, not summed — a branch
+ *  total is not the sum of these seven in this prototype. */
+const BRANCH_PERIODS: Record<Book, Record<BookUnit, PeriodStat[]>> = {
+  repayment: {
+    rupiah: P(840_000_000, 726_000_000, 42_000_000, 28_400_000),
+    mitra: P(600, 516, 135, 92),
+  },
+  disbursement: {
+    rupiah: P(520_000_000, 388_000_000, 26_000_000, 14_000_000),
+    mitra: P(208, 155, 13, 7),
+  },
+}
+
+const BOOK_BP: Record<Book, Record<BookUnit, PeriodStat[][]>> = {
+  repayment: { rupiah: REPAYMENT_BP, mitra: REPAYMENT_MITRA_BP },
+  disbursement: { rupiah: DISBURSEMENT_BP, mitra: DISBURSEMENT_MITRA_BP },
+}
+
+/** A whole book's rows — the branch total, then the seven BPs — in one unit. */
+export const bookRows = (book: Book, unit: BookUnit): StatRow[] => [
+  { title: 'Total Branch Ciseeng', periods: BRANCH_PERIODS[book][unit] },
   ...BUSINESS_PARTNERS.map((bp, i) => ({
     title: bp.name,
     subtitle: bp.code,
     bpId: bp.id,
-    periods: DISBURSEMENT_BP[i],
+    periods: BOOK_BP[book][unit][i],
   })),
 ]
 
@@ -104,11 +159,11 @@ const toneFor = (p: number): 'green' | 'orange' | 'red' =>
 
 /** The sentence Alt-5 puts in her mouth instead of a bar: the target, and what
  *  is still missing, in the words she would say out loud. */
-const pointerLine = (p: PeriodStat): string => {
+const pointerLine = (p: PeriodStat, unit: BookUnit): string => {
   const gap = p.target - p.actual
   return gap > 0
-    ? `${p.label}, target ${rupiah(p.target)}, masih kurang ${rupiah(gap)}`
-    : `${p.label}, target ${rupiah(p.target)}, target tercapai`
+    ? `${p.label}, target ${amountText(p.target, unit)}, masih kurang ${amountText(gap, unit)}`
+    : `${p.label}, target ${amountText(p.target, unit)}, target tercapai`
 }
 
 /** The verb a stop carries in Alt-5's pointer line — a repayment stop collects,
@@ -117,9 +172,11 @@ const BOOK_VERB: Record<Book, string> = { repayment: 'tagih', disbursement: 'cai
 
 /** The one-line reading of a stop for Alt-5: what it is, when, and — where it
  *  lands today — the money it brings. "MV Majelis Mawar (07.30), tagih Rp…" */
-const taskPointerLine = (c: TaskContribution, book: Book): string => {
+const taskPointerLine = (c: TaskContribution, book: Book, unit: BookUnit): string => {
   const head = `${c.task.kind} ${c.task.title} (${c.task.time})`
-  return c.amount === undefined ? head : `${head}, ${BOOK_VERB[book]} ${rupiah(c.amount)}`
+  return c.amount === undefined
+    ? head
+    : `${head}, ${BOOK_VERB[book]} ${amountText(c.amount, unit)}`
 }
 
 /**
@@ -133,11 +190,14 @@ const taskPointerLine = (c: TaskContribution, book: Book): string => {
 export function BookSections({
   rows,
   book,
+  unit,
   pointer = false,
   withTasks = true,
 }: {
   rows: StatRow[]
   book: Book
+  /** What every figure in this book is counted in — see `BookUnit`. */
+  unit: BookUnit
   pointer?: boolean
   /** Alt-3 turns this OFF: its stops live in a tugas step of their own, so the
    *  books show only each BP's numbers. Alt-4 / Alt-5 keep the stops in the
@@ -153,6 +213,7 @@ export function BookSections({
           index={i}
           total={rows.length}
           book={book}
+          unit={unit}
           pointer={pointer}
           withTasks={withTasks}
         />
@@ -166,6 +227,7 @@ function BpBookSection({
   index,
   total,
   book,
+  unit,
   pointer,
   withTasks,
 }: {
@@ -174,27 +236,29 @@ function BpBookSection({
   index: number
   total: number
   book: Book
+  unit: BookUnit
   pointer: boolean
   withTasks: boolean
 }) {
   // "Hari ini" is the period the stops are answerable for — a stop today cannot
   // move the month except through today.
   const today = row.periods[row.periods.length - 1]
-  const tasks = row.bpId ? contributionsFor(row.bpId, book, today.target) : []
+  const tasks = row.bpId ? contributionsFor(row.bpId, book, today.target, unit) : []
 
   return (
     <div className="flex flex-col gap-8">
       <StepSectionTitle trailing={`${index + 1} dari ${total}`}>{row.title}</StepSectionTitle>
       {pointer ? (
-        <PointerBlock periods={row.periods} tasks={tasks} book={book} />
+        <PointerBlock periods={row.periods} tasks={tasks} book={book} unit={unit} />
       ) : (
         <>
-          <PeriodsCard periods={row.periods} />
+          <PeriodsCard periods={row.periods} unit={unit} />
           {withTasks
             ? tasks.map((c) => (
                 <BookTaskCard
                   key={`${c.task.kind}-${c.task.time}-${c.task.title}`}
                   contribution={c}
+                  unit={unit}
                 />
               ))
             : null}
@@ -210,7 +274,7 @@ function BpBookSection({
  *  percentage is gone: a BM chases the rupiah still short, not the ratio, so the
  *  subtraction is done for her and its result is the headline (the same move the
  *  KPI page makes). */
-function PeriodsCard({ periods }: { periods: PeriodStat[] }) {
+function PeriodsCard({ periods, unit }: { periods: PeriodStat[]; unit: BookUnit }) {
   return (
     <div className="flex flex-col gap-16 rounded-12 border border-default bg-neutral-white p-12">
       {periods.map((p) => {
@@ -221,11 +285,13 @@ function PeriodsCard({ periods }: { periods: PeriodStat[] }) {
             <div className="flex flex-col gap-2">
               <span className="text-14 font-regular text-caption">{p.label}</span>
               <span className="text-20 font-bold text-default">
-                {gap > 0 ? `Tambah ${rupiah(gap)} lagi` : 'Target tercapai'}
+                {gap > 0 ? `Tambah ${amountText(gap, unit)} lagi` : 'Target tercapai'}
               </span>
             </div>
             <Meter progress={percent} tone={toneFor(percent)} />
-            <span className="text-14 font-regular text-caption">Target: {rupiah(p.target)}</span>
+            <span className="text-14 font-regular text-caption">
+              Target: {amountText(p.target, unit)}
+            </span>
           </div>
         )
       })}
@@ -239,10 +305,12 @@ function PointerBlock({
   periods,
   tasks,
   book,
+  unit,
 }: {
   periods: PeriodStat[]
   tasks: TaskContribution[]
   book: Book
+  unit: BookUnit
 }) {
   return (
     <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-12">
@@ -250,7 +318,7 @@ function PointerBlock({
         <span className="text-12 font-bold text-caption">Pencapaian</span>
         <ul className="flex flex-col gap-4">
           {periods.map((p) => (
-            <PointerRow key={p.label}>{pointerLine(p)}</PointerRow>
+            <PointerRow key={p.label}>{pointerLine(p, unit)}</PointerRow>
           ))}
         </ul>
       </div>
@@ -260,7 +328,7 @@ function PointerBlock({
           <ul className="flex flex-col gap-4">
             {tasks.map((c) => (
               <PointerRow key={`${c.task.kind}-${c.task.time}-${c.task.title}`}>
-                {taskPointerLine(c, book)}
+                {taskPointerLine(c, book, unit)}
               </PointerRow>
             ))}
           </ul>
@@ -480,23 +548,40 @@ const BOOK_WEIGHT: Record<Book, Partial<Record<BpTaskKind, number>>> = {
 
 export interface TaskContribution {
   task: BpTask
-  /** Rupiah this stop should add to today. Absent = it doesn't land today. */
+  /** What this stop should add to today, in the cut's unit. Absent = it doesn't
+   *  land today. */
   amount?: number
 }
 
-/** Today's target split across the stops that carry it, to the nearest 100rb —
- *  a briefing number, not an accounting one. */
-export function contributionsFor(bpId: string, book: Book, todayTarget: number): TaskContribution[] {
+/**
+ * Today's target split across the stops that carry it — a briefing number, not
+ * an accounting one, so it is rounded to something sayable: the nearest 100rb
+ * in rupiah, and a whole woman in mitra.
+ *
+ * A mitra split floors at 1 rather than rounding to 0. A stop that carries some
+ * of the target but shows "0 mitra" reads as a stop worth skipping, which is
+ * the opposite of what it is.
+ */
+export function contributionsFor(
+  bpId: string,
+  book: Book,
+  todayTarget: number,
+  unit: BookUnit,
+): TaskContribution[] {
   const tasks = (BP_TASKS[bpId] ?? []).filter((t) => BOOK_KINDS[book].includes(t.kind))
   const weights = tasks.map((t) => BOOK_WEIGHT[book][t.kind] ?? 0)
   const total = weights.reduce((a, b) => a + b, 0)
-  return tasks.map((task, i) => ({
-    task,
-    amount:
-      weights[i] > 0
-        ? Math.round((todayTarget * weights[i]) / total / 100_000) * 100_000
-        : undefined,
-  }))
+  return tasks.map((task, i) => {
+    if (weights[i] <= 0) return { task }
+    const share = (todayTarget * weights[i]) / total
+    return {
+      task,
+      amount:
+        unit === 'rupiah'
+          ? Math.round(share / 100_000) * 100_000
+          : Math.max(1, Math.round(share)),
+    }
+  })
 }
 
 /**
@@ -509,7 +594,15 @@ export function contributionsFor(bpId: string, book: Book, todayTarget: number):
  * edge, so the money reads as a fact ABOUT the stop while the actions stay a
  * control OVER it — two different jobs that a shared right-hand column blurs.
  */
-export function BookTaskCard({ contribution }: { contribution: TaskContribution }) {
+export function BookTaskCard({
+  contribution,
+  unit = 'rupiah',
+}: {
+  contribution: TaskContribution
+  /** Defaults to rupiah for the tugas step, whose stops carry no figure at all
+   *  — there is no book there for a contribution to be a fact about. */
+  unit?: BookUnit
+}) {
   const { task, amount } = contribution
   const [menuOpen, setMenuOpen] = useState(false)
   // Click-through state: "Tambah ke tugas saya" leaves a mark on the card so the
@@ -530,7 +623,9 @@ export function BookTaskCard({ contribution }: { contribution: TaskContribution 
               {task.title}
             </span>
             {amount !== undefined ? (
-              <span className="shrink-0 text-14 font-bold text-primary-500">+ {rupiah(amount)}</span>
+              <span className="shrink-0 text-14 font-bold text-primary-500">
+                + {amountText(amount, unit)}
+              </span>
             ) : null}
           </span>
           <span className="truncate text-12 font-regular text-caption">

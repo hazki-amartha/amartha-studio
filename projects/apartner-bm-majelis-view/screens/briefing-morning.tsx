@@ -27,6 +27,11 @@
 //     achievement and stops are read out as pointer sentences, so the section
 //     is a script she reads down rather than a set of cards she scans.
 //
+// Crossing all three in-app cuts is `morningUnit` — the "b" of Alt-3b / 4b / 5b
+// — which counts every repayment and disbursement target in MITRA instead of
+// rupiah. It is a unit rather than a sixth cut because it changes what the
+// numbers say and nothing about the shape they are said in.
+//
 // On every stepper cut the register is the BP app's own two-cell answer — Tidak
 // hadir / Hadir — rather than a tick, because "not marked yet" and "marked
 // absent" are different facts about a BP who is not in the room. Each BP sits in
@@ -54,7 +59,7 @@ import {
   type AgendaItem,
   type Attendance,
 } from '../lib/briefing'
-import { BookSections, BpTugasSections, DISBURSEMENT, REPAYMENT } from '../lib/briefing-live'
+import { BookSections, BpTugasSections, bookRows } from '../lib/briefing-live'
 import { IconChevronDown, IconChevronUp } from '../lib/icons'
 import { BRIEFINGS } from '../lib/schedule'
 import { store, useApp } from '../lib/store'
@@ -97,6 +102,10 @@ export function BriefingMorningScreen() {
   const isLive = variant === 'live' || variant === 'merged' || variant === 'pointer'
   const isMerged = variant === 'merged' || variant === 'pointer'
   const isPointer = variant === 'pointer'
+  // The "b" of Alt-3b / 4b / 5b: the same three cuts with every target counted
+  // in mitra rather than rupiah. A unit, not a sixth variant — it applies to
+  // whichever in-app cut is drawing.
+  const unit = s.morningUnit
   const steps = isMerged ? MERGED_STEPS : STEPS
 
   // Local state, not the store: none of it has to survive leaving the page.
@@ -250,7 +259,13 @@ export function BriefingMorningScreen() {
 
       {stepId === 'repayment' ? (
         isLive ? (
-          <BookSections rows={REPAYMENT} book="repayment" pointer={isPointer} withTasks={isMerged} />
+          <BookSections
+            rows={bookRows('repayment', unit)}
+            book="repayment"
+            unit={unit}
+            pointer={isPointer}
+            withTasks={isMerged}
+          />
         ) : (
           <PrintedAgenda item={agendaItem('repayment')} />
         )
@@ -259,8 +274,9 @@ export function BriefingMorningScreen() {
       {stepId === 'disbursement' ? (
         isLive ? (
           <BookSections
-            rows={DISBURSEMENT}
+            rows={bookRows('disbursement', unit)}
             book="disbursement"
+            unit={unit}
             pointer={isPointer}
             withTasks={isMerged}
           />
