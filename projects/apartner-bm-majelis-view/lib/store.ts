@@ -10,6 +10,7 @@
 // which is the outcome this whole direction is built to record properly.
 
 import { useSyncExternalStore } from 'react'
+import type { BookUnit } from './briefing-live'
 import { COMMS_SEED, type Comm } from './comms'
 import { MAJELIS, PREPAID, findMitra, isSelfServe, outstandingOf, type Mitra } from './data'
 import {
@@ -349,6 +350,21 @@ export interface AppState {
   morningVariant: MorningVariant
 
   /**
+   * What the morning's repayment and disbursement targets are COUNTED IN — the
+   * "b" of Alt-3b / 4b / 5b. Rupiah is the books' own unit; mitra is the same
+   * day counted in women, so a shortfall names people a BP can be sent to
+   * rather than an amount somebody has to convert first.
+   *
+   * A field of its own rather than three more variants: the unit is orthogonal
+   * to the cut, and folding it in would have made `MorningVariant` a list of
+   * eight names that mean two different things.
+   *
+   * Only the three in-app cuts read it. Alt-1 and Alt-2 print a script and hold
+   * no figures at all, so there is nothing there to count either way.
+   */
+  morningUnit: BookUnit
+
+  /**
    * Which cut of the EVENING briefing draws.
    *
    * - `default` — the whole closing on one page: absensi, then the three
@@ -569,6 +585,7 @@ const initial: AppState = {
   majelisBp: null,
   doneBriefings: [],
   morningVariant: 'default',
+  morningUnit: 'rupiah',
   eveningVariant: 'default',
   openHome: 't3',
   metWith: {},

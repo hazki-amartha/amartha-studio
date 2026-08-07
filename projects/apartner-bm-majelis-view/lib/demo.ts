@@ -999,20 +999,39 @@ export const kpiBoosted = () => store.set({ kpiPeriod: 'boosted' })
 // just writes `morningVariant`; the screen reads it and redraws (see
 // `screens/briefing-morning.tsx`).
 
+// Every one of them writes `morningUnit` too, so a designer stepping back from
+// a "b" cut lands on the rupiah version of the one they picked rather than on
+// whatever unit the last state happened to leave behind.
+
 /** Alt-1 — the single-page checklist, absensi open and ticked as the room fills. */
-export const morningDefault = () => store.set({ morningVariant: 'default' })
+export const morningDefault = () => store.set({ morningVariant: 'default', morningUnit: 'rupiah' })
 
 /** Alt-2 — the same running order, one card per page behind a stepper. */
-export const morningStepper = () => store.set({ morningVariant: 'stepper' })
+export const morningStepper = () => store.set({ morningVariant: 'stepper', morningUnit: 'rupiah' })
 
 /** Alt-3 — the stepper, but repayment/disbursement/tugas are worked in-app. */
-export const morningLive = () => store.set({ morningVariant: 'live' })
+export const morningLive = () => store.set({ morningVariant: 'live', morningUnit: 'rupiah' })
 
 /** Alt-4 — Alt-3 with the tugas step dissolved into the two books. */
-export const morningMerged = () => store.set({ morningVariant: 'merged' })
+export const morningMerged = () => store.set({ morningVariant: 'merged', morningUnit: 'rupiah' })
 
 /** Alt-5 — Alt-4 with the meters replaced by spoken pointers. */
-export const morningPointer = () => store.set({ morningVariant: 'pointer' })
+export const morningPointer = () => store.set({ morningVariant: 'pointer', morningUnit: 'rupiah' })
+
+// The "b" cuts: the same three, with every target counted in MITRA instead of
+// rupiah. Only the in-app cuts have a "b" — Alt-1 and Alt-2 print a script and
+// carry no figures for a unit to apply to.
+
+/** Alt-3b — Alt-3 with the books counted in mitra. */
+export const morningLiveMitra = () => store.set({ morningVariant: 'live', morningUnit: 'mitra' })
+
+/** Alt-4b — Alt-4 with the books, and each stop's contribution, counted in mitra. */
+export const morningMergedMitra = () =>
+  store.set({ morningVariant: 'merged', morningUnit: 'mitra' })
+
+/** Alt-5b — Alt-5's spoken pointers, said in mitra. */
+export const morningPointerMitra = () =>
+  store.set({ morningVariant: 'pointer', morningUnit: 'mitra' })
 
 // --- Evening briefing cuts -------------------------------------------------
 // The same switch at the other end of the day, and the same three questions the
