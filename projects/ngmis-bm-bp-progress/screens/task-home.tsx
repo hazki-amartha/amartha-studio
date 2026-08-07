@@ -34,6 +34,7 @@ export function TaskHomeScreen() {
       header={
         <PageHeading
           title={visit.name}
+          onBack={() => flow.go('bp')}
           meta={`${kindLabel(task.kind)} · ${visit.alamat} · ${task.time} · ${bp.name}`}
           actions={
             <Badge intent={task.done ? 'green' : 'red'} variant="subtle">

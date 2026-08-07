@@ -8,10 +8,10 @@
 // from `projects/ngmis-bm-monitoring/lib/ui.tsx`, copied rather than imported
 // (§1: a project never reaches into another project's folder).
 //
-// The one genuinely new piece is `GroupedTable`: this board's whole argument is
-// that tasks, repayment and disbursement belong on ONE row, and three subjects
-// on one row need a two-deep header — a group band naming the subject and its
-// clock, and the columns under it. The existing DataTable is flat.
+// The board used to run all three subjects across one two-deep header. It read
+// as one table on one clock, and the clock it looked like was whichever the
+// reader assumed — so `ViewTabs` now splits it into three, one period at a time,
+// and `SummaryLine` doubles as the second way in.
 //
 // Fixed pixel widths use inline styles: frame geometry, the same category as a
 // device bezel, and the spacing scale deliberately stops at 48px.
@@ -19,6 +19,7 @@
 
 import type { ReactNode } from 'react'
 import {
+  ArrowLeft,
   Bank,
   Calculator,
   ChartLineUp,
@@ -168,16 +169,33 @@ export function PageHeading({
   title,
   meta,
   actions,
+  onBack,
 }: {
   title: string
   meta?: string
   actions?: ReactNode
+  /** A drill-down page gets an explicit way back. The breadcrumb above is a
+   *  location, not a control — it says where you are, and people do not read it
+   *  as the button out. */
+  onBack?: () => void
 }) {
   return (
     <div className="flex shrink-0 flex-wrap items-start justify-between gap-16 py-16">
-      <div className="flex flex-col gap-4">
-        <h1 className="text-24 font-bold text-default">{title}</h1>
-        {meta ? <span className="text-12 text-caption">{meta}</span> : null}
+      <div className="flex min-w-0 items-start gap-12">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Kembali"
+            className="flex size-32 shrink-0 items-center justify-center rounded-full border border-default bg-neutral-white text-default hover:bg-neutral-50"
+          >
+            <ArrowLeft size={20} />
+          </button>
+        ) : null}
+        <div className="flex min-w-0 flex-col gap-4">
+          <h1 className="text-24 font-bold text-default">{title}</h1>
+          {meta ? <span className="text-12 text-caption">{meta}</span> : null}
+        </div>
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-8">{actions}</div> : null}
     </div>
@@ -222,33 +240,75 @@ export function PanelHeading({
   )
 }
 
-/** The one-line summary above the board. Three figures, each naming its own
- *  period — the board's three subjects genuinely do not share a clock, and
- *  hiding that behind a single "hari ini" would be a lie about the data. */
-export function SummaryLine({ items }: { items: { label: string; value: string; tone?: string }[] }) {
+export interface SummaryItem {
+  label: string
+  value: string
+  tone?: string
+  /** Switches the board to this figure's period. */
+  onClick?: () => void
+  active?: boolean
+}
+
+/**
+ * The line above the board: one figure per period, always all three. The table
+ * below shows a single clock at a time, and this is what keeps the other two
+ * from going dark — the BM still sees at a glance that repayment is the thing
+ * on fire while she is standing in the daily view. Each card is also the way
+ * into its own view, so the number and the table it belongs to are one click
+ * apart rather than a tab-row away.
+ */
+export function SummaryLine({ items }: { items: SummaryItem[] }) {
   return (
     <div className="flex flex-wrap items-stretch gap-12">
       {items.map((item) => (
-        <Panel key={item.label} className="flex-1 px-16 py-12">
-          <span className="flex flex-col gap-4">
-            <span className="text-12 text-caption">{item.label}</span>
-            <span className={`text-20 font-bold ${item.tone ?? 'text-default'}`}>{item.value}</span>
-          </span>
-        </Panel>
+        <button
+          key={item.label}
+          type="button"
+          onClick={item.onClick}
+          className={`flex flex-1 flex-col gap-4 rounded-12 border bg-neutral-white px-16 py-12 text-left ${
+            item.active ? 'border-primary-500' : 'border-default'
+          } ${item.onClick && !item.active ? 'hover:border-primary-500' : ''}`}
+        >
+          <span className="text-12 text-caption">{item.label}</span>
+          <span className={`text-20 font-bold ${item.tone ?? 'text-default'}`}>{item.value}</span>
+        </button>
       ))}
     </div>
   )
 }
 
-// --- Grouped table ----------------------------------------------------------
-
-export interface TableGroup {
-  id: string
-  /** The subject — "Repayment" — and the clock it runs on. */
-  label: string
-  period: string
-  columns: { id: string; header: string; align?: 'left' | 'right' }[]
+/** The board's period switch. Three clocks, one at a time — a segmented pill
+ *  rather than underlined tabs, because FunDS is pill-shaped throughout (§2). */
+export function ViewTabs({
+  value,
+  onChange,
+  items,
+}: {
+  value: string
+  onChange: (id: string) => void
+  items: { id: string; label: string }[]
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-4 rounded-full border border-default bg-neutral-50 p-4">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => onChange(item.id)}
+          className={`rounded-full px-16 py-4 text-12 ${
+            item.id === value
+              ? 'bg-primary-500 font-bold text-neutral-white'
+              : 'font-regular text-caption'
+          }`}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  )
 }
+
+// --- Table ------------------------------------------------------------------
 
 export interface TableRow {
   id: string
@@ -256,10 +316,18 @@ export interface TableRow {
   onClick?: () => void
 }
 
+export interface TableGroup {
+  id: string
+  /** The bucket — "DPD 1–30" — spanning its own pair of columns. */
+  label: string
+  columns: { id: string; header: string; align?: 'left' | 'right' }[]
+}
+
 /**
- * A table whose header is two rows deep: a band naming each subject group, and
- * the columns under it. The first column stands outside every group — it is who
- * the row is about, not one of the things being measured.
+ * A table whose header is two rows deep: a band naming each bucket, and the pair
+ * of columns under it. Every repayment figure on this board is a pair — how many
+ * loans, and how many of them were paid — and a flat header cannot say which
+ * "Terbayar" belongs to which bucket once there are five of them.
  */
 export function GroupedTable({
   leadHeader,
@@ -271,6 +339,10 @@ export function GroupedTable({
   rows: TableRow[]
 }) {
   const flat = groups.flatMap((g) => g.columns.map((c) => ({ ...c, groupId: g.id })))
+  /** The first column of a group carries the divider, so the buckets stay
+   *  visibly separate across a wide table. */
+  const divides = (i: number) => i > 0 && flat[i - 1].groupId !== flat[i].groupId
+
   return (
     <div className="min-w-0 overflow-x-auto">
       <table className="w-full border-collapse text-left">
@@ -278,7 +350,7 @@ export function GroupedTable({
           <tr>
             <th
               rowSpan={2}
-              className="border-b border-default bg-neutral-50 px-12 py-8 align-bottom text-12 font-bold text-default"
+              className="border-b border-default bg-neutral-white px-12 py-8 align-bottom text-12 font-bold text-default"
             >
               {leadHeader}
             </th>
@@ -286,26 +358,19 @@ export function GroupedTable({
               <th
                 key={g.id}
                 colSpan={g.columns.length}
-                className="border-l border-default bg-neutral-50 px-12 pb-4 pt-8 text-center text-12 font-bold text-default"
+                className="border-l border-default bg-neutral-50 px-12 py-8 text-center text-12 font-bold text-default"
               >
                 {g.label}
-                <span className="block text-10 font-regular lowercase text-caption">
-                  {g.period}
-                </span>
               </th>
             ))}
           </tr>
           <tr>
             {flat.map((c, i) => (
               <th
-                key={c.id}
+                key={`${c.groupId}-${c.id}`}
                 className={`border-b border-default bg-neutral-50 px-12 pb-8 text-12 font-regular text-caption ${
                   c.align === 'right' ? 'text-right' : 'text-left'
-                } ${
-                  // The first column of a group carries the divider, so the
-                  // three subjects stay visibly separate across 1100px.
-                  i > 0 && flat[i - 1].groupId !== c.groupId ? 'border-l border-default' : ''
-                }`}
+                } ${divides(i) ? 'border-l border-default' : ''}`}
               >
                 {c.header}
               </th>
@@ -324,12 +389,12 @@ export function GroupedTable({
               <td className="px-12 py-12 text-14 text-default">{row.cells.lead}</td>
               {flat.map((c, i) => (
                 <td
-                  key={c.id}
+                  key={`${c.groupId}-${c.id}`}
                   className={`px-12 py-12 text-14 text-default ${
                     c.align === 'right' ? 'text-right' : ''
-                  } ${i > 0 && flat[i - 1].groupId !== c.groupId ? 'border-l border-default' : ''}`}
+                  } ${divides(i) ? 'border-l border-default' : ''}`}
                 >
-                  {row.cells[c.id]}
+                  {row.cells[`${c.groupId}-${c.id}`]}
                 </td>
               ))}
             </tr>
@@ -340,7 +405,22 @@ export function GroupedTable({
   )
 }
 
-/** A plain table for the detail pages, where one subject fills the panel. */
+/** What the three colours mean, said once above the table instead of eight
+ *  times inside it. */
+export function ToneLegend({ items }: { items: { tone: string; label: string }[] }) {
+  return (
+    <div className="flex flex-wrap items-center gap-16 pb-12">
+      {items.map((item) => (
+        <span key={item.label} className="flex items-center gap-8">
+          <span className={`size-8 shrink-0 rounded-full ${item.tone}`} />
+          <span className="text-12 text-caption">{item.label}</span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/** One subject, one clock, one flat header — the board and both detail pages. */
 export function SimpleTable({
   columns,
   rows,

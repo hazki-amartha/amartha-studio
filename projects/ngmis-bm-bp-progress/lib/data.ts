@@ -1,12 +1,15 @@
 // =============================================================================
-// The branch, its BPs, and the three things the BM monitors.
+// The branch, its BPs, and the one thing the BM monitors: repayment.
 //
-// Shapes and thresholds follow the national "BP Loan" sheet the BM filters down
-// today: one row per BP per DPD bucket per week, carrying Total Loan / Total
-// Paid Loan / % Repayment Rate, and judged against a target that DIFFERS BY
-// BUCKET. Task and disbursement figures are not in that sheet — tasks come from
-// the A-Partner BP app, disbursement from the loan system — so they are modelled
-// here alongside it.
+// Scoped to what engineering says it can actually surface today — repayment,
+// on two clocks (this week, and today). Tasks and disbursement stay in the model
+// because the BP drill-down still reads them, but they are off the board.
+//
+// Every repayment figure is a PAIR: how many loans sat in a DPD bucket, and how
+// many of those got paid. That is the shape the national "BP Loan" sheet already
+// carries (Total Loan / Total Paid Loan per BP per bucket per week), and reading
+// it as a pair rather than as a lone percentage is the point — "18" means
+// nothing until you know it was 18 of 50.
 // =============================================================================
 
 export const BRANCH = 'Banjarmasin Kota'
@@ -16,7 +19,8 @@ export const MONTH = 'Juli 2026'
 
 /** Bucket-specific repayment targets, straight off the sheet's header note:
  *  "DPD 0 >= 98% · DPD 1-30 >= 55% · DPD 31-90 >= 13%". DPD 90+ is reported but
- *  carries no target there, and so carries none here. */
+ *  carries no target there, and so carries none here. The board no longer judges
+ *  by these (see `paidTone`); the BP page still reports them. */
 export const BUCKETS = [
   { id: 'd0', label: 'DPD 0', target: 98 },
   { id: 'd1', label: 'DPD 1–30', target: 55 },
@@ -26,8 +30,11 @@ export const BUCKETS = [
 
 export type BucketId = (typeof BUCKETS)[number]['id']
 
-/** Loans and loans-paid for one bucket in one week. */
-export type Pair = [loan: number, paid: number]
+/** Loans in a bucket, and how many of them were paid. */
+export type Pair = [total: number, terbayar: number]
+
+/** The same four buckets, on one clock. */
+export type Book = Record<BucketId, Pair>
 
 export interface TaskCounts {
   /** [done, total] for each kind of work the BP App hands out. */
@@ -44,11 +51,12 @@ export interface Bp {
   /** Why this BP's portfolio looks the way it does, where ops has recorded one.
    *  The sheet's `Grouping Reason` column — read-only here. */
   konteks?: string
-  tasks: TaskCounts
-  /** This week, per bucket. */
-  week: Record<BucketId, Pair>
+  /** This week, and today. */
+  week: Book
+  day: Book
   /** % RR per bucket for the three weeks before this one, oldest first. */
   history: Record<BucketId, [number, number, number]>
+  tasks: TaskCounts
   disb: {
     /** Rupiah disbursed month-to-date, and the month's target. */
     cair: number
@@ -62,39 +70,55 @@ const jt = (n: number) => n * 1_000_000
 
 export const BPS: Bp[] = [
   {
-    id: 'fauzan-aditama',
-    name: 'Fauzan Aditama',
-    majelis: 7,
-    tasks: { mv: [3, 3], hv: [5, 5], sos: [1, 1], fu: [3, 3] },
-    week: { d0: [236, 234], d1: [28, 18], d3: [14, 2], d9: [6, 0] },
-    history: { d0: [98, 99, 98], d1: [58, 61, 60], d3: [13, 15, 14], d9: [0, 0, 0] },
-    disb: { cair: jt(172), target: jt(180), mitraBaru: 7, targetMitraBaru: 8 },
-  },
-  {
-    id: 'budi-ngurah',
-    name: 'Budi Ngurah',
+    id: 'sukma-ayuningrum',
+    name: 'Sukma Ayuningrum',
     majelis: 6,
-    tasks: { mv: [2, 3], hv: [4, 5], sos: [1, 1], fu: [2, 3] },
-    week: { d0: [204, 201], d1: [30, 17], d3: [16, 2], d9: [6, 0] },
-    history: { d0: [98, 98, 99], d1: [54, 57, 56], d3: [11, 13, 12], d9: [0, 0, 0] },
-    disb: { cair: jt(158), target: jt(180), mitraBaru: 6, targetMitraBaru: 8 },
+    konteks: 'BP cover pelayanan BP resign atau mangkir',
+    week: { d0: [172, 132], d1: [50, 18], d3: [30, 6], d9: [18, 2] },
+    day: { d0: [34, 22], d1: [10, 3], d3: [6, 1], d9: [4, 0] },
+    history: { d0: [78, 76, 77], d1: [42, 38, 34], d3: [24, 22, 20], d9: [11, 11, 11] },
+    tasks: { mv: [1, 5], hv: [1, 7], sos: [0, 1], fu: [0, 3] },
+    disb: { cair: jt(82), target: jt(180), mitraBaru: 2, targetMitraBaru: 8 },
   },
   {
-    id: 'alif-rizqi',
-    name: 'M. Alif Rizqi',
+    id: 'cenli-cencen',
+    name: 'Cenli Cencen',
     majelis: 8,
-    tasks: { mv: [3, 4], hv: [4, 6], sos: [0, 1], fu: [2, 3] },
-    week: { d0: [212, 208], d1: [32, 18], d3: [18, 2], d9: [8, 0] },
-    history: { d0: [97, 98, 98], d1: [52, 55, 58], d3: [10, 12, 11], d9: [0, 0, 0] },
-    disb: { cair: jt(149), target: jt(180), mitraBaru: 5, targetMitraBaru: 8 },
+    week: { d0: [176, 148], d1: [44, 18], d3: [24, 6], d9: [14, 2] },
+    day: { d0: [36, 30], d1: [9, 3], d3: [5, 1], d9: [3, 0] },
+    history: { d0: [82, 84, 83], d1: [44, 42, 41], d3: [27, 26, 25], d9: [14, 14, 14] },
+    tasks: { mv: [1, 5], hv: [2, 7], sos: [0, 1], fu: [1, 3] },
+    disb: { cair: jt(104), target: jt(180), mitraBaru: 3, targetMitraBaru: 8 },
   },
   {
-    id: 'rudi-hartono',
-    name: 'Rudi Hartono',
-    majelis: 6,
+    id: 'diski-tafa',
+    name: 'Diski Tafa Ilham',
+    majelis: 8,
+    konteks: 'Majelis tidak kumpul dan 90% door to door',
+    week: { d0: [184, 158], d1: [42, 18], d3: [26, 6], d9: [14, 2] },
+    day: { d0: [38, 33], d1: [8, 3], d3: [5, 1], d9: [3, 0] },
+    history: { d0: [84, 85, 86], d1: [45, 44, 43], d3: [24, 23, 23], d9: [14, 14, 14] },
+    tasks: { mv: [1, 5], hv: [2, 7], sos: [0, 1], fu: [1, 3] },
+    disb: { cair: jt(104), target: jt(180), mitraBaru: 3, targetMitraBaru: 8 },
+  },
+  {
+    id: 'laili-maulidia',
+    name: 'Laili Maulidia',
+    majelis: 8,
+    week: { d0: [210, 188], d1: [44, 22], d3: [26, 10], d9: [12, 2] },
+    day: { d0: [42, 38], d1: [9, 5], d3: [5, 2], d9: [2, 0] },
+    history: { d0: [88, 89, 89], d1: [48, 50, 50], d3: [36, 37, 38], d9: [16, 16, 17] },
+    tasks: { mv: [2, 5], hv: [2, 6], sos: [0, 1], fu: [1, 3] },
+    disb: { cair: jt(118), target: jt(180), mitraBaru: 3, targetMitraBaru: 8 },
+  },
+  {
+    id: 'fadhil-maulana',
+    name: 'Fadhil Maulana',
+    majelis: 7,
+    week: { d0: [208, 192], d1: [36, 20], d3: [22, 8], d9: [10, 2] },
+    day: { d0: [42, 39], d1: [7, 4], d3: [4, 2], d9: [2, 0] },
+    history: { d0: [90, 91, 92], d1: [52, 54, 55], d3: [34, 35, 36], d9: [19, 20, 20] },
     tasks: { mv: [2, 4], hv: [3, 6], sos: [1, 1], fu: [1, 3] },
-    week: { d0: [192, 186], d1: [30, 15], d3: [18, 2], d9: [8, 0] },
-    history: { d0: [98, 97, 97], d1: [56, 53, 52], d3: [13, 12, 11], d9: [0, 0, 0] },
     disb: { cair: jt(141), target: jt(180), mitraBaru: 5, targetMitraBaru: 8 },
   },
   {
@@ -102,39 +126,31 @@ export const BPS: Bp[] = [
     name: 'Ainur Rohmah',
     majelis: 8,
     konteks: 'BP baru mutasi',
+    week: { d0: [178, 164], d1: [34, 18], d3: [20, 6], d9: [10, 2] },
+    day: { d0: [36, 33], d1: [7, 4], d3: [4, 1], d9: [2, 0] },
+    history: { d0: [90, 91, 91], d1: [50, 51, 52], d3: [28, 29, 30], d9: [20, 20, 20] },
     tasks: { mv: [2, 4], hv: [3, 7], sos: [0, 1], fu: [1, 3] },
-    week: { d0: [178, 171], d1: [34, 16], d3: [20, 2], d9: [10, 0] },
-    history: { d0: [97, 97, 96], d1: [52, 49, 48], d3: [12, 11, 10], d9: [0, 0, 0] },
     disb: { cair: jt(126), target: jt(180), mitraBaru: 4, targetMitraBaru: 8 },
   },
   {
-    id: 'laili-maulidia',
-    name: 'Laili Maulidia',
-    majelis: 8,
-    tasks: { mv: [2, 5], hv: [2, 6], sos: [0, 1], fu: [1, 3] },
-    week: { d0: [210, 199], d1: [44, 19], d3: [26, 2], d9: [12, 0] },
-    history: { d0: [96, 96, 95], d1: [48, 46, 44], d3: [10, 9, 8], d9: [0, 0, 0] },
-    disb: { cair: jt(118), target: jt(180), mitraBaru: 3, targetMitraBaru: 8 },
-  },
-  {
-    id: 'diski-tafa',
-    name: 'Diski Tafa Ilham',
-    majelis: 8,
-    konteks: 'Majelis tidak kumpul dan 90% door to door',
-    tasks: { mv: [1, 5], hv: [2, 7], sos: [0, 1], fu: [1, 3] },
-    week: { d0: [184, 172], d1: [42, 17], d3: [26, 1], d9: [14, 0] },
-    history: { d0: [96, 95, 94], d1: [46, 43, 41], d3: [8, 7, 5], d9: [0, 0, 0] },
-    disb: { cair: jt(104), target: jt(180), mitraBaru: 3, targetMitraBaru: 8 },
-  },
-  {
-    id: 'sukma-ayuningrum',
-    name: 'Sukma Ayuningrum',
+    id: 'rudi-hartono',
+    name: 'Rudi Hartono',
     majelis: 6,
-    konteks: 'BP cover pelayanan BP resign atau mangkir',
-    tasks: { mv: [1, 5], hv: [1, 7], sos: [0, 1], fu: [0, 3] },
-    week: { d0: [172, 157], d1: [50, 17], d3: [30, 1], d9: [18, 0] },
-    history: { d0: [95, 94, 92], d1: [42, 38, 34], d3: [7, 5, 3], d9: [0, 0, 0] },
-    disb: { cair: jt(82), target: jt(180), mitraBaru: 2, targetMitraBaru: 8 },
+    week: { d0: [192, 182], d1: [30, 18], d3: [18, 6], d9: [8, 2] },
+    day: { d0: [38, 36], d1: [6, 4], d3: [4, 2], d9: [2, 1] },
+    history: { d0: [93, 94, 94], d1: [56, 58, 59], d3: [31, 32, 33], d9: [24, 25, 25] },
+    tasks: { mv: [2, 4], hv: [3, 6], sos: [1, 1], fu: [1, 3] },
+    disb: { cair: jt(149), target: jt(180), mitraBaru: 5, targetMitraBaru: 8 },
+  },
+  {
+    id: 'fauzan-aditama',
+    name: 'Fauzan Aditama',
+    majelis: 7,
+    week: { d0: [236, 228], d1: [28, 20], d3: [14, 5], d9: [6, 1] },
+    day: { d0: [48, 46], d1: [6, 4], d3: [3, 1], d9: [1, 0] },
+    history: { d0: [96, 96, 97], d1: [68, 70, 71], d3: [34, 35, 36], d9: [16, 16, 17] },
+    tasks: { mv: [3, 3], hv: [5, 5], sos: [1, 1], fu: [3, 3] },
+    disb: { cair: jt(172), target: jt(180), mitraBaru: 7, targetMitraBaru: 8 },
   },
 ]
 
@@ -142,10 +158,62 @@ export const BPS: Bp[] = [
 
 export const bpById = (id: string) => BPS.find((b) => b.id === id) ?? BPS[0]
 
-export const rate = ([loan, paid]: Pair) => (loan ? Math.round((paid / loan) * 100) : 0)
+/** The four buckets summed — the row's Total Loan pair. It is not stored,
+ *  because a stored total is a total that can disagree with its own columns. */
+export function totalLoan(book: Book): Pair {
+  return (['d0', 'd1', 'd3', 'd9'] as const).reduce<Pair>(
+    ([t, p], id) => [t + book[id][0], p + book[id][1]],
+    [0, 0],
+  )
+}
+
+export const rate = ([total, terbayar]: Pair) =>
+  total ? Math.round((terbayar / total) * 100) : 0
 
 /** Last week's rate for the same bucket — the last entry in the history. */
 export const prevRate = (bp: Bp, bucket: BucketId) => bp.history[bucket][2]
+
+export type Tone = 'green' | 'yellow' | 'red'
+
+/**
+ * How much of a pair got paid, as the board's only colour rule.
+ *
+ * The board used to colour each bucket against ITS OWN target (DPD 0 ≥ 98%,
+ * DPD 31–90 ≥ 13%), which is correct and unreadable: the same green meant "98
+ * out of 100" in one column and "13 out of 100" in the next, so a row could not
+ * be scanned across. One rule — how much of what was owed came in — makes the
+ * row scannable left to right, and the targets keep their own column on the BP
+ * page where there is room to explain them.
+ */
+export function paidTone(pair: Pair): Tone {
+  const share = rate(pair)
+  if (share >= 85) return 'green'
+  if (share >= 60) return 'yellow'
+  return 'red'
+}
+
+export const TONE_TEXT: Record<Tone, string> = {
+  green: 'text-green-500',
+  yellow: 'text-yellow-500',
+  red: 'text-red-500',
+}
+
+export const TONE_LABEL: Record<Tone, string> = {
+  green: 'hampir semua terbayar',
+  yellow: 'separuh terbayar',
+  red: 'sedikit terbayar',
+}
+
+/** The row's verdict, on the same thresholds as every cell: how much of this
+ *  BP's whole book came in. One column carrying the read the tinted rows and
+ *  rank numbers used to carry. */
+export const STATUS: Record<Tone, { label: string; intent: 'green' | 'yellow' | 'red' }> = {
+  green: { label: 'On Track', intent: 'green' },
+  yellow: { label: 'At Risk', intent: 'yellow' },
+  red: { label: 'Beyond Target', intent: 'red' },
+}
+
+export const statusOf = (book: Book) => STATUS[paidTone(totalLoan(book))]
 
 /** Whether a bucket clears its own target. Untargeted buckets never fail. */
 export function onTarget(bp: Bp, bucket: BucketId) {
@@ -186,16 +254,11 @@ export const taskTotals = (t: TaskCounts) => {
   }
 }
 
-/** The board's order: most broken first. Tasks left over break ties, because
- *  two BPs equally behind on repayment are not equally reachable today. */
-export const boardOrder = () =>
-  [...BPS].sort((a, b) => {
-    const missed = bucketsMissed(b) - bucketsMissed(a)
-    if (missed) return missed
-    const at = taskTotals(a.tasks)
-    const bt = taskTotals(b.tasks)
-    return bt.total - bt.done - (at.total - at.done)
-  })
+/** The board's order: least of what was owed actually collected, first. One
+ *  rule, applied to whichever clock is on screen — the worst week and the worst
+ *  day are not the same BP, and that difference is worth seeing. */
+export const boardOrder = (clock: 'week' | 'day') =>
+  [...BPS].sort((a, b) => rate(totalLoan(a[clock])) - rate(totalLoan(b[clock])))
 
 // --- Formatting -------------------------------------------------------------
 
