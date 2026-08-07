@@ -39,25 +39,27 @@
 // gesture on top of it, not a screen of its own.
 
 import { useState } from 'react'
-import { BottomSheet, Button, NavigationHeader } from '@/design-system/components'
-import { User } from '@/design-system/icons'
+import { Button, NavigationHeader } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
 import { BUSINESS_PARTNERS } from '../lib/bp'
 import {
   AgendaCard,
-  AgendaSteps,
   BriefingCard,
-  CheckMark,
   MORNING_AGENDA,
+  PhotoSheet,
+  PrintedAgenda,
+  RollCallChoice,
+  RollCallTicks,
+  hadirCount,
   type AgendaItem,
+  type Attendance,
 } from '../lib/briefing'
 import { BookSections, BpTugasSections, DISBURSEMENT, REPAYMENT } from '../lib/briefing-live'
-import { IconCamera, IconChevronDown, IconChevronUp } from '../lib/icons'
+import { IconChevronDown, IconChevronUp } from '../lib/icons'
 import { BRIEFINGS } from '../lib/schedule'
 import { store, useApp } from '../lib/store'
 import {
   AppScreen,
-  AttendanceChoice,
   SectionTitle,
   StepSectionTitle,
   StageBar,
@@ -103,7 +105,7 @@ export function BriefingMorningScreen() {
   //
   // The register starts EMPTY, not pre-marked 7/7: the BM ticks each BP as the
   // room fills, so the count on the card is the room she can see.
-  const [marks, setMarks] = useState<Record<string, 'hadir' | 'tidak'>>({})
+  const [marks, setMarks] = useState<Attendance>({})
   const [rollOpen, setRollOpen] = useState(true)
   const [ticked, setTicked] = useState<string[]>([])
   const [photo, setPhoto] = useState(false)
@@ -112,7 +114,7 @@ export function BriefingMorningScreen() {
   // The closing-photo sheet, opened from the last stepper step.
   const [photoSheet, setPhotoSheet] = useState(false)
 
-  const hadirCount = BUSINESS_PARTNERS.filter((bp) => marks[bp.id] === 'hadir').length
+  const hadir = hadirCount(marks)
   // Alt-1's tick is the same record with one of its two values: ticked means
   // hadir, unticked means not answered yet.
   const togglePresent = (id: string) =>
@@ -137,79 +139,6 @@ export function BriefingMorningScreen() {
     flow.go('today')
   }
 
-  // --- The register on Alt-1: each name its own tap target, unticked by
-  // default, because attendance is something she records in the room.
-  const rollCall = (
-    <div className="flex flex-col gap-12">
-      {BUSINESS_PARTNERS.map((bp) => (
-        <button
-          key={bp.id}
-          type="button"
-          onClick={() => togglePresent(bp.id)}
-          aria-pressed={marks[bp.id] === 'hadir'}
-          className="flex items-center gap-12 text-left active:opacity-70"
-        >
-          <CheckMark done={marks[bp.id] === 'hadir'} />
-          <span className="min-w-0 flex-1 truncate text-16 font-regular text-default">
-            {bp.name}
-          </span>
-        </button>
-      ))}
-    </div>
-  )
-
-  // --- The register on every stepper cut: one card per BP, drawn like the
-  // mitra roster on the MV — her photo and name on the first line, a rule, then
-  // the BP app's own two-cell answer. Green for present and red for absent, the
-  // unchosen cell going quiet once she has answered. A tick cannot say "tidak
-  // hadir" — it can only fail to say "hadir", which is the same mark as a name
-  // she has not reached yet.
-  const rollCallChoice = (
-    <div className="flex flex-col gap-12">
-      {BUSINESS_PARTNERS.map((bp) => {
-        const answer = marks[bp.id]
-        return (
-          <div
-            key={bp.id}
-            className="flex flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12"
-          >
-            <div className="flex items-center gap-12">
-              <span
-                className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500"
-                aria-hidden
-              >
-                <User size={20} />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">
-                {bp.name}
-              </span>
-            </div>
-            <div className="flex gap-8 border-t border-default pt-12">
-              <AttendanceChoice
-                tone="red"
-                selected={answer === 'tidak'}
-                answered={Boolean(answer)}
-                label={`Tidak hadir — ${bp.name}`}
-                onClick={() => mark(bp.id, 'tidak')}
-              >
-                Tidak hadir
-              </AttendanceChoice>
-              <AttendanceChoice
-                tone="green"
-                selected={answer === 'hadir'}
-                answered={Boolean(answer)}
-                label={`Hadir — ${bp.name}`}
-                onClick={() => mark(bp.id, 'hadir')}
-              >
-                Hadir
-              </AttendanceChoice>
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-
   const topBar = (
     <NavigationHeader
       title={<VisitTitle title={briefing.name} when={`${briefing.time} · ${briefing.place}`} />}
@@ -232,12 +161,16 @@ export function BriefingMorningScreen() {
               aria-expanded={rollOpen}
               className="flex items-center gap-4 text-14 font-bold text-link"
             >
-              {hadirCount}/{BUSINESS_PARTNERS.length} Hadir
+              {hadir}/{BUSINESS_PARTNERS.length} Hadir
               {rollOpen ? <IconChevronUp size={20} /> : <IconChevronDown size={20} />}
             </button>
           }
         >
-          {rollOpen ? <div className="border-t border-default pt-12">{rollCall}</div> : null}
+          {rollOpen ? (
+            <div className="border-t border-default pt-12">
+              <RollCallTicks marks={marks} onToggle={togglePresent} />
+            </div>
+          ) : null}
         </BriefingCard>
 
         {MORNING_AGENDA.map((item) => (
@@ -306,14 +239,14 @@ export function BriefingMorningScreen() {
         <StepSectionTitle>
           {steps[step - 1].title}
           <span className="text-14 font-bold text-primary-500">
-            {hadirCount}/{BUSINESS_PARTNERS.length} hadir
+            {hadir}/{BUSINESS_PARTNERS.length} hadir
           </span>
         </StepSectionTitle>
       ) : isLive && (stepId === 'repayment' || stepId === 'disbursement' || stepId === 'tugas') ? null : (
         <StepSectionTitle>{steps[step - 1].title}</StepSectionTitle>
       )}
 
-      {stepId === 'absensi' ? rollCallChoice : null}
+      {stepId === 'absensi' ? <RollCallChoice marks={marks} onMark={mark} /> : null}
 
       {stepId === 'repayment' ? (
         isLive ? (
@@ -363,64 +296,5 @@ export function BriefingMorningScreen() {
         onConfirm={finish}
       />
     </AppScreen>
-  )
-}
-
-/**
- * An agenda item drawn read-only for a stepper page — the same subtitle and
- * numbered steps the single-page card carries, minus the tick. Only Alt-2 still
- * uses it: the in-app cuts (Alt-3/4/5) replace the whole step with live data.
- */
-function PrintedAgenda({ item }: { item: AgendaItem }) {
-  return (
-    <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-12">
-      {item.subtitle ? (
-        <span className="text-14 font-regular text-caption">{item.subtitle}</span>
-      ) : null}
-      <AgendaSteps item={item} topRule={Boolean(item.subtitle)} />
-    </div>
-  )
-}
-
-/**
- * The closing photo, as a bottom sheet on the two stepper cuts. It comes up over
- * the last step when she taps "Selesaikan Briefing"; the briefing does not close
- * until the photo is taken, so the confirm inside the sheet is what actually
- * finishes it.
- */
-function PhotoSheet({
-  open,
-  photo,
-  onToggle,
-  onClose,
-  onConfirm,
-}: {
-  open: boolean
-  photo: boolean
-  onToggle: () => void
-  onClose: () => void
-  onConfirm: () => void
-}) {
-  return (
-    <BottomSheet open={open} onClose={onClose} title="Bukti kehadiran">
-      <div className="flex flex-col gap-12">
-        <span className="text-14 font-regular text-caption">
-          Ambil foto bersama semua peserta yang hadir
-        </span>
-        <button
-          type="button"
-          onClick={onToggle}
-          className={`flex flex-col items-center gap-8 rounded-12 border border-dashed p-24 ${
-            photo ? 'border-green-500 bg-green-50 text-green-500' : 'border-default text-caption'
-          }`}
-        >
-          <IconCamera size={24} />
-          <span className="text-14 font-bold">{photo ? 'Foto tersimpan' : 'Ambil foto'}</span>
-        </button>
-        <Button size="lg" className="w-full" disabled={!photo} onClick={onConfirm}>
-          Selesaikan Briefing
-        </Button>
-      </div>
-    </BottomSheet>
   )
 }

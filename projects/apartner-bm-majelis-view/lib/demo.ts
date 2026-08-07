@@ -1013,3 +1013,17 @@ export const morningMerged = () => store.set({ morningVariant: 'merged' })
 
 /** Alt-5 — Alt-4 with the meters replaced by spoken pointers. */
 export const morningPointer = () => store.set({ morningVariant: 'pointer' })
+
+// --- Evening briefing cuts -------------------------------------------------
+// The same switch at the other end of the day, and the same three questions the
+// morning's first three ask: one page or a stepper, and does the handset hold
+// the numbers or does she read them out of NG-MIS.
+
+/** Alt-1 — the whole closing on one page, script cards with NG-MIS paths. */
+export const eveningDefault = () => store.set({ eveningVariant: 'default' })
+
+/** Alt-2 — the same script, one subject per page behind the stage bar. */
+export const eveningStepper = () => store.set({ eveningVariant: 'stepper' })
+
+/** Alt-3 — the stepper with the day's numbers read in-app instead. */
+export const eveningLive = () => store.set({ eveningVariant: 'live' })
