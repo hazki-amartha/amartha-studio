@@ -17,11 +17,13 @@
 // Dummy and small (CLAUDE.md §3): a branch line and seven BP lines, and a day's
 // worth of tugas per BP.
 
+import { useState, type ReactNode } from 'react'
 import { rupiah } from './data'
 import { BUSINESS_PARTNERS } from './bp'
-import { IconInfo } from './icons'
-import { Badge } from '@/design-system/components'
-import { Meter } from './ui'
+import { IconCalendar, IconCheck, IconInfo, IconUserPlus } from './icons'
+import { Badge, BottomSheet } from '@/design-system/components'
+import { DotsThreeVertical } from '@/design-system/icons'
+import { Meter, StepSectionTitle } from './ui'
 
 // --- Repayment & disbursement ----------------------------------------------
 
@@ -33,7 +35,7 @@ export interface PeriodStat {
 }
 
 export interface StatRow {
-  /** "Total se-cabang", or a BP's name. */
+  /** "Total Branch Ciseeng", or a BP's name. */
   title: string
   /** The BP's code; omitted on the branch total. */
   subtitle?: string
@@ -73,7 +75,7 @@ const DISBURSEMENT_BP: PeriodStat[][] = [
 ]
 
 export const REPAYMENT: StatRow[] = [
-  { title: 'Total se-cabang', periods: P(840_000_000, 726_000_000, 42_000_000, 28_400_000) },
+  { title: 'Total Branch Ciseeng', periods: P(840_000_000, 726_000_000, 42_000_000, 28_400_000) },
   ...BUSINESS_PARTNERS.map((bp, i) => ({
     title: bp.name,
     subtitle: bp.code,
@@ -83,7 +85,7 @@ export const REPAYMENT: StatRow[] = [
 ]
 
 export const DISBURSEMENT: StatRow[] = [
-  { title: 'Total se-cabang', periods: P(520_000_000, 388_000_000, 26_000_000, 14_000_000) },
+  { title: 'Total Branch Ciseeng', periods: P(520_000_000, 388_000_000, 26_000_000, 14_000_000) },
   ...BUSINESS_PARTNERS.map((bp, i) => ({
     title: bp.name,
     subtitle: bp.code,
@@ -100,80 +102,159 @@ const pct = (actual: number, target: number): number =>
 const toneFor = (p: number): 'green' | 'orange' | 'red' =>
   p >= 100 ? 'green' : p >= 60 ? 'orange' : 'red'
 
-/** The sentence Alt-5 puts in her mouth instead of a bar: where the number is,
- *  and what is still missing, in the words she would say out loud. */
+/** The sentence Alt-5 puts in her mouth instead of a bar: the target, and what
+ *  is still missing, in the words she would say out loud. */
 const pointerLine = (p: PeriodStat): string => {
   const gap = p.target - p.actual
   return gap > 0
-    ? `${rupiah(p.actual)} dari ${rupiah(p.target)} — kurang ${rupiah(gap)}`
-    : `${rupiah(p.actual)} dari ${rupiah(p.target)} — target tercapai`
+    ? `${p.label}, target ${rupiah(p.target)}, masih kurang ${rupiah(gap)}`
+    : `${p.label}, target ${rupiah(p.target)}, target tercapai`
+}
+
+/** The verb a stop carries in Alt-5's pointer line — a repayment stop collects,
+ *  a disbursement stop disburses. */
+const BOOK_VERB: Record<Book, string> = { repayment: 'tagih', disbursement: 'cair' }
+
+/** The one-line reading of a stop for Alt-5: what it is, when, and — where it
+ *  lands today — the money it brings. "MV Majelis Mawar jam 7.30, tagih Rp…" */
+const taskPointerLine = (c: TaskContribution, book: Book): string => {
+  const head = `${c.task.kind} ${c.task.title} jam ${c.task.time}`
+  return c.amount === undefined ? head : `${head}, ${BOOK_VERB[book]} ${rupiah(c.amount)}`
 }
 
 /**
- * One row of the repayment / disbursement table — the branch total or a single
- * BP — with the money read out for each of its two periods. The branch card and
- * the seven BP cards are the same component, so a BP's row and the total it
- * rolls into cannot drift on how a number is drawn.
+ * A whole book — repayment or disbursement — as a stack of per-BP SECTIONS: the
+ * branch total first, then the seven BPs, each a section TITLE (her name) over
+ * her own cards rather than a card with her name inside it. Under each name sit
+ * her progress card and, for a real BP, one card per stop she has today.
  *
- * Two switches ride on top of it, for the two later cuts:
- *   • `book` — Alt-4 and Alt-5 hang the BP's own tugas for today under her
- *     numbers, each with what it is meant to add to them.
- *   • `pointer` — Alt-5 drops the meter and states the gap as a sentence, so
- *     the card reads as a script rather than as a chart.
+ * Alt-5 swaps the whole body for pointer sentences — see `PointerBlock`.
  */
-export function StatCard({
-  title,
-  subtitle,
-  bpId,
-  periods,
+export function BookSections({
+  rows,
   book,
   pointer = false,
-}: StatRow & {
-  /** Set on Alt-4 / Alt-5 to merge this BP's tugas into the card. */
-  book?: Book
+  withTasks = true,
+}: {
+  rows: StatRow[]
+  book: Book
   pointer?: boolean
+  /** Alt-3 turns this OFF: its stops live in a tugas step of their own, so the
+   *  books show only each BP's numbers. Alt-4 / Alt-5 keep the stops in the
+   *  book, filed under the target they move. */
+  withTasks?: boolean
 }) {
-  // "Hari ini" is the period the tugas are answerable for — a stop today cannot
+  return (
+    <div className="flex flex-col gap-16">
+      {rows.map((r) => (
+        <BpBookSection
+          key={`${r.title}-${r.subtitle ?? ''}`}
+          row={r}
+          book={book}
+          pointer={pointer}
+          withTasks={withTasks}
+        />
+      ))}
+    </div>
+  )
+}
+
+function BpBookSection({
+  row,
+  book,
+  pointer,
+  withTasks,
+}: {
+  row: StatRow
+  book: Book
+  pointer: boolean
+  withTasks: boolean
+}) {
+  // "Hari ini" is the period the stops are answerable for — a stop today cannot
   // move the month except through today.
-  const today = periods[periods.length - 1]
-  const tasks = book && bpId ? contributionsFor(bpId, book, today.target) : []
+  const today = row.periods[row.periods.length - 1]
+  const tasks = row.bpId ? contributionsFor(row.bpId, book, today.target) : []
 
   return (
+    <div className="flex flex-col gap-8">
+      <StepSectionTitle>{row.title}</StepSectionTitle>
+      {pointer ? (
+        <PointerBlock periods={row.periods} tasks={tasks} book={book} />
+      ) : (
+        <>
+          <PeriodsCard periods={row.periods} />
+          {withTasks
+            ? tasks.map((c) => (
+                <BookTaskCard
+                  key={`${c.task.kind}-${c.task.time}-${c.task.title}`}
+                  contribution={c}
+                />
+              ))
+            : null}
+        </>
+      )}
+    </div>
+  )
+}
+
+/** The progress card under a section title: the two periods, each a meter with
+ *  its capaian badge and the money under it. Just the numbers — the name is the
+ *  section title above, and the stops are their own cards below. */
+function PeriodsCard({ periods }: { periods: PeriodStat[] }) {
+  return (
     <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-12">
-      <div className="flex min-w-0 flex-col">
-        <span className="truncate text-16 font-bold text-default">{title}</span>
-        {subtitle ? <span className="truncate text-12 text-caption">{subtitle}</span> : null}
-      </div>
-      <div className="flex flex-col gap-12 border-t border-default pt-12">
-        {periods.map((p) => {
-          const percent = pct(p.actual, p.target)
-          return (
-            <div key={p.label} className="flex flex-col gap-4">
-              <span className="flex items-center gap-8">
-                <span className="min-w-0 flex-1 truncate text-14 font-regular text-caption">
-                  {p.label}
-                </span>
-                <Badge intent={toneFor(percent)}>{percent}%</Badge>
+      {periods.map((p) => {
+        const percent = pct(p.actual, p.target)
+        return (
+          <div key={p.label} className="flex flex-col gap-4">
+            <span className="flex items-center gap-8">
+              <span className="min-w-0 flex-1 truncate text-14 font-regular text-caption">
+                {p.label}
               </span>
-              {pointer ? (
-                <span className="text-14 font-regular text-default">{pointerLine(p)}</span>
-              ) : (
-                <>
-                  <Meter progress={percent} tone={toneFor(percent)} />
-                  <span className="text-12 font-regular text-default">
-                    {rupiah(p.actual)} <span className="text-caption">/ {rupiah(p.target)}</span>
-                  </span>
-                </>
-              )}
-            </div>
-          )
-        })}
+              <Badge intent={toneFor(percent)}>{percent}%</Badge>
+            </span>
+            <Meter progress={percent} tone={toneFor(percent)} />
+            <span className="text-12 font-regular text-default">
+              {rupiah(p.actual)} <span className="text-caption">/ {rupiah(p.target)}</span>
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Alt-5's per-BP body: her achievement and her stops as two labelled runs of
+ *  pointer sentences — a script she reads down rather than cards she scans. */
+function PointerBlock({
+  periods,
+  tasks,
+  book,
+}: {
+  periods: PeriodStat[]
+  tasks: TaskContribution[]
+  book: Book
+}) {
+  return (
+    <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-12">
+      <div className="flex flex-col gap-4">
+        <span className="text-12 font-bold text-caption">Pencapaian</span>
+        {periods.map((p) => (
+          <span key={p.label} className="text-14 font-regular text-default">
+            {pointerLine(p)}
+          </span>
+        ))}
       </div>
       {tasks.length > 0 ? (
-        <div className="flex flex-col gap-8 border-t border-default pt-12">
-          <span className="text-12 font-bold text-caption">Tugas hari ini</span>
+        <div className="flex flex-col gap-4 border-t border-default pt-12">
+          <span className="text-12 font-bold text-caption">Tugas terkait hari ini</span>
           {tasks.map((c) => (
-            <TaskContributionRow key={`${c.task.kind}-${c.task.time}-${c.task.title}`} {...c} />
+            <span
+              key={`${c.task.kind}-${c.task.time}-${c.task.title}`}
+              className="text-14 font-regular text-default"
+            >
+              {taskPointerLine(c, book)}
+            </span>
           ))}
         </div>
       ) : null}
@@ -396,33 +477,23 @@ export function contributionsFor(bpId: string, book: Book, todayTarget: number):
   }))
 }
 
-/** One stop inside a BP's repayment / disbursement card: what it is, when, and
- *  what it is meant to add. Deliberately a line rather than the full task card —
- *  it is riding inside a card already, and the subject here is the number. */
-function TaskContributionRow({ task, amount }: TaskContribution) {
-  return (
-    <div className="flex items-center gap-8">
-      <span
-        className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-8 text-12 font-bold ${KIND_TONE[task.kind]}`}
-      >
-        {task.kind}
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-14 font-regular text-default">{task.title}</span>
-        <span className="truncate text-12 font-regular text-caption">{task.time}</span>
-      </span>
-      <span
-        className={`shrink-0 text-12 ${amount === undefined ? 'font-regular text-caption' : 'font-bold text-default'}`}
-      >
-        {amount === undefined ? 'Belum menambah hari ini' : `+ ${rupiah(amount)}`}
-      </span>
-    </div>
-  )
-}
+/**
+ * One stop in a BP's day, as its own card under her section title. It is the BP
+ * app's task card — kind chip, what and where, its insight footer — with two
+ * things the briefing adds: the money it is meant to bring TODAY, printed beside
+ * the name, and a 3-dot menu the BM works from without leaving the stop.
+ *
+ * The amount sits on the name row and the menu is pinned to the card's right
+ * edge, so the money reads as a fact ABOUT the stop while the actions stay a
+ * control OVER it — two different jobs that a shared right-hand column blurs.
+ */
+export function BookTaskCard({ contribution }: { contribution: TaskContribution }) {
+  const { task, amount } = contribution
+  const [menuOpen, setMenuOpen] = useState(false)
+  // Click-through state: "Tambah ke tugas saya" leaves a mark on the card so the
+  // demo shows the outcome, without a store to carry it anywhere.
+  const [added, setAdded] = useState(false)
 
-/** One task in a BP's day, the BP app's card shrunk to a read-only line, with
- *  the insight — where there is one — as a ruled-off footer. */
-export function BpTaskCard({ task }: { task: BpTask }) {
   return (
     <div className="flex flex-col gap-8 rounded-12 border border-default bg-neutral-white p-12">
       <div className="flex items-start gap-12">
@@ -432,12 +503,33 @@ export function BpTaskCard({ task }: { task: BpTask }) {
           {task.kind}
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="flex items-center gap-8">
+            <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">
+              {task.title}
+            </span>
+            {amount !== undefined ? (
+              <span className="shrink-0 text-14 font-bold text-primary-500">+ {rupiah(amount)}</span>
+            ) : null}
+          </span>
           <span className="truncate text-12 font-regular text-caption">
             {task.name} · {task.time}
           </span>
-          <span className="text-16 font-bold text-default">{task.title}</span>
           <span className="line-clamp-2 text-14 font-regular text-default">{task.place}</span>
+          {added ? (
+            <span className="mt-2 flex w-fit items-center gap-4 rounded-full bg-primary-50 px-8 py-2 text-12 font-bold text-primary-500">
+              <IconCheck size={16} />
+              Di tugas saya
+            </span>
+          ) : null}
         </div>
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          aria-label={`Aksi untuk ${task.title}`}
+          className="shrink-0 text-caption active:opacity-70"
+        >
+          <DotsThreeVertical size={20} />
+        </button>
       </div>
       {task.insight ? (
         <span className="flex items-start gap-4 border-t border-default pt-8 text-12 font-regular text-caption">
@@ -447,6 +539,104 @@ export function BpTaskCard({ task }: { task: BpTask }) {
           {task.insight}
         </span>
       ) : null}
+      <TaskActionSheet
+        open={menuOpen}
+        title={task.title}
+        added={added}
+        onAdd={() => {
+          setAdded(true)
+          setMenuOpen(false)
+        }}
+        onReschedule={() => setMenuOpen(false)}
+        onClose={() => setMenuOpen(false)}
+      />
+    </div>
+  )
+}
+
+/** The 3-dot menu on a stop: take it onto the BM's own list, or move it to
+ *  another day. A bottom sheet rather than a floating menu — the same surface
+ *  every other picker in this direction uses. */
+function TaskActionSheet({
+  open,
+  title,
+  added,
+  onAdd,
+  onReschedule,
+  onClose,
+}: {
+  open: boolean
+  title: string
+  added: boolean
+  onAdd: () => void
+  onReschedule: () => void
+  onClose: () => void
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} title={title}>
+      <div className="flex flex-col gap-8">
+        <MenuRow
+          icon={<IconUserPlus size={20} />}
+          label={added ? 'Sudah di tugas saya' : 'Tambah ke tugas saya'}
+          onClick={onAdd}
+          disabled={added}
+        />
+        <MenuRow
+          icon={<IconCalendar size={20} />}
+          label="Jadwalkan ulang"
+          onClick={onReschedule}
+        />
+      </div>
+    </BottomSheet>
+  )
+}
+
+function MenuRow({
+  icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  icon: ReactNode
+  label: string
+  onClick: () => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center gap-12 rounded-8 border border-default bg-neutral-white p-12 text-left active:opacity-70 disabled:opacity-50"
+    >
+      <span className="shrink-0 text-primary-500">{icon}</span>
+      <span className="text-14 font-bold text-default">{label}</span>
+    </button>
+  )
+}
+
+/**
+ * Alt-3's tugas step: every BP on one page, her name a section title over one
+ * card per stop she has today — ALL of them, not split by book, because here
+ * the subject is her day rather than a target it moves. The stops carry no
+ * figure (a contribution is a fact about a book, and this step has none) but
+ * keep the 3-dot menu, so the BM can still take a stop onto her own list or
+ * move it. The same `BookTaskCard` as the books, so the two cannot drift.
+ */
+export function BpTugasSections() {
+  return (
+    <div className="flex flex-col gap-16">
+      {BP_ROLL.map((bp) => {
+        const tasks = BP_TASKS[bp.id] ?? []
+        return (
+          <div key={bp.id} className="flex flex-col gap-8">
+            <StepSectionTitle>{bp.name}</StepSectionTitle>
+            {tasks.map((task) => (
+              <BookTaskCard key={`${task.time}-${task.title}`} contribution={{ task }} />
+            ))}
+          </div>
+        )
+      })}
     </div>
   )
 }

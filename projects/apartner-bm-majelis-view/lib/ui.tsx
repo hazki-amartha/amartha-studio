@@ -1453,6 +1453,32 @@ export function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="text-14 font-bold text-default">{children}</h2>
 }
 
+// --- StepSectionTitle ------------------------------------------------------
+// The section heading inside a briefing STEP — bigger than `SectionTitle`, set
+// off from what sits above it, and pinned to the top as its section scrolls
+// under it. Each per-BP section wraps its own title, so a stuck title is pushed
+// up by the next one the way an iOS grouped list behaves.
+//
+// The pin offset is the pinned chrome above the scroll area — the Screen's 32px
+// status strip plus the 48px NavigationHeader — so the title lands JUST under
+// the header rather than behind it. That 80 is the sum of two tokens (h-32 +
+// h-48), not a spacing token of its own, so it rides in an inline `top` — the
+// one place the system already allows a computed layout value (see `Meter`'s
+// data-driven width). The blue bleed (`-mx-16` + `bg-canvas-blue`) masks the
+// cards scrolling under it back to the canvas colour.
+const STEP_STICKY_TOP = 32 + 48
+
+export function StepSectionTitle({ children }: { children: ReactNode }) {
+  return (
+    <h2
+      style={{ top: STEP_STICKY_TOP }}
+      className="sticky z-10 -mx-16 flex items-center gap-8 bg-canvas-blue px-16 pb-8 pt-16 text-18 font-bold text-default"
+    >
+      {children}
+    </h2>
+  )
+}
+
 // --- StatRows --------------------------------------------------------------
 // Label/value rows. Used for the outstanding breakdown, which is the one place
 // in this direction where the BP genuinely does have to read four numbers —
