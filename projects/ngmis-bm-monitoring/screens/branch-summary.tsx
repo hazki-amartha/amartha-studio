@@ -1,27 +1,21 @@
 'use client'
 
-// The BM's landing screen: six branch KPIs, the two reports owed today, and the
-// BP performance table underneath. Everything the viewer can touch — the two
-// filters, sorting, paging — is local state; only the report tiles and Riwayat
-// navigate.
+// The BM's landing screen: the branch KPIs for the active tab, and the BP
+// performance table underneath. Everything the viewer can touch — the header
+// filters, the tabs, sorting, paging — is local state.
 
 import { useMemo, useState } from 'react'
-import { Button } from '@/design-system/components'
-import { ArrowRight, History } from '@/design-system/icons'
-import { useFlow } from '@/platform/runtime'
 import { BmShell } from '../lib/shell'
+import { RepaymentView } from '../lib/repayment-view'
 import {
   DataTable,
-  MoonGlyph,
   Pagination,
   Panel,
   PanelHeading,
   PageHeading,
   ProgressBar,
-  ReportTile,
   Select,
   StatCard,
-  SunGlyph,
   Tabs,
   type Column,
   type SortDir,
@@ -31,12 +25,13 @@ import {
   BP_ROWS,
   BP_TOTAL,
   BRANCHES,
+  DEFAULT_TAB,
   KOTA,
   KPIS,
-  MAJELIS_FILTER,
   PROVINCES,
   REGIONS,
   TABS,
+  UPDATE_BAR,
   TAB_VIEWS,
 } from '../lib/data'
 
@@ -50,14 +45,12 @@ const ALL_COLUMNS: Column[] = [
 ]
 
 export function BranchSummaryScreen() {
-  const flow = useFlow()
-  const [tab, setTab] = useState('overview')
+  const [tab, setTab] = useState(DEFAULT_TAB)
   const [region, setRegion] = useState('jawa')
   const [province, setProvince] = useState('jawa-barat')
   const [kota, setKota] = useState('cirebon')
   const [branch, setBranch] = useState('all')
   const [bp, setBp] = useState('all')
-  const [majelis, setMajelis] = useState('all')
   const [sort, setSort] = useState<{ columnId: string; dir: SortDir } | null>(null)
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState('10')
@@ -122,7 +115,6 @@ export function BranchSummaryScreen() {
         <>
           <PageHeading
             title={`Performa: ${kotaLabel}`}
-            meta="Per 27 Sep 2025, 04.15 WIB"
             actions={
               <>
                 <Select label="Region" value={region} onChange={setRegion} options={REGIONS} />
@@ -134,12 +126,12 @@ export function BranchSummaryScreen() {
                 />
                 <Select label="Kota" value={kota} onChange={setKota} options={KOTA} />
                 <Select label="Branch" value={branch} onChange={setBranch} options={BRANCHES} />
-                <Select label="Business Partner" value={bp} onChange={setBp} options={BP_FILTER} />
                 <Select
-                  label="Majelis"
-                  value={majelis}
-                  onChange={setMajelis}
-                  options={MAJELIS_FILTER}
+                  label="Business Partner"
+                  value={bp}
+                  onChange={setBp}
+                  options={BP_FILTER}
+                  disabled
                 />
               </>
             }
@@ -148,93 +140,57 @@ export function BranchSummaryScreen() {
         </>
       }
     >
-      <div className="grid grid-cols-3 gap-16 pb-16">
-        {kpis.map((kpi) => (
-          <StatCard
-            key={kpi.id}
-            label={kpi.label}
-            value={kpi.value}
-            delta={kpi.delta}
-            average={kpi.average}
-            aside={kpi.aside}
-          />
-        ))}
+      {/* Scope on the left, freshness on the right — two different facts. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-16 pb-16">
+        <span className="text-16 font-bold text-default">{UPDATE_BAR.scope}</span>
+        <span className="text-12 text-caption">{UPDATE_BAR.refreshed}</span>
       </div>
 
-      <div className="pb-16">
-        <Panel>
-          <PanelHeading
-            title="Daily Report"
-            action={
-              <button
-                type="button"
-                onClick={() => flow.go('report-history')}
-                className="flex items-center gap-4 text-12 font-bold text-link"
-              >
-                <History size={16} />
-                Riwayat
-              </button>
-            }
-          />
-          <div className="flex gap-16">
-            <ReportTile
-              icon={<SunGlyph />}
-              iconTone="text-orange-500"
-              title="Morning report"
-              body="Majelis 123_BIN TURATEA dan 2 lainnya punya repayment rate dan attendance rate rendah. Rencanakan aksi Anda untuk hari ini."
-              action={
-                <Button variant="outline" size="sm" onClick={() => flow.go('morning-report')}>
-                  <span className="flex items-center gap-8">
-                    Isi sekarang
-                    <ArrowRight size={16} />
-                  </span>
-                </Button>
-              }
-            />
-            <ReportTile
-              icon={<MoonGlyph />}
-              iconTone="text-blue-500"
-              title="Evening report"
-              body="Repayment rate hari ini masih 20%. Mohon jelaskan apa yang terjadi."
-              action={
-                <Button variant="outline" size="sm" onClick={() => flow.go('evening-report')}>
-                  <span className="flex items-center gap-8">
-                    Isi sekarang
-                    <ArrowRight size={16} />
-                  </span>
-                </Button>
-              }
-            />
+      {tab === 'repayment' ? (
+        <RepaymentView />
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-16 pb-16">
+            {kpis.map((kpi) => (
+              <StatCard
+                key={kpi.id}
+                label={kpi.label}
+                value={kpi.value}
+                delta={kpi.delta}
+                average={kpi.average}
+                aside={kpi.aside}
+              />
+            ))}
           </div>
-        </Panel>
-      </div>
 
-      <Panel>
-        <PanelHeading title="BP Performance" subtitle="Performa per BP di poin ini." />
-        <DataTable
-          columns={columns}
-          rows={rows}
-          sort={sort}
-          onSortChange={(columnId) =>
-            setSort((prev) =>
-              prev?.columnId === columnId
-                ? { columnId, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-                : { columnId, dir: 'asc' },
-            )
-          }
-        />
-        <Pagination
-          page={page}
-          pageCount={pageCount}
-          rangeLabel={`1 - ${rows.length} of ${BP_TOTAL} entries.`}
-          onPageChange={setPage}
-          perPage={perPage}
-          onPerPageChange={(next) => {
-            setPerPage(next)
-            setPage(1)
-          }}
-        />
-      </Panel>
+          <Panel>
+            <PanelHeading title="BP Performance" subtitle="Performa per BP di poin ini." />
+            <DataTable
+              columns={columns}
+              rows={rows}
+              sort={sort}
+              onSortChange={(columnId) =>
+                setSort((prev) =>
+                  prev?.columnId === columnId
+                    ? { columnId, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+                    : { columnId, dir: 'asc' },
+                )
+              }
+            />
+            <Pagination
+              page={page}
+              pageCount={pageCount}
+              rangeLabel={`1 - ${rows.length} of ${BP_TOTAL} entries.`}
+              onPageChange={setPage}
+              perPage={perPage}
+              onPerPageChange={(next) => {
+                setPerPage(next)
+                setPage(1)
+              }}
+            />
+          </Panel>
+        </>
+      )}
     </BmShell>
   )
 }

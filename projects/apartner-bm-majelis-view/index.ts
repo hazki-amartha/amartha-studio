@@ -38,13 +38,88 @@ export const project: ProjectModule = {
         'The NG-MIS paths are printed, not linked. NG-MIS is another system, and a prototype that navigates out of itself strands the review in an app nobody opened it to see.',
         'Selesaikan Briefing is gated on every item ticked and the photo taken, and the bar says which is missing rather than only refusing. Orange, not red: nothing has gone wrong, the meeting is still running.',
       ],
+      states: [
+        {
+          id: 'alt1',
+          label: 'Alt-1 · Satu halaman',
+          description: 'The running order on one page — absensi open, ticked as the room fills',
+          apply: demo.morningDefault,
+        },
+        {
+          id: 'alt2',
+          label: 'Alt-2 · Bertahap',
+          description: 'The same order, one card per page behind a stepper, NG-MIS paths printed',
+          apply: demo.morningStepper,
+        },
+        {
+          id: 'alt3',
+          label: 'Alt-3 · Data di aplikasi',
+          description:
+            'Alt-2, but repayment, disbursement and each BP’s tugas are read in-app instead of in NG-MIS',
+          apply: demo.morningLive,
+        },
+        {
+          id: 'alt4',
+          label: 'Alt-4 · Tugas di dalam target',
+          description:
+            'Alt-3 without a tugas step — each BP’s stops sit under her own repayment and disbursement, with what each adds',
+          apply: demo.morningMerged,
+        },
+        {
+          id: 'alt5',
+          label: 'Alt-5 · Poin bicara',
+          description:
+            'Alt-4 with the meters dropped — every figure states its gap as a sentence she reads out',
+          apply: demo.morningPointer,
+        },
+        {
+          id: 'alt3b',
+          label: 'Alt-3b · Target mitra',
+          description: 'Alt-3 with every repayment and disbursement target counted in mitra',
+          apply: demo.morningLiveMitra,
+        },
+        {
+          id: 'alt4b',
+          label: 'Alt-4b · Target mitra',
+          description: 'Alt-4 in mitra — each stop carries the number of women it should bring',
+          apply: demo.morningMergedMitra,
+        },
+        {
+          id: 'alt5b',
+          label: 'Alt-5b · Target mitra',
+          description: 'Alt-5’s spoken pointers, said in mitra rather than rupiah',
+          apply: demo.morningPointerMitra,
+        },
+      ],
       flowsTo: [{ to: 'today', label: 'Selesaikan Briefing — kembali ke Tugas' }],
     },
     {
       id: 'briefing-evening',
       title: 'Evening briefing',
       component: lazyScreen(() => import('./screens/briefing-evening'), 'BriefingEveningScreen'),
-      flowsTo: [{ to: 'today', label: 'kembali ke Tugas' }],
+      states: [
+        {
+          id: 'alt1',
+          label: 'Alt-1 · Satu halaman',
+          description:
+            'The whole closing on one page — absensi, then three script cards with their NG-MIS paths',
+          apply: demo.eveningDefault,
+        },
+        {
+          id: 'alt2',
+          label: 'Alt-2 · Bertahap',
+          description: 'The same script, one subject per page behind the stepper',
+          apply: demo.eveningStepper,
+        },
+        {
+          id: 'alt3',
+          label: 'Alt-3 · Data di aplikasi',
+          description:
+            'Alt-2, but the day’s numbers are read in-app — awal hari against setelah closing',
+          apply: demo.eveningLive,
+        },
+      ],
+      flowsTo: [{ to: 'today', label: 'Selesaikan Briefing — kembali ke Tugas' }],
     },
     {
       id: 'majelis-list',
@@ -150,321 +225,13 @@ export const project: ProjectModule = {
         'The roster of one group. The kumpulan slot rides in the header subtitle — it is asked every time the page is opened — and the address is a one-liner directly under it, ending in a Rute button rather than a full stop, because on the way there the answer she needs is the route, not the text.',
         'Each card is a name, a DPD badge and its labels — no rupiah figure at all. DPD already answers “who do I deal with first”, and an amount on a roster is a number the BP reads but cannot act on; the one she negotiates against is derived fresh on the collect page, from the ledger, at the moment she needs it. KM says who the chair is; Modal / GL says which product she is on, since a Hybrid majelis is exactly a group with both in one room; and Janji bayar / Dapat keringanan are on the ROSTER rather than only in the collect flow, because a BP who walks up to a mitra without knowing she already promised a date asks for the whole amount and gets the argument that follows.',
         'Sorting is the only control, defaulting to whoever is most behind.',
-        'What the footer OFFERS depends on the day. On the group’s kumpulan day it starts the pelayanan; on any other day there is no visit to start, so it becomes the thing a BP actually does from her sofa on a Thursday — send the group its reminder, already written, with this group’s day, time and place in it. It goes to the WhatsApp group, not to 22 numbers: that is where the group already talks, and a reminder arriving as 22 private messages is one the ketua cannot reinforce.',
+        'There is no footer action. Starting a pelayanan and reminding a majelis are BP work done from the BP app; this is the BM’s read-only view of the same group, so the page ends at the roster.',
         'The header’s trailing control is Edit, not Info. Changing a majelis is four routes rather than one form — its schedule lives with the BP’s week, its Ketua is a mitra, its location is a place, and moving a member changes another group as well as this one — so a combined form would be four unrelated fields sharing a Save button.',
       ],
-      states: [
-        {
-          id: 'kumpulan-day',
-          label: 'Meets today',
-          description: 'The day’s schedule sends her here — the footer starts the visit',
-          apply: demo.rosterOnSchedule,
-        },
-        {
-          id: 'other-day',
-          label: 'Meets another day',
-          description: 'No visit to start, so the footer sends the group its reminder instead',
-          apply: demo.rosterOffSchedule,
-        },
-      ],
       flowsTo: [
-        { to: 'attendance', label: 'Mulai Pelayanan' },
         { to: 'mitra', label: 'ketuk nama mitra' },
         { to: 'majelis-list', label: 'kembali' },
       ],
-    },
-    {
-      id: 'reminder',
-      title: 'Ingatkan Majelis',
-      component: lazyScreen(() => import('./screens/reminder'), 'ReminderScreen'),
-      notes: [
-        'The morning reminder, as ONE task rather than one per majelis. A BP sends these in a single sitting before she leaves the house, so three separate schedule rows would be three rows she ticks in ten seconds and then re-reads all day.',
-        'Which groups appear is derived from today’s schedule, not listed again here: move a pelayanan to tomorrow and that group drops off the reminder by itself. A second hand-kept list of “who meets today” is the kind that quietly stops matching the agenda above it.',
-        'The app writes the message; it does not send it. She copies and pastes it into the group herself — WhatsApp owns the send, and the copy/paste is also what keeps the flow inside the device frame.',
-        'Each group carries its own tick, and it is held in the store rather than on the screen — it is a record she comes back to: two groups messaged before she rides out, the third at 11.00 when the ketua finally answers. A tick local to the screen would greet her with a clean slate and no way to tell which group she still owes.',
-        'Copying and ticking are two gestures on purpose. Copying is not evidence she SENT it — she still has to switch apps and paste — so the app must not tick the row on her behalf and then be wrong about a group that never got the message.',
-        'The task does not close until every group is ticked — the same gate the attendance register runs on, and for the same reason: a majelis that never got its message and a majelis nobody ticked read identically afterwards. The tick is hers to give, so a group she messaged from her own phone still clears the gate; what it refuses is calling the job done while one is unaccounted for.',
-      ],
-      flowsTo: [{ to: 'today', label: 'Selesai — kembali ke jadwal' }],
-    },
-    {
-      id: 'attendance',
-      title: 'Majelis Visit 1 — Kehadiran',
-      component: lazyScreen(() => import('./screens/attendance'), 'AttendanceScreen'),
-      notes: [
-        'Attendance is asked first and on its own, and collection does not open until every mitra is marked. The register is a record other people read later, and a half-marked one cannot be trusted or audited.',
-        'Nothing on this screen mentions money — that is the next stage’s question, and asking both at once is what this split exists to avoid. The 15 who already paid before the visit come pre-marked present, so the BP confirms 7 rather than all 22.',
-      ],
-      states: [
-        {
-          id: 'fresh',
-          label: 'Just opened',
-          description: 'The 15 who paid on their own are pre-marked; 7 still to record',
-          apply: demo.registerFresh,
-        },
-        {
-          id: 'almost',
-          label: 'Two mitra left to mark',
-          description: '20 recorded, 2 still unanswered',
-          apply: demo.registerAlmost,
-        },
-        {
-          id: 'done',
-          label: 'Register complete',
-          description: '20 present · 2 absent, each with her reason',
-          apply: demo.registerDone,
-        },
-      ],
-      flowsTo: [{ to: 'collection', label: 'Simpan & Lanjut — butuh 22/22' }],
-    },
-    {
-      id: 'collection',
-      title: 'Majelis Visit 2 — Penagihan',
-      component: lazyScreen(() => import('./screens/collection'), 'CollectionScreen'),
-      notes: [
-        'The same roster in the same order as the register before it, and the same card — only the row under the rule changes, from a register question to a bill. The list is static: recording an outcome updates the card where it stands instead of moving it to a “sudah ditagih” section, so the woman the BP is standing in front of stays where she was.',
-        'The stage’s job is to record an outcome for everyone, not to make everyone lunas — any recorded result counts, including “tidak bayar”. Tagih opens a page rather than a sheet; the 15 who settled before the visit carry the fact and no button, because there is nothing to tagih from them and offering the control would invite a double entry.',
-        'It GATES the next stage: Lanjut stays disabled until every mitra has an outcome on file, with the count of who is left printed above it. A visit that moves on with four mitra unasked leaves a queue nobody comes back to, because the BP has left the balai.',
-        'Quick filters — Semua / Sudah ditagih / Belum ditagih, each with its count — answer “who is left” without scrolling 22 cards looking for buttons. A filter, not a sort: the underlying order never changes, so the woman in front of her stays where she was.',
-      ],
-      states: [
-        {
-          id: 'full',
-          label: 'Full queue',
-          description: '7 mitra still to collect from, 15 already paid on their own',
-          apply: demo.queueFull,
-        },
-        {
-          id: 'half',
-          label: 'Halfway through',
-          description: 'Half the queue has an outcome, half has none yet',
-          apply: demo.queueHalf,
-        },
-        {
-          id: 'done',
-          label: 'Every outcome recorded',
-          description: 'Including one part-payment and one refusal with a promise to pay',
-          apply: demo.queueDone,
-        },
-        {
-          id: 'every-state',
-          label: 'One of every card state',
-          description:
-            'Lunas, sebagian, via Poket (full and short), tanggung renteng, tidak bayar, berhenti pinjam',
-          apply: demo.queueEveryOutcome,
-        },
-      ],
-      flowsTo: [
-        { to: 'collect', label: 'Tagih' },
-        { to: 'mitra', label: 'ketuk nama mitra' },
-        { to: 'growth', label: 'Lanjut' },
-      ],
-    },
-    {
-      id: 'growth',
-      title: 'Majelis Visit 3 — Penawaran',
-      component: lazyScreen(() => import('./screens/growth'), 'GrowthScreen'),
-      notes: [
-        'Offers come last, after the money. Pitching a savings product before collecting would mean asking a woman to open an account with the instalment she has not handed over yet.',
-        'Only mitra with a real recommendation appear — four rows out of 22, not a list for everyone — in the same order and the same card as the two stages before. The offer is settled ON the card: the sentence to say, the reason it is being said, and two equal buttons. The one follow-up each answer needs — “sudah diproses?” for a yes, a reason for a no — comes up as a sheet over the queue, so answering never leaves the room. The whole stage can be skipped: a tail that blocks the close of a visit has stopped being a tail.',
-      ],
-      states: [
-        {
-          id: 'none',
-          label: 'Nothing offered yet',
-          description: 'Four recommendations, none of them put to anyone',
-          apply: demo.offersNone,
-        },
-        {
-          id: 'mixed',
-          label: 'Every outcome at once',
-          description: 'One closed on the spot, one carried to next kumpulan, one declined',
-          apply: demo.offersMixed,
-        },
-        {
-          id: 'all',
-          label: 'Everyone answered',
-          description: 'The stage as the BP leaves it — no card still offering',
-          apply: demo.offersAll,
-        },
-      ],
-      flowsTo: [
-        { to: 'proof', label: 'Lanjut' },
-        { to: 'mitra', label: 'ketuk nama mitra' },
-      ],
-    },
-    {
-      id: 'proof',
-      title: 'Summary & Bukti',
-      component: lazyScreen(() => import('./screens/proof'), 'ProofScreen'),
-      notes: [
-        'The visit’s last step carries two things: a recap of what the room paid — the cash she is walking away with from this majelis, over a lunas / sebagian / belum bayar breakdown — and the photo that closes the visit. The recap is where the three working stages land as one figure she can settle against.',
-        'The cash figure counts only the mitra SHE recorded an outcome for, not the ones who had already settled through the app before she arrived — that money was never in her bag.',
-        'Two buttons: Kembali, and Simpan. Simpan finishes the visit and hands straight to the WhatsApp preview, where the group’s receipt is sent — the natural close of a majelis rather than an optional control competing with “finish”. The photo, the instruction that governs it and the geotag it comes back with are one card: the BP reads the instruction before she shoots and the read-back after.',
-      ],
-      states: [
-        {
-          id: 'empty',
-          label: 'No photo yet',
-          description: 'Submission blocked until the geotagged photo is taken',
-          apply: demo.visitProofEmpty,
-        },
-        {
-          id: 'captured',
-          label: 'Photo and location captured',
-          description: 'Every mitra has an outcome — the visit is ready to send',
-          apply: demo.visitProofCaptured,
-        },
-        {
-          id: 'gaps',
-          label: 'Sending with mitra unrecorded',
-          description: 'Seven never got an outcome — a warning, not a block',
-          apply: demo.visitProofGaps,
-        },
-      ],
-      flowsTo: [{ to: 'proof-wa', label: 'Simpan — ke pratinjau WhatsApp' }],
-    },
-    {
-      id: 'proof-wa',
-      title: 'Kirim Rekap ke Grup',
-      component: lazyScreen(() => import('./screens/proof-wa'), 'ProofWaScreen'),
-      notes: [
-        'The send, made its own step. A majelis settles together, so the room’s receipt goes to the group’s WhatsApp — the message the app already wrote, mitra by mitra, with the total received — and the BP has one trigger: Salin pesan.',
-        'She copies rather than sends: the app does not own the send, WhatsApp does, and she pastes it into the group herself.',
-        'Reached after the visit is already finished, so this is a courtesy she performs, not a gate the task waits on. “Tutup” leaves without copying; the schedule is where the visit ends either way.',
-      ],
-      flowsTo: [{ to: 'today', label: 'Salin / Tutup — kembali ke jadwal' }],
-    },
-    {
-      id: 'home-brief',
-      title: 'Home Visit 1 — Persiapan',
-      component: lazyScreen(() => import('./screens/home-brief'), 'HomeBriefScreen'),
-      states: [
-        {
-          id: 'fresh',
-          label: 'At the door',
-          description: 'Nothing recorded — the one question the whole visit turns on',
-          apply: demo.doorFresh,
-        },
-        {
-          id: 'mitra',
-          label: 'Met the mitra',
-          description: 'She answered herself — the visit carries straight on to Tagih',
-          apply: demo.doorMetMitra,
-        },
-        {
-          id: 'pj',
-          label: 'Met her guarantor',
-          description: 'Someone from the household, plus why the borrower was out',
-          apply: demo.doorMetPj,
-        },
-        {
-          id: 'nobody',
-          label: 'Nobody home',
-          description: 'The visit note and a revisit date here; Tagih is skipped entirely',
-          apply: demo.doorNobody,
-        },
-        {
-          id: 'stuck',
-          label: 'Moved three times already',
-          description: 'Only now does “Jadwal ulang” also offer to close the visit for good',
-          apply: demo.doorStuck,
-        },
-      ],
-      flowsTo: [
-        { to: 'home-visit', label: 'Lanjut — mitra / PJ ditemui' },
-        { to: 'home-proof', label: 'Lanjut — jika tidak ada orang (lewati Tagih)' },
-        { to: 'mitra', label: 'ketuk nama mitra' },
-      ],
-    },
-    {
-      id: 'home-visit',
-      title: 'Home Visit 2 — Tagih',
-      component: lazyScreen(() => import('./screens/home-visit'), 'HomeVisitScreen'),
-      notes: [
-        'The money step. Who she met was answered on Persiapan, so this page opens straight on the ledger and the bill — the ten-week strip and the total tagihan, the same components the mitra and collect pages draw — then the payment outcome: full, partial, or a recorded no.',
-        'Whether the money came from the mitra or her PJ does not change what gets recorded — the amount and the promise — so who handed it over is a tag, not a branch. "Nobody home" never reaches this step: a locked door has nothing to tagih, so that case takes its visit note on Persiapan and skips straight to Bukti & Kirim.',
-      ],
-      states: [
-        {
-          id: 'penuh',
-          label: 'Paid in full',
-          description: 'She cleared the whole bill herself — done on the tap',
-          apply: demo.payFull,
-        },
-        {
-          id: 'sebagian',
-          label: 'Part-payment',
-          description: 'Some of the bill, and a date for the rest — a balance nobody loses',
-          apply: demo.payPartial,
-        },
-        {
-          id: 'tanggung',
-          label: 'Covered by the group',
-          description: 'Tanggung renteng on a GL loan — a full settlement she did not fund',
-          apply: demo.payGroupCovered,
-        },
-        {
-          id: 'tidak',
-          label: 'Reached, did not pay',
-          description: 'A reason and a promise — an outcome, not an empty record',
-          apply: demo.payRefused,
-        },
-        {
-          id: 'keluar',
-          label: 'Dropping out',
-          description: 'Neither payment nor promise; recording it retracts everything else',
-          apply: demo.payDropOut,
-        },
-      ],
-      flowsTo: [{ to: 'home-proof', label: 'Lanjut' }],
-    },
-    {
-      id: 'home-proof',
-      title: 'Home Visit 3 — Bukti & Kirim',
-      component: lazyScreen(() => import('./screens/home-proof'), 'HomeProofScreen'),
-      notes: [
-        'The close of a home visit, mirroring the majelis visit’s Summary & Bukti: a recap of what the door paid — the amount received and where the bill stands — then the geotagged photo that proves the visit.',
-        'One CTA: Selesaikan Tugas. It finishes the visit and hands straight to the WhatsApp preview, where the mitra’s receipt is sent. That send used to be an optional second button opening a sheet; it is the next step now rather than a control competing with “finish”.',
-      ],
-      states: [
-        {
-          id: 'empty',
-          label: 'No photo yet',
-          description: 'The visit cannot be submitted until the door is photographed',
-          apply: demo.doorProofEmpty,
-        },
-        {
-          id: 'cash',
-          label: 'Cash collected at the door',
-          description: 'The summary shows the amount; the WhatsApp receipt carries it too',
-          apply: demo.doorProofCash,
-        },
-        {
-          id: 'no-cash',
-          label: 'Nothing collected',
-          description: 'The receipt carries the promise instead of a payment',
-          apply: demo.doorProofNoCash,
-        },
-        {
-          id: 'partial',
-          label: 'A part-payment at the door',
-          description: 'The receipt also carries the balance and the date promised',
-          apply: demo.receiptPartial,
-        },
-      ],
-      flowsTo: [{ to: 'home-proof-wa', label: 'Selesaikan Tugas — ke pratinjau WhatsApp' }],
-    },
-    {
-      id: 'home-proof-wa',
-      title: 'Kirim Bukti Bayar',
-      component: lazyScreen(() => import('./screens/home-proof-wa'), 'HomeProofWaScreen'),
-      notes: [
-        'The send, made its own step. A doorstep collection leaves no slip, so the mitra’s receipt — what was paid, and what is still owed with the date promised — is written for her, and the BP has one trigger: Salin pesan.',
-        'She copies rather than sends: the app does not own the send, WhatsApp does, and she pastes it into the chat herself.',
-        'Reached after the visit is already finished, so this is a courtesy she performs, not a gate the task waits on. “Tutup” leaves without copying; the schedule is where the visit ends either way.',
-      ],
-      flowsTo: [{ to: 'today', label: 'Salin / Tutup — kembali ke jadwal' }],
     },
     {
       id: 'settlement',
@@ -721,46 +488,6 @@ export const project: ProjectModule = {
         'Every row opens, because the argument is never about the amount — it is about what happened that week. A part-payment is the case that earns it: “Lunas” and “Belum Bayar” both hide the week she handed over half.',
       ],
       flowsTo: [{ to: 'loans', label: 'kembali' }],
-    },
-    {
-      id: 'collect',
-      title: 'Tagih Pembayaran',
-      component: lazyScreen(() => import('./screens/collect'), 'CollectScreen'),
-      notes: [
-        'The moment of negotiation. It opens on who she is over what she owes, drawn flat with no cards — the identity, the week-grid history and the bill read as one block — over the week grid carrying the date, outcome and amount of each recent week. Under it, the four ways she can pay as a menu.',
-        'Two levels, told apart by ground rather than a rule: the identity and bill on white up top, the choice on a lightest-grey floor below. Every option opens a bottom sheet carrying only what it needs — a reason, a promise, an amount, or for a full payment nothing but a confirm — because the bill it is against is still on the page behind the sheet. A payment short of the bill still cannot save without both a reason and a date for the rest, exactly as a “tidak bayar” cannot.',
-      ],
-      states: [
-        {
-          id: 'fresh',
-          label: 'Nothing recorded',
-          description: 'The page as “Tagih” opens it — the bill, and the menu of four ways to pay',
-          apply: demo.collectFresh,
-        },
-        {
-          id: 'partial',
-          label: 'Correcting a part-payment',
-          description: 'Reopens on the amount sheet, prefilled with what was taken and why',
-          apply: demo.collectPartial,
-        },
-        {
-          id: 'refused',
-          label: 'Correcting a recorded no',
-          description: 'Reopens on the refusal sheet, carrying the reason and the promised date',
-          apply: demo.collectRefused,
-        },
-        {
-          id: 'tanggung',
-          label: 'Covered by the group',
-          description: 'Tanggung renteng, offered on GL loans only — never on a Modal card',
-          apply: demo.collectGroupCovered,
-        },
-      ],
-      flowsTo: [
-        { to: 'collection', label: 'Terima Tunai' },
-        { to: 'collection', label: 'Simpan Catatan — tidak bayar' },
-        { to: 'mitra', label: 'ketuk nama mitra' },
-      ],
     },
     {
       id: 'ladder',

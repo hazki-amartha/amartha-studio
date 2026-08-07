@@ -10,11 +10,6 @@ export const project: ProjectModule = {
       title: 'Branch Summary',
       component: lazyScreen(() => import('./screens/branch-summary'), 'BranchSummaryScreen'),
       entry: true,
-      flowsTo: [
-        { to: 'morning-report', label: 'Isi sekarang' },
-        { to: 'evening-report', label: 'Isi sekarang' },
-        { to: 'report-history', label: 'Riwayat' },
-      ],
     },
     {
       id: 'morning-report',

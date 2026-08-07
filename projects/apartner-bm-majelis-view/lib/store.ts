@@ -10,6 +10,7 @@
 // which is the outcome this whole direction is built to record properly.
 
 import { useSyncExternalStore } from 'react'
+import type { BookUnit } from './briefing-live'
 import { COMMS_SEED, type Comm } from './comms'
 import { MAJELIS, PREPAID, findMitra, isSelfServe, outstandingOf, type Mitra } from './data'
 import {
@@ -181,6 +182,18 @@ export interface Settlement {
   closing: boolean
 }
 
+/** The cuts of the morning briefing the presentation states switch between. */
+export type MorningVariant = 'default' | 'stepper' | 'live' | 'merged' | 'pointer'
+
+/**
+ * The cuts of the evening briefing. Three, and they line up one-for-one with
+ * the morning's first three: the same question — is the meeting a printed
+ * script or does the handset hold the numbers — asked at the other end of the
+ * day. Deliberately NOT five: the morning's Alt-4 and Alt-5 are about folding
+ * TUGAS into the target, and the evening has no tugas to hand out.
+ */
+export type EveningVariant = 'default' | 'stepper' | 'live'
+
 export interface AppState {
   /** mitraId → hadir/tidak. Absent = not marked yet. */
   attendance: Record<string, Attendance>
@@ -319,6 +332,50 @@ export interface AppState {
    *  In the store rather than the screen because the Tugas card has to read the
    *  state back after she navigates away from the briefing that set it. */
   doneBriefings: string[]
+  /**
+   * Which cut of the morning briefing to draw. Three alternatives the designer
+   * flips between with the presentation states, not something the BM ever picks:
+   * - `default` — the single-page checklist (Alt-1).
+   * - `stepper` — the same running order, one card per page behind a stepper
+   *   (Alt-2), the shape the MV/HV visits use.
+   * - `live`    — Alt-2's stepper, but the repayment, disbursement and per-BP
+   *   tugas steps are worked INSIDE the app on dummy data instead of pointing
+   *   the BM out to NG-MIS (Alt-3).
+   * - `merged`  — Alt-3 without a tugas step: each BP's stops for today ride
+   *   inside her own repayment and disbursement card, with what each adds
+   *   (Alt-4).
+   * - `pointer` — Alt-4 with the meters dropped, the gap stated as a sentence
+   *   she can read out (Alt-5).
+   */
+  morningVariant: MorningVariant
+
+  /**
+   * What the morning's repayment and disbursement targets are COUNTED IN — the
+   * "b" of Alt-3b / 4b / 5b. Rupiah is the books' own unit; mitra is the same
+   * day counted in women, so a shortfall names people a BP can be sent to
+   * rather than an amount somebody has to convert first.
+   *
+   * A field of its own rather than three more variants: the unit is orthogonal
+   * to the cut, and folding it in would have made `MorningVariant` a list of
+   * eight names that mean two different things.
+   *
+   * Only the three in-app cuts read it. Alt-1 and Alt-2 print a script and hold
+   * no figures at all, so there is nothing there to count either way.
+   */
+  morningUnit: BookUnit
+
+  /**
+   * Which cut of the EVENING briefing draws.
+   *
+   * - `default` — the whole closing on one page: absensi, then the three
+   *   subjects as ticked script cards with their NG-MIS paths (Alt-1).
+   * - `stepper` — the same script, one subject per page behind the stage bar
+   *   (Alt-2).
+   * - `live`    — Alt-2's stepper with the numbers ON the handset: awal hari
+   *   against setelah closing, and the named mitra behind every movement
+   *   (Alt-3).
+   */
+  eveningVariant: EveningVariant
 
   openHome: string
   /**
@@ -527,6 +584,9 @@ const initial: AppState = {
   majelisStatus: null,
   majelisBp: null,
   doneBriefings: [],
+  morningVariant: 'default',
+  morningUnit: 'rupiah',
+  eveningVariant: 'default',
   openHome: 't3',
   metWith: {},
   payMode: {},

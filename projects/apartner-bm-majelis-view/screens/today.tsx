@@ -44,19 +44,46 @@ export function TodayScreen() {
     </header>
   )
 
+  // Split on the one line that matters when she opens the app: which briefing
+  // does she still owe. A closed briefing drops into Selesai — the same move the
+  // BP tugas page makes with a finished visit — so "Belum selesai" is only ever
+  // the work still ahead of her.
+  const open = BRIEFINGS.filter((b) => !s.doneBriefings.includes(b.id))
+  const done = BRIEFINGS.filter((b) => s.doneBriefings.includes(b.id))
+
   return (
     <AppScreen topBar={header}>
-      <Overline>Belum selesai</Overline>
-      <div className="flex flex-col gap-8 pb-16">
-        {BRIEFINGS.map((briefing) => (
-          <BriefingRow
-            key={briefing.id}
-            briefing={briefing}
-            done={s.doneBriefings.includes(briefing.id)}
-            onOpen={() => flow.go(briefing.screen)}
-          />
-        ))}
-      </div>
+      {open.length > 0 ? (
+        <>
+          <Overline>Belum selesai</Overline>
+          <div className="flex flex-col gap-8">
+            {open.map((briefing) => (
+              <BriefingRow
+                key={briefing.id}
+                briefing={briefing}
+                done={false}
+                onOpen={() => flow.go(briefing.screen)}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {done.length > 0 ? (
+        <>
+          <Overline>Selesai</Overline>
+          <div className="flex flex-col gap-8 pb-16">
+            {done.map((briefing) => (
+              <BriefingRow
+                key={briefing.id}
+                briefing={briefing}
+                done
+                onOpen={() => flow.go(briefing.screen)}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
 
       <TabBar active="today" />
     </AppScreen>

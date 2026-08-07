@@ -309,7 +309,10 @@ there is no reason to skip them, and no reason to do more.
 
 - `npm run lint` — clean (catches arbitrary values / off-system classes).
 - `npm run build` — clean (type-checks every screen, so every `go()` target and
-  import is verified).
+  import is verified). Locally it builds into `.next-build`, never the `.next`
+  the dev server is live on — plain `next build` used to wipe that folder and
+  leave the designer's preview link broken until someone restarted the server.
+  On Vercel and in CI it is exactly `next build`.
 - `npm run check:flows` — unique `entry`, unique screen ids, and every
   `flowsTo.to` resolves.
 
@@ -371,10 +374,25 @@ it the "preview link".
 **One server, always on port 4000 — `npm run dev`.** The preview link is always
 `http://localhost:4000/p/<slug>`, this session and every other one.
 
-You do not have to check whether a server is already running: `npm run dev` is
-**idempotent**. If one is up it prints the link and starts nothing; if none is,
-it starts one pinned to 4000. So run it whenever you need the link, and never
+You do not have to check whether a server is already running, or whether the one
+that is running still works: `npm run dev` is **idempotent and self-healing**. It
+reuses a server only if that server actually answers HTTP *and* was started from
+this checkout; a crashed one, a hung one, or a leftover from another folder is
+replaced instead of advertised. So run it whenever you need the link, and never
 reach for `next dev` directly — that is what used to start rivals.
+
+**Always run it with `--warm <path>` and only hand over the link it prints at
+the end.** Next compiles routes on demand, so a link given the instant the
+server spawns can sit blank for tens of seconds — which is what "the link
+doesn't work" usually means. `--warm` makes the script hold the link back until
+that exact page has answered, so the designer's first click is instant:
+
+```bash
+npm run dev -- --warm /p/<slug>
+```
+
+Never paste the preview link from memory or from the "already running" line
+before the `Preview:` line appears — waiting for it is the whole point.
 
 Why this is a script and not a habit (`scripts/dev.mjs` spells it out): two
 `next dev` processes on this folder share one `.next` cache and overwrite each
