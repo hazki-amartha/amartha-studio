@@ -306,7 +306,7 @@ export interface BpTask {
 
 /** The tint each kind wears — the BP app's palette: MV purple (servicing),
  *  HV red (arrears), Sos blue, FU orange. */
-const KIND_TONE: Record<BpTaskKind, string> = {
+export const KIND_TONE: Record<BpTaskKind, string> = {
   MV: 'bg-primary-50 text-primary-500',
   HV: 'bg-red-50 text-red-500',
   Sos: 'bg-blue-50 text-blue-500',
