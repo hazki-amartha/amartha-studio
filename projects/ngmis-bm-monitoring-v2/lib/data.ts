@@ -1,10 +1,10 @@
-// Mock data for the BM monitoring v2 prototype.
+// Mock data for the NGMIS Daily Monitoring prototype.
 //
-// The activities and columns follow the reference scorecard ("Bekasi 1 (sample)",
-// 07-Aug-2026), transposed: where the reference put BPs across the top and the
-// metrics down the side, here the BPs are the ROWS and each activity's metrics
-// are the columns. Six BPs (a full branch roster), kept small elsewhere (§3):
-// five history rows, because the history list shows five.
+// The scorecard is BPs-across-the-top, always: each section names its ROWS (the
+// things being counted) and its MEASURES (the columns each row carries), and
+// every BP gets that block of measures under their name. Six BPs — a full branch
+// roster — kept small elsewhere (§3): five history rows, because the history
+// list shows five.
 
 export interface Bp {
   id: string
@@ -35,166 +35,241 @@ export const LOCATION = {
 export const BRANCH_LABEL = LOCATION.branch
 export const REPORT_DATE = '07 Aug 2026'
 
-/** How the scorecard is laid out: BPs down the side (rows) or across the top
- *  (columns, the original reference layout). A view preference, not per-page. */
-export type Orientation = 'bp-rows' | 'bp-columns'
+/** One column inside a BP's block.
+ *
+ *  `role` is what the figure means, and it is what drives the reading aids: an
+ *  `achievement` is compared against the row's `target` — shown as a percentage
+ *  and lifted to orange when it falls short — while `outstanding` reads orange
+ *  the moment it is above zero. `standing` figures (mitra aktif) are neither. */
+export type MeasureRole = 'standing' | 'target' | 'achievement' | 'outstanding'
 
-/** A figure, optionally out of a population. `total` present → the cell reads
- *  "count/total (pct%)"; absent → a bare count (targets, potential mitra). */
-export interface Metric {
-  count: number
-  total?: number
-}
-
-const m = (count: number, total?: number): Metric => ({ count, total })
-
-export interface ScorecardColumn {
+export interface Measure {
   id: string
   header: string
   kind: 'count' | 'rupiah'
+  role: MeasureRole
+}
+
+/** One row of a section — `values` is per BP, aligned to the section's measures.
+ *  `null` means the row doesn't carry that measure (BTC has no daily target). */
+export interface SectionRow {
+  id: string
+  label: string
+  /** Set where the row's figures mean something other than the column header
+   *  says — Sosialisasi's target and achievement are potential leads. */
+  note?: string
+  values: Record<string, (number | null)[]>
 }
 
 export interface ScorecardSection {
   id: string
   title: string
-  columns: ScorecardColumn[]
-  /** Per BP id → per column id → the figure. */
-  rows: Record<string, Record<string, Metric>>
+  measures: Measure[]
+  rows: SectionRow[]
 }
+
+const TASK_MEASURES: Measure[] = [
+  { id: 'target', header: 'Target', kind: 'count', role: 'target' },
+  { id: 'completed', header: 'Completed', kind: 'count', role: 'achievement' },
+]
+
+const REPAYMENT_MEASURES: Measure[] = [
+  { id: 'active', header: 'Total Mitra Aktif', kind: 'count', role: 'standing' },
+  { id: 'target', header: 'Target hari ini', kind: 'count', role: 'target' },
+  { id: 'achievement', header: 'Achievement hari ini', kind: 'count', role: 'achievement' },
+]
+
+const DISBURSEMENT_MEASURES: Measure[] = [
+  { id: 'target', header: 'Target hari ini', kind: 'count', role: 'target' },
+  { id: 'achievement', header: 'Achievement hari ini', kind: 'count', role: 'achievement' },
+]
+
+const CASH_MEASURES: Measure[] = [
+  { id: 'target', header: 'Target harian', kind: 'rupiah', role: 'target' },
+  { id: 'collected', header: 'Terkumpul', kind: 'rupiah', role: 'achievement' },
+  { id: 'settled', header: 'Sudah disetor', kind: 'rupiah', role: 'standing' },
+  { id: 'outstanding', header: 'Belum disetor', kind: 'rupiah', role: 'outstanding' },
+]
 
 export const SECTIONS: ScorecardSection[] = [
   {
-    id: 'majelis-visit',
-    title: 'Majelis Visit',
-    columns: [
-      { id: 'target', header: 'Target', kind: 'count' },
-      { id: 'completed', header: 'Completed', kind: 'count' },
-      // A majelis holds 15–20 mitra, so "paid at majelis" is counted over the
-      // whole membership of the majelis visited, not over the visits.
-      { id: 'paid', header: 'Mitra Paid at Majelis', kind: 'count' },
-      { id: 'dpd0', header: "Mitra DPD-0, didn't pay", kind: 'count' },
+    id: 'task',
+    title: 'Task',
+    measures: TASK_MEASURES,
+    rows: [
+      {
+        id: 'hv',
+        label: 'HV',
+        values: {
+          'bp-a': [6, 4], 'bp-b': [8, 3], 'bp-c': [5, 5],
+          'bp-d': [6, 5], 'bp-e': [7, 4], 'bp-f': [5, 3],
+        },
+      },
+      {
+        id: 'mv',
+        label: 'MV',
+        values: {
+          'bp-a': [5, 5], 'bp-b': [6, 6], 'bp-c': [4, 3],
+          'bp-d': [6, 6], 'bp-e': [5, 4], 'bp-f': [4, 4],
+        },
+      },
+      {
+        id: 'sos',
+        label: 'SOS',
+        values: {
+          'bp-a': [3, 2], 'bp-b': [4, 1], 'bp-c': [2, 2],
+          'bp-d': [3, 3], 'bp-e': [4, 2], 'bp-f': [2, 1],
+        },
+      },
+      {
+        id: 'fu',
+        label: 'FU',
+        values: {
+          'bp-a': [4, 3], 'bp-b': [5, 2], 'bp-c': [3, 3],
+          'bp-d': [4, 4], 'bp-e': [5, 3], 'bp-f': [3, 2],
+        },
+      },
+      {
+        id: 'uk',
+        label: 'UK',
+        values: {
+          'bp-a': [5, 4], 'bp-b': [1, 1], 'bp-c': [3, 2],
+          'bp-d': [4, 4], 'bp-e': [2, 1], 'bp-f': [3, 2],
+        },
+      },
     ],
-    rows: {
-      'bp-a': { target: m(5), completed: m(5), paid: m(68, 85), dpd0: m(17, 85) },
-      'bp-b': { target: m(6), completed: m(6), paid: m(92, 108), dpd0: m(12, 108) },
-      'bp-c': { target: m(4), completed: m(3), paid: m(41, 51), dpd0: m(8, 51) },
-      'bp-d': { target: m(6), completed: m(6), paid: m(88, 102), dpd0: m(10, 102) },
-      'bp-e': { target: m(5), completed: m(4), paid: m(55, 72), dpd0: m(14, 72) },
-      'bp-f': { target: m(4), completed: m(4), paid: m(60, 68), dpd0: m(6, 68) },
-    },
   },
   {
-    id: 'sosialisasi',
-    title: 'Sosialisasi',
-    columns: [
-      { id: 'target', header: 'Target', kind: 'count' },
-      { id: 'completed', header: 'Completed', kind: 'count' },
-      { id: 'potential', header: 'Potential Mitra Brought In', kind: 'count' },
+    id: 'repayment',
+    title: 'Repayment',
+    measures: REPAYMENT_MEASURES,
+    rows: [
+      {
+        id: 'dpd-0',
+        label: 'DPD 0',
+        values: {
+          'bp-a': [85, 68, 60], 'bp-b': [108, 92, 88], 'bp-c': [51, 41, 33],
+          'bp-d': [102, 88, 84], 'bp-e': [72, 55, 47], 'bp-f': [68, 60, 55],
+        },
+      },
+      {
+        id: 'dpd-1-30',
+        label: 'DPD 1–30',
+        values: {
+          'bp-a': [17, 10, 6], 'bp-b': [12, 8, 7], 'bp-c': [8, 6, 3],
+          'bp-d': [10, 7, 6], 'bp-e': [14, 9, 5], 'bp-f': [6, 4, 4],
+        },
+      },
+      {
+        id: 'dpd-31-90',
+        label: 'DPD 31–90',
+        values: {
+          'bp-a': [6, 3, 1], 'bp-b': [4, 2, 2], 'bp-c': [5, 3, 1],
+          'bp-d': [3, 2, 2], 'bp-e': [7, 4, 2], 'bp-f': [2, 1, 1],
+        },
+      },
+      {
+        // BTC is cleared-in-full, not a daily quota — no target is set for it.
+        id: 'btc',
+        label: 'BTC',
+        values: {
+          'bp-a': [9, null, 1], 'bp-b': [7, null, 0], 'bp-c': [11, null, 2],
+          'bp-d': [8, null, 2], 'bp-e': [10, null, 1], 'bp-f': [5, null, 1],
+        },
+      },
     ],
-    rows: {
-      'bp-a': { target: m(3), completed: m(2), potential: m(6) },
-      'bp-b': { target: m(4), completed: m(1), potential: m(3) },
-      'bp-c': { target: m(2), completed: m(2), potential: m(5) },
-      'bp-d': { target: m(3), completed: m(3), potential: m(7) },
-      'bp-e': { target: m(4), completed: m(2), potential: m(4) },
-      'bp-f': { target: m(2), completed: m(1), potential: m(2) },
-    },
   },
   {
-    id: 'uk',
-    title: 'UK',
-    columns: [
-      { id: 'target', header: 'Target', kind: 'count' },
-      { id: 'completed', header: 'Completed', kind: 'count' },
-      { id: 'approved', header: 'UK Approved (NoA)', kind: 'count' },
-      { id: 'disbursement', header: 'Disbursement Amount', kind: 'rupiah' },
+    id: 'disbursement',
+    title: 'Disbursement',
+    measures: DISBURSEMENT_MEASURES,
+    rows: [
+      {
+        id: 'uk-approved',
+        label: 'UK Approved',
+        values: {
+          'bp-a': [4, 3], 'bp-b': [1, 1], 'bp-c': [2, 2],
+          'bp-d': [4, 3], 'bp-e': [1, 1], 'bp-f': [2, 2],
+        },
+      },
+      {
+        id: 'disbursement-amount',
+        label: 'Disbursement amount',
+        values: {
+          'bp-a': [50_000_000, 45_000_000], 'bp-b': [15_000_000, 15_000_000],
+          'bp-c': [35_000_000, 30_000_000], 'bp-d': [45_000_000, 40_000_000],
+          'bp-e': [15_000_000, 12_000_000], 'bp-f': [30_000_000, 28_000_000],
+        },
+      },
+      {
+        id: 'sosialisasi',
+        label: 'Sosialisasi',
+        note: 'Target & achievement dihitung dalam potential lead.',
+        values: {
+          'bp-a': [8, 6], 'bp-b': [6, 3], 'bp-c': [5, 5],
+          'bp-d': [8, 7], 'bp-e': [6, 4], 'bp-f': [4, 2],
+        },
+      },
     ],
-    rows: {
-      'bp-a': { target: m(5), completed: m(4), approved: m(3, 4), disbursement: m(45_000_000) },
-      'bp-b': { target: m(1), completed: m(1), approved: m(1, 1), disbursement: m(15_000_000) },
-      'bp-c': { target: m(3), completed: m(2), approved: m(2, 2), disbursement: m(30_000_000) },
-      'bp-d': { target: m(4), completed: m(4), approved: m(3, 4), disbursement: m(40_000_000) },
-      'bp-e': { target: m(2), completed: m(1), approved: m(1, 1), disbursement: m(12_000_000) },
-      'bp-f': { target: m(3), completed: m(2), approved: m(2, 2), disbursement: m(28_000_000) },
-    },
-  },
-  {
-    id: 'home-visit',
-    title: 'Home Visit',
-    columns: [
-      { id: 'target', header: 'Target', kind: 'count' },
-      { id: 'completed', header: 'Completed (HV Submitted)', kind: 'count' },
-      { id: 'payment', header: 'Resulted in Payment (Mitra)', kind: 'count' },
-      { id: 'collected', header: 'Rp collected', kind: 'rupiah' },
-      { id: 'ptp', header: 'PTP Commitment', kind: 'count' },
-      { id: 'btc', header: 'BTC (fully cleared)', kind: 'count' },
-    ],
-    rows: {
-      'bp-a': {
-        target: m(6), completed: m(4), payment: m(3, 4), collected: m(2_500_000),
-        ptp: m(1, 4), btc: m(1, 4),
-      },
-      'bp-b': {
-        target: m(8), completed: m(3), payment: m(2, 3), collected: m(1_800_000),
-        ptp: m(1, 3), btc: m(0, 3),
-      },
-      'bp-c': {
-        target: m(5), completed: m(5), payment: m(4, 5), collected: m(3_200_000),
-        ptp: m(1, 5), btc: m(2, 5),
-      },
-      'bp-d': {
-        target: m(6), completed: m(5), payment: m(4, 5), collected: m(3_000_000),
-        ptp: m(2, 5), btc: m(2, 5),
-      },
-      'bp-e': {
-        target: m(7), completed: m(4), payment: m(2, 4), collected: m(1_500_000),
-        ptp: m(1, 4), btc: m(1, 4),
-      },
-      'bp-f': {
-        target: m(5), completed: m(3), payment: m(2, 3), collected: m(1_900_000),
-        ptp: m(1, 3), btc: m(1, 3),
-      },
-    },
   },
   {
     id: 'cash-collection',
-    title: 'Cash Collection',
-    columns: [
-      // The day's collectible across all assigned tasks.
-      { id: 'target', header: 'Target (Rp)', kind: 'rupiah' },
-      // Collected from tasks the BP has completed.
-      { id: 'collected', header: 'Terkumpul (Rp)', kind: 'rupiah' },
-      // Settled into Amartha's accounts — never more than collected; the gap is
-      // cash the BP is still holding.
-      { id: 'settled', header: 'Sudah di setor (Rp)', kind: 'rupiah' },
+    title: 'Cash collection',
+    measures: CASH_MEASURES,
+    rows: [
+      {
+        id: 'cash-collection',
+        label: 'Cash collection',
+        values: {
+          'bp-a': [6_500_000, 5_200_000, 5_000_000, 200_000],
+          'bp-b': [6_000_000, 5_800_000, 5_800_000, 0],
+          'bp-c': [5_500_000, 3_200_000, 2_500_000, 700_000],
+          'bp-d': [7_000_000, 6_400_000, 6_000_000, 400_000],
+          'bp-e': [5_000_000, 3_100_000, 3_000_000, 100_000],
+          'bp-f': [4_500_000, 3_900_000, 3_500_000, 400_000],
+        },
+      },
     ],
-    rows: {
-      'bp-a': { target: m(6_500_000), collected: m(5_200_000), settled: m(5_000_000) },
-      'bp-b': { target: m(6_000_000), collected: m(5_800_000), settled: m(5_800_000) },
-      'bp-c': { target: m(5_500_000), collected: m(3_200_000), settled: m(2_500_000) },
-      'bp-d': { target: m(7_000_000), collected: m(6_400_000), settled: m(6_000_000) },
-      'bp-e': { target: m(5_000_000), collected: m(3_100_000), settled: m(3_000_000) },
-      'bp-f': { target: m(4_500_000), collected: m(3_900_000), settled: m(3_500_000) },
-    },
   },
 ]
+
+/** The disbursement-amount row is money even though its section's other rows are
+ *  counts — the measure's own `kind` can't tell them apart, so the row does. */
+const RUPIAH_ROWS = new Set(['disbursement-amount'])
+
+export function isRupiah(section: ScorecardSection, row: SectionRow, measure: Measure): boolean {
+  return measure.kind === 'rupiah' || (section.id === 'disbursement' && RUPIAH_ROWS.has(row.id))
+}
 
 /** "Rp45.000.000" — grouped, the way the reference prints money. */
 export function rupiah(value: number): string {
   return `Rp${value.toLocaleString('id-ID')}`
 }
 
-/** The percentage a figure carries, floored; null where it has no population. */
-export function metricPct(metric: Metric): number | null {
-  if (metric.total === undefined) return null
-  return metric.total === 0 ? 0 : Math.round((metric.count / metric.total) * 100)
+/** The value a row carries for a BP under a given measure; null where the row
+ *  doesn't carry it. */
+export function valueAt(
+  section: ScorecardSection,
+  row: SectionRow,
+  bpId: string,
+  measureId: string,
+): number | null {
+  const index = section.measures.findIndex((me) => me.id === measureId)
+  if (index < 0) return null
+  return row.values[bpId]?.[index] ?? null
 }
 
-/** How a single figure reads: "68/85 (80%)", "5", or a rupiah amount. */
-export function metricText(metric: Metric, kind: ScorecardColumn['kind']): string {
-  if (kind === 'rupiah') return rupiah(metric.count)
-  const pct = metricPct(metric)
-  return pct === null ? String(metric.count) : `${metric.count}/${metric.total} (${pct}%)`
+/** An achievement as a percentage of its row's target — null where either is
+ *  missing, so BTC and the standing figures show no percentage. */
+export function achievementPct(
+  section: ScorecardSection,
+  row: SectionRow,
+  bpId: string,
+  value: number,
+): number | null {
+  const target = valueAt(section, row, bpId, 'target')
+  if (target === null || target === 0) return null
+  return Math.round((value / target) * 100)
 }
 
 // --- Briefings --------------------------------------------------------------
@@ -217,22 +292,27 @@ export const BRIEFING_INTRO: Record<BriefingKind, string> = {
 
 /**
  * The scorecard as it reads for a briefing. A morning briefing happens BEFORE
- * the BPs do any fieldwork, so only the targets are known — Completed and every
- * result figure is 0. The evening briefing reads the full day.
+ * the BPs do any fieldwork, so only what is already known survives — targets and
+ * the standing mitra-aktif counts. Every achievement, and every rupiah not yet
+ * collected, reads 0.
  */
 export function sectionsForBriefing(kind: BriefingKind): ScorecardSection[] {
   if (kind === 'evening') return SECTIONS
   return SECTIONS.map((section) => ({
     ...section,
-    rows: Object.fromEntries(
-      Object.entries(section.rows).map(([bpId, cells]) => {
-        const zeroed: Record<string, Metric> = {}
-        for (const col of section.columns) {
-          zeroed[col.id] = col.id === 'target' ? cells[col.id] : m(0)
-        }
-        return [bpId, zeroed]
-      }),
-    ),
+    rows: section.rows.map((row) => ({
+      ...row,
+      values: Object.fromEntries(
+        Object.entries(row.values).map(([bpId, values]) => [
+          bpId,
+          values.map((value, i) => {
+            const role = section.measures[i].role
+            if (value === null) return null
+            return role === 'standing' || role === 'target' ? value : 0
+          }),
+        ]),
+      ),
+    })),
   }))
 }
 
@@ -257,11 +337,11 @@ export function commentLabel(key: string): { section: string; bp: string } {
  *  of empty boxes. Only a handful of cells carry a note — a real briefing
  *  comments where something needs saying, not on every figure. */
 export const SAMPLE_COMMENTS: Record<string, string> = {
-  [commentKey('majelis-visit', 'bp-a')]: '17 mitra DPD-0 belum bayar — dampingi Sukma di majelis besok.',
-  [commentKey('sosialisasi', 'bp-b')]: 'Baru 1 dari 4. Dorong minimal 1 majelis baru minggu ini.',
-  [commentKey('uk', 'bp-e')]: '1 pengajuan belum di-approve, kejar berkas ke Fadhil.',
-  [commentKey('home-visit', 'bp-c')]: 'HV bagus (5/5), tapi Cenli belum tutup hari — ingatkan.',
-  [commentKey('home-visit', 'bp-b')]: 'BTC 0 — tidak ada yang lunas. Review daftar HV besok.',
+  [commentKey('task', 'bp-b')]: 'HV baru 3 dari 8 dan SOS 1 dari 4 — susun ulang rute besok.',
+  [commentKey('repayment', 'bp-a')]: 'DPD 0 meleset 8 mitra. Dampingi Sukma di majelis besok pagi.',
+  [commentKey('repayment', 'bp-c')]: 'DPD 31–90 baru 1 dari 3, dan Cenli belum tutup hari — ingatkan.',
+  [commentKey('disbursement', 'bp-e')]: '1 UK belum cair, kejar berkas ke Fadhil.',
+  [commentKey('cash-collection', 'bp-c')]: 'Rp700.000 belum disetor — setor pagi ini sebelum ke lapangan.',
 }
 
 export interface HistoryEntry {

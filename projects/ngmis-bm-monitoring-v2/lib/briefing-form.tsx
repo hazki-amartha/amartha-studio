@@ -24,8 +24,8 @@ import { useFlow } from '@/platform/runtime'
 import { Button, Modal } from '@/design-system/components'
 import { Camera, Check, Trash } from '@/design-system/icons'
 import { BmShell } from './shell'
-import { Panel, PanelHeading, PageHeading, SegmentedControl } from './ui'
-import { Scorecard, CommentInput, ORIENTATION_OPTIONS, type CommentMode } from './scorecard'
+import { Panel, PanelHeading, PageHeading } from './ui'
+import { Scorecard, CommentInput, type CommentMode } from './scorecard'
 import {
   BPS,
   BRANCH_LABEL,
@@ -36,9 +36,8 @@ import {
   commentLabel,
   sectionsForBriefing,
   type BriefingKind,
-  type Orientation,
 } from './data'
-import { store, useFlowState } from './store'
+import { store } from './store'
 
 /** Where the commentary lives in this variant of the form. */
 export type CommentStyle = 'inline' | 'dedicated' | 'dialog'
@@ -55,7 +54,6 @@ export function BriefingForm({
   variantLabel?: string
 }) {
   const flow = useFlow()
-  const { orientation } = useFlowState()
   const [comments, setComments] = useState<Record<string, string>>({})
   const [photoAttached, setPhotoAttached] = useState(false)
   // The dialog variant edits into a draft, so Batal leaves the note as it was.
@@ -111,16 +109,7 @@ export function BriefingForm({
         />
       }
     >
-      <div className="flex justify-end pb-16">
-        <SegmentedControl
-          label="Tampilan tabel"
-          value={orientation}
-          options={ORIENTATION_OPTIONS}
-          onChange={(v) => store.set({ orientation: v as Orientation })}
-        />
-      </div>
-
-      <Scorecard sections={sectionsForBriefing(kind)} orientation={orientation} comment={comment} />
+      <Scorecard sections={sectionsForBriefing(kind)} comment={comment} />
 
       {commentStyle === 'dedicated' ? (
         <div className="pt-16">

@@ -10,7 +10,7 @@ import { useFlow } from '@/platform/runtime'
 import { Badge, Button } from '@/design-system/components'
 import { Camera } from '@/design-system/icons'
 import { BmShell } from '../lib/shell'
-import { Scorecard, ClosedDayPanel, ORIENTATION_OPTIONS } from '../lib/scorecard'
+import { Scorecard, ClosedDayPanel } from '../lib/scorecard'
 import {
   DataTable,
   DateFilter,
@@ -19,7 +19,6 @@ import {
   Panel,
   PanelHeading,
   PageHeading,
-  SegmentedControl,
   Select,
   SunGlyph,
   Tabs,
@@ -33,7 +32,6 @@ import {
   REPORT_DATE,
   type BriefingKind,
   type HistoryEntry,
-  type Orientation,
 } from '../lib/data'
 import { store, useFlowState } from '../lib/store'
 
@@ -90,7 +88,7 @@ const HISTORY_COLUMNS: Column[] = [
 
 export function DashboardScreen() {
   const flow = useFlow()
-  const { tab, submitted, orientation } = useFlowState()
+  const { tab, submitted } = useFlowState()
   const [bpFilter, setBpFilter] = useState('all')
   const [day, setDay] = useState('2026-08-07')
 
@@ -200,24 +198,16 @@ export function DashboardScreen() {
         <>
           {/* Monitoring filters — day picker and BP, controls only, no labels —
               with the row/column view toggle on the right. */}
-          <div className="flex flex-wrap items-center justify-between gap-8 pb-16">
-            <div className="flex flex-wrap items-center gap-8">
-              <DateFilter label="Tanggal" value={day} onChange={setDay} />
-              <Select label="Business Partner" value={bpFilter} onChange={setBpFilter} options={BP_OPTIONS} />
-            </div>
-            <SegmentedControl
-              label="Tampilan tabel"
-              value={orientation}
-              options={ORIENTATION_OPTIONS}
-              onChange={(v) => store.set({ orientation: v as Orientation })}
-            />
+          <div className="flex flex-wrap items-center gap-8 pb-16">
+            <DateFilter label="Tanggal" value={day} onChange={setDay} />
+            <Select label="Business Partner" value={bpFilter} onChange={setBpFilter} options={BP_OPTIONS} />
           </div>
 
           <div className="flex flex-wrap items-baseline justify-between gap-16 pb-16">
             <span className="text-16 font-bold text-default">Aktivitas hari ini</span>
             <span className="text-12 text-caption">Diperbarui hari ini, {REPORT_DATE}, 16.20 WIB</span>
           </div>
-          <Scorecard bps={bps} orientation={orientation} />
+          <Scorecard bps={bps} />
           <div className="pt-16">
             <ClosedDayPanel bps={bps} />
           </div>
