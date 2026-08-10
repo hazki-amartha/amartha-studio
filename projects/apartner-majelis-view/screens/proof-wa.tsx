@@ -5,28 +5,26 @@
 // A majelis settles TOGETHER: the women hold each other to it, so the room's
 // receipt goes to the group, not to ops. This screen shows the message the app
 // has already written — mitra by mitra, with the total received — and hands the
-// BP one trigger: Salin pesan. The message is a read-back, not a field;
+// BP one trigger: Kirim pesan. The message is a read-back, not a field;
 // everything in it is derived from what she just recorded, so the version the
 // app writes is the correct one and an editable box would only invite a
 // mistake she did not come here to make.
 //
-// The BP COPIES rather than sends, and the difference is the point: the app
-// does not own the send, WhatsApp does. She pastes it into the group herself,
-// which is also why the prototype can show this at all — an app that really
-// opened WhatsApp would throw the viewer out of the device frame (CLAUDE.md §3).
+// "Kirim" opens the share sheet rather than WhatsApp itself — see ShareSheet in
+// lib/ui.tsx for why the sheet is drawn instead of real (CLAUDE.md §3).
 //
 // It is reached from Summary & Bukti, after the visit is already finished — so
 // this is a courtesy she performs, not a gate the task waits on. "Tutup" leaves
-// without copying; the schedule is where the visit ends either way.
+// without sending; the schedule is where the visit ends either way.
 
 import { useState } from 'react'
 import { Button, NavigationHeader } from '@/design-system/components'
-import { Copy } from '@/design-system/icons'
+import { PaperPlaneTilt } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS, rupiah } from '../lib/data'
 import { collectStatus, collectedTotal, paidOf, pendingMembers, useApp, openMajelisEntry } from '../lib/store'
 import { IconCheck } from '../lib/icons'
-import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
+import { AppScreen, SectionTitle, ShareSheet, StickyBar } from '../lib/ui'
 
 export function ProofWaScreen() {
   const flow = useFlow()
@@ -34,6 +32,7 @@ export function ProofWaScreen() {
   const group = openMajelisEntry(s)
   const pending = pendingMembers(s)
   const [sent, setSent] = useState(false)
+  const [sharing, setSharing] = useState(false)
 
   // Everyone recorded gets a line; whoever is still open is named at the foot
   // rather than quietly left out.
@@ -70,9 +69,9 @@ export function ProofWaScreen() {
     <AppScreen
       topBar={<NavigationHeader title="Kirim rekap ke grup" onBack={() => flow.back()} />}
     >
-      {/* No "Pesan dikirim ke …" banner: the app no longer does the sending,
-          so naming a destination would promise something this screen does not
-          do. She copies, then picks where it goes herself. */}
+      {/* No "Pesan dikirim ke …" banner: she picks the destination in the
+          share sheet, so naming one up here would pre-empt a choice the
+          screen has not asked her to make yet. */}
       <SectionTitle>Pratinjau pesan</SectionTitle>
       <p className="whitespace-pre-line rounded-12 border border-default bg-neutral-white p-12 text-12 text-default">
         {message}
@@ -84,7 +83,7 @@ export function ProofWaScreen() {
             <IconCheck size={16} />
           </span>
           <span className="text-12 font-bold text-green-500">
-            Pesan tersalin — tinggal tempel di grup {group.name}
+            Rekap terkirim ke grup {group.name}
           </span>
         </div>
       ) : null}
@@ -96,10 +95,10 @@ export function ProofWaScreen() {
           </Button>
         ) : (
           <>
-            <Button size="lg" className="w-full" onClick={() => setSent(true)}>
+            <Button size="lg" className="w-full" onClick={() => setSharing(true)}>
               <span className="flex items-center justify-center gap-8">
-                <Copy size={20} />
-                Salin pesan
+                <PaperPlaneTilt size={20} />
+                Kirim pesan
               </span>
             </Button>
             <Button size="lg" variant="ghost" className="w-full" onClick={() => flow.go('today')}>
@@ -108,6 +107,17 @@ export function ProofWaScreen() {
           </>
         )}
       </StickyBar>
+
+      <ShareSheet
+        open={sharing}
+        onClose={() => setSharing(false)}
+        title="Kirim rekap ke"
+        targets={[{ id: 'grup', label: `Grup WhatsApp ${group.name}`, hint: `${MAJELIS.members.length} anggota` }]}
+        onSend={() => {
+          setSharing(false)
+          setSent(true)
+        }}
+      />
     </AppScreen>
   )
 }

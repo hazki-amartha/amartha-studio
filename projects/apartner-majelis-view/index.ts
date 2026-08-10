@@ -156,7 +156,8 @@ export const project: ProjectModule = {
         {
           id: 'kpi-boom',
           label: 'Versi B — Boom factor kena',
-          description: 'Skor cukup untuk dibayar, tapi Cohort DPD 7+ lewat 5%: insentif Rp0',
+          description:
+            'Cohort mitra baru memburuk, jadi ketiga DPD ikut meleset. Growth menahan skor di 98 — cukup dibayar — tapi cohort lewat 5%: insentif Rp0',
           apply: demo.kpiBoom,
         },
         {
@@ -404,11 +405,11 @@ export const project: ProjectModule = {
       title: 'Kirim Rekap ke Grup',
       component: lazyScreen(() => import('./screens/proof-wa'), 'ProofWaScreen'),
       notes: [
-        'The send, made its own step. A majelis settles together, so the room’s receipt goes to the group’s WhatsApp — the message the app already wrote, mitra by mitra, with the total received — and the BP has one trigger: Salin pesan.',
-        'She copies rather than sends: the app does not own the send, WhatsApp does, and she pastes it into the group herself.',
-        'Reached after the visit is already finished, so this is a courtesy she performs, not a gate the task waits on. “Tutup” leaves without copying; the schedule is where the visit ends either way.',
+        'The send, made its own step. A majelis settles together, so the room’s receipt goes to the group’s WhatsApp — the message the app already wrote, mitra by mitra, with the total received — and the BP has one trigger: Kirim pesan.',
+        'Kirim opens the share sheet — drawn inside the device frame rather than really opening WhatsApp, which would throw the viewer out of the prototype mid-demo. Picking a target returns here with the message marked sent, which is the state the designer is reviewing.',
+        'Reached after the visit is already finished, so this is a courtesy she performs, not a gate the task waits on. “Tutup” leaves without sending; the schedule is where the visit ends either way.',
       ],
-      flowsTo: [{ to: 'today', label: 'Salin / Tutup — kembali ke jadwal' }],
+      flowsTo: [{ to: 'today', label: 'Kirim / Tutup — kembali ke jadwal' }],
     },
     {
       id: 'home-brief',
@@ -535,11 +536,11 @@ export const project: ProjectModule = {
       title: 'Kirim Bukti Bayar',
       component: lazyScreen(() => import('./screens/home-proof-wa'), 'HomeProofWaScreen'),
       notes: [
-        'The send, made its own step. A doorstep collection leaves no slip, so the mitra’s receipt — what was paid, and what is still owed with the date promised — is written for her, and the BP has one trigger: Salin pesan.',
-        'She copies rather than sends: the app does not own the send, WhatsApp does, and she pastes it into the chat herself.',
-        'Reached after the visit is already finished, so this is a courtesy she performs, not a gate the task waits on. “Tutup” leaves without copying; the schedule is where the visit ends either way.',
+        'The send, made its own step. A doorstep collection leaves no slip, so the mitra’s receipt — what was paid, and what is still owed with the date promised — is written for her, and the BP has one trigger: Kirim pesan.',
+        'Kirim opens the share sheet — drawn inside the device frame rather than really opening WhatsApp, which would throw the viewer out of the prototype mid-demo. Picking a target returns here with the message marked sent.',
+        'Reached after the visit is already finished, so this is a courtesy she performs, not a gate the task waits on. “Tutup” leaves without sending; the schedule is where the visit ends either way.',
       ],
-      flowsTo: [{ to: 'today', label: 'Salin / Tutup — kembali ke jadwal' }],
+      flowsTo: [{ to: 'today', label: 'Kirim / Tutup — kembali ke jadwal' }],
     },
     {
       id: 'settlement',

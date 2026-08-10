@@ -154,13 +154,54 @@ export const KPI_BANDS: KpiBand[] = [
  * however well the five parameters went. It is not a sixth parameter and must
  * not read as one — a weight can be traded off against another weight, and this
  * cannot be traded off against anything.
+ *
+ * What it measures is a COHORT, not the book as it stands today: the mitra she
+ * disbursed three months ago, and how many of them are already DPD 7+. In
+ * August that is May's intake. The lag is the whole point — it is the check on
+ * whether the growth she was paid for last quarter was lent well, so a BP
+ * cannot bank a bonus for volume this month and leave the arrears behind her.
  */
 export const KPI_BOOM = {
   k: 'cohortDpd7',
-  label: 'Cohort DPD 7+ WOB6',
-  /** Above this, the incentive is zero. */
+  label: 'Cohort DPD 7+',
+  /** Above this share of the cohort, the incentive is zero. */
   limit: 5,
-  rule: '>5% Cohort DPD 7+ WOB6',
+  rule: 'Maks 5% mitra baru 3 bulan lalu boleh DPD 7+',
+  /** How many months back the cohort was disbursed. */
+  lagMonths: 3,
+}
+
+const MONTHS_ID = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+]
+
+/**
+ * "Mei 2026" — which intake the boom factor is watching, named rather than left
+ * as "3 bulan lalu". A BP checking a cohort has to know which month's mitra to
+ * go and look at, and counting back three months from the period she is reading
+ * is arithmetic the page can do for her.
+ *
+ * Null for the demo-only scenarios, whose keys ("boom", "gate-zero") are not
+ * months at all — the caller says "3 bulan lalu" instead rather than printing
+ * a scenario name where a month belongs.
+ */
+export function cohortMonth(period: string): string | null {
+  const parse = (p: string) => {
+    const [name, year] = p.split(' ')
+    const i = MONTHS_ID.indexOf(name)
+    return i === -1 || !year ? null : { i, year: Number(year) }
+  }
+  // The demo-only scenarios are keyed by situation ("nothing-yet"), not by a
+  // month, so they fall back to the RUNNING month. Without it a scenario that
+  // is not a month has no cohort to name, and the tracker loses the one thing
+  // that tells the BP which intake to go and look at.
+  const at = parse(period) ?? parse(KPI_PERIODS[0])
+  if (!at) return null
+  const back = at.i - KPI_BOOM.lagMonths
+  return back >= 0
+    ? `${MONTHS_ID[back]} ${at.year}`
+    : `${MONTHS_ID[back + 12]} ${at.year - 1}`
 }
 
 /**
@@ -209,13 +250,43 @@ const PERIOD_VALS: Record<string, Record<string, number>> = {
   // The two ways to arrive at Rp0, which the page has to tell APART. They read
   // identically on the bottom line and mean opposite things to the BP.
 
-  /** Every growth target won, every collection target missed — the gate's
-   *  worst case: a full month of work paying nothing. */
-  'gate-zero': { dpd0: 85, dpd30: 40, dpd90: 2, mitraNew: 25, renewal: 92, celengan: 64, ppob: 57, cohortDpd7: 4 },
-  /** Nothing met anywhere. Rp0 with nothing held behind it. */
-  'nothing-yet': { dpd0: 70, dpd30: 25, dpd90: 1, mitraNew: 8, renewal: 45, celengan: 31, ppob: 22, cohortDpd7: 4 },
-  /** Version B's own worst case: a score that pays, wiped by the boom factor. */
-  'boom': { dpd0: 99, dpd30: 55, dpd90: 6, mitraNew: 21, renewal: 88, celengan: 64, ppob: 41, cohortDpd7: 8 },
+  /**
+   * Every growth target won, every collection target missed — the gate's worst
+   * case: a full month of work paying nothing.
+   *
+   * The collection figures are LOW enough that the weighted score lands below
+   * 90 too (30 points of DPD 0 at 71% drags the roll-up down), so version A
+   * and the score model agree on Rp0. They used to disagree: dpd0 at 85 still
+   * rolled up to a paying 93, which put "Semua tertahan — Rp0" on a state that
+   * paid Rp400.000 the moment you switched to B1.
+   *
+   * Boom stays inside its limit and both boosts are met on purpose — this is
+   * the state that shows a top-up earned and still not paid, because the band
+   * underneath it was never reached.
+   */
+  'gate-zero': { dpd0: 70, dpd30: 25, dpd90: 1, mitraNew: 25, renewal: 92, celengan: 64, ppob: 57, cohortDpd7: 4 },
+  /**
+   * Nothing met anywhere. Rp0 with nothing held behind it — the OTHER zero,
+   * and the one the hero has to tell apart from `gate-zero`.
+   *
+   * Its collection figures sit below gate-zero's rather than level with them:
+   * the two states differ in what she WON (gate-zero took every growth target
+   * and both boosts), and a shared set of DPD numbers made them read as the
+   * same month with a different label.
+   */
+  'nothing-yet': { dpd0: 60, dpd30: 18, dpd90: 1, mitraNew: 8, renewal: 45, celengan: 31, ppob: 22, cohortDpd7: 4 },
+  /**
+   * Version B's own worst case: a score that pays, wiped by the boom factor.
+   *
+   * The DPD buckets MISS here, and that is not incidental — it is what makes
+   * the month believable. A cohort going bad is not a number floating free of
+   * the book: those souring mitra are the same women the DPD parameters count,
+   * so a cohort at 8% sitting beside a 99% DPD 0 was two facts that could not
+   * both be true. Growth carries the score to 98 instead, which keeps the
+   * point of the state intact — she would have been paid, and the cohort is
+   * the only reason she is not.
+   */
+  'boom': { dpd0: 94, dpd30: 42, dpd90: 3, mitraNew: 24, renewal: 95, celengan: 64, ppob: 41, cohortDpd7: 8 },
   /** Over 100% AND both boosts — the top of the version B table, Rp700.000. */
   'boosted': { dpd0: 100, dpd30: 58, dpd90: 7, mitraNew: 23, renewal: 92, celengan: 66, ppob: 38, cohortDpd7: 2 },
 }
@@ -286,6 +357,11 @@ export interface KpiScore {
   /** The portfolio condition that zeroes everything. */
   boomVal: number
   boomTriggered: boolean
+  /**
+   * Which intake the boom factor is watching — "Mei 2026" read from August.
+   * Null on the demo scenarios, whose keys are not months.
+   */
+  boomCohort: string | null
   boosts: KpiBoost[]
   /** Both boosts met — the pair pays, either one alone does not. */
   boostsMet: boolean
@@ -405,6 +481,7 @@ export const buildKpi = (period: string): KpiView => {
       nextBand,
       boomVal,
       boomTriggered,
+      boomCohort: cohortMonth(period),
       boosts,
       boostsMet,
       boostBonus,

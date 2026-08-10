@@ -6,10 +6,9 @@
 // before she leaves the house, so a schedule that listed three reminder rows
 // would be three rows she ticks in ten seconds and then re-reads all day.
 //
-// The app does not send. It writes the message and she pastes it into the
-// group herself, exactly as the visit recap does — WhatsApp owns the send, and
-// a prototype that really opened it would throw the viewer out of the device
-// frame with no way back (CLAUDE.md §3).
+// "Kirim pesan" opens the share sheet — drawn rather than real, see ShareSheet
+// in lib/ui.tsx (CLAUDE.md §3). Picking a target IS the send here, so it ticks
+// the group off; the tick stays tappable for a group she messaged elsewhere.
 //
 // Which groups appear is DERIVED from today's schedule (`todayTasks`) rather
 // than listed here. The reminder is a fact about the day, and a second
@@ -25,12 +24,13 @@
 // remount on navigation, so a local tick would greet her with a clean slate
 // and no way to tell which group she still owes.
 
+import { useState } from 'react'
 import { Badge, Button, NavigationHeader } from '@/design-system/components'
-import { CheckCircleFill, Copy } from '@/design-system/icons'
+import { CheckCircleFill, PaperPlaneTilt } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { REMINDER_TASK_ID, findMajelisEntry, type Task } from '../lib/schedule'
 import { store, todayTasks, useApp } from '../lib/store'
-import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
+import { AppScreen, SectionTitle, ShareSheet, StickyBar } from '../lib/ui'
 
 /** What she pastes. Derived per group so the time and place are the real ones. */
 function messageFor(task: Task): string {
@@ -50,6 +50,9 @@ export function ReminderScreen() {
   const flow = useFlow()
   const s = useApp()
   const tasks = todayTasks(s).filter((t) => t.kind === 'majelis')
+  // Which group's share sheet is open. Local: it is a transient control, not a
+  // record — closing the screen with it open loses nothing.
+  const [sharing, setSharing] = useState<Task | null>(null)
 
   const doneCount = tasks.filter((t) => s.remindedTasks.includes(t.id)).length
   const left = tasks.length - doneCount
@@ -67,8 +70,8 @@ export function ReminderScreen() {
       topBar={<NavigationHeader title="Ingatkan majelis" onBack={() => flow.back()} />}
     >
       <p className="text-12 text-caption">
-        {tasks.length} majelis ada kumpulan hari ini. Salin pesannya, tempel di grup WhatsApp
-        masing-masing, lalu tandai yang sudah diingatkan.
+        {tasks.length} majelis ada kumpulan hari ini. Kirim pesannya ke grup masing-masing —
+        yang sudah terkirim otomatis ditandai.
       </p>
 
       {/* The count as a heading, so she can answer "who do I still owe?" without
@@ -102,19 +105,14 @@ export function ReminderScreen() {
                 {messageFor(task)}
               </p>
 
-              {/* Copy and tick are two separate gestures on purpose. Copying is
-                  not evidence she SENT it — she still has to switch apps and
-                  paste — so the app must not tick the row on her behalf and
-                  then be wrong about a group that never got the message. */}
+              {/* Sending ticks the row; the tick is still tappable on its own,
+                  for a group she messaged from her own phone before opening
+                  the app. */}
               <div className="flex items-center gap-8">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => navigator.clipboard?.writeText(messageFor(task))}
-                >
+                <Button variant="outline" className="flex-1" onClick={() => setSharing(task)}>
                   <span className="flex items-center justify-center gap-8">
-                    <Copy size={20} />
-                    Salin pesan
+                    <PaperPlaneTilt size={20} />
+                    Kirim pesan
                   </span>
                 </Button>
                 <button
@@ -153,6 +151,31 @@ export function ReminderScreen() {
           </p>
         ) : null}
       </StickyBar>
+
+      {/* Sending ticks the group off for her — unlike the copy it replaced,
+          picking a target IS the send, so making her tick it afterwards would
+          be asking her to confirm something she just did. The tick stays
+          tappable so she can still mark a group she messaged elsewhere. */}
+      <ShareSheet
+        open={sharing !== null}
+        onClose={() => setSharing(null)}
+        title="Kirim pengingat ke"
+        targets={
+          sharing
+            ? [
+                {
+                  id: sharing.id,
+                  label: `Grup WhatsApp ${findMajelisEntry(sharing.majelisId ?? 'mawar').name}`,
+                  hint: `Kumpulan ${sharing.time}`,
+                },
+              ]
+            : []
+        }
+        onSend={() => {
+          if (sharing && !s.remindedTasks.includes(sharing.id)) store.toggleReminded(sharing.id)
+          setSharing(null)
+        }}
+      />
     </AppScreen>
   )
 }
