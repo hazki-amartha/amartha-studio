@@ -43,7 +43,14 @@ import { useState } from 'react'
 import { Badge, Card } from '@/design-system/components'
 import { TopBar } from '@/platform/primitives'
 import { ringkas, rupiah } from '../lib/data'
-import { KPI_BANDS, KPI_DAYS_LEFT, buildKpi, type KpiRow } from '../lib/kpi'
+import {
+  KPI_BANDS,
+  KPI_BOOM,
+  KPI_BOOST_BONUS,
+  KPI_DAYS_LEFT,
+  buildKpi,
+  type KpiRow,
+} from '../lib/kpi'
 import { IconCheck } from '../lib/icons'
 import { TabBar } from '../lib/tabs'
 import { useApp } from '../lib/store'
@@ -60,10 +67,13 @@ type KpiVersion = 'A' | 'B1' | 'B2'
 const KPI_VERSIONS: KpiVersion[] = ['A', 'B1', 'B2']
 
 /**
- * The one condition every version closes on. Shared rather than typed out
- * three times: it is the same rule in all three, so it has to read the same
- * in all three — and a sentence copied per version is one that drifts the
- * first time anyone edits a single copy of it.
+ * Version A's gate, in one place because A states it twice — once as the
+ * standing rule, once inside the red banner when it is actually biting.
+ *
+ * A ONLY. The score model does not have this gate: there each parameter feeds
+ * one weighted total and what conditions the money is the cohort factor, which
+ * gets its own tracker. Printing this under B's score said the page ran two
+ * different rules at once.
  */
 const KPI_GATE_NOTE = 'Mitra DPD 0 harus tercapai untuk mendapatkan insentif'
 
@@ -370,24 +380,159 @@ function ScoredBody({ d }: { d: ReturnType<typeof buildKpi> }) {
             she then had to reconcile against the picture. */}
         <p className="mt-2 text-12 text-caption">Total skor {b.score}</p>
 
+        {/* No DPD 0 gate line here. That rule belongs to version A, where each
+            parameter carries its own rupiah and collection gates growth. This
+            model has no such gate — what conditions the money is the cohort
+            factor, and it has its own tracker below rather than a sentence
+            buried under the score. */}
         <ScoreTrackB2 score={b.score} />
-
-        {/* The one condition under the score, stated flat: the running
-            commentary that used to live here — how far to the next band, the
-            boom line, the boost top-up — was three different sentences the
-            figure above already accounts for. */}
-        <p className="mt-8 border-t border-default pt-12 text-12 text-caption">
-          {KPI_GATE_NOTE}
-        </p>
       </Card>
 
-      <section className="flex flex-col gap-8 pb-16">
+      <section className="flex flex-col gap-8">
         <SectionTitle>Bobot KPI</SectionTitle>
         {d.rows.map((r) => (
           <WeightRowCard key={r.k} r={r} />
         ))}
       </section>
+
+      <BoomTracker b={b} />
+      <BoostSection b={b} />
     </>
+  )
+}
+
+// --- The two things that sit OUTSIDE the weighted score --------------------
+//
+// Both are shared by B1 and B2 verbatim. They are not parameters and must not
+// read as parameters: a weight can be traded off against another weight, and
+// neither of these can be traded off against anything. One is a gate that
+// zeroes the month; the other is a top-up that only exists once the month
+// already pays.
+
+/**
+ * The cohort condition, drawn as a tracker rather than a sentence — it is a
+ * number she has to WATCH all month, and a line of prose that only appears
+ * once it has already gone wrong is a warning delivered too late to act on.
+ *
+ * The cohort is named ("mitra baru Mei 2026") because a BP who has to fix it
+ * needs to know which intake to go and look at.
+ */
+function BoomTracker({ b }: { b: ReturnType<typeof buildKpi>['scored'] }) {
+  const tripped = b.boomTriggered
+  return (
+    <section className="flex flex-col gap-8">
+      <SectionTitle>Syarat insentif</SectionTitle>
+      <div
+        className={`flex flex-col gap-12 rounded-12 border p-12 ${
+          tripped ? 'border-red-200 bg-red-50' : 'border-default bg-neutral-white'
+        }`}
+      >
+        <div className="flex items-start gap-8">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <span className="text-14 font-bold text-default">{KPI_BOOM.label}</span>
+            <span className="text-12 text-caption">
+              Mitra baru {b.boomCohort ?? `${KPI_BOOM.lagMonths} bulan lalu`} · maksimal{' '}
+              {KPI_BOOM.limit}%
+            </span>
+          </div>
+          <Badge intent={tripped ? 'red' : 'green'}>{tripped ? 'Lewat batas' : 'Aman'}</Badge>
+        </div>
+
+        <div className="flex items-center gap-12">
+          <div className="min-w-0 flex-1">
+            {/* Lower is better, so the rail is scaled against the LIMIT and a
+                full bar is the bad end. */}
+            <Meter
+              progress={Math.min(100, (b.boomVal / KPI_BOOM.limit) * 100)}
+              tone={tripped ? 'red' : 'green'}
+            />
+          </div>
+          <span
+            className={`shrink-0 text-16 font-bold ${tripped ? 'text-red-600' : 'text-default'}`}
+          >
+            {b.boomVal}%
+          </span>
+        </div>
+
+        <p className={`text-12 ${tripped ? 'text-red-600' : 'text-caption'}`}>
+          {tripped
+            ? 'Insentif hangus bulan ini — berapa pun skornya.'
+            : 'Kalau lewat 5%, insentif hangus berapa pun skornya.'}
+        </p>
+      </div>
+    </section>
+  )
+}
+
+/**
+ * Celengan and PPOB. They are NOT scored — that is the whole reason they live
+ * down here rather than among the weights: scoring them and paying a bonus for
+ * them would count the same behaviour twice.
+ *
+ * Shown as one AND rather than two independent bonuses, because that is what
+ * they are: either alone pays nothing.
+ */
+function BoostSection({ b }: { b: ReturnType<typeof buildKpi>['scored'] }) {
+  // The top-up hangs off the band, not off the boosts alone — both met on a
+  // month that paid nothing still pays nothing, so the card has to say which
+  // of the two conditions is the one still missing.
+  const paying = b.boostBonus > 0
+  // Both met but nothing paid has TWO causes, and they are not the same news:
+  // the cohort has hangus'd the whole month, or the score simply has not
+  // reached a paying band yet. Blaming the band on a boom'd month sends her
+  // to fix the wrong number.
+  const heldByBoom = b.boostsMet && !paying && b.boomTriggered
+  const heldByBand = b.boostsMet && !paying && !b.boomTriggered
+
+  return (
+    <section className="flex flex-col gap-8 pb-16">
+      <SectionTitle>Bonus tambahan · {rupiah(KPI_BOOST_BONUS)}</SectionTitle>
+
+      {b.boosts.map((boost) => (
+        <div key={boost.k} className="rounded-12 border border-default bg-neutral-white p-12">
+          <div className="flex items-center gap-8">
+            <span className="min-w-0 flex-1 text-14 font-bold text-default">{boost.label}</span>
+            {boost.met ? (
+              <Badge intent="green" size="sm" leadingIcon={<IconCheck size={16} />}>
+                Tercapai
+              </Badge>
+            ) : (
+              <Badge intent="neutral" size="sm">
+                Belum
+              </Badge>
+            )}
+          </div>
+
+          <p className="mt-4 text-14 text-default">Target: {boost.target}% mitra</p>
+
+          <div className="mt-12 flex items-center gap-12">
+            <div className="min-w-0 flex-1">
+              <Meter
+                progress={Math.min(100, (boost.val / boost.target) * 100)}
+                tone={boost.met ? 'green' : 'orange'}
+              />
+            </div>
+            <span
+              className={`shrink-0 text-16 font-bold ${
+                boost.met ? 'text-green-600' : 'text-default'
+              }`}
+            >
+              {boost.val}%
+            </span>
+          </div>
+        </div>
+      ))}
+
+      <p className={`text-12 ${paying ? 'text-green-600' : 'text-caption'}`}>
+        {paying
+          ? `Dua-duanya tercapai — +${rupiah(KPI_BOOST_BONUS)} sudah masuk ke insentif di atas.`
+          : heldByBoom
+            ? `Dua-duanya tercapai, tapi insentif bulan ini hangus karena ${KPI_BOOM.label} lewat batas.`
+            : heldByBand
+              ? `Dua-duanya tercapai, tapi bonus ini baru cair kalau skor sudah masuk band insentif.`
+              : `Dua-duanya harus tercapai untuk dapat +${rupiah(KPI_BOOST_BONUS)}, dan hanya kalau skor sudah masuk band insentif.`}
+      </p>
+    </section>
   )
 }
 
@@ -472,11 +617,8 @@ function ScoredBodyB2({ d }: { d: ReturnType<typeof buildKpi> }) {
         </p>
         <p className="mt-2 text-12 text-caption">Total skor {b.score}</p>
 
+        {/* Same as B1: no DPD 0 gate line — see the note there. */}
         <ScoreTrackB2 score={b.score} />
-
-        <p className="mt-8 border-t border-default pt-12 text-12 text-caption">
-          {KPI_GATE_NOTE}
-        </p>
       </Card>
 
       {/* Split by group, not one flat list — collection and growth are the two
@@ -503,6 +645,12 @@ function ScoredBodyB2({ d }: { d: ReturnType<typeof buildKpi> }) {
             <WeightRowCardB2 key={r.k} r={r} />
           ))}
       </section>
+
+      {/* Identical to B1's, deliberately — see the note above BoomTracker. The
+          two versions argue about how a scored ROW reads, and neither of these
+          is a scored row. */}
+      <BoomTracker b={b} />
+      <BoostSection b={b} />
     </>
   )
 }

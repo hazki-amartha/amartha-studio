@@ -13,7 +13,9 @@ import { Screen, type ScreenProps } from '@/platform/primitives'
 import { Badge, BottomSheet, Button, Input, SelectableCard } from '@/design-system/components'
 import { ProductLogo } from '@/design-system/assets'
 import {
+  ChatCircle,
   CheckCircleFill,
+  Copy,
   CrossCircleFill,
   Image,
   MagnifyingGlass,
@@ -1444,6 +1446,124 @@ export function ProofTile({
         {done ? doneLabel : label}
       </span>
     </button>
+  )
+}
+
+// --- ShareSheet ------------------------------------------------------------
+// The OS share sheet, drawn inside the device frame.
+//
+// "Kirim pesan" has to feel like sending, and on a real handset that means the
+// system sheet: a row of recent chats, then the apps, then Copy. The prototype
+// cannot open the real one — a `wa.me` link throws the viewer out of the frame
+// mid-demo with no way back, and on a laptop with no WhatsApp installed it
+// cannot be shown at all (CLAUDE.md §3). So the sheet is DRAWN, and picking
+// any target returns to the screen that opened it with the message marked
+// sent. That is the state the designer is reviewing; the real handoff is the
+// engineer's problem.
+//
+// Rows rather than a faithful iOS pixel copy: this is an Amartha prototype
+// shown on Android and iPhone both, and a screen that impersonates one OS
+// reads as a bug on the other.
+
+export interface ShareTarget {
+  id: string
+  /** "Grup WA Majelis Mawar", "Ibu Naura Nugroho" — where it is going. */
+  label: string
+  /** The line under it: a phone number, or what kind of chat it is. */
+  hint?: string
+}
+
+export function ShareSheet({
+  open,
+  onClose,
+  onSend,
+  title = 'Kirim pesan',
+  targets,
+}: {
+  open: boolean
+  onClose: () => void
+  /** Called with whichever target she picked — the screen marks it sent. */
+  onSend: (target: ShareTarget) => void
+  title?: string
+  targets: ShareTarget[]
+}) {
+  // Copy is the last row, as it is on the real sheet: it is the escape hatch
+  // for a chat that is not in the list, not the primary way out.
+  const apps: { id: string; label: string; icon: ReactNode; tone: string }[] = [
+    {
+      id: 'wa',
+      label: 'WhatsApp',
+      icon: <WhatsappLogo size={24} />,
+      tone: 'bg-green-50 text-green-500',
+    },
+    {
+      id: 'sms',
+      label: 'SMS',
+      icon: <ChatCircle size={24} />,
+      tone: 'bg-blue-50 text-blue-500',
+    },
+  ]
+
+  return (
+    <BottomSheet open={open} onClose={onClose} title={title} size="md">
+      <div className="flex flex-col gap-16 pb-8">
+        {/* Recents — the chats she would actually pick, named. */}
+        <div className="flex flex-col gap-8">
+          <span className="text-10 font-bold uppercase text-caption">Kirim ke</span>
+          {targets.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onSend(t)}
+              className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left active:bg-neutral-50"
+            >
+              <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-500">
+                <WhatsappLogo size={20} />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col gap-2">
+                <span className="truncate text-14 font-bold text-default">{t.label}</span>
+                {t.hint ? (
+                  <span className="truncate text-12 text-caption">{t.hint}</span>
+                ) : null}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* The apps row. */}
+        <div className="flex flex-col gap-8">
+          <span className="text-10 font-bold uppercase text-caption">Aplikasi lain</span>
+          <div className="flex gap-12">
+            {apps.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => onSend({ id: a.id, label: a.label })}
+                className="flex flex-1 flex-col items-center gap-8 rounded-12 border border-default bg-neutral-white p-12"
+              >
+                <span
+                  className={`flex h-40 w-40 items-center justify-center rounded-12 ${a.tone}`}
+                >
+                  {a.icon}
+                </span>
+                <span className="text-12 text-default">{a.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onSend({ id: 'copy', label: 'Salin pesan' })}
+          className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left active:bg-neutral-50"
+        >
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-12 bg-neutral-50 text-neutral-600">
+            <Copy size={20} />
+          </span>
+          <span className="min-w-0 flex-1 text-14 text-default">Salin pesan</span>
+        </button>
+      </div>
+    </BottomSheet>
   )
 }
 

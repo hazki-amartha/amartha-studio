@@ -21,7 +21,6 @@ import {
   type LeadStage,
   type SosialisasiEvent,
 } from './leads'
-import { KPI_PERIODS } from './kpi'
 import {
   DEPOSIT,
   MAJELIS_SETTLE_ROSTER,
@@ -542,7 +541,11 @@ const initial: AppState = {
   followUp: emptyFollowUp('l1'),
   comms: COMMS_SEED,
   openComm: null,
-  kpiPeriod: KPI_PERIODS[0],
+  // The month opens with nothing banked yet, which is where a BP actually
+  // finds the tab on the 1st: Rp0, every parameter still to win, and no
+  // incentive earned. A default that already pays shows the scoreboard only in
+  // its settled state and hides the work the page exists to prompt.
+  kpiPeriod: 'nothing-yet',
 }
 
 let state: AppState = initial
