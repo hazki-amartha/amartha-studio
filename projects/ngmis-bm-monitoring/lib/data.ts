@@ -151,6 +151,27 @@ export interface Bucket {
   paid: number
 }
 
+/** The two headline rates for the branch, each judged against its own target. */
+export interface Metric {
+  id: string
+  label: string
+  value: number
+  target: number
+  /** DPD flow is a rate you want DOWN; repayment is one you want UP. Without
+   *  this flag both would score the same way and one of them would read
+   *  backwards. */
+  higherIsBetter: boolean
+}
+
+export const REPAYMENT_METRICS: Metric[] = [
+  { id: 'dpd-flow', label: 'Flow rate to DPD 1-30', value: 20, target: 15, higherIsBetter: false },
+  { id: 'repayment-rate', label: 'Repayment rate', value: 60, target: 90, higherIsBetter: true },
+]
+
+export function metricOnTarget(m: Metric) {
+  return m.higherIsBetter ? m.value >= m.target : m.value <= m.target
+}
+
 export interface RepaymentBp {
   id: string
   name: string
@@ -185,20 +206,70 @@ export const REPAYMENT_BPS: RepaymentBp[] = [
     mitra: { total: 284, paid: 262 }, dpd0: { total: 236, paid: 226 }, dpd130: { total: 28, paid: 22 }, dpd3190: { total: 14, paid: 10 }, dpd90: { total: 6, paid: 4 } },
 ]
 
-/** What a healthy rate looks like in each bucket. A flat threshold would paint
- *  every DPD 90+ figure red and leave the BM with no signal at all — collecting
- *  little on the oldest bucket is the norm, not the exception. */
-export const RATE_BANDS: Record<string, { good: number; fair: number }> = {
-  mitra: { good: 85, fair: 65 },
-  dpd0: { good: 85, fair: 75 },
-  dpd130: { good: 80, fair: 58 },
-  dpd3190: { good: 80, fair: 60 },
-  // DPD 90+ is deliberately absent: almost nothing is collected there, so
-  // scoring it would colour the entire column the same and carry no signal.
+/** The biz team's standard: the share of a BP's mitra in each bucket that must
+ *  pay. Total Mitra and DPD 90+ carry no target — the first is an aggregate of
+ *  the others, and nobody is held to a number on the oldest bucket. */
+export const TARGETS: Record<string, number> = {
+  dpd0: 98,
+  dpd130: 55,
+  dpd3190: 13,
 }
+
+/** Bucket ids that carry a target, in table order. */
+export const SCORED_BUCKETS = ['dpd0', 'dpd130', 'dpd3190']
 
 export function rate({ total, paid }: Bucket) {
   return total === 0 ? 0 : (paid / total) * 100
+}
+
+/** The whole branch's rate for one bucket — every BP's mitra pooled, not an
+ *  average of rates, which would let a BP with six mitra swing the figure as
+ *  hard as one with three hundred. */
+export function branchRate(bucket: string) {
+  const sum = REPAYMENT_BPS.reduce(
+    (acc, bp) => {
+      const b = bp[bucket as 'mitra' | 'dpd0' | 'dpd130' | 'dpd3190' | 'dpd90']
+      return { total: acc.total + b.total, paid: acc.paid + b.paid }
+    },
+    { total: 0, paid: 0 },
+  )
+  return rate(sum)
+}
+
+/** Does this bucket clear the biz team's standard? Buckets without a target
+ *  return null rather than false — "no standard" is not the same as "missed". */
+export function meetsTarget(bucket: Bucket, id: string): boolean | null {
+  const target = TARGETS[id]
+  if (target === undefined) return null
+  return rate(bucket) >= target
+}
+
+/** How many more mitra must pay for this bucket to clear its standard.
+ *  A count, not a percentage-point gap: "kurang 37 mitra" is something a BP can
+ *  act on this week, while "kurang 21,3" is arithmetic the reader has to
+ *  convert before it means anything. */
+export function mitraShortfall(bucket: Bucket, id: string): number | null {
+  const target = TARGETS[id]
+  if (target === undefined) return null
+  return Math.max(0, Math.ceil((bucket.total * target) / 100) - bucket.paid)
+}
+
+/** How many of the three standards a BP is clearing — the BM's at-a-glance
+ *  answer to "is this one on track". */
+export function targetsMet(bp: RepaymentBp) {
+  const met = SCORED_BUCKETS.filter((id) => meetsTarget(bp[id as keyof RepaymentBp] as Bucket, id))
+  return { met: met.length, total: SCORED_BUCKETS.length }
+}
+
+/** The bucket the branch is furthest below its target — measured as the gap to
+ *  the standard, not the raw rate, so a bucket with a low bar does not look
+ *  like the worst problem simply because its number is small. */
+export function weakestBucket() {
+  const scored = SCORED_BUCKETS.map((id) => {
+    const pct = branchRate(id)
+    return { id, pct, target: TARGETS[id], shortfall: TARGETS[id] - pct }
+  })
+  return scored.reduce((worst, b) => (b.shortfall > worst.shortfall ? b : worst))
 }
 
 export interface BpRow {

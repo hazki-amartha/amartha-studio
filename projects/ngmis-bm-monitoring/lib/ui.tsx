@@ -327,6 +327,34 @@ export function PanelHeading({
   )
 }
 
+// --- Metric card ------------------------------------------------------------
+
+/** A headline rate with the target it is judged against sitting underneath, so
+ *  the number is never read without the bar it has to clear. */
+export function MetricCard({
+  label,
+  value,
+  target,
+  onTarget,
+}: {
+  label: string
+  value: string
+  target: string
+  onTarget: boolean
+}) {
+  return (
+    <div className="rounded-12 border border-default bg-neutral-white p-16">
+      <div className="flex flex-col gap-4">
+        <span className="text-14 text-default">{label}</span>
+        <span className={`text-24 font-bold ${onTarget ? 'text-green-500' : 'text-red-500'}`}>
+          {value}
+        </span>
+        <span className="text-12 text-caption">Target: {target}</span>
+      </div>
+    </div>
+  )
+}
+
 // --- Form controls ----------------------------------------------------------
 
 /** A dropdown. FunDS has no select — a phone uses a bottom sheet for this. */
