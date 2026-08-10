@@ -327,6 +327,25 @@ export function PanelHeading({
   )
 }
 
+// --- Rate pill ---------------------------------------------------------------
+
+/**
+ * A rate wearing its verdict: a soft pill, green when the figure clears its
+ * standard and red when it does not.
+ *
+ * `ok === null` renders plain text instead. A neutral pill would still read as
+ * a judgement, and Total Mitra and DPD 90+ have no standard to be judged
+ * against.
+ */
+export function RatePill({ ok, children }: { ok: boolean | null; children: ReactNode }) {
+  if (ok === null) return <span className="text-14 font-bold text-caption">{children}</span>
+  return (
+    <Badge intent={ok ? 'green' : 'red'} variant="subtle" size="md">
+      {children}
+    </Badge>
+  )
+}
+
 // --- Metric card ------------------------------------------------------------
 
 /** A headline rate with the target it is judged against sitting underneath, so
@@ -361,12 +380,16 @@ export function MetricCard({
 export function Select({
   value,
   options,
+  groups,
   onChange,
   label,
   disabled,
 }: {
   value: string
-  options: { value: string; label: string }[]
+  options?: { value: string; label: string }[]
+  /** Labelled sections, for a list that mixes two kinds of choice — a status
+   *  and a name read as one flat list otherwise. */
+  groups?: { label: string; options: { value: string; label: string }[] }[]
   onChange: (value: string) => void
   label: string
   /** A filter that has nothing left to narrow — greyed rather than hidden, so
@@ -385,10 +408,19 @@ export function Select({
         }`}
         style={{ height: CONTROL_H }}
       >
-        {options.map((o) => (
+        {options?.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>
+        ))}
+        {groups?.map((group) => (
+          <optgroup key={group.label} label={group.label}>
+            {group.options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </optgroup>
         ))}
       </select>
       <span
