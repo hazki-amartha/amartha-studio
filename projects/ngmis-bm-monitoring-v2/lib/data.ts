@@ -35,6 +35,10 @@ export const LOCATION = {
 export const BRANCH_LABEL = LOCATION.branch
 export const REPORT_DATE = '07 Aug 2026'
 
+/** How the scorecard is laid out: BPs down the side (rows) or across the top
+ *  (columns, the original reference layout). A view preference, not per-page. */
+export type Orientation = 'bp-rows' | 'bp-columns'
+
 /** A figure, optionally out of a population. `total` present → the cell reads
  *  "count/total (pct%)"; absent → a bare count (targets, potential mitra). */
 export interface Metric {

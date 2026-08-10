@@ -15,8 +15,8 @@ import { useFlow } from '@/platform/runtime'
 import { Button } from '@/design-system/components'
 import { Camera, Check, Trash } from '@/design-system/icons'
 import { BmShell } from './shell'
-import { Panel, PanelHeading, PageHeading } from './ui'
-import { Scorecard } from './scorecard'
+import { Panel, PanelHeading, PageHeading, SegmentedControl } from './ui'
+import { Scorecard, ORIENTATION_OPTIONS } from './scorecard'
 import {
   BRANCH_LABEL,
   BRIEFING_INTRO,
@@ -24,11 +24,13 @@ import {
   REPORT_DATE,
   sectionsForBriefing,
   type BriefingKind,
+  type Orientation,
 } from './data'
-import { store } from './store'
+import { store, useFlowState } from './store'
 
 export function BriefingForm({ kind }: { kind: BriefingKind }) {
   const flow = useFlow()
+  const { orientation } = useFlowState()
   const [comments, setComments] = useState<Record<string, string>>({})
   const [photoAttached, setPhotoAttached] = useState(false)
 
@@ -60,8 +62,18 @@ export function BriefingForm({ kind }: { kind: BriefingKind }) {
         />
       }
     >
+      <div className="flex justify-end pb-16">
+        <SegmentedControl
+          label="Tampilan tabel"
+          value={orientation}
+          options={ORIENTATION_OPTIONS}
+          onChange={(v) => store.set({ orientation: v as Orientation })}
+        />
+      </div>
+
       <Scorecard
         sections={sectionsForBriefing(kind)}
+        orientation={orientation}
         comment={{
           kind: 'edit',
           comments,

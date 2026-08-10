@@ -1,13 +1,15 @@
 'use client'
 
-// The branch scorecard, transposed: one Panel + table per activity, with the
-// BPs as ROWS and the activity's metrics as COLUMNS (the reference put BPs
-// across the top). Shared by the Monitoring tab (read-only) and both briefing
-// forms, which pass `comment` to grow a "Komentar" column onto every table —
-// editable in a live briefing, read-only in a past one.
-//
-// Every table gives the BP / Target / Completed columns the SAME fixed widths,
-// so those columns line up down the page across all four activities.
+// The branch scorecard, one Panel + table per activity. Two layouts, chosen by
+// `orientation`:
+//   - 'bp-rows'    — BPs down the side, the activity's metrics across the top
+//                    (the default). The BP / Target / Completed columns take the
+//                    same fixed widths in every table, so they line up.
+//   - 'bp-columns' — the reference layout: metrics down the side, BPs across the
+//                    top. Every table shares the same metric-label + BP columns,
+//                    so the BP columns line up.
+// Shared by the Monitoring tab (read-only) and both briefing forms, which pass
+// `comment` to add a "Komentar" column (bp-rows) or "Komentar" row (bp-columns).
 
 import type { ReactNode } from 'react'
 import { Badge } from '@/design-system/components'
@@ -21,18 +23,26 @@ import {
   metricText,
   type Bp,
   type Metric,
+  type Orientation,
   type ScorecardColumn,
   type ScorecardSection,
 } from './data'
 
-// Fixed column widths (frame geometry → inline, not spacing tokens). The leading
-// three are constant across every table so they align; the rest are by kind.
-const W_BP = 190
+// Fixed column widths (frame geometry → inline, not spacing tokens).
+const W_BP = 190 // the BP name column, bp-rows
 const W_TARGET = 92
 const W_COMPLETED = 168
 const W_COUNT = 132
 const W_RUPIAH = 148
 const COMMENT_W = 240
+const W_METRIC_LABEL = 208 // the metric name column, bp-columns
+const W_BP_COL = 150 // each BP's column, bp-columns
+
+/** The toggle's two options, exported so every page labels the control the same. */
+export const ORIENTATION_OPTIONS: { value: Orientation; label: string }[] = [
+  { value: 'bp-rows', label: 'BP baris' },
+  { value: 'bp-columns', label: 'BP kolom' },
+]
 
 const columnWidth = (col: ScorecardColumn): number => {
   // A money column is wide whatever its id — Cash Collection's "Target (Rp)" is
@@ -43,8 +53,8 @@ const columnWidth = (col: ScorecardColumn): number => {
   return W_COUNT
 }
 
-/** How the "Komentar" column behaves: absent (Monitoring), an editable box (a
- *  live briefing), or seeded read-only text (a past briefing). */
+/** How the "Komentar" slot behaves: absent (Monitoring), an editable box (a live
+ *  briefing), or seeded read-only text (a past briefing). */
 export type CommentMode =
   | { kind: 'none' }
   | { kind: 'edit'; comments: Record<string, string>; onChange: (key: string, value: string) => void }
@@ -63,7 +73,8 @@ function CountCell({ metric, tone }: { metric: Metric; tone?: string }) {
 }
 
 /** The signal colour a figure carries: a completed count short of target reads
- *  orange, a non-zero "didn't pay" reads red. Everything else stays neutral. */
+ *  orange, a non-zero "didn't pay" reads red, cash held but not deposited
+ *  reads orange. Everything else stays neutral. */
 function cellTone(
   column: ScorecardColumn,
   metric: Metric,
@@ -82,7 +93,50 @@ function cellTone(
   return undefined
 }
 
-function SectionTable({
+/** One figure, rendered for whichever axis it sits on. */
+function ValueCell({ col, row }: { col: ScorecardColumn; row: Record<string, Metric> }) {
+  const metric = row[col.id]
+  return col.kind === 'rupiah' ? (
+    <span className="text-default">{metricText(metric, 'rupiah')}</span>
+  ) : (
+    <CountCell metric={metric} tone={cellTone(col, metric, row)} />
+  )
+}
+
+/** The editable commentary box, filling whichever cell holds it. */
+function CommentInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Tulis komentar…"
+      rows={2}
+      className="w-full resize-none rounded-8 border border-default bg-neutral-white p-8 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none"
+    />
+  )
+}
+
+function CommentReadCell({ text }: { text: string | undefined }) {
+  return (
+    <span className="block whitespace-normal text-14 text-default">
+      {text ? text : <span className="text-placeholder">—</span>}
+    </span>
+  )
+}
+
+/** The commentary cell for a given section + BP, in whichever mode is active. */
+function commentCell(comment: CommentMode, sectionId: string, bpId: string): ReactNode {
+  if (comment.kind === 'none') return null
+  const key = commentKey(sectionId, bpId)
+  return comment.kind === 'edit' ? (
+    <CommentInput value={comment.comments[key] ?? ''} onChange={(v) => comment.onChange(key, v)} />
+  ) : (
+    <CommentReadCell text={comment.comments[key]} />
+  )
+}
+
+/** BP-rows: one row per BP, the activity's metrics across the top. */
+function SectionTableRows({
   section,
   bps,
   comment,
@@ -103,63 +157,81 @@ function SectionTable({
       bp: <span className="font-bold text-default">{bp.name}</span>,
     }
     for (const col of section.columns) {
-      const metric = rowData[col.id]
-      cells[col.id] =
-        col.kind === 'rupiah' ? (
-          <span className="text-default">{metricText(metric, 'rupiah')}</span>
-        ) : (
-          <CountCell metric={metric} tone={cellTone(col, metric, rowData)} />
-        )
+      cells[col.id] = <ValueCell col={col} row={rowData} />
     }
-    if (comment.kind !== 'none') {
-      const key = commentKey(section.id, bp.id)
-      cells.comment =
-        comment.kind === 'edit' ? (
-          <CommentInput
-            value={comment.comments[key] ?? ''}
-            onChange={(v) => comment.onChange(key, v)}
-          />
-        ) : (
-          <span className="block whitespace-normal text-14 text-default">
-            {comment.comments[key] ? comment.comments[key] : <span className="text-placeholder">—</span>}
-          </span>
-        )
-    }
+    if (comment.kind !== 'none') cells.comment = commentCell(comment, section.id, bp.id)
     return { id: bp.id, cells }
   })
 
+  return <SectionPanel title={section.title} columns={columns} rows={rows} />
+}
+
+/** BP-columns: one row per metric, the BPs across the top (reference layout). */
+function SectionTableColumns({
+  section,
+  bps,
+  comment,
+}: {
+  section: ScorecardSection
+  bps: Bp[]
+  comment: CommentMode
+}) {
+  const columns: Column[] = [
+    { id: 'metric', header: 'Metric', width: W_METRIC_LABEL },
+    ...bps.map((bp) => ({ id: bp.id, header: bp.name, width: W_BP_COL })),
+  ]
+
+  const rows = section.columns.map((col) => {
+    const cells: Record<string, ReactNode> = {
+      metric: <span className="font-bold text-default">{col.header}</span>,
+    }
+    for (const bp of bps) {
+      cells[bp.id] = <ValueCell col={col} row={section.rows[bp.id]} />
+    }
+    return { id: col.id, cells }
+  })
+
+  if (comment.kind !== 'none') {
+    const cells: Record<string, ReactNode> = {
+      metric: <span className="font-bold text-default">Komentar</span>,
+    }
+    for (const bp of bps) cells[bp.id] = commentCell(comment, section.id, bp.id)
+    rows.push({ id: 'comment', cells })
+  }
+
+  return <SectionPanel title={section.title} columns={columns} rows={rows} />
+}
+
+function SectionPanel({
+  title,
+  columns,
+  rows,
+}: {
+  title: string
+  columns: Column[]
+  rows: { id: string; cells: Record<string, ReactNode> }[]
+}) {
   return (
     <Panel>
-      <PanelHeading title={section.title} />
+      <PanelHeading title={title} />
       <DataTable columns={columns} rows={rows} sort={null} onSortChange={() => undefined} />
     </Panel>
   )
 }
 
-/** The editable commentary box. Sized to a fixed column width so the table keeps
- *  its shape whether or not the BM has typed anything. */
-function CommentInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return (
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder="Tulis komentar…"
-      rows={2}
-      className="w-full resize-none rounded-8 border border-default bg-neutral-white p-8 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none"
-    />
-  )
-}
-
-/** The four activity tables in the reference's order. */
+/** The activity tables in the reference's order, in the chosen orientation. */
 export function Scorecard({
   sections = SECTIONS,
   bps = BPS,
   comment = { kind: 'none' },
+  orientation = 'bp-rows',
 }: {
   sections?: ScorecardSection[]
   bps?: Bp[]
   comment?: CommentMode
+  orientation?: Orientation
 }) {
+  const SectionTable = orientation === 'bp-columns' ? SectionTableColumns : SectionTableRows
   return (
     <div className="flex flex-col gap-16">
       {sections.map((section) => (
