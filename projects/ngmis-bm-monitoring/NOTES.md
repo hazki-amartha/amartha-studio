@@ -6,31 +6,28 @@ candidates recorded there are the same ones here.
 
 In `lib/ui.tsx`:
 
-- `MisShell` / `SideNav` — the desktop chrome. Sidebar-first: the amartha lockup sits at the top of the 216px sidebar instead of in a 40px header strip, which is the frame the BM portal uses. `MisShell`'s `header` slot renders the title, filter row and tabs as one full-bleed white block above the tinted body. Used by `lib/shell.tsx`, which every screen wraps in.
-- `SidebarPromo` — the "We've updated our portal!" card above Report/Settings. Same file.
-- `Breadcrumbs`, `PageHeading`, `Panel`, `PanelHeading` — content-column chrome. All four screens.
-- `Tabs` — Task / Repayment / Disbursement under the page title. `branch-summary`.
-- `Select` — FunDS has no select; a phone uses a bottom sheet for this. Header filters and both report forms.
+- `MisShell` / `SideNav` — the desktop chrome. Sidebar-first: the amartha lockup sits at the top of the 216px sidebar instead of in a 40px header strip. `MisShell`'s `header` slot renders the title, filter row and tabs as one full-bleed white block above the tinted body.
+- `SidebarPromo` — the "We've updated our portal!" card above Report/Settings.
+- `Breadcrumbs`, `PageHeading`, `Panel`, `PanelHeading`, `Tabs` — page chrome.
+- `Select` — FunDS has no select; a phone uses a bottom sheet. Supports labelled `groups`, which the BP filter needs because it mixes a status and a name in one list.
 - `Textarea` — same gap. `morning-report`, `evening-report`.
-- `StatCard` — KPI tile: label, figure, day-on-day delta, month average, optional second figure. `branch-summary`.
-- `ProgressBar` — task-completion meter, red/yellow/green by threshold. `branch-summary`.
-- `DataTable` — sortable headers, zebra rows. `branch-summary`, `report-history`.
-- `Pagination` — numbered pages plus a per-page select. `branch-summary`.
-- `ReportTile`, `SunGlyph`, `MoonGlyph` — the morning/evening tiles. Sun and moon are genuinely absent from the 166-icon set, so they are one-offs rather than additions to the shared module. Currently unused by any screen — the Daily Report section was removed from the dashboard, but the two report screens they belong to still exist.
+- `RatePill` — a rate wearing its verdict: green when it clears its standard, red when it does not, plain text when the bucket has no standard to be judged against.
+- `MetricCard` — a headline rate with the target it is judged against underneath.
+- `DataTable` — sortable headers, zebra rows. Used only by `report-history` now.
+- `ReportTile`, `SunGlyph`, `MoonGlyph` — the morning/evening tiles. Sun and moon are genuinely absent from the 166-icon set, so they are one-offs. Currently unused by any screen; the two report screens they belong to still exist.
 
-In `lib/repayment-view.tsx` — the whole Repayment tab, kept out of the screen
-file because it is a full view rather than a section:
+Elsewhere in `lib/`:
 
-- `Paid` — a "Terbayar" figure coloured against a benchmark for **its own DPD bucket** (`RATE_BANDS` in `lib/data.ts`). One flat threshold would paint the DPD 90+ column red on every row, since collecting little on the oldest bucket is normal — that leaves no signal at all. The bands are inferred from the reference screenshot's colouring, not from real targets.
-- `Rank` — the numbered badge; the top 3 are filled red and their rows tinted.
+- `branch-summary-page.tsx` — the Performa page shared by both variations, so chrome cannot drift between them. Tugas and Pencairan render a deliberate "belum dirancang" empty state: invented placeholder content gets reviewed as though it were a proposal.
+- `repayment-table.tsx` — the MVP cut. Counts and rate side by side in every bucket.
+- `repayment-grid.tsx` — the end state. Rate leads, branch rate under each column header, and the weakest bucket called out.
+- `bp-filter.tsx` — the shared filter, by target status or by BP name.
+- `store.ts` + `demo.ts` — which cut is on screen, driven from the STATES panel rather than a control inside the prototype.
 
-Open questions on the Repayment tab:
+Judgement calls worth challenging:
 
-- No period control — the figures are undated. No week or month selector exists.
-- Row order is fixed in the data, not computed, so it will not re-sort if the figures change.
-- No actions anywhere on the tab. It is purely a monitoring surface.
-
-Deliberate divergence elsewhere:
-
-- The **Flow rate to DPD 1-30** delta on the Task tab reads red, not green. A rise in DPD flow is bad news; the source screenshot gives it the same green treatment as the KPIs where a rise is good, which inverts the meaning. `StatDelta.good` is the flag that separates the two.
-- KPI figures are `text-24`, the largest size token. The source screenshot's are ~32px, which is off-scale.
+- **Targets come from the biz team** — DPD 0 at 98%, DPD 1-30 at 55%, DPD 31-90 at 13% (`TARGETS`). Total Mitra and DPD 90+ carry none: the first is an aggregate of the others, and nobody is held to a number on the oldest bucket. Both are left uncoloured rather than given an invented verdict.
+- **A missed bucket reports a shortfall in mitra, not percentage points.** "kurang 37 mitra" is something a BP can act on; a percentage-point gap is arithmetic the reader has to convert first.
+- **`branchRate` pools every BP's mitra** rather than averaging the ten rates, so a BP with six mitra cannot swing the branch figure as hard as one with three hundred.
+- **`weakestBucket` measures the gap to each bucket's own target**, not the raw rate — otherwise the oldest bucket wins every week and the answer is never useful.
+- The **Flow rate to DPD 1-30** metric scores downwards while Repayment rate scores upwards; `Metric.higherIsBetter` is what keeps one of them from reading backwards.

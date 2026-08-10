@@ -2,69 +2,6 @@
 // screen (CLAUDE.md §3): ten BP rows because the table shows ten, five history
 // rows because the history screen shows five.
 
-import type { StatDelta } from './ui'
-
-export interface Kpi {
-  id: string
-  label: string
-  value: string
-  delta: StatDelta
-  average: string
-  aside?: { label: string; value: string }
-}
-
-const YESTERDAY = 'Kemarin: 19.8%'
-const MONTH_AVG = 'Rata-rata bulan ini: 98%'
-
-export const KPIS: Kpi[] = [
-  {
-    id: 'task-completion',
-    label: 'Task Completion',
-    value: '73,2%',
-    delta: { label: YESTERDAY, value: '0,2%', direction: 'up', good: true },
-    average: MONTH_AVG,
-  },
-  {
-    id: 'attendance',
-    label: 'Attendance rate',
-    value: '73,2%',
-    delta: { label: YESTERDAY, value: '0,2%', direction: 'up', good: true },
-    average: MONTH_AVG,
-  },
-  {
-    id: 'disbursement-pengajuan',
-    label: 'Disbursement - Pengajuan',
-    value: 'Rp40 M',
-    delta: { label: YESTERDAY, value: '0,2%', direction: 'up', good: true },
-    average: MONTH_AVG,
-    aside: { label: 'New mitra', value: '12' },
-  },
-  {
-    id: 'dpd-flow',
-    label: 'Flow rate to DPD 1-30',
-    value: '20%',
-    // A rise here is bad news, so the delta reads red while the arrow still
-    // points up — the reference frame draws it green, which inverts the meaning.
-    delta: { label: YESTERDAY, value: '0,2%', direction: 'up', good: false },
-    average: MONTH_AVG,
-  },
-  {
-    id: 'repayment',
-    label: 'Repayment rate',
-    value: '20%',
-    delta: { label: YESTERDAY, value: '0,2%', direction: 'up', good: true },
-    average: MONTH_AVG,
-  },
-  {
-    id: 'disbursement-pencairan',
-    label: 'Disbursement - Pencairan',
-    value: 'Rp40 M',
-    delta: { label: YESTERDAY, value: '0,2%', direction: 'down', good: false },
-    average: MONTH_AVG,
-    aside: { label: 'New mitra', value: '0' },
-  },
-]
-
 // --- Header filters ---------------------------------------------------------
 //
 // The header narrows region → provinsi → kota, then branch, BP and majelis
@@ -114,23 +51,6 @@ export const TABS = [
 export const UPDATE_BAR = {
   scope: 'Update: Minggu ini',
   refreshed: 'Diperbarui Hari ini, 29 Dec 2025, 12:44',
-}
-
-/** Which KPIs and which table columns each tab keeps — so switching tab
- *  actually changes the read rather than just the underline. */
-export const TAB_VIEWS: Record<string, { kpis: string[]; columns: string[] }> = {
-  repayment: {
-    kpis: ['repayment', 'attendance', 'dpd-flow'],
-    columns: ['name', 'majelis', 'repayment', 'dpd', 'tasks'],
-  },
-  disbursement: {
-    kpis: ['disbursement-pengajuan', 'disbursement-pencairan', 'task-completion'],
-    columns: ['name', 'majelis', 'disbursement', 'tasks'],
-  },
-  task: {
-    kpis: ['task-completion', 'attendance'],
-    columns: ['name', 'majelis', 'tasks'],
-  },
 }
 
 /** The tab the dashboard opens on — the first one, kept as a named constant so
@@ -271,33 +191,6 @@ export function weakestBucket() {
   })
   return scored.reduce((worst, b) => (b.shortfall > worst.shortfall ? b : worst))
 }
-
-export interface BpRow {
-  id: string
-  name: string
-  majelisAktif: number
-  repaymentRate: number
-  newFlowDpd: number
-  tasksDone: number
-  tasksTotal: number
-  disbursement: string
-}
-
-export const BP_ROWS: BpRow[] = [
-  { id: 'bp-1', name: 'Fadhil Maulana', majelisAktif: 7, repaymentRate: 91, newFlowDpd: 2, tasksDone: 6, tasksTotal: 12, disbursement: 'Rp34 jt' },
-  { id: 'bp-2', name: 'Sukma Ayuningrum', majelisAktif: 6, repaymentRate: 67, newFlowDpd: 0, tasksDone: 0, tasksTotal: 10, disbursement: 'Rp34 jt' },
-  { id: 'bp-3', name: 'Laili Maulidia', majelisAktif: 8, repaymentRate: 78, newFlowDpd: 4, tasksDone: 7, tasksTotal: 14, disbursement: 'Rp34 jt' },
-  { id: 'bp-4', name: 'Fadhil Maulana', majelisAktif: 5, repaymentRate: 89, newFlowDpd: 5, tasksDone: 8, tasksTotal: 10, disbursement: 'Rp34 jt' },
-  { id: 'bp-5', name: 'Cenli Cencen', majelisAktif: 8, repaymentRate: 78, newFlowDpd: 4, tasksDone: 7, tasksTotal: 14, disbursement: 'Rp34 jt' },
-  { id: 'bp-6', name: 'Budi Ngurah', majelisAktif: 5, repaymentRate: 89, newFlowDpd: 5, tasksDone: 8, tasksTotal: 10, disbursement: 'Rp34 jt' },
-  { id: 'bp-7', name: 'Ainur Rohmah', majelisAktif: 8, repaymentRate: 78, newFlowDpd: 4, tasksDone: 8, tasksTotal: 12, disbursement: 'Rp34 jt' },
-  { id: 'bp-8', name: 'M. Alif Rizqi', majelisAktif: 5, repaymentRate: 89, newFlowDpd: 5, tasksDone: 8, tasksTotal: 10, disbursement: 'Rp34 jt' },
-  { id: 'bp-9', name: 'Diski Tafa Ilham', majelisAktif: 8, repaymentRate: 78, newFlowDpd: 4, tasksDone: 7, tasksTotal: 14, disbursement: 'Rp34 jt' },
-  { id: 'bp-10', name: 'Fauzan Aditama', majelisAktif: 5, repaymentRate: 89, newFlowDpd: 5, tasksDone: 10, tasksTotal: 10, disbursement: 'Rp34 jt' },
-]
-
-/** The whole branch, of which BP_ROWS is the first page. */
-export const BP_TOTAL = 95
 
 /** The majelis the morning report asks the BM to plan around. */
 export interface FlaggedMajelis {
