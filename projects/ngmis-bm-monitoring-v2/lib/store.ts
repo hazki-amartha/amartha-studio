@@ -12,7 +12,7 @@
 //               a history row (or a just-submitted briefing) is opened.
 
 import { useSyncExternalStore } from 'react'
-import type { BriefingKind, Orientation } from './data'
+import type { BriefingKind } from './data'
 
 export type DashboardTab = 'monitoring' | 'briefings'
 
@@ -27,15 +27,12 @@ export interface FlowState {
   tab: DashboardTab
   submitted: Record<BriefingKind, boolean>
   viewing: ViewingBriefing | null
-  /** Scorecard layout, shared across every page that shows it. */
-  orientation: Orientation
 }
 
 const initial: FlowState = {
   tab: 'monitoring',
   submitted: { morning: false, evening: false },
   viewing: null,
-  orientation: 'bp-rows',
 }
 
 let state: FlowState = initial

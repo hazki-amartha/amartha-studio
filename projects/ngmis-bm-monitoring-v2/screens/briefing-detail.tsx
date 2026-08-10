@@ -9,21 +9,20 @@ import { useFlow } from '@/platform/runtime'
 import { Badge, Button } from '@/design-system/components'
 import { Camera } from '@/design-system/icons'
 import { BmShell } from '../lib/shell'
-import { Scorecard, ORIENTATION_OPTIONS } from '../lib/scorecard'
-import { Panel, PanelHeading, PageHeading, SegmentedControl, SunGlyph, MoonGlyph } from '../lib/ui'
+import { Scorecard } from '../lib/scorecard'
+import { Panel, PanelHeading, PageHeading, SunGlyph, MoonGlyph } from '../lib/ui'
 import {
   BRANCH_LABEL,
   BRIEFING_LABEL,
   REPORT_DATE,
   SAMPLE_COMMENTS,
   sectionsForBriefing,
-  type Orientation,
 } from '../lib/data'
-import { store, useFlowState } from '../lib/store'
+import { useFlowState } from '../lib/store'
 
 export function BriefingDetailScreen() {
   const flow = useFlow()
-  const { viewing, orientation } = useFlowState()
+  const { viewing } = useFlowState()
   const kind = viewing?.kind ?? 'morning'
   const date = viewing?.date ?? REPORT_DATE
   const label = BRIEFING_LABEL[kind]
@@ -49,27 +48,18 @@ export function BriefingDetailScreen() {
         />
       }
     >
-      <div className="flex flex-wrap items-center justify-between gap-8 pb-16">
-        <div className="flex flex-wrap items-center gap-8">
-          <span className={kind === 'morning' ? 'text-orange-500' : 'text-primary-500'}>
-            {kind === 'morning' ? <SunGlyph /> : <MoonGlyph />}
-          </span>
-          <Badge intent="green" variant="subtle" size="sm">
-            Terkirim
-          </Badge>
-          <span className="text-12 text-caption">Briefing telah dilakukan dan dikirim.</span>
-        </div>
-        <SegmentedControl
-          label="Tampilan tabel"
-          value={orientation}
-          options={ORIENTATION_OPTIONS}
-          onChange={(v) => store.set({ orientation: v as Orientation })}
-        />
+      <div className="flex flex-wrap items-center gap-8 pb-16">
+        <span className={kind === 'morning' ? 'text-orange-500' : 'text-primary-500'}>
+          {kind === 'morning' ? <SunGlyph /> : <MoonGlyph />}
+        </span>
+        <Badge intent="green" variant="subtle" size="sm">
+          Terkirim
+        </Badge>
+        <span className="text-12 text-caption">Briefing telah dilakukan dan dikirim.</span>
       </div>
 
       <Scorecard
         sections={sectionsForBriefing(kind)}
-        orientation={orientation}
         comment={{ kind: 'read', comments: SAMPLE_COMMENTS }}
       />
 
