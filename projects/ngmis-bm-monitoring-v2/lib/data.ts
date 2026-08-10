@@ -61,11 +61,45 @@ export interface Measure {
   actual?: boolean
 }
 
+/** The threshold the 2nd measure's percentage (of the 1st) is judged against —
+ *  'min' → good when ≥ pct (a ">90%" target), 'max' → good when ≤ pct ("<5%"). */
+export interface RowGoal {
+  pct: number
+  dir: 'min' | 'max'
+}
+
 export interface MatrixRow {
   id: string
   label: string
+  /** A smaller, greyed line under the label — carries the target for a row that
+   *  states one (Repayment's ">90%" / "<5%" / "<3%"). */
+  sublabel?: string
   kind: CellKind
   note?: NoteKind
+  goal?: RowGoal
+}
+
+/** The colour a measure's figure reads in — 'bad' red, 'good' green, else
+ *  default. Only the 2nd measure is judged: a goal row against its threshold, a
+ *  shortfall row against the 1st measure (red when short, no green). */
+export type Tone = 'good' | 'bad' | undefined
+
+export function measureTone(
+  section: MatrixSection,
+  row: MatrixRow,
+  cells: Record<string, number>,
+  measureIndex: number,
+): Tone {
+  if (measureIndex !== 1) return undefined
+  const first = cells[section.measures[0].id]
+  const second = cells[section.measures[1].id]
+  if (row.goal) {
+    const pct = first <= 0 ? 0 : (second / first) * 100
+    const met = row.goal.dir === 'min' ? pct >= row.goal.pct : pct <= row.goal.pct
+    return met ? 'good' : 'bad'
+  }
+  if (section.shortfallTone && second < first) return 'bad'
+  return undefined
 }
 
 export interface MatrixSection {
@@ -85,8 +119,10 @@ export interface MatrixSection {
 interface RowSpec {
   id: string
   label: string
+  sublabel?: string
   kind?: CellKind
   note?: NoteKind
+  goal?: RowGoal
   m: Record<string, number[]>
 }
 
@@ -112,7 +148,14 @@ function section(
     title,
     measures,
     shortfallTone,
-    rows: rowSpecs.map((r) => ({ id: r.id, label: r.label, kind: r.kind ?? 'count', note: r.note })),
+    rows: rowSpecs.map((r) => ({
+      id: r.id,
+      label: r.label,
+      sublabel: r.sublabel,
+      kind: r.kind ?? 'count',
+      note: r.note,
+      goal: r.goal,
+    })),
     values,
   }
 }
@@ -144,11 +187,11 @@ export const SECTIONS: MatrixSection[] = [
       { id: 'terbayar', label: 'Terbayar', actual: true },
     ],
     [
-      { id: 'dpd0', label: 'DPD 0 - target >90%', note: 'pct',
+      { id: 'dpd0', label: 'DPD 0', sublabel: 'target >90%', note: 'pct', goal: { pct: 90, dir: 'min' },
         m: { aktif: [40, 42, 38, 45, 36, 40], terbayar: [35, 39, 30, 42, 28, 36] } },
-      { id: 'dpd130', label: 'DPD 1-30 - target <5%', note: 'pct',
+      { id: 'dpd130', label: 'DPD 1-30', sublabel: 'target <5%', note: 'pct', goal: { pct: 5, dir: 'max' },
         m: { aktif: [10, 8, 12, 9, 11, 10], terbayar: [1, 1, 2, 1, 2, 1] } },
-      { id: 'dpd3190', label: 'DPD 31-90 - target <3%', note: 'pct',
+      { id: 'dpd3190', label: 'DPD 31-90', sublabel: 'target <3%', note: 'pct', goal: { pct: 3, dir: 'max' },
         m: { aktif: [10, 8, 12, 9, 11, 10], terbayar: [1, 0, 2, 1, 1, 1] } },
       { id: 'btc', label: 'BTC', note: 'pct',
         m: { aktif: [2, 2, 3, 2, 3, 2], terbayar: [1, 1, 1, 1, 2, 1] } },
@@ -246,7 +289,7 @@ export function rowSummary(
   section: MatrixSection,
   bpId: string,
   row: MatrixRow,
-): { label: string; value: string }[] {
+): { label: string; value: string; tone: Tone }[] {
   const cells = section.values[bpId][row.id]
   const first = cells[section.measures[0].id]
   const second = cells[section.measures[1].id]
@@ -256,7 +299,7 @@ export function rowSummary(
     let note = ''
     if (j === 1 && row.note === 'pct') note = ` (${pctText(second, first)})`
     else if (j === 1 && row.note === 'sisa') note = ` · Sisa ${rupiah(first - second)}`
-    return { label: mm.label, value: main + note }
+    return { label: mm.label, value: main + note, tone: measureTone(section, row, cells, j) }
   })
 }
 

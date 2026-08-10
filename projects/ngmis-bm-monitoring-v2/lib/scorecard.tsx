@@ -14,13 +14,21 @@ import {
   BPS,
   SECTIONS,
   commentKey,
+  measureTone,
   pctText,
   rupiah,
   type Bp,
   type CellKind,
   type MatrixRow,
   type MatrixSection,
+  type Tone,
 } from './data'
+
+/** Figure colour: red when a target is missed, green when a goal is met. */
+const toneMainClass = (t: Tone): string =>
+  t === 'bad' ? 'font-bold text-red-500' : t === 'good' ? 'font-bold text-green-500' : 'text-default'
+const toneNoteClass = (t: Tone): string =>
+  t === 'bad' ? 'text-red-500' : t === 'good' ? 'text-green-500' : 'text-caption'
 
 // Fixed widths (frame geometry → inline, not spacing tokens). One measure width
 // for EVERY subject — so each BP's column sits at the same x in all four tables
@@ -150,24 +158,28 @@ function SectionMatrix({
                   ri % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'
                 }`}
               >
-                <td className="px-12 py-8 text-14 font-bold text-default">{row.label}</td>
+                <td className="px-12 py-8">
+                  <span className="block text-14 font-bold text-default">{row.label}</span>
+                  {row.sublabel ? (
+                    <span className="block text-12 font-regular text-caption">{row.sublabel}</span>
+                  ) : null}
+                </td>
                 {bps.flatMap((bp) => {
                   const cells = section.values[bp.id][row.id]
                   const first = cells[measures[0].id]
                   const second = cells[measures[1].id]
                   return measures.map((mm, j) => {
-                    const isSecond = j === 1
-                    const short = section.shortfallTone && isSecond && second < first
-                    const note = isSecond ? noteText(row, first, second) : null
+                    const note = j === 1 ? noteText(row, first, second) : null
+                    const tone = measureTone(section, row, cells, j)
                     return (
                       <td
                         key={`${bp.id}-${mm.id}`}
                         className={`px-12 py-8 text-14 ${j === 0 ? 'border-l border-default' : ''}`}
                       >
-                        <span className={`block ${short ? 'font-bold text-red-500' : 'text-default'}`}>
+                        <span className={`block ${toneMainClass(tone)}`}>
                           {fmtMain(cells[mm.id], row.kind)}
                         </span>
-                        {note ? <span className="block text-12 text-caption">{note}</span> : null}
+                        {note ? <span className={`block text-12 ${toneNoteClass(tone)}`}>{note}</span> : null}
                       </td>
                     )
                   })
