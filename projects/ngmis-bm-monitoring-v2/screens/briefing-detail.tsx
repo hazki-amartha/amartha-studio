@@ -58,10 +58,7 @@ export function BriefingDetailScreen() {
         <span className="text-12 text-caption">Briefing telah dilakukan dan dikirim.</span>
       </div>
 
-      <Scorecard
-        sections={sectionsForBriefing(kind)}
-        comment={{ kind: 'read', comments: SAMPLE_COMMENTS }}
-      />
+      <Scorecard sections={sectionsForBriefing(kind)} comment={{ kind: 'read', comments: SAMPLE_COMMENTS }} />
 
       <div className="pt-16">
         <Panel>

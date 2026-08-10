@@ -1,10 +1,12 @@
-// Mock data for the NGMIS Daily Monitoring prototype.
+// Mock data for the BM monitoring v2 prototype.
 //
-// The scorecard is BPs-across-the-top, always: each section names its ROWS (the
-// things being counted) and its MEASURES (the columns each row carries), and
-// every BP gets that block of measures under their name. Six BPs — a full branch
-// roster — kept small elsewhere (§3): five history rows, because the history
-// list shows five.
+// The scorecard is a stack of matrices, one per subject (Task, Repayment,
+// Disbursement, Cash settlement). BPs run across the top; under each BP sit the
+// subject's paired measures (Target/Completed, Aktif/Terbayar, Collected/
+// Settled). The metrics run down the side. This mirrors the reference sheet.
+//
+// Six BPs (a full branch roster). Figures vary per BP so the branch can actually
+// be read across — the reference's identical columns are a blank template.
 
 export interface Bp {
   id: string
@@ -23,8 +25,7 @@ export const BPS: Bp[] = [
 ]
 
 /** The branch this view is scoped to, drilled down region → provinsi → kota →
- *  branch. The cascade is shown as a locked filter in the header — fixed context,
- *  not something the BM switches. */
+ *  branch. Shown as a locked filter in the header — fixed context. */
 export const LOCATION = {
   region: 'Jawa',
   provinsi: 'Jawa Barat 1',
@@ -35,242 +36,157 @@ export const LOCATION = {
 export const BRANCH_LABEL = LOCATION.branch
 export const REPORT_DATE = '07 Aug 2026'
 
-/** One column inside a BP's block.
- *
- *  `role` is what the figure means, and it is what drives the reading aids: an
- *  `achievement` is compared against the row's `target` — shown as a percentage
- *  and lifted to orange when it falls short — while `outstanding` reads orange
- *  the moment it is above zero. `standing` figures (mitra aktif) are neither. */
-export type MeasureRole = 'standing' | 'target' | 'achievement' | 'outstanding'
-
-export interface Measure {
-  id: string
-  header: string
-  kind: 'count' | 'rupiah'
-  role: MeasureRole
-}
-
-/** One row of a section — `values` is per BP, aligned to the section's measures.
- *  `null` means the row doesn't carry that measure (BTC has no daily target). */
-export interface SectionRow {
-  id: string
-  label: string
-  /** Set where the row's figures mean something other than the column header
-   *  says — Sosialisasi's target and achievement are potential leads. */
-  note?: string
-  values: Record<string, (number | null)[]>
-}
-
-export interface ScorecardSection {
-  id: string
-  title: string
-  measures: Measure[]
-  rows: SectionRow[]
-}
-
-const TASK_MEASURES: Measure[] = [
-  { id: 'target', header: 'Target', kind: 'count', role: 'target' },
-  { id: 'completed', header: 'Completed', kind: 'count', role: 'achievement' },
-]
-
-const REPAYMENT_MEASURES: Measure[] = [
-  { id: 'active', header: 'Total Mitra Aktif', kind: 'count', role: 'standing' },
-  { id: 'target', header: 'Target hari ini', kind: 'count', role: 'target' },
-  { id: 'achievement', header: 'Achievement hari ini', kind: 'count', role: 'achievement' },
-]
-
-const DISBURSEMENT_MEASURES: Measure[] = [
-  { id: 'target', header: 'Target hari ini', kind: 'count', role: 'target' },
-  { id: 'achievement', header: 'Achievement hari ini', kind: 'count', role: 'achievement' },
-]
-
-const CASH_MEASURES: Measure[] = [
-  { id: 'target', header: 'Target harian', kind: 'rupiah', role: 'target' },
-  { id: 'collected', header: 'Terkumpul', kind: 'rupiah', role: 'achievement' },
-  { id: 'settled', header: 'Sudah disetor', kind: 'rupiah', role: 'standing' },
-  { id: 'outstanding', header: 'Belum disetor', kind: 'rupiah', role: 'outstanding' },
-]
-
-export const SECTIONS: ScorecardSection[] = [
-  {
-    id: 'task',
-    title: 'Task',
-    measures: TASK_MEASURES,
-    rows: [
-      {
-        id: 'hv',
-        label: 'HV',
-        values: {
-          'bp-a': [6, 4], 'bp-b': [8, 3], 'bp-c': [5, 5],
-          'bp-d': [6, 5], 'bp-e': [7, 4], 'bp-f': [5, 3],
-        },
-      },
-      {
-        id: 'mv',
-        label: 'MV',
-        values: {
-          'bp-a': [5, 5], 'bp-b': [6, 6], 'bp-c': [4, 3],
-          'bp-d': [6, 6], 'bp-e': [5, 4], 'bp-f': [4, 4],
-        },
-      },
-      {
-        id: 'sos',
-        label: 'SOS',
-        values: {
-          'bp-a': [3, 2], 'bp-b': [4, 1], 'bp-c': [2, 2],
-          'bp-d': [3, 3], 'bp-e': [4, 2], 'bp-f': [2, 1],
-        },
-      },
-      {
-        id: 'fu',
-        label: 'FU',
-        values: {
-          'bp-a': [4, 3], 'bp-b': [5, 2], 'bp-c': [3, 3],
-          'bp-d': [4, 4], 'bp-e': [5, 3], 'bp-f': [3, 2],
-        },
-      },
-      {
-        id: 'uk',
-        label: 'UK',
-        values: {
-          'bp-a': [5, 4], 'bp-b': [1, 1], 'bp-c': [3, 2],
-          'bp-d': [4, 4], 'bp-e': [2, 1], 'bp-f': [3, 2],
-        },
-      },
-    ],
-  },
-  {
-    id: 'repayment',
-    title: 'Repayment',
-    measures: REPAYMENT_MEASURES,
-    rows: [
-      {
-        id: 'dpd-0',
-        label: 'DPD 0',
-        values: {
-          'bp-a': [85, 68, 60], 'bp-b': [108, 92, 88], 'bp-c': [51, 41, 33],
-          'bp-d': [102, 88, 84], 'bp-e': [72, 55, 47], 'bp-f': [68, 60, 55],
-        },
-      },
-      {
-        id: 'dpd-1-30',
-        label: 'DPD 1–30',
-        values: {
-          'bp-a': [17, 10, 6], 'bp-b': [12, 8, 7], 'bp-c': [8, 6, 3],
-          'bp-d': [10, 7, 6], 'bp-e': [14, 9, 5], 'bp-f': [6, 4, 4],
-        },
-      },
-      {
-        id: 'dpd-31-90',
-        label: 'DPD 31–90',
-        values: {
-          'bp-a': [6, 3, 1], 'bp-b': [4, 2, 2], 'bp-c': [5, 3, 1],
-          'bp-d': [3, 2, 2], 'bp-e': [7, 4, 2], 'bp-f': [2, 1, 1],
-        },
-      },
-      {
-        // BTC is cleared-in-full, not a daily quota — no target is set for it.
-        id: 'btc',
-        label: 'BTC',
-        values: {
-          'bp-a': [9, null, 1], 'bp-b': [7, null, 0], 'bp-c': [11, null, 2],
-          'bp-d': [8, null, 2], 'bp-e': [10, null, 1], 'bp-f': [5, null, 1],
-        },
-      },
-    ],
-  },
-  {
-    id: 'disbursement',
-    title: 'Disbursement',
-    measures: DISBURSEMENT_MEASURES,
-    rows: [
-      {
-        id: 'uk-approved',
-        label: 'UK Approved',
-        values: {
-          'bp-a': [4, 3], 'bp-b': [1, 1], 'bp-c': [2, 2],
-          'bp-d': [4, 3], 'bp-e': [1, 1], 'bp-f': [2, 2],
-        },
-      },
-      {
-        id: 'disbursement-amount',
-        label: 'Disbursement amount',
-        values: {
-          'bp-a': [50_000_000, 45_000_000], 'bp-b': [15_000_000, 15_000_000],
-          'bp-c': [35_000_000, 30_000_000], 'bp-d': [45_000_000, 40_000_000],
-          'bp-e': [15_000_000, 12_000_000], 'bp-f': [30_000_000, 28_000_000],
-        },
-      },
-      {
-        id: 'sosialisasi',
-        label: 'Sosialisasi',
-        note: 'Target & achievement dihitung dalam potential lead.',
-        values: {
-          'bp-a': [8, 6], 'bp-b': [6, 3], 'bp-c': [5, 5],
-          'bp-d': [8, 7], 'bp-e': [6, 4], 'bp-f': [4, 2],
-        },
-      },
-    ],
-  },
-  {
-    id: 'cash-collection',
-    title: 'Cash collection',
-    measures: CASH_MEASURES,
-    rows: [
-      {
-        id: 'cash-collection',
-        label: 'Cash collection',
-        values: {
-          'bp-a': [6_500_000, 5_200_000, 5_000_000, 200_000],
-          'bp-b': [6_000_000, 5_800_000, 5_800_000, 0],
-          'bp-c': [5_500_000, 3_200_000, 2_500_000, 700_000],
-          'bp-d': [7_000_000, 6_400_000, 6_000_000, 400_000],
-          'bp-e': [5_000_000, 3_100_000, 3_000_000, 100_000],
-          'bp-f': [4_500_000, 3_900_000, 3_500_000, 400_000],
-        },
-      },
-    ],
-  },
-]
-
-/** The disbursement-amount row is money even though its section's other rows are
- *  counts — the measure's own `kind` can't tell them apart, so the row does. */
-const RUPIAH_ROWS = new Set(['disbursement-amount'])
-
-export function isRupiah(section: ScorecardSection, row: SectionRow, measure: Measure): boolean {
-  return measure.kind === 'rupiah' || (section.id === 'disbursement' && RUPIAH_ROWS.has(row.id))
-}
-
 /** "Rp45.000.000" — grouped, the way the reference prints money. */
 export function rupiah(value: number): string {
   return `Rp${value.toLocaleString('id-ID')}`
 }
 
-/** The value a row carries for a BP under a given measure; null where the row
- *  doesn't carry it. */
-export function valueAt(
-  section: ScorecardSection,
-  row: SectionRow,
-  bpId: string,
-  measureId: string,
-): number | null {
-  const index = section.measures.findIndex((me) => me.id === measureId)
-  if (index < 0) return null
-  return row.values[bpId]?.[index] ?? null
+/** "87,5%", "10%", "50%" — one decimal, Indonesian comma, trimmed when whole. */
+export function pctText(part: number, whole: number): string {
+  if (whole <= 0) return '0%'
+  const p = Math.round((part / whole) * 1000) / 10
+  return `${(Number.isInteger(p) ? String(p) : p.toFixed(1)).replace('.', ',')}%`
 }
 
-/** An achievement as a percentage of its row's target — null where either is
- *  missing, so BTC and the standing figures show no percentage. */
-export function achievementPct(
-  section: ScorecardSection,
-  row: SectionRow,
-  bpId: string,
-  value: number,
-): number | null {
-  const target = valueAt(section, row, bpId, 'target')
-  if (target === null || target === 0) return null
-  return Math.round((value / target) * 100)
+// --- Scorecard model --------------------------------------------------------
+
+export type CellKind = 'count' | 'rupiah'
+/** The secondary line under a row's SECOND measure. */
+export type NoteKind = 'pct' | 'sisa'
+
+export interface Measure {
+  id: string
+  label: string
+  /** A same-day result the morning briefing hasn't produced yet → zeroed then. */
+  actual?: boolean
 }
+
+export interface MatrixRow {
+  id: string
+  label: string
+  kind: CellKind
+  note?: NoteKind
+}
+
+export interface MatrixSection {
+  id: string
+  title: string
+  measures: Measure[]
+  rows: MatrixRow[]
+  /** A row where the 2nd measure trailing the 1st reads as a shortfall (orange).
+   *  Off for Repayment, where Terbayar is always below Aktif by design. */
+  shortfallTone?: boolean
+  /** values[bpId][rowId][measureId] */
+  values: Record<string, Record<string, Record<string, number>>>
+}
+
+/** Compact authoring: each row carries, per measure, one number per BP. */
+interface RowSpec {
+  id: string
+  label: string
+  kind?: CellKind
+  note?: NoteKind
+  m: Record<string, number[]>
+}
+
+function section(
+  id: string,
+  title: string,
+  measures: Measure[],
+  rowSpecs: RowSpec[],
+  shortfallTone = false,
+): MatrixSection {
+  const values: MatrixSection['values'] = {}
+  BPS.forEach((bp, i) => {
+    values[bp.id] = {}
+    for (const row of rowSpecs) {
+      values[bp.id][row.id] = {}
+      for (const [mid, arr] of Object.entries(row.m)) {
+        values[bp.id][row.id][mid] = arr[i]
+      }
+    }
+  })
+  return {
+    id,
+    title,
+    measures,
+    shortfallTone,
+    rows: rowSpecs.map((r) => ({ id: r.id, label: r.label, kind: r.kind ?? 'count', note: r.note })),
+    values,
+  }
+}
+
+const TARGET_COMPLETED: Measure[] = [
+  { id: 'target', label: 'Target' },
+  { id: 'completed', label: 'Completed', actual: true },
+]
+
+export const SECTIONS: MatrixSection[] = [
+  section(
+    'task',
+    'Task',
+    TARGET_COMPLETED,
+    [
+      { id: 'hv', label: 'HV', m: { target: [3, 3, 3, 4, 3, 3], completed: [2, 3, 3, 2, 1, 2] } },
+      { id: 'mv', label: 'MV', m: { target: [6, 6, 6, 6, 6, 6], completed: [6, 6, 4, 6, 5, 6] } },
+      { id: 'sos', label: 'SOS', m: { target: [2, 2, 2, 3, 2, 2], completed: [1, 2, 1, 2, 0, 1] } },
+      { id: 'fu', label: 'FU', m: { target: [1, 1, 1, 1, 1, 1], completed: [1, 1, 0, 1, 1, 1] } },
+      { id: 'uk', label: 'UK', m: { target: [2, 1, 3, 2, 1, 2], completed: [2, 1, 2, 2, 1, 2] } },
+    ],
+    true,
+  ),
+  section(
+    'repayment',
+    'Repayment',
+    [
+      { id: 'aktif', label: 'Aktif' },
+      { id: 'terbayar', label: 'Terbayar', actual: true },
+    ],
+    [
+      { id: 'dpd0', label: 'DPD 0 - target >90%', note: 'pct',
+        m: { aktif: [40, 42, 38, 45, 36, 40], terbayar: [35, 39, 30, 42, 28, 36] } },
+      { id: 'dpd130', label: 'DPD 1-30 - target <5%', note: 'pct',
+        m: { aktif: [10, 8, 12, 9, 11, 10], terbayar: [1, 1, 2, 1, 2, 1] } },
+      { id: 'dpd3190', label: 'DPD 31-90 - target <3%', note: 'pct',
+        m: { aktif: [10, 8, 12, 9, 11, 10], terbayar: [1, 0, 2, 1, 1, 1] } },
+      { id: 'btc', label: 'BTC', note: 'pct',
+        m: { aktif: [2, 2, 3, 2, 3, 2], terbayar: [1, 1, 1, 1, 2, 1] } },
+    ],
+  ),
+  section(
+    'disbursement',
+    'Disbursement',
+    TARGET_COMPLETED,
+    [
+      { id: 'uk-approved', label: 'UK Approved',
+        m: { target: [4, 1, 3, 4, 2, 3], completed: [4, 1, 2, 4, 1, 2] } },
+      { id: 'amount', label: 'Disbursement amount', kind: 'rupiah',
+        m: {
+          target: [45_000_000, 15_000_000, 30_000_000, 40_000_000, 12_000_000, 28_000_000],
+          completed: [45_000_000, 15_000_000, 20_000_000, 40_000_000, 12_000_000, 20_000_000],
+        } },
+      { id: 'leads', label: 'New leads from Sos',
+        m: { target: [15, 15, 15, 15, 15, 15], completed: [7, 5, 8, 9, 4, 6] } },
+    ],
+    true,
+  ),
+  section(
+    'cash-settlement',
+    'Cash settlement',
+    [
+      { id: 'collected', label: 'Collected', actual: true },
+      { id: 'settled', label: 'Settled', actual: true },
+    ],
+    [
+      { id: 'setoran', label: 'Setoran hari ini', kind: 'rupiah', note: 'sisa',
+        m: {
+          collected: [15_000_000, 12_000_000, 9_000_000, 18_000_000, 8_000_000, 11_000_000],
+          settled: [10_000_000, 12_000_000, 6_000_000, 15_000_000, 7_000_000, 9_000_000],
+        } },
+    ],
+    true,
+  ),
+]
 
 // --- Briefings --------------------------------------------------------------
 
@@ -281,8 +197,8 @@ export const BRIEFING_LABEL: Record<BriefingKind, string> = {
   evening: 'Briefing Sore',
 }
 
-/** The prompt under each briefing — what the BM is meant to cover on the figures
- *  in front of them. Morning sets the day's plan; evening reads the result. */
+/** The prompt under each briefing — what the BM covers on the figures in front
+ *  of them. Morning sets the day's plan; evening reads the result. */
 export const BRIEFING_INTRO: Record<BriefingKind, string> = {
   morning:
     'Bahas target hari ini bersama BP: siapa mengejar apa, dan mitra mana yang harus diprioritaskan.',
@@ -292,56 +208,36 @@ export const BRIEFING_INTRO: Record<BriefingKind, string> = {
 
 /**
  * The scorecard as it reads for a briefing. A morning briefing happens BEFORE
- * the BPs do any fieldwork, so only what is already known survives — targets and
- * the standing mitra-aktif counts. Every achievement, and every rupiah not yet
- * collected, reads 0.
+ * the BPs do any fieldwork, so every "actual" measure (Completed, Terbayar,
+ * Collected, Settled) is 0; the plan figures (Target, Aktif) stand. The evening
+ * briefing reads the full day.
  */
-export function sectionsForBriefing(kind: BriefingKind): ScorecardSection[] {
+export function sectionsForBriefing(kind: BriefingKind): MatrixSection[] {
   if (kind === 'evening') return SECTIONS
-  return SECTIONS.map((section) => ({
-    ...section,
-    rows: section.rows.map((row) => ({
-      ...row,
-      values: Object.fromEntries(
-        Object.entries(row.values).map(([bpId, values]) => [
-          bpId,
-          values.map((value, i) => {
-            const role = section.measures[i].role
-            if (value === null) return null
-            return role === 'standing' || role === 'target' ? value : 0
-          }),
-        ]),
-      ),
-    })),
-  }))
+  return SECTIONS.map((s) => {
+    const actualIds = s.measures.filter((mm) => mm.actual).map((mm) => mm.id)
+    const values: MatrixSection['values'] = {}
+    for (const [bpId, rows] of Object.entries(s.values)) {
+      values[bpId] = {}
+      for (const [rowId, cells] of Object.entries(rows)) {
+        values[bpId][rowId] = { ...cells }
+        for (const mid of actualIds) values[bpId][rowId][mid] = 0
+      }
+    }
+    return { ...s, values }
+  })
 }
 
-/** The commentary column is keyed per section + per BP, so the BM can note a
- *  specific activity for a specific person. */
+/** The commentary column is keyed per section + per BP. */
 export const commentKey = (sectionId: string, bpId: string): string => `${sectionId}:${bpId}`
 
-/** The alternative where commentary is NOT per activity: one note per BP for the
- *  whole briefing, so it keys against a single pseudo-section. */
-export const briefingCommentKey = (bpId: string): string => commentKey('briefing', bpId)
-
-/** Which activity + which BP a comment key belongs to — the dialog's heading. */
-export function commentLabel(key: string): { section: string; bp: string } {
-  const [sectionId, bpId] = key.split(':')
-  return {
-    section: SECTIONS.find((s) => s.id === sectionId)?.title ?? sectionId,
-    bp: BPS.find((b) => b.id === bpId)?.name ?? bpId,
-  }
-}
-
-/** Seeded commentary, so the read-only detail of a past briefing is not a page
- *  of empty boxes. Only a handful of cells carry a note — a real briefing
- *  comments where something needs saying, not on every figure. */
+/** Seeded commentary, so a past briefing's detail isn't a page of empty boxes.
+ *  Only a handful of cells carry a note. */
 export const SAMPLE_COMMENTS: Record<string, string> = {
-  [commentKey('task', 'bp-b')]: 'HV baru 3 dari 8 dan SOS 1 dari 4 — susun ulang rute besok.',
-  [commentKey('repayment', 'bp-a')]: 'DPD 0 meleset 8 mitra. Dampingi Sukma di majelis besok pagi.',
-  [commentKey('repayment', 'bp-c')]: 'DPD 31–90 baru 1 dari 3, dan Cenli belum tutup hari — ingatkan.',
-  [commentKey('disbursement', 'bp-e')]: '1 UK belum cair, kejar berkas ke Fadhil.',
-  [commentKey('cash-collection', 'bp-c')]: 'Rp700.000 belum disetor — setor pagi ini sebelum ke lapangan.',
+  [commentKey('task', 'bp-e')]: 'SOS 0 dari 2 — dorong Fadhil kejar 1 sosialisasi besok.',
+  [commentKey('repayment', 'bp-c')]: 'DPD 0 baru 79% (target >90%). Dampingi penagihan Cenli.',
+  [commentKey('disbursement', 'bp-b')]: 'Leads dari SOS baru 5, paling rendah. Review pipeline.',
+  [commentKey('cash-settlement', 'bp-c')]: 'Sisa Rp3jt belum disetor & belum tutup hari — ingatkan.',
 }
 
 export interface HistoryEntry {
