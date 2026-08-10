@@ -393,47 +393,6 @@ export function LockedFilter({ label, value }: { label: string; value: string })
   )
 }
 
-/** A two-or-more option segmented control — a pill group where the active
- *  option is filled. Used to flip the scorecard between BP-rows and BP-columns. */
-export function SegmentedControl({
-  value,
-  options,
-  onChange,
-  label,
-}: {
-  value: string
-  options: { value: string; label: string }[]
-  onChange: (value: string) => void
-  label?: string
-}) {
-  return (
-    <span
-      role="group"
-      aria-label={label}
-      className="inline-flex items-center gap-2 rounded-full border border-default bg-neutral-white p-2"
-    >
-      {options.map((o) => {
-        const on = o.value === value
-        return (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => onChange(o.value)}
-            aria-pressed={on}
-            className={`rounded-full px-12 py-4 text-12 ${
-              on
-                ? 'bg-primary-500 font-bold text-neutral-white'
-                : 'font-regular text-caption hover:text-default'
-            }`}
-          >
-            {o.label}
-          </button>
-        )
-      })}
-    </span>
-  )
-}
-
 /** A day picker for the header filter row. FunDS has no date control, so this
  *  is a native `<input type="date">` styled to match `Select` — clicking it
  *  opens the browser's own calendar. */
@@ -662,41 +621,15 @@ export interface Column {
 export interface Row {
   id: string
   cells: Record<string, ReactNode>
-  /** Column id → how many columns that cell swallows. The columns it covers are
-   *  skipped, so a commentary row can run the full width of a BP's block. */
-  spans?: Record<string, number>
-}
-
-/** A band above the column headers — one label sitting over the run of columns
- *  it owns. The scorecard uses it to put each BP's name over their measures. */
-export interface ColumnGroup {
-  id: string
-  label: string
-  span: number
-}
-
-/** The cells a row actually renders: a spanning cell swallows the columns that
- *  follow it, so those are dropped rather than drawn empty. */
-function visibleColumns(columns: Column[], row: Row): { col: Column; span: number }[] {
-  const out: { col: Column; span: number }[] = []
-  for (let i = 0; i < columns.length; i += 1) {
-    const col = columns[i]
-    const span = Math.max(1, Math.min(row.spans?.[col.id] ?? 1, columns.length - i))
-    out.push({ col, span })
-    i += span - 1
-  }
-  return out
 }
 
 export function DataTable({
   columns,
-  groups,
   rows,
   sort,
   onSortChange,
 }: {
   columns: Column[]
-  groups?: ColumnGroup[]
   rows: Row[]
   sort: { columnId: string; dir: SortDir } | null
   onSortChange: (columnId: string) => void
@@ -720,21 +653,6 @@ export function DataTable({
           </colgroup>
         ) : null}
         <thead>
-          {groups ? (
-            <tr className="bg-neutral-50">
-              {groups.map((group, i) => (
-                <th
-                  key={group.id}
-                  colSpan={group.span}
-                  className={`px-12 pt-12 text-12 font-bold text-default ${
-                    i === 0 ? 'rounded-tl-8' : 'border-l border-default'
-                  } ${i === groups.length - 1 ? 'rounded-tr-8' : ''}`}
-                >
-                  {group.label}
-                </th>
-              ))}
-            </tr>
-          ) : null}
           <tr className="bg-neutral-50">
             {columns.map((col, i) => (
               <th
@@ -743,8 +661,8 @@ export function DataTable({
                 // its outer corners follow the card rather than staying square.
                 className={`px-12 py-12 text-12 font-bold text-default ${
                   col.align === 'right' ? 'text-right' : ''
-                } ${i === 0 ? (groups ? 'rounded-bl-8' : 'rounded-l-8') : ''} ${
-                  i === columns.length - 1 ? (groups ? 'rounded-br-8' : 'rounded-r-8') : ''
+                } ${i === 0 ? 'rounded-l-8' : ''} ${
+                  i === columns.length - 1 ? 'rounded-r-8' : ''
                 }`}
               >
                 {col.sortable ? (
@@ -782,10 +700,9 @@ export function DataTable({
                 i % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'
               }`}
             >
-              {visibleColumns(columns, row).map(({ col, span }) => (
+              {columns.map((col) => (
                 <td
                   key={col.id}
-                  colSpan={span > 1 ? span : undefined}
                   className={`px-12 py-12 text-14 text-default ${
                     col.align === 'right' ? 'text-right' : ''
                   }`}
