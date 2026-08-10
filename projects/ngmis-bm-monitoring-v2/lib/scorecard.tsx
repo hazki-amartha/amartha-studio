@@ -8,7 +8,7 @@
 
 import type { ReactNode } from 'react'
 import { Badge } from '@/design-system/components'
-import { CheckCircleFill, CrossCircleFill } from '@/design-system/icons'
+import { CheckCircleFill, CrossCircleFill, NotePencil } from '@/design-system/icons'
 import { Panel, PanelHeading } from './ui'
 import {
   BPS,
@@ -22,15 +22,12 @@ import {
   type MatrixSection,
 } from './data'
 
-// Fixed widths (frame geometry → inline, not spacing tokens). The metric-label
-// column is constant; each measure column is sized to its subject's content.
+// Fixed widths (frame geometry → inline, not spacing tokens). One measure width
+// for EVERY subject — so each BP's column sits at the same x in all four tables
+// and the eye can skim a BP straight down the page. 132 fits the widest cell
+// (a rupiah amount over a "Sisa …" line).
 const W_LABEL = 220
-const MEASURE_W: Record<string, number> = {
-  task: 84,
-  repayment: 100,
-  disbursement: 136,
-  'cash-settlement': 150,
-}
+const MEASURE_W = 132
 
 /** How the "Komentar" row behaves: absent (Monitoring), an editable box (a live
  *  briefing), or seeded read-only text (a past briefing). */
@@ -38,6 +35,7 @@ export type CommentMode =
   | { kind: 'none' }
   | { kind: 'edit'; comments: Record<string, string>; onChange: (key: string, value: string) => void }
   | { kind: 'read'; comments: Record<string, string> }
+  | { kind: 'cta'; comments: Record<string, string>; onOpen: (sectionId: string, bpId: string) => void }
 
 const fmtMain = (value: number, kind: CellKind): string =>
   kind === 'rupiah' ? rupiah(value) : String(value)
@@ -65,12 +63,27 @@ function CommentInput({ value, onChange }: { value: string; onChange: (value: st
 function commentCell(comment: CommentMode, sectionId: string, bpId: string): ReactNode {
   if (comment.kind === 'none') return null
   const key = commentKey(sectionId, bpId)
+  const value = comment.comments[key]
   if (comment.kind === 'edit') {
-    return <CommentInput value={comment.comments[key] ?? ''} onChange={(v) => comment.onChange(key, v)} />
+    return <CommentInput value={value ?? ''} onChange={(v) => comment.onChange(key, v)} />
+  }
+  if (comment.kind === 'cta') {
+    return (
+      <div className="flex flex-col items-start gap-4">
+        {value ? <span className="block whitespace-normal text-14 text-default">{value}</span> : null}
+        <button
+          type="button"
+          onClick={() => comment.onOpen(sectionId, bpId)}
+          className="flex items-center gap-4 text-14 font-bold text-link active:opacity-70"
+        >
+          <NotePencil size={16} /> {value ? 'Ubah' : 'Isi'}
+        </button>
+      </div>
+    )
   }
   return (
     <span className="block whitespace-normal text-14 text-default">
-      {comment.comments[key] ? comment.comments[key] : <span className="text-placeholder">—</span>}
+      {value ? value : <span className="text-placeholder">—</span>}
     </span>
   )
 }
@@ -85,7 +98,7 @@ function SectionMatrix({
   comment: CommentMode
 }) {
   const { measures } = section
-  const mw = MEASURE_W[section.id] ?? 100
+  const mw = MEASURE_W
   const totalWidth = W_LABEL + bps.length * measures.length * mw
 
   return (
@@ -151,7 +164,7 @@ function SectionMatrix({
                         key={`${bp.id}-${mm.id}`}
                         className={`px-12 py-8 text-14 ${j === 0 ? 'border-l border-default' : ''}`}
                       >
-                        <span className={`block ${short ? 'font-bold text-orange-500' : 'text-default'}`}>
+                        <span className={`block ${short ? 'font-bold text-red-500' : 'text-default'}`}>
                           {fmtMain(cells[mm.id], row.kind)}
                         </span>
                         {note ? <span className="block text-12 text-caption">{note}</span> : null}
