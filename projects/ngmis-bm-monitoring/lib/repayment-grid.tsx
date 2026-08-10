@@ -17,7 +17,7 @@
 // The cost is that exact counts drop to small text under the rate, which is
 // precisely what the MVP keeps at full size.
 
-import { MetricCard, Panel } from './ui'
+import { MetricCard, Panel, RatePill } from './ui'
 import { useBpFilter } from './bp-filter'
 import {
   REPAYMENT_BPS,
@@ -57,11 +57,9 @@ function RateCell({ bucket, band }: { bucket: Bucket; band: string }) {
   const pct = rate(bucket)
   const ok = meetsTarget(bucket, band)
   const short = mitraShortfall(bucket, band)
-  const tone = ok === null ? 'text-caption' : ok ? 'text-green-600' : 'text-red-600'
-
   return (
-    <span className="flex flex-col items-center gap-2">
-      <span className={`text-16 font-bold ${tone}`}>{fmt(pct)}%</span>
+    <span className="flex flex-col items-center gap-4">
+      <RatePill ok={ok}>{`${fmt(pct)}%`}</RatePill>
       <span className="text-10 text-caption">
         {bucket.paid}/{bucket.total}
       </span>

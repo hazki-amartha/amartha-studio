@@ -12,7 +12,7 @@
 // would say the same thing twice across sixteen columns.
 
 import { Fragment } from 'react'
-import { MetricCard, Panel } from './ui'
+import { MetricCard, Panel, RatePill } from './ui'
 import { useBpFilter } from './bp-filter'
 import {
   REPAYMENT_BPS,
@@ -51,12 +51,9 @@ const COLSPAN = 1 + GROUPS.length * 3
 function Rate({ bucket, band }: { bucket: Bucket; band: string }) {
   const ok = meetsTarget(bucket, band)
   const short = mitraShortfall(bucket, band)
-  const tone = ok === null ? 'text-caption' : ok ? 'text-green-600' : 'text-red-600'
   return (
-    <span className="flex flex-col items-center gap-2">
-      <span className={`text-14 font-bold ${tone}`}>
-        {rate(bucket).toFixed(1).replace('.', ',')}%
-      </span>
+    <span className="flex flex-col items-center gap-4">
+      <RatePill ok={ok}>{`${rate(bucket).toFixed(1).replace('.', ',')}%`}</RatePill>
       {ok === false && short ? (
         <span className="text-10 text-red-600">kurang {short} mitra</span>
       ) : null}

@@ -3,27 +3,28 @@
 // The BP filter above the table, shared by both variations so the control
 // cannot drift between them.
 //
-// It filters on the one thing the page is for: whether a BP is clearing the
-// biz team's standards. Filtering by name would just be a slower way to use
-// your eyes on ten rows.
+// It mixes two kinds of choice — how a BP is doing against the standards, and
+// which BP by name — so they sit in labelled groups. Flattened into one list
+// they read as peers, and "Belum capai target" looks like somebody's name.
 
 import { useState, type ReactNode } from 'react'
 import { Select } from './ui'
 import { REPAYMENT_BPS, targetsMet, type RepaymentBp } from './data'
 
-export const BP_TARGET_FILTERS = [
-  { value: 'all', label: 'Semua BP' },
-  { value: 'missing', label: 'Belum capai target' },
-  { value: 'meeting', label: 'Capai semua target' },
-]
+const ALL = 'all'
+const MISSING = 'missing'
+const MEETING = 'meeting'
 
 export function useBpFilter(): { bps: RepaymentBp[]; control: ReactNode } {
-  const [value, setValue] = useState('all')
+  const [value, setValue] = useState(ALL)
 
   const bps = REPAYMENT_BPS.filter((bp) => {
-    if (value === 'all') return true
-    const { met, total } = targetsMet(bp)
-    return value === 'meeting' ? met === total : met < total
+    if (value === ALL) return true
+    if (value === MISSING || value === MEETING) {
+      const { met, total } = targetsMet(bp)
+      return value === MEETING ? met === total : met < total
+    }
+    return bp.id === value
   })
 
   const control = (
@@ -31,7 +32,25 @@ export function useBpFilter(): { bps: RepaymentBp[]; control: ReactNode } {
       <span className="text-12 text-caption">
         {bps.length} dari {REPAYMENT_BPS.length} BP
       </span>
-      <Select label="Filter BP" value={value} onChange={setValue} options={BP_TARGET_FILTERS} />
+      <Select
+        label="Filter BP"
+        value={value}
+        onChange={setValue}
+        options={[{ value: ALL, label: 'Semua BP' }]}
+        groups={[
+          {
+            label: 'Status target',
+            options: [
+              { value: MISSING, label: 'Belum capai target' },
+              { value: MEETING, label: 'Capai semua target' },
+            ],
+          },
+          {
+            label: 'Nama BP',
+            options: REPAYMENT_BPS.map((bp) => ({ value: bp.id, label: bp.name })),
+          },
+        ]}
+      />
     </div>
   )
 
