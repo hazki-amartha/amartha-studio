@@ -3,8 +3,8 @@
 // =============================================================================
 // NG-MIS BM shell — project-local components (CLAUDE.md §4).
 //
-// FunDS Lite is a mobile system: no app shell, no sidebar, no table, no
-// pagination, because none of those make sense on a phone. Everything here is
+// FunDS Lite is a mobile system: no app shell, no sidebar and no table,
+// because none of those make sense on a phone. Everything here is
 // built from FunDS tokens and FunDS components only — no hardcoded colour, size
 // or radius that isn't in tailwind.config.ts.
 //
@@ -23,7 +23,6 @@
 import type { ReactNode } from 'react'
 import { Badge } from '@/design-system/components'
 import {
-  CheckCircleFill,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -456,78 +455,6 @@ export function Textarea({
   )
 }
 
-// --- KPI card ---------------------------------------------------------------
-
-export interface StatDelta {
-  /** e.g. "Kemarin: 19.8%" */
-  label: string
-  /** e.g. "0,2%" */
-  value: string
-  direction: 'up' | 'down'
-  /** A rise is not always good news: DPD flow going up is red. */
-  good: boolean
-}
-
-export function StatCard({
-  label,
-  value,
-  delta,
-  average,
-  aside,
-}: {
-  label: string
-  value: string
-  delta: StatDelta
-  average: string
-  /** The second figure some cards carry, e.g. "New mitra / 12". */
-  aside?: { label: string; value: string }
-}) {
-  const tone = delta.good ? 'text-green-500' : 'text-red-500'
-  return (
-    <Panel>
-      <div className="flex items-start justify-between gap-16">
-        <div className="flex min-w-0 flex-col gap-4">
-          <span className="text-14 text-default">{label}</span>
-          <span className="text-24 font-bold text-default">{value}</span>
-          <span className="flex items-center gap-4 text-12 text-caption">
-            {delta.label}
-            <span className={`flex items-center gap-2 ${tone}`}>
-              {delta.direction === 'up' ? <TriangleUpGlyph /> : <TriangleDownGlyph />}
-              {delta.value}
-            </span>
-          </span>
-          <span className="text-12 text-caption">{average}</span>
-        </div>
-        {aside ? (
-          <div className="flex shrink-0 flex-col gap-4 pt-24">
-            <span className="text-12 text-caption">{aside.label}</span>
-            <span className="text-16 font-bold text-default">{aside.value}</span>
-          </div>
-        ) : null}
-      </div>
-    </Panel>
-  )
-}
-
-/** The delta arrowheads. `TriangleUpFill` in the shared set is a 24px glyph that
- *  reads far heavier than the 8px caret the reference draws inline with 12px
- *  text, so these are project-local one-offs (§4). */
-function TriangleUpGlyph() {
-  return (
-    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" aria-hidden>
-      <path d="M4 1.5 7.5 6.5h-7z" />
-    </svg>
-  )
-}
-
-function TriangleDownGlyph() {
-  return (
-    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" aria-hidden>
-      <path d="M4 6.5 0.5 1.5h7z" />
-    </svg>
-  )
-}
-
 // --- Daily report tiles -----------------------------------------------------
 
 /** Sun and moon are genuinely absent from the 166-icon set (§4), so they are
@@ -592,31 +519,6 @@ export function ReportTile({
         )}
       </span>
     </div>
-  )
-}
-
-// --- Progress bar -----------------------------------------------------------
-
-const BAR_W = 200
-
-/** The task-completion meter in the BP table. Colour is the read: red is a BP
- *  who has fallen behind, green is one who is on top of it. */
-export function ProgressBar({ percent }: { percent: number }) {
-  const tone = percent >= 80 ? 'bg-green-500' : percent >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-  return (
-    <span className="flex items-center gap-8">
-      <span
-        className="relative h-4 shrink-0 overflow-hidden rounded-full bg-neutral-200"
-        style={{ width: BAR_W }}
-      >
-        <span
-          className={`absolute inset-y-0 left-0 rounded-full ${tone}`}
-          style={{ width: `${Math.max(percent, 1)}%` }}
-        />
-      </span>
-      <span className="text-12 text-caption">{percent}%</span>
-      {percent === 100 ? <CheckCircleFill size={16} className="text-green-500" /> : null}
-    </span>
   )
 }
 
@@ -716,122 +618,3 @@ export function DataTable({
   )
 }
 
-// --- Pagination -------------------------------------------------------------
-
-/**
- * The page numbers to draw: first, last, and the current page with a neighbour
- * either side, `null` where the run is broken. 95 entries at 10/page is ten
- * buttons and at 5/page it would be nineteen, so the row has to window or it
- * becomes the widest thing on the screen.
- */
-function pageWindow(page: number, pageCount: number): (number | null)[] {
-  if (pageCount <= 7) return Array.from({ length: pageCount }, (_, i) => i + 1)
-  const wanted = [1, page - 1, page, page + 1, pageCount]
-    .filter((n) => n >= 1 && n <= pageCount)
-    .sort((a, b) => a - b)
-
-  const out: (number | null)[] = []
-  let prev = 0
-  for (const n of wanted) {
-    if (n === prev) continue
-    if (prev && n - prev > 1) out.push(null)
-    out.push(n)
-    prev = n
-  }
-  return out
-}
-
-export function Pagination({
-  page,
-  pageCount,
-  rangeLabel,
-  onPageChange,
-  perPage,
-  onPerPageChange,
-}: {
-  page: number
-  pageCount: number
-  /** e.g. "1 - 10 of 95 entries." — the count is of the whole set, not the page. */
-  rangeLabel: string
-  onPageChange: (page: number) => void
-  perPage: string
-  onPerPageChange: (perPage: string) => void
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-16 pt-16 text-12 text-caption">
-      <span>{rangeLabel}</span>
-      <div className="flex items-center gap-8">
-        <PageArrow
-          label="Halaman sebelumnya"
-          disabled={page === 1}
-          onClick={() => onPageChange(page - 1)}
-        >
-          <ChevronLeft size={16} />
-        </PageArrow>
-        {pageWindow(page, pageCount).map((n, i) =>
-          n === null ? (
-            // eslint-disable-next-line react/no-array-index-key -- gaps have no id
-            <span key={`gap-${i}`} className="px-4 text-caption">
-              …
-            </span>
-          ) : (
-            <button
-              key={n}
-              type="button"
-              onClick={() => onPageChange(n)}
-              aria-current={n === page ? 'page' : undefined}
-              className={`flex size-32 items-center justify-center rounded-full text-12 ${
-                n === page
-                  ? 'border border-primary-500 font-bold text-link'
-                  : 'font-regular text-caption hover:text-default'
-              }`}
-            >
-              {n}
-            </button>
-          ),
-        )}
-        <PageArrow
-          label="Halaman berikutnya"
-          disabled={page === pageCount}
-          onClick={() => onPageChange(page + 1)}
-        >
-          <ChevronRight size={16} />
-        </PageArrow>
-      </div>
-      <Select
-        label="Baris per halaman"
-        value={perPage}
-        onChange={onPerPageChange}
-        options={[
-          { value: '10', label: '10 / page' },
-          { value: '20', label: '20 / page' },
-          { value: '50', label: '50 / page' },
-        ]}
-      />
-    </div>
-  )
-}
-
-function PageArrow({
-  label,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string
-  disabled: boolean
-  onClick: () => void
-  children: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="flex size-32 items-center justify-center rounded-full text-default disabled:text-placeholder"
-    >
-      {children}
-    </button>
-  )
-}
