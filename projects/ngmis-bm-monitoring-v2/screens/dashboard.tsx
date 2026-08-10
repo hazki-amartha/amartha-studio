@@ -50,6 +50,34 @@ const STATUS_INTENT: Record<HistoryEntry['status'], 'green' | 'yellow' | 'neutra
   'Belum diisi': 'neutral',
 }
 
+/** The two alternatives, for both briefings — screen id, and what differs. */
+const ALT_BRIEFINGS: { id: string; kind: BriefingKind; title: string; subtitle: string }[] = [
+  {
+    id: 'briefing-morning-alt-terpisah',
+    kind: 'morning',
+    title: 'Briefing Pagi — komentar terpisah',
+    subtitle: 'Tanpa kolom Komentar di tabel; satu komentar per BP di section sendiri.',
+  },
+  {
+    id: 'briefing-evening-alt-terpisah',
+    kind: 'evening',
+    title: 'Briefing Sore — komentar terpisah',
+    subtitle: 'Tanpa kolom Komentar di tabel; satu komentar per BP di section sendiri.',
+  },
+  {
+    id: 'briefing-morning-alt-dialog',
+    kind: 'morning',
+    title: 'Briefing Pagi — komentar via dialog',
+    subtitle: 'Komentar tetap per aktivitas, tapi diisi lewat CTA “Isi” dan dialog.',
+  },
+  {
+    id: 'briefing-evening-alt-dialog',
+    kind: 'evening',
+    title: 'Briefing Sore — komentar via dialog',
+    subtitle: 'Komentar tetap per aktivitas, tapi diisi lewat CTA “Isi” dan dialog.',
+  },
+]
+
 const HISTORY_COLUMNS: Column[] = [
   { id: 'date', header: 'Tanggal' },
   { id: 'kind', header: 'Jenis' },
@@ -212,6 +240,28 @@ export function DashboardScreen() {
             )}
           </Panel>
 
+          {/* Alternative shapes of the same two briefings, parked here so they
+              can be opened side by side against the form above. */}
+          <div className="pt-16">
+            <Panel>
+              <PanelHeading
+                title="Alternatif penempatan komentar"
+                subtitle="Dua alternatif untuk briefing pagi dan sore, dibandingkan dengan form di atas."
+              />
+              <div className="flex flex-col gap-8">
+                {ALT_BRIEFINGS.map((alt) => (
+                  <AltBriefingRow
+                    key={alt.id}
+                    kind={alt.kind}
+                    title={alt.title}
+                    subtitle={alt.subtitle}
+                    onOpen={() => flow.go(alt.id)}
+                  />
+                ))}
+              </div>
+            </Panel>
+          </div>
+
           <div className="pt-16">
             <Panel>
               <PanelHeading title="Riwayat briefing" subtitle="Briefing yang sudah berjalan di branch ini." />
@@ -226,6 +276,38 @@ export function DashboardScreen() {
         </>
       )}
     </BmShell>
+  )
+}
+
+/** One alternative briefing form, as a row that opens it. Same furniture as
+ *  BriefingRow, with the difference spelled out instead of a status chip. */
+function AltBriefingRow({
+  kind,
+  title,
+  subtitle,
+  onOpen,
+}: {
+  kind: BriefingKind
+  title: string
+  subtitle: string
+  onOpen: () => void
+}) {
+  const morning = kind === 'morning'
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-16 rounded-12 border border-default p-12">
+      <div className="flex min-w-0 items-center gap-12">
+        <span className={morning ? 'text-orange-500' : 'text-primary-500'}>
+          {morning ? <SunGlyph /> : <MoonGlyph />}
+        </span>
+        <div className="flex min-w-0 flex-col">
+          <span className="text-14 font-bold text-default">{title}</span>
+          <span className="text-12 text-caption">{subtitle}</span>
+        </div>
+      </div>
+      <Button variant="outline" size="sm" onClick={onOpen}>
+        Lihat
+      </Button>
+    </div>
   )
 }
 

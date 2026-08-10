@@ -24,7 +24,11 @@ New here:
   the day?" row. Both take an optional `bps` list, so the dashboard's BP-name
   filter narrows them.
 - `lib/briefing-form.tsx` — `BriefingForm`, shared by the morning and evening
-  briefing screens (they differ only by `kind`). The scorecard in edit mode, a
+  briefing screens (they differ by `kind`, and now by `commentStyle`: `'inline'`
+  is the shipped Komentar-in-every-table shape, `'dedicated'` drops the column
+  and gathers one note per BP in a `BriefingCommentPanel` below the scorecard,
+  `'dialog'` keeps the per-activity column but makes the cell a CTA that opens a
+  `Modal` to type in). The scorecard in edit mode, a
   `PhotoProof` block, and a send bar gated on the photo being attached. The photo
   is a click-through placeholder, not a real file picker (§3).
 - `lib/store.ts` — carries the active dashboard tab, which of today's two

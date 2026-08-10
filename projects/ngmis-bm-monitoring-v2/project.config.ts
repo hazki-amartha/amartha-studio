@@ -2,7 +2,7 @@ import type { ProjectConfig } from '@/platform/types'
 
 export const config: ProjectConfig = {
   slug: 'ngmis-bm-monitoring-v2',
-  name: 'NGMIS BM Monitoring v2',
+  name: 'NGMIS Daily Monitoring',
   platform: 'NGMIS',
   owner: 'Chandraditya Kusuma',
   description:
