@@ -73,8 +73,9 @@ export interface MatrixSection {
   title: string
   measures: Measure[]
   rows: MatrixRow[]
-  /** A row where the 2nd measure trailing the 1st reads as a shortfall (orange).
-   *  Off for Repayment, where Terbayar is always below Aktif by design. */
+  /** A row where the 2nd measure trailing the 1st reads as a shortfall — the
+   *  figure turns red (target not met). Off for Repayment, where Terbayar is
+   *  always below Aktif by design. */
   shortfallTone?: boolean
   /** values[bpId][rowId][measureId] */
   values: Record<string, Record<string, Record<string, number>>>
@@ -178,7 +179,7 @@ export const SECTIONS: MatrixSection[] = [
       { id: 'settled', label: 'Settled', actual: true },
     ],
     [
-      { id: 'setoran', label: 'Setoran hari ini', kind: 'rupiah', note: 'sisa',
+      { id: 'setoran', label: 'Cash settlement', kind: 'rupiah', note: 'sisa',
         m: {
           collected: [15_000_000, 12_000_000, 9_000_000, 18_000_000, 8_000_000, 11_000_000],
           settled: [10_000_000, 12_000_000, 6_000_000, 15_000_000, 7_000_000, 9_000_000],
@@ -191,6 +192,12 @@ export const SECTIONS: MatrixSection[] = [
 // --- Briefings --------------------------------------------------------------
 
 export type BriefingKind = 'morning' | 'evening'
+
+/** How a briefing collects commentary — the three prototype states.
+ *  'inline'    a Komentar box in every section's table (default)
+ *  'dedicated' no per-section box; one note per BP in a section of its own
+ *  'dialog'    a "✎ Isi" CTA in every section that opens a dialog to type in */
+export type CommentStyle = 'inline' | 'dedicated' | 'dialog'
 
 export const BRIEFING_LABEL: Record<BriefingKind, string> = {
   morning: 'Briefing Pagi',
@@ -230,6 +237,28 @@ export function sectionsForBriefing(kind: BriefingKind): MatrixSection[] {
 
 /** The commentary column is keyed per section + per BP. */
 export const commentKey = (sectionId: string, bpId: string): string => `${sectionId}:${bpId}`
+
+/** A row's figures for one BP, per measure, formatted for a preview — e.g.
+ *  [{label:'Target', value:'6'}, {label:'Completed', value:'4'}], with the
+ *  '(87,5%)' / 'Sisa …' note folded into the second measure. Used by the
+ *  dialog-style commentary so the BM sees the numbers while typing. */
+export function rowSummary(
+  section: MatrixSection,
+  bpId: string,
+  row: MatrixRow,
+): { label: string; value: string }[] {
+  const cells = section.values[bpId][row.id]
+  const first = cells[section.measures[0].id]
+  const second = cells[section.measures[1].id]
+  return section.measures.map((mm, j) => {
+    const raw = cells[mm.id]
+    const main = row.kind === 'rupiah' ? rupiah(raw) : String(raw)
+    let note = ''
+    if (j === 1 && row.note === 'pct') note = ` (${pctText(second, first)})`
+    else if (j === 1 && row.note === 'sisa') note = ` · Sisa ${rupiah(first - second)}`
+    return { label: mm.label, value: main + note }
+  })
+}
 
 /** Seeded commentary, so a past briefing's detail isn't a page of empty boxes.
  *  Only a handful of cells carry a note. */

@@ -17,18 +17,25 @@ New here:
   subject's paired measures (Target/Completed, Aktif/Terbayar, Collected/
   Settled) via a two-level header; the metrics run down the side. The second
   measure of a row carries a derived note — a percentage of the first (Terbayar
-  of Aktif) or the remainder still held (Collected less Settled). Fixed column
-  widths, so a wide subject scrolls. Its `comment` prop adds a "Komentar" row
-  (one cell per BP): absent on Monitoring, editable in a live briefing, seeded
-  read-only text in a past one. `ClosedDayPanel` is the "Has closed the day?"
-  row. Both take an optional `bps` list, so the BP-name filter narrows them.
+  of Aktif) or the remainder still held (Collected less Settled). ONE measure
+  width for every subject, so a BP's column sits at the same x in all four tables
+  and the eye skims straight down. A `shortfallTone` row turns its 2nd figure
+  RED when it trails the 1st (target not met). Its `comment` prop has four modes:
+  `none` (Monitoring), `edit` (inline box), `read` (past briefing), and `cta`
+  (a "✎ Isi" button that calls `onOpen`). `ClosedDayPanel` is the "Has closed
+  the day?" row. Both take an optional `bps` list.
 - `lib/briefing-form.tsx` — `BriefingForm`, shared by the morning and evening
-  briefing screens (they differ only by `kind`). The scorecard in edit mode, a
-  `PhotoProof` block, and a send bar gated on the photo being attached. The photo
-  is a click-through placeholder, not a real file picker (§3).
+  screens. Its commentary layout follows the store's `commentStyle`, one of three
+  prototype states: `inline` (a Komentar box in every table), `dedicated` (no
+  per-section box; a `DedicatedComments` section with one note per BP), and
+  `dialog` (a "✎ Isi" CTA per section opening a `CommentDialog` Modal that shows
+  the BP's figures for that section while the BM types). Plus the `PhotoProof`
+  block and a send bar gated on the photo.
+- `lib/demo.ts` — the three `states` (§3) wired in `index.ts` on both briefing
+  screens; each just writes `commentStyle` to the store.
 - `lib/store.ts` — carries the active dashboard tab, which of today's two
-  briefings have been sent, and which briefing the detail screen shows. All three
-  must survive navigation.
+  briefings have been sent, which briefing the detail screen shows, and the
+  briefing `commentStyle`. All must survive navigation.
 
 Data (`lib/data.ts`) is a full branch of six BPs, authored compactly: each row
 carries, per measure, one number per BP, and `section()` assembles the nested

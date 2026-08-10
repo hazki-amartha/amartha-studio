@@ -12,7 +12,7 @@
 //               a history row (or a just-submitted briefing) is opened.
 
 import { useSyncExternalStore } from 'react'
-import type { BriefingKind } from './data'
+import type { BriefingKind, CommentStyle } from './data'
 
 export type DashboardTab = 'monitoring' | 'briefings'
 
@@ -27,12 +27,16 @@ export interface FlowState {
   tab: DashboardTab
   submitted: Record<BriefingKind, boolean>
   viewing: ViewingBriefing | null
+  /** Which commentary layout the briefing forms use — set by the `states`
+   *  controls beside the device. */
+  commentStyle: CommentStyle
 }
 
 const initial: FlowState = {
   tab: 'monitoring',
   submitted: { morning: false, evening: false },
   viewing: null,
+  commentStyle: 'inline',
 }
 
 let state: FlowState = initial
