@@ -201,11 +201,29 @@ function CommentDialog({
                     i > 0 ? 'border-t border-default' : ''
                   }`}
                 >
-                  <span className="text-14 font-bold text-default">{row.label}</span>
-                  <span className="text-14 text-default">
-                    {rowSummary(section, bp.id, row)
-                      .map((x) => x.value)
-                      .join(' / ')}
+                  <span className="flex flex-col">
+                    <span className="text-14 font-bold text-default">{row.label}</span>
+                    {row.sublabel ? (
+                      <span className="text-12 text-caption">{row.sublabel}</span>
+                    ) : null}
+                  </span>
+                  <span className="flex items-center gap-4 text-14">
+                    {rowSummary(section, bp.id, row).map((x, j) => (
+                      <span key={x.label} className="flex items-center gap-4">
+                        {j > 0 ? <span className="text-placeholder">/</span> : null}
+                        <span
+                          className={
+                            x.tone === 'bad'
+                              ? 'font-bold text-red-500'
+                              : x.tone === 'good'
+                                ? 'font-bold text-green-500'
+                                : 'text-default'
+                          }
+                        >
+                          {x.value}
+                        </span>
+                      </span>
+                    ))}
                   </span>
                 </div>
               ))}
