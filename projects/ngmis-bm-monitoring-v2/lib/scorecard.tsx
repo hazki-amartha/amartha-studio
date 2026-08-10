@@ -13,7 +13,7 @@
 
 import type { ReactNode } from 'react'
 import { Badge } from '@/design-system/components'
-import { CheckCircleFill, CrossCircleFill } from '@/design-system/icons'
+import { CheckCircleFill, CrossCircleFill, NotePencil } from '@/design-system/icons'
 import { DataTable, Panel, PanelHeading, type Column } from './ui'
 import {
   BPS,
@@ -53,11 +53,13 @@ const columnWidth = (col: ScorecardColumn): number => {
   return W_COUNT
 }
 
-/** How the "Komentar" slot behaves: absent (Monitoring), an editable box (a live
- *  briefing), or seeded read-only text (a past briefing). */
+/** How the "Komentar" slot behaves: absent (Monitoring or a briefing that keeps
+ *  its commentary in one dedicated section), an editable box (a live briefing),
+ *  a CTA that opens the writing dialog, or seeded read-only text (a past one). */
 export type CommentMode =
   | { kind: 'none' }
   | { kind: 'edit'; comments: Record<string, string>; onChange: (key: string, value: string) => void }
+  | { kind: 'cta'; comments: Record<string, string>; onOpen: (key: string) => void }
   | { kind: 'read'; comments: Record<string, string> }
 
 /** A count cell: the figure over its population, its percentage set quietly
@@ -103,16 +105,42 @@ function ValueCell({ col, row }: { col: ScorecardColumn; row: Record<string, Met
   )
 }
 
-/** The editable commentary box, filling whichever cell holds it. */
-function CommentInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+/** The editable commentary box, filling whichever cell (or panel row) holds it. */
+export function CommentInput({
+  value,
+  onChange,
+  rows = 2,
+}: {
+  value: string
+  onChange: (value: string) => void
+  rows?: number
+}) {
   return (
     <textarea
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder="Tulis komentar…"
-      rows={2}
+      rows={rows}
       className="w-full resize-none rounded-8 border border-default bg-neutral-white p-8 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none"
     />
+  )
+}
+
+/** The dialog entry point: an empty cell is a bare "Isi" CTA, a filled one shows
+ *  the note back with the same control turned into "Ubah". Nothing is typed in
+ *  the table itself — the writing happens in the dialog the CTA opens. */
+function CommentCta({ text, onOpen }: { text: string | undefined; onOpen: () => void }) {
+  return (
+    <span className="flex flex-col items-start gap-4">
+      {text ? <span className="block whitespace-normal text-14 text-default">{text}</span> : null}
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex items-center gap-4 text-14 font-bold text-link active:opacity-70"
+      >
+        <NotePencil size={16} /> {text ? 'Ubah' : 'Isi'}
+      </button>
+    </span>
   )
 }
 
@@ -128,11 +156,13 @@ function CommentReadCell({ text }: { text: string | undefined }) {
 function commentCell(comment: CommentMode, sectionId: string, bpId: string): ReactNode {
   if (comment.kind === 'none') return null
   const key = commentKey(sectionId, bpId)
-  return comment.kind === 'edit' ? (
-    <CommentInput value={comment.comments[key] ?? ''} onChange={(v) => comment.onChange(key, v)} />
-  ) : (
-    <CommentReadCell text={comment.comments[key]} />
-  )
+  if (comment.kind === 'edit') {
+    return <CommentInput value={comment.comments[key] ?? ''} onChange={(v) => comment.onChange(key, v)} />
+  }
+  if (comment.kind === 'cta') {
+    return <CommentCta text={comment.comments[key]} onOpen={() => comment.onOpen(key)} />
+  }
+  return <CommentReadCell text={comment.comments[key]} />
 }
 
 /** BP-rows: one row per BP, the activity's metrics across the top. */

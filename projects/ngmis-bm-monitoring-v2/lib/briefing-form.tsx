@@ -3,8 +3,17 @@
 // One briefing form, shared by the morning and evening screens — they differ
 // only in `kind` (the title, the prompt, and which of today's two slots gets
 // marked sent). The BM reads the same branch scorecard the Monitoring tab shows,
-// writes a comment per BP where it's needed, attaches a photo as proof the
-// briefing happened, and sends it.
+// writes a comment where it's needed, attaches a photo as proof the briefing
+// happened, and sends it.
+//
+// `commentStyle` is the one thing the three variants of this form disagree on:
+//
+//   'inline'    — the shipped shape: a Komentar box in every activity table, per
+//                 BP, typed straight into the cell.
+//   'dedicated' — no Komentar on the tables at all. One "Komentar briefing"
+//                 section underneath, one note per BP for the whole briefing.
+//   'dialog'    — Komentar stays on every table, but the cell is only a CTA;
+//                 the note is typed in a dialog the CTA opens.
 //
 // Comments and the photo are the form's own useState: the BM stays on this
 // screen while filling it in, and on submit the outcome is carried to the
@@ -12,35 +21,75 @@
 
 import { useState } from 'react'
 import { useFlow } from '@/platform/runtime'
-import { Button } from '@/design-system/components'
+import { Button, Modal } from '@/design-system/components'
 import { Camera, Check, Trash } from '@/design-system/icons'
 import { BmShell } from './shell'
 import { Panel, PanelHeading, PageHeading, SegmentedControl } from './ui'
-import { Scorecard, ORIENTATION_OPTIONS } from './scorecard'
+import { Scorecard, CommentInput, ORIENTATION_OPTIONS, type CommentMode } from './scorecard'
 import {
+  BPS,
   BRANCH_LABEL,
   BRIEFING_INTRO,
   BRIEFING_LABEL,
   REPORT_DATE,
+  briefingCommentKey,
+  commentLabel,
   sectionsForBriefing,
   type BriefingKind,
   type Orientation,
 } from './data'
 import { store, useFlowState } from './store'
 
-export function BriefingForm({ kind }: { kind: BriefingKind }) {
+/** Where the commentary lives in this variant of the form. */
+export type CommentStyle = 'inline' | 'dedicated' | 'dialog'
+
+export function BriefingForm({
+  kind,
+  commentStyle = 'inline',
+  variantLabel,
+}: {
+  kind: BriefingKind
+  commentStyle?: CommentStyle
+  /** Names the alternative in the page meta, so a side-by-side review can tell
+   *  which shape is on screen. Omitted on the shipped form. */
+  variantLabel?: string
+}) {
   const flow = useFlow()
   const { orientation } = useFlowState()
   const [comments, setComments] = useState<Record<string, string>>({})
   const [photoAttached, setPhotoAttached] = useState(false)
+  // The dialog variant edits into a draft, so Batal leaves the note as it was.
+  const [editingKey, setEditingKey] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
 
   const label = BRIEFING_LABEL[kind]
+  const setComment = (key: string, value: string) =>
+    setComments((prev) => ({ ...prev, [key]: value }))
+
+  const openDialog = (key: string) => {
+    setDraft(comments[key] ?? '')
+    setEditingKey(key)
+  }
+  const closeDialog = () => setEditingKey(null)
+  const saveDialog = () => {
+    if (editingKey) setComment(editingKey, draft.trim())
+    setEditingKey(null)
+  }
+
+  const comment: CommentMode =
+    commentStyle === 'inline'
+      ? { kind: 'edit', comments, onChange: setComment }
+      : commentStyle === 'dialog'
+        ? { kind: 'cta', comments, onOpen: openDialog }
+        : { kind: 'none' }
 
   const submit = () => {
     store.markSubmitted(kind)
     store.set({ tab: 'briefings', viewing: { kind, date: REPORT_DATE, own: true } })
     flow.go('briefing-detail')
   }
+
+  const editing = editingKey ? commentLabel(editingKey) : null
 
   return (
     <BmShell
@@ -53,7 +102,7 @@ export function BriefingForm({ kind }: { kind: BriefingKind }) {
       header={
         <PageHeading
           title={`${label} — ${REPORT_DATE}`}
-          meta={`${BRANCH_LABEL} · ${BRIEFING_INTRO[kind]}`}
+          meta={`${BRANCH_LABEL} · ${variantLabel ? `${variantLabel} · ` : ''}${BRIEFING_INTRO[kind]}`}
           actions={
             <Button variant="outline" size="sm" onClick={() => flow.go('dashboard')}>
               Kembali
@@ -71,15 +120,13 @@ export function BriefingForm({ kind }: { kind: BriefingKind }) {
         />
       </div>
 
-      <Scorecard
-        sections={sectionsForBriefing(kind)}
-        orientation={orientation}
-        comment={{
-          kind: 'edit',
-          comments,
-          onChange: (key, value) => setComments((prev) => ({ ...prev, [key]: value })),
-        }}
-      />
+      <Scorecard sections={sectionsForBriefing(kind)} orientation={orientation} comment={comment} />
+
+      {commentStyle === 'dedicated' ? (
+        <div className="pt-16">
+          <BriefingCommentPanel label={label} comments={comments} onChange={setComment} />
+        </div>
+      ) : null}
 
       <div className="pt-16">
         <PhotoProof attached={photoAttached} onToggle={() => setPhotoAttached((a) => !a)} />
@@ -97,7 +144,60 @@ export function BriefingForm({ kind }: { kind: BriefingKind }) {
           Kirim {label}
         </Button>
       </div>
+
+      <Modal
+        open={editingKey !== null}
+        onClose={closeDialog}
+        size="md"
+        title="Tulis komentar"
+        description={editing ? `${editing.section} · ${editing.bp}` : undefined}
+        slot={
+          <CommentInput value={draft} onChange={setDraft} rows={5} />
+        }
+        secondaryAction={
+          <Button variant="outline" size="md" onClick={closeDialog}>
+            Batal
+          </Button>
+        }
+        primaryAction={
+          <Button variant="primary" size="md" onClick={saveDialog}>
+            Simpan
+          </Button>
+        }
+      />
     </BmShell>
+  )
+}
+
+/** The alternative that takes commentary off the activity tables: one note per
+ *  BP for the whole briefing, gathered in a single section under the scorecard. */
+function BriefingCommentPanel({
+  label,
+  comments,
+  onChange,
+}: {
+  label: string
+  comments: Record<string, string>
+  onChange: (key: string, value: string) => void
+}) {
+  return (
+    <Panel>
+      <PanelHeading
+        title="Komentar briefing"
+        subtitle={`Satu komentar per BP untuk seluruh ${label} — bukan per aktivitas.`}
+      />
+      <div className="flex flex-col gap-12">
+        {BPS.map((bp) => {
+          const key = briefingCommentKey(bp.id)
+          return (
+            <div key={bp.id} className="flex flex-col gap-4">
+              <span className="text-14 font-bold text-default">{bp.name}</span>
+              <CommentInput value={comments[key] ?? ''} onChange={(v) => onChange(key, v)} rows={2} />
+            </div>
+          )
+        })}
+      </div>
+    </Panel>
   )
 }
 

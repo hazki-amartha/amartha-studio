@@ -240,6 +240,19 @@ export function sectionsForBriefing(kind: BriefingKind): ScorecardSection[] {
  *  specific activity for a specific person. */
 export const commentKey = (sectionId: string, bpId: string): string => `${sectionId}:${bpId}`
 
+/** The alternative where commentary is NOT per activity: one note per BP for the
+ *  whole briefing, so it keys against a single pseudo-section. */
+export const briefingCommentKey = (bpId: string): string => commentKey('briefing', bpId)
+
+/** Which activity + which BP a comment key belongs to — the dialog's heading. */
+export function commentLabel(key: string): { section: string; bp: string } {
+  const [sectionId, bpId] = key.split(':')
+  return {
+    section: SECTIONS.find((s) => s.id === sectionId)?.title ?? sectionId,
+    bp: BPS.find((b) => b.id === bpId)?.name ?? bpId,
+  }
+}
+
 /** Seeded commentary, so the read-only detail of a past briefing is not a page
  *  of empty boxes. Only a handful of cells carry a note — a real briefing
  *  comments where something needs saying, not on every figure. */
