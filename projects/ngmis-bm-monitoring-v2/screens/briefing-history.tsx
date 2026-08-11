@@ -6,7 +6,7 @@
 
 import { useFlow } from '@/platform/runtime'
 import { Badge, Button } from '@/design-system/components'
-import { Camera } from '@/design-system/icons'
+import { ArrowLeft, Camera } from '@/design-system/icons'
 import { BmShell } from '../lib/shell'
 import {
   DataTable,
@@ -131,9 +131,14 @@ export function BriefingHistoryScreen() {
       header={
         <PageHeading
           title="Riwayat Briefing"
-          actions={
-            <Button variant="outline" size="sm" onClick={() => flow.go('dashboard')}>
-              Kembali
+          leading={
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Kembali"
+              onClick={() => flow.go('dashboard')}
+            >
+              <ArrowLeft size={20} />
             </Button>
           }
         />
