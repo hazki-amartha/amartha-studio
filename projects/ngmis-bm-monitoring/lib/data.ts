@@ -181,6 +181,98 @@ export function targetsMet(bp: RepaymentBp) {
   return { met: met.length, total: SCORED_BUCKETS.length }
 }
 
+/** What the BM should do about a BP who is missing standards.
+ *
+ * The action keys off the bucket with the biggest shortfall in mitra, because
+ * the three failures need different responses: mitra going unpaid at DPD 0
+ * means collection is not happening at all, which is what a surprise visit
+ * tests; DPD 1-30 means it is happening but not landing, which is a coaching
+ * problem; and 31-90 is past what a BP can fix alone.
+ *
+ * Returns null for a BP clearing every standard — no action is the right
+ * answer there, and inventing one would bury the BPs who need it.
+ */
+export interface Action {
+  /** The bucket that triggered it, so the brief can be looked up. */
+  id: string
+  label: string
+  reason: string
+}
+
+/** The brief behind an action. A button that only says "Surprise visit" leaves
+ *  the BM to invent the instruction, the window and the proof — which is how
+ *  two BMs end up running the same task differently. */
+export interface ActionBrief {
+  title: string
+  what: string
+  when: string
+  /** The day the task lands on once created — stated rather than derived from
+   *  `when`, which is a range and would have to be parsed back out. */
+  scheduledFor: string
+  evidence: string[]
+  ifNotDone: string
+}
+
+export const ACTION_BRIEFS: Record<string, ActionBrief> = {
+  dpd0: {
+    title: 'Surprise visit',
+    what: 'Datangi majelis tanpa memberi tahu lebih dulu. Periksa apakah kumpulan benar berjalan dan mitra yang baru telat sudah didatangi.',
+    when: 'Selasa 28 - Rabu 29 Juli',
+    scheduledFor: 'Selasa, 28 Juli',
+    evidence: [
+      'Foto di lokasi majelis',
+      'Titik lokasi otomatis dari BP App',
+      'Catatan penyebab mitra tidak bayar',
+    ],
+    ifNotDone: 'Tidak ada. Hasilnya masuk ke penilaian mingguan.',
+  },
+  dpd130: {
+    title: 'Dampingi penagihan',
+    what: 'Ikut BP ke majelis dan dampingi saat menagih mitra yang sudah telat. Tunjukkan cara membuka pembicaraan, jangan ambil alih.',
+    when: 'Rabu 29 - Kamis 30 Juli',
+    scheduledFor: 'Rabu, 29 Juli',
+    evidence: [
+      'Catatan hasil tiap mitra yang didampingi',
+      'Kesepakatan tanggal bayar dari mitra',
+    ],
+    ifNotDone: 'Tidak ada. Hasilnya masuk ke penilaian mingguan.',
+  },
+  dpd3190: {
+    title: 'Eskalasi ke Area Manager',
+    what: 'Bawa daftar mitra DPD 31-90 ke Area Manager. Sudah di luar yang bisa diselesaikan BP sendiri.',
+    when: 'Sebelum Jumat 31 Juli',
+    scheduledFor: 'Kamis, 30 Juli',
+    evidence: ['Daftar mitra dan riwayat penagihannya', 'Rencana tindak lanjut yang disetujui AM'],
+    ifNotDone: 'Tidak ada. Hasilnya masuk ke penilaian mingguan.',
+  },
+}
+
+const ACTION_BY_BUCKET: Record<string, string> = {
+  dpd0: 'Surprise visit',
+  dpd130: 'Dampingi penagihan',
+  dpd3190: 'Eskalasi ke Area Manager',
+}
+
+const BUCKET_LABEL: Record<string, string> = {
+  dpd0: 'DPD 0',
+  dpd130: 'DPD 1-30',
+  dpd3190: 'DPD 31-90',
+}
+
+export function recommendedAction(bp: RepaymentBp): Action | null {
+  const gaps = SCORED_BUCKETS.map((id) => ({
+    id,
+    short: mitraShortfall(bp[id as 'dpd0' | 'dpd130' | 'dpd3190'], id) ?? 0,
+  }))
+  const worst = gaps.reduce((a, b) => (b.short > a.short ? b : a))
+  if (worst.short === 0) return null
+  return {
+    id: worst.id,
+    label: ACTION_BY_BUCKET[worst.id],
+    reason: `${worst.short} mitra ${BUCKET_LABEL[worst.id]} kurang dari target`,
+  }
+}
+
 /** The bucket the branch is furthest below its target — measured as the gap to
  *  the standard, not the raw rate, so a bucket with a low bar does not look
  *  like the worst problem simply because its number is small. */

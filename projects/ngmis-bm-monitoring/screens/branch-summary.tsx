@@ -8,10 +8,10 @@
 import { BranchSummaryPage } from '../lib/branch-summary-page'
 import { RepaymentGrid } from '../lib/repayment-grid'
 import { RepaymentTable } from '../lib/repayment-table'
-import { useVariant } from '../lib/store'
+import { useApp } from '../lib/store'
 
 export function BranchSummaryScreen() {
-  const variant = useVariant()
+  const { variant } = useApp()
   return (
     <BranchSummaryPage pembayaran={variant === 'mvp' ? <RepaymentTable /> : <RepaymentGrid />} />
   )
