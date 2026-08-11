@@ -2,19 +2,17 @@
 
 // Pembayaran — the end state.
 //
-// Same figures as the MVP, three things added, each answering a question the
-// MVP leaves open:
+// Same figures as the MVP, read differently:
 //
 //   the rate leads, coloured against target → where is it bad
-//   the branch's weakest bucket, called out  → what to fix first
+//   an action for every BP who is missing   → what to do about it
 //
-// The second is the reason for the grid shape. Five columns of coloured rates
-// read DOWN as well as across: if DPD 0 is red for everyone, that is a branch
-// problem and no amount of per-BP coaching fixes it. A sixteen-column table of
-// counts cannot show that.
+// Five columns of coloured rates read DOWN as well as across: if DPD 0 is red
+// for everyone, that is a branch problem and no amount of per-BP coaching fixes
+// it. A sixteen-column table of counts cannot show that.
 //
-// The cost is that exact counts drop to small text under the rate, which is
-// precisely what the MVP keeps at full size.
+// The cost is that exact counts drop under the rate rather than standing as
+// their own columns, which is what the MVP keeps.
 
 import { useState } from 'react'
 import { Button } from '@/design-system/components'
@@ -32,7 +30,6 @@ import {
   ACTION_BRIEFS,
   recommendedAction,
   type RepaymentBp,
-  weakestBucket,
   type Bucket,
 } from './data'
 
@@ -184,8 +181,6 @@ export function RepaymentGrid() {
   const { bps, control } = useBpFilter()
   const [openBp, setOpenBp] = useState<RepaymentBp | null>(null)
   const { scheduled } = useApp()
-  const weakest = weakestBucket()
-  const weakestLabel = COLUMNS.find((c) => c.id === weakest.id)?.header ?? weakest.id
 
   return (
     <>
@@ -199,21 +194,6 @@ export function RepaymentGrid() {
             onTarget={metricOnTarget(metric)}
           />
         ))}
-      </div>
-
-      {/* Reading down the columns, not across the rows. */}
-      <div className="pb-16">
-        <Panel>
-          <div className="flex flex-col gap-4">
-            <span className="text-14 font-bold text-default">
-              Bucket paling tertinggal: {weakestLabel} — {fmt(weakest.pct)}% se-cabang, target{' '}
-              {weakest.target}%
-            </span>
-            <span className="text-12 text-caption">
-              Berlaku untuk hampir semua BP, jadi ini soal cabang, bukan soal satu orang.
-            </span>
-          </div>
-        </Panel>
       </div>
 
       {control}

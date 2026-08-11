@@ -16,21 +16,24 @@ const SECTION_LABEL: Record<Section, string> = {
   colors: 'Colors',
   typography: 'Typography',
   spacing: 'Spacing & Layout',
+  icons: 'Icons',
   buttons: 'Button',
   inputs: 'Input',
   badges: 'Badge',
   cards: 'Card & List Row',
   toggles: 'Toggle',
   'selectable-cards': 'Selectable Card',
+  'offer-cards': 'Offer Card',
   modals: 'Modal',
   'bottom-sheets': 'Bottom Sheet',
-  'navigation-bars': 'Navigation',
+  'navigation-bars': 'Navigation Bar',
+  'navigation-headers': 'Navigation Header',
   prompts: 'Prompts',
   llms: 'For Agents',
 }
 
 const GROUPS: { label: string; sections: Section[] }[] = [
-  { label: 'Foundations', sections: ['overview', 'colors', 'typography', 'spacing'] },
+  { label: 'Foundations', sections: ['overview', 'colors', 'typography', 'spacing', 'icons'] },
   {
     label: 'Components',
     sections: [
@@ -40,9 +43,11 @@ const GROUPS: { label: string; sections: Section[] }[] = [
       'cards',
       'toggles',
       'selectable-cards',
+      'offer-cards',
       'modals',
       'bottom-sheets',
       'navigation-bars',
+      'navigation-headers',
     ],
   },
   { label: 'Reference', sections: ['prompts', 'llms'] },
