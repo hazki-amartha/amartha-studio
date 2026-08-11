@@ -302,10 +302,10 @@ report the rejection as a problem — the PR *is* the route.
 
 ---
 
-## 6. Verification — before declaring done
+## 6. Verification — at commit and push, not per tweak
 
-Run these three and confirm all pass. They take about **12 seconds** together —
-there is no reason to skip them, and no reason to do more.
+The full gate is three checks; all must pass **before any `commit` or `push`**
+(§7 verbs), and a red one is fixed before the designer is told the work landed:
 
 - `npm run lint` — clean (catches arbitrary values / off-system classes).
 - `npm run build` — clean (type-checks every screen, so every `go()` target and
@@ -316,7 +316,14 @@ there is no reason to skip them, and no reason to do more.
 - `npm run check:flows` — unique `entry`, unique screen ids, and every
   `flowsTo.to` resolves.
 
-If any fails, fix it before telling the designer the work is done.
+**Between those moments — live iteration — do not run the gate.** While the
+designer is looking at the preview and asking for tweaks, hot reload plus the
+dev overlay already surface breakage on the exact screen under discussion, and
+re-running a ~40-second build to bless a one-line edit is the single biggest
+per-iteration cost in the studio. At most run `npm run lint` (~3s) after an
+edit that touched classes or tokens. The guarantee this contract cares about —
+nothing broken is ever checkpointed or shipped — lives at commit/push, and the
+full gate runs there every time, no exceptions.
 
 **That is the whole gate. Do not add to it.** Specifically: **do not open a
 browser, drive a headless session, or take screenshots to "verify" a UI change.**
