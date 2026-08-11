@@ -49,8 +49,8 @@ export const TABS = [
 /** The band under the tabs: what period the figures cover, and when they last
  *  landed. Two different facts — the scope, and the freshness. */
 export const UPDATE_BAR = {
-  scope: 'Update: Minggu ini',
-  refreshed: 'Diperbarui Hari ini, 29 Dec 2025, 12:44',
+  scope: 'Minggu ini, 22 - 27 Juni 2026',
+  refreshed: 'Diperbarui 26 Jun 2026, 22:49',
 }
 
 /** The tab the dashboard opens on — the first one, kept as a named constant so
@@ -84,7 +84,7 @@ export interface Metric {
 }
 
 export const REPAYMENT_METRICS: Metric[] = [
-  { id: 'dpd-flow', label: 'Flow rate to DPD 1-30', value: 20, target: 15, higherIsBetter: false },
+  { id: 'dpd-flow', label: 'Flow rate ke DPD 1-30', value: 20, target: 15, higherIsBetter: false },
   { id: 'repayment-rate', label: 'Repayment rate', value: 60, target: 90, higherIsBetter: true },
 ]
 
@@ -140,20 +140,6 @@ export const SCORED_BUCKETS = ['dpd0', 'dpd130', 'dpd3190']
 
 export function rate({ total, paid }: Bucket) {
   return total === 0 ? 0 : (paid / total) * 100
-}
-
-/** The whole branch's rate for one bucket — every BP's mitra pooled, not an
- *  average of rates, which would let a BP with six mitra swing the figure as
- *  hard as one with three hundred. */
-export function branchRate(bucket: string) {
-  const sum = REPAYMENT_BPS.reduce(
-    (acc, bp) => {
-      const b = bp[bucket as 'mitra' | 'dpd0' | 'dpd130' | 'dpd3190' | 'dpd90']
-      return { total: acc.total + b.total, paid: acc.paid + b.paid }
-    },
-    { total: 0, paid: 0 },
-  )
-  return rate(sum)
 }
 
 /** Does this bucket clear the biz team's standard? Buckets without a target
@@ -271,17 +257,6 @@ export function recommendedAction(bp: RepaymentBp): Action | null {
     label: ACTION_BY_BUCKET[worst.id],
     reason: `${worst.short} mitra ${BUCKET_LABEL[worst.id]} kurang dari target`,
   }
-}
-
-/** The bucket the branch is furthest below its target — measured as the gap to
- *  the standard, not the raw rate, so a bucket with a low bar does not look
- *  like the worst problem simply because its number is small. */
-export function weakestBucket() {
-  const scored = SCORED_BUCKETS.map((id) => {
-    const pct = branchRate(id)
-    return { id, pct, target: TARGETS[id], shortfall: TARGETS[id] - pct }
-  })
-  return scored.reduce((worst, b) => (b.shortfall > worst.shortfall ? b : worst))
 }
 
 /** The majelis the morning report asks the BM to plan around. */

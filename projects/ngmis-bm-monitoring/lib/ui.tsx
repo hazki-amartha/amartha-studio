@@ -397,9 +397,9 @@ export function SheetSection({ label, children }: { label: string; children: Rea
  * against.
  */
 export function RatePill({ ok, children }: { ok: boolean | null; children: ReactNode }) {
-  if (ok === null) return <span className="text-14 font-bold text-caption">{children}</span>
+  if (ok === null) return <span className="text-14 text-default">{children}</span>
   return (
-    <Badge intent={ok ? 'green' : 'red'} variant="subtle" size="md">
+    <Badge intent={ok ? 'green' : 'red'} variant="subtle" size="sm">
       {children}
     </Badge>
   )

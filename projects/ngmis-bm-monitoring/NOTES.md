@@ -14,20 +14,21 @@ In `lib/ui.tsx`:
 - `RatePill` — a rate wearing its verdict: green when it clears its standard, red when it does not, plain text when the bucket has no standard to be judged against.
 - `MetricCard` — a headline rate with the target it is judged against underneath.
 - `DataTable` — sortable headers, zebra rows. Used only by `report-history` now.
+- `SideSheet` / `SheetSection` — the right-hand panel the action brief opens in. FunDS ships `BottomSheet`, which is the phone answer: on a 1440-wide console a sheet from the bottom covers the table it is about. Positioned `absolute` so it stays inside the device frame in prototype view.
 - `ReportTile`, `SunGlyph`, `MoonGlyph` — the morning/evening tiles. Sun and moon are genuinely absent from the 166-icon set, so they are one-offs. Currently unused by any screen; the two report screens they belong to still exist.
 
 Elsewhere in `lib/`:
 
 - `branch-summary-page.tsx` — the Performa page shared by both variations, so chrome cannot drift between them. Tugas and Pencairan render a deliberate "belum dirancang" empty state: invented placeholder content gets reviewed as though it were a proposal.
 - `repayment-table.tsx` — the MVP cut. Counts and rate side by side in every bucket.
-- `repayment-grid.tsx` — the end state. Rate leads, branch rate under each column header, and the weakest bucket called out.
+- `repayment-grid.tsx` — the end state. Rate leads, and every BP missing a standard carries a recommended action with a brief behind it.
 - `bp-filter.tsx` — the shared filter, by target status or by BP name.
-- `store.ts` + `demo.ts` — which cut is on screen, driven from the STATES panel rather than a control inside the prototype.
+- `store.ts` + `demo.ts` — which cut is on screen and which BPs have a task booked. The cut is driven from the STATES panel rather than a control inside the prototype.
 
 Judgement calls worth challenging:
 
 - **Targets come from the biz team** — DPD 0 at 98%, DPD 1-30 at 55%, DPD 31-90 at 13% (`TARGETS`). Total Mitra and DPD 90+ carry none: the first is an aggregate of the others, and nobody is held to a number on the oldest bucket. Both are left uncoloured rather than given an invented verdict.
 - **A missed bucket reports a shortfall in mitra, not percentage points.** "kurang 37 mitra" is something a BP can act on; a percentage-point gap is arithmetic the reader has to convert first.
-- **`branchRate` pools every BP's mitra** rather than averaging the ten rates, so a BP with six mitra cannot swing the branch figure as hard as one with three hundred.
-- **`weakestBucket` measures the gap to each bucket's own target**, not the raw rate — otherwise the oldest bucket wins every week and the answer is never useful.
+- **The recommended action keys off the bucket with the biggest shortfall in mitra**, because the three failures want different responses: nothing collected at DPD 0 is what a surprise visit tests, DPD 1-30 is a coaching problem, and 31-90 is past what a BP can fix alone. A BP clearing every standard gets no action at all — one on every row would bury the ones that need it.
+- **A created task lives in the module store, not the grid**, because switching tab or state unmounts the grid and a task disappearing mid-walkthrough is worse than useless.
 - The **Flow rate to DPD 1-30** metric scores downwards while Repayment rate scores upwards; `Metric.higherIsBetter` is what keeps one of them from reading backwards.
