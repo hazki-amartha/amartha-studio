@@ -8,7 +8,10 @@
   font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 }
 
-/* Code snippet block ------------------------------------------------------- */
+/* Code snippet block -------------------------------------------------------
+   The surface is painted by the wrapping element (which owns the radius and
+   clips), so the <pre> itself stays transparent — a background here would
+   square off the rounded corners it sits inside. */
 .sys-code {
   font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 12px;
@@ -16,13 +19,57 @@
   white-space: pre;
   overflow-x: auto;
   color: var(--neutral-900);
-  background: var(--neutral-50);
+  background: transparent;
 }
+html[data-theme='dark'] .sys-code { color: var(--neutral-50); }
 
 /* Copy chip flash ---------------------------------------------------------- */
 .sys-chip {
   font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 }
+
+/* Component preview stage --------------------------------------------------
+   The dot-grid ground a specimen sits on. Tailwind cannot express a
+   radial-gradient background without an arbitrary value, so it lives here —
+   every color still references a token variable. */
+.sys-stage {
+  background-color: var(--neutral-white);
+  background-image: radial-gradient(circle, var(--neutral-200) 1px, transparent 1px);
+  background-size: 12px 12px;
+  background-position: 0 0;
+}
+html[data-theme='dark'] .sys-stage {
+  background-color: var(--ink-950);
+  background-image: radial-gradient(circle, var(--ink-700) 1px, transparent 1px);
+}
+
+/* Compact color tile ------------------------------------------------------- */
+.sys-tile {
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.sys-tile:hover { transform: scaleY(1.15); z-index: 1; }
+.sys-tile::after {
+  content: attr(data-hex);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--neutral-900);
+  color: var(--neutral-white);
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+.sys-tile:hover::after { opacity: 1; }
 
 /* Rendered guideline markdown --------------------------------------------- */
 .sys-md {
@@ -76,3 +123,25 @@
   vertical-align: top;
 }
 .sys-md th { background: var(--neutral-50); font-weight: 700; color: var(--neutral-900); }
+
+/* Rendered guideline markdown — dark chrome ------------------------------- */
+html[data-theme='dark'] .sys-md { color: var(--neutral-400); }
+html[data-theme='dark'] .sys-md h1,
+html[data-theme='dark'] .sys-md h2,
+html[data-theme='dark'] .sys-md h3,
+html[data-theme='dark'] .sys-md h4 { color: var(--neutral-50); }
+html[data-theme='dark'] .sys-md a { color: var(--primary-300); }
+html[data-theme='dark'] .sys-md hr { border-top-color: var(--ink-700); }
+html[data-theme='dark'] .sys-md code {
+  background: var(--ink-800);
+  border-color: var(--ink-700);
+  color: var(--neutral-50);
+}
+html[data-theme='dark'] .sys-md pre {
+  background: var(--ink-800);
+  border-color: var(--ink-700);
+  color: var(--neutral-50);
+}
+html[data-theme='dark'] .sys-md th,
+html[data-theme='dark'] .sys-md td { border-color: var(--ink-700); }
+html[data-theme='dark'] .sys-md th { background: var(--ink-800); color: var(--neutral-50); }
