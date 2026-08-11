@@ -3,25 +3,19 @@ import { lazyScreen } from '@/platform/lazyScreen'
 import { config } from './project.config'
 import * as demo from './lib/demo'
 
-/** The three commentary layouts, offered beside the device on both briefings. */
-const COMMENT_STATES: ScreenState[] = [
+/** Which briefing the dashboard banner prompts — the one "scheduled to start". */
+const SCHEDULE_STATES: ScreenState[] = [
   {
-    id: 'komentar-inline',
-    label: 'Komentar: kolom di tiap section',
-    description: 'Kotak komentar langsung di setiap tabel (default).',
-    apply: demo.commentInline,
+    id: 'jadwal-sore',
+    label: 'Jadwal: Briefing Sore',
+    description: 'Banner briefing sore muncul (default, sore hari).',
+    apply: demo.scheduleEvening,
   },
   {
-    id: 'komentar-dedicated',
-    label: 'Komentar: section khusus per BP',
-    description: 'Tanpa kolom di tabel; satu komentar per BP di section tersendiri.',
-    apply: demo.commentDedicated,
-  },
-  {
-    id: 'komentar-dialog',
-    label: 'Komentar: CTA “✎ Isi” + dialog',
-    description: 'Komentar per section, diisi lewat dialog berisi ringkasan angka.',
-    apply: demo.commentDialog,
+    id: 'jadwal-pagi',
+    label: 'Jadwal: Briefing Pagi',
+    description: 'Banner briefing pagi muncul (pagi hari).',
+    apply: demo.scheduleMorning,
   },
 ]
 
@@ -33,21 +27,7 @@ export const project: ProjectModule = {
       title: 'Branch Monitoring',
       component: lazyScreen(() => import('./screens/dashboard'), 'DashboardScreen'),
       entry: true,
-      states: [
-        {
-          id: 'tabel-matrix',
-          label: 'Tabel: BP di kolom',
-          description: 'Bentuk sheet aslinya — BP melebar ke kanan, metrik ke bawah.',
-          apply: demo.layoutMatrix,
-        },
-        {
-          id: 'tabel-bp-rows',
-          label: 'Tabel: BP di baris',
-          description:
-            'BP ke bawah, metrik ke kanan, target dilipat jadi satu sel. Setoran ikut ke panel tutup hari.',
-          apply: demo.layoutByBp,
-        },
-      ],
+      states: SCHEDULE_STATES,
       flowsTo: [
         { to: 'briefing-morning', label: 'Mulai briefing pagi' },
         { to: 'briefing-evening', label: 'Mulai briefing sore' },
@@ -59,8 +39,6 @@ export const project: ProjectModule = {
       title: 'Riwayat Briefing',
       component: lazyScreen(() => import('./screens/briefing-history'), 'BriefingHistoryScreen'),
       flowsTo: [
-        { to: 'briefing-morning', label: 'Mulai briefing pagi' },
-        { to: 'briefing-evening', label: 'Mulai briefing sore' },
         { to: 'briefing-detail', label: 'Lihat' },
         { to: 'dashboard', label: 'Kembali' },
       ],
@@ -69,21 +47,19 @@ export const project: ProjectModule = {
       id: 'briefing-morning',
       title: 'Briefing Pagi',
       component: lazyScreen(() => import('./screens/briefing-morning'), 'BriefingMorningScreen'),
-      states: COMMENT_STATES,
       flowsTo: [{ to: 'briefing-detail', label: 'Kirim' }],
     },
     {
       id: 'briefing-evening',
       title: 'Briefing Sore',
       component: lazyScreen(() => import('./screens/briefing-evening'), 'BriefingEveningScreen'),
-      states: COMMENT_STATES,
       flowsTo: [{ to: 'briefing-detail', label: 'Kirim' }],
     },
     {
       id: 'briefing-detail',
       title: 'Detail Briefing',
       component: lazyScreen(() => import('./screens/briefing-detail'), 'BriefingDetailScreen'),
-      flowsTo: [{ to: 'dashboard', label: 'Kembali' }],
+      flowsTo: [{ to: 'briefing-history', label: 'Kembali' }],
     },
   ],
 }

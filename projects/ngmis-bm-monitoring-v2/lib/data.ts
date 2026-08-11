@@ -71,12 +71,19 @@ export interface RowGoal {
 export interface MatrixRow {
   id: string
   label: string
-  /** A smaller, greyed line under the label — carries the target for a row that
-   *  states one (Repayment's ">90%" / "<5%" / "<3%"). */
+  /** A smaller, greyed line under the label, when a row needs a second line. */
   sublabel?: string
   kind: CellKind
   note?: NoteKind
   goal?: RowGoal
+  /** Per-row colour rule for the 2nd measure: 'below' reds when it trails the 1st
+   *  (BTC), 'above' reds when it exceeds the 1st (Flow, target 0). */
+  redWhen?: 'below' | 'above'
+  /** Colour the 1st measure red when it is > 0 (Cash settlement Outstanding). */
+  firstRedWhenPositive?: boolean
+  /** A status row (Task's "Tutup hari") — no figures; one merged cell per BP
+   *  spanning both measure columns, showing the closed-day status instead. */
+  merged?: boolean
 }
 
 /** The colour a measure's figure reads in — 'bad' red, 'good' green, else
@@ -90,14 +97,21 @@ export function measureTone(
   cells: Record<string, number>,
   measureIndex: number,
 ): Tone {
-  if (measureIndex !== 1) return undefined
   const first = cells[section.measures[0].id]
   const second = cells[section.measures[1].id]
+  if (measureIndex === 0) {
+    return row.firstRedWhenPositive && first > 0 ? 'bad' : undefined
+  }
+  if (row.redWhen === 'below') return second < first ? 'bad' : undefined
+  if (row.redWhen === 'above') return second > first ? 'bad' : undefined
   if (row.goal) {
     const pct = first <= 0 ? 0 : (second / first) * 100
     const met = row.goal.dir === 'min' ? pct >= row.goal.pct : pct <= row.goal.pct
     return met ? 'good' : 'bad'
   }
+  // Repayment: the colour sits on Terbayar, read against Aktif as the target —
+  // green when Terbayar meets Aktif, red when it falls short.
+  if (section.paidTone) return second >= first ? 'good' : 'bad'
   if (section.shortfallTone && second < first) return 'bad'
   return undefined
 }
@@ -108,9 +122,11 @@ export interface MatrixSection {
   measures: Measure[]
   rows: MatrixRow[]
   /** A row where the 2nd measure trailing the 1st reads as a shortfall — the
-   *  figure turns red (target not met). Off for Repayment, where Terbayar is
-   *  always below Aktif by design. */
+   *  figure turns red (target not met), no green. */
   shortfallTone?: boolean
+  /** Repayment: the 2nd measure (Terbayar) is judged against the 1st (Aktif) as
+   *  its target — green when it meets Aktif, red when short. */
+  paidTone?: boolean
   /** values[bpId][rowId][measureId] */
   values: Record<string, Record<string, Record<string, number>>>
 }
@@ -123,6 +139,9 @@ interface RowSpec {
   kind?: CellKind
   note?: NoteKind
   goal?: RowGoal
+  redWhen?: 'below' | 'above'
+  firstRedWhenPositive?: boolean
+  merged?: boolean
   m: Record<string, number[]>
 }
 
@@ -132,6 +151,7 @@ function section(
   measures: Measure[],
   rowSpecs: RowSpec[],
   shortfallTone = false,
+  paidTone = false,
 ): MatrixSection {
   const values: MatrixSection['values'] = {}
   BPS.forEach((bp, i) => {
@@ -148,6 +168,7 @@ function section(
     title,
     measures,
     shortfallTone,
+    paidTone,
     rows: rowSpecs.map((r) => ({
       id: r.id,
       label: r.label,
@@ -155,6 +176,9 @@ function section(
       kind: r.kind ?? 'count',
       note: r.note,
       goal: r.goal,
+      redWhen: r.redWhen,
+      firstRedWhenPositive: r.firstRedWhenPositive,
+      merged: r.merged,
     })),
     values,
   }
@@ -164,6 +188,12 @@ const TARGET_COMPLETED: Measure[] = [
   { id: 'target', label: 'Target' },
   { id: 'completed', label: 'Completed', actual: true },
 ]
+
+// DPD 1-30 and 31-90 active loans — reused so the BTC target is their sum (the
+// overdue accounts to bring back to current).
+const DPD130_AKTIF = [10, 8, 12, 9, 11, 10]
+const DPD3190_AKTIF = [10, 8, 12, 9, 11, 10]
+const BTC_TARGET = DPD130_AKTIF.map((v, i) => v + DPD3190_AKTIF[i])
 
 export const SECTIONS: MatrixSection[] = [
   section(
@@ -176,6 +206,7 @@ export const SECTIONS: MatrixSection[] = [
       { id: 'sos', label: 'SOS', m: { target: [2, 2, 2, 3, 2, 2], completed: [1, 2, 1, 2, 0, 1] } },
       { id: 'fu', label: 'FU', m: { target: [1, 1, 1, 1, 1, 1], completed: [1, 1, 0, 1, 1, 1] } },
       { id: 'uk', label: 'UK', m: { target: [2, 1, 3, 2, 1, 2], completed: [2, 1, 2, 2, 1, 2] } },
+      { id: 'tutup-hari', label: 'Tutup hari', merged: true, m: {} },
     ],
     true,
   ),
@@ -187,14 +218,45 @@ export const SECTIONS: MatrixSection[] = [
       { id: 'terbayar', label: 'Terbayar', actual: true },
     ],
     [
-      { id: 'dpd0', label: 'DPD 0', sublabel: 'target >90%', note: 'pct', goal: { pct: 90, dir: 'min' },
-        m: { aktif: [40, 42, 38, 45, 36, 40], terbayar: [35, 39, 30, 42, 28, 36] } },
-      { id: 'dpd130', label: 'DPD 1-30', sublabel: 'target <5%', note: 'pct', goal: { pct: 5, dir: 'max' },
-        m: { aktif: [10, 8, 12, 9, 11, 10], terbayar: [1, 1, 2, 1, 2, 1] } },
-      { id: 'dpd3190', label: 'DPD 31-90', sublabel: 'target <3%', note: 'pct', goal: { pct: 3, dir: 'max' },
-        m: { aktif: [10, 8, 12, 9, 11, 10], terbayar: [1, 0, 2, 1, 1, 1] } },
-      { id: 'btc', label: 'BTC', note: 'pct',
-        m: { aktif: [2, 2, 3, 2, 3, 2], terbayar: [1, 1, 1, 1, 2, 1] } },
+      { id: 'dpd0', label: 'DPD 0',
+        m: { aktif: [40, 42, 38, 45, 36, 40], terbayar: [40, 42, 30, 45, 28, 40] } },
+      { id: 'dpd130', label: 'DPD 1-30',
+        m: { aktif: DPD130_AKTIF, terbayar: [10, 8, 9, 9, 8, 10] } },
+      { id: 'dpd3190', label: 'DPD 31-90',
+        m: { aktif: DPD3190_AKTIF, terbayar: [8, 8, 9, 9, 8, 7] } },
+    ],
+    false,
+    true,
+  ),
+  section(
+    'btc-flow',
+    'BTC & Flow',
+    TARGET_COMPLETED,
+    [
+      // BTC target = the overdue accounts (DPD 1-30 + 31-90) to bring back to
+      // current; red when fewer are brought back than targeted.
+      { id: 'btc', label: 'BTC', redWhen: 'below',
+        m: { target: BTC_TARGET, completed: [18, 16, 20, 18, 15, 20] } },
+      // Flow = accounts slipping into overdue; target is 0, red when any flow in.
+      { id: 'flow', label: 'Flow', redWhen: 'above',
+        m: { target: [0, 0, 0, 0, 0, 0], completed: [0, 1, 0, 2, 0, 1] } },
+    ],
+  ),
+  section(
+    'cash-settlement',
+    'Cash settlement',
+    [
+      { id: 'outstanding', label: 'Outstanding', actual: true },
+      { id: 'settled', label: 'Settled', actual: true },
+    ],
+    [
+      // Outstanding = collected but not yet settled today (red when any is left);
+      // Settled = cleared today.
+      { id: 'setoran', label: 'Cash settlement', kind: 'rupiah', firstRedWhenPositive: true,
+        m: {
+          outstanding: [5_000_000, 0, 3_000_000, 3_000_000, 1_000_000, 2_000_000],
+          settled: [10_000_000, 12_000_000, 6_000_000, 15_000_000, 7_000_000, 9_000_000],
+        } },
     ],
   ),
   section(
@@ -214,43 +276,7 @@ export const SECTIONS: MatrixSection[] = [
     ],
     true,
   ),
-  section(
-    'cash-settlement',
-    'Cash settlement',
-    [
-      { id: 'collected', label: 'Collected', actual: true },
-      { id: 'settled', label: 'Settled', actual: true },
-    ],
-    [
-      { id: 'setoran', label: 'Cash settlement', kind: 'rupiah', note: 'sisa',
-        m: {
-          collected: [15_000_000, 12_000_000, 9_000_000, 18_000_000, 8_000_000, 11_000_000],
-          settled: [10_000_000, 12_000_000, 6_000_000, 15_000_000, 7_000_000, 9_000_000],
-        } },
-    ],
-    true,
-  ),
 ]
-
-/**
- * How the Monitoring scorecard is oriented — the two prototype states.
- *  'matrix'  BPs across the top, each spanning its subject's measure pair, the
- *            metrics down the side (the original reference sheet's shape).
- *  'bp-rows' BPs down the side (named once per table), the metrics across the
- *            top, and each measure pair collapsed into ONE cell (result over
- *            "dari <target>"). Fits without horizontal scroll.
- */
-export type ScorecardLayout = 'matrix' | 'bp-rows'
-
-/** The subject that is really an end-of-day fact per BP, not a metric grid: in
- *  the 'bp-rows' layout it leaves the scorecard and folds into the closing
- *  panel alongside "sudah tutup hari?". */
-export const CLOSING_SECTION_ID = 'cash-settlement'
-
-/** The subject that carries the "sudah tutup hari?" column in the 'bp-rows'
- *  layout — closing the day in the field app is the last item on the BP's task
- *  list, so it reads as part of Task rather than a panel of its own. */
-export const TASK_SECTION_ID = 'task'
 
 // --- Briefings --------------------------------------------------------------
 
@@ -298,6 +324,30 @@ export function sectionsForBriefing(kind: BriefingKind): MatrixSection[] {
   })
 }
 
+/** Total planned tasks for a BP today — the Task section's targets summed.
+ *  Shown per BP on the morning briefing panel ("14 tugas"). */
+export function taskCount(bpId: string): number {
+  const task = SECTIONS.find((s) => s.id === 'task')
+  if (!task) return 0
+  const target = task.measures[0].id
+  return task.rows.reduce((sum, row) => sum + (task.values[bpId][row.id][target] ?? 0), 0)
+}
+
+/** How many of a BP's targets fell short across the day — counted in the sections
+ *  that judge a shortfall (Task, Repayment, Disbursement, Cash settlement). Shown
+ *  per BP on the evening briefing panel ("7 target belum terpenuhi"). */
+export function unmetTargets(bpId: string): number {
+  let n = 0
+  for (const s of SECTIONS) {
+    if (!s.shortfallTone && !s.paidTone) continue
+    for (const row of s.rows) {
+      const cells = s.values[bpId][row.id]
+      if (cells[s.measures[1].id] < cells[s.measures[0].id]) n++
+    }
+  }
+  return n
+}
+
 /** The commentary column is keyed per section + per BP. */
 export const commentKey = (sectionId: string, bpId: string): string => `${sectionId}:${bpId}`
 
@@ -338,14 +388,14 @@ export interface HistoryEntry {
   kind: BriefingKind
   submittedBy: string
   submittedAt: string
-  status: 'Terkirim' | 'Terlambat' | 'Belum diisi'
+  status: 'Terkirim' | 'Tidak dikerjakan'
   hasPhoto: boolean
 }
 
 export const HISTORY: HistoryEntry[] = [
   { id: 'h-1', date: '06 Aug 2026', kind: 'evening', submittedBy: 'Rina Marlina', submittedAt: '17.42 WIB', status: 'Terkirim', hasPhoto: true },
   { id: 'h-2', date: '06 Aug 2026', kind: 'morning', submittedBy: 'Rina Marlina', submittedAt: '07.15 WIB', status: 'Terkirim', hasPhoto: true },
-  { id: 'h-3', date: '05 Aug 2026', kind: 'evening', submittedBy: 'Rina Marlina', submittedAt: '18.55 WIB', status: 'Terlambat', hasPhoto: true },
-  { id: 'h-4', date: '05 Aug 2026', kind: 'morning', submittedBy: '—', submittedAt: '—', status: 'Belum diisi', hasPhoto: false },
+  { id: 'h-3', date: '05 Aug 2026', kind: 'evening', submittedBy: 'Rina Marlina', submittedAt: '18.55 WIB', status: 'Terkirim', hasPhoto: true },
+  { id: 'h-4', date: '05 Aug 2026', kind: 'morning', submittedBy: '—', submittedAt: '—', status: 'Tidak dikerjakan', hasPhoto: false },
   { id: 'h-5', date: '04 Aug 2026', kind: 'evening', submittedBy: 'Rina Marlina', submittedAt: '17.20 WIB', status: 'Terkirim', hasPhoto: true },
 ]

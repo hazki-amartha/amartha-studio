@@ -1,49 +1,42 @@
 'use client'
 
-// The BM's landing screen: the branch monitoring scorecard. There are no tabs —
-// briefings are reached from two controls that sit in line with the filters: a
-// "Mulai briefing" button (opens a dialog to pick morning or evening) and a
-// "Riwayat briefing" text button (the list of past briefings, its own screen).
+// The BM's landing screen: the branch monitoring scorecard. There are no tabs.
+// When a briefing is scheduled to start (morning or evening — the `scheduled`
+// store field, driven by the `states` controls beside the device), a full-width
+// banner prompts it at the top; the full list lives behind the "Riwayat briefing"
+// entry point in the filter row.
 
 import { useState } from 'react'
 import { useFlow } from '@/platform/runtime'
-import { Button, Modal } from '@/design-system/components'
-import { ChevronRight, History } from '@/design-system/icons'
+import { Button } from '@/design-system/components'
+import { History } from '@/design-system/icons'
 import { BmShell } from '../lib/shell'
-import { Scorecard, ScorecardByBp, ClosedDayPanel, ClosingPanel } from '../lib/scorecard'
-import { useFlowState } from '../lib/store'
+import { Scorecard } from '../lib/scorecard'
 import {
   DateFilter,
   LockedFilter,
   MoonGlyph,
   PageHeading,
-  Select,
   SunGlyph,
 } from '../lib/ui'
-import {
-  BPS,
-  BRIEFING_INTRO,
-  BRIEFING_LABEL,
-  LOCATION,
-  REPORT_DATE,
-  type BriefingKind,
-} from '../lib/data'
+import { BRIEFING_LABEL, LOCATION, REPORT_DATE, type BriefingKind } from '../lib/data'
+import { isDraftStarted, useFlowState } from '../lib/store'
 
-const BP_OPTIONS = [{ value: 'all', label: 'Semua BP' }, ...BPS.map((b) => ({ value: b.id, label: b.name }))]
+/** When each briefing is scheduled to start — shown in the banner copy. */
+const SCHEDULED_TIME: Record<BriefingKind, string> = {
+  morning: '07.00 WIB',
+  evening: '17.00 WIB',
+}
 
 export function DashboardScreen() {
   const flow = useFlow()
-  const [bpFilter, setBpFilter] = useState('all')
+  const { scheduled, submitted, drafts } = useFlowState()
   const [day, setDay] = useState('2026-08-07')
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const byBp = useFlowState().scorecardLayout === 'bp-rows'
 
-  const bps = bpFilter === 'all' ? BPS : BPS.filter((b) => b.id === bpFilter)
-
-  const openBriefing = (kind: BriefingKind) => {
-    setPickerOpen(false)
-    flow.go(`briefing-${kind}`)
-  }
+  // The banner only appears while the scheduled briefing is due and unsent; once
+  // the BM has started filling it in, the CTA becomes "Lanjutkan …".
+  const showBanner = !submitted[scheduled]
+  const inProgress = isDraftStarted(drafts[scheduled])
 
   return (
     <BmShell
@@ -54,21 +47,29 @@ export function DashboardScreen() {
       ]}
       header={
         <PageHeading
-          title="Branch Monitoring"
+          title="Daily Monitoring"
           meta={`Diperbarui hari ini, ${REPORT_DATE}, 16.20 WIB`}
         />
       }
     >
+      {showBanner ? (
+        <div className="pb-16">
+          <BriefingBanner
+            kind={scheduled}
+            inProgress={inProgress}
+            onStart={() => flow.go(`briefing-${scheduled}`)}
+          />
+        </div>
+      ) : null}
+
       {/* Filter row, right below the title — the fixed location cascade (disabled)
-          and the BP filter (the only live control) on the left, the two briefing
-          entry points on the right, all on one line. */}
+          on the left, the Riwayat briefing entry point on the right. */}
       <div className="flex flex-wrap items-center gap-8 pb-16">
         <DateFilter label="Tanggal" value={day} onChange={setDay} />
         <LockedFilter label="Region" value={LOCATION.region} />
         <LockedFilter label="Provinsi" value={LOCATION.provinsi} />
         <LockedFilter label="Kota" value={LOCATION.kota} />
         <LockedFilter label="Branch" value={LOCATION.branch} />
-        <Select label="Business Partner" value={bpFilter} onChange={setBpFilter} options={BP_OPTIONS} />
         <div className="flex flex-1 flex-wrap items-center justify-end gap-8">
           <button
             type="button"
@@ -77,65 +78,56 @@ export function DashboardScreen() {
           >
             <History size={16} /> Riwayat briefing
           </button>
-          <Button variant="primary" size="sm" onClick={() => setPickerOpen(true)}>
-            Mulai briefing
-          </Button>
         </div>
       </div>
 
-      {/* Two orientations of the same figures, switched by the `states` control
-          beside the device. In 'bp-rows' the cash settlement subject leaves the
-          scorecard and folds into the closing panel. */}
-      {byBp ? <ScorecardByBp bps={bps} /> : <Scorecard bps={bps} />}
-      <div className="pt-16">
-        {byBp ? <ClosingPanel bps={bps} /> : <ClosedDayPanel bps={bps} />}
-      </div>
-
-      <Modal
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        size="sm"
-        title="Mulai briefing"
-        description="Pilih briefing yang ingin dimulai hari ini."
-        slot={
-          <div className="flex flex-col gap-8">
-            <BriefingChoice kind="morning" onSelect={openBriefing} />
-            <BriefingChoice kind="evening" onSelect={openBriefing} />
-          </div>
-        }
-      />
+      <Scorecard />
     </BmShell>
   )
 }
 
-/** One row in the "Mulai briefing" dialog: the briefing's glyph, its name and
- *  one-line intro, and a chevron. The whole row is the button. */
-function BriefingChoice({
+/** The full-width call-to-action banner for the briefing scheduled to start now.
+ *  Tinted by kind (orange = morning, primary = evening); the CTA stays the brand
+ *  primary, the only allowed action colour. */
+function BriefingBanner({
   kind,
-  onSelect,
+  inProgress,
+  onStart,
 }: {
   kind: BriefingKind
-  onSelect: (kind: BriefingKind) => void
+  inProgress: boolean
+  onStart: () => void
 }) {
   const morning = kind === 'morning'
+  const label = BRIEFING_LABEL[kind]
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(kind)}
-      className="flex items-center gap-12 rounded-12 border border-default p-12 text-left hover:bg-neutral-50 active:opacity-70"
+    <div
+      className={`flex flex-wrap items-center justify-between gap-16 rounded-16 border p-16 ${
+        morning ? 'border-orange-200 bg-orange-50' : 'border-primary-200 bg-primary-50'
+      }`}
     >
-      <span
-        className={`flex size-40 shrink-0 items-center justify-center rounded-full ${
-          morning ? 'bg-orange-50 text-orange-500' : 'bg-primary-50 text-primary-500'
-        }`}
-      >
-        {morning ? <SunGlyph /> : <MoonGlyph />}
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="text-14 font-bold text-default">{BRIEFING_LABEL[kind]}</span>
-        <span className="text-12 text-caption">{BRIEFING_INTRO[kind]}</span>
-      </span>
-      <ChevronRight size={20} className="shrink-0 text-caption" />
-    </button>
+      <div className="flex items-center gap-12">
+        <span
+          className={`flex size-48 shrink-0 items-center justify-center rounded-full text-neutral-white ${
+            morning ? 'bg-orange-500' : 'bg-primary-500'
+          }`}
+        >
+          {morning ? <SunGlyph /> : <MoonGlyph />}
+        </span>
+        <div className="flex flex-col gap-2">
+          <span className="text-16 font-bold text-default">
+            {inProgress ? `Lanjutkan ${label}` : `Saatnya ${label}`}
+          </span>
+          <span className="text-12 text-caption">
+            {inProgress
+              ? 'Briefing tersimpan sebagian. Lanjutkan dan kirim.'
+              : `Dijadwalkan mulai pukul ${SCHEDULED_TIME[kind]}. Mulai briefing bersama BP sekarang.`}
+          </span>
+        </div>
+      </div>
+      <Button variant="primary" size="md" onClick={onStart}>
+        {inProgress ? `Lanjutkan ${label}` : `Mulai ${label}`}
+      </Button>
+    </div>
   )
 }

@@ -1,65 +1,76 @@
 'use client'
 
-// One briefing form, shared by the morning and evening screens — they differ by
-// `kind` (title, prompt, which slot gets marked sent). The BM reads the same
-// scorecard the Monitoring tab shows, leaves commentary, attaches a photo as
-// proof, and sends it.
+// One briefing form, shared by the morning and evening screens (they differ by
+// `kind`). The BM reviews the branch scorecard on the left; every briefing action
+// lives in a panel on the right — a voice recorder, a per-BP discussion checklist
+// (each with its own note), an optional overall note, the attendance photo, and a
+// submit CTA pinned in the card's footer.
 //
-// Commentary has THREE layouts, chosen by the `commentStyle` state (set by the
-// controls beside the device, see lib/demo.ts + index.ts):
-//   - 'inline'    a Komentar box in every section's table (default)
-//   - 'dedicated' no per-section box; one note per BP in a section of its own
-//   - 'dialog'    a "✎ Isi" CTA in every section, opening a dialog that shows the
-//                 BP's figures for that section while the BM types
-//
-// Comments and the photo are the form's own useState: the BM stays on this
-// screen while filling it in, and on submit the outcome is carried to the
-// Briefings tab through the store.
+// The panel's content is a per-kind DRAFT in the store, so leaving the form and
+// returning resumes it (the dashboard offers "Lanjutkan …"). `readOnly` renders a
+// submitted briefing with the same layout but every control disabled.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useFlow } from '@/platform/runtime'
-import { Button, Modal } from '@/design-system/components'
-import { Camera, Check, Trash } from '@/design-system/icons'
+import { Badge, Button } from '@/design-system/components'
+import { ArrowLeft, Camera, Check, NotePencil, Trash } from '@/design-system/icons'
 import { BmShell } from './shell'
-import { MicGlyph, Panel, PanelHeading, PageHeading } from './ui'
-import { Scorecard, type CommentMode } from './scorecard'
+import { MicGlyph, PageHeading } from './ui'
+import { Scorecard } from './scorecard'
 import {
   BPS,
   BRANCH_LABEL,
   BRIEFING_INTRO,
   BRIEFING_LABEL,
   REPORT_DATE,
-  commentKey,
-  rowSummary,
   sectionsForBriefing,
+  taskCount,
+  unmetTargets,
   type Bp,
   type BriefingKind,
-  type MatrixSection,
 } from './data'
-import { store, useFlowState } from './store'
+import { store, useFlowState, type BriefingDraft } from './store'
 
-export function BriefingForm({ kind }: { kind: BriefingKind }) {
+/** Width of the sticky action panel (frame geometry → inline style). */
+const PANEL_W = 400
+const NOTE_MAX = 350
+
+/** What a submitted-but-not-authored-this-session briefing shows in read-only. */
+const SAMPLE_DRAFT: BriefingDraft = {
+  discussed: Object.fromEntries(BPS.map((b) => [b.id, true])),
+  notes: { 'bp-c': 'DPD 0 masih di bawah target — dampingi penagihan Cenli.' },
+  overall: 'Hujan besar sepanjang pagi; sebagian BP terlambat turun ke lapangan.',
+  photoAttached: true,
+  recordings: 1,
+}
+
+export function BriefingForm({
+  kind,
+  readOnly = false,
+  own = true,
+  date = REPORT_DATE,
+}: {
+  kind: BriefingKind
+  readOnly?: boolean
+  own?: boolean
+  date?: string
+}) {
   const flow = useFlow()
-  const { commentStyle } = useFlowState()
-  const [comments, setComments] = useState<Record<string, string>>({})
-  const [photoAttached, setPhotoAttached] = useState(false)
-  const [recordings, setRecordings] = useState<number[]>([])
-  const [dialog, setDialog] = useState<{ sectionId: string; bpId: string } | null>(null)
-  const [draft, setDraft] = useState('')
-
+  const { drafts } = useFlowState()
   const label = BRIEFING_LABEL[kind]
   const sections = sectionsForBriefing(kind)
-  const setComment = (key: string, value: string) =>
-    setComments((prev) => ({ ...prev, [key]: value }))
 
-  const openDialog = (sectionId: string, bpId: string) => {
-    setDraft(comments[commentKey(sectionId, bpId)] ?? '')
-    setDialog({ sectionId, bpId })
-  }
-  const saveDialog = () => {
-    if (dialog) setComment(commentKey(dialog.sectionId, dialog.bpId), draft)
-    setDialog(null)
-  }
+  // Edit mode reads/writes the live draft; read-only shows the live draft for the
+  // BM's own submission, else a representative sample for a past briefing.
+  const live = drafts[kind]
+  const draft = readOnly && !own ? SAMPLE_DRAFT : live
+  const set = (patch: Partial<BriefingDraft>) => store.setDraft(kind, patch)
+
+  // Progress: one step per BP discussed, plus the photo. The overall note is
+  // optional, so it doesn't count.
+  const total = BPS.length + 1
+  const done = BPS.filter((b) => draft.discussed[b.id]).length + (draft.photoAttached ? 1 : 0)
+  const complete = done === total
 
   const submit = () => {
     store.markSubmitted(kind)
@@ -67,328 +78,345 @@ export function BriefingForm({ kind }: { kind: BriefingKind }) {
     flow.go('briefing-detail')
   }
 
-  // The scorecard's commentary slot follows the chosen style. 'dedicated' takes
-  // it out of the table entirely — the notes live in their own section below.
-  const comment: CommentMode =
-    commentStyle === 'inline'
-      ? { kind: 'edit', comments, onChange: setComment }
-      : commentStyle === 'dialog'
-        ? { kind: 'cta', comments, onOpen: openDialog }
-        : { kind: 'none' }
-
-  const dialogSection = dialog ? sections.find((s) => s.id === dialog.sectionId) ?? null : null
-  const dialogBp = dialog ? BPS.find((b) => b.id === dialog.bpId) ?? null : null
-
   return (
     <BmShell
       breadcrumbs={[
         { label: 'Home' },
         { label: 'Branches' },
         { label: BRANCH_LABEL },
-        { label, current: true },
+        { label: readOnly ? `${label} · ${date}` : label, current: true },
       ]}
       header={
         <PageHeading
-          title={`${label} — ${REPORT_DATE}`}
-          meta={`${BRANCH_LABEL} · ${BRIEFING_INTRO[kind]}`}
-          actions={
-            <Button variant="outline" size="sm" onClick={() => flow.go('dashboard')}>
-              Kembali
+          title={`${label} — ${date}`}
+          meta={
+            readOnly
+              ? `${BRANCH_LABEL} · Dikirim oleh ${own ? 'Rina Marlina (Anda)' : 'Rina Marlina'}`
+              : `${BRANCH_LABEL} · ${BRIEFING_INTRO[kind]}`
+          }
+          leading={
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Kembali"
+              onClick={() => flow.go(readOnly ? 'briefing-history' : 'dashboard')}
+            >
+              <ArrowLeft size={20} />
             </Button>
           }
         />
       }
     >
-      <div className="pb-16">
-        <VoiceRecorder
-          recordings={recordings}
-          onAdd={(s) => setRecordings((prev) => [...prev, s])}
-          onRemove={(i) => setRecordings((prev) => prev.filter((_, idx) => idx !== i))}
-        />
-      </div>
-
-      <Scorecard sections={sections} comment={comment} />
-
-      {commentStyle === 'dedicated' ? (
-        <div className="pt-16">
-          <DedicatedComments comments={comments} onChange={setComment} />
+      {/* The row fills the screen height: the report column on the left scrolls
+          on its own, while the panel on the right stays fixed and scrolls its own
+          body — so scrolling the report never moves the panel. */}
+      <div className="flex min-h-0 flex-1 gap-16">
+        <div className="min-w-0 flex-1 overflow-y-auto">
+          <Scorecard sections={sections} comment={{ kind: 'none' }} />
         </div>
-      ) : null}
-
-      <div className="pt-16">
-        <PhotoProof attached={photoAttached} onToggle={() => setPhotoAttached((a) => !a)} />
+        <div
+          className="flex shrink-0 flex-col overflow-hidden rounded-16 border border-default bg-neutral-white"
+          style={{ width: PANEL_W }}
+        >
+          <div className="min-h-0 flex-1 overflow-y-auto p-16">
+            <BriefingPanel kind={kind} draft={draft} set={set} disabled={readOnly} />
+          </div>
+          {/* Sticky footer — the submit CTA (or the sent state) stays visible. */}
+          <div className="flex flex-col gap-8 border-t border-default p-16">
+            {readOnly ? (
+              <span className="flex items-center justify-center gap-8 py-4">
+                <Badge intent="green" variant="subtle" size="md" leadingIcon={<Check size={16} />}>
+                  Terkirim
+                </Badge>
+                <span className="text-12 text-caption">Briefing sudah dikirim.</span>
+              </span>
+            ) : (
+              <>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  disabled={!complete}
+                  onClick={submit}
+                >
+                  Submit briefing
+                </Button>
+                <span className="text-center text-12 text-caption">
+                  {done}/{total} selesai
+                </span>
+              </>
+            )}
+          </div>
+        </div>
       </div>
-
-      {/* The send bar: proof-first, so a briefing can't be closed without the
-          photo that shows it happened. */}
-      <div className="mt-16 flex flex-wrap items-center justify-between gap-16 rounded-12 border border-default bg-neutral-white p-16">
-        <span className="text-12 text-caption">
-          {photoAttached
-            ? recordings.length > 0
-              ? `Foto bukti & ${recordings.length} rekaman komentar terlampir. Briefing siap dikirim.`
-              : 'Foto bukti terlampir. Briefing siap dikirim.'
-            : 'Lampirkan foto bukti terlebih dahulu untuk mengirim briefing.'}
-        </span>
-        <Button variant="primary" size="md" disabled={!photoAttached} onClick={submit}>
-          Kirim {label}
-        </Button>
-      </div>
-
-      <CommentDialog
-        section={dialogSection}
-        bp={dialogBp}
-        draft={draft}
-        onDraft={setDraft}
-        onSave={saveDialog}
-        onClose={() => setDialog(null)}
-      />
     </BmShell>
   )
 }
 
-/** 'dedicated' style: one note per BP, in a section of its own below the
- *  scorecard. Keyed by BP id (no section), so it's one comment per BP. */
-function DedicatedComments({
-  comments,
-  onChange,
-}: {
-  comments: Record<string, string>
-  onChange: (key: string, value: string) => void
-}) {
-  return (
-    <Panel>
-      <PanelHeading title="Komentar per BP" subtitle="Satu catatan untuk tiap BP di briefing ini." />
-      <div className="flex flex-col gap-12">
-        {BPS.map((bp) => (
-          <div key={bp.id} className="flex flex-col gap-4">
-            <span className="text-14 font-bold text-default">{bp.name}</span>
-            <textarea
-              value={comments[bp.id] ?? ''}
-              onChange={(e) => onChange(bp.id, e.target.value)}
-              rows={2}
-              placeholder="Tulis komentar…"
-              className="w-full resize-none rounded-8 border border-default bg-neutral-white p-8 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none"
-            />
-          </div>
-        ))}
-      </div>
-    </Panel>
-  )
-}
-
-/** 'dialog' style: the sheet a "✎ Isi" CTA opens — the BP's figures for that
- *  section on top (so the BM comments against the numbers), a box underneath. */
-function CommentDialog({
-  section,
-  bp,
+/** The scrolling panel body: everything the BM works through to close the
+ *  briefing (the submit CTA lives in the card's sticky footer, not here). */
+function BriefingPanel({
+  kind,
   draft,
-  onDraft,
-  onSave,
-  onClose,
+  set,
+  disabled,
 }: {
-  section: MatrixSection | null
-  bp: Bp | null
-  draft: string
-  onDraft: (value: string) => void
-  onSave: () => void
-  onClose: () => void
+  kind: BriefingKind
+  draft: BriefingDraft
+  set: (patch: Partial<BriefingDraft>) => void
+  disabled: boolean
 }) {
-  const open = section !== null && bp !== null
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      size="md"
-      title={bp ? `Komentar — ${bp.name}` : 'Komentar'}
-      description={section?.title}
-      slot={
-        section && bp ? (
-          <div className="flex flex-col gap-12">
-            <div className="rounded-12 border border-default p-12">
-              {section.rows.map((row, i) => (
-                <div
-                  key={row.id}
-                  className={`flex items-center justify-between gap-16 py-4 ${
-                    i > 0 ? 'border-t border-default' : ''
-                  }`}
-                >
-                  <span className="flex flex-col">
-                    <span className="text-14 font-bold text-default">{row.label}</span>
-                    {row.sublabel ? (
-                      <span className="text-12 text-caption">{row.sublabel}</span>
-                    ) : null}
-                  </span>
-                  <span className="flex items-center gap-4 text-14">
-                    {rowSummary(section, bp.id, row).map((x, j) => (
-                      <span key={x.label} className="flex items-center gap-4">
-                        {j > 0 ? <span className="text-placeholder">/</span> : null}
-                        <span
-                          className={
-                            x.tone === 'bad'
-                              ? 'font-bold text-red-500'
-                              : x.tone === 'good'
-                                ? 'font-bold text-green-500'
-                                : 'text-default'
-                          }
-                        >
-                          {x.value}
-                        </span>
-                      </span>
-                    ))}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <textarea
-              value={draft}
-              onChange={(e) => onDraft(e.target.value)}
-              rows={3}
-              placeholder="Tulis komentar…"
-              className="w-full resize-none rounded-8 border border-default bg-neutral-white p-8 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none"
-            />
-          </div>
-        ) : null
-      }
-      primaryAction={
-        <Button variant="primary" onClick={onSave}>
-          Simpan
-        </Button>
-      }
-      secondaryAction={
-        <Button variant="outline" onClick={onClose}>
-          Batal
-        </Button>
-      }
-    />
+    <div className="flex flex-col gap-16">
+      <div className="flex items-center justify-between gap-12">
+        <span className="text-20 font-bold text-default">Catatan Briefing</span>
+        <PanelRecorder
+          count={draft.recordings}
+          onAdd={() => set({ recordings: draft.recordings + 1 })}
+          disabled={disabled}
+        />
+      </div>
+
+      <Section title="Bahas per BP" subtitle="Bahas target dan tugas hari ini untuk semua BP">
+        {BPS.map((bp) => (
+          <BpCard
+            key={bp.id}
+            bp={bp}
+            kind={kind}
+            checked={!!draft.discussed[bp.id]}
+            onToggle={() => set({ discussed: { ...draft.discussed, [bp.id]: !draft.discussed[bp.id] } })}
+            note={draft.notes[bp.id] ?? ''}
+            onNote={(v) => set({ notes: { ...draft.notes, [bp.id]: v } })}
+            disabled={disabled}
+          />
+        ))}
+      </Section>
+
+      <Section
+        title="Catatan keseluruhan (opsional)"
+        subtitle="Jelaskan situasi yang menggambarkan situasi yang mempengaruhi semua BP, misal: hujan besar, bencana alam"
+      >
+        <textarea
+          value={draft.overall}
+          onChange={(e) => set({ overall: e.target.value.slice(0, NOTE_MAX) })}
+          maxLength={NOTE_MAX}
+          placeholder="Tulis catatan"
+          rows={2}
+          readOnly={disabled}
+          className={`w-full resize-none rounded-8 border border-default p-12 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none ${
+            disabled ? 'bg-neutral-50' : 'bg-neutral-white'
+          }`}
+        />
+        {disabled ? null : (
+          <span className="text-12 text-caption">
+            {draft.overall.length}/{NOTE_MAX} karakter
+          </span>
+        )}
+      </Section>
+
+      <Section title="Bukti Kehadiran" subtitle="Ambil foto bersama semua peserta yang hadir">
+        <PhotoBox
+          attached={draft.photoAttached}
+          onToggle={() => set({ photoAttached: !draft.photoAttached })}
+          disabled={disabled}
+        />
+      </Section>
+    </div>
   )
 }
 
-/** Voice commentary recorder, pinned to the top of the briefing. Click-through
- *  only — it does NOT open the mic (CLAUDE.md §3: nothing leaves the prototype).
- *  The BM can record MANY clips: each saved clip lists above the record control,
- *  removable on its own; the record button reads "Tambah rekaman" once at least
- *  one exists. Durations lift to the form so the send bar can note them. */
-function formatDuration(total: number) {
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+/** A labelled block inside the panel: bold title, caption subtitle, then body. */
+function Section({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string
+  subtitle: string
+  children: ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <span className="text-16 font-bold text-default">{title}</span>
+        <span className="text-12 text-caption">{subtitle}</span>
+      </div>
+      {children}
+    </div>
+  )
 }
 
-function VoiceRecorder({
-  recordings,
-  onAdd,
-  onRemove,
+/** One BP row: a discussed checkbox, the BP's name and today's status, and a
+ *  collapsible per-BP note. Morning shows the task count; evening shows how many
+ *  targets are still unmet. */
+function BpCard({
+  bp,
+  kind,
+  checked,
+  onToggle,
+  note,
+  onNote,
+  disabled,
 }: {
-  /** Saved clip lengths in seconds, in the order they were recorded. */
-  recordings: number[]
-  onAdd: (seconds: number) => void
-  onRemove: (index: number) => void
+  bp: Bp
+  kind: BriefingKind
+  checked: boolean
+  onToggle: () => void
+  note: string
+  onNote: (value: string) => void
+  disabled: boolean
+}) {
+  const [editing, setEditing] = useState(false)
+
+  const status =
+    kind === 'morning'
+      ? { text: `${taskCount(bp.id)} tugas`, cls: 'text-caption' }
+      : unmetTargets(bp.id) === 0
+        ? { text: 'Semua target terpenuhi', cls: 'text-green-500' }
+        : { text: `${unmetTargets(bp.id)} target belum terpenuhi`, cls: 'text-red-500' }
+
+  const showNote = editing || note.length > 0
+
+  return (
+    <div className="rounded-12 border border-default p-12">
+      <div className="flex items-start gap-12">
+        <Checkbox checked={checked} onChange={onToggle} disabled={disabled} />
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="text-14 font-bold text-default">{bp.name}</span>
+          <span className={`text-12 ${status.cls}`}>{status.text}</span>
+          {showNote ? (
+            <textarea
+              value={note}
+              onChange={(e) => onNote(e.target.value)}
+              placeholder="Tulis catatan…"
+              rows={2}
+              readOnly={disabled}
+              autoFocus={editing && note.length === 0}
+              className={`mt-4 w-full resize-none rounded-8 border border-default p-8 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none ${
+                disabled ? 'bg-neutral-50' : 'bg-neutral-white'
+              }`}
+            />
+          ) : disabled ? (
+            <span className="mt-4 text-12 text-placeholder">Tidak ada catatan</span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="mt-4 flex items-center gap-4 text-14 font-bold text-link active:opacity-70"
+            >
+              Tambah catatan <NotePencil size={16} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** A square checkbox — FunDS ships none, so a project-local toggle (§4). */
+function Checkbox({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean
+  onChange: () => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={onChange}
+      className={`mt-2 flex size-20 shrink-0 items-center justify-center rounded-4 border ${
+        checked ? 'border-primary-500 bg-primary-500 text-neutral-white' : 'border-default bg-neutral-white'
+      } ${disabled ? 'opacity-70' : ''}`}
+    >
+      {checked ? <Check size={16} /> : null}
+    </button>
+  )
+}
+
+/** The voice recorder, condensed to the panel header: a Rekam toggle that turns
+ *  into a live Berhenti timer, plus a saved-clips count (kept in the draft).
+ *  Click-through only — no real mic (CLAUDE.md §3). Disabled in read-only. */
+function PanelRecorder({
+  count,
+  onAdd,
+  disabled,
+}: {
+  count: number
+  onAdd: () => void
+  disabled: boolean
 }) {
   const [recording, setRecording] = useState(false)
   const [elapsed, setElapsed] = useState(0)
 
-  // The live timer while recording. Cleared on stop / unmount so it never leaks.
   useEffect(() => {
     if (!recording) return
     const id = window.setInterval(() => setElapsed((e) => e + 1), 1000)
     return () => window.clearInterval(id)
   }, [recording])
 
-  const start = () => {
-    setElapsed(0)
-    setRecording(true)
+  const toggle = () => {
+    if (recording) {
+      setRecording(false)
+      onAdd()
+    } else {
+      setElapsed(0)
+      setRecording(true)
+    }
   }
-  const stop = () => {
-    setRecording(false)
-    onAdd(Math.max(elapsed, 1))
-  }
+
+  const fmt = (t: number) =>
+    `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
 
   return (
-    <Panel>
-      <PanelHeading
-        title="Komentar suara briefing"
-        subtitle="Rekam satu atau beberapa komentar lisan untuk dikirim bersama briefing."
-      />
-
-      {recordings.length > 0 ? (
-        <div className="flex flex-col gap-8 pb-12">
-          {recordings.map((seconds, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-12 rounded-12 border border-default bg-neutral-50 p-12"
-            >
-              <span className="flex size-40 shrink-0 items-center justify-center rounded-12 bg-primary-50 text-primary-500">
-                <MicGlyph size={20} />
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col gap-2">
-                <span className="flex items-center gap-4 text-14 font-bold text-green-500">
-                  <Check size={16} /> Rekaman {i + 1}
-                </span>
-                <span className="truncate text-12 text-caption">
-                  komentar-{REPORT_DATE}-{i + 1}.m4a · {formatDuration(seconds)}
-                </span>
-              </span>
-              <button
-                type="button"
-                onClick={() => onRemove(i)}
-                className="flex items-center gap-4 text-12 font-bold text-link active:opacity-70"
-              >
-                <Trash size={16} /> Hapus
-              </button>
-            </div>
-          ))}
-        </div>
+    <div className="flex flex-col items-end gap-2">
+      <Button
+        variant={recording ? 'danger' : 'outline'}
+        size="sm"
+        disabled={disabled}
+        onClick={toggle}
+      >
+        <span className="flex items-center gap-4">
+          <MicGlyph size={16} /> {recording ? `Berhenti ${fmt(elapsed)}` : 'Rekam'}
+        </span>
+      </Button>
+      {count > 0 && !recording ? (
+        <span className="text-10 text-caption">{count} rekaman tersimpan</span>
       ) : null}
-
-      {recording ? (
-        <div className="flex flex-wrap items-center justify-between gap-16 rounded-12 border border-red-500 bg-red-50 p-16">
-          <span className="flex items-center gap-12">
-            <span className="flex size-40 shrink-0 items-center justify-center rounded-full bg-red-500 text-neutral-white">
-              <MicGlyph size={20} />
-            </span>
-            <span className="flex flex-col">
-              <span className="flex items-center gap-8 text-14 font-bold text-red-500">
-                <span className="size-8 rounded-full bg-red-500" /> Sedang merekam…
-              </span>
-              <span className="text-12 tabular-nums text-caption">{formatDuration(elapsed)}</span>
-            </span>
-          </span>
-          <Button variant="danger" size="sm" onClick={stop}>
-            Berhenti
-          </Button>
-        </div>
-      ) : (
-        <Button variant="primary" size="sm" onClick={start}>
-          <span className="flex items-center gap-8">
-            <MicGlyph size={16} /> {recordings.length > 0 ? 'Tambah rekaman' : 'Mulai rekam komentar'}
-          </span>
-        </Button>
-      )}
-    </Panel>
+    </div>
   )
 }
 
-/** The proof block: a placeholder for the field photo the BM snaps of the team
- *  at the briefing. Click-through only — it toggles to an attached state rather
- *  than opening a real file picker (CLAUDE.md §3: nothing leaves the prototype). */
-function PhotoProof({ attached, onToggle }: { attached: boolean; onToggle: () => void }) {
-  return (
-    <Panel>
-      <PanelHeading
-        title="Foto bukti briefing"
-        subtitle="Foto BP saat briefing sebagai bukti briefing telah dilakukan."
-      />
-      {attached ? (
-        <div className="flex items-center gap-16 rounded-12 border border-default bg-neutral-50 p-16">
-          <span className="flex size-48 shrink-0 items-center justify-center rounded-12 bg-primary-50 text-primary-500">
-            <Camera size={24} />
+/** The attendance-photo block: a placeholder dropzone that toggles to an attached
+ *  state. Click-through only — no real file picker (CLAUDE.md §3). Disabled in
+ *  read-only (shows the attached state without the remove action). */
+function PhotoBox({
+  attached,
+  onToggle,
+  disabled,
+}: {
+  attached: boolean
+  onToggle: () => void
+  disabled: boolean
+}) {
+  if (attached) {
+    return (
+      <div className="flex items-center gap-12 rounded-12 border border-default bg-neutral-50 p-12">
+        <span className="flex size-40 shrink-0 items-center justify-center rounded-12 bg-primary-50 text-primary-500">
+          <Camera size={20} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="flex items-center gap-4 text-14 font-bold text-green-500">
+            <Check size={16} /> Foto terlampir
           </span>
-          <span className="flex min-w-0 flex-1 flex-col gap-2">
-            <span className="flex items-center gap-4 text-14 font-bold text-green-500">
-              <Check size={16} /> Foto terlampir
-            </span>
-            <span className="truncate text-12 text-caption">briefing-{REPORT_DATE}.jpg</span>
-          </span>
+          <span className="truncate text-12 text-caption">briefing-{REPORT_DATE}.jpg</span>
+        </span>
+        {disabled ? null : (
           <button
             type="button"
             onClick={onToggle}
@@ -396,18 +424,26 @@ function PhotoProof({ attached, onToggle }: { attached: boolean; onToggle: () =>
           >
             <Trash size={16} /> Hapus
           </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex w-full flex-col items-center justify-center gap-8 rounded-12 border border-dashed border-default bg-neutral-50 py-24 text-caption active:opacity-70"
-        >
-          <Camera size={24} />
-          <span className="text-14 font-bold text-default">Ambil / unggah foto</span>
-          <span className="text-12 text-caption">JPG atau PNG, maks. 5 MB</span>
-        </button>
-      )}
-    </Panel>
+        )}
+      </div>
+    )
+  }
+  if (disabled) {
+    return (
+      <div className="flex w-full items-center justify-center rounded-12 border border-dashed border-default bg-neutral-50 py-20 text-12 text-placeholder">
+        Tidak ada foto
+      </div>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex w-full flex-col items-center justify-center gap-4 rounded-12 border border-dashed border-default bg-neutral-50 py-20 text-caption active:opacity-70"
+    >
+      <Camera size={24} />
+      <span className="text-14 font-bold text-default">Upload or take a photo</span>
+      <span className="text-12 text-caption">JPG, PNG up to 10MB</span>
+    </button>
   )
 }

@@ -1,9 +1,11 @@
 'use client'
 
-// The BM's sidebar, identical on every screen — so each screen renders
-// `<BmShell>` rather than repeating the nav list and the user row. Copied and
-// adapted from projects/ngmis-bm-monitoring (§1: never import across projects);
-// the nav lands on "Branches", where a branch scorecard lives.
+// The BM's chrome, identical on every screen — so each screen renders
+// `<BmShell>` rather than repeating the nav list. Copied and adapted from
+// projects/ngmis-bm-monitoring (§1: never import across projects); the nav lands
+// on "Branches", where a branch scorecard lives. The amartha lockup and the user
+// profile live in MisShell's top header; the hamburger there collapses the
+// sidebar to an icon rail (the `collapsed` flag passed into `SideNav`).
 
 import { useState, type ReactNode } from 'react'
 import {
@@ -14,13 +16,12 @@ import {
   Coins,
   GearSix,
   Layout,
-  LightningFill,
   Sliders,
   TransferArrow,
   Transfer,
   Umbrella,
 } from '@/design-system/icons'
-import { MisShell, SideNav, SidebarPromo, type NavItem } from './ui'
+import { MisShell, SideNav, type NavItem } from './ui'
 
 const NAV: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <Layout size={20} /> },
@@ -32,9 +33,6 @@ const NAV: NavItem[] = [
   { id: 'transactions', label: 'Transactions', icon: <TransferArrow size={20} /> },
   { id: 'insurance', label: 'Insurance', icon: <Umbrella size={20} /> },
   { id: 'product-config', label: 'Product Config', icon: <Sliders size={20} /> },
-]
-
-const FOOTER_NAV: NavItem[] = [
   { id: 'report', label: 'Report', icon: <ChartLineUp size={20} /> },
   { id: 'settings', label: 'Settings', icon: <GearSix size={20} /> },
 ]
@@ -58,24 +56,10 @@ export function BmShell({
     <MisShell
       breadcrumbs={breadcrumbs}
       header={header}
-      sidebar={
-        <SideNav
-          items={NAV}
-          footerItems={FOOTER_NAV}
-          activeId={navId}
-          onSelect={setNavId}
-          user={USER}
-          promo={
-            <SidebarPromo
-              icon={<LightningFill size={16} />}
-              title="We've updated our portal!"
-              body="Back to the old version? click the button below."
-              action="Go to old version"
-              onAction={() => undefined}
-            />
-          }
-        />
-      }
+      user={USER}
+      sidebar={(collapsed) => (
+        <SideNav items={NAV} activeId={navId} onSelect={setNavId} collapsed={collapsed} />
+      )}
     >
       {children}
     </MisShell>

@@ -3,10 +3,17 @@
 Project-local components (CLAUDE.md §4).
 
 `lib/ui.tsx` and `lib/shell.tsx` are the desktop chrome, copied (not imported —
-§1) from `projects/ngmis-bm-monitoring`: `MisShell` / `SideNav` / `SidebarPromo`
-(the sidebar-first frame), `Breadcrumbs`, `PageHeading`, `Panel`, `PanelHeading`,
-`Tabs`, `Select`, `Textarea`, `DataTable`, plus `SunGlyph` / `MoonGlyph` / `MicGlyph`
-(sun, moon and microphone are genuinely absent from the 166-icon set). `Tabs` is
+§1) from `projects/ngmis-bm-monitoring`, then reworked to a **top-header frame**:
+`MisShell` renders a full-width header (hamburger + amartha lockup + profile
+chip) above a `SideNav` that the hamburger collapses to a 64px icon rail (the
+`collapsed` flag; `sidebar` is a render function so it reads that live state).
+`MenuGlyph` is the project-local hamburger; `Breadcrumbs`, `PageHeading`, `Panel`,
+`PanelHeading`,
+`Tabs`, `Select`, `Textarea`, `DataTable`, plus `SunGlyph` / `MoonGlyph` /
+`MicGlyph` / `ArrowUpRightGlyph` (sun, moon, microphone and the diagonal
+open-in-new-tab arrow are genuinely absent from the 166-icon set). The
+`DateFilter` shows an Indonesian "7 Agu 2026" label over a transparent native
+date input. `Tabs` is
 now unused — the dashboard is a single scorecard screen, briefings reached from
 two filter-row controls. The KPI/`ProgressBar`/
 `Pagination`/`StatCard`/`ReportTile` exports are carried over unused — kept whole
@@ -14,49 +21,57 @@ so the file stays a faithful copy of its source rather than a fork.
 
 New here:
 
-- `lib/scorecard.tsx` — `Scorecard`, one matrix per subject (Task, Repayment,
-  Disbursement, Cash settlement). BPs run across the top, each spanning its
-  subject's paired measures (Target/Completed, Aktif/Terbayar, Collected/
-  Settled) via a two-level header; the metrics run down the side. The second
-  measure of a row carries a derived note — a percentage of the first (Terbayar
-  of Aktif) or the remainder still held (Collected less Settled). ONE measure
-  width for every subject, so a BP's column sits at the same x in all four tables
-  and the eye skims straight down. A `shortfallTone` row turns its 2nd figure
-  RED when it trails the 1st (target not met). Its `comment` prop has four modes:
-  `none` (Monitoring), `edit` (inline box), `read` (past briefing), and `cta`
-  (a "✎ Isi" button that calls `onOpen`). `ClosedDayPanel` is the "Has closed
-  the day?" row. Both take an optional `bps` list.
-- `lib/scorecard.tsx` (cont.) — `ScorecardByBp` + `ClosingPanel`, the transposed
-  reading of the same data, offered as a `states` pair on the dashboard. BPs run
-  down the side (name printed once per table, not once per measure pair) and the
-  metrics run across the top, keeping the two-level header — the measure pair
-  stays two columns, the metric's own target sits in its header. `table-fixed` +
-  `w-full`, so it fills the container instead of scrolling sideways. Two subjects
-  move there: "tutup hari" rides as a trailing badge column in the Task table
-  (closing the day is the last item on the BP's task list), and cash settlement —
-  one metric per BP — folds into `ClosingPanel`, a plain Collected / Settled /
-  Sisa row per BP. The briefing forms still use the matrix
-  `Scorecard`; transposing them (the comment box becomes a rightmost column) is
-  the obvious next step if the layout wins.
+- `lib/scorecard.tsx` — `Scorecard`, one matrix per subject in order: Task,
+  Repayment, BTC & Flow, Cash settlement, Disbursement. BPs run across the top,
+  each spanning its subject's paired measures (Target/Completed, Aktif/Terbayar,
+  Outstanding/Settled) via a two-level header; the metrics run down the side. ONE
+  measure width for every subject, so a BP's column sits at the same x in every
+  table and the eye skims straight down. A `shortfallTone` row turns its 2nd
+  figure RED when it trails the 1st (target not met). Repayment uses `paidTone`
+  instead: the colour sits on **Terbayar**, judged against Aktif as its target
+  (green when Terbayar meets Aktif, red when short). BTC & Flow uses per-row
+  `redWhen`: BTC reds when Completed is below its target (DPD 1-30 + 31-90);
+  Flow (target 0) reds when Completed is above 0. Cash settlement reds its
+  Outstanding when it is > 0 (`firstRedWhenPositive`); Outstanding =
+  collected-but-unsettled, Settled = cleared today. A
+  `merged` row (Task's "Tutup hari") renders one cell per BP spanning both measure
+  columns, showing the `ClosedDayStatus` badge — "Sudah tutup hari" only once
+  every task for that BP is completed, else "Belum tutup hari" (replaced the
+  standalone closed-day card). Each section card carries a "Buka report" button
+  beside its title (the per-row open-in-new-tab arrow was removed). Its `comment`
+  prop has four modes: `none` (Monitoring/briefing form), `edit`, `read`, `cta`.
 - `lib/briefing-form.tsx` — `BriefingForm`, shared by the morning and evening
-  screens. Its commentary layout follows the store's `commentStyle`, one of three
-  prototype states: `inline` (a Komentar box in every table), `dedicated` (no
-  per-section box; a `DedicatedComments` section with one note per BP), and
-  `dialog` (a "✎ Isi" CTA per section opening a `CommentDialog` Modal that shows
-  the BP's figures for that section while the BM types). Plus a `VoiceRecorder`
-  pinned to the top (idle → live mm:ss timer + Stop → saved attachment, carried
-  with the briefing; click-through, no real mic per §3), the `PhotoProof` block,
-  and a send bar gated on the photo.
+  screens (and, with `readOnly`, the submitted-briefing view). A ghost-icon back
+  button sits before the title. The row fills the screen height: the scorecard
+  (comment `none`) scrolls on the left, while a **fixed device-height card** on the
+  right scrolls its own `BriefingPanel` body (titled "Catatan Briefing") with the
+  `Submit briefing` CTA pinned in a sticky footer. The panel holds a condensed
+  voice recorder (`PanelRecorder`), a per-BP discussion checklist (`BpCard` — a
+  `Checkbox`, the BP's status [morning: `taskCount`; evening: `unmetTargets`], and
+  a collapsible note), an **optional** overall note, and an attendance `PhotoBox`.
+  Its content is the per-kind **draft in the store**, so leaving and returning
+  resumes it; submit is gated on "N/7 selesai" (6 BPs + photo — the note is
+  optional). `readOnly` disables every control and swaps the footer for a
+  "Terkirim" state (own submission shows the live draft; a past one shows a
+  representative `SAMPLE_DRAFT`). All click-through, no real mic/file picker (§3).
 - `screens/briefing-history.tsx` — `BriefingHistoryScreen` (Riwayat Briefing):
-  today's not-yet-sent briefings + the history table. Was the dashboard's second
-  tab; now its own screen, reached from the "Riwayat briefing" filter-row button.
-  The dashboard itself carries a "Mulai briefing" button opening a Modal to pick
-  morning / evening.
-- `lib/demo.ts` — the three `states` (§3) wired in `index.ts` on both briefing
-  screens; each just writes `commentStyle` to the store.
-- `lib/store.ts` — carries which of today's two briefings have been sent, which
-  briefing the detail screen shows, and the briefing `commentStyle`. All must
-  survive navigation.
+  just the history table now (the "belum dimulai" card was removed). Status is
+  only "Terkirim" or "Tidak dikerjakan"; a Terkirim row's "Lihat" opens the
+  read-only briefing view, "Tidak dikerjakan" has none.
+- `screens/briefing-detail.tsx` — renders `BriefingForm` in `readOnly` for the
+  briefing named by the store's `viewing`.
+- `lib/demo.ts` — the `states` (§3) wired in `index.ts`: two `scheduled` controls
+  on the dashboard (Briefing Sore default / Briefing Pagi) that pick which
+  briefing the landing banner prompts. Each just writes to the store. (The old
+  `commentStyle` controls were retired with the briefing-panel redesign.)
+- `lib/store.ts` — carries which briefings are `submitted`, which the read-only
+  view is `viewing`, which is `scheduled` (the banner), and each briefing's
+  in-progress `drafts` (with `isDraftStarted` driving "Lanjutkan"). All survive
+  navigation.
+- `screens/dashboard.tsx` — a full-width `BriefingBanner` for the `scheduled`
+  briefing sits at the top, shown only while that briefing is due and unsent; its
+  CTA reads "Mulai …" or, once a draft exists, "Lanjutkan …". Toggle
+  morning/evening via the `states`.
 
 Data (`lib/data.ts`) is a full branch of six BPs, authored compactly: each row
 carries, per measure, one number per BP, and `section()` assembles the nested
@@ -68,9 +83,8 @@ before any fieldwork — while the plan figures (Target, Aktif) stand.
 Open questions:
 
 - The scorecard figures are undated beyond the one report date — no week / month
-  selector. The branch is fixed (the top-right branch filter was removed); the
-  BP-name filter under the tabs narrows the rows.
+  selector. The location cascade (region → branch) is fixed context, shown as
+  disabled chips; there is no per-BP filter anymore (the whole branch roster is
+  always shown).
 - Commentary is per section + per BP; the seeded sample fills only a handful of
-  cells, so most read-only Komentar cells show "—".
-- The BP-name filter sits under the tabs and is shown on both, but only narrows
-  the Monitoring scorecard — the Briefings tab has nothing per-BP to filter.
+  cells, so most read-only "Catatan tambahan" cells show "—".
