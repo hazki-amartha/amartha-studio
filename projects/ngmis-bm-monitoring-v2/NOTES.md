@@ -26,6 +26,18 @@ New here:
   `none` (Monitoring), `edit` (inline box), `read` (past briefing), and `cta`
   (a "✎ Isi" button that calls `onOpen`). `ClosedDayPanel` is the "Has closed
   the day?" row. Both take an optional `bps` list.
+- `lib/scorecard.tsx` (cont.) — `ScorecardByBp` + `ClosingPanel`, the transposed
+  reading of the same data, offered as a `states` pair on the dashboard. BPs run
+  down the side (name printed once per table, not once per measure pair) and the
+  metrics run across the top, keeping the two-level header — the measure pair
+  stays two columns, the metric's own target sits in its header. `table-fixed` +
+  `w-full`, so it fills the container instead of scrolling sideways. Two subjects
+  move there: "tutup hari" rides as a trailing badge column in the Task table
+  (closing the day is the last item on the BP's task list), and cash settlement —
+  one metric per BP — folds into `ClosingPanel`, a plain Collected / Settled /
+  Sisa row per BP. The briefing forms still use the matrix
+  `Scorecard`; transposing them (the comment box becomes a rightmost column) is
+  the obvious next step if the layout wins.
 - `lib/briefing-form.tsx` — `BriefingForm`, shared by the morning and evening
   screens. Its commentary layout follows the store's `commentStyle`, one of three
   prototype states: `inline` (a Komentar box in every table), `dedicated` (no

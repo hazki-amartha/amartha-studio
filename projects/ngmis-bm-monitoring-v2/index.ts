@@ -33,6 +33,21 @@ export const project: ProjectModule = {
       title: 'Branch Monitoring',
       component: lazyScreen(() => import('./screens/dashboard'), 'DashboardScreen'),
       entry: true,
+      states: [
+        {
+          id: 'tabel-matrix',
+          label: 'Tabel: BP di kolom',
+          description: 'Bentuk sheet aslinya — BP melebar ke kanan, metrik ke bawah.',
+          apply: demo.layoutMatrix,
+        },
+        {
+          id: 'tabel-bp-rows',
+          label: 'Tabel: BP di baris',
+          description:
+            'BP ke bawah, metrik ke kanan, target dilipat jadi satu sel. Setoran ikut ke panel tutup hari.',
+          apply: demo.layoutByBp,
+        },
+      ],
       flowsTo: [
         { to: 'briefing-morning', label: 'Mulai briefing pagi' },
         { to: 'briefing-evening', label: 'Mulai briefing sore' },

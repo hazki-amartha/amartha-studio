@@ -10,7 +10,8 @@ import { useFlow } from '@/platform/runtime'
 import { Button, Modal } from '@/design-system/components'
 import { ChevronRight, History } from '@/design-system/icons'
 import { BmShell } from '../lib/shell'
-import { Scorecard, ClosedDayPanel } from '../lib/scorecard'
+import { Scorecard, ScorecardByBp, ClosedDayPanel, ClosingPanel } from '../lib/scorecard'
+import { useFlowState } from '../lib/store'
 import {
   DateFilter,
   LockedFilter,
@@ -35,6 +36,7 @@ export function DashboardScreen() {
   const [bpFilter, setBpFilter] = useState('all')
   const [day, setDay] = useState('2026-08-07')
   const [pickerOpen, setPickerOpen] = useState(false)
+  const byBp = useFlowState().scorecardLayout === 'bp-rows'
 
   const bps = bpFilter === 'all' ? BPS : BPS.filter((b) => b.id === bpFilter)
 
@@ -81,9 +83,12 @@ export function DashboardScreen() {
         </div>
       </div>
 
-      <Scorecard bps={bps} />
+      {/* Two orientations of the same figures, switched by the `states` control
+          beside the device. In 'bp-rows' the cash settlement subject leaves the
+          scorecard and folds into the closing panel. */}
+      {byBp ? <ScorecardByBp bps={bps} /> : <Scorecard bps={bps} />}
       <div className="pt-16">
-        <ClosedDayPanel bps={bps} />
+        {byBp ? <ClosingPanel bps={bps} /> : <ClosedDayPanel bps={bps} />}
       </div>
 
       <Modal
