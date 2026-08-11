@@ -36,7 +36,18 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'briefing-morning', label: 'Mulai briefing pagi' },
         { to: 'briefing-evening', label: 'Mulai briefing sore' },
-        { to: 'briefing-detail', label: 'Lihat riwayat' },
+        { to: 'briefing-history', label: 'Riwayat briefing' },
+      ],
+    },
+    {
+      id: 'briefing-history',
+      title: 'Riwayat Briefing',
+      component: lazyScreen(() => import('./screens/briefing-history'), 'BriefingHistoryScreen'),
+      flowsTo: [
+        { to: 'briefing-morning', label: 'Mulai briefing pagi' },
+        { to: 'briefing-evening', label: 'Mulai briefing sore' },
+        { to: 'briefing-detail', label: 'Lihat' },
+        { to: 'dashboard', label: 'Kembali' },
       ],
     },
     {
