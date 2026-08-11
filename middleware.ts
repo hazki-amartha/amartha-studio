@@ -42,5 +42,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   // Match everything except Next internals, the favicon, and any file with an
   // extension (covers /public static assets). /unlock is handled in-function.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.[\\w]+$).*)'],
+  // `_vercel` is excluded so the Web Analytics beacon (POST /_vercel/insights/view)
+  // is never redirected to the gate — it carries no session cookie of its own.
+  matcher: ['/((?!_next/static|_next/image|_vercel|favicon.ico|.*\\.[\\w]+$).*)'],
 }
