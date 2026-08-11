@@ -1,8 +1,8 @@
 'use client'
 
-// Riwayat Briefing — today's not-yet-sent briefings on top, then the history
-// table of past ones. This used to be the dashboard's second tab; it now has its
-// own screen, reached from the "Riwayat briefing" entry point beside the filters.
+// Riwayat Briefing — the history table of briefings for this branch. Reached from
+// the "Riwayat briefing" entry point beside the Monitoring filters. Each sent
+// briefing opens its read-only view; a "Tidak dikerjakan" one has nothing to open.
 
 import { useFlow } from '@/platform/runtime'
 import { Badge, Button } from '@/design-system/components'
@@ -11,11 +11,9 @@ import { BmShell } from '../lib/shell'
 import {
   DataTable,
   LockedFilter,
-  MoonGlyph,
   Panel,
   PanelHeading,
   PageHeading,
-  SunGlyph,
   type Column,
 } from '../lib/ui'
 import {
@@ -29,10 +27,9 @@ import {
 } from '../lib/data'
 import { store, useFlowState } from '../lib/store'
 
-const STATUS_INTENT: Record<HistoryEntry['status'], 'green' | 'yellow' | 'neutral'> = {
+const STATUS_INTENT: Record<HistoryEntry['status'], 'green' | 'neutral'> = {
   Terkirim: 'green',
-  Terlambat: 'yellow',
-  'Belum diisi': 'neutral',
+  'Tidak dikerjakan': 'neutral',
 }
 
 const HISTORY_COLUMNS: Column[] = [
@@ -49,7 +46,6 @@ export function BriefingHistoryScreen() {
   const flow = useFlow()
   const { submitted } = useFlowState()
 
-  const openBriefing = (kind: BriefingKind) => flow.go(`briefing-${kind}`)
   const viewBriefing = (kind: BriefingKind, date: string, own: boolean) => {
     store.set({ viewing: { kind, date, own } })
     flow.go('briefing-detail')
@@ -75,9 +71,7 @@ export function BriefingHistoryScreen() {
         <span className="text-placeholder">—</span>
       ),
       action:
-        entry.status === 'Belum diisi' ? (
-          <span className="text-placeholder">—</span>
-        ) : (
+        entry.status === 'Terkirim' ? (
           <button
             type="button"
             onClick={() => viewBriefing(entry.kind, entry.date, false)}
@@ -85,15 +79,16 @@ export function BriefingHistoryScreen() {
           >
             Lihat
           </button>
+        ) : (
+          <span className="text-placeholder">—</span>
         ),
     },
   }))
 
   const kinds: BriefingKind[] = ['morning', 'evening']
-  const upcoming = kinds.filter((k) => !submitted[k])
 
   // A briefing sent today isn't in the seeded history, so it's prepended as its
-  // own row — it moves from "belum dimulai" into "Riwayat" the moment it's sent.
+  // own row — it appears in Riwayat the moment it's sent.
   const todayRows = kinds
     .filter((k) => submitted[k])
     .map((k) => ({
@@ -153,57 +148,14 @@ export function BriefingHistoryScreen() {
       </div>
 
       <Panel>
-        <PanelHeading
-          title="Briefing belum dimulai"
-          subtitle="Briefing hari ini yang belum dikirim."
+        <PanelHeading title="Riwayat briefing" subtitle="Briefing yang sudah berjalan di branch ini." />
+        <DataTable
+          columns={HISTORY_COLUMNS}
+          rows={[...todayRows, ...historyRows]}
+          sort={null}
+          onSortChange={() => undefined}
         />
-        {upcoming.length ? (
-          <div className="flex flex-col gap-8">
-            {upcoming.map((k) => (
-              <BriefingRow key={k} kind={k} onStart={() => openBriefing(k)} />
-            ))}
-          </div>
-        ) : (
-          <span className="text-14 text-caption">Semua briefing hari ini sudah dikirim.</span>
-        )}
       </Panel>
-
-      <div className="pt-16">
-        <Panel>
-          <PanelHeading title="Riwayat briefing" subtitle="Briefing yang sudah berjalan di branch ini." />
-          <DataTable
-            columns={HISTORY_COLUMNS}
-            rows={[...todayRows, ...historyRows]}
-            sort={null}
-            onSortChange={() => undefined}
-          />
-        </Panel>
-      </div>
     </BmShell>
-  )
-}
-
-/** One not-yet-started briefing, as a full-width row in the "belum dimulai"
- *  stack: which briefing, its date, a status chip, and the single Mulai action. */
-function BriefingRow({ kind, onStart }: { kind: BriefingKind; onStart: () => void }) {
-  const morning = kind === 'morning'
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-16 rounded-12 border border-default p-12">
-      <div className="flex items-center gap-12">
-        <span className={morning ? 'text-orange-500' : 'text-primary-500'}>
-          {morning ? <SunGlyph /> : <MoonGlyph />}
-        </span>
-        <div className="flex flex-col">
-          <span className="text-14 font-bold text-default">{BRIEFING_LABEL[kind]}</span>
-          <span className="text-12 text-caption">{REPORT_DATE}</span>
-        </div>
-        <Badge intent="neutral" variant="subtle" size="sm">
-          Belum diisi
-        </Badge>
-      </div>
-      <Button variant="primary" size="sm" onClick={onStart}>
-        Mulai
-      </Button>
-    </div>
   )
 }

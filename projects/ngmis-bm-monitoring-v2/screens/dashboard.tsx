@@ -11,7 +11,7 @@ import { useFlow } from '@/platform/runtime'
 import { Button } from '@/design-system/components'
 import { History } from '@/design-system/icons'
 import { BmShell } from '../lib/shell'
-import { Scorecard, ClosedDayPanel } from '../lib/scorecard'
+import { Scorecard } from '../lib/scorecard'
 import {
   DateFilter,
   LockedFilter,
@@ -20,7 +20,7 @@ import {
   SunGlyph,
 } from '../lib/ui'
 import { BRIEFING_LABEL, LOCATION, REPORT_DATE, type BriefingKind } from '../lib/data'
-import { useFlowState } from '../lib/store'
+import { isDraftStarted, useFlowState } from '../lib/store'
 
 /** When each briefing is scheduled to start — shown in the banner copy. */
 const SCHEDULED_TIME: Record<BriefingKind, string> = {
@@ -30,11 +30,13 @@ const SCHEDULED_TIME: Record<BriefingKind, string> = {
 
 export function DashboardScreen() {
   const flow = useFlow()
-  const { scheduled, submitted } = useFlowState()
+  const { scheduled, submitted, drafts } = useFlowState()
   const [day, setDay] = useState('2026-08-07')
 
-  // The banner only appears while the scheduled briefing is due and unsent.
+  // The banner only appears while the scheduled briefing is due and unsent; once
+  // the BM has started filling it in, the CTA becomes "Lanjutkan …".
   const showBanner = !submitted[scheduled]
+  const inProgress = isDraftStarted(drafts[scheduled])
 
   return (
     <BmShell
@@ -52,7 +54,11 @@ export function DashboardScreen() {
     >
       {showBanner ? (
         <div className="pb-16">
-          <BriefingBanner kind={scheduled} onStart={() => flow.go(`briefing-${scheduled}`)} />
+          <BriefingBanner
+            kind={scheduled}
+            inProgress={inProgress}
+            onStart={() => flow.go(`briefing-${scheduled}`)}
+          />
         </div>
       ) : null}
 
@@ -76,9 +82,6 @@ export function DashboardScreen() {
       </div>
 
       <Scorecard />
-      <div className="pt-16">
-        <ClosedDayPanel />
-      </div>
     </BmShell>
   )
 }
@@ -86,8 +89,17 @@ export function DashboardScreen() {
 /** The full-width call-to-action banner for the briefing scheduled to start now.
  *  Tinted by kind (orange = morning, primary = evening); the CTA stays the brand
  *  primary, the only allowed action colour. */
-function BriefingBanner({ kind, onStart }: { kind: BriefingKind; onStart: () => void }) {
+function BriefingBanner({
+  kind,
+  inProgress,
+  onStart,
+}: {
+  kind: BriefingKind
+  inProgress: boolean
+  onStart: () => void
+}) {
   const morning = kind === 'morning'
+  const label = BRIEFING_LABEL[kind]
   return (
     <div
       className={`flex flex-wrap items-center justify-between gap-16 rounded-16 border p-16 ${
@@ -103,14 +115,18 @@ function BriefingBanner({ kind, onStart }: { kind: BriefingKind; onStart: () => 
           {morning ? <SunGlyph /> : <MoonGlyph />}
         </span>
         <div className="flex flex-col gap-2">
-          <span className="text-16 font-bold text-default">Saatnya {BRIEFING_LABEL[kind]}</span>
+          <span className="text-16 font-bold text-default">
+            {inProgress ? `Lanjutkan ${label}` : `Saatnya ${label}`}
+          </span>
           <span className="text-12 text-caption">
-            Dijadwalkan mulai pukul {SCHEDULED_TIME[kind]}. Mulai briefing bersama BP sekarang.
+            {inProgress
+              ? 'Briefing tersimpan sebagian. Lanjutkan dan kirim.'
+              : `Dijadwalkan mulai pukul ${SCHEDULED_TIME[kind]}. Mulai briefing bersama BP sekarang.`}
           </span>
         </div>
       </div>
       <Button variant="primary" size="md" onClick={onStart}>
-        Mulai {BRIEFING_LABEL[kind]}
+        {inProgress ? `Lanjutkan ${label}` : `Mulai ${label}`}
       </Button>
     </div>
   )

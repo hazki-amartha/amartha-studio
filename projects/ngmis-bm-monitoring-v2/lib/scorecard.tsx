@@ -111,7 +111,19 @@ function SectionMatrix({
 
   return (
     <Panel>
-      <PanelHeading title={section.title} />
+      <PanelHeading
+        title={section.title}
+        titleAction={
+          <button
+            type="button"
+            aria-label={`Buka report ${section.title} di tab baru`}
+            title="Buka report di tab baru"
+            className="flex items-center gap-4 text-14 font-bold text-link active:opacity-70"
+          >
+            Buka report <ArrowUpRightGlyph size={16} />
+          </button>
+        }
+      />
       <div className="overflow-x-auto">
         <table className="table-fixed border-collapse text-left" style={{ width: totalWidth }}>
           <colgroup>
@@ -160,41 +172,52 @@ function SectionMatrix({
                 className="border-b border-default align-top bg-neutral-white"
               >
                 <td className="sticky left-0 z-10 border-r border-default bg-neutral-white px-12 py-8">
-                  <span className="flex items-center gap-4">
-                    <span className="text-14 font-bold text-default">{row.label}</span>
-                    <button
-                      type="button"
-                      aria-label={`Buka laporan ${row.label} di tab baru`}
-                      title="Buka laporan di tab baru"
-                      className="shrink-0 text-caption hover:text-link active:opacity-70"
-                    >
-                      <ArrowUpRightGlyph size={16} />
-                    </button>
-                  </span>
+                  <span className="block text-14 font-bold text-default">{row.label}</span>
                   {row.sublabel ? (
                     <span className="block text-12 font-regular text-caption">{row.sublabel}</span>
                   ) : null}
                 </td>
-                {bps.flatMap((bp) => {
-                  const cells = section.values[bp.id][row.id]
-                  const first = cells[measures[0].id]
-                  const second = cells[measures[1].id]
-                  return measures.map((mm, j) => {
-                    const note = j === 1 ? noteText(row, first, second) : null
-                    const tone = measureTone(section, row, cells, j)
-                    return (
-                      <td
-                        key={`${bp.id}-${mm.id}`}
-                        className={`px-12 py-8 text-14 ${j === 0 ? 'border-l border-default' : ''}`}
-                      >
-                        <span className={`block ${toneMainClass(tone)}`}>
-                          {fmtMain(cells[mm.id], row.kind)}
-                        </span>
-                        {note ? <span className={`block text-12 ${toneNoteClass(tone)}`}>{note}</span> : null}
-                      </td>
-                    )
-                  })
-                })}
+                {row.merged
+                  ? bps.map((bp) => {
+                      // "Sudah tutup hari" only once every task for this BP is
+                      // completed (each row's 2nd measure meets its 1st).
+                      const allDone = section.rows.every((r) => {
+                        if (r.merged) return true
+                        const c = section.values[bp.id][r.id]
+                        return (c[measures[1].id] ?? 0) >= (c[measures[0].id] ?? 0)
+                      })
+                      return (
+                        <td
+                          key={bp.id}
+                          colSpan={measures.length}
+                          className="border-l border-default px-12 py-8"
+                        >
+                          <ClosedDayStatus done={allDone} />
+                        </td>
+                      )
+                    })
+                  : bps.flatMap((bp) => {
+                      const cells = section.values[bp.id][row.id]
+                      const first = cells[measures[0].id]
+                      const second = cells[measures[1].id]
+                      return measures.map((mm, j) => {
+                        const note = j === 1 ? noteText(row, first, second) : null
+                        const tone = measureTone(section, row, cells, j)
+                        return (
+                          <td
+                            key={`${bp.id}-${mm.id}`}
+                            className={`px-12 py-8 text-14 ${j === 0 ? 'border-l border-default' : ''}`}
+                          >
+                            <span className={`block ${toneMainClass(tone)}`}>
+                              {fmtMain(cells[mm.id], row.kind)}
+                            </span>
+                            {note ? (
+                              <span className={`block text-12 ${toneNoteClass(tone)}`}>{note}</span>
+                            ) : null}
+                          </td>
+                        )
+                      })
+                    })}
               </tr>
             ))}
             {comment.kind !== 'none' ? (
@@ -239,31 +262,16 @@ export function Scorecard({
   )
 }
 
-/** "Has closed the day?" — per BP. A BP who hasn't closed is the one the BM
- *  chases at the evening briefing. */
-export function ClosedDayPanel({ bps = BPS }: { bps?: Bp[] }) {
-  return (
-    <Panel>
-      <PanelHeading title="Tutup hari" subtitle="Apakah BP sudah menutup hari di aplikasi lapangan?" />
-      <div className="flex flex-col">
-        {bps.map((bp) => (
-          <div
-            key={bp.id}
-            className="flex items-center justify-between gap-16 rounded-8 bg-neutral-white p-12"
-          >
-            <span className="text-14 font-bold text-default">{bp.name}</span>
-            {bp.closedDay ? (
-              <Badge intent="green" variant="subtle" size="sm" leadingIcon={<CheckCircleFill size={16} />}>
-                Sudah tutup
-              </Badge>
-            ) : (
-              <Badge intent="red" variant="subtle" size="sm" leadingIcon={<CrossCircleFill size={16} />}>
-                Belum tutup
-              </Badge>
-            )}
-          </div>
-        ))}
-      </div>
-    </Panel>
+/** The "Tutup hari" status in the merged Task row — a BP has "tutup hari" only
+ *  once all of today's tasks are completed; otherwise the BM still chases them. */
+function ClosedDayStatus({ done }: { done: boolean }) {
+  return done ? (
+    <Badge intent="green" variant="subtle" size="sm" leadingIcon={<CheckCircleFill size={16} />}>
+      Sudah tutup hari
+    </Badge>
+  ) : (
+    <Badge intent="red" variant="subtle" size="sm" leadingIcon={<CrossCircleFill size={16} />}>
+      Belum tutup hari
+    </Badge>
   )
 }

@@ -5,8 +5,10 @@
 //
 //  - `submitted` whether today's morning / evening briefing has been sent, so the
 //               Riwayat Briefing screen shows "Terkirim" after the form is sent.
-//  - `viewing`  which briefing the read-only detail screen should show — set when
-//               a history row (or a just-submitted briefing) is opened.
+//  - `viewing`  which briefing the read-only view should show — set when a history
+//               row (or a just-submitted briefing) is opened.
+//  - `drafts`   each briefing's in-progress content, so leaving the form and
+//               coming back resumes it (the dashboard offers "Lanjutkan …").
 
 import { useSyncExternalStore } from 'react'
 import type { BriefingKind, CommentStyle } from './data'
@@ -18,14 +20,39 @@ export interface ViewingBriefing {
   own: boolean
 }
 
+/** A briefing's saved-in-progress content. */
+export interface BriefingDraft {
+  discussed: Record<string, boolean>
+  notes: Record<string, string>
+  overall: string
+  photoAttached: boolean
+  recordings: number
+}
+
+export function emptyDraft(): BriefingDraft {
+  return { discussed: {}, notes: {}, overall: '', photoAttached: false, recordings: 0 }
+}
+
+/** Whether a draft has any content — drives the "Lanjutkan" vs "Mulai" CTA. */
+export function isDraftStarted(d: BriefingDraft): boolean {
+  return (
+    Object.values(d.discussed).some(Boolean) ||
+    Object.values(d.notes).some((n) => n.trim().length > 0) ||
+    d.overall.trim().length > 0 ||
+    d.photoAttached ||
+    d.recordings > 0
+  )
+}
+
 export interface FlowState {
   submitted: Record<BriefingKind, boolean>
   viewing: ViewingBriefing | null
   /** Which briefing is scheduled to start right now — the one the dashboard
    *  banner prompts. Set by the `states` controls beside the device. */
   scheduled: BriefingKind
-  /** Which commentary layout the briefing forms use — set by the `states`
-   *  controls beside the device. */
+  /** Each briefing's in-progress content, kept across navigation. */
+  drafts: Record<BriefingKind, BriefingDraft>
+  /** Unused since the briefing-panel redesign; kept for the `states` demo funcs. */
   commentStyle: CommentStyle
 }
 
@@ -33,6 +60,7 @@ const initial: FlowState = {
   submitted: { morning: false, evening: false },
   viewing: null,
   scheduled: 'evening',
+  drafts: { morning: emptyDraft(), evening: emptyDraft() },
   commentStyle: 'inline',
 }
 
@@ -48,6 +76,13 @@ export const store = {
   },
   markSubmitted(kind: BriefingKind) {
     state = { ...state, submitted: { ...state.submitted, [kind]: true } }
+    listeners.forEach((l) => l())
+  },
+  setDraft(kind: BriefingKind, patch: Partial<BriefingDraft>) {
+    state = {
+      ...state,
+      drafts: { ...state.drafts, [kind]: { ...state.drafts[kind], ...patch } },
+    }
     listeners.forEach((l) => l())
   },
   reset() {

@@ -242,16 +242,22 @@ export function PageHeading({
   title,
   meta,
   actions,
+  leading,
 }: {
   title: string
   meta?: string
   actions?: ReactNode
+  /** Rendered to the LEFT of the title — e.g. a back button. */
+  leading?: ReactNode
 }) {
   return (
     <div className="flex shrink-0 flex-wrap items-start justify-between gap-16 py-16">
-      <div className="flex flex-col gap-4">
-        <h1 className="text-24 font-bold text-default">{title}</h1>
-        {meta ? <span className="text-12 text-caption">{meta}</span> : null}
+      <div className="flex items-center gap-12">
+        {leading}
+        <div className="flex flex-col gap-4">
+          <h1 className="text-24 font-bold text-default">{title}</h1>
+          {meta ? <span className="text-12 text-caption">{meta}</span> : null}
+        </div>
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-8">{actions}</div> : null}
     </div>
@@ -312,15 +318,21 @@ export function PanelHeading({
   title,
   subtitle,
   action,
+  titleAction,
 }: {
   title: string
   subtitle?: string
   action?: ReactNode
+  /** Rendered inline right beside the title (not pushed to the right edge). */
+  titleAction?: ReactNode
 }) {
   return (
     <div className="flex items-start justify-between gap-16 pb-12">
       <div className="flex flex-col gap-2">
-        <span className="text-16 font-bold text-default">{title}</span>
+        <span className="flex items-center gap-12">
+          <span className="text-16 font-bold text-default">{title}</span>
+          {titleAction}
+        </span>
         {subtitle ? <span className="text-12 text-caption">{subtitle}</span> : null}
       </div>
       {action}
