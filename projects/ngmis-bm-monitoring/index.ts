@@ -21,7 +21,7 @@ export const project: ProjectModule = {
         {
           id: 'end-state',
           label: 'End state',
-          description: 'Rate memimpin, diberi warna terhadap target, plus rate se-cabang dan bucket terlemah',
+          description: 'Rate memimpin dan diberi warna terhadap target, plus bucket terlemah se-cabang',
           apply: showEndState,
         },
       ],

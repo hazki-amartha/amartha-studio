@@ -6,13 +6,12 @@
 // MVP leaves open:
 //
 //   the rate leads, coloured against target → where is it bad
-//   the branch rate under every column       → is this BP off, or everyone
 //   the branch's weakest bucket, called out  → what to fix first
 //
-// The last two are the reason for the grid shape. Five columns of coloured
-// rates read DOWN as well as across: if DPD 0 is red for everyone, that is a
-// branch problem and no amount of per-BP coaching fixes it. A sixteen-column
-// table of counts cannot show that.
+// The second is the reason for the grid shape. Five columns of coloured rates
+// read DOWN as well as across: if DPD 0 is red for everyone, that is a branch
+// problem and no amount of per-BP coaching fixes it. A sixteen-column table of
+// counts cannot show that.
 //
 // The cost is that exact counts drop to small text under the rate, which is
 // precisely what the MVP keeps at full size.
@@ -23,7 +22,6 @@ import {
   REPAYMENT_BPS,
   REPAYMENT_METRICS,
   TARGETS,
-  branchRate,
   meetsTarget,
   metricOnTarget,
   mitraShortfall,
@@ -60,8 +58,11 @@ function RateCell({ bucket, band }: { bucket: Bucket; band: string }) {
   return (
     <span className="flex flex-col items-center gap-4">
       <RatePill ok={ok}>{`${fmt(pct)}%`}</RatePill>
-      <span className="text-10 text-caption">
-        {bucket.paid}/{bucket.total}
+      {/* The counts are the substance behind the rate, so they read at body
+          size rather than as a footnote — and the paid figure carries the
+          weight, since that is the one that moves week to week. */}
+      <span className="text-12 text-caption">
+        <span className="font-bold text-default">{bucket.paid}</span>/{bucket.total}
       </span>
       {ok === false && short ? (
         <span className="text-10 text-red-600">kurang {short} mitra</span>
@@ -121,10 +122,11 @@ export function RepaymentGrid() {
                   >
                     <span className="flex flex-col gap-2">
                       {col.header}
-                      <span className="text-10 font-regular text-caption">
-                        {TARGETS[col.id] ? `target ${TARGETS[col.id]}% · ` : ''}se-cabang{' '}
-                        {fmt(branchRate(col.id))}%
-                      </span>
+                      {TARGETS[col.id] ? (
+                        <span className="text-10 font-regular text-caption">
+                          target {TARGETS[col.id]}%
+                        </span>
+                      ) : null}
                     </span>
                   </th>
                 ))}
