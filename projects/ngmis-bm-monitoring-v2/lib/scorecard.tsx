@@ -122,7 +122,10 @@ function SectionMatrix({
           </colgroup>
           <thead>
             <tr className="bg-neutral-50">
-              <th rowSpan={2} className="rounded-l-8 px-12 py-8 text-left align-bottom text-12 font-bold text-default" />
+              <th
+                rowSpan={2}
+                className="sticky left-0 z-10 rounded-l-8 border-r border-default bg-neutral-50 px-12 py-8 text-left align-bottom text-12 font-bold text-default"
+              />
               {bps.map((bp, i) => (
                 <th
                   key={bp.id}
@@ -151,14 +154,12 @@ function SectionMatrix({
             </tr>
           </thead>
           <tbody>
-            {section.rows.map((row, ri) => (
+            {section.rows.map((row) => (
               <tr
                 key={row.id}
-                className={`border-b border-default align-top ${
-                  ri % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'
-                }`}
+                className="border-b border-default align-top bg-neutral-white"
               >
-                <td className="px-12 py-8">
+                <td className="sticky left-0 z-10 border-r border-default bg-neutral-white px-12 py-8">
                   <span className="block text-14 font-bold text-default">{row.label}</span>
                   {row.sublabel ? (
                     <span className="block text-12 font-regular text-caption">{row.sublabel}</span>
@@ -188,7 +189,9 @@ function SectionMatrix({
             ))}
             {comment.kind !== 'none' ? (
               <tr className="border-b border-default bg-neutral-white align-top">
-                <td className="px-12 py-8 text-14 font-bold text-default">Komentar</td>
+                <td className="sticky left-0 z-10 border-r border-default bg-neutral-white px-12 py-8 text-14 font-bold text-default">
+                  Catatan tambahan
+                </td>
                 {bps.map((bp) => (
                   <td
                     key={bp.id}
@@ -233,12 +236,10 @@ export function ClosedDayPanel({ bps = BPS }: { bps?: Bp[] }) {
     <Panel>
       <PanelHeading title="Tutup hari" subtitle="Apakah BP sudah menutup hari di aplikasi lapangan?" />
       <div className="flex flex-col">
-        {bps.map((bp, i) => (
+        {bps.map((bp) => (
           <div
             key={bp.id}
-            className={`flex items-center justify-between gap-16 rounded-8 p-12 ${
-              i % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'
-            }`}
+            className="flex items-center justify-between gap-16 rounded-8 bg-neutral-white p-12"
           >
             <span className="text-14 font-bold text-default">{bp.name}</span>
             {bp.closedDay ? (

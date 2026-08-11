@@ -208,7 +208,7 @@ export function MisShell({
       {sidebar}
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-neutral-50">
         {breadcrumbs?.length || header ? (
-          <div className="shrink-0 border-b border-default bg-neutral-white px-24">
+          <div className="shrink-0 px-24">
             {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null}
             {header}
           </div>
@@ -382,11 +382,11 @@ export function LockedFilter({ label, value }: { label: string; value: string })
     <span
       aria-label={label}
       aria-disabled="true"
-      className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white pl-12 pr-8 text-14 font-regular text-default"
+      className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-200 pl-12 pr-8 text-14 font-regular text-caption"
       style={{ height: CONTROL_H }}
     >
       <span className="truncate">{value}</span>
-      <span className="shrink-0 text-caption">
+      <span className="shrink-0 text-placeholder">
         <ChevronDown size={16} />
       </span>
     </span>
@@ -536,6 +536,23 @@ export function MoonGlyph() {
         d="M16 12.3A6.8 6.8 0 0 1 7.7 4a6.8 6.8 0 1 0 8.3 8.3Z"
         stroke="currentColor"
         strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/** A microphone — genuinely absent from the 166-icon set (§4), so a project-local
+ *  one-off for the voice-commentary recorder on the briefing forms. */
+export function MicGlyph({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden>
+      <rect x="7.25" y="2" width="5.5" height="10" rx="2.75" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M4.5 9a5.5 5.5 0 0 0 11 0M10 14.5V18m-2.5 0h5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
     </svg>
@@ -692,13 +709,10 @@ export function DataTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
+          {rows.map((row) => (
             <tr
               key={row.id}
-              // Zebra striping, so the eye can track a row across 1200px.
-              className={`border-b border-default align-middle ${
-                i % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'
-              }`}
+              className="border-b border-default align-middle bg-neutral-white"
             >
               {columns.map((col) => (
                 <td

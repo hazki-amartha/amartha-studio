@@ -5,8 +5,10 @@ Project-local components (CLAUDE.md §4).
 `lib/ui.tsx` and `lib/shell.tsx` are the desktop chrome, copied (not imported —
 §1) from `projects/ngmis-bm-monitoring`: `MisShell` / `SideNav` / `SidebarPromo`
 (the sidebar-first frame), `Breadcrumbs`, `PageHeading`, `Panel`, `PanelHeading`,
-`Tabs`, `Select`, `Textarea`, `DataTable`, plus `SunGlyph` / `MoonGlyph` (sun and
-moon are genuinely absent from the 166-icon set). The KPI/`ProgressBar`/
+`Tabs`, `Select`, `Textarea`, `DataTable`, plus `SunGlyph` / `MoonGlyph` / `MicGlyph`
+(sun, moon and microphone are genuinely absent from the 166-icon set). `Tabs` is
+now unused — the dashboard is a single scorecard screen, briefings reached from
+two filter-row controls. The KPI/`ProgressBar`/
 `Pagination`/`StatCard`/`ReportTile` exports are carried over unused — kept whole
 so the file stays a faithful copy of its source rather than a fork.
 
@@ -29,13 +31,20 @@ New here:
   prototype states: `inline` (a Komentar box in every table), `dedicated` (no
   per-section box; a `DedicatedComments` section with one note per BP), and
   `dialog` (a "✎ Isi" CTA per section opening a `CommentDialog` Modal that shows
-  the BP's figures for that section while the BM types). Plus the `PhotoProof`
-  block and a send bar gated on the photo.
+  the BP's figures for that section while the BM types). Plus a `VoiceRecorder`
+  pinned to the top (idle → live mm:ss timer + Stop → saved attachment, carried
+  with the briefing; click-through, no real mic per §3), the `PhotoProof` block,
+  and a send bar gated on the photo.
+- `screens/briefing-history.tsx` — `BriefingHistoryScreen` (Riwayat Briefing):
+  today's not-yet-sent briefings + the history table. Was the dashboard's second
+  tab; now its own screen, reached from the "Riwayat briefing" filter-row button.
+  The dashboard itself carries a "Mulai briefing" button opening a Modal to pick
+  morning / evening.
 - `lib/demo.ts` — the three `states` (§3) wired in `index.ts` on both briefing
   screens; each just writes `commentStyle` to the store.
-- `lib/store.ts` — carries the active dashboard tab, which of today's two
-  briefings have been sent, which briefing the detail screen shows, and the
-  briefing `commentStyle`. All must survive navigation.
+- `lib/store.ts` — carries which of today's two briefings have been sent, which
+  briefing the detail screen shows, and the briefing `commentStyle`. All must
+  survive navigation.
 
 Data (`lib/data.ts`) is a full branch of six BPs, authored compactly: each row
 carries, per measure, one number per BP, and `section()` assembles the nested

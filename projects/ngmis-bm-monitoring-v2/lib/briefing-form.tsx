@@ -16,12 +16,12 @@
 // screen while filling it in, and on submit the outcome is carried to the
 // Briefings tab through the store.
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFlow } from '@/platform/runtime'
 import { Button, Modal } from '@/design-system/components'
 import { Camera, Check, Trash } from '@/design-system/icons'
 import { BmShell } from './shell'
-import { Panel, PanelHeading, PageHeading } from './ui'
+import { MicGlyph, Panel, PanelHeading, PageHeading } from './ui'
 import { Scorecard, type CommentMode } from './scorecard'
 import {
   BPS,
@@ -43,6 +43,7 @@ export function BriefingForm({ kind }: { kind: BriefingKind }) {
   const { commentStyle } = useFlowState()
   const [comments, setComments] = useState<Record<string, string>>({})
   const [photoAttached, setPhotoAttached] = useState(false)
+  const [recordings, setRecordings] = useState<number[]>([])
   const [dialog, setDialog] = useState<{ sectionId: string; bpId: string } | null>(null)
   const [draft, setDraft] = useState('')
 
@@ -62,7 +63,7 @@ export function BriefingForm({ kind }: { kind: BriefingKind }) {
 
   const submit = () => {
     store.markSubmitted(kind)
-    store.set({ tab: 'briefings', viewing: { kind, date: REPORT_DATE, own: true } })
+    store.set({ viewing: { kind, date: REPORT_DATE, own: true } })
     flow.go('briefing-detail')
   }
 
@@ -98,6 +99,14 @@ export function BriefingForm({ kind }: { kind: BriefingKind }) {
         />
       }
     >
+      <div className="pb-16">
+        <VoiceRecorder
+          recordings={recordings}
+          onAdd={(s) => setRecordings((prev) => [...prev, s])}
+          onRemove={(i) => setRecordings((prev) => prev.filter((_, idx) => idx !== i))}
+        />
+      </div>
+
       <Scorecard sections={sections} comment={comment} />
 
       {commentStyle === 'dedicated' ? (
@@ -115,7 +124,9 @@ export function BriefingForm({ kind }: { kind: BriefingKind }) {
       <div className="mt-16 flex flex-wrap items-center justify-between gap-16 rounded-12 border border-default bg-neutral-white p-16">
         <span className="text-12 text-caption">
           {photoAttached
-            ? 'Foto bukti terlampir. Briefing siap dikirim.'
+            ? recordings.length > 0
+              ? `Foto bukti & ${recordings.length} rekaman komentar terlampir. Briefing siap dikirim.`
+              : 'Foto bukti terlampir. Briefing siap dikirim.'
             : 'Lampirkan foto bukti terlebih dahulu untuk mengirim briefing.'}
         </span>
         <Button variant="primary" size="md" disabled={!photoAttached} onClick={submit}>
@@ -249,6 +260,111 @@ function CommentDialog({
         </Button>
       }
     />
+  )
+}
+
+/** Voice commentary recorder, pinned to the top of the briefing. Click-through
+ *  only — it does NOT open the mic (CLAUDE.md §3: nothing leaves the prototype).
+ *  The BM can record MANY clips: each saved clip lists above the record control,
+ *  removable on its own; the record button reads "Tambah rekaman" once at least
+ *  one exists. Durations lift to the form so the send bar can note them. */
+function formatDuration(total: number) {
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+function VoiceRecorder({
+  recordings,
+  onAdd,
+  onRemove,
+}: {
+  /** Saved clip lengths in seconds, in the order they were recorded. */
+  recordings: number[]
+  onAdd: (seconds: number) => void
+  onRemove: (index: number) => void
+}) {
+  const [recording, setRecording] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
+
+  // The live timer while recording. Cleared on stop / unmount so it never leaks.
+  useEffect(() => {
+    if (!recording) return
+    const id = window.setInterval(() => setElapsed((e) => e + 1), 1000)
+    return () => window.clearInterval(id)
+  }, [recording])
+
+  const start = () => {
+    setElapsed(0)
+    setRecording(true)
+  }
+  const stop = () => {
+    setRecording(false)
+    onAdd(Math.max(elapsed, 1))
+  }
+
+  return (
+    <Panel>
+      <PanelHeading
+        title="Komentar suara briefing"
+        subtitle="Rekam satu atau beberapa komentar lisan untuk dikirim bersama briefing."
+      />
+
+      {recordings.length > 0 ? (
+        <div className="flex flex-col gap-8 pb-12">
+          {recordings.map((seconds, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-12 rounded-12 border border-default bg-neutral-50 p-12"
+            >
+              <span className="flex size-40 shrink-0 items-center justify-center rounded-12 bg-primary-50 text-primary-500">
+                <MicGlyph size={20} />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col gap-2">
+                <span className="flex items-center gap-4 text-14 font-bold text-green-500">
+                  <Check size={16} /> Rekaman {i + 1}
+                </span>
+                <span className="truncate text-12 text-caption">
+                  komentar-{REPORT_DATE}-{i + 1}.m4a · {formatDuration(seconds)}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                className="flex items-center gap-4 text-12 font-bold text-link active:opacity-70"
+              >
+                <Trash size={16} /> Hapus
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {recording ? (
+        <div className="flex flex-wrap items-center justify-between gap-16 rounded-12 border border-red-500 bg-red-50 p-16">
+          <span className="flex items-center gap-12">
+            <span className="flex size-40 shrink-0 items-center justify-center rounded-full bg-red-500 text-neutral-white">
+              <MicGlyph size={20} />
+            </span>
+            <span className="flex flex-col">
+              <span className="flex items-center gap-8 text-14 font-bold text-red-500">
+                <span className="size-8 rounded-full bg-red-500" /> Sedang merekam…
+              </span>
+              <span className="text-12 tabular-nums text-caption">{formatDuration(elapsed)}</span>
+            </span>
+          </span>
+          <Button variant="danger" size="sm" onClick={stop}>
+            Berhenti
+          </Button>
+        </div>
+      ) : (
+        <Button variant="primary" size="sm" onClick={start}>
+          <span className="flex items-center gap-8">
+            <MicGlyph size={16} /> {recordings.length > 0 ? 'Tambah rekaman' : 'Mulai rekam komentar'}
+          </span>
+        </Button>
+      )}
+    </Panel>
   )
 }
 

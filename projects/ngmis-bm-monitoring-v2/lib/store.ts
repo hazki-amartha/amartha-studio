@@ -1,20 +1,15 @@
 'use client'
 
 // Flow-level state that must survive navigation (CLAUDE.md §3). Screens remount
-// on every go()/back(), so these three facts can't live in a screen's useState:
+// on every go()/back(), so these facts can't live in a screen's useState:
 //
-//  - `tab`      which dashboard tab to land on. A briefing is launched from the
-//               Briefings tab; without this, submitting one and returning would
-//               bounce the BM back to Monitoring.
 //  - `submitted` whether today's morning / evening briefing has been sent, so the
-//               Briefings tab shows "Terkirim" after the form is submitted.
+//               Riwayat Briefing screen shows "Terkirim" after the form is sent.
 //  - `viewing`  which briefing the read-only detail screen should show — set when
 //               a history row (or a just-submitted briefing) is opened.
 
 import { useSyncExternalStore } from 'react'
 import type { BriefingKind, CommentStyle } from './data'
-
-export type DashboardTab = 'monitoring' | 'briefings'
 
 export interface ViewingBriefing {
   kind: BriefingKind
@@ -24,7 +19,6 @@ export interface ViewingBriefing {
 }
 
 export interface FlowState {
-  tab: DashboardTab
   submitted: Record<BriefingKind, boolean>
   viewing: ViewingBriefing | null
   /** Which commentary layout the briefing forms use — set by the `states`
@@ -33,7 +27,6 @@ export interface FlowState {
 }
 
 const initial: FlowState = {
-  tab: 'monitoring',
   submitted: { morning: false, evening: false },
   viewing: null,
   commentStyle: 'inline',
