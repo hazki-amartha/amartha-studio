@@ -23,6 +23,7 @@
 import type { ReactNode } from 'react'
 import { Badge } from '@/design-system/components'
 import {
+  Cross,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -203,7 +204,7 @@ export function MisShell({
   children: ReactNode
 }) {
   return (
-    <div className="flex h-full bg-neutral-white">
+    <div className="relative flex h-full bg-neutral-white">
       {sidebar}
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-neutral-50">
         {breadcrumbs?.length || header ? (
@@ -322,6 +323,65 @@ export function PanelHeading({
         {subtitle ? <span className="text-12 text-caption">{subtitle}</span> : null}
       </div>
       {action}
+    </div>
+  )
+}
+
+// --- Side sheet --------------------------------------------------------------
+
+const SHEET_W = 420
+
+/**
+ * A panel that slides over the page from the right. FunDS ships BottomSheet,
+ * which is the phone answer to the same problem — on a 1440-wide console a
+ * sheet from the bottom would cover the table it is about.
+ *
+ * Positioned `absolute`, not `fixed`, so it stays inside the device frame in
+ * prototype view rather than escaping to the browser viewport.
+ */
+export function SideSheet({
+  title,
+  description,
+  onClose,
+  children,
+  footer,
+}: {
+  title: string
+  description?: string
+  onClose: () => void
+  children: ReactNode
+  footer: ReactNode
+}) {
+  return (
+    <div className="absolute inset-0 z-20 flex justify-end bg-overlay">
+      <div className="flex h-full flex-col bg-neutral-white" style={{ width: SHEET_W }}>
+        <div className="flex shrink-0 items-start justify-between gap-16 border-b border-default p-24">
+          <div className="flex flex-col gap-4">
+            <span className="text-20 font-bold text-default">{title}</span>
+            {description ? <span className="text-14 text-caption">{description}</span> : null}
+          </div>
+          <button type="button" aria-label="Tutup" onClick={onClose} className="text-caption">
+            <Cross size={20} />
+          </button>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-24 overflow-y-auto p-24">{children}</div>
+
+        <div className="flex shrink-0 items-center gap-12 border-t border-default p-24">
+          {footer}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** One labelled block inside a sheet. The label is the question, the body is
+ *  the answer — so a BM can skim to the part she doubts. */
+export function SheetSection({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-8">
+      <span className="text-12 font-bold text-caption">{label}</span>
+      {children}
     </div>
   )
 }

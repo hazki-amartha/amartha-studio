@@ -10,8 +10,14 @@
 import { store } from './store'
 
 /** What ships first: the figures, no movement, no ranking. */
-export const showMvp = () => store.set('mvp')
+export const showMvp = () => {
+  store.clearTasks()
+  store.setVariant('mvp')
+}
 
 /** Where it is heading: rates lead, scored by colour, with week-on-week
  *  movement and the branch's worst bucket called out. */
-export const showEndState = () => store.set('end')
+export const showEndState = () => {
+  store.clearTasks()
+  store.setVariant('end')
+}
