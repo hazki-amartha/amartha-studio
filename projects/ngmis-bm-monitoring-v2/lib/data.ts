@@ -232,6 +232,26 @@ export const SECTIONS: MatrixSection[] = [
   ),
 ]
 
+/**
+ * How the Monitoring scorecard is oriented — the two prototype states.
+ *  'matrix'  BPs across the top, each spanning its subject's measure pair, the
+ *            metrics down the side (the original reference sheet's shape).
+ *  'bp-rows' BPs down the side (named once per table), the metrics across the
+ *            top, and each measure pair collapsed into ONE cell (result over
+ *            "dari <target>"). Fits without horizontal scroll.
+ */
+export type ScorecardLayout = 'matrix' | 'bp-rows'
+
+/** The subject that is really an end-of-day fact per BP, not a metric grid: in
+ *  the 'bp-rows' layout it leaves the scorecard and folds into the closing
+ *  panel alongside "sudah tutup hari?". */
+export const CLOSING_SECTION_ID = 'cash-settlement'
+
+/** The subject that carries the "sudah tutup hari?" column in the 'bp-rows'
+ *  layout — closing the day in the field app is the last item on the BP's task
+ *  list, so it reads as part of Task rather than a panel of its own. */
+export const TASK_SECTION_ID = 'task'
+
 // --- Briefings --------------------------------------------------------------
 
 export type BriefingKind = 'morning' | 'evening'

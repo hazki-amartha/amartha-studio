@@ -18,3 +18,9 @@ export const commentDedicated = () => store.set({ commentStyle: 'dedicated' })
 
 /** A "✎ Isi" CTA in every section that opens a dialog to type in. */
 export const commentDialog = () => store.set({ commentStyle: 'dialog' })
+
+/** Scorecard as the reference sheet draws it: BPs across the top. */
+export const layoutMatrix = () => store.set({ scorecardLayout: 'matrix' })
+
+/** Scorecard transposed: BPs down the side, measure pairs in one cell. */
+export const layoutByBp = () => store.set({ scorecardLayout: 'bp-rows' })

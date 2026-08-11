@@ -9,7 +9,7 @@
 //               a history row (or a just-submitted briefing) is opened.
 
 import { useSyncExternalStore } from 'react'
-import type { BriefingKind, CommentStyle } from './data'
+import type { BriefingKind, CommentStyle, ScorecardLayout } from './data'
 
 export interface ViewingBriefing {
   kind: BriefingKind
@@ -24,12 +24,15 @@ export interface FlowState {
   /** Which commentary layout the briefing forms use — set by the `states`
    *  controls beside the device. */
   commentStyle: CommentStyle
+  /** Which scorecard orientation the Monitoring screen draws. */
+  scorecardLayout: ScorecardLayout
 }
 
 const initial: FlowState = {
   submitted: { morning: false, evening: false },
   viewing: null,
   commentStyle: 'inline',
+  scorecardLayout: 'matrix',
 }
 
 let state: FlowState = initial
