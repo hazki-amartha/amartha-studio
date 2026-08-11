@@ -21,6 +21,9 @@ export interface ViewingBriefing {
 export interface FlowState {
   submitted: Record<BriefingKind, boolean>
   viewing: ViewingBriefing | null
+  /** Which briefing is scheduled to start right now — the one the dashboard
+   *  banner prompts. Set by the `states` controls beside the device. */
+  scheduled: BriefingKind
   /** Which commentary layout the briefing forms use — set by the `states`
    *  controls beside the device. */
   commentStyle: CommentStyle
@@ -29,6 +32,7 @@ export interface FlowState {
 const initial: FlowState = {
   submitted: { morning: false, evening: false },
   viewing: null,
+  scheduled: 'evening',
   commentStyle: 'inline',
 }
 

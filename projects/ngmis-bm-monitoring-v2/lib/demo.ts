@@ -18,3 +18,9 @@ export const commentDedicated = () => store.set({ commentStyle: 'dedicated' })
 
 /** A "✎ Isi" CTA in every section that opens a dialog to type in. */
 export const commentDialog = () => store.set({ commentStyle: 'dialog' })
+
+/** Evening is the briefing scheduled now — the dashboard banner prompts it. */
+export const scheduleEvening = () => store.set({ scheduled: 'evening' })
+
+/** Morning is the briefing scheduled now — the dashboard banner prompts it. */
+export const scheduleMorning = () => store.set({ scheduled: 'morning' })

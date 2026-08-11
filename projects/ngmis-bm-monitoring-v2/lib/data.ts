@@ -71,8 +71,7 @@ export interface RowGoal {
 export interface MatrixRow {
   id: string
   label: string
-  /** A smaller, greyed line under the label — carries the target for a row that
-   *  states one (Repayment's ">90%" / "<5%" / "<3%"). */
+  /** A smaller, greyed line under the label, when a row needs a second line. */
   sublabel?: string
   kind: CellKind
   note?: NoteKind
@@ -98,6 +97,9 @@ export function measureTone(
     const met = row.goal.dir === 'min' ? pct >= row.goal.pct : pct <= row.goal.pct
     return met ? 'good' : 'bad'
   }
+  // Repayment: the colour sits on Terbayar, read against Aktif as the target —
+  // green when Terbayar meets Aktif, red when it falls short.
+  if (section.paidTone) return second >= first ? 'good' : 'bad'
   if (section.shortfallTone && second < first) return 'bad'
   return undefined
 }
@@ -108,9 +110,11 @@ export interface MatrixSection {
   measures: Measure[]
   rows: MatrixRow[]
   /** A row where the 2nd measure trailing the 1st reads as a shortfall — the
-   *  figure turns red (target not met). Off for Repayment, where Terbayar is
-   *  always below Aktif by design. */
+   *  figure turns red (target not met), no green. */
   shortfallTone?: boolean
+  /** Repayment: the 2nd measure (Terbayar) is judged against the 1st (Aktif) as
+   *  its target — green when it meets Aktif, red when short. */
+  paidTone?: boolean
   /** values[bpId][rowId][measureId] */
   values: Record<string, Record<string, Record<string, number>>>
 }
@@ -132,6 +136,7 @@ function section(
   measures: Measure[],
   rowSpecs: RowSpec[],
   shortfallTone = false,
+  paidTone = false,
 ): MatrixSection {
   const values: MatrixSection['values'] = {}
   BPS.forEach((bp, i) => {
@@ -148,6 +153,7 @@ function section(
     title,
     measures,
     shortfallTone,
+    paidTone,
     rows: rowSpecs.map((r) => ({
       id: r.id,
       label: r.label,
@@ -187,15 +193,17 @@ export const SECTIONS: MatrixSection[] = [
       { id: 'terbayar', label: 'Terbayar', actual: true },
     ],
     [
-      { id: 'dpd0', label: 'DPD 0', sublabel: 'target >90%', note: 'pct', goal: { pct: 90, dir: 'min' },
-        m: { aktif: [40, 42, 38, 45, 36, 40], terbayar: [35, 39, 30, 42, 28, 36] } },
-      { id: 'dpd130', label: 'DPD 1-30', sublabel: 'target <5%', note: 'pct', goal: { pct: 5, dir: 'max' },
-        m: { aktif: [10, 8, 12, 9, 11, 10], terbayar: [1, 1, 2, 1, 2, 1] } },
-      { id: 'dpd3190', label: 'DPD 31-90', sublabel: 'target <3%', note: 'pct', goal: { pct: 3, dir: 'max' },
-        m: { aktif: [10, 8, 12, 9, 11, 10], terbayar: [1, 0, 2, 1, 1, 1] } },
-      { id: 'btc', label: 'BTC', note: 'pct',
-        m: { aktif: [2, 2, 3, 2, 3, 2], terbayar: [1, 1, 1, 1, 2, 1] } },
+      { id: 'dpd0', label: 'DPD 0',
+        m: { aktif: [40, 42, 38, 45, 36, 40], terbayar: [40, 42, 30, 45, 28, 40] } },
+      { id: 'dpd130', label: 'DPD 1-30',
+        m: { aktif: [10, 8, 12, 9, 11, 10], terbayar: [10, 8, 9, 9, 8, 10] } },
+      { id: 'dpd3190', label: 'DPD 31-90',
+        m: { aktif: [10, 8, 12, 9, 11, 10], terbayar: [8, 8, 9, 9, 8, 7] } },
+      { id: 'btc', label: 'BTC',
+        m: { aktif: [2, 2, 3, 2, 3, 2], terbayar: [2, 2, 2, 2, 2, 2] } },
     ],
+    false,
+    true,
   ),
   section(
     'disbursement',

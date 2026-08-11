@@ -9,7 +9,7 @@
 import type { ReactNode } from 'react'
 import { Badge } from '@/design-system/components'
 import { CheckCircleFill, CrossCircleFill, NotePencil } from '@/design-system/icons'
-import { Panel, PanelHeading } from './ui'
+import { ArrowUpRightGlyph, Panel, PanelHeading } from './ui'
 import {
   BPS,
   SECTIONS,
@@ -160,7 +160,17 @@ function SectionMatrix({
                 className="border-b border-default align-top bg-neutral-white"
               >
                 <td className="sticky left-0 z-10 border-r border-default bg-neutral-white px-12 py-8">
-                  <span className="block text-14 font-bold text-default">{row.label}</span>
+                  <span className="flex items-center gap-4">
+                    <span className="text-14 font-bold text-default">{row.label}</span>
+                    <button
+                      type="button"
+                      aria-label={`Buka laporan ${row.label} di tab baru`}
+                      title="Buka laporan di tab baru"
+                      className="shrink-0 text-caption hover:text-link active:opacity-70"
+                    >
+                      <ArrowUpRightGlyph size={16} />
+                    </button>
+                  </span>
                   {row.sublabel ? (
                     <span className="block text-12 font-regular text-caption">{row.sublabel}</span>
                   ) : null}

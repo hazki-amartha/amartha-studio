@@ -20,22 +20,26 @@
 // the spacing scale deliberately stops at 48px.
 // =============================================================================
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Badge } from '@/design-system/components'
 import {
+  CalendarDots,
   CheckCircleFill,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   ChevronUpDown,
-  SignOut,
 } from '@/design-system/icons'
 
 // --- Frame geometry ---------------------------------------------------------
 
 const SIDEBAR_W = 216
+/** Width of the sidebar when minimised to an icon-only rail. */
+const COLLAPSED_W = 64
 const NAV_ITEM_H = 40
+/** The top header bar that carries the hamburger, lockup and profile. */
+const HEADER_H = 52
 
 /** Every control on a filter row is this tall, which is what stops the row
  *  looking ragged: FunDS sizes its controls by padding, so `size="sm"` on two
@@ -53,6 +57,16 @@ function AmarthaLockup() {
   return <span className="text-20 font-bold lowercase text-primary-500">amartha</span>
 }
 
+/** A hamburger — three lines aren't in the 166-icon set (§4), so a project-local
+ *  one-off for the header's sidebar toggle. */
+function MenuGlyph({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden>
+      <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 // --- Sidebar ----------------------------------------------------------------
 
 export interface NavItem {
@@ -63,65 +77,31 @@ export interface NavItem {
 
 export function SideNav({
   items,
-  footerItems,
   activeId,
   onSelect,
-  promo,
-  user,
+  collapsed = false,
 }: {
   items: NavItem[]
-  /** The lower group — Report, Settings — pinned above the user row. */
-  footerItems: NavItem[]
   activeId: string
   onSelect: (id: string) => void
-  promo?: ReactNode
-  user: { name: string; role: string; initial: string }
+  /** Minimised to an icon-only rail — toggled from the header hamburger. */
+  collapsed?: boolean
 }) {
   return (
     <nav
       className="flex shrink-0 flex-col border-r border-default bg-neutral-white"
-      style={{ width: SIDEBAR_W }}
+      style={{ width: collapsed ? COLLAPSED_W : SIDEBAR_W }}
     >
-      <div className="flex items-center px-16 py-20">
-        <AmarthaLockup />
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col justify-between overflow-y-auto px-8">
-        <div className="flex flex-col">
-          {items.map((item) => (
-            <NavButton
-              key={item.id}
-              item={item}
-              active={item.id === activeId}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
-
-        <div className="flex flex-col gap-8 pb-8">
-          {promo}
-          {footerItems.map((item) => (
-            <NavButton
-              key={item.id}
-              item={item}
-              active={item.id === activeId}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-8 border-t border-default bg-neutral-50 px-16 py-12">
-        <span className="flex size-24 shrink-0 items-center justify-center rounded-full bg-green-500 text-12 font-bold text-neutral-white">
-          {user.initial}
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-12 font-bold text-default">{user.name}</span>
-          <span className="truncate text-10 text-caption">{user.role}</span>
-        </span>
-        <button type="button" aria-label="Keluar" className="text-caption hover:text-link">
-          <SignOut size={16} />
-        </button>
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-8 py-12">
+        {items.map((item) => (
+          <NavButton
+            key={item.id}
+            item={item}
+            active={item.id === activeId}
+            collapsed={collapsed}
+            onSelect={onSelect}
+          />
+        ))}
       </div>
     </nav>
   )
@@ -130,90 +110,111 @@ export function SideNav({
 function NavButton({
   item,
   active,
+  collapsed,
   onSelect,
 }: {
   item: NavItem
   active: boolean
+  collapsed: boolean
   onSelect: (id: string) => void
 }) {
   return (
     <button
       type="button"
       onClick={() => onSelect(item.id)}
-      className={`flex items-center gap-12 rounded-8 px-8 text-14 ${
-        active ? 'font-bold text-link' : 'font-regular text-default hover:bg-neutral-50'
+      title={collapsed ? item.label : undefined}
+      aria-label={collapsed ? item.label : undefined}
+      className={`flex items-center rounded-8 text-14 ${collapsed ? 'justify-center' : 'gap-12 px-8'} ${
+        active ? 'bg-primary-50 font-bold text-link' : 'font-regular text-default hover:bg-neutral-50'
       }`}
       style={{ height: NAV_ITEM_H }}
     >
       <span className={active ? 'text-link' : 'text-caption'}>{item.icon}</span>
-      <span className="flex-1 truncate text-left">{item.label}</span>
+      {collapsed ? null : <span className="flex-1 truncate text-left">{item.label}</span>}
     </button>
-  )
-}
-
-/** The purple "we've updated our portal" card that sits above Report/Settings. */
-export function SidebarPromo({
-  icon,
-  title,
-  body,
-  action,
-  onAction,
-}: {
-  icon: ReactNode
-  title: string
-  body: string
-  action: string
-  onAction: () => void
-}) {
-  return (
-    <div className="flex flex-col items-center gap-8 rounded-12 bg-primary-50 p-12 text-center">
-      <span className="flex size-32 items-center justify-center rounded-full bg-primary-500 text-neutral-white">
-        {icon}
-      </span>
-      <span className="text-12 font-bold text-default">{title}</span>
-      <span className="text-10 text-caption">{body}</span>
-      <button
-        type="button"
-        onClick={onAction}
-        className="w-full rounded-full border border-primary-500 px-8 py-4 text-10 font-bold text-link"
-      >
-        {action}
-      </button>
-    </div>
   )
 }
 
 // --- Shell ------------------------------------------------------------------
 
+/** The full-width top bar: hamburger + amartha lockup on the left, the profile
+ *  chip on the right. The hamburger toggles the sidebar between full and rail. */
+function TopHeader({
+  collapsed,
+  onToggle,
+  user,
+}: {
+  collapsed: boolean
+  onToggle: () => void
+  user: { name: string; role: string; initial: string }
+}) {
+  return (
+    <header
+      className="flex shrink-0 items-center justify-between border-b border-default bg-neutral-white px-16"
+      style={{ height: HEADER_H }}
+    >
+      <div className="flex items-center gap-12">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={collapsed ? 'Perbesar menu' : 'Perkecil menu'}
+          className="flex size-32 items-center justify-center rounded-8 text-default hover:bg-neutral-50 active:opacity-70"
+        >
+          <MenuGlyph size={20} />
+        </button>
+        <AmarthaLockup />
+      </div>
+      <button
+        type="button"
+        aria-label={user.name}
+        className="flex items-center gap-4 rounded-full py-2 pl-2 pr-8 hover:bg-neutral-50 active:opacity-70"
+      >
+        <span className="flex size-32 shrink-0 items-center justify-center rounded-full bg-green-500 text-12 font-bold text-neutral-white">
+          {user.initial}
+        </span>
+        <ChevronDown size={16} className="text-caption" />
+      </button>
+    </header>
+  )
+}
+
 /**
- * The whole 1440×900 chrome: sidebar down the left, a scrolling content column
- * on the tinted canvas. This is the desktop counterpart to `Screen` — a desktop
- * project uses it INSTEAD of Screen, which is mobile-shaped (32px status strip,
- * 48px top bar, 16px page padding, 12px section gap).
+ * The whole 1440×900 chrome: a full-width top header, then a sidebar down the
+ * left beside a scrolling content column on the tinted canvas. The sidebar
+ * minimises to an icon rail via the header hamburger. `sidebar` is a render
+ * function so it can read the live `collapsed` state the header controls. This
+ * is the desktop counterpart to `Screen` (which is mobile-shaped).
  */
 export function MisShell({
   sidebar,
+  user,
   breadcrumbs,
   header,
   children,
 }: {
-  sidebar: ReactNode
+  sidebar: (collapsed: boolean) => ReactNode
+  user: { name: string; role: string; initial: string }
   breadcrumbs?: { label: string; current?: boolean }[]
   /** Full-bleed white block above the tinted body: title, filters, tabs. */
   header?: ReactNode
   children: ReactNode
 }) {
+  const [collapsed, setCollapsed] = useState(false)
+
   return (
-    <div className="flex h-full bg-neutral-white">
-      {sidebar}
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-neutral-50">
-        {breadcrumbs?.length || header ? (
-          <div className="shrink-0 px-24">
-            {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null}
-            {header}
-          </div>
-        ) : null}
-        <div className="flex min-h-0 flex-1 flex-col px-24 pb-24 pt-16">{children}</div>
+    <div className="flex h-full flex-col bg-neutral-white">
+      <TopHeader collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} user={user} />
+      <div className="flex min-h-0 flex-1">
+        {sidebar(collapsed)}
+        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-neutral-50">
+          {breadcrumbs?.length || header ? (
+            <div className="shrink-0 px-24">
+              {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null}
+              {header}
+            </div>
+          ) : null}
+          <div className="flex min-h-0 flex-1 flex-col px-24 pb-24 pt-16">{children}</div>
+        </div>
       </div>
     </div>
   )
@@ -393,9 +394,19 @@ export function LockedFilter({ label, value }: { label: string; value: string })
   )
 }
 
-/** A day picker for the header filter row. FunDS has no date control, so this
- *  is a native `<input type="date">` styled to match `Select` — clicking it
- *  opens the browser's own calendar. */
+/** Indonesian short month names, for the day filter's display format. */
+const MONTHS_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
+/** "2026-08-07" → "7 Agu 2026" — day without a leading zero, short month. */
+function formatDateID(value: string): string {
+  const [y, m, d] = value.split('-')
+  if (!y || !m || !d) return value
+  return `${parseInt(d, 10)} ${MONTHS_ID[parseInt(m, 10) - 1]} ${y}`
+}
+
+/** A day picker for the filter row. FunDS has no date control; the browser's
+ *  native `<input type="date">` can't show a custom label, so it sits invisible
+ *  over a formatted "7 Agu 2026" chip — clicking anywhere opens the calendar. */
 export function DateFilter({
   value,
   onChange,
@@ -406,14 +417,22 @@ export function DateFilter({
   label: string
 }) {
   return (
-    <input
-      type="date"
-      aria-label={label}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="rounded-8 border border-default bg-neutral-white px-12 text-14 font-regular text-default focus:border-primary-500 focus:outline-none"
+    <label
+      className="relative flex cursor-pointer items-center gap-8 rounded-8 border border-default bg-neutral-white pl-12 pr-8 text-14 font-regular text-default focus-within:border-primary-500"
       style={{ height: CONTROL_H }}
-    />
+    >
+      <span>{formatDateID(value)}</span>
+      <span className="text-caption">
+        <CalendarDots size={16} />
+      </span>
+      <input
+        type="date"
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="absolute inset-0 cursor-pointer opacity-0"
+      />
+    </label>
   )
 }
 
@@ -536,6 +555,22 @@ export function MoonGlyph() {
         d="M16 12.3A6.8 6.8 0 0 1 7.7 4a6.8 6.8 0 1 0 8.3 8.3Z"
         stroke="currentColor"
         strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/** A diagonal "open in new tab" arrow — the up-right glyph isn't in the 166-icon
+ *  set (§4), so a project-local one-off for the per-metric report links. */
+export function ArrowUpRightGlyph({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M5 11 11 5m0 0H6m5 0v5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
     </svg>

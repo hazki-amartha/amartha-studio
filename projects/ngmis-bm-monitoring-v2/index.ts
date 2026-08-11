@@ -4,6 +4,22 @@ import { config } from './project.config'
 import * as demo from './lib/demo'
 
 /** The three commentary layouts, offered beside the device on both briefings. */
+/** Which briefing the dashboard banner prompts — the one "scheduled to start". */
+const SCHEDULE_STATES: ScreenState[] = [
+  {
+    id: 'jadwal-sore',
+    label: 'Jadwal: Briefing Sore',
+    description: 'Banner briefing sore muncul (default, sore hari).',
+    apply: demo.scheduleEvening,
+  },
+  {
+    id: 'jadwal-pagi',
+    label: 'Jadwal: Briefing Pagi',
+    description: 'Banner briefing pagi muncul (pagi hari).',
+    apply: demo.scheduleMorning,
+  },
+]
+
 const COMMENT_STATES: ScreenState[] = [
   {
     id: 'komentar-inline',
@@ -33,6 +49,7 @@ export const project: ProjectModule = {
       title: 'Branch Monitoring',
       component: lazyScreen(() => import('./screens/dashboard'), 'DashboardScreen'),
       entry: true,
+      states: SCHEDULE_STATES,
       flowsTo: [
         { to: 'briefing-morning', label: 'Mulai briefing pagi' },
         { to: 'briefing-evening', label: 'Mulai briefing sore' },
