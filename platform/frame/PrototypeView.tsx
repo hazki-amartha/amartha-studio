@@ -169,19 +169,30 @@ function AnnotationPanel({
  * actually in — the platform cannot know that, and pretending otherwise would
  * mean reading project internals. It resets when the screen changes, so a stale
  * highlight never survives a navigation.
+ *
+ * `collapsible` gives it the dismissal the desktop-device layout gets from its
+ * drawer tab: there, States is behind a toggle, but here the panel sits in the
+ * row beside the device and used to have no way out once a screen declared any.
+ * Collapsed, it keeps its column — that column is what balances the annotations
+ * and holds the device optically centred — and leaves a pill to bring it back.
+ * The choice deliberately survives navigation: a presenter who put it away
+ * wants it to stay away.
  */
 function StatesPanel({
   screens,
   /** See AnnotationPanel — the desktop layout supplies its own width. */
   className = styles.states,
+  collapsible = false,
 }: {
   screens: ScreenDef[]
   className?: string
+  collapsible?: boolean
 }) {
   const { current } = useFlow()
   const active = screens.find((s) => s.id === current)
   const states = active?.states ?? []
   const [applied, setApplied] = useState<string | null>(null)
+  const [open, setOpen] = useState(true)
 
   useEffect(() => setApplied(null), [current])
 
@@ -189,9 +200,40 @@ function StatesPanel({
   // that balances the annotations, and the device stays optically centred.
   if (states.length === 0) return <div aria-hidden className={className} />
 
+  if (collapsible && !open) {
+    return (
+      <aside className={`flex max-h-full flex-col pt-8 ${className}`}>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-expanded={false}
+          className="self-start rounded-full border border-default bg-neutral-white px-12 py-4 text-12 font-bold text-caption hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800"
+        >
+          States
+        </button>
+      </aside>
+    )
+  }
+
   return (
     <aside className={`flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${className}`}>
-      <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">States</span>
+      <div className="flex items-center justify-between gap-8">
+        <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">
+          States
+        </span>
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-expanded
+            aria-label="Hide states"
+            title="Hide states"
+            className="text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50"
+          >
+            <CloseIcon className="h-16 w-16" />
+          </button>
+        ) : null}
+      </div>
       <div className="flex flex-col gap-8">
         {states.map((state) => {
           const on = applied === state.id
@@ -403,8 +445,9 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
       className={`h-full min-h-0 w-full gap-32 overflow-hidden bg-neutral-50 px-16 py-24 dark:bg-ink-950 ${styles.desktop}`}
     >
       {/* Mirrors the caption column, so the device stays optically centred
-          whether or not the active screen declares any states. */}
-      <StatesPanel screens={screens} />
+          whether or not the active screen declares any states. Collapsible here
+          because this layout has no drawer tab to put it behind. */}
+      <StatesPanel screens={screens} collapsible />
       <DeviceStepper>
         <ScaledDevice>
           <DeviceFrame>
