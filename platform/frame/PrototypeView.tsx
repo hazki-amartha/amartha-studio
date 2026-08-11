@@ -448,7 +448,9 @@ function DrawerTab({
       type="button"
       onClick={onClick}
       aria-expanded={open}
-      className={`absolute top-24 z-20 rounded-full border px-12 py-4 text-12 font-bold ${
+      // z-30 keeps the tab above the open drawer (z-20 at the same corner), so it
+      // stays clickable to close it — otherwise an open drawer buries its own toggle.
+      className={`absolute top-24 z-30 rounded-full border px-12 py-4 text-12 font-bold ${
         side === 'left' ? 'left-16' : 'right-16'
       } ${
         open
