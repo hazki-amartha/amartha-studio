@@ -15,12 +15,12 @@ import { ChevronLeftIcon } from '@/platform/chrome/icons'
 import type { Platform, ProjectConfig, ProjectStatus } from '@/platform/types'
 import { configs as projectConfigs } from '@/projects/configs'
 
-// draft = orange, in-review = blue, final = green (Badge subtle = 500-on-50 rule).
-// live = primary: it is not another shade of "done", it is the shipped product,
-// so it reads in the brand colour rather than on the draft→final ramp.
+// draft = blue, in-review = green, final = green (Badge subtle = 500-on-50 rule).
+// live = primary purple: it is not another shade of "done", it is the shipped
+// product, so it reads in the brand colour rather than on the draft→final ramp.
 const STATUS_INTENT: Record<ProjectStatus, BadgeIntent> = {
-  draft: 'orange',
-  'in-review': 'blue',
+  draft: 'blue',
+  'in-review': 'green',
   final: 'green',
   live: 'primary',
 }
@@ -100,40 +100,32 @@ async function loadEntries(): Promise<GalleryEntry[]> {
   return entries.sort((a, b) => lastModified(b.config).localeCompare(lastModified(a.config)))
 }
 
+// The whole card is the link — it opens the prototype. Flow view stays
+// reachable via the prototype/flow switch inside the project view.
 function ProjectCard({ config }: GalleryEntry) {
   const owners = Array.isArray(config.owner) ? config.owner.join(', ') : config.owner
   const fill = config.platform ? PLATFORM_COLOR[config.platform].card : NO_PLATFORM_CARD
   return (
-    <Card flush className="gallery-card flex flex-col dark:border-ink-700 dark:bg-ink-900">
-      {/* Dark product region — eyebrow, title, description, byline. */}
-      <div className={`flex flex-1 flex-col gap-12 bg-gradient-to-br ${fill} p-16`}>
-        <div className="flex items-start justify-between gap-8">
-          {config.platform && (
-            <span className="text-12 font-regular text-neutral-400">
-              {PLATFORM_LABEL[config.platform]}
-            </span>
-          )}
-          <Badge intent={STATUS_INTENT[config.status]}>{STATUS_LABEL[config.status]}</Badge>
+    <Link href={`/p/${config.slug}`} className="group flex rounded-16">
+      <Card flush className="gallery-card flex flex-1 flex-col group-hover:opacity-90 dark:border-ink-700 dark:bg-ink-900">
+        {/* Dark product region — eyebrow, title, description, byline. */}
+        <div className={`flex flex-1 flex-col gap-12 bg-gradient-to-br ${fill} p-16`}>
+          <div className="flex items-start justify-between gap-8">
+            {config.platform && (
+              <span className="text-12 font-regular text-neutral-400">
+                {PLATFORM_LABEL[config.platform]}
+              </span>
+            )}
+            <Badge intent={STATUS_INTENT[config.status]}>{STATUS_LABEL[config.status]}</Badge>
+          </div>
+          <h2 className="text-20 font-bold text-neutral-white">{config.name}</h2>
+          <p className="line-clamp-2 flex-1 text-14 text-neutral-white">{config.description}</p>
+          <p className="text-12 text-neutral-400">
+            {owners} · {formatDate(lastModified(config))}
+          </p>
         </div>
-        <h2 className="text-20 font-bold text-neutral-white">{config.name}</h2>
-        <p className="line-clamp-2 flex-1 text-14 text-neutral-white">{config.description}</p>
-        <p className="text-12 text-neutral-400">
-          {owners} · {formatDate(lastModified(config))}
-        </p>
-      </div>
-      {/* Footer — actions. */}
-      <div className="flex items-center justify-end gap-8 bg-neutral-white p-16 dark:bg-ink-900">
-        <Link
-          href={`/p/${config.slug}/flow`}
-          className="ds-btn ds-btn-outline ds-btn-sm dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50 dark:shadow-none dark:hover:bg-ink-700"
-        >
-          Open Flow
-        </Link>
-        <Link href={`/p/${config.slug}`} className="ds-btn ds-btn-primary ds-btn-sm">
-          Open Prototype
-        </Link>
-      </div>
-    </Card>
+      </Card>
+    </Link>
   )
 }
 
