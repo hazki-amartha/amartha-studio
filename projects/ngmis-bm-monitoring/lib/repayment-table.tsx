@@ -20,6 +20,7 @@ import {
   REPAYMENT_METRICS,
   meetsTarget,
   metricOnTarget,
+  mitraShortfall,
   rate,
   type Bucket,
 } from './data'
@@ -121,34 +122,56 @@ export function RepaymentTable() {
                   </td>
                 </tr>
               ) : null}
-              {bps.map((bp, i) => (
-                <tr
-                  key={bp.id}
-                  // Zebra striping, so the eye can track a row across sixteen
-                  // columns without losing its line.
-                  className={`align-middle ${i % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'}`}
-                >
-                  <td className="px-16 py-16 text-14 text-default">{bp.name}</td>
-                  {GROUPS.map((group) => {
-                    const bucket = bp[group.id]
-                    return (
-                      <Fragment key={group.id}>
-                        <td className="border-l border-default px-12 py-16 text-center text-14 text-default">
-                          {bucket.total}
-                        </td>
-                        <td className="px-12 py-16 text-center text-14 text-default">
-                          {bucket.paid}
-                        </td>
-                        {group.rated ? (
-                          <td className="px-12 py-16 text-center">
-                            <Rate bucket={bucket} band={group.id} />
+              {bps.map((bp, i) => {
+                // Zebra striping, so the eye can track a row across sixteen
+                // columns without losing its line. Each BP is two table rows —
+                // the figures, then the shortfall centred under its bucket —
+                // so they share a background and only the second carries the
+                // dividing border.
+                const zebra = i % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'
+                return (
+                  <Fragment key={bp.id}>
+                    <tr className={`align-middle ${zebra}`}>
+                      <td rowSpan={2} className="px-16 text-14 text-default">
+                        {bp.name}
+                      </td>
+                      {GROUPS.map((group) => {
+                        const bucket = bp[group.id]
+                        return (
+                          <Fragment key={group.id}>
+                            <td className="border-l border-default px-12 pt-16 text-center text-14 text-default">
+                              {bucket.total}
+                            </td>
+                            <td className="px-12 pt-16 text-center text-14 text-default">
+                              {bucket.paid}
+                            </td>
+                            {group.rated ? (
+                              <td className="px-12 pt-16 text-center">
+                                <Rate bucket={bucket} band={group.id} />
+                              </td>
+                            ) : null}
+                          </Fragment>
+                        )
+                      })}
+                    </tr>
+                    <tr className={`border-b border-default align-top ${zebra}`}>
+                      {GROUPS.map((group) => {
+                        const short = mitraShortfall(bp[group.id], group.id)
+                        const missing = meetsTarget(bp[group.id], group.id) === false
+                        return (
+                          <td
+                            key={group.id}
+                            colSpan={cols(group)}
+                            className="border-l border-default px-12 pb-16 pt-4 text-center text-12 text-caption"
+                          >
+                            {missing && short ? `Kurang ${short} mitra` : null}
                           </td>
-                        ) : null}
-                      </Fragment>
-                    )
-                  })}
-                </tr>
-              ))}
+                        )
+                      })}
+                    </tr>
+                  </Fragment>
+                )
+              })}
             </tbody>
           </table>
         </div>
