@@ -20,8 +20,10 @@ export interface ViewingBriefing {
   own: boolean
 }
 
-/** A briefing's saved-in-progress content. */
+/** A briefing's saved-in-progress content. `attendance` is per-BP present/absent
+ *  — unset means present (attendance is auto-checked). */
 export interface BriefingDraft {
+  attendance: Record<string, boolean>
   discussed: Record<string, boolean>
   notes: Record<string, string>
   overall: string
@@ -30,12 +32,13 @@ export interface BriefingDraft {
 }
 
 export function emptyDraft(): BriefingDraft {
-  return { discussed: {}, notes: {}, overall: '', photoAttached: false, recordings: 0 }
+  return { attendance: {}, discussed: {}, notes: {}, overall: '', photoAttached: false, recordings: 0 }
 }
 
 /** Whether a draft has any content — drives the "Lanjutkan" vs "Mulai" CTA. */
 export function isDraftStarted(d: BriefingDraft): boolean {
   return (
+    Object.values(d.attendance).some((present) => !present) ||
     Object.values(d.discussed).some(Boolean) ||
     Object.values(d.notes).some((n) => n.trim().length > 0) ||
     d.overall.trim().length > 0 ||

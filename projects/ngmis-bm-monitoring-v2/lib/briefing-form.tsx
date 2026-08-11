@@ -37,6 +37,7 @@ const NOTE_MAX = 350
 
 /** What a submitted-but-not-authored-this-session briefing shows in read-only. */
 const SAMPLE_DRAFT: BriefingDraft = {
+  attendance: {},
   discussed: Object.fromEntries(BPS.map((b) => [b.id, true])),
   notes: { 'bp-c': 'DPD 0 masih di bawah target — dampingi penagihan Cenli.' },
   overall: 'Hujan besar sepanjang pagi; sebagian BP terlambat turun ke lapangan.',
@@ -176,6 +177,29 @@ function BriefingPanel({
           disabled={disabled}
         />
       </div>
+
+      <Section
+        title="Kehadiran BP"
+        subtitle="Semua BP dianggap hadir — hapus centang jika ada yang tidak hadir."
+      >
+        <div className="flex flex-col gap-8 rounded-16 border border-default p-16">
+          {BPS.map((bp) => {
+            const present = draft.attendance[bp.id] ?? true
+            return (
+              <div key={bp.id} className="flex items-center gap-12">
+                <Checkbox
+                  checked={present}
+                  disabled={disabled}
+                  onChange={() =>
+                    set({ attendance: { ...draft.attendance, [bp.id]: !present } })
+                  }
+                />
+                <span className="text-14 font-bold text-default">{bp.name}</span>
+              </div>
+            )
+          })}
+        </div>
+      </Section>
 
       <Section title="Bahas per BP" subtitle="Bahas target dan tugas hari ini untuk semua BP">
         {BPS.map((bp) => (
