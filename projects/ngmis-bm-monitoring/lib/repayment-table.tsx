@@ -1,15 +1,16 @@
 'use client'
 
-// Pembayaran — the table variation.
+// Pembayaran — the MVP.
 //
 // Every bucket carries three figures: how many mitra sit in it, how many paid,
 // and the rate between them. Counts alone are not comparable across BPs — a
 // small book and a large one produce very different Terbayar numbers at the
 // same performance — so the rate is stated rather than left to the reader.
 //
-// Colour sits on the rate, never on the counts. The counts are facts; the rate
-// is the judgement, so it is the only thing carrying a verdict. Colouring both
-// would say the same thing twice across sixteen columns.
+// Only the rate wears colour, and only where a standard exists. The counts are
+// facts; the rate is the judgement. DPD 90+ has no target at all, so it shows
+// its two counts and stops — a Rate column there would invite a verdict nobody
+// is held to.
 
 import { Fragment } from 'react'
 import { MetricCard, Panel, RatePill } from './ui'
@@ -17,47 +18,30 @@ import { useBpFilter } from './bp-filter'
 import {
   REPAYMENT_BPS,
   REPAYMENT_METRICS,
-  TARGETS,
   meetsTarget,
   metricOnTarget,
-  mitraShortfall,
   rate,
   type Bucket,
 } from './data'
 
+/** `rated` is what separates DPD 90+ from the rest: no standard, so no Rate
+ *  column and no verdict. */
 const GROUPS = [
-  { id: 'mitra', header: 'Total Mitra', totalLabel: 'Aktif' },
-  { id: 'dpd0', header: 'DPD 0', totalLabel: 'Total' },
-  { id: 'dpd130', header: 'DPD 1-30', totalLabel: 'Total' },
-  { id: 'dpd3190', header: 'DPD 31-90', totalLabel: 'Total' },
-  { id: 'dpd90', header: 'DPD 90+', totalLabel: 'Total' },
+  { id: 'mitra', header: 'Total mitra', rated: true },
+  { id: 'dpd0', header: 'DPD 0', rated: true },
+  { id: 'dpd130', header: 'DPD 1-30', rated: true },
+  { id: 'dpd3190', header: 'DPD 31-90', rated: true },
+  { id: 'dpd90', header: 'DPD 90+', rated: false },
 ] as const
 
-/** One spacing rule for every cell, so column edges line up down the grid. */
-const CELL_X = 'px-16'
+const cols = (g: (typeof GROUPS)[number]) => (g.rated ? 3 : 2)
+const COLSPAN = 1 + GROUPS.reduce((n, g) => n + cols(g), 0)
 
-/** BP column plus three figures per bucket — used by the empty row. */
-const COLSPAN = 1 + GROUPS.length * 3
-
-/**
- * The repayment rate for a bucket, read against the biz team's standard. The
- * question a BM asks is binary — is this BP meeting the target — so the colour
- * is binary too, and the size of the gap is left to the number itself.
- *
- * A bucket with no standard is not coloured at all: Total Mitra is an aggregate
- * and nobody is held to a figure on DPD 90+, so a verdict there would be
- * inventing one.
- */
 function Rate({ bucket, band }: { bucket: Bucket; band: string }) {
-  const ok = meetsTarget(bucket, band)
-  const short = mitraShortfall(bucket, band)
   return (
-    <span className="flex flex-col items-center gap-4">
-      <RatePill ok={ok}>{`${rate(bucket).toFixed(1).replace('.', ',')}%`}</RatePill>
-      {ok === false && short ? (
-        <span className="text-10 text-red-600">kurang {short} mitra</span>
-      ) : null}
-    </span>
+    <RatePill ok={meetsTarget(bucket, band)}>
+      {`${rate(bucket).toFixed(1).replace('.', ',').replace(',0', '')}%`}
+    </RatePill>
   )
 }
 
@@ -83,54 +67,48 @@ export function RepaymentTable() {
   return (
     <>
       <RepaymentMetrics />
-      {control}
 
       <Panel className="p-0">
-        <div className="min-w-0 overflow-hidden rounded-12">
+        <div className="flex flex-wrap items-center justify-between gap-16 p-16">
+          <span className="text-16 font-bold text-default">Performa BP</span>
+          {control}
+        </div>
+
+        <div className="min-w-0 overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-neutral-white">
+              <tr className="bg-neutral-200">
                 <th
                   rowSpan={2}
-                  className={`border-b border-default ${CELL_X} pb-12 pt-16 text-12 font-bold text-default`}
+                  className="px-16 pb-12 pt-16 text-12 font-bold text-default"
+                  style={{ width: 140 }}
                 >
-                  BP
+                  Nama
                 </th>
                 {GROUPS.map((group) => (
                   <th
                     key={group.id}
-                    colSpan={3}
-                    className={`border-b border-l border-default ${CELL_X} pb-8 pt-16 text-center text-12 font-bold text-default`}
+                    colSpan={cols(group)}
+                    className="border-l border-default px-16 pb-8 pt-16 text-center text-12 font-bold text-default"
                   >
-                    <span className="flex flex-col gap-2">
-                      {group.header}
-                      {TARGETS[group.id] ? (
-                        <span className="text-10 font-regular text-caption">
-                          target {TARGETS[group.id]}%
-                        </span>
-                      ) : null}
-                    </span>
+                    {group.header}
                   </th>
                 ))}
               </tr>
-              <tr className="bg-neutral-white">
+              <tr className="bg-neutral-200">
                 {GROUPS.map((group) => (
                   <Fragment key={group.id}>
-                    <th
-                      className={`border-b border-l border-default ${CELL_X} pb-12 text-center text-12 font-regular text-caption`}
-                    >
-                      {group.totalLabel}
+                    <th className="border-l border-default px-12 pb-12 text-center text-12 font-regular text-caption">
+                      Aktif
                     </th>
-                    <th
-                      className={`border-b border-default ${CELL_X} pb-12 text-center text-12 font-regular text-caption`}
-                    >
+                    <th className="px-12 pb-12 text-center text-12 font-regular text-caption">
                       Terbayar
                     </th>
-                    <th
-                      className={`border-b border-default ${CELL_X} pb-12 text-center text-12 font-regular text-caption`}
-                    >
-                      Rate
-                    </th>
+                    {group.rated ? (
+                      <th className="px-12 pb-12 text-center text-12 font-regular text-caption">
+                        Rate
+                      </th>
+                    ) : null}
                   </Fragment>
                 ))}
               </tr>
@@ -143,31 +121,29 @@ export function RepaymentTable() {
                   </td>
                 </tr>
               ) : null}
-              {bps.map((bp) => (
-                <tr key={bp.id} className="border-b border-default align-middle">
-                  <td className={`${CELL_X} py-16`}>
-                    <span className="flex min-w-0 flex-col gap-4">
-                      <span className="text-14 font-bold text-default">{bp.name}</span>
-                      <span className="text-12 text-caption">{bp.majelis} majelis</span>
-                    </span>
-                  </td>
+              {bps.map((bp, i) => (
+                <tr
+                  key={bp.id}
+                  // Zebra striping, so the eye can track a row across sixteen
+                  // columns without losing its line.
+                  className={`align-middle ${i % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'}`}
+                >
+                  <td className="px-16 py-16 text-14 text-default">{bp.name}</td>
                   {GROUPS.map((group) => {
                     const bucket = bp[group.id]
                     return (
                       <Fragment key={group.id}>
-                        <td
-                          className={`border-l border-default ${CELL_X} py-16 text-center text-14 text-caption`}
-                        >
+                        <td className="border-l border-default px-12 py-16 text-center text-14 text-default">
                           {bucket.total}
                         </td>
-                        <td
-                          className={`${CELL_X} py-16 text-center text-14 font-bold text-default`}
-                        >
+                        <td className="px-12 py-16 text-center text-14 text-default">
                           {bucket.paid}
                         </td>
-                        <td className={`${CELL_X} py-16 text-center text-14`}>
-                          <Rate bucket={bucket} band={group.id} />
-                        </td>
+                        {group.rated ? (
+                          <td className="px-12 py-16 text-center">
+                            <Rate bucket={bucket} band={group.id} />
+                          </td>
+                        ) : null}
                       </Fragment>
                     )
                   })}
