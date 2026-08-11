@@ -46,9 +46,11 @@ New here:
   (comment `none`) scrolls on the left, while a **fixed device-height card** on the
   right scrolls its own `BriefingPanel` body (titled "Catatan Briefing") with the
   `Submit briefing` CTA pinned in a sticky footer. The panel holds a condensed
-  voice recorder (`PanelRecorder`), a per-BP discussion checklist (`BpCard` — a
-  `Checkbox`, the BP's status [morning: `taskCount`; evening: `unmetTargets`], and
-  a collapsible note), an **optional** overall note, and an attendance `PhotoBox`.
+  voice recorder (`PanelRecorder`), a "Kehadiran BP" attendance list (the same
+  square `Checkbox`, auto-checked — the BM only unchecks absentees), a per-BP
+  discussion checklist (`BpCard` — a `Checkbox`, the BP's status [morning:
+  `taskCount`; evening: `unmetTargets`], and a collapsible note), an **optional**
+  overall note, and an attendance `PhotoBox`.
   Its content is the per-kind **draft in the store**, so leaving and returning
   resumes it; submit is gated on "N/7 selesai" (6 BPs + photo — the note is
   optional). `readOnly` disables every control and swaps the footer for a
