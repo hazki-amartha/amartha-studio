@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import '@/design-system/tokens.css'
 import './globals.css'
 import { AppShell } from '@/platform/chrome'
+import { Analytics } from '@vercel/analytics/next'
 
 // FunDS rule: Inter, weights 500 and 700 only
 const inter = Inter({
@@ -32,6 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="font-sans font-regular">
         <AppShell>{children}</AppShell>
+        {/* Vercel Web Analytics — page views per route, so /p/<slug> gives a
+            per-prototype view count. No-ops in dev and on non-Vercel hosts. */}
+        <Analytics />
       </body>
     </html>
   )
