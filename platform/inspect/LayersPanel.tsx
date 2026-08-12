@@ -22,7 +22,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { PanelShell, type PanelSurface } from '@/platform/chrome/SidePanel'
+import { PanelShell } from '@/platform/chrome/SidePanel'
 import {
   ComponentIcon,
   FrameIcon,
@@ -47,7 +47,6 @@ export interface LayersPanelProps {
   /** Drives the device's hover highlight from the list. */
   onHover: (el: Element | null) => void
   className?: string
-  surface?: PanelSurface
   onMinimize?: () => void
 }
 
@@ -221,7 +220,6 @@ export function LayersPanel({
   onPin,
   onHover,
   className,
-  surface,
   onMinimize,
 }: LayersPanelProps) {
   const nodes = useOutline()
@@ -253,7 +251,6 @@ export function LayersPanel({
   return (
     <PanelShell
       title="Layers"
-      surface={surface}
       onMinimize={onMinimize}
       className={className}
       onMouseLeave={() => onHover(null)}

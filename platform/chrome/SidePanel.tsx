@@ -23,22 +23,13 @@
 import type { ReactNode } from 'react'
 import { CloseIcon } from './icons'
 
-/**
- * What the panel sits on, which the sticky header has to match — otherwise
- * scrolled content shows through it.
- *   canvas — a column on the page ground, beside the device.
- *   panel  — a drawer with its own raised surface, over the canvas.
- */
-export type PanelSurface = 'canvas' | 'panel'
-
-const SURFACE_BG: Record<PanelSurface, string> = {
-  canvas: 'bg-neutral-50 dark:bg-ink-950',
-  panel: 'bg-neutral-white dark:bg-ink-900',
-}
+/** The panel's own surface, which the sticky header has to repeat — otherwise
+ *  scrolled content shows through it. Every panel sits on a card, in both
+ *  layouts, so this is a constant rather than a choice. */
+const SURFACE_BG = 'bg-neutral-white dark:bg-ink-900'
 
 export interface PanelShellProps {
   title: string
-  surface?: PanelSurface
   /** Omitted for a panel that cannot be dismissed; then no control is drawn. */
   onMinimize?: () => void
   /** Column geometry from the layout (width, alignment) or `w-full` in a drawer. */
@@ -49,21 +40,25 @@ export interface PanelShellProps {
 
 export function PanelShell({
   title,
-  surface = 'canvas',
   onMinimize,
   className,
   onMouseLeave,
   children,
 }: PanelShellProps) {
   return (
+    // Height comes from the card around it, which is what bounds the panel
+    // against the view. `min-h-0` is what lets it shrink past its own content
+    // and scroll there, instead of pushing the card off the bottom of the
+    // screen — and deliberately no `flex-1`, so a two-line Notes panel stays
+    // two lines tall rather than stretching its card to full height.
     <aside
       onMouseLeave={onMouseLeave}
-      className={`flex max-h-full flex-col overflow-y-auto ${className ?? ''}`}
+      className={`flex min-h-0 flex-col overflow-y-auto ${className ?? ''}`}
     >
       {/* Sticky so the way out stays reachable however far the body scrolls —
           a long layers tree used to bury its own minimize button. */}
       <div
-        className={`sticky top-0 z-10 flex items-center justify-between gap-8 pb-8 pt-8 ${SURFACE_BG[surface]}`}
+        className={`sticky top-0 z-10 flex items-center justify-between gap-8 pb-8 pt-8 ${SURFACE_BG}`}
       >
         <span className="truncate text-10 font-bold uppercase text-caption dark:text-neutral-400">
           {title}
