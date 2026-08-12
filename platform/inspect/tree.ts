@@ -42,7 +42,8 @@ export interface OutlineNode {
   el: Element
   /** What the row says: component name, layout role, or the text itself. */
   label: string
-  /** Secondary line — a component's text, or nothing. */
+  /** What a leaf component says, to tell one Button from the next. Empty for
+   *  anything with rows beneath it — see where it is set. */
   detail: string
   kind: NodeKind
   icon: NodeIcon
@@ -158,7 +159,12 @@ export function buildOutline(root: Element): OutlineNode[] {
               : containerLabel(el),
         // A component's own text is its identity ("Button · Salin"); a
         // container's text belongs to its children, which have their own rows.
-        detail: kind === 'component' ? text : '',
+        // Only a component with nothing listed under it earns a text hint: it
+        // names the one Button among several. For anything with rows beneath,
+        // `textContent` is every descendant's words run together — a Screen
+        // reported its whole screen, which said nothing and left no room for
+        // the component's own name. What that text is, the child rows say.
+        detail: kind === 'component' && children.length === 0 ? textOf(el, 24) : '',
         children,
       })
     }
