@@ -22,19 +22,18 @@ so the file stays a faithful copy of its source rather than a fork.
 New here:
 
 - `lib/scorecard.tsx` — `Scorecard`, one matrix per subject in order: Task,
-  Repayment, BTC & Flow, Cash settlement, Disbursement. BPs run across the top,
-  each spanning its subject's paired measures (Target/Completed, Aktif/Terbayar,
-  Outstanding/Settled) via a two-level header; the metrics run down the side. ONE
-  measure width for every subject, so a BP's column sits at the same x in every
-  table and the eye skims straight down. Colour is **symmetric** everywhere —
-  every rule that reds a shortfall also greens the achieved state (as Repayment
-  does). A `shortfallTone` row greens its 2nd figure when it meets the 1st, reds
-  it when short. Repayment's `paidTone` greens **Terbayar** when it meets Aktif,
-  reds it when short. BTC & Flow uses per-row `redWhen`: BTC greens Completed at/
-  above its target (DPD 1-30 + 31-90) and reds it below; Flow (target 0) greens
-  Completed at 0 and reds it above. Cash settlement (`firstRedWhenPositive`)
-  greens Outstanding at Rp0 and reds it above; Outstanding =
-  collected-but-unsettled, Settled = cleared today. A
+  Repayment, Cash settlement, Disbursement. BPs run across the top, each spanning
+  its subject's measures (Target/Completed, Aktif/Terbayar) via a two-level
+  header; the metrics run down the side. Every subject keeps the SAME per-BP
+  width (two measures wide) — so a 1-measure subject (Cash settlement's
+  Outstanding) gets one double-width column and BP columns still line up across
+  every card. Colour is **symmetric** everywhere — every rule that reds a
+  shortfall also greens the achieved state. Task's `shortfallTone` rows green
+  their 2nd figure when it meets the 1st, red when short. Repayment's `paidTone`
+  greens **Terbayar** when it meets Aktif, reds it when short. Cash settlement
+  (`firstRedWhenPositive`) greens Outstanding at Rp0 and reds it above
+  (Outstanding = cash collected but not yet settled). Disbursement is
+  Completed-only (single double-width column, no target, no colour). A
   `merged` row (Task's "Tutup hari") renders one cell per BP spanning both measure
   columns, showing the `ClosedDayStatus` badge — "Sudah tutup hari" only once
   every task for that BP is completed, else "Belum tutup hari" (replaced the
@@ -45,16 +44,15 @@ New here:
   screens (and, with `readOnly`, the submitted-briefing view). A ghost-icon back
   button sits before the title. The row fills the screen height: the scorecard
   (comment `none`) scrolls on the left, while a **fixed device-height card** on the
-  right scrolls its own `BriefingPanel` body (titled "Catatan Briefing") with the
-  `Submit briefing` CTA pinned in a sticky footer. The panel holds a condensed
-  voice recorder (`PanelRecorder`), a "Kehadiran BP" attendance list (the same
-  square `Checkbox`, auto-checked — the BM only unchecks absentees), a per-BP
-  discussion checklist (`BpCard` — a `Checkbox`, the BP's status [morning:
-  `taskCount`; evening: `unmetTargets`], and a collapsible note), an **optional**
-  overall note, and an attendance `PhotoBox`.
-  Its content is the per-kind **draft in the store**, so leaving and returning
-  resumes it; submit is gated on "N/7 selesai" (6 BPs + photo — the note is
-  optional). `readOnly` disables every control and swaps the footer for a
+  right scrolls its own `BriefingPanel` body (titled "Report Briefing") with the
+  `Submit briefing` CTA pinned in a sticky footer. Always: a condensed voice
+  recorder (`PanelRecorder`) and a `PhotoBox`. **Morning**: a "Checklist what to
+  do" of 4 confirmation questions (each a `Checkbox` card) — nothing else.
+  **Evening**: a "Checklist what to do" of 3 placeholder text pointers, a "Laporan
+  BM" list (`BpCard` — BP name over an always-open note, no status caption — plus
+  an `OverallCard` at the foot). Content is the per-kind **draft in the store**, so leaving and returning
+  resumes it; submit is gated only on the photo (Bukti Kehadiran).
+  `readOnly` disables every control and swaps the footer for a
   "Terkirim" state (own submission shows the live draft; a past one shows a
   representative `SAMPLE_DRAFT`). All click-through, no real mic/file picker (§3).
 - `screens/briefing-history.tsx` — `BriefingHistoryScreen` (Riwayat Briefing):

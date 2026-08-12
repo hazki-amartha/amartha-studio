@@ -25,14 +25,27 @@ export interface ViewingBriefing {
 export interface BriefingDraft {
   attendance: Record<string, boolean>
   discussed: Record<string, boolean>
+  /** Morning-only "what to do" checklist — per-item done state. */
+  checklist: Record<string, boolean>
   notes: Record<string, string>
+  /** Evening-only "Laporan BM" overall report. */
+  report: string
   overall: string
   photoAttached: boolean
   recordings: number
 }
 
 export function emptyDraft(): BriefingDraft {
-  return { attendance: {}, discussed: {}, notes: {}, overall: '', photoAttached: false, recordings: 0 }
+  return {
+    attendance: {},
+    discussed: {},
+    checklist: {},
+    notes: {},
+    report: '',
+    overall: '',
+    photoAttached: false,
+    recordings: 0,
+  }
 }
 
 /** Whether a draft has any content — drives the "Lanjutkan" vs "Mulai" CTA. */
@@ -40,7 +53,9 @@ export function isDraftStarted(d: BriefingDraft): boolean {
   return (
     Object.values(d.attendance).some((present) => !present) ||
     Object.values(d.discussed).some(Boolean) ||
+    Object.values(d.checklist).some(Boolean) ||
     Object.values(d.notes).some((n) => n.trim().length > 0) ||
+    d.report.trim().length > 0 ||
     d.overall.trim().length > 0 ||
     d.photoAttached ||
     d.recordings > 0
