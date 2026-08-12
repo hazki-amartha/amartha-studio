@@ -3,10 +3,11 @@ import type { ProjectConfig } from '@/platform/types'
 export const config: ProjectConfig = {
   slug: 'apartner-bm-majelis-view',
   name: 'A-Partner BM New Concept',
+  businessUnit: 'Lending',
   platform: 'APartner',
   owner: ['Chandra', 'Hazki', 'Patricia'],
   description:
-    "The A-Partner app seen from the Branch Manager's chair: the same majelis and mitra directories the BP works from, but filtered by Business Partner so the BM can read her branch one BP at a time. Her own day is the two briefings that bracket it — a morning briefing at the Amartha Point before the BPs go out, and an evening briefing when they come back.",
+    'The A-Partner app from the Branch Manager\'s chair, bracketed by a morning and an evening briefing.',
   device: 'mobile',
   status: 'draft',
   createdAt: '2026-08-06',
