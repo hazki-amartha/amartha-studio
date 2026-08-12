@@ -70,7 +70,8 @@ export const project: ProjectModule = {
         { to: 'home-brief', label: 'Mulai Kunjungan (home visit)' },
         { to: 'sosialisasi', label: 'Mulai Sosialisasi — cari prospek baru' },
         { to: 'follow-up', label: 'Mulai Follow Up — telepon prospek' },
-        { to: 'setor-payment', label: 'Setor — dari widget setoran' },
+        { to: 'settlement', label: 'Setor → Alt 1 — dari widget setoran' },
+        { to: 'setor-payment', label: 'Setor → Alt 2 — dari widget setoran' },
         { to: 'deposit', label: 'Tutup Hari Ini — baris tugas terakhir' },
         { to: 'majelis-list', label: 'tab Majelis' },
         { to: 'mitra-list', label: 'tab Mitra' },
@@ -544,7 +545,7 @@ export const project: ProjectModule = {
     },
     {
       id: 'settlement',
-      title: 'Setoran',
+      title: 'Setoran (Alt 1)',
       component: lazyScreen(() => import('./screens/settlement'), 'SettlementScreen'),
       notes: [
         'Where the cash leaves her hands — separate from Closing, which is the checklist that ends the DAY. This screen is about the BAG: the money she is carrying right now and the transfer that gets it to the branch.',
@@ -583,14 +584,14 @@ export const project: ProjectModule = {
         { to: 'today', label: 'Selesai — kembali ke jadwal' },
       ],
     },
-    // --- New Concept setor journey. An ALTERNATIVE to `settlement` above, and
-    // what the schedule's Setor button now opens: the whole bag is assumed, the
-    // road is the only question, and splitting the handover moves off the main
-    // road onto its own page. The older four screens stay in place, reachable
-    // from this list, so the two directions can be read side by side.
+    // --- New Concept setor journey. Alt 2 to `settlement`'s Alt 1, and BOTH
+    // are live: the Setor button (and Closing's titipan check) opens a sheet
+    // naming the two, so a demo can walk either without going to look for it.
+    // Alt 2 assumes the whole bag, makes the road the only question, and moves
+    // splitting the handover onto its own page.
     {
       id: 'setor-payment',
-      title: 'Setor Pembayaran',
+      title: 'Setor Pembayaran (Alt 2)',
       component: lazyScreen(() => import('./screens/setor-payment'), 'SetorPaymentScreen'),
       flowsTo: [
         { to: 'setor-partial', label: 'Setor sebagian' },
@@ -697,7 +698,11 @@ export const project: ProjectModule = {
           apply: demo.closingSent,
         },
       ],
-      flowsTo: [{ to: 'today', label: 'Selesai — setelah closing terkirim' }],
+      flowsTo: [
+        { to: 'settlement', label: 'Setor Sekarang → Alt 1' },
+        { to: 'setor-payment', label: 'Setor Sekarang → Alt 2' },
+        { to: 'today', label: 'Selesai — setelah closing terkirim' },
+      ],
     },
     {
       id: 'sosialisasi',
