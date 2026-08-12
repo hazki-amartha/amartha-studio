@@ -7,11 +7,13 @@
 // in the body it wants. That way a change to the chrome cannot drift between
 // variations, and a review is comparing the one thing that actually differs.
 //
-// Tugas and Pencairan are deliberately empty: the earlier placeholder content
-// there was invented, and a plausible-looking chart nobody has designed is
-// worse than a blank — it gets reviewed as though it were a proposal.
+// Tugas is deliberately empty: the earlier placeholder content there was
+// invented, and a plausible-looking chart nobody has designed is worse than a
+// blank — it gets reviewed as though it were a proposal. Pencairan now has a
+// design of its own and draws it.
 
 import { useState, type ReactNode } from 'react'
+import { DisbursementTable } from './disbursement-table'
 import { BmShell } from './shell'
 import { PageHeading, Panel, Select, Tabs } from './ui'
 import {
@@ -88,7 +90,9 @@ export function BranchSummaryPage({ pembayaran }: { pembayaran: ReactNode }) {
         <span className="text-12 text-caption">{UPDATE_BAR.refreshed}</span>
       </div>
 
-      {tab === 'repayment' ? pembayaran : <NotDesignedYet label={tabLabel} />}
+      {tab === 'repayment' ? pembayaran : null}
+      {tab === 'disbursement' ? <DisbursementTable /> : null}
+      {tab === 'task' ? <NotDesignedYet label={tabLabel} /> : null}
     </BmShell>
   )
 }

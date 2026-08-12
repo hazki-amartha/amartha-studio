@@ -259,6 +259,113 @@ export function recommendedAction(bp: RepaymentBp): Action | null {
   }
 }
 
+// --- Pencairan ---------------------------------------------------------------
+//
+// One row per BP, weakest first, split the way the business reads disbursement:
+// how MANY loans went out (NoA) and how MUCH they were worth, each broken into
+// mitra baru and mitra lanjutan. The two halves answer different questions —
+// new mitra are growth, renewals are retention — and a BP can be strong at one
+// while failing the other, which a single "pencairan" figure hides.
+//
+// Renewal is stated as a RATE as well as a count. A count of 11 renewals means
+// nothing without how many were due: the same eleven is excellent on a book
+// with twelve maturing and poor on one with twenty.
+
+export interface DisbursementBp {
+  id: string
+  name: string
+  majelis: number
+  /** Loans disbursed to mitra new to Amartha. */
+  noaBaru: number
+  /** Loans disbursed to mitra renewing. */
+  noaLanjutan: number
+  /** Mitra whose cycle ended in this period — the denominator for renewal. */
+  renewalDue: number
+  /** Rupiah, in juta, so the table can print what the business says out loud. */
+  nilaiBaru: number
+  nilaiLanjutan: number
+}
+
+export const DISBURSEMENT_BPS: DisbursementBp[] = [
+  { id: 'bp-sukma', name: 'Sukma Ayuningrum', majelis: 6, noaBaru: 2, noaLanjutan: 11, renewalDue: 14, nilaiBaru: 10, nilaiLanjutan: 72 },
+  { id: 'bp-cenli', name: 'Cenli Cencen', majelis: 8, noaBaru: 2, noaLanjutan: 13, renewalDue: 16, nilaiBaru: 10, nilaiLanjutan: 87 },
+  { id: 'bp-diski', name: 'Diski Tafa Ilham', majelis: 8, noaBaru: 3, noaLanjutan: 13, renewalDue: 15, nilaiBaru: 15, nilaiLanjutan: 89 },
+  { id: 'bp-laili', name: 'Laili Maulidia', majelis: 8, noaBaru: 3, noaLanjutan: 15, renewalDue: 18, nilaiBaru: 15, nilaiLanjutan: 103 },
+  { id: 'bp-ainur', name: 'Ainur Rohmah', majelis: 8, noaBaru: 4, noaLanjutan: 15, renewalDue: 17, nilaiBaru: 20, nilaiLanjutan: 106 },
+  { id: 'bp-fadhil', name: 'Fadhil Maulana', majelis: 7, noaBaru: 4, noaLanjutan: 16, renewalDue: 18, nilaiBaru: 20, nilaiLanjutan: 114 },
+  { id: 'bp-rudi', name: 'Rudi Hartono', majelis: 6, noaBaru: 5, noaLanjutan: 16, renewalDue: 20, nilaiBaru: 25, nilaiLanjutan: 116 },
+  { id: 'bp-alif', name: 'M. Alif Rizqi', majelis: 8, noaBaru: 5, noaLanjutan: 18, renewalDue: 20, nilaiBaru: 25, nilaiLanjutan: 124 },
+  { id: 'bp-budi', name: 'Budi Ngurah', majelis: 6, noaBaru: 6, noaLanjutan: 18, renewalDue: 21, nilaiBaru: 30, nilaiLanjutan: 126 },
+  { id: 'bp-fauzan', name: 'Fauzan Aditama', majelis: 7, noaBaru: 6, noaLanjutan: 19, renewalDue: 21, nilaiBaru: 30, nilaiLanjutan: 133 },
+]
+
+/**
+ * What the business asks of a BP each MONTH: twenty new mitra disbursed, and
+ * 85% of the mitra whose cycle ended coming back for another one.
+ *
+ * `nilai` is the rupiah the two together are expected to add up to — it is not
+ * a third goal, it is the money version of the first two, and it is the column
+ * the BM is chased on.
+ */
+export const DISBURSEMENT_TARGETS = {
+  /** Mitra baru cair per bulan. */
+  noaBaru: 20,
+  /** Renewal mitra lanjutan cair per bulan, as a share of those due. */
+  renewalRate: 85,
+  /** Nilai pencairan per bulan, in juta. */
+  nilai: 180,
+}
+
+/** Weeks in the month the monthly targets are spread across — the page reports
+ *  a week, the targets are set for a month, so the count target has to be
+ *  paced before a weekly figure can be judged against it at all. */
+export const WEEKS_IN_MONTH = 4
+
+export const noaTotal = (bp: DisbursementBp) => bp.noaBaru + bp.noaLanjutan
+export const nilaiTotal = (bp: DisbursementBp) => bp.nilaiBaru + bp.nilaiLanjutan
+
+/** Share of the mitra due for renewal who actually took another loan. */
+export const renewalRate = (bp: DisbursementBp) =>
+  bp.renewalDue === 0 ? 0 : (bp.noaLanjutan / bp.renewalDue) * 100
+
+/** Rupiah still to disburse before the BP clears the month's nilai target. */
+export const nilaiShortfall = (bp: DisbursementBp) =>
+  Math.max(0, DISBURSEMENT_TARGETS.nilai - nilaiTotal(bp))
+
+/**
+ * How hard a miss is, as three bands rather than a pass/fail.
+ *
+ * A pencairan gap is not binary the way a repayment standard is: every BP in
+ * the branch is short of a monthly target mid-month, so colouring them all red
+ * would say nothing. The bands are shares of the target itself — 40% or more
+ * still missing is a month that will not be recovered without help, 20% is
+ * behind but reachable, under that is on track.
+ */
+export type Band = 'red' | 'orange' | 'green'
+
+export function shortfallBand(shortfall: number): Band {
+  const share = (shortfall / DISBURSEMENT_TARGETS.nilai) * 100
+  if (share >= 40) return 'red'
+  if (share >= 20) return 'orange'
+  return 'green'
+}
+
+/** The same three bands for the new-mitra count, paced to the week. */
+export function noaBaruBand(count: number): Band {
+  const weekly = DISBURSEMENT_TARGETS.noaBaru / WEEKS_IN_MONTH
+  if (count >= weekly) return 'green'
+  if (count >= weekly - 1) return 'orange'
+  return 'red'
+}
+
+/** Branch totals — the two headline figures above the table. */
+export function branchDisbursement() {
+  const baru = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.noaBaru, 0)
+  const lanjutan = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.noaLanjutan, 0)
+  const due = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.renewalDue, 0)
+  return { baru, lanjutan, due, renewal: due === 0 ? 0 : (lanjutan / due) * 100 }
+}
+
 /** The majelis the morning report asks the BM to plan around. */
 export interface FlaggedMajelis {
   id: string
