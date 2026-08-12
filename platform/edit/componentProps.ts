@@ -38,6 +38,7 @@ export interface EditableProp {
 export const COMPONENT_BASE: Record<string, string> = {
   Button: 'ds-btn',
   Badge: 'ds-badge',
+  Card: 'ds-card',
   Input: 'ds-inp',
   Toggle: 'ds-toggle',
   Modal: 'ds-modal',
@@ -98,6 +99,20 @@ export const COMPONENT_PROPS: Record<string, EditableProp[]> = {
       attr: 'size',
       values: ['sm', 'md'],
       classes: { sm: '', md: 'ds-badge-md' },
+    },
+  ],
+  Card: [
+    {
+      prop: 'radius',
+      attr: 'radius',
+      values: ['8', '12', '16', '20', '24'],
+      classes: {
+        '8': 'ds-card-r8',
+        '12': 'ds-card-r12',
+        '16': '',
+        '20': 'ds-card-r20',
+        '24': 'ds-card-r24',
+      },
     },
   ],
   Input: [

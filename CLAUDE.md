@@ -55,7 +55,7 @@ rule `no-arbitrary-value` errors on them. Use only the locked named classes
 | Font | Inter, weights **500 and 700 only** — classes `font-regular` / `font-bold`; `font-medium` etc. do NOT exist and fail silently |
 | Spacing | 4px grid: `0 2 4 8 12 16 20 24 32 40 48` px only |
 | Buttons | pill shape (`rounded-full`, 9999px) — never rectangular |
-| Cards | 16px radius (`rounded-16`), 12px padding |
+| Cards | 16px radius (`rounded-16`) by default, 12px padding — `<Card radius>` takes 8/12/16/20/24 when a surface genuinely needs another |
 | Inputs | 8px radius (`rounded-8`) |
 | Status colors | 500 foreground on the matching 50-tint background (Badge handles this) |
 | Layout | 16px page padding-x, 16px page padding-top, 12px section gap, 48px topbar |
