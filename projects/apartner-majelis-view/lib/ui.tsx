@@ -619,11 +619,17 @@ export interface CollapsibleProps {
   title: string
   /** Right-aligned hint in the header, e.g. a count. */
   hint?: string
+  /**
+   * Opens on mount. For a stack of panels where one is the road the BP is
+   * actually on — the instructions for the app she is holding — and the rest
+   * are the alternatives she can reach for.
+   */
+  defaultOpen?: boolean
   children: ReactNode
 }
 
-export function Collapsible({ title, hint, children }: CollapsibleProps) {
-  const [open, setOpen] = useState(false)
+export function Collapsible({ title, hint, defaultOpen, children }: CollapsibleProps) {
+  const [open, setOpen] = useState(Boolean(defaultOpen))
 
   return (
     <div className="rounded-12 border border-default bg-neutral-white">

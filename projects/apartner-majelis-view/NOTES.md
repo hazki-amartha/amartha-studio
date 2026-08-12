@@ -41,6 +41,8 @@
 - `SearchField`, `FilterBar`, `FilterChip`, `OptionSheet`, `ResetLink`, `EmptyState` — the Majelis tab's find-a-group layer, lifted shape-for-shape from `apartner-homepage-ia` (which solves the same problem on the same tab). Strong promotion candidates: three projects now want a filter chip over a bottom sheet, and two of them have written it independently. `SearchField` uses the shared `MagnifyingGlass` from `@/design-system/icons` rather than a local icon.
 - `h-40` on a default-size `Button` — FunDS button sizes step 28 (xs) → 36 (sm) → 38 (md), so none lands on the 40px avatar rhythm the cards use. `h-40` is a token class, not an arbitrary value. The in-card actions (Tagih, Tawarkan) use the DEFAULT size rather than `sm`: `sm` sets 12px type and the attendance pills are 14px, so the same card was read at two sizes from one stage to the next.
 
+- `SetorSummary`, `LegCard`, `DeadlineNote`, `HowList`, `PickList` (`setor.tsx`) — the New Concept setor journey's own vocabulary, used by `setor-payment` / `setor-partial` / `setor-va` / `setor-agen`. `LegCard` is the one that matters: this concept settles to TWO lending entities, each with its own number, share and status, so the pair cannot be drawn per screen. `Collapsible` gained `defaultOpen` for the "cara bayar" panel the BP is actually on.
+
 ## The L0 layer (Jadwal / Majelis / Mitra / KPI / Profil)
 
 Ported from `apartner-task-first` so the two directions share a front door and
