@@ -31,6 +31,13 @@ import { valueForClass } from './tokenMap'
 
 export type NodeKind = 'component' | 'text' | 'container'
 
+/**
+ * Which glyph the row wears. Narrower than NodeKind on purpose: a container is
+ * a frame, a list, or a piece of media depending on what it actually is, and
+ * that distinction is what makes a long outline scannable.
+ */
+export type NodeIcon = 'component' | 'frame' | 'text' | 'media' | 'list'
+
 export interface OutlineNode {
   el: Element
   /** What the row says: component name, layout role, or the text itself. */
@@ -38,6 +45,7 @@ export interface OutlineNode {
   /** Secondary line — a component's text, or nothing. */
   detail: string
   kind: NodeKind
+  icon: NodeIcon
   children: OutlineNode[]
 }
 
@@ -77,6 +85,20 @@ function containerLabel(el: Element): string {
   if (cls.contains('grid')) return 'Grid'
   if (cls.contains('flex')) return cls.contains('flex-col') ? 'Stack' : 'Row'
   return 'Group'
+}
+
+/** The glyph for a kept node, from what the element actually is. */
+function iconOf(el: Element, kind: NodeKind): NodeIcon {
+  if (kind === 'component') return 'component'
+  if (kind === 'text') return 'text'
+
+  const tag = el.tagName.toLowerCase()
+  if (tag === 'img' || tag === 'svg' || tag === 'video' || tag === 'canvas') return 'media'
+  if (tag === 'ul' || tag === 'ol') return 'list'
+  // A leaf container with no text is something drawn, not something laid out —
+  // an icon wrapper, a rule, a bar.
+  if (el.children.length === 0 && textOf(el, 1).length === 0) return 'media'
+  return 'frame'
 }
 
 function kindOf(el: Element): NodeKind | null {
@@ -127,6 +149,7 @@ export function buildOutline(root: Element): OutlineNode[] {
       out.push({
         el,
         kind,
+        icon: iconOf(el, kind),
         label:
           kind === 'component'
             ? (el.getAttribute('data-fds') ?? 'Component')

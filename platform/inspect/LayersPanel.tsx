@@ -23,7 +23,23 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PanelShell, type PanelSurface } from '@/platform/chrome/SidePanel'
-import { buildOutline, pathTo, type OutlineNode } from './tree'
+import {
+  ComponentIcon,
+  FrameIcon,
+  ListIcon,
+  MediaIcon,
+  TextIcon,
+} from '@/platform/chrome/icons'
+import { buildOutline, pathTo, type NodeIcon, type OutlineNode } from './tree'
+
+/** One glyph per layer kind, so a long outline can be scanned rather than read. */
+const KIND_ICON: Record<NodeIcon, (props: { className?: string }) => React.ReactNode> = {
+  component: ComponentIcon,
+  frame: FrameIcon,
+  text: TextIcon,
+  media: MediaIcon,
+  list: ListIcon,
+}
 
 export interface LayersPanelProps {
   pinned: Element | null
@@ -115,6 +131,7 @@ function Row({
   const isPinned = node.el === pinned
   const hasChildren = node.children.length > 0
   const open = hasChildren && !collapsed.has(node.el)
+  const Glyph = KIND_ICON[node.icon]
 
   // Bring the selection into view when it was made in the device, not here.
   useEffect(() => {
@@ -151,8 +168,15 @@ function Row({
         <button
           type="button"
           onClick={() => onPin(node.el)}
-          className="flex min-w-0 flex-1 items-baseline gap-4 py-2 text-left"
+          className="flex min-w-0 flex-1 items-center gap-4 py-2 text-left"
         >
+          <Glyph
+            className={`size-12 flex-none ${
+              node.kind === 'component'
+                ? 'text-link dark:text-neutral-400'
+                : 'text-placeholder dark:text-neutral-600'
+            }`}
+          />
           <span
             className={`truncate text-12 ${
               node.kind === 'component'
