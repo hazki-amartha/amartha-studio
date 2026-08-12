@@ -87,8 +87,8 @@ export interface MatrixRow {
 }
 
 /** The colour a measure's figure reads in — 'bad' red, 'good' green, else
- *  default. Only the 2nd measure is judged: a goal row against its threshold, a
- *  shortfall row against the 1st measure (red when short, no green). */
+ *  default. Every rule that reds a shortfall also greens the achieved state, so
+ *  the tables read symmetrically (as Repayment already does). */
 export type Tone = 'good' | 'bad' | undefined
 
 export function measureTone(
@@ -100,10 +100,12 @@ export function measureTone(
   const first = cells[section.measures[0].id]
   const second = cells[section.measures[1].id]
   if (measureIndex === 0) {
-    return row.firstRedWhenPositive && first > 0 ? 'bad' : undefined
+    // Cash settlement Outstanding: green when nothing is left (fully settled),
+    // red when any is outstanding.
+    return row.firstRedWhenPositive ? (first > 0 ? 'bad' : 'good') : undefined
   }
-  if (row.redWhen === 'below') return second < first ? 'bad' : undefined
-  if (row.redWhen === 'above') return second > first ? 'bad' : undefined
+  if (row.redWhen === 'below') return second < first ? 'bad' : 'good'
+  if (row.redWhen === 'above') return second > first ? 'bad' : 'good'
   if (row.goal) {
     const pct = first <= 0 ? 0 : (second / first) * 100
     const met = row.goal.dir === 'min' ? pct >= row.goal.pct : pct <= row.goal.pct
@@ -112,7 +114,7 @@ export function measureTone(
   // Repayment: the colour sits on Terbayar, read against Aktif as the target —
   // green when Terbayar meets Aktif, red when it falls short.
   if (section.paidTone) return second >= first ? 'good' : 'bad'
-  if (section.shortfallTone && second < first) return 'bad'
+  if (section.shortfallTone) return second < first ? 'bad' : 'good'
   return undefined
 }
 
