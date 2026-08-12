@@ -16,6 +16,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { ancestorChain, labelOf, resolveTarget } from './resolve'
 import { copyForAgent } from './copyForAgent'
+import { copySpec } from './copySpec'
 
 export interface InspectorPanelProps {
   pinned: Element | null
@@ -66,7 +67,7 @@ export function InspectorPanel({
   screenId,
   className,
 }: InspectorPanelProps) {
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<'agent' | 'spec' | null>(null)
   const shell = `flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${className ?? ''}`
 
   // Recomputed per pin rather than per frame — computed styles are only read
@@ -79,12 +80,21 @@ export function InspectorPanel({
     return ancestorChain(pinned, root)
   }, [pinned])
 
-  const onCopy = useCallback(() => {
-    if (!target) return
-    void navigator.clipboard.writeText(copyForAgent(target, slug, screenId))
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1500)
-  }, [target, slug, screenId])
+  // One flag, holding WHICH button was pressed, so both can report back without
+  // a second piece of state that could disagree with the first.
+  const copy = useCallback(
+    (which: 'agent' | 'spec') => {
+      if (!target) return
+      const text =
+        which === 'agent'
+          ? copyForAgent(target, slug, screenId)
+          : copySpec(target, slug, screenId)
+      void navigator.clipboard.writeText(text)
+      setCopied(which)
+      window.setTimeout(() => setCopied(null), 1500)
+    },
+    [target, slug, screenId],
+  )
 
   if (!target) {
     return (
@@ -176,13 +186,27 @@ export function InspectorPanel({
         </Section>
       ) : null}
 
-      <button
-        type="button"
-        onClick={onCopy}
-        className="rounded-full border border-default bg-neutral-white px-16 py-8 text-12 font-bold text-default hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800"
-      >
-        {copied ? 'Copied' : 'Copy for agent'}
-      </button>
+      {/* Two audiences, two shapes of the same selection: a prompt with a blank
+          for the change, and a finished redline for whoever has to rebuild it
+          outside the studio. */}
+      <div className="flex flex-col gap-4">
+        <button
+          type="button"
+          onClick={() => copy('spec')}
+          title="Every value with its token — for a ticket or a native build"
+          className="rounded-full border border-default bg-neutral-white px-16 py-8 text-12 font-bold text-default hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800"
+        >
+          {copied === 'spec' ? 'Copied' : 'Copy spec for dev'}
+        </button>
+        <button
+          type="button"
+          onClick={() => copy('agent')}
+          title="Names this element and leaves a blank for the change you want"
+          className="rounded-full border border-default bg-neutral-white px-16 py-8 text-12 font-bold text-default hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800"
+        >
+          {copied === 'agent' ? 'Copied' : 'Copy for agent'}
+        </button>
+      </div>
 
       {/* The same thing Escape does, for anyone who doesn't know Escape does it. */}
       <button
