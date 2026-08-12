@@ -49,6 +49,15 @@ export function DashboardScreen() {
         <PageHeading
           title="Daily Monitoring"
           meta={`Diperbarui hari ini, ${REPORT_DATE}, 16.20 WIB`}
+          actions={
+            <button
+              type="button"
+              onClick={() => flow.go('briefing-history')}
+              className="flex items-center gap-4 text-14 font-bold text-link active:opacity-70"
+            >
+              <History size={16} /> Riwayat briefing
+            </button>
+          }
         />
       }
     >
@@ -62,23 +71,13 @@ export function DashboardScreen() {
         </div>
       ) : null}
 
-      {/* Filter row, right below the title — the fixed location cascade (disabled)
-          on the left, the Riwayat briefing entry point on the right. */}
+      {/* Filter row, right below the title — the fixed location cascade (disabled). */}
       <div className="flex flex-wrap items-center gap-8 pb-16">
         <DateFilter label="Tanggal" value={day} onChange={setDay} />
         <LockedFilter label="Region" value={LOCATION.region} />
         <LockedFilter label="Provinsi" value={LOCATION.provinsi} />
         <LockedFilter label="Kota" value={LOCATION.kota} />
         <LockedFilter label="Branch" value={LOCATION.branch} />
-        <div className="flex flex-1 flex-wrap items-center justify-end gap-8">
-          <button
-            type="button"
-            onClick={() => flow.go('briefing-history')}
-            className="flex items-center gap-4 text-14 font-bold text-link active:opacity-70"
-          >
-            <History size={16} /> Riwayat briefing
-          </button>
-        </div>
       </div>
 
       <Scorecard />
