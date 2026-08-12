@@ -63,6 +63,23 @@ export const project: ProjectModule = {
           description: 'Closing submitted — the Tutup Hari Ini row now reads Terkirim in Selesai',
           apply: demo.scheduleClosed,
         },
+        // Which setoran direction the Setor button opens. Off screen on
+        // purpose: both alternatives are live, and a chooser drawn inside the
+        // app would be the one screen that exists only because there are two
+        // prototypes. Sets the road and nothing else, so flipping it never
+        // disturbs whichever day is on screen.
+        {
+          id: 'setor-alt-1',
+          label: 'Setor → Alt 1',
+          description: 'Setor opens the first concept: pick what to settle, then how',
+          apply: demo.setorAltOne,
+        },
+        {
+          id: 'setor-alt-2',
+          label: 'Setor → Alt 2',
+          description: 'Setor opens the new concept: pick how, setor sebagian a page away',
+          apply: demo.setorAltTwo,
+        },
       ],
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Majelis Visit 1' },
@@ -696,6 +713,20 @@ export const project: ProjectModule = {
           label: 'Already closed',
           description: 'Closing submitted — waiting on branch verification',
           apply: demo.closingSent,
+        },
+        // The same off-screen setting the schedule carries: Setor Sekarang on
+        // the titipan check opens whichever alternative is selected.
+        {
+          id: 'setor-alt-1',
+          label: 'Setor → Alt 1',
+          description: 'Setor Sekarang opens the first concept',
+          apply: demo.setorAltOne,
+        },
+        {
+          id: 'setor-alt-2',
+          label: 'Setor → Alt 2',
+          description: 'Setor Sekarang opens the new concept',
+          apply: demo.setorAltTwo,
         },
       ],
       flowsTo: [

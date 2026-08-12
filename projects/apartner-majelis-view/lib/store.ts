@@ -399,6 +399,15 @@ export interface AppState {
   depositProof: boolean
   /** Submitted. Not "verified" — the branch confirms that, and it isn't today. */
   depositDone: boolean
+  /**
+   * Which setoran ALTERNATIVE the Setor buttons open — the first concept
+   * (`settlement`) or the new one (`setor-payment`). Both directions are live
+   * and neither has replaced the other, so the choice is a presentation
+   * setting: it is flipped from the state controls beside the device, off
+   * screen, rather than by a menu inside the prototype. The BP herself never
+   * picks between two versions of her own app.
+   */
+  setorAlt: 'settlement' | 'setor-payment'
 
   // --- NTB: prospects ------------------------------------------------------
 
@@ -533,6 +542,9 @@ const initial: AppState = {
   depositMethod: null,
   depositProof: false,
   depositDone: false,
+  // Alt 1 by default: the first concept is the one already under review, and
+  // the new one is the thing being shown against it.
+  setorAlt: 'settlement',
   leads: seedLeads,
   leadOrder: SEED_LEADS.map((l) => l.id),
   openLead: 'l1',
@@ -1215,6 +1227,10 @@ export const store = {
   },
   setDepositProof(depositProof: boolean) {
     store.set({ depositProof })
+  },
+  /** Which setoran alternative the Setor buttons open. Presentation only. */
+  setSetorAlt(setorAlt: AppState['setorAlt']) {
+    store.set({ setorAlt })
   },
   /**
    * Hands over everything outstanding. There is no amount argument on purpose:
