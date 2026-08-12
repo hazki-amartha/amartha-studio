@@ -47,12 +47,19 @@ import {
   subscribeInspectMode,
 } from '@/platform/runtime/inspectBridge'
 import {
+  getEditMode,
+  getEditServerSnapshot,
+  setEditMode,
+  subscribeEditMode,
+} from '@/platform/runtime/editBridge'
+import {
   getBareMode,
   getBareServerSnapshot,
   setBareMode,
   subscribeBareMode,
 } from '@/platform/runtime/presentBridge'
 import { InspectLayer, InspectorPanel } from '@/platform/inspect'
+import { EditPanel } from '@/platform/edit'
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '@/platform/chrome/icons'
 import { DeviceFrame } from './DeviceFrame'
 import { DEVICE_SPECS, outerSize } from './device'
@@ -416,14 +423,16 @@ function DeviceStepper({ children }: { children: ReactNode }) {
   )
 }
 
-/** Inspect-mode plumbing shared by both framed layouts: the mode flag, and the
- *  pinned element that must be dropped whenever the screen under it remounts. */
+/** Pick-mode plumbing shared by both framed layouts: the inspect and edit
+ *  flags (both ride the same pick layer), and the pinned element that must be
+ *  dropped whenever the screen under it remounts. */
 function useInspectState() {
   const inspect = useSyncExternalStore(
     subscribeInspectMode,
     getInspectMode,
     getInspectServerSnapshot,
   )
+  const edit = useSyncExternalStore(subscribeEditMode, getEditMode, getEditServerSnapshot)
   const [pinned, setPinned] = useState<Element | null>(null)
   const { current } = useFlow()
 
@@ -431,14 +440,14 @@ function useInspectState() {
   // at a node that is no longer in the document.
   useEffect(() => setPinned(null), [current])
   useEffect(() => {
-    if (!inspect) setPinned(null)
-  }, [inspect])
+    if (!inspect && !edit) setPinned(null)
+  }, [inspect, edit])
 
-  return { inspect, pinned, setPinned, current }
+  return { inspect, edit, pinned, setPinned, current }
 }
 
 function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
-  const { inspect, pinned, setPinned, current } = useInspectState()
+  const { inspect, edit, pinned, setPinned, current } = useInspectState()
 
   return (
     <div
@@ -451,13 +460,21 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
       <DeviceStepper>
         <ScaledDevice>
           <DeviceFrame>
-            <AppViewport inspect={inspect} pinned={pinned} onPin={setPinned} />
+            <AppViewport inspect={inspect || edit} pinned={pinned} onPin={setPinned} />
           </DeviceFrame>
         </ScaledDevice>
       </DeviceStepper>
-      {/* Notes and the inspector answer different questions; nobody wants both
-          at once, so they share the column rather than competing for width. */}
-      {inspect ? (
+      {/* Notes, the inspector, and the edit panel answer different questions;
+          nobody wants two at once, so they share the column. */}
+      {edit ? (
+        <EditPanel
+          className={styles.annotations}
+          pinned={pinned}
+          onPin={setPinned}
+          slug={config.slug}
+          screenId={current}
+        />
+      ) : inspect ? (
         <InspectorPanel
           className={styles.annotations}
           pinned={pinned}
@@ -514,7 +531,7 @@ function DrawerTab({
  * IS the request to see it.
  */
 function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
-  const { inspect, pinned, setPinned, current } = useInspectState()
+  const { inspect, edit, pinned, setPinned, current } = useInspectState()
   const [notesOpen, setNotesOpen] = useState(false)
   const [statesOpen, setStatesOpen] = useState(false)
 
@@ -524,7 +541,7 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
     (active?.notes?.length ?? 0) > 0 || (config.notes?.length ?? 0) > 0
 
   const spec = DEVICE_SPECS.desktop
-  const rightOpen = inspect || (hasNotes && notesOpen)
+  const rightOpen = inspect || edit || (hasNotes && notesOpen)
 
   return (
     <div
@@ -533,7 +550,12 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
       <DeviceStepper>
         <FittedDevice spec={outerSize(spec)}>
           <DeviceFrame device="desktop">
-            <AppViewport device="desktop" inspect={inspect} pinned={pinned} onPin={setPinned} />
+            <AppViewport
+              device="desktop"
+              inspect={inspect || edit}
+              pinned={pinned}
+              onPin={setPinned}
+            />
           </DeviceFrame>
         </FittedDevice>
       </DeviceStepper>
@@ -546,7 +568,7 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
           label="States"
         />
       ) : null}
-      {hasNotes && !inspect ? (
+      {hasNotes && !inspect && !edit ? (
         <DrawerTab
           side="right"
           open={notesOpen}
@@ -566,7 +588,15 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
         <div
           className={`rounded-16 bg-neutral-white p-12 dark:bg-ink-900 ${styles.drawer} ${styles.drawerRight}`}
         >
-          {inspect ? (
+          {edit ? (
+            <EditPanel
+              className="w-full"
+              pinned={pinned}
+              onPin={setPinned}
+              slug={config.slug}
+              screenId={current}
+            />
+          ) : inspect ? (
             <InspectorPanel
               className="w-full"
               pinned={pinned}
@@ -705,6 +735,7 @@ export function PrototypeView({ config, initialScreenId, initialBare }: Prototyp
   useEffect(
     () => () => {
       setInspectMode(false)
+      setEditMode(false)
       setBareMode(false)
     },
     [],

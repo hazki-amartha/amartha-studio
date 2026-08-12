@@ -129,6 +129,14 @@ export const FlowIcon = icon(
   </>,
 )
 
+// Edit — a pencil: pick an element, tweak its tokens.
+export const EditIcon = icon(
+  <>
+    <path d="M17 3.5a2.5 2.5 0 0 1 3.5 3.5L8 19.5 3 21l1.5-5L17 3.5z" />
+    <path d="M14.5 6l3.5 3.5" />
+  </>,
+)
+
 // Inspect — a marquee with a cursor in it: pick an element, read its spec.
 export const InspectIcon = icon(
   <>
