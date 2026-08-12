@@ -119,6 +119,37 @@ const textAliasByHex = invert(theme.extend?.textColor ?? {}, normaliseColor)
 const borderAliasByHex = invert(theme.extend?.borderColor ?? {}, normaliseColor)
 const bgAliasByHex = invert(theme.extend?.backgroundColor ?? {}, normaliseColor)
 
+// --- ordered scales (for the edit panel's steppers and pickers) --------------
+
+/** Numeric-ish scale names in ascending px order; non-numeric names (`full`,
+ *  `none`) keep their declared position at the ends. */
+function orderedNames(scale: Scale): string[] {
+  return Object.keys(scale).sort((a, b) => {
+    const pa = parseFloat(toPx(scale[a]))
+    const pb = parseFloat(toPx(scale[b]))
+    if (Number.isNaN(pa) || Number.isNaN(pb)) return 0
+    return pa - pb
+  })
+}
+
+/** Spacing token names, ascending: 0, 2, 4, … 48. */
+export const spacingNames = orderedNames(spacing)
+/** Radius token names, ascending, `full` last. */
+export const radiusNames = orderedNames(radius)
+/** Font-size token names, ascending. */
+export const fontSizeNames = orderedNames(fontSize)
+/** Font-weight token names in declared order (regular, bold). */
+export const fontWeightNames = Object.keys(fontWeight)
+
+/** Colour scale entries as `[name, hex]`, declared order — primary first,
+ *  `transparent`/`current` filtered out since neither is a paintable pick. */
+export const colorEntries: [string, string][] = Object.entries(colorScale).filter(
+  ([name]) => name !== 'transparent' && name !== 'current',
+)
+
+/** Semantic text-colour aliases as `[name, value]` (default, caption, …). */
+export const textAliasEntries: [string, string][] = Object.entries(theme.extend?.textColor ?? {})
+
 export type ColorRole = 'text' | 'border' | 'bg'
 
 /**

@@ -17,6 +17,12 @@ import {
   subscribeInspectMode,
 } from '@/platform/runtime/inspectBridge'
 import {
+  getEditMode,
+  getEditServerSnapshot,
+  setEditMode,
+  subscribeEditMode,
+} from '@/platform/runtime/editBridge'
+import {
   getBareMode,
   getBareServerSnapshot,
   setBareMode,
@@ -27,6 +33,7 @@ import { HeaderStatusProvider, useHeaderStatus } from './headerStatus'
 import {
   ChevronRightIcon,
   DeviceIcon,
+  EditIcon,
   ExpandIcon,
   FlowIcon,
   InspectIcon,
@@ -100,30 +107,65 @@ function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
     getInspectMode,
     getInspectServerSnapshot,
   )
+  const edit = useSyncExternalStore(subscribeEditMode, getEditMode, getEditServerSnapshot)
 
   const base =
     'flex items-center gap-4 rounded-full px-12 py-4 text-12 transition-colors'
   const on = `${base} bg-neutral-white font-bold text-link shadow-sm dark:border dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50 dark:shadow-none`
   const off = `${base} text-caption hover:text-default dark:border dark:border-transparent dark:text-neutral-400 dark:hover:text-neutral-50`
 
-  const showingPrototype = !isFlow && !inspect
-  const showingInspect = !isFlow && inspect
+  const showingPrototype = !isFlow && !inspect && !edit
+  const showingInspect = !isFlow && inspect && !edit
+  const showingEdit = !isFlow && edit
+
+  const enterInspect = () => {
+    setEditMode(false)
+    setInspectMode(true)
+  }
+  const enterEdit = () => {
+    setInspectMode(false)
+    setEditMode(true)
+  }
+  const leaveModes = () => {
+    setInspectMode(false)
+    setEditMode(false)
+  }
 
   return (
     <div className="flex shrink-0 items-center gap-2 rounded-full bg-neutral-50 p-2 dark:bg-ink-950">
       <Link
         href={`/p/${slug}`}
-        onClick={() => setInspectMode(false)}
+        onClick={leaveModes}
         aria-current={showingPrototype ? 'page' : undefined}
         className={showingPrototype ? on : off}
       >
         <DeviceIcon className="size-16" />
         Prototype
       </Link>
+      {/* Edit writes to source through the dev server; a deployed build has no
+          files behind it, so the segment does not exist outside dev. */}
+      {process.env.NODE_ENV === 'development' ? (
+        isFlow ? (
+          <Link href={`/p/${slug}`} onClick={enterEdit} className={off}>
+            <EditIcon className="size-16" />
+            Edit
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={enterEdit}
+            aria-current={showingEdit ? 'page' : undefined}
+            className={showingEdit ? on : off}
+          >
+            <EditIcon className="size-16" />
+            Edit
+          </button>
+        )
+      ) : null}
       {isFlow ? (
         <Link
           href={`/p/${slug}`}
-          onClick={() => setInspectMode(true)}
+          onClick={enterInspect}
           className={off}
         >
           <InspectIcon className="size-16" />
@@ -132,7 +174,7 @@ function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
       ) : (
         <button
           type="button"
-          onClick={() => setInspectMode(true)}
+          onClick={enterInspect}
           aria-current={showingInspect ? 'page' : undefined}
           className={showingInspect ? on : off}
         >
@@ -142,7 +184,7 @@ function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
       )}
       <Link
         href={`/p/${slug}/flow`}
-        onClick={() => setInspectMode(false)}
+        onClick={leaveModes}
         aria-current={isFlow ? 'page' : undefined}
         className={isFlow ? on : off}
       >
