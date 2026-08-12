@@ -42,6 +42,7 @@ import {
 } from '../lib/schedule'
 import { IconCheck, IconChevronDown, IconInbox, IconWallet } from '../lib/icons'
 import { CloudArrowUp } from '@/design-system/icons'
+import { SetorAltSheet } from '../lib/setor'
 import { SkipVisitSheet, VisitGateSheet } from '../lib/visit-sheets'
 import {
   canSettle,
@@ -361,6 +362,9 @@ export function TodayScreen() {
   const [status, setStatus] = useState<TaskStatus | null>(null)
   const [menu, setMenu] = useState<'kind' | 'status' | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
+  // Which setoran alternative to walk — asked by the Setor button, since both
+  // directions are live and neither has replaced the other.
+  const [pickingAlt, setPickingAlt] = useState(false)
   // The majelis task waiting on the door question, and — if the answer was "no
   // one came" — the same task waiting on its proof. Two pieces of state rather
   // than one flag, because the second sheet has to survive the first closing.
@@ -585,11 +589,11 @@ export function TodayScreen() {
             className="h-40 shrink-0 px-16"
             disabled={!canSetorNow}
             onClick={() => {
+              // Neither alternative has replaced the other, so the button
+              // asks which one to walk. The store is reset here rather than
+              // inside the sheet: both roads start from the same clean bag.
               store.openSettlement()
-              // The New Concept journey. The older `settlement` screen is
-              // still in the project, reachable from the screen list, so the
-              // two directions can be read against each other.
-              flow.go('setor-payment')
+              setPickingAlt(true)
             }}
           >
             Setor
@@ -854,6 +858,15 @@ export function TodayScreen() {
       )}
 
       <DayPicker open={picking} onClose={() => setPicking(false)} />
+
+      <SetorAltSheet
+        open={pickingAlt}
+        onClose={() => setPickingAlt(false)}
+        onPick={(screenId) => {
+          setPickingAlt(false)
+          flow.go(screenId)
+        }}
+      />
 
       {/* The door question, and the proof it hands off to when the answer is
           that nobody came. Both keyed off the task that was tapped, so the

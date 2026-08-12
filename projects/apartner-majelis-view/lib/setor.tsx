@@ -13,11 +13,12 @@
 // draw their result on the row rather than reaching for a bank.
 
 import type { ReactNode } from 'react'
-import { Badge, Button, Card } from '@/design-system/components'
+import { Badge, BottomSheet, Button, Card } from '@/design-system/components'
 import {
   Check,
   CheckCircleFill,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Copy,
   Hourglass,
@@ -53,6 +54,76 @@ export const setorLegs = (no: number, amount: number): SetorLeg[] => {
     { name: SETOR_ENTITIES[0], number: vaFor(no, 1), amount: first },
     { name: SETOR_ENTITIES[1], number: vaFor(no, 2), amount: second },
   ]
+}
+
+// --- SetorAltSheet ---------------------------------------------------------
+// The fork in front of both setor doors: two whole directions for the same act,
+// picked before either opens.
+//
+// It exists because neither alternative has replaced the other. A prototype
+// that quietly swapped one for the other would hide exactly what is under
+// review — the two are meant to be walked back to back in one demo, from the
+// same button, without anyone going to look for the other one.
+//
+// So the sheet names them as alternatives rather than as an old and a new, and
+// each carries the one line that says how it differs: alt 1 opens on WHAT is
+// being settled, alt 2 opens on HOW.
+
+export const SETOR_ALTS: { id: string; label: string; title: string; description: string }[] = [
+  {
+    id: 'settlement',
+    label: 'Alt 1',
+    title: 'Setoran',
+    description: 'Pilih dulu uang mana yang disetor, lalu metodenya.',
+  },
+  {
+    id: 'setor-payment',
+    label: 'Alt 2',
+    title: 'Setor pembayaran',
+    description: 'Langsung pilih metode; setor sebagian kalau perlu.',
+  },
+]
+
+export function SetorAltSheet({
+  open,
+  onClose,
+  onPick,
+}: {
+  open: boolean
+  onClose: () => void
+  /** The screen id of the chosen alternative. */
+  onPick: (screenId: string) => void
+}) {
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="Pilih alur setoran"
+      description="Dua alternatif untuk setoran yang sama."
+    >
+      <div className="flex flex-col gap-8">
+        {SETOR_ALTS.map((alt) => (
+          <button
+            key={alt.id}
+            type="button"
+            onClick={() => onPick(alt.id)}
+            className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left"
+          >
+            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-12 font-bold text-primary-500">
+              {alt.label}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col gap-2">
+              <span className="truncate text-14 font-bold text-default">{alt.title}</span>
+              <span className="text-12 text-caption">{alt.description}</span>
+            </span>
+            <span className="shrink-0 text-disabled">
+              <ChevronRight size={20} />
+            </span>
+          </button>
+        ))}
+      </div>
+    </BottomSheet>
+  )
 }
 
 // --- SetorSummary ----------------------------------------------------------
