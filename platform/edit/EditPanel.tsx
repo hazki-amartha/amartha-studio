@@ -724,6 +724,15 @@ function ActionsFooter({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* The one thing a designer must know after Apply: saved ≠ live. Said at
+          the moment they'd wonder, not in a doc they'll never open. */}
+      {n === 0 && !store.busy && lastApplied ? (
+        <p className="text-12 text-caption dark:text-neutral-400">
+          Saved to your working copy — not live yet. Say{' '}
+          <span className="font-bold">commit</span> or <span className="font-bold">push</span>{' '}
+          when you’re ready.
+        </p>
+      ) : null}
       <button
         type="button"
         onClick={() => void applyPending()}

@@ -433,6 +433,27 @@ studio.
 clean them up yourself. You may use a git worktree internally for parallel work,
 but a designer never sees or manages one — it is never part of their vocabulary.
 
+### Edit-mode tweaks — files can change without you
+
+The studio shell's **Edit mode** lets a designer tweak token values, text, and
+component props themselves; pressing **Apply** writes those tweaks straight
+into `projects/<slug>/` on the dev server. Treat them as the designer's own
+work, with three rules:
+
+- **They ride commit and push silently.** "Commit it" includes whatever panel
+  tweaks are in the working tree — don't quiz the designer about edits they
+  made themselves.
+- **Check where they landed before committing.** Panel tweaks make it one
+  click to touch the wrong project. A tweak inside another designer's
+  `projects/<slug>/`, or inside a `status: 'live'` project (production
+  documentation, §2), is almost always a stray test — surface it and ask
+  instead of shipping it. Everything in the designer's own project ships
+  without comment.
+- **"Apply" is not a third verb.** It saves to the working copy, nothing more.
+  The panel already says so; if a designer still thinks Apply made something
+  live, say plainly that applied tweaks are saved but not live until they say
+  push — and don't expand the vocabulary beyond commit and push.
+
 This section governs *communication and defaults only*. The tier rules (§1),
 branch naming (§5), and the verification gate (§6) still hold exactly as written —
 this just says how to carry them out without taxing the designer.
