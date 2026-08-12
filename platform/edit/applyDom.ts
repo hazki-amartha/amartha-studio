@@ -12,6 +12,55 @@
 // reports the count so the panel can say "applies to 4 items" up front.
 // =============================================================================
 
+import { COMPONENT_BASE, COMPONENT_PROPS } from './componentProps'
+
+/**
+ * Repaint a component for a prop change, live.
+ *
+ * A component styles itself from its props, so unlike a token swap there is no
+ * authored class to exchange — the `ds-*` class comes from inside the
+ * component. Swapping it here from the same table the component uses is what
+ * makes "make this button secondary" visible immediately rather than only
+ * after the file write.
+ *
+ * The styled node is found by the component's base class rather than assumed
+ * to be the pinned one: Input and Toggle stamp `data-fds` on their outermost
+ * wrapper when they render a labelled field, leaving the size class inside.
+ *
+ * Returns whether a visual change was made — false for props whose effect
+ * isn't a class (a swapped icon, an input's `type`), which the panel reports
+ * rather than leaving the designer waiting for a repaint that never comes.
+ */
+export function applyPropPreview(
+  el: Element,
+  component: string,
+  prop: string,
+  from: string,
+  to: string,
+): boolean {
+  const meta = COMPONENT_PROPS[component]?.find((p) => p.prop === prop)
+  if (!meta) return false
+
+  // The attribute is the panel's own source of truth for "what is it now", so
+  // it moves whether or not anything repaints.
+  el.setAttribute(`data-fds-${meta.attr}`, to)
+  if (!meta.classes) return false
+
+  const base = COMPONENT_BASE[component]
+  const styled = !base
+    ? el
+    : el.matches(`.${base}`)
+      ? el
+      : el.querySelector(`.${base}`)
+  if (!styled) return false
+
+  const before = meta.classes[from]
+  const after = meta.classes[to]
+  if (before) styled.classList.remove(before)
+  if (after) styled.classList.add(after)
+  return true
+}
+
 /** Every element in the viewport sharing `el`'s exact className — the set a
  *  single-source-line edit will really change. Always includes `el`. */
 export function classPeers(el: Element): Element[] {
@@ -69,7 +118,9 @@ export function revertStagedPatch(
 
   const attr = attrOfProp ?? edit.prop
   const el = root.querySelector(`[data-fds="${edit.component}"][data-fds-${attr}="${edit.next}"]`)
-  el?.setAttribute(`data-fds-${attr}`, edit.old)
+  // Same path as applying, run backwards — so a removed prop change puts the
+  // component's own styling back, not just its stamp.
+  if (el) applyPropPreview(el, edit.component, edit.prop, edit.next, edit.old)
 }
 
 /** What re-finds the element after fast refresh remounts the screen. */

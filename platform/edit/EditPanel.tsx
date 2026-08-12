@@ -43,6 +43,7 @@ import {
 } from '@/platform/inspect/tokenMap'
 import {
   applyClassSwap,
+  applyPropPreview,
   classPeers,
   findRepin,
   repinOf,
@@ -322,10 +323,7 @@ export function EditPanel({ pinned, onPin, slug, screenId, className }: EditPane
       if (old === next) return
       const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)
       stagePropEdit(slug, screenId, component, prop, old, next, text)
-      // No optimistic restyle is possible — the component renders its own
-      // classes — but reflecting the attribute keeps the dropdown honest until
-      // Apply repaints the real thing.
-      el.setAttribute(`data-fds-${attr}`, next)
+      applyPropPreview(el, component, prop, old, next)
       repinRef.current = repinOf(el)
       bump()
     },
@@ -487,22 +485,31 @@ export function EditPanel({ pinned, onPin, slug, screenId, className }: EditPane
             {editableProps.map((p) => {
               const current = pinned?.getAttribute(`data-fds-${p.attr}`) ?? p.values[0]
               return (
-                <label key={p.prop} className="flex items-center justify-between gap-8">
-                  <RowLabel>{p.prop}</RowLabel>
-                  <select
-                    value={current}
-                    onChange={(e) =>
-                      changeProp(target.component ?? '', p.prop, p.attr, e.target.value)
-                    }
-                    className="rounded-8 border border-default bg-neutral-white px-8 py-4 text-12 text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
-                  >
-                    {p.values.map((v) => (
-                      <option key={v} value={v}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div key={p.prop} className="flex flex-col gap-2">
+                  <label className="flex items-center justify-between gap-8">
+                    <RowLabel>{p.prop}</RowLabel>
+                    <select
+                      value={current}
+                      onChange={(e) =>
+                        changeProp(target.component ?? '', p.prop, p.attr, e.target.value)
+                      }
+                      className="rounded-8 border border-default bg-neutral-white px-8 py-4 text-12 text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
+                    >
+                      {p.values.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {/* Honesty over silence: these change something the preview
+                      can't fake, so say when it will actually show up. */}
+                  {!p.classes ? (
+                    <span className="text-10 text-placeholder dark:text-neutral-600">
+                      Shows after Apply
+                    </span>
+                  ) : null}
+                </div>
               )
             })}
           </div>
