@@ -58,7 +58,7 @@ import {
   setBareMode,
   subscribeBareMode,
 } from '@/platform/runtime/presentBridge'
-import { InspectLayer, InspectorPanel } from '@/platform/inspect'
+import { InspectLayer, InspectorPanel, LayersPanel } from '@/platform/inspect'
 import { EditPanel } from '@/platform/edit'
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '@/platform/chrome/icons'
 import { DeviceFrame } from './DeviceFrame'
@@ -112,11 +112,13 @@ function AppViewport({
   inspect,
   pinned,
   onPin,
+  preview,
 }: {
   device?: DeviceKind
   inspect?: boolean
   pinned?: Element | null
   onPin?: (el: Element | null) => void
+  preview?: Element | null
 } = {}) {
   return (
     <div
@@ -125,7 +127,9 @@ function AppViewport({
       data-inspect={inspect ? 'on' : undefined}
     >
       <ScreenStage />
-      {inspect && onPin ? <InspectLayer pinned={pinned ?? null} onPin={onPin} /> : null}
+      {inspect && onPin ? (
+        <InspectLayer pinned={pinned ?? null} onPin={onPin} preview={preview} />
+      ) : null}
     </div>
   )
 }
@@ -434,20 +438,53 @@ function useInspectState() {
   )
   const edit = useSyncExternalStore(subscribeEditMode, getEditMode, getEditServerSnapshot)
   const [pinned, setPinned] = useState<Element | null>(null)
+  // The layers outline's hovered row, highlighted in the device.
+  const [preview, setPreview] = useState<Element | null>(null)
   const { current } = useFlow()
 
   // Screens remount on every navigation, so a pin held across one would point
   // at a node that is no longer in the document.
   useEffect(() => setPinned(null), [current])
+  useEffect(() => setPreview(null), [current])
   useEffect(() => {
-    if (!inspect && !edit) setPinned(null)
+    if (!inspect && !edit) {
+      setPinned(null)
+      setPreview(null)
+    }
   }, [inspect, edit])
 
-  return { inspect, edit, pinned, setPinned, current }
+  return { inspect, edit, pinned, setPinned, preview, setPreview, current }
+}
+
+/** The left column while picking: the outline, in the slot a design tool puts
+ *  layers in. Falls back to the states panel — which is also the invisible
+ *  spacer that keeps the device optically centred — the rest of the time. */
+function LeftColumn({
+  picking,
+  screens,
+  pinned,
+  onPin,
+  onHover,
+  className,
+  collapsible,
+}: {
+  picking: boolean
+  screens: ScreenDef[]
+  pinned: Element | null
+  onPin: (el: Element | null) => void
+  onHover: (el: Element | null) => void
+  className?: string
+  collapsible?: boolean
+}) {
+  if (picking) {
+    return <LayersPanel className={className} pinned={pinned} onPin={onPin} onHover={onHover} />
+  }
+  return <StatesPanel screens={screens} className={className} collapsible={collapsible} />
 }
 
 function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
-  const { inspect, edit, pinned, setPinned, current } = useInspectState()
+  const { inspect, edit, pinned, setPinned, preview, setPreview, current } = useInspectState()
+  const picking = inspect || edit
 
   return (
     <div
@@ -456,11 +493,24 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
       {/* Mirrors the caption column, so the device stays optically centred
           whether or not the active screen declares any states. Collapsible here
           because this layout has no drawer tab to put it behind. */}
-      <StatesPanel screens={screens} collapsible />
+      <LeftColumn
+        picking={picking}
+        screens={screens}
+        className={styles.states}
+        collapsible
+        pinned={pinned}
+        onPin={setPinned}
+        onHover={setPreview}
+      />
       <DeviceStepper>
         <ScaledDevice>
           <DeviceFrame>
-            <AppViewport inspect={inspect || edit} pinned={pinned} onPin={setPinned} />
+            <AppViewport
+              inspect={picking}
+              pinned={pinned}
+              onPin={setPinned}
+              preview={preview}
+            />
           </DeviceFrame>
         </ScaledDevice>
       </DeviceStepper>
@@ -531,7 +581,7 @@ function DrawerTab({
  * IS the request to see it.
  */
 function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
-  const { inspect, edit, pinned, setPinned, current } = useInspectState()
+  const { inspect, edit, pinned, setPinned, preview, setPreview, current } = useInspectState()
   const [notesOpen, setNotesOpen] = useState(false)
   const [statesOpen, setStatesOpen] = useState(false)
 
@@ -540,8 +590,13 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
   const hasNotes =
     (active?.notes?.length ?? 0) > 0 || (config.notes?.length ?? 0) > 0
 
+  const picking = inspect || edit
   const spec = DEVICE_SPECS.desktop
-  const rightOpen = inspect || edit || (hasNotes && notesOpen)
+  const rightOpen = picking || (hasNotes && notesOpen)
+  // While picking, the left drawer is the outline — always available, since
+  // selection is the point of the mode and a screen need not declare states.
+  const leftLabel = picking ? 'Layers' : 'States'
+  const hasLeft = picking || hasStates
 
   return (
     <div
@@ -552,23 +607,24 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
           <DeviceFrame device="desktop">
             <AppViewport
               device="desktop"
-              inspect={inspect || edit}
+              inspect={picking}
               pinned={pinned}
               onPin={setPinned}
+              preview={preview}
             />
           </DeviceFrame>
         </FittedDevice>
       </DeviceStepper>
 
-      {hasStates ? (
+      {hasLeft ? (
         <DrawerTab
           side="left"
           open={statesOpen}
           onClick={() => setStatesOpen((v) => !v)}
-          label="States"
+          label={leftLabel}
         />
       ) : null}
-      {hasNotes && !inspect && !edit ? (
+      {hasNotes && !picking ? (
         <DrawerTab
           side="right"
           open={notesOpen}
@@ -577,11 +633,18 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
         />
       ) : null}
 
-      {hasStates && statesOpen ? (
+      {hasLeft && statesOpen ? (
         <div
           className={`rounded-16 bg-neutral-white p-12 dark:bg-ink-900 ${styles.drawer} ${styles.drawerLeft}`}
         >
-          <StatesPanel screens={screens} className="w-full" />
+          <LeftColumn
+            picking={picking}
+            screens={screens}
+            className="w-full"
+            pinned={pinned}
+            onPin={setPinned}
+            onHover={setPreview}
+          />
         </div>
       ) : null}
       {rightOpen ? (
