@@ -468,6 +468,14 @@
 }
 .ds-card-flush { padding: 0; overflow: hidden; }
 
+/* Radius modifiers. 16px is .ds-card's own, so it has no class — these are the
+   other radius tokens a card-shaped surface is drawn with. Declared after the
+   base rule so a modifier always wins, whatever order the utilities load in. */
+.ds-card-r8  { border-radius: 8px; }
+.ds-card-r12 { border-radius: 12px; }
+.ds-card-r20 { border-radius: 20px; }
+.ds-card-r24 { border-radius: 24px; }
+
 /* FunDS List Row component styles */
 .ds-listrow {
   display: flex; align-items: center; gap: 12px;
