@@ -23,8 +23,16 @@ export type DeviceKind = 'mobile' | 'desktop'
  *  design is settled, which is not the same as shipped. */
 export type ProjectStatus = 'draft' | 'in-review' | 'final' | 'live'
 
-/** Product the prototype belongs to. Add a member here (Tier 2) to onboard a
- *  new platform; omit the field entirely for studio-internal work. */
+/** Business unit that owns the work. This is the gallery's top-level foldering:
+ *  a BU is an organisational home that outlives any one product, so it is the
+ *  stable thing to file by. Add a member here (Tier 2) to onboard a new BU;
+ *  omit the field entirely for studio-internal work. */
+export type BusinessUnit = 'Lending' | 'Funding' | 'Core' | 'Payments'
+
+/** Product the prototype belongs to. A platform lives inside a business unit
+ *  and is a filter, not a folder — one BU ships several, and a prototype can
+ *  outlive the product name it started under. Add a member here (Tier 2) to
+ *  onboard a new platform; omit the field entirely for studio-internal work. */
 export type Platform = 'APartner' | 'AFIN' | 'NGMIS'
 
 export interface ProjectConfig {
@@ -32,12 +40,16 @@ export interface ProjectConfig {
   slug: string
   /** Feature or initiative name — the platform (below) carries the product. */
   name: string
+  /** Business unit this prototype is filed under — the gallery's L1 folder.
+   *  Omit for studio-internal work. */
+  businessUnit?: BusinessUnit
   /** Product this prototype belongs to. Omit for studio-internal work. */
   platform?: Platform
   /** Designer(s) who own this — one name or several. Ownership (§1) is
    *  checked against these by convention. */
   owner: string | string[]
-  /** One-paragraph description for the gallery card. */
+  /** One-line caption for the gallery card — it sits under the name in a
+   *  three-across grid, so anything longer is clipped rather than read. */
   description: string
   device: DeviceKind
   status: ProjectStatus
