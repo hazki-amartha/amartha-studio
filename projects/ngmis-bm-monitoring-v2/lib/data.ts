@@ -98,7 +98,7 @@ export function measureTone(
   measureIndex: number,
 ): Tone {
   const first = cells[section.measures[0].id]
-  const second = cells[section.measures[1].id]
+  const second = section.measures.length > 1 ? cells[section.measures[1].id] : 0
   if (measureIndex === 0) {
     // Cash settlement Outstanding: green when nothing is left (fully settled),
     // red when any is outstanding.
@@ -191,11 +191,9 @@ const TARGET_COMPLETED: Measure[] = [
   { id: 'completed', label: 'Completed', actual: true },
 ]
 
-// DPD 1-30 and 31-90 active loans — reused so the BTC target is their sum (the
-// overdue accounts to bring back to current).
+// DPD 1-30 and 31-90 active loans, shared by the Repayment rows.
 const DPD130_AKTIF = [10, 8, 12, 9, 11, 10]
 const DPD3190_AKTIF = [10, 8, 12, 9, 11, 10]
-const BTC_TARGET = DPD130_AKTIF.map((v, i) => v + DPD3190_AKTIF[i])
 
 export const SECTIONS: MatrixSection[] = [
   section(
@@ -203,11 +201,12 @@ export const SECTIONS: MatrixSection[] = [
     'Task',
     TARGET_COMPLETED,
     [
-      { id: 'hv', label: 'HV', m: { target: [3, 3, 3, 4, 3, 3], completed: [2, 3, 3, 2, 1, 2] } },
       { id: 'mv', label: 'MV', m: { target: [6, 6, 6, 6, 6, 6], completed: [6, 6, 4, 6, 5, 6] } },
-      { id: 'sos', label: 'SOS', m: { target: [2, 2, 2, 3, 2, 2], completed: [1, 2, 1, 2, 0, 1] } },
-      { id: 'fu', label: 'FU', m: { target: [1, 1, 1, 1, 1, 1], completed: [1, 1, 0, 1, 1, 1] } },
-      { id: 'uk', label: 'UK', m: { target: [2, 1, 3, 2, 1, 2], completed: [2, 1, 2, 2, 1, 2] } },
+      { id: 'hv', label: 'HV', m: { target: [3, 3, 3, 4, 3, 3], completed: [2, 3, 3, 2, 1, 2] } },
+      { id: 'ntb-fu', label: 'NTB - FU', m: { target: [1, 1, 1, 1, 1, 1], completed: [1, 1, 0, 1, 1, 1] } },
+      { id: 'ntb-sos', label: 'NTB - Sos', m: { target: [2, 2, 2, 3, 2, 2], completed: [1, 2, 1, 2, 0, 1] } },
+      { id: 'etb-renewal', label: 'ETB - Renewal', m: { target: [2, 1, 3, 2, 1, 2], completed: [2, 1, 2, 2, 1, 2] } },
+      { id: 'etb-topup', label: 'ETB - Top-up', m: { target: [2, 2, 1, 2, 3, 2], completed: [1, 2, 1, 1, 2, 2] } },
       { id: 'tutup-hari', label: 'Tutup hari', merged: true, m: {} },
     ],
     true,
@@ -231,52 +230,29 @@ export const SECTIONS: MatrixSection[] = [
     true,
   ),
   section(
-    'btc-flow',
-    'BTC & Flow',
-    TARGET_COMPLETED,
-    [
-      // BTC target = the overdue accounts (DPD 1-30 + 31-90) to bring back to
-      // current; red when fewer are brought back than targeted.
-      { id: 'btc', label: 'BTC', redWhen: 'below',
-        m: { target: BTC_TARGET, completed: [18, 16, 20, 18, 15, 20] } },
-      // Flow = accounts slipping into overdue; target is 0, red when any flow in.
-      { id: 'flow', label: 'Flow', redWhen: 'above',
-        m: { target: [0, 0, 0, 0, 0, 0], completed: [0, 1, 0, 2, 0, 1] } },
-    ],
-  ),
-  section(
     'cash-settlement',
     'Cash settlement',
+    [{ id: 'outstanding', label: 'Outstanding', actual: true }],
     [
-      { id: 'outstanding', label: 'Outstanding', actual: true },
-      { id: 'settled', label: 'Settled', actual: true },
-    ],
-    [
-      // Outstanding = collected but not yet settled today (red when any is left);
-      // Settled = cleared today.
+      // Outstanding = cash collected but not yet settled today (red when any left).
       { id: 'setoran', label: 'Cash settlement', kind: 'rupiah', firstRedWhenPositive: true,
-        m: {
-          outstanding: [5_000_000, 0, 3_000_000, 3_000_000, 1_000_000, 2_000_000],
-          settled: [10_000_000, 12_000_000, 6_000_000, 15_000_000, 7_000_000, 9_000_000],
-        } },
+        m: { outstanding: [5_000_000, 0, 3_000_000, 3_000_000, 1_000_000, 2_000_000] } },
     ],
   ),
   section(
     'disbursement',
     'Disbursement',
-    TARGET_COMPLETED,
+    [{ id: 'completed', label: 'Completed', actual: true }],
     [
-      { id: 'uk-approved', label: 'UK Approved',
-        m: { target: [4, 1, 3, 4, 2, 3], completed: [4, 1, 2, 4, 1, 2] } },
-      { id: 'amount', label: 'Disbursement amount', kind: 'rupiah',
-        m: {
-          target: [45_000_000, 15_000_000, 30_000_000, 40_000_000, 12_000_000, 28_000_000],
-          completed: [45_000_000, 15_000_000, 20_000_000, 40_000_000, 12_000_000, 20_000_000],
-        } },
-      { id: 'leads', label: 'New leads from Sos',
-        m: { target: [15, 15, 15, 15, 15, 15], completed: [7, 5, 8, 9, 4, 6] } },
+      { id: 'ntb-mitra', label: 'NTB - Mitra new',
+        m: { completed: [4, 1, 2, 4, 1, 2] } },
+      { id: 'ntb-amount', label: 'NTB - Disbursement amount (Rp)', kind: 'rupiah',
+        m: { completed: [45_000_000, 15_000_000, 20_000_000, 40_000_000, 12_000_000, 20_000_000] } },
+      { id: 'etb-mitra', label: 'ETB - Renewal mitra',
+        m: { completed: [3, 2, 3, 3, 1, 3] } },
+      { id: 'etb-amount', label: 'ETB - Disbursement amount (Rp)', kind: 'rupiah',
+        m: { completed: [28_000_000, 20_000_000, 25_000_000, 28_000_000, 15_000_000, 22_000_000] } },
     ],
-    true,
   ),
 ]
 
@@ -324,30 +300,6 @@ export function sectionsForBriefing(kind: BriefingKind): MatrixSection[] {
     }
     return { ...s, values }
   })
-}
-
-/** Total planned tasks for a BP today — the Task section's targets summed.
- *  Shown per BP on the morning briefing panel ("14 tugas"). */
-export function taskCount(bpId: string): number {
-  const task = SECTIONS.find((s) => s.id === 'task')
-  if (!task) return 0
-  const target = task.measures[0].id
-  return task.rows.reduce((sum, row) => sum + (task.values[bpId][row.id][target] ?? 0), 0)
-}
-
-/** How many of a BP's targets fell short across the day — counted in the sections
- *  that judge a shortfall (Task, Repayment, Disbursement, Cash settlement). Shown
- *  per BP on the evening briefing panel ("7 target belum terpenuhi"). */
-export function unmetTargets(bpId: string): number {
-  let n = 0
-  for (const s of SECTIONS) {
-    if (!s.shortfallTone && !s.paidTone) continue
-    for (const row of s.rows) {
-      const cells = s.values[bpId][row.id]
-      if (cells[s.measures[1].id] < cells[s.measures[0].id]) n++
-    }
-  }
-  return n
 }
 
 /** The commentary column is keyed per section + per BP. */

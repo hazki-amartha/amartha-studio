@@ -106,7 +106,10 @@ function SectionMatrix({
   comment: CommentMode
 }) {
   const { measures } = section
-  const mw = MEASURE_W
+  // Every subject keeps the same per-BP width (two measures wide), so a 1-measure
+  // subject (Cash settlement's Outstanding) gets one double-width column and the
+  // BP columns still line up across every card.
+  const mw = (MEASURE_W * 2) / measures.length
   const totalWidth = W_LABEL + bps.length * measures.length * mw
 
   return (
@@ -199,7 +202,7 @@ function SectionMatrix({
                   : bps.flatMap((bp) => {
                       const cells = section.values[bp.id][row.id]
                       const first = cells[measures[0].id]
-                      const second = cells[measures[1].id]
+                      const second = measures.length > 1 ? cells[measures[1].id] : 0
                       return measures.map((mm, j) => {
                         const note = j === 1 ? noteText(row, first, second) : null
                         const tone = measureTone(section, row, cells, j)

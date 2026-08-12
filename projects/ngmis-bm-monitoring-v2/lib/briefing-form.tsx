@@ -13,7 +13,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useFlow } from '@/platform/runtime'
 import { Badge, Button } from '@/design-system/components'
-import { ArrowLeft, Camera, Check, NotePencil, Trash } from '@/design-system/icons'
+import { ArrowLeft, Camera, Check, Trash } from '@/design-system/icons'
 import { BmShell } from './shell'
 import { MicGlyph, PageHeading } from './ui'
 import { Scorecard } from './scorecard'
@@ -24,8 +24,6 @@ import {
   BRIEFING_LABEL,
   REPORT_DATE,
   sectionsForBriefing,
-  taskCount,
-  unmetTargets,
   type Bp,
   type BriefingKind,
 } from './data'
@@ -33,13 +31,29 @@ import { store, useFlowState, type BriefingDraft } from './store'
 
 /** Width of the sticky action panel (frame geometry → inline style). */
 const PANEL_W = 400
-const NOTE_MAX = 350
+
+/** The morning briefing's "what to do" checklist — the BM confirms each item. */
+const CHECKLIST_ITEMS = [
+  { id: 'chk-1', label: 'Are all BPs aware of the tasks?' },
+  { id: 'chk-2', label: 'Are all BPs aware of Repayment target?' },
+  { id: 'chk-3', label: 'Are all BPs aware of Outstanding cash that haven’t been settled?' },
+  { id: 'chk-4', label: 'Are all BPs aware of Disbursement target?' },
+]
+
+/** The evening briefing's checklist — just text pointers (placeholder for now). */
+const EVENING_POINTERS = [
+  'Poin 1 — teks placeholder pointer pertama.',
+  'Poin 2 — teks placeholder pointer kedua.',
+  'Poin 3 — teks placeholder pointer ketiga.',
+]
 
 /** What a submitted-but-not-authored-this-session briefing shows in read-only. */
 const SAMPLE_DRAFT: BriefingDraft = {
   attendance: {},
+  checklist: Object.fromEntries(CHECKLIST_ITEMS.map((i) => [i.id, true])),
   discussed: Object.fromEntries(BPS.map((b) => [b.id, true])),
   notes: { 'bp-c': 'DPD 0 masih di bawah target — dampingi penagihan Cenli.' },
+  report: 'Sebagian besar BP mencapai target; Cenli & Fadhil tertinggal di repayment.',
   overall: 'Hujan besar sepanjang pagi; sebagian BP terlambat turun ke lapangan.',
   photoAttached: true,
   recordings: 1,
@@ -67,11 +81,9 @@ export function BriefingForm({
   const draft = readOnly && !own ? SAMPLE_DRAFT : live
   const set = (patch: Partial<BriefingDraft>) => store.setDraft(kind, patch)
 
-  // Progress: one step per BP discussed, plus the photo. The overall note is
-  // optional, so it doesn't count.
-  const total = BPS.length + 1
-  const done = BPS.filter((b) => draft.discussed[b.id]).length + (draft.photoAttached ? 1 : 0)
-  const complete = done === total
+  // The photo (Bukti Kehadiran) is the one hard requirement to submit; the notes
+  // are all optional.
+  const complete = draft.photoAttached
 
   const submit = () => {
     store.markSubmitted(kind)
@@ -143,7 +155,9 @@ export function BriefingForm({
                   Submit briefing
                 </Button>
                 <span className="text-center text-12 text-caption">
-                  {done}/{total} selesai
+                  {complete
+                    ? 'Report briefing siap dikirim.'
+                    : 'Lampirkan foto bukti untuk mengirim.'}
                 </span>
               </>
             )}
@@ -170,7 +184,7 @@ function BriefingPanel({
   return (
     <div className="flex flex-col gap-16">
       <div className="flex items-center justify-between gap-12">
-        <span className="text-20 font-bold text-default">Catatan Briefing</span>
+        <span className="text-20 font-bold text-default">Report Briefing</span>
         <PanelRecorder
           count={draft.recordings}
           onAdd={() => set({ recordings: draft.recordings + 1 })}
@@ -178,65 +192,65 @@ function BriefingPanel({
         />
       </div>
 
-      <Section
-        title="Kehadiran BP"
-        subtitle="Hapus centang jika ada yang tidak hadir"
-      >
-        <div className="flex flex-col gap-8 rounded-16 border border-default p-16">
-          {BPS.map((bp) => {
-            const present = draft.attendance[bp.id] ?? true
+      {kind === 'morning' ? (
+        <Section
+          title="Checklist what to do"
+          subtitle="Konfirmasi setiap poin bersama BP saat briefing pagi."
+        >
+          {CHECKLIST_ITEMS.map((item) => {
+            const done = !!draft.checklist[item.id]
             return (
-              <div key={bp.id} className="flex items-center gap-12">
+              <div
+                key={item.id}
+                className="flex items-center gap-12 rounded-12 border border-default p-12"
+              >
                 <Checkbox
-                  checked={present}
+                  checked={done}
                   disabled={disabled}
-                  onChange={() =>
-                    set({ attendance: { ...draft.attendance, [bp.id]: !present } })
-                  }
+                  onChange={() => set({ checklist: { ...draft.checklist, [item.id]: !done } })}
                 />
-                <span className="text-14 font-bold text-default">{bp.name}</span>
+                <span className="text-14 font-bold text-default">{item.label}</span>
               </div>
             )
           })}
-        </div>
-      </Section>
+        </Section>
+      ) : (
+        <Section
+          title="Checklist what to do"
+          subtitle="Hal-hal yang perlu diperhatikan BM saat briefing sore."
+        >
+          <div className="flex flex-col gap-8 rounded-12 border border-default p-12">
+            {EVENING_POINTERS.map((point, i) => (
+              <div key={i} className="flex gap-8">
+                <span className="text-14 text-caption">•</span>
+                <span className="text-14 font-regular text-default">{point}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
 
-      <Section title="Bahas per BP" subtitle="Bahas target dan tugas hari ini untuk semua BP">
-        {BPS.map((bp) => (
-          <BpCard
-            key={bp.id}
-            bp={bp}
-            kind={kind}
-            checked={!!draft.discussed[bp.id]}
-            onToggle={() => set({ discussed: { ...draft.discussed, [bp.id]: !draft.discussed[bp.id] } })}
-            note={draft.notes[bp.id] ?? ''}
-            onNote={(v) => set({ notes: { ...draft.notes, [bp.id]: v } })}
+      {kind === 'evening' ? (
+        <Section
+          title="Laporan BM"
+          subtitle="Jelaskan kenapa BP achieve atau tidak achieve target"
+        >
+          {BPS.map((bp) => (
+            <BpCard
+              key={bp.id}
+              bp={bp}
+              note={draft.notes[bp.id] ?? ''}
+              onNote={(v) => set({ notes: { ...draft.notes, [bp.id]: v } })}
+              disabled={disabled}
+            />
+          ))}
+          <OverallCard
+            value={draft.report}
+            onChange={(v) => set({ report: v })}
             disabled={disabled}
           />
-        ))}
-      </Section>
-
-      <Section
-        title="Catatan keseluruhan (opsional)"
-        subtitle="Jelaskan situasi yang menggambarkan situasi yang mempengaruhi semua BP, misal: hujan besar, bencana alam"
-      >
-        <textarea
-          value={draft.overall}
-          onChange={(e) => set({ overall: e.target.value.slice(0, NOTE_MAX) })}
-          maxLength={NOTE_MAX}
-          placeholder="Tulis catatan"
-          rows={2}
-          readOnly={disabled}
-          className={`w-full resize-none rounded-8 border border-default p-12 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none ${
-            disabled ? 'bg-neutral-50' : 'bg-neutral-white'
-          }`}
-        />
-        {disabled ? null : (
-          <span className="text-12 text-caption">
-            {draft.overall.length}/{NOTE_MAX} karakter
-          </span>
-        )}
-      </Section>
+        </Section>
+      ) : null}
 
       <Section title="Bukti Kehadiran" subtitle="Ambil foto bersama semua peserta yang hadir">
         <PhotoBox
@@ -270,69 +284,67 @@ function Section({
   )
 }
 
-/** One BP row: a discussed checkbox, the BP's name and today's status, and a
- *  collapsible per-BP note. Morning shows the task count; evening shows how many
- *  targets are still unmet. */
+/** One BP row in "Laporan BM": the BP's name over an always-open note box. */
 function BpCard({
   bp,
-  kind,
-  checked,
-  onToggle,
   note,
   onNote,
   disabled,
 }: {
   bp: Bp
-  kind: BriefingKind
-  checked: boolean
-  onToggle: () => void
   note: string
   onNote: (value: string) => void
   disabled: boolean
 }) {
-  const [editing, setEditing] = useState(false)
-
-  const status =
-    kind === 'morning'
-      ? { text: `${taskCount(bp.id)} tugas`, cls: 'text-caption' }
-      : unmetTargets(bp.id) === 0
-        ? { text: 'Semua target terpenuhi', cls: 'text-green-500' }
-        : { text: `${unmetTargets(bp.id)} target belum terpenuhi`, cls: 'text-red-500' }
-
-  const showNote = editing || note.length > 0
-
   return (
-    <div className="rounded-12 border border-default p-12">
-      <div className="flex items-start gap-12">
-        <Checkbox checked={checked} onChange={onToggle} disabled={disabled} />
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <span className="text-14 font-bold text-default">{bp.name}</span>
-          <span className={`text-12 ${status.cls}`}>{status.text}</span>
-          {showNote ? (
-            <textarea
-              value={note}
-              onChange={(e) => onNote(e.target.value)}
-              placeholder="Tulis catatan…"
-              rows={2}
-              readOnly={disabled}
-              autoFocus={editing && note.length === 0}
-              className={`mt-4 w-full resize-none rounded-8 border border-default p-8 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none ${
-                disabled ? 'bg-neutral-50' : 'bg-neutral-white'
-              }`}
-            />
-          ) : disabled ? (
-            <span className="mt-4 text-12 text-placeholder">Tidak ada catatan</span>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="mt-4 flex items-center gap-4 text-14 font-bold text-link active:opacity-70"
-            >
-              Tambah catatan <NotePencil size={16} />
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="flex flex-col gap-2 rounded-12 border border-default p-12">
+      <span className="text-14 font-bold text-default">{bp.name}</span>
+      {disabled && !note ? (
+        <span className="mt-4 text-12 text-placeholder">Tidak ada catatan</span>
+      ) : (
+        <textarea
+          value={note}
+          onChange={(e) => onNote(e.target.value)}
+          placeholder="Tulis catatan…"
+          rows={2}
+          readOnly={disabled}
+          className={`mt-4 w-full resize-none rounded-8 border border-default p-8 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none ${
+            disabled ? 'bg-neutral-50' : 'bg-neutral-white'
+          }`}
+        />
+      )}
+    </div>
+  )
+}
+
+/** The "Overall" card at the foot of "Laporan BM" — why BPs did or didn't hit
+ *  their targets overall. */
+function OverallCard({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string
+  onChange: (value: string) => void
+  disabled: boolean
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-12 border border-default p-12">
+      <span className="text-14 font-bold text-default">Overall</span>
+      {disabled && !value ? (
+        <span className="mt-4 text-12 text-placeholder">Tidak ada catatan</span>
+      ) : (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Tulis laporan…"
+          rows={2}
+          readOnly={disabled}
+          className={`mt-4 w-full resize-none rounded-8 border border-default p-8 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none ${
+            disabled ? 'bg-neutral-50' : 'bg-neutral-white'
+          }`}
+        />
+      )}
     </div>
   )
 }
@@ -354,7 +366,7 @@ function Checkbox({
       aria-checked={checked}
       disabled={disabled}
       onClick={onChange}
-      className={`mt-2 flex size-20 shrink-0 items-center justify-center rounded-4 border ${
+      className={`flex size-20 shrink-0 items-center justify-center rounded-4 border ${
         checked ? 'border-primary-500 bg-primary-500 text-neutral-white' : 'border-default bg-neutral-white'
       } ${disabled ? 'opacity-70' : ''}`}
     >
