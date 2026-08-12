@@ -26,13 +26,14 @@ New here:
   each spanning its subject's paired measures (Target/Completed, Aktif/Terbayar,
   Outstanding/Settled) via a two-level header; the metrics run down the side. ONE
   measure width for every subject, so a BP's column sits at the same x in every
-  table and the eye skims straight down. A `shortfallTone` row turns its 2nd
-  figure RED when it trails the 1st (target not met). Repayment uses `paidTone`
-  instead: the colour sits on **Terbayar**, judged against Aktif as its target
-  (green when Terbayar meets Aktif, red when short). BTC & Flow uses per-row
-  `redWhen`: BTC reds when Completed is below its target (DPD 1-30 + 31-90);
-  Flow (target 0) reds when Completed is above 0. Cash settlement reds its
-  Outstanding when it is > 0 (`firstRedWhenPositive`); Outstanding =
+  table and the eye skims straight down. Colour is **symmetric** everywhere —
+  every rule that reds a shortfall also greens the achieved state (as Repayment
+  does). A `shortfallTone` row greens its 2nd figure when it meets the 1st, reds
+  it when short. Repayment's `paidTone` greens **Terbayar** when it meets Aktif,
+  reds it when short. BTC & Flow uses per-row `redWhen`: BTC greens Completed at/
+  above its target (DPD 1-30 + 31-90) and reds it below; Flow (target 0) greens
+  Completed at 0 and reds it above. Cash settlement (`firstRedWhenPositive`)
+  greens Outstanding at Rp0 and reds it above; Outstanding =
   collected-but-unsettled, Settled = cleared today. A
   `merged` row (Task's "Tutup hari") renders one cell per BP spanning both measure
   columns, showing the `ClosedDayStatus` badge — "Sudah tutup hari" only once
