@@ -70,7 +70,7 @@ export const project: ProjectModule = {
         { to: 'home-brief', label: 'Mulai Kunjungan (home visit)' },
         { to: 'sosialisasi', label: 'Mulai Sosialisasi — cari prospek baru' },
         { to: 'follow-up', label: 'Mulai Follow Up — telepon prospek' },
-        { to: 'settlement', label: 'Setor Sekarang — dari widget setoran' },
+        { to: 'setor-payment', label: 'Setor — dari widget setoran' },
         { to: 'deposit', label: 'Tutup Hari Ini — baris tugas terakhir' },
         { to: 'majelis-list', label: 'tab Majelis' },
         { to: 'mitra-list', label: 'tab Mitra' },
@@ -582,6 +582,55 @@ export const project: ProjectModule = {
         { to: 'agent-payment', label: 'Lanjut — dengan metode agen dipilih' },
         { to: 'today', label: 'Selesai — kembali ke jadwal' },
       ],
+    },
+    // --- New Concept setor journey. An ALTERNATIVE to `settlement` above, and
+    // what the schedule's Setor button now opens: the whole bag is assumed, the
+    // road is the only question, and splitting the handover moves off the main
+    // road onto its own page. The older four screens stay in place, reachable
+    // from this list, so the two directions can be read side by side.
+    {
+      id: 'setor-payment',
+      title: 'Setor Pembayaran',
+      component: lazyScreen(() => import('./screens/setor-payment'), 'SetorPaymentScreen'),
+      flowsTo: [
+        { to: 'setor-partial', label: 'Setor sebagian' },
+        { to: 'agent-locator', label: 'Cari Agen Terdekat — dari metode agen' },
+        { to: 'setor-agen', label: 'Setor — dengan metode agen dipilih' },
+        { to: 'setor-va', label: 'Setor — dengan Virtual Account dipilih' },
+        { to: 'setor-riwayat', label: 'Riwayat — dari header' },
+      ],
+    },
+    {
+      id: 'setor-partial',
+      title: 'Setor Sebagian',
+      component: lazyScreen(() => import('./screens/setor-partial'), 'SetorPartialScreen'),
+      flowsTo: [
+        { to: 'agent-locator', label: 'Cari Agen Terdekat — dari metode agen' },
+        { to: 'setor-agen', label: 'Setor — dengan metode agen dipilih' },
+        { to: 'setor-va', label: 'Setor — dengan Virtual Account dipilih' },
+        { to: 'setor-riwayat', label: 'Riwayat — dari header' },
+      ],
+    },
+    {
+      id: 'setor-va',
+      title: 'Setor via Virtual Account',
+      component: lazyScreen(() => import('./screens/setor-va'), 'SetorVaScreen'),
+      flowsTo: [{ to: 'setor-riwayat', label: 'Konfirmasi Setoran — ke riwayat' }],
+    },
+    {
+      id: 'setor-agen',
+      title: 'Setor Tunai (New Concept)',
+      component: lazyScreen(() => import('./screens/setor-agen'), 'SetorAgenScreen'),
+      flowsTo: [
+        { to: 'agent-map', label: 'Buka Peta — dari baris agen' },
+        { to: 'setor-riwayat', label: 'Konfirmasi Setoran — ke riwayat' },
+      ],
+    },
+    {
+      id: 'setor-riwayat',
+      title: 'Riwayat Pembayaran',
+      component: lazyScreen(() => import('./screens/setor-riwayat'), 'SetorRiwayatScreen'),
+      flowsTo: [{ to: 'today', label: 'Selesai — kembali ke jadwal' }],
     },
     {
       id: 'agent-payment',

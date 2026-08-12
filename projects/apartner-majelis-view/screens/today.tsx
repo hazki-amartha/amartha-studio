@@ -586,7 +586,10 @@ export function TodayScreen() {
             disabled={!canSetorNow}
             onClick={() => {
               store.openSettlement()
-              flow.go('settlement')
+              // The New Concept journey. The older `settlement` screen is
+              // still in the project, reachable from the screen list, so the
+              // two directions can be read against each other.
+              flow.go('setor-payment')
             }}
           >
             Setor
