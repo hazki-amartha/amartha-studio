@@ -53,7 +53,7 @@ export function AmarthaFinHomeScreen() {
       topBar={<BrandHeader />}
     >
       <BrandBand>
-        <PoketWidget balance="Rp100.000" />
+        <PoketWidget balance="Rp160.000" />
       </BrandBand>
 
       {/* --- PPOB section ------------------------------------------------- */}
@@ -214,7 +214,7 @@ function ModalLimitCard() {
       </div>
       <p className="mt-12 text-12 text-caption">Sisa Limit Modal</p>
       <p className="text-16 font-bold text-default">Rp0</p>
-      <p className="mt-4 text-12 text-caption">
+      <p className="mt-4 text-14 text-caption">
         Terpakai (<span className="font-bold text-default">Rp7.000.000</span> / Rp7.000.000)
       </p>
       <div className="mt-8">
@@ -225,7 +225,7 @@ function ModalLimitCard() {
           <p className="text-12 text-caption">Jadwal Pembayaran</p>
           <p className="text-12 font-bold text-default">19 Agu 2024</p>
         </div>
-        <Button variant="outline" size="sm">
+        <Button variant="primary" size="sm">
           Bayar Sekarang
         </Button>
       </div>
