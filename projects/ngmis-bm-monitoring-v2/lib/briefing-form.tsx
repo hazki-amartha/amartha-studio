@@ -180,7 +180,7 @@ function BriefingPanel({
 
       <Section
         title="Kehadiran BP"
-        subtitle="Semua BP dianggap hadir — hapus centang jika ada yang tidak hadir."
+        subtitle="Hapus centang jika ada yang tidak hadir"
       >
         <div className="flex flex-col gap-8 rounded-16 border border-default p-16">
           {BPS.map((bp) => {
