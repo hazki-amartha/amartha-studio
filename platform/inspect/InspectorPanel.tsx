@@ -14,6 +14,7 @@
 // =============================================================================
 
 import { useCallback, useMemo, useState } from 'react'
+import { PanelShell, type PanelSurface } from '@/platform/chrome/SidePanel'
 import { ancestorChain, labelOf, resolveTarget } from './resolve'
 import { copyForAgent } from './copyForAgent'
 
@@ -24,6 +25,8 @@ export interface InspectorPanelProps {
   screenId: string
   /** The annotations column geometry, handed down by the prototype view. */
   className?: string
+  surface?: PanelSurface
+  onMinimize?: () => void
 }
 
 function Heading({ children }: { children: React.ReactNode }) {
@@ -65,9 +68,11 @@ export function InspectorPanel({
   slug,
   screenId,
   className,
+  surface,
+  onMinimize,
 }: InspectorPanelProps) {
   const [copied, setCopied] = useState(false)
-  const shell = `flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${className ?? ''}`
+  const shell = { title: 'Inspect', surface, onMinimize, className }
 
   // Recomputed per pin rather than per frame — computed styles are only read
   // when the selection changes, not while a box is being tracked.
@@ -88,19 +93,17 @@ export function InspectorPanel({
 
   if (!target) {
     return (
-      <aside className={shell}>
-        <Heading>Inspect</Heading>
+      <PanelShell {...shell}>
         <p className="text-14 text-caption dark:text-neutral-400">
           Hover the prototype to highlight an element, click to pin it. Hold ⌥ to reach the raw
           element inside a component.
         </p>
-      </aside>
+      </PanelShell>
     )
   }
 
   return (
-    <aside className={shell}>
-      <Heading>Inspect</Heading>
+    <PanelShell {...shell}>
 
       <div className="flex flex-col gap-4">
         <h2 className="text-16 font-bold text-default dark:text-neutral-50">
@@ -192,6 +195,6 @@ export function InspectorPanel({
       >
         Clear selection
       </button>
-    </aside>
+    </PanelShell>
   )
 }

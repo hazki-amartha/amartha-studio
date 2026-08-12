@@ -22,6 +22,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { PanelShell, type PanelSurface } from '@/platform/chrome/SidePanel'
 import { buildOutline, pathTo, type OutlineNode } from './tree'
 
 export interface LayersPanelProps {
@@ -30,6 +31,8 @@ export interface LayersPanelProps {
   /** Drives the device's hover highlight from the list. */
   onHover: (el: Element | null) => void
   className?: string
+  surface?: PanelSurface
+  onMinimize?: () => void
 }
 
 const REBUILD_DELAY = 150
@@ -189,7 +192,14 @@ function Row({
   )
 }
 
-export function LayersPanel({ pinned, onPin, onHover, className }: LayersPanelProps) {
+export function LayersPanel({
+  pinned,
+  onPin,
+  onHover,
+  className,
+  surface,
+  onMinimize,
+}: LayersPanelProps) {
   const nodes = useOutline()
   const [collapsed, setCollapsed] = useState<Set<Element>>(new Set())
 
@@ -217,13 +227,13 @@ export function LayersPanel({ pinned, onPin, onHover, className }: LayersPanelPr
   }, [path])
 
   return (
-    <aside
-      className={`flex max-h-full flex-col gap-8 overflow-y-auto pt-8 ${className ?? ''}`}
+    <PanelShell
+      title="Layers"
+      surface={surface}
+      onMinimize={onMinimize}
+      className={className}
       onMouseLeave={() => onHover(null)}
     >
-      <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">
-        Layers
-      </span>
       {nodes.length === 0 ? (
         <p className="text-12 text-caption dark:text-neutral-400">Nothing on this screen yet.</p>
       ) : (
@@ -242,6 +252,6 @@ export function LayersPanel({ pinned, onPin, onHover, className }: LayersPanelPr
           ))}
         </div>
       )}
-    </aside>
+    </PanelShell>
   )
 }
