@@ -54,10 +54,13 @@ import { COMPONENT_PROPS } from './componentProps'
 import {
   applyPending,
   clearEditError,
+  copyChangeList,
   fileClassesOf,
   getEditStoreServerSnapshot,
   getEditStoreState,
+  restoreChanges,
   setOnFlushed,
+  setSinkMode,
   stageClassEdit,
   stagePropEdit,
   stageTextEdit,
@@ -226,6 +229,10 @@ export function EditPanel({ pinned, onPin, slug, screenId, className }: EditPane
   // each one re-runs resolveTarget so the panel shows what's now on screen.
   const [version, bump] = useReducer((x: number) => x + 1, 0)
 
+  // A recorded list only exists in this tab, so it is read back per project as
+  // soon as the panel knows which one it is looking at.
+  useEffect(() => restoreChanges(slug), [slug])
+
   const target = useMemo(
     () => (pinned ? resolveTarget(pinned) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -382,9 +389,14 @@ export function EditPanel({ pinned, onPin, slug, screenId, className }: EditPane
 
   const footer = (
     <>
-      <ChangesSection pending={store.pending} onRemove={removePending} />
+      <ChangesSection
+        pending={store.pending}
+        screenId={screenId}
+        onRemove={removePending}
+      />
       <StatusFooter storeError={store.error} onCopy={copyFallback} copied={copied} />
       <ActionsFooter store={store} onUndo={onUndo} />
+      <ModeSwitch mode={store.mode} />
     </>
   )
 
@@ -683,9 +695,12 @@ function ColorRow({
 
 function ChangesSection({
   pending,
+  screenId,
   onRemove,
 }: {
-  pending: { key: string; label: string }[]
+  pending: { key: string; label: string; screenId: string }[]
+  /** The screen on show, so changes made elsewhere can say where they were. */
+  screenId: string
   onRemove: (key: string) => void
 }) {
   if (pending.length === 0) return null
@@ -696,6 +711,9 @@ function ChangesSection({
           <li key={p.key} className="flex items-center justify-between gap-8">
             <span className="min-w-0 break-all text-12 text-default dark:text-neutral-50">
               {p.label}
+              {p.screenId !== screenId ? (
+                <span className="text-placeholder dark:text-neutral-600"> · {p.screenId}</span>
+              ) : null}
             </span>
             <button
               type="button"
@@ -720,7 +738,9 @@ function ActionsFooter({
   store: ReturnType<typeof getEditStoreState>
   onUndo: () => void
 }) {
+  const [copied, setCopied] = useState(false)
   const n = store.pending.length
+  const recording = store.mode === 'record'
   const lastPending = n > 0 ? store.pending[n - 1] : null
   const lastApplied = store.undo.length > 0 ? store.undo[store.undo.length - 1] : null
   const undoLabel = lastPending
@@ -729,28 +749,47 @@ function ActionsFooter({
       ? `Undo · ${lastApplied.label}`
       : 'Nothing to undo'
 
+  const copy = useCallback(() => {
+    void copyChangeList().then((ok) => {
+      if (!ok) return
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    })
+  }, [])
+
   return (
     <div className="flex flex-col gap-4">
-      {/* The one thing a designer must know after Apply: saved ≠ live. Said at
-          the moment they'd wonder, not in a doc they'll never open. */}
-      {n === 0 && !store.busy && lastApplied ? (
+      {/* What happens next differs by mode, and both are worth saying at the
+          moment the designer would wonder rather than in a doc nobody opens. */}
+      {recording ? (
+        <p className="text-12 text-caption dark:text-neutral-400">
+          {n > 0
+            ? 'These changes aren’t saved anywhere. Copy them and send them over to be applied.'
+            : 'Tweaks here are for describing a change, not saving one.'}
+        </p>
+      ) : n === 0 && !store.busy && lastApplied ? (
         <p className="text-12 text-caption dark:text-neutral-400">
           Saved to your working copy — not live yet. Say{' '}
           <span className="font-bold">commit</span> or <span className="font-bold">push</span>{' '}
           when you’re ready.
         </p>
       ) : null}
+
       <button
         type="button"
-        onClick={() => void applyPending()}
+        onClick={recording ? copy : () => void applyPending()}
         disabled={n === 0 || store.busy}
         className="rounded-full bg-primary-500 px-16 py-8 text-12 font-bold text-neutral-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-placeholder dark:disabled:bg-ink-800 dark:disabled:text-neutral-600"
       >
         {store.busy
           ? 'Saving…'
-          : n > 0
-            ? `Apply ${n} change${n > 1 ? 's' : ''}`
-            : 'No changes yet'}
+          : n === 0
+            ? 'No changes yet'
+            : recording
+              ? copied
+                ? 'Copied'
+                : `Copy ${n} change${n > 1 ? 's' : ''}`
+              : `Apply ${n} change${n > 1 ? 's' : ''}`}
       </button>
       <button
         type="button"
@@ -760,6 +799,54 @@ function ActionsFooter({
       >
         {undoLabel}
       </button>
+    </div>
+  )
+}
+
+// --- write / record switch ---------------------------------------------------
+
+/**
+ * Only rendered where there is a choice. On a deployment there is no source to
+ * write, so the mode is a fact rather than a setting and showing a switch would
+ * imply otherwise; there, this explains the situation in one line instead.
+ *
+ * Recording on the dev server is the genuinely useful case: someone can go
+ * through a running prototype, gather a list of changes, and hand it over
+ * without touching the working copy it is running from.
+ */
+function ModeSwitch({ mode }: { mode: 'write' | 'record' }) {
+  const canWrite = process.env.NODE_ENV === 'development'
+
+  if (!canWrite) {
+    return (
+      <p className="text-10 text-placeholder dark:text-neutral-600">
+        This is a shared link, so changes here are collected to send on, not saved.
+      </p>
+    )
+  }
+
+  const opt = (value: 'write' | 'record', label: string, title: string) => (
+    <button
+      type="button"
+      onClick={() => setSinkMode(value)}
+      title={title}
+      className={`px-8 py-2 text-10 ${
+        mode === value
+          ? 'bg-neutral-50 font-bold text-link dark:bg-ink-800 dark:text-neutral-50'
+          : 'text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50'
+      }`}
+    >
+      {label}
+    </button>
+  )
+
+  return (
+    <div className="flex items-center justify-between gap-8">
+      <span className="text-10 uppercase text-placeholder dark:text-neutral-600">Changes</span>
+      <div className="flex overflow-hidden rounded-8 border border-default dark:border-ink-700">
+        {opt('write', 'Save', 'Apply writes the changes into this prototype')}
+        {opt('record', 'Collect', 'Collect the changes to copy and send on, saving nothing')}
+      </div>
     </div>
   )
 }

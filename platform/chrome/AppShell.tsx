@@ -142,26 +142,26 @@ function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
         <DeviceIcon className="size-16" />
         Prototype
       </Link>
-      {/* Edit writes to source through the dev server; a deployed build has no
-          files behind it, so the segment does not exist outside dev. */}
-      {process.env.NODE_ENV === 'development' ? (
-        isFlow ? (
-          <Link href={`/p/${slug}`} onClick={enterEdit} className={off}>
-            <EditIcon className="size-16" />
-            Edit
-          </Link>
-        ) : (
-          <button
-            type="button"
-            onClick={enterEdit}
-            aria-current={showingEdit ? 'page' : undefined}
-            className={showingEdit ? on : off}
-          >
-            <EditIcon className="size-16" />
-            Edit
-          </button>
-        )
-      ) : null}
+      {/* Edit exists everywhere, but means different things: on the dev server
+          it writes into the prototype, and on a deployment — which has no
+          source behind it — it collects the changes to copy and send on. The
+          panel owns that distinction; the segment is just the way in. */}
+      {isFlow ? (
+        <Link href={`/p/${slug}`} onClick={enterEdit} className={off}>
+          <EditIcon className="size-16" />
+          Edit
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={enterEdit}
+          aria-current={showingEdit ? 'page' : undefined}
+          className={showingEdit ? on : off}
+        >
+          <EditIcon className="size-16" />
+          Edit
+        </button>
+      )}
       {isFlow ? (
         <Link
           href={`/p/${slug}`}

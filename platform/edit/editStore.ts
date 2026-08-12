@@ -12,14 +12,24 @@
 // original until apply. Stepping back to the original cancels the pending
 // entry entirely, so the list only ever holds real diffs.
 //
-// The sink is swappable on purpose: today it POSTs to the dev-only write-back
-// route; the deployed build gets a recorder that turns the same pending list
-// into a copyable change list instead (phase 2).
+// There are two things the list can be spent on, and the pending list is
+// identical either way:
 //
-// Undo is a stack of inverse edits over APPLIED changes. Undoing never
-// restores snapshots — it POSTs the reverse swap through the same route, so
-// the file history stays a sequence of verified small edits whichever
-// direction it moves.
+//   • WRITE — the dev server has the source, so Apply writes the files.
+//   • RECORD — a built deployment has no source and nothing that could write
+//     it, so the list is copied out as a description of the changes instead.
+//     This is the only honest behaviour there: the alternative is a panel that
+//     appears to save and silently loses everything on refresh.
+//
+// Record mode is forced outside dev, and available inside it — a lead can go
+// through someone else's running prototype and come away with a list without
+// touching their working copy.
+//
+// Undo is a stack of inverse edits over APPLIED changes, so it only exists in
+// write mode. Undoing never restores snapshots — it POSTs the reverse swap
+// through the same route, so the file history stays a sequence of verified
+// small edits whichever direction it moves. In record mode nothing was
+// written, so undo is purely unstaging.
 // =============================================================================
 
 import type { Edit, EditRequest, EditResponse } from './protocol'
@@ -33,14 +43,18 @@ export interface UndoEntry {
   label: string
 }
 
+/** Where Apply sends the list. See the header. */
+export type SinkMode = 'write' | 'record'
+
 export interface EditStoreState {
-  /** Staged edits not yet written, in staging order. */
-  pending: { key: string; label: string }[]
+  /** Staged edits not yet spent, in staging order. */
+  pending: { key: string; label: string; screenId: string }[]
   /** Writes in flight. */
   busy: boolean
   /** Last refusal/failure, cleared by the next successful write. */
   error: { label: string; reason: string } | null
   undo: UndoEntry[]
+  mode: SinkMode
 }
 
 interface PendingEntry {
@@ -50,6 +64,13 @@ interface PendingEntry {
   label: string
   /** Monotonic touch order — "undo" on pending removes the last-touched knob. */
   seq: number
+  /**
+   * Whether this edit's optimistic patch is on the live DOM. False for entries
+   * restored from a previous session: the list survived, the patch didn't, and
+   * treating them as applied would make the next edit on the same element
+   * compute the file's classes wrongly.
+   */
+  patched: boolean
 }
 
 let seq = 0
@@ -69,7 +90,16 @@ const devSink: Sink = async (req) => {
   }
 }
 
-let state: EditStoreState = { pending: [], busy: false, error: null, undo: [] }
+/** A built deployment has no source behind it, so it can only ever record. */
+const CAN_WRITE = process.env.NODE_ENV === 'development'
+
+let state: EditStoreState = {
+  pending: [],
+  busy: false,
+  error: null,
+  undo: [],
+  mode: CAN_WRITE ? 'write' : 'record',
+}
 const pending = new Map<string, PendingEntry>()
 const listeners = new Set<() => void>()
 /** Fires after every settled write batch — the panel uses it to re-pin. */
@@ -81,9 +111,10 @@ function emit(next: Partial<EditStoreState>) {
     ...next,
     pending: Array.from(pending.entries())
       .sort((a, b) => a[1].seq - b[1].seq)
-      .map(([key, p]) => ({ key, label: p.label })),
+      .map(([key, p]) => ({ key, label: p.label, screenId: p.screenId })),
   }
   listeners.forEach((l) => l())
+  persist()
 }
 
 export function subscribeEditStore(cb: () => void): () => void {
@@ -95,9 +126,86 @@ export function getEditStoreState(): EditStoreState {
   return state
 }
 
-const serverSnapshot: EditStoreState = { pending: [], busy: false, error: null, undo: [] }
+const serverSnapshot: EditStoreState = {
+  pending: [],
+  busy: false,
+  error: null,
+  undo: [],
+  mode: 'record',
+}
 export function getEditStoreServerSnapshot(): EditStoreState {
   return serverSnapshot
+}
+
+export function setSinkMode(mode: SinkMode) {
+  if (!CAN_WRITE && mode === 'write') return
+  if (state.mode === mode) return
+  emit({ mode })
+  // Switching INTO collecting picks up whatever was collected before, which is
+  // the whole reason the list is persisted.
+  if (mode === 'record') loadFromStorage()
+}
+
+// --- surviving a refresh -----------------------------------------------------
+//
+// Only in record mode, and only because there is nowhere else for the work to
+// live: a written edit is safe in a file, but a recorded one exists solely in
+// this tab. A lead half an hour into a review must not lose it to a stray
+// reload. Keyed per project so a whole pass across screens copies as one list.
+
+const STORAGE_PREFIX = 'db.edit.changes.'
+let storageKey: string | null = null
+
+function persist() {
+  if (state.mode !== 'record' || !storageKey) return
+  try {
+    const rows = Array.from(pending.entries()).map(([key, p]) => ({
+      key,
+      slug: p.slug,
+      screenId: p.screenId,
+      edit: p.edit,
+      label: p.label,
+      seq: p.seq,
+    }))
+    if (rows.length === 0) window.localStorage.removeItem(storageKey)
+    else window.localStorage.setItem(storageKey, JSON.stringify(rows))
+  } catch {
+    // A full or disabled localStorage costs persistence, not the session.
+  }
+}
+
+/** Point the store at a project's collected list, reading back what is there.
+ *  Called by the panel once it knows which project is on screen. */
+export function restoreChanges(slug: string) {
+  const key = `${STORAGE_PREFIX}${slug}`
+  if (storageKey === key) return
+  storageKey = key
+  if (state.mode === 'record') loadFromStorage()
+}
+
+function loadFromStorage() {
+  if (!storageKey) return
+  try {
+    const raw = window.localStorage.getItem(storageKey)
+    if (!raw) return
+    const rows = JSON.parse(raw) as {
+      key: string
+      slug: string
+      screenId: string
+      edit: Edit
+      label: string
+      seq: number
+    }[]
+    for (const row of rows) {
+      // Restored entries are listed but NOT on the DOM — the screen they
+      // belong to may not even be mounted.
+      pending.set(row.key, { ...row, patched: false })
+      seq = Math.max(seq, row.seq)
+    }
+    emit({})
+  } catch {
+    // Unreadable storage is treated as no storage.
+  }
 }
 
 export function setOnFlushed(cb: (() => void) | null) {
@@ -138,6 +246,7 @@ export function stageClassEdit(
       edit: { kind: 'class', find, oldClass: originalOld, newClass, text },
       label: `${originalOld} → ${newClass}`,
       seq: ++seq,
+      patched: true,
     })
   }
   emit({})
@@ -165,6 +274,7 @@ export function stageTextEdit(slug: string, screenId: string, old: string, next:
       edit: { kind: 'text', old: originalOld, next },
       label: `"${originalOld}" → "${next}"`,
       seq: ++seq,
+      patched: true,
     })
   }
   emit({})
@@ -193,6 +303,7 @@ export function stagePropEdit(
       edit: { kind: 'prop', component, prop, old: originalOld, next, text },
       label: `${component} ${prop} ${originalOld} → ${next}`,
       seq: ++seq,
+      patched: true,
     })
   }
   emit({})
@@ -219,15 +330,77 @@ export function unstageLast(): Edit | null {
 }
 
 /** The file's class list for an element: its rendered classes with any pending
- *  optimistic swaps reversed. */
+ *  optimistic swaps reversed. Restored entries are skipped — their patch was
+ *  never applied to this DOM, so reversing it would invent a class. */
 export function fileClassesOf(rendered: string[]): string[] {
   let classes = rendered
   for (const p of pending.values()) {
-    if (p.edit.kind !== 'class') continue
+    if (p.edit.kind !== 'class' || !p.patched) continue
     const { oldClass, newClass } = p.edit
     classes = classes.map((c) => (c === newClass ? oldClass : c))
   }
   return classes
+}
+
+// --- recording ---------------------------------------------------------------
+
+/**
+ * The change list as a paste-ready block.
+ *
+ * Every line carries the element, the old value and the new one, so applying it
+ * on the other end is the same verified replacement the write path makes —
+ * and a stale line (the old value no longer being there) is detectable rather
+ * than silently forced.
+ */
+export function changeListText(): string {
+  const rows = Array.from(pending.values()).sort((a, b) => a.seq - b.seq)
+  if (rows.length === 0) return ''
+
+  const slug = rows[0].slug
+  const lines = [`Amartha Studio · project \`${slug}\` · ${rows.length} change(s) to apply`, '']
+
+  // Grouped by screen, screens in the order they were first touched — a
+  // reviewer who goes back to an earlier screen should not split its section.
+  const screens: string[] = []
+  for (const row of rows) if (!screens.includes(row.screenId)) screens.push(row.screenId)
+
+  let n = 0
+  for (const screen of screens) {
+    lines.push(`Screen \`${screen}\` — projects/${slug}/screens/${screen}.tsx`)
+
+    for (const row of rows.filter((r) => r.screenId === screen)) {
+      n += 1
+      const where =
+        row.edit.kind === 'class'
+          ? row.edit.text
+            ? ` — on the element showing "${row.edit.text}"`
+            : ` — on the element with classes: ${row.edit.find.join(' ')}`
+          : row.edit.kind === 'prop'
+            ? row.edit.text
+              ? ` — the ${row.edit.component} showing "${row.edit.text}"`
+              : ` — the ${row.edit.component}`
+            : ''
+      lines.push(`  ${n}. ${row.label}${where}`)
+    }
+    lines.push('')
+  }
+
+  lines.push('Please apply these, keeping to the design system (CLAUDE.md §2).')
+  return lines.join('\n')
+}
+
+/** Copy the list out. Non-destructive: the list stays, so a reviewer can keep
+ *  going and copy again. */
+export async function copyChangeList(): Promise<boolean> {
+  const text = changeListText()
+  if (!text) return false
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    emit({ error: { label: 'the change list', reason: 'The browser blocked the clipboard.' } })
+    return false
+  }
 }
 
 // --- applying ----------------------------------------------------------------
@@ -260,9 +433,10 @@ async function runEdit(req: EditRequest, label: string): Promise<boolean> {
   return false
 }
 
-/** Write every pending edit, in staging order. One press, one refresh. */
+/** Write every pending edit, in staging order. One press, one refresh.
+ *  Never reachable in record mode — there is no server to write through. */
 export async function applyPending(): Promise<void> {
-  if (pending.size === 0 || state.busy) return
+  if (pending.size === 0 || state.busy || state.mode !== 'write') return
   const batch = Array.from(pending.values())
   pending.clear()
   emit({ busy: true })
