@@ -23,10 +23,8 @@
 // the figure is derived from the day's collections, the same lines the pelayanan
 // and doorsteps recorded — so closing is a confirmation, not data entry.
 
-import { useState } from 'react'
 import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
-import { SetorAltSheet } from '../lib/setor'
 import { rupiah } from '../lib/data'
 import { SETTLE_METHOD_LABEL, taskCode } from '../lib/schedule'
 import { IconCheck } from '../lib/icons'
@@ -43,8 +41,6 @@ import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
 export function DepositScreen() {
   const flow = useFlow()
   const s = useApp()
-  // Which setoran alternative the titipan check hands off to.
-  const [pickingAlt, setPickingAlt] = useState(false)
 
   // --- Check 1: every task on the day except this closing itself. ---------
   // Every task on the day is a visit now — closing left the list.
@@ -176,10 +172,10 @@ export function DepositScreen() {
                     variant="outline"
                     className="w-full"
                     onClick={() => {
-                      // Same fork as the schedule's Setor button: both
-                      // alternatives are live, so the door asks which one.
                       store.openSettlement()
-                      setPickingAlt(true)
+                      // Same setting as the schedule's Setor button — which
+                      // alternative opens is chosen off screen.
+                      flow.go(s.setorAlt)
                     }}
                   >
                     Setor Sekarang
@@ -230,15 +226,6 @@ export function DepositScreen() {
           Selesaikan Closing
         </Button>
       </StickyBar>
-
-      <SetorAltSheet
-        open={pickingAlt}
-        onClose={() => setPickingAlt(false)}
-        onPick={(screenId) => {
-          setPickingAlt(false)
-          flow.go(screenId)
-        }}
-      />
     </AppScreen>
   )
 }

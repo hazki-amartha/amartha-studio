@@ -913,6 +913,23 @@ export const bagShort = () =>
     depositDone: false,
   })
 
+// --- Which setoran alternative the Setor buttons open ----------------------
+// Both directions are live and neither has replaced the other, so the choice
+// between them is a PRESENTATION setting rather than a menu inside the app: a
+// BP never picks between two versions of her own product, and a chooser drawn
+// on the phone would be the one screen in the prototype that only exists
+// because there are two prototypes.
+//
+// Deliberately narrow — they set the road and nothing else — so flipping
+// between the alternatives never disturbs whichever day the demo is standing
+// in, and the two can be walked back to back from the same tap.
+
+/** Setor opens the first concept: pick what to settle, then how. */
+export const setorAltOne = () => store.set({ setorAlt: 'settlement' })
+
+/** Setor opens the new concept: pick how, with setor sebagian a page away. */
+export const setorAltTwo = () => store.set({ setorAlt: 'setor-payment' })
+
 // --- One mitra's record ----------------------------------------------------
 
 /** 34 days behind — the ledger the collect page argues from. */
