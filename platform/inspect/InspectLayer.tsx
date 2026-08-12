@@ -23,6 +23,10 @@ import styles from './inspect.module.css'
 export interface InspectLayerProps {
   pinned: Element | null
   onPin: (el: Element | null) => void
+  /** Highlight driven from outside the device — the layers outline pointing at
+   *  a row. Takes precedence over the cursor's own hover, which by definition
+   *  isn't over the device while the list is being used. */
+  preview?: Element | null
 }
 
 interface Box {
@@ -60,10 +64,11 @@ function place(node: HTMLElement | null, box: Box | null) {
   node.style.height = `${box.height}px`
 }
 
-export function InspectLayer({ pinned, onPin }: InspectLayerProps) {
+export function InspectLayer({ pinned, onPin, preview }: InspectLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null)
   const hoverBoxRef = useRef<HTMLDivElement>(null)
   const pinBoxRef = useRef<HTMLDivElement>(null)
+  const sizeRef = useRef<HTMLSpanElement>(null)
 
   const [hover, setHover] = useState<Element | null>(null)
   const [alt, setAlt] = useState(false)
@@ -164,7 +169,19 @@ export function InspectLayer({ pinned, onPin }: InspectLayerProps) {
         } else {
           const pinBox = pinned ? measure(layer, pinned) : null
           place(pinBoxRef.current, pinBox)
-          place(hoverBoxRef.current, hover && hover !== pinned ? measure(layer, hover) : null)
+          // The outline's row wins over the cursor: using the list means the
+          // pointer is off the device, so `hover` is stale by definition.
+          const highlight = preview ?? hover
+          place(
+            hoverBoxRef.current,
+            highlight && highlight !== pinned ? measure(layer, highlight) : null,
+          )
+          // Dimensions ride the label rather than React state — they change on
+          // every frame of a screen transition, and a render each time would
+          // cost more than the whole overlay.
+          if (pinBox && sizeRef.current) {
+            sizeRef.current.textContent = `${Math.round(pinBox.width)} × ${Math.round(pinBox.height)}`
+          }
           // Keep the name pill on screen when the element sits at the very top.
           if (pinBox) setLabelBelow(pinBox.top < 16)
         }
@@ -174,15 +191,16 @@ export function InspectLayer({ pinned, onPin }: InspectLayerProps) {
 
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [hover, pinned, onPin])
+  }, [hover, preview, pinned, onPin])
 
   return (
-    <div ref={layerRef} className={styles.layer}>
+    <div ref={layerRef} data-inspect-layer className={styles.layer}>
       <div ref={hoverBoxRef} className={styles.hover} style={{ display: 'none' }} />
       <div ref={pinBoxRef} className={styles.pin} style={{ display: 'none' }}>
         {pinned ? (
           <span className={`${styles.label} ${labelBelow ? styles.labelBelow : ''}`}>
             {labelOf(pinned)}
+            <span ref={sizeRef} className={styles.size} />
           </span>
         ) : null}
       </div>

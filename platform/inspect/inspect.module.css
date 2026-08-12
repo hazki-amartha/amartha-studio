@@ -59,3 +59,11 @@
   margin-bottom: 0;
   margin-top: 2px;
 }
+
+/* Measured size, riding the name pill: "Card 358 × 96". Dimmed because it
+   answers a different question from the name — what it is, then how big. */
+.size {
+  margin-left: 6px;
+  font-weight: 500;
+  opacity: 0.75;
+}
