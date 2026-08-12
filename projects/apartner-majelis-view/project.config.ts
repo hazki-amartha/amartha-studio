@@ -3,10 +3,11 @@ import type { ProjectConfig } from '@/platform/types'
 export const config: ProjectConfig = {
   slug: 'apartner-majelis-view',
   name: 'A-Partner BP New Concept',
+  businessUnit: 'Lending',
   platform: 'APartner',
   owner: ['Chandra', 'Hazki', 'Patricia'],
   description:
-    "The A-Partner field-officer app built around the majelis visit: a gated three-stage sequence — attendance, then collection, then growth. Collecting from a mitra opens a full page carrying her week-by-week repayment history, so the amount is negotiated against a visible ledger. Around it sits the BP's whole day: the task schedule, the majelis and mitra directories, home visits, prospecting, KPI, and the cash settlement and closing flows.",
+    'The BP\'s field day, built around a gated majelis visit: attendance, then collection, then growth.',
   device: 'mobile',
   status: 'in-review',
   createdAt: '2026-07-20',
