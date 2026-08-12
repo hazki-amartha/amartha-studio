@@ -118,15 +118,20 @@
   align-items: stretch;
 }
 
-/* A drawer holds the existing panel components unchanged, so notes and states
-   look the same on both device kinds; only where they sit differs. */
+/* A drawer holds the panel components unchanged, so every panel looks the same
+   on both device kinds; only where it sits differs.
+
+   It deliberately does NOT scroll: the panel inside is the scroll container, and
+   a second one here would become the sticky header's containing block, leaving
+   the header to scroll away with the body. */
 .drawer {
   position: absolute;
   top: 24px;
   bottom: 24px;
   z-index: 20;
+  display: flex;
   width: 264px;
-  overflow-y: auto;
+  overflow: hidden;
   box-shadow: 0 8px 32px -8px rgba(17, 25, 40, 0.28);
 }
 

@@ -30,6 +30,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { PanelShell, type PanelSurface } from '@/platform/chrome/SidePanel'
 import { ancestorChain, labelOf, resolveTarget } from '@/platform/inspect/resolve'
 import {
   colorEntries,
@@ -77,6 +78,8 @@ export interface EditPanelProps {
   slug: string
   screenId: string
   className?: string
+  surface?: PanelSurface
+  onMinimize?: () => void
 }
 
 // --- class classification ----------------------------------------------------
@@ -217,8 +220,16 @@ function Stepper({
 
 // --- the panel ---------------------------------------------------------------
 
-export function EditPanel({ pinned, onPin, slug, screenId, className }: EditPanelProps) {
-  const shell = `flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${className ?? ''}`
+export function EditPanel({
+  pinned,
+  onPin,
+  slug,
+  screenId,
+  className,
+  surface,
+  onMinimize,
+}: EditPanelProps) {
+  const shell = { title: 'Edit', surface, onMinimize, className }
   const store = useSyncExternalStore(
     subscribeEditStore,
     getEditStoreState,
@@ -402,16 +413,13 @@ export function EditPanel({ pinned, onPin, slug, screenId, className }: EditPane
 
   if (!target) {
     return (
-      <aside className={shell}>
-        <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">
-          Edit
-        </span>
+      <PanelShell {...shell}>
         <p className="text-14 text-caption dark:text-neutral-400">
           Hover the prototype to highlight an element, click to pin it, then tweak it here. Hold ⌥
           to reach the raw element inside a component.
         </p>
         {footer}
-      </aside>
+      </PanelShell>
     )
   }
 
@@ -448,15 +456,10 @@ export function EditPanel({ pinned, onPin, slug, screenId, className }: EditPane
   }
 
   return (
-    <aside className={shell}>
-      <div className="flex items-center justify-between gap-8">
-        <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">
-          Edit
-        </span>
-        {store.busy ? (
-          <span className="text-10 text-caption dark:text-neutral-400">Saving…</span>
-        ) : null}
-      </div>
+    <PanelShell {...shell}>
+      {store.busy ? (
+        <span className="text-10 text-caption dark:text-neutral-400">Saving…</span>
+      ) : null}
 
       {/* Selection: what it is, where it lives, how many it really is. */}
       <div className="flex flex-col gap-4">
@@ -637,7 +640,7 @@ export function EditPanel({ pinned, onPin, slug, screenId, className }: EditPane
       >
         Clear selection
       </button>
-    </aside>
+    </PanelShell>
   )
 }
 

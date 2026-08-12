@@ -61,6 +61,7 @@ import {
 import { InspectLayer, InspectorPanel, LayersPanel } from '@/platform/inspect'
 import { EditPanel } from '@/platform/edit'
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '@/platform/chrome/icons'
+import { PanelPill, PanelShell, type PanelSurface } from '@/platform/chrome/SidePanel'
 import { DeviceFrame } from './DeviceFrame'
 import { DEVICE_SPECS, outerSize } from './device'
 import styles from './prototype.module.css'
@@ -137,23 +138,25 @@ function AppViewport({
 function AnnotationPanel({
   screens,
   projectNotes,
-  /** Defaults to the fixed right-hand column of the phone layout. The desktop
-   *  layout passes `w-full` instead, because there the panel lives in a drawer
-   *  that already has the width. */
-  className = styles.annotations,
+  className,
+  surface,
+  onMinimize,
 }: {
   screens: ScreenDef[]
   projectNotes?: string[]
   className?: string
+  surface?: PanelSurface
+  onMinimize?: () => void
 }) {
   const { current } = useFlow()
   const active = screens.find((s) => s.id === current)
   const notes = active?.notes && active.notes.length > 0 ? active.notes : (projectNotes ?? [])
 
   return (
-    <aside className={`flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${className}`}>
-      <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">Notes</span>
-      {active ? <h2 className="text-16 font-bold text-default dark:text-neutral-50">{active.title}</h2> : null}
+    <PanelShell title="Notes" surface={surface} onMinimize={onMinimize} className={className}>
+      {active ? (
+        <h2 className="text-16 font-bold text-default dark:text-neutral-50">{active.title}</h2>
+      ) : null}
       {notes.length > 0 ? (
         <ul className="flex flex-col gap-8">
           {notes.map((note, i) => (
@@ -165,7 +168,7 @@ function AnnotationPanel({
       ) : (
         <p className="text-14 text-caption dark:text-neutral-400">No annotations for this screen.</p>
       )}
-    </aside>
+    </PanelShell>
   )
 }
 
@@ -181,70 +184,29 @@ function AnnotationPanel({
  * mean reading project internals. It resets when the screen changes, so a stale
  * highlight never survives a navigation.
  *
- * `collapsible` gives it the dismissal the desktop-device layout gets from its
- * drawer tab: there, States is behind a toggle, but here the panel sits in the
- * row beside the device and used to have no way out once a screen declared any.
- * Collapsed, it keeps its column — that column is what balances the annotations
- * and holds the device optically centred — and leaves a pill to bring it back.
- * The choice deliberately survives navigation: a presenter who put it away
- * wants it to stay away.
+ * Whether it is on screen at all is the layout's business now (see
+ * usePanelSlots), so that every panel is dismissed the same way.
  */
 function StatesPanel({
   screens,
-  /** See AnnotationPanel — the desktop layout supplies its own width. */
-  className = styles.states,
-  collapsible = false,
+  className,
+  surface,
+  onMinimize,
 }: {
   screens: ScreenDef[]
   className?: string
-  collapsible?: boolean
+  surface?: PanelSurface
+  onMinimize?: () => void
 }) {
   const { current } = useFlow()
   const active = screens.find((s) => s.id === current)
   const states = active?.states ?? []
   const [applied, setApplied] = useState<string | null>(null)
-  const [open, setOpen] = useState(true)
 
   useEffect(() => setApplied(null), [current])
 
-  // No states declared → the column goes back to being the invisible spacer
-  // that balances the annotations, and the device stays optically centred.
-  if (states.length === 0) return <div aria-hidden className={className} />
-
-  if (collapsible && !open) {
-    return (
-      <aside className={`flex max-h-full flex-col pt-8 ${className}`}>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-expanded={false}
-          className="self-start rounded-full border border-default bg-neutral-white px-12 py-4 text-12 font-bold text-caption hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800"
-        >
-          States
-        </button>
-      </aside>
-    )
-  }
-
   return (
-    <aside className={`flex max-h-full flex-col gap-12 overflow-y-auto pt-8 ${className}`}>
-      <div className="flex items-center justify-between gap-8">
-        <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">
-          States
-        </span>
-        {collapsible ? (
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            aria-expanded
-            aria-label="Hide states"
-            title="Hide states"
-            className="text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50"
-          >
-            <CloseIcon className="h-16 w-16" />
-          </button>
-        ) : null}
-      </div>
+    <PanelShell title="States" surface={surface} onMinimize={onMinimize} className={className}>
       <div className="flex flex-col gap-8">
         {states.map((state) => {
           const on = applied === state.id
@@ -276,7 +238,7 @@ function StatesPanel({
           )
         })}
       </div>
-    </aside>
+    </PanelShell>
   )
 }
 
@@ -456,52 +418,177 @@ function useInspectState() {
   return { inspect, edit, pinned, setPinned, preview, setPreview, current }
 }
 
-/** The left column while picking: the outline, in the slot a design tool puts
- *  layers in. Falls back to the states panel — which is also the invisible
- *  spacer that keeps the device optically centred — the rest of the time. */
-function LeftColumn({
-  picking,
-  screens,
-  pinned,
-  onPin,
-  onHover,
-  className,
-  collapsible,
-}: {
-  picking: boolean
-  screens: ScreenDef[]
-  pinned: Element | null
-  onPin: (el: Element | null) => void
-  onHover: (el: Element | null) => void
-  className?: string
-  collapsible?: boolean
-}) {
-  if (picking) {
-    return <LayersPanel className={className} pinned={pinned} onPin={onPin} onHover={onHover} />
-  }
-  return <StatesPanel screens={screens} className={className} collapsible={collapsible} />
+// --- the panel slots ---------------------------------------------------------
+//
+// Both layouts show the same three panels in the same two places: States or
+// Layers on the left, and on the right either the picking tool (inspect/edit)
+// or Notes. What differs is only where a slot is drawn — a column beside a
+// phone, a drawer over a 1440 canvas — so everything about WHICH panel is
+// showing lives here, once.
+
+/** The right slot holds one of two things, or nothing. */
+type RightSlot = 'tool' | 'notes' | null
+
+function usePanelSlots(picking: boolean, hasNotes: boolean, openByDefault: boolean) {
+  const [leftOpen, setLeftOpen] = useState(openByDefault)
+  const [right, setRight] = useState<RightSlot>(openByDefault && hasNotes ? 'notes' : null)
+
+  // Entering a picking mode IS the request to see its panel, and leaving one
+  // hands the slot back. Deliberately acts only on that transition: re-running
+  // whenever a screen's notes appear or vanish would reopen a panel the viewer
+  // had just put away.
+  const wasPicking = useRef(picking)
+  useEffect(() => {
+    if (wasPicking.current === picking) return
+    wasPicking.current = picking
+    setRight(picking ? 'tool' : openByDefault && hasNotes ? 'notes' : null)
+  }, [picking, hasNotes, openByDefault])
+
+  return { leftOpen, setLeftOpen, right, setRight }
 }
 
+interface SlotProps {
+  config: ProjectConfig
+  screens: ScreenDef[]
+  current: string
+  picking: boolean
+  edit: boolean
+  hasStates: boolean
+  hasNotes: boolean
+  pinned: Element | null
+  setPinned: (el: Element | null) => void
+  setPreview: (el: Element | null) => void
+  slots: ReturnType<typeof usePanelSlots>
+  surface: PanelSurface
+  /** Geometry for an open panel: a fixed column, or `w-full` inside a drawer. */
+  panelClassName?: string
+}
+
+/**
+ * The panels and the pills that bring them back, as nodes for a layout to
+ * place. A panel and its own pill are never both returned, which is what stops
+ * a floating tab from covering the title of the panel it opened.
+ */
+function panelSlots(a: SlotProps) {
+  const { slots } = a
+  const leftExists = a.picking || a.hasStates
+  const leftTitle = a.picking ? 'Layers' : 'States'
+  const toolTitle = a.edit ? 'Edit' : 'Inspect'
+
+  const hideLeft = () => slots.setLeftOpen(false)
+
+  const left =
+    !leftExists || !slots.leftOpen ? null : a.picking ? (
+      <LayersPanel
+        className={a.panelClassName}
+        surface={a.surface}
+        onMinimize={hideLeft}
+        pinned={a.pinned}
+        onPin={a.setPinned}
+        onHover={a.setPreview}
+      />
+    ) : (
+      <StatesPanel
+        screens={a.screens}
+        className={a.panelClassName}
+        surface={a.surface}
+        onMinimize={hideLeft}
+      />
+    )
+
+  const leftPill =
+    leftExists && !slots.leftOpen ? (
+      <PanelPill label={leftTitle} onClick={() => slots.setLeftOpen(true)} />
+    ) : null
+
+  const showingTool = slots.right === 'tool' && a.picking
+  const right = showingTool ? (
+    a.edit ? (
+      <EditPanel
+        className={a.panelClassName}
+        surface={a.surface}
+        onMinimize={() => slots.setRight(null)}
+        pinned={a.pinned}
+        onPin={a.setPinned}
+        slug={a.config.slug}
+        screenId={a.current}
+      />
+    ) : (
+      <InspectorPanel
+        className={a.panelClassName}
+        surface={a.surface}
+        onMinimize={() => slots.setRight(null)}
+        pinned={a.pinned}
+        onPin={a.setPinned}
+        slug={a.config.slug}
+        screenId={a.current}
+      />
+    )
+  ) : slots.right === 'notes' && a.hasNotes ? (
+    <AnnotationPanel
+      screens={a.screens}
+      projectNotes={a.config.notes}
+      className={a.panelClassName}
+      surface={a.surface}
+      onMinimize={() => slots.setRight(null)}
+    />
+  ) : null
+
+  // Whatever the right slot could show but isn't. Both can be offered at once —
+  // a designer editing a screen may still want its notes.
+  const rightPills = [
+    a.picking && !showingTool ? (
+      <PanelPill key="tool" label={toolTitle} onClick={() => slots.setRight('tool')} />
+    ) : null,
+    a.hasNotes && slots.right !== 'notes' ? (
+      <PanelPill key="notes" label="Notes" onClick={() => slots.setRight('notes')} />
+    ) : null,
+  ].filter(Boolean)
+
+  return { left, leftPill, right, rightPills }
+}
+
+/**
+ * The phone layout: the device between two 264px columns.
+ *
+ * The columns are load-bearing even when empty — they are what holds the device
+ * optically centred — so a minimized panel keeps its column and leaves a pill
+ * in it rather than collapsing the grid.
+ */
 function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
   const { inspect, edit, pinned, setPinned, preview, setPreview, current } = useInspectState()
   const picking = inspect || edit
+
+  const active = screens.find((s) => s.id === current)
+  const hasStates = (active?.states?.length ?? 0) > 0
+  const hasNotes = (active?.notes?.length ?? 0) > 0 || (config.notes?.length ?? 0) > 0
+
+  const slots = usePanelSlots(picking, hasNotes, true)
+  const { left, leftPill, right, rightPills } = panelSlots({
+    config,
+    screens,
+    current,
+    picking,
+    edit,
+    hasStates,
+    hasNotes,
+    pinned,
+    setPinned,
+    setPreview,
+    slots,
+    surface: 'canvas',
+  })
 
   return (
     <div
       className={`h-full min-h-0 w-full gap-32 overflow-hidden bg-neutral-50 px-16 py-24 dark:bg-ink-950 ${styles.desktop}`}
     >
-      {/* Mirrors the caption column, so the device stays optically centred
-          whether or not the active screen declares any states. Collapsible here
-          because this layout has no drawer tab to put it behind. */}
-      <LeftColumn
-        picking={picking}
-        screens={screens}
-        className={styles.states}
-        collapsible
-        pinned={pinned}
-        onPin={setPinned}
-        onHover={setPreview}
-      />
+      {left ? (
+        <div className={styles.states}>{left}</div>
+      ) : (
+        <div className={`${styles.states} pt-8`}>{leftPill}</div>
+      )}
+
       <DeviceStepper>
         <ScaledDevice>
           <DeviceFrame>
@@ -514,89 +601,50 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
           </DeviceFrame>
         </ScaledDevice>
       </DeviceStepper>
-      {/* Notes, the inspector, and the edit panel answer different questions;
-          nobody wants two at once, so they share the column. */}
-      {edit ? (
-        <EditPanel
-          className={styles.annotations}
-          pinned={pinned}
-          onPin={setPinned}
-          slug={config.slug}
-          screenId={current}
-        />
-      ) : inspect ? (
-        <InspectorPanel
-          className={styles.annotations}
-          pinned={pinned}
-          onPin={setPinned}
-          slug={config.slug}
-          screenId={current}
-        />
+
+      {right ? (
+        <div className={styles.annotations}>{right}</div>
       ) : (
-        <AnnotationPanel screens={screens} projectNotes={config.notes} />
+        <div className={`${styles.annotations} flex flex-col items-end gap-4 pt-8`}>
+          {rightPills}
+        </div>
       )}
     </div>
   )
 }
 
-/** A toggle for one of the desktop drawers. Only rendered when the drawer has
- *  something in it, so a project with no notes and no states shows no chrome at
- *  all beyond the frame and its arrows. */
-function DrawerTab({
-  side,
-  open,
-  onClick,
-  label,
-}: {
-  side: 'left' | 'right'
-  open: boolean
-  onClick: () => void
-  label: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-expanded={open}
-      // z-30 keeps the tab above the open drawer (z-20 at the same corner), so it
-      // stays clickable to close it — otherwise an open drawer buries its own toggle.
-      className={`absolute top-24 z-30 rounded-full border px-12 py-4 text-12 font-bold ${
-        side === 'left' ? 'left-16' : 'right-16'
-      } ${
-        open
-          ? 'border-primary-500 bg-primary-50 text-link dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50'
-          : 'border-default bg-neutral-white text-caption hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800'
-      }`}
-    >
-      {label}
-    </button>
-  )
-}
-
 /**
  * The desktop-device layout. The frame is 1440 wide before anything surrounds
- * it, so unlike the phone it cannot share the row with two 264px panels: notes
- * and states become drawers over the canvas, mounted only when the project has
- * any. The inspector opens the right drawer by itself, since turning inspect on
- * IS the request to see it.
+ * it, so unlike the phone it cannot share the row with two 264px columns: the
+ * panels become drawers over the canvas, and their pills float in the corners
+ * they open from. Same panels, same controls — only the placement differs.
  */
 function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
   const { inspect, edit, pinned, setPinned, preview, setPreview, current } = useInspectState()
-  const [notesOpen, setNotesOpen] = useState(false)
-  const [statesOpen, setStatesOpen] = useState(false)
+  const picking = inspect || edit
 
   const active = screens.find((s) => s.id === current)
   const hasStates = (active?.states?.length ?? 0) > 0
-  const hasNotes =
-    (active?.notes?.length ?? 0) > 0 || (config.notes?.length ?? 0) > 0
+  const hasNotes = (active?.notes?.length ?? 0) > 0 || (config.notes?.length ?? 0) > 0
 
-  const picking = inspect || edit
+  const slots = usePanelSlots(picking, hasNotes, false)
+  const { left, leftPill, right, rightPills } = panelSlots({
+    config,
+    screens,
+    current,
+    picking,
+    edit,
+    hasStates,
+    hasNotes,
+    pinned,
+    setPinned,
+    setPreview,
+    slots,
+    surface: 'panel',
+    panelClassName: 'w-full',
+  })
+
   const spec = DEVICE_SPECS.desktop
-  const rightOpen = picking || (hasNotes && notesOpen)
-  // While picking, the left drawer is the outline — always available, since
-  // selection is the point of the mode and a screen need not declare states.
-  const leftLabel = picking ? 'Layers' : 'States'
-  const hasLeft = picking || hasStates
 
   return (
     <div
@@ -616,60 +664,25 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
         </FittedDevice>
       </DeviceStepper>
 
-      {hasLeft ? (
-        <DrawerTab
-          side="left"
-          open={statesOpen}
-          onClick={() => setStatesOpen((v) => !v)}
-          label={leftLabel}
-        />
-      ) : null}
-      {hasNotes && !picking ? (
-        <DrawerTab
-          side="right"
-          open={notesOpen}
-          onClick={() => setNotesOpen((v) => !v)}
-          label="Notes"
-        />
-      ) : null}
-
-      {hasLeft && statesOpen ? (
-        <div
-          className={`rounded-16 bg-neutral-white p-12 dark:bg-ink-900 ${styles.drawer} ${styles.drawerLeft}`}
-        >
-          <LeftColumn
-            picking={picking}
-            screens={screens}
-            className="w-full"
-            pinned={pinned}
-            onPin={setPinned}
-            onHover={setPreview}
-          />
+      {leftPill ? <div className="absolute left-16 top-24 z-30">{leftPill}</div> : null}
+      {rightPills.length > 0 ? (
+        <div className="absolute right-16 top-24 z-30 flex flex-col items-end gap-4">
+          {rightPills}
         </div>
       ) : null}
-      {rightOpen ? (
+
+      {left ? (
         <div
-          className={`rounded-16 bg-neutral-white p-12 dark:bg-ink-900 ${styles.drawer} ${styles.drawerRight}`}
+          className={`rounded-16 bg-neutral-white px-12 pb-12 dark:bg-ink-900 ${styles.drawer} ${styles.drawerLeft}`}
         >
-          {edit ? (
-            <EditPanel
-              className="w-full"
-              pinned={pinned}
-              onPin={setPinned}
-              slug={config.slug}
-              screenId={current}
-            />
-          ) : inspect ? (
-            <InspectorPanel
-              className="w-full"
-              pinned={pinned}
-              onPin={setPinned}
-              slug={config.slug}
-              screenId={current}
-            />
-          ) : (
-            <AnnotationPanel screens={screens} projectNotes={config.notes} className="w-full" />
-          )}
+          {left}
+        </div>
+      ) : null}
+      {right ? (
+        <div
+          className={`rounded-16 bg-neutral-white px-12 pb-12 dark:bg-ink-900 ${styles.drawer} ${styles.drawerRight}`}
+        >
+          {right}
         </div>
       ) : null}
     </div>

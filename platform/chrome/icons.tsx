@@ -129,6 +129,49 @@ export const FlowIcon = icon(
   </>,
 )
 
+// --- Layer kinds -------------------------------------------------------------
+// Glyphs for the layers outline, drawn to be told apart at 12px in a dense
+// list: one silhouette per kind rather than one detailed picture per element.
+
+// Component — a FunDS component boundary. Filled, because it is the one kind
+// that is a thing in itself rather than markup.
+export const ComponentIcon = icon(
+  <path d="M12 3l4 4-4 4-4-4 4-4z M12 13l4 4-4 4-4-4 4-4z" fill="currentColor" stroke="none" />,
+)
+
+// Frame — a container that lays other things out (Stack, Row, Grid, Section).
+export const FrameIcon = icon(
+  <>
+    <rect x="4" y="4" width="16" height="16" rx="2" />
+    <path d="M9 4v16M4 9h16" />
+  </>,
+)
+
+// Text — the copy on screen.
+export const TextIcon = icon(
+  <>
+    <path d="M5 6h14" />
+    <path d="M12 6v13" />
+    <path d="M9 19h6" />
+  </>,
+)
+
+// Media — an image, an icon, anything drawn rather than laid out.
+export const MediaIcon = icon(
+  <>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M3 16l5-4 4 3 3-2 6 4" />
+  </>,
+)
+
+// List — a repeated set, where the outline's rows are siblings.
+export const ListIcon = icon(
+  <>
+    <path d="M9 6h11M9 12h11M9 18h11" />
+    <path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
+  </>,
+)
+
 // Edit — a pencil: pick an element, tweak its tokens.
 export const EditIcon = icon(
   <>
