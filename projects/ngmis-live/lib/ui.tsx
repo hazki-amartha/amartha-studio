@@ -19,6 +19,7 @@
 // =============================================================================
 
 import { useState, type ReactNode } from 'react'
+import { Wordmark } from '@/design-system/assets'
 import { Badge, Button, Input } from '@/design-system/components'
 import {
   ChevronDown,
@@ -41,13 +42,10 @@ const NAV_ITEM_H = 40
 
 // --- Brand lockup -----------------------------------------------------------
 
-/**
- * The corporate amartha lockup in the header. `design-system/assets` ships
- * product wordmarks (poket, modal, celengan…) but not the company one, so this
- * renders the word alone rather than inventing the flower mark — see NOTES.md.
- */
+/** The corporate amartha lockup in the header — flower mark plus the word,
+ *  now shipped as artwork in `design-system/assets`. */
 function AmarthaLockup() {
-  return <span className="text-16 font-bold lowercase text-primary-500">amartha</span>
+  return <Wordmark name="amartha" height={20} />
 }
 
 /** The hamburger. Genuinely absent from the 166-icon set (§4), so it is a

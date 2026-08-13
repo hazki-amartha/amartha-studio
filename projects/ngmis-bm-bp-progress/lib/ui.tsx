@@ -32,6 +32,7 @@ import {
   TransferArrow,
   Umbrella,
 } from '@/design-system/icons'
+import { Wordmark } from '@/design-system/assets'
 
 const SIDEBAR_W = 216
 const NAV_ITEM_H = 40
@@ -63,10 +64,10 @@ const FOOTER_NAV: NavItem[] = [
 
 const USER = { name: 'Budi Santoso', role: 'Branch Manager', initial: 'B' }
 
-/** `design-system/assets` ships product wordmarks but not the corporate amartha
- *  lockup, so the sidebar renders the word alone rather than inventing the mark. */
+/** The corporate amartha lockup — flower mark plus the word, shipped as artwork
+ *  in `design-system/assets`. */
 function AmarthaLockup() {
-  return <span className="text-20 font-bold lowercase text-primary-500">amartha</span>
+  return <Wordmark name="amartha" height={24} />
 }
 
 function SideNav() {

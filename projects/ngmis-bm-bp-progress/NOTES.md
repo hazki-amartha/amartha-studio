@@ -7,7 +7,7 @@ adapted from `projects/ngmis-bm-monitoring/lib/ui.tsx` (copied, not imported —
 - `MisShell` / `SideNav` / `Breadcrumbs` / `PageHeading` — the desktop chrome. Every screen wraps in it.
 - `Panel` / `PanelHeading` — the white bordered section card. FunDS `Card` is the mobile 16px tile.
 - `SimpleTable` — flat table for the detail pages. `bp`, `task-majelis`.
-- `AmarthaLockup` (inside `SideNav`) — `design-system/assets` ships product wordmarks but no corporate amartha lockup. A real asset gap; `ngmis-live` and `ngmis-bm-monitoring` record the same one.
+- `AmarthaLockup` (inside `SideNav`) — thin wrapper over `<Wordmark name="amartha" />`, now that the corporate lockup ships in `design-system/assets`. The asset gap it recorded is closed.
 - `CaretUp` / `CaretDown` (inside `RateCell`) — `TriangleUpFill` in the shared set is a 24px glyph, far heavier than an 8px caret inline with 12px text.
 
 New here, and the reason the project exists:
