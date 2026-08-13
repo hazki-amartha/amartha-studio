@@ -408,6 +408,10 @@ export function RatePill({ ok, children }: { ok: boolean | null; children: React
 // --- Bucket card -------------------------------------------------------------
 
 const BUCKET_CHIP: Record<string, string> = {
+  // Pencairan's cards have no severity to carry — they are four cuts of the
+  // same month, not an ageing scale — so their chip stays uncoloured rather
+  // than borrowing a verdict from the DPD ramp.
+  neutral: 'border-default bg-neutral-50 text-caption',
   green: 'border-green-200 bg-green-50 text-green-600',
   yellow: 'border-yellow-200 bg-yellow-50 text-yellow-700',
   orange: 'border-orange-200 bg-orange-50 text-orange-600',

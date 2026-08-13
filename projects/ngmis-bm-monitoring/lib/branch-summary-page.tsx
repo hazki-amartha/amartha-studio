@@ -94,9 +94,13 @@ export function BranchSummaryPage({
         </>
       }
     >
-      {/* Scope on the left, freshness on the right — two different facts. */}
+      {/* Scope on the left, freshness on the right — two different facts. The
+          scope follows the tab: Pembayaran is read a week at a time, Pencairan
+          is set and chased by the month. */}
       <div className="flex flex-wrap items-baseline justify-between gap-16 pb-16">
-        <span className="text-16 font-bold text-default">{UPDATE_BAR.scope}</span>
+        <span className="text-16 font-bold text-default">
+          {tab === 'disbursement' ? UPDATE_BAR.scopeMonthly : UPDATE_BAR.scope}
+        </span>
         <span className="text-12 text-caption">{UPDATE_BAR.refreshed}</span>
       </div>
 

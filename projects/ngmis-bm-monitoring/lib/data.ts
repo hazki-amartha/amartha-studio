@@ -48,8 +48,12 @@ export const TABS = [
 
 /** The band under the tabs: what period the figures cover, and when they last
  *  landed. Two different facts — the scope, and the freshness. */
+/** Pembayaran is read a week at a time; Pencairan is set and chased by the
+ *  MONTH, so the scope line changes with the tab rather than claiming one
+ *  period for both. */
 export const UPDATE_BAR = {
   scope: 'Minggu ini, 22 - 27 Juni 2026',
+  scopeMonthly: 'Bulan ini, 1 - 27 Juni 2026',
   refreshed: 'Diperbarui 26 Jun 2026, 22:49',
 }
 
@@ -428,11 +432,6 @@ export const DISBURSEMENT_TARGETS = {
   nilai: 180,
 }
 
-/** Weeks in the month the monthly targets are spread across — the page reports
- *  a week, the targets are set for a month, so the count target has to be
- *  paced before a weekly figure can be judged against it at all. */
-export const WEEKS_IN_MONTH = 4
-
 export const noaTotal = (bp: DisbursementBp) => bp.noaBaru + bp.noaLanjutan
 export const nilaiTotal = (bp: DisbursementBp) => bp.nilaiBaru + bp.nilaiLanjutan
 
@@ -444,31 +443,16 @@ export const renewalRate = (bp: DisbursementBp) =>
 export const nilaiShortfall = (bp: DisbursementBp) =>
   Math.max(0, DISBURSEMENT_TARGETS.nilai - nilaiTotal(bp))
 
-/**
- * How hard a miss is, as three bands rather than a pass/fail.
- *
- * A pencairan gap is not binary the way a repayment standard is: every BP in
- * the branch is short of a monthly target mid-month, so colouring them all red
- * would say nothing. The bands are shares of the target itself — 40% or more
- * still missing is a month that will not be recovered without help, 20% is
- * behind but reachable, under that is on track.
- */
-export type Band = 'red' | 'orange' | 'green'
+/** Mitra baru still to disburse before the BP clears the month's count target. */
+export const noaBaruShortfall = (bp: DisbursementBp) =>
+  Math.max(0, DISBURSEMENT_TARGETS.noaBaru - bp.noaBaru)
 
-export function shortfallBand(shortfall: number): Band {
-  const share = (shortfall / DISBURSEMENT_TARGETS.nilai) * 100
-  if (share >= 40) return 'red'
-  if (share >= 20) return 'orange'
-  return 'green'
-}
-
-/** The same three bands for the new-mitra count, paced to the week. */
-export function noaBaruBand(count: number): Band {
-  const weekly = DISBURSEMENT_TARGETS.noaBaru / WEEKS_IN_MONTH
-  if (count >= weekly) return 'green'
-  if (count >= weekly - 1) return 'orange'
-  return 'red'
-}
+/** Does this BP clear the renewal standard — the one figure on the tab that is
+ *  a rate, and so the only one that carries a verdict. Pencairan follows
+ *  Pembayaran here: the counts are facts and stay black, the rate is the
+ *  judgement and is the only thing allowed to wear colour. */
+export const meetsRenewal = (bp: DisbursementBp) =>
+  renewalRate(bp) >= DISBURSEMENT_TARGETS.renewalRate
 
 /** Branch totals — the two headline figures above the table. */
 export function branchDisbursement() {
