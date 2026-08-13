@@ -35,6 +35,7 @@ import {
   noaBaruShortfall,
   noaTotal,
   renewalRate,
+  renewalShortfall,
   type DisbursementBp,
 } from './data'
 
@@ -192,6 +193,7 @@ function BpRow({ bp, zebra }: { bp: DisbursementBp; zebra: boolean }) {
   // only the second carries the dividing border.
   const stripe = zebra ? 'bg-neutral-50' : 'bg-neutral-white'
   const noaShort = noaBaruShortfall(bp)
+  const lanjutanShort = renewalShortfall(bp)
   const nilaiShort = nilaiShortfall(bp)
 
   return (
@@ -210,14 +212,14 @@ function BpRow({ bp, zebra }: { bp: DisbursementBp; zebra: boolean }) {
           {noaTotal(bp)}
         </td>
         <td className="px-12 pt-16 text-center text-14 text-default">{bp.noaBaru}</td>
-        {/* The count and the rate together — the count is the half the BM can
-            name mitra for, the rate is the half the target is written in, and
-            the only figure on the tab carrying a verdict. The denominator is
-            left off: it is the same renewalDue the rate is already computed
+        {/* The count and the rate on one line — the count is the half the BM
+            can name mitra for, the rate is the half the target is written in,
+            and the only figure on the tab carrying a verdict. The denominator
+            is left off: it is the same renewalDue the rate is already computed
             from, and reading it beside the count invites the two to be
             compared as though they were different facts. */}
         <td className="px-12 pt-16 text-center">
-          <span className="flex flex-col items-center gap-4">
+          <span className="flex items-center justify-center gap-8">
             <span className="text-14 text-default">{bp.noaLanjutan}</span>
             <RatePill ok={meetsRenewal(bp)}>{pct(renewalRate(bp))}</RatePill>
           </span>
@@ -237,7 +239,9 @@ function BpRow({ bp, zebra }: { bp: DisbursementBp; zebra: boolean }) {
       <tr className={`border-b border-default align-top ${stripe}`}>
         <td className="border-l border-default px-12 pb-16 pt-4" />
         <td className={SHORT_CELL}>{noaShort ? `Kurang ${noaShort} mitra baru` : null}</td>
-        <td className="px-12 pb-16 pt-4" />
+        <td className={SHORT_CELL}>
+          {lanjutanShort ? `Kurang ${lanjutanShort} mitra lanjutan` : null}
+        </td>
         <td className={`border-l border-default ${SHORT_CELL}`}>
           {nilaiShort ? `Kurang ${juta(nilaiShort)}` : null}
         </td>
