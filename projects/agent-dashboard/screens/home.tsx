@@ -12,12 +12,13 @@
 // The three sales-summary layouts and the QRIS-active condition are driven by
 // the desktop state chips (see index.ts); the period toggle is a live control.
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { BottomSheet, Button, Card, NavigationHeader } from '@/design-system/components'
 import {
   CalendarDots,
   ChartLineUp,
   ChatCircleQuestion,
+  ChevronDown,
   ChevronRight,
   Coins,
   MapPin,
@@ -32,17 +33,27 @@ import {
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { AgenJuaraCard } from '../lib/AgenJuaraCard'
-import { FIGURES, PERIOD_LABEL, periodDate } from '../lib/data'
+import { DateFilterSheet, filterLabel, type CustomRange } from '../lib/DateFilter'
+import { FIGURES } from '../lib/data'
 import { store, useFlowState, type Period } from '../lib/store'
 import { IconTile, InfoDot, LinkRow, ProgressBar, SectionTitle } from '../lib/ui'
 
-const PERIODS: Period[] = ['hari', 'minggu', 'bulan']
-
 export function HomeScreen() {
   const flow = useFlow()
-  const { period, layout, qris, sheet } = useFlowState()
+  const { period, layout, qris, sheet, periodSheet } = useFlowState()
   const f = FIGURES[period]
   const openQris = () => store.set({ sheet: true })
+
+  // "Tanggal lain" (custom range) has no bearing on FIGURES lookup — see
+  // lib/store.ts — so the picked period/range live here, local to the sheet
+  // and the calendar-input label rather than the shared flow state.
+  const [dateFilter, setDateFilter] = useState<Period | 'custom'>(period)
+  const [customRange, setCustomRange] = useState<CustomRange>(() => {
+    const to = new Date()
+    const from = new Date(to)
+    from.setDate(from.getDate() - 1)
+    return { from, to }
+  })
 
   return (
     <Screen topBar={<NavigationHeader title="AmarthaLink" onBack={flow.back} />}>
@@ -52,27 +63,17 @@ export function HomeScreen() {
             FunDS boundary instead of the whole Screen. flush + inline radius/
             padding keep the tighter tcard look (rounded-8, 4px). */}
         <Card flush style={{ borderRadius: 8, padding: 4 }}>
-          {/* period selector */}
-          <div className="rounded-8 bg-primary-700">
-            <div className="flex gap-4 rounded-8 bg-primary-500 p-4">
-              {PERIODS.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => store.set({ period: p })}
-                  className={`h-32 flex-1 rounded-4 text-14 ${
-                    period === p
-                      ? 'bg-neutral-white font-bold text-primary-500'
-                      : 'font-regular text-neutral-white'
-                  }`}
-                >
-                  {PERIOD_LABEL[p]}
-                </button>
-              ))}
-            </div>
-            <div className="px-8 pb-4 pt-8 text-center text-12 text-primary-200">
-              {periodDate(period)}
-            </div>
+          {/* period — small calendar input, opens the period-picker sheet */}
+          <div className="flex px-4 pt-8">
+            <button
+              type="button"
+              onClick={() => store.set({ periodSheet: true })}
+              className="inline-flex items-center gap-4 rounded-8 border border-default bg-neutral-white px-8 py-4 text-12 font-bold text-default"
+            >
+              <CalendarDots size={16} />
+              {filterLabel(dateFilter, customRange)}
+              <ChevronDown size={16} className="text-neutral-500" />
+            </button>
           </div>
 
           {/* body — one of three layouts */}
@@ -244,6 +245,22 @@ export function HomeScreen() {
         }
         primaryAction={<Button onClick={() => store.set({ sheet: false })}>Tutup</Button>}
       />
+
+      {/* ===== Tanggal filter sheet ========================================= */}
+      <DateFilterSheet
+        open={periodSheet}
+        onClose={() => store.set({ periodSheet: false })}
+        period={dateFilter}
+        customRange={customRange}
+        onApply={(next, range) => {
+          setDateFilter(next)
+          setCustomRange(range)
+          // No figures exist for an arbitrary range — "Tanggal lain" borrows
+          // the 30-hari bucket (closest order of magnitude) while the input
+          // itself still shows the picked dates.
+          store.set({ period: next === 'custom' ? 'bulan' : next, periodSheet: false })
+        }}
+      />
     </Screen>
   )
 }
@@ -260,12 +277,14 @@ function Split({
   right,
   rightSub,
   rightInfo,
+  onRightInfo,
 }: {
   left: string
   leftSub: string
   right: string
   rightSub: string
   rightInfo?: boolean
+  onRightInfo?: () => void
 }) {
   return (
     <div className="flex items-center rounded-8 bg-neutral-50">
@@ -278,7 +297,7 @@ function Split({
         <b className="text-14 font-bold text-default">{right}</b>
         <span className="flex items-center gap-4 text-12 text-caption">
           {rightSub}
-          {rightInfo ? <InfoDot label="Info QRIS" /> : null}
+          {rightInfo ? <InfoDot label="Info QRIS" onClick={onRightInfo} /> : null}
         </span>
       </div>
     </div>
@@ -335,7 +354,7 @@ function Layout2({ f, onQris }: { f: F; onQris: () => void }) {
         <span className="text-12 text-caption">Pemasukan</span>
         <span className="text-24 font-bold text-default">{f.pemasukan}</span>
       </div>
-      <Split left={f.omzet} leftSub="Poket Premium" right={f.qris} rightSub="QRIS" rightInfo />
+      <Split left={f.omzet} leftSub="Poket Premium" right={f.qris} rightSub="QRIS" rightInfo onRightInfo={onQris} />
       <div className="border-t border-default" />
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-4">
@@ -365,7 +384,7 @@ function Layout3({ f, onQris }: { f: F; onQris: () => void }) {
         <span className="text-12 text-caption">Pemasukan</span>
         <span className="text-24 font-bold text-default">{f.pemasukan}</span>
       </div>
-      <Split left={f.omzet} leftSub="Poket Premium" right={f.qris} rightSub="QRIS" rightInfo />
+      <Split left={f.omzet} leftSub="Poket Premium" right={f.qris} rightSub="QRIS" rightInfo onRightInfo={onQris} />
       <div className="border-t border-default" />
       <LinkRow>Laporan Keuangan Selengkapnya</LinkRow>
     </div>

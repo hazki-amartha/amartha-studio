@@ -11,6 +11,7 @@
 //             block, and surfaces the "activate QRIS" promo + opportunity.
 //
 //   sheet   — the "Pemasukan dari QRIS" info bottom sheet.
+//   periodSheet — the period-picker bottom sheet (opened from the calendar input).
 
 import { useSyncExternalStore } from 'react'
 
@@ -23,9 +24,16 @@ export interface FlowState {
   layout: Layout
   qris: Qris
   sheet: boolean
+  periodSheet: boolean
 }
 
-const initial: FlowState = { period: 'minggu', layout: 2, qris: 'active', sheet: false }
+const initial: FlowState = {
+  period: 'minggu',
+  layout: 2,
+  qris: 'active',
+  sheet: false,
+  periodSheet: false,
+}
 
 let state: FlowState = initial
 
