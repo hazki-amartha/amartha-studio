@@ -405,6 +405,87 @@ export function RatePill({ ok, children }: { ok: boolean | null; children: React
   )
 }
 
+// --- Bucket card -------------------------------------------------------------
+
+const BUCKET_CHIP: Record<string, string> = {
+  green: 'border-green-200 bg-green-50 text-green-600',
+  yellow: 'border-yellow-200 bg-yellow-50 text-yellow-700',
+  orange: 'border-orange-200 bg-orange-50 text-orange-600',
+  red: 'border-red-200 bg-red-50 text-red-600',
+}
+
+/**
+ * One ageing bucket as its own card: the bucket named in a coloured chip, the
+ * figure plain beneath.
+ *
+ * Colour sits on the chip rather than the number because the chip is what the
+ * colour is about — how old the debt is. Tinting the figure as well would put
+ * two meanings on one card.
+ */
+export function BucketCard({
+  label,
+  intent,
+  value,
+  prefix,
+  caption,
+}: {
+  label: string
+  intent: string
+  value: string
+  prefix?: string
+  caption: string
+}) {
+  return (
+    <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-16">
+      <span
+        className={`self-start rounded-8 border px-8 py-2 text-12 font-bold ${BUCKET_CHIP[intent]}`}
+      >
+        {label}
+      </span>
+      <span className="flex flex-col gap-2">
+        <span className="text-24 font-bold text-default">
+          {prefix ? <span className="text-16">{prefix}</span> : null}
+          {value}
+        </span>
+        <span className="text-12 text-caption">{caption}</span>
+      </span>
+    </div>
+  )
+}
+
+// --- Segmented control -------------------------------------------------------
+
+/** A compact switch between two readings of the same page. */
+export function Segmented({
+  items,
+  activeId,
+  onChange,
+}: {
+  items: { id: string; label: string }[]
+  activeId: string
+  onChange: (id: string) => void
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-full bg-neutral-50 p-2">
+      {items.map((item) => {
+        const on = item.id === activeId
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onChange(item.id)}
+            className={`rounded-full px-12 py-4 text-12 ${
+              on ? 'bg-neutral-white font-bold text-link' : 'font-regular text-caption'
+            }`}
+          >
+            {item.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // --- Metric card ------------------------------------------------------------
 
 /** A headline rate with the target it is judged against sitting underneath, so

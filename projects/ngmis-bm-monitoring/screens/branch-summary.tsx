@@ -8,11 +8,23 @@
 import { BranchSummaryPage } from '../lib/branch-summary-page'
 import { RepaymentGrid } from '../lib/repayment-grid'
 import { RepaymentTable } from '../lib/repayment-table'
+import { useState } from 'react'
 import { useApp } from '../lib/store'
+import type { Unit } from '../lib/data'
 
 export function BranchSummaryScreen() {
   const { variant } = useApp()
+  // Which unit the page reads in. Local state: it is a way of looking at the
+  // page, not a value that has to survive leaving it.
+  const [unit, setUnit] = useState<Unit>('pinjaman')
+
   return (
-    <BranchSummaryPage pembayaran={variant === 'mvp' ? <RepaymentTable /> : <RepaymentGrid />} />
+    <BranchSummaryPage
+      unit={unit}
+      onUnitChange={setUnit}
+      pembayaran={
+        variant === 'mvp' ? <RepaymentTable unit={unit} /> : <RepaymentGrid unit={unit} />
+      }
+    />
   )
 }

@@ -15,6 +15,7 @@
 import { useState, type ReactNode } from 'react'
 import { DisbursementTable } from './disbursement-table'
 import { BmShell } from './shell'
+import { TableHeading } from './repayment-table'
 import { PageHeading, Panel, Select, Tabs } from './ui'
 import {
   BP_FILTER,
@@ -25,6 +26,7 @@ import {
   REGIONS,
   TABS,
   UPDATE_BAR,
+  type Unit,
 } from './data'
 
 /** A tab that has not been designed yet, saying so plainly. */
@@ -41,7 +43,15 @@ function NotDesignedYet({ label }: { label: string }) {
   )
 }
 
-export function BranchSummaryPage({ pembayaran }: { pembayaran: ReactNode }) {
+export function BranchSummaryPage({
+  pembayaran,
+  unit,
+  onUnitChange,
+}: {
+  pembayaran: ReactNode
+  unit: Unit
+  onUnitChange: (u: Unit) => void
+}) {
   const [tab, setTab] = useState(DEFAULT_TAB)
   const [region, setRegion] = useState('jawa')
   const [province, setProvince] = useState('jawa-barat')
@@ -90,7 +100,12 @@ export function BranchSummaryPage({ pembayaran }: { pembayaran: ReactNode }) {
         <span className="text-12 text-caption">{UPDATE_BAR.refreshed}</span>
       </div>
 
-      {tab === 'repayment' ? pembayaran : null}
+      {tab === 'repayment' ? (
+        <>
+          <TableHeading unit={unit} onUnitChange={onUnitChange} />
+          {pembayaran}
+        </>
+      ) : null}
       {tab === 'disbursement' ? <DisbursementTable /> : null}
       {tab === 'task' ? <NotDesignedYet label={tabLabel} /> : null}
     </BmShell>
