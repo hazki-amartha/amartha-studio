@@ -421,20 +421,25 @@ const BUCKET_CHIP: Record<string, string> = {
  * `intent` puts the name in a coloured chip, which is what Pembayaran's ageing
  * buckets want — colour sits on the chip rather than the number because the
  * chip is what the colour is about, how old the debt is. Omit it and the name
- * is plain black text: Pencairan's cards are four cuts of the same month with
- * no severity between them, so a chip there would promise a scale that isn't.
+ * is plain black text: Pencairan's cards are cuts of the same month with no
+ * severity between them, so a chip there would promise a scale that isn't.
+ *
+ * `trailing` sits on the figure's own line, for the one case where a count and
+ * the rate computed from it are the same fact and belong together.
  */
 export function BucketCard({
   label,
   intent,
   value,
   prefix,
+  trailing,
   caption,
 }: {
   label: string
   intent?: string
   value: string
   prefix?: string
+  trailing?: ReactNode
   caption: string
 }) {
   return (
@@ -449,9 +454,12 @@ export function BucketCard({
         <span className="text-12 font-bold text-default">{label}</span>
       )}
       <span className="flex flex-col gap-2">
-        <span className="text-24 font-bold text-default">
-          {prefix ? <span className="text-16">{prefix}</span> : null}
-          {value}
+        <span className="flex items-center gap-8">
+          <span className="text-24 font-bold text-default">
+            {prefix ? <span className="text-16">{prefix}</span> : null}
+            {value}
+          </span>
+          {trailing}
         </span>
         <span className="text-12 text-caption">{caption}</span>
       </span>

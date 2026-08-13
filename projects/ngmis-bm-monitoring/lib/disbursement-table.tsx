@@ -72,21 +72,25 @@ export function DisbursementMetrics() {
   const nilai = DISBURSEMENT_BPS.reduce((n, bp) => n + nilaiTotal(bp), 0)
 
   return (
-    <div className="grid grid-cols-4 gap-16 pb-16">
+    <div className="grid grid-cols-3 gap-16 pb-16">
       <BucketCard
         label="Mitra baru"
         value={`${branch.baru}`}
         caption={`Target ${DISBURSEMENT_TARGETS.noaBaru} mitra / bulan`}
       />
+      {/* Mitra lanjutan carries its own renewal rate rather than standing
+          beside a separate Renewal card: the rate is that count over the mitra
+          due back, so two cards said one fact twice and invited them to be
+          read as different things. Same shape the table's column uses. */}
       <BucketCard
         label="Mitra lanjutan"
         value={`${branch.lanjutan}`}
-        caption={`Dari ${branch.due} mitra jatuh tempo`}
-      />
-      <BucketCard
-        label="Renewal"
-        value={pct(branch.renewal)}
-        caption={`Target ${DISBURSEMENT_TARGETS.renewalRate}% / bulan`}
+        trailing={
+          <RatePill ok={branch.renewal >= DISBURSEMENT_TARGETS.renewalRate}>
+            {pct(branch.renewal)}
+          </RatePill>
+        }
+        caption={`Dari ${branch.due} mitra jatuh tempo · Target ${DISBURSEMENT_TARGETS.renewalRate}% / bulan`}
       />
       <BucketCard
         label="Nilai pencairan"
