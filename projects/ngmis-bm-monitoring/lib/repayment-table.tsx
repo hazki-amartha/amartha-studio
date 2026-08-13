@@ -18,7 +18,7 @@
 import { Fragment, type ReactNode } from 'react'
 import { Button } from '@/design-system/components'
 import { DownloadSimple } from '@/design-system/icons'
-import { BucketCard, Panel, RatePill, Segmented } from './ui'
+import { BucketCard, Panel, RatePill, UnitToggle } from './ui'
 import {
   BUCKET_ORDER,
   REPAYMENT_BPS,
@@ -34,10 +34,11 @@ import {
   type Unit,
 } from './data'
 
-export const UNITS = [
-  { id: 'pinjaman', label: 'Jumlah pinjaman' },
-  { id: 'rupiah', label: 'Nominal (Rp)' },
-]
+/** The two readings, in switch order: off is Jumlah pinjaman, on is Nominal. */
+export const UNITS = {
+  pinjaman: { id: 'pinjaman', label: 'Jumlah pinjaman' },
+  rupiah: { id: 'rupiah', label: 'Nominal (Rp)' },
+} as const
 
 /** `rated` marks the buckets that carry a standard and so earn a Rate column.
  *  Total pinjaman is an aggregate of the four buckets and DPD 90+ has no
@@ -112,7 +113,12 @@ export function TableHeading({
     <div className="flex flex-wrap items-center justify-between gap-16 pb-12">
       <span className="text-16 font-bold text-default">Performa BP</span>
       <div className="flex items-center gap-8">
-        <Segmented items={UNITS} activeId={unit} onChange={(id) => onUnitChange(id as Unit)} />
+        <UnitToggle
+          off={UNITS.pinjaman}
+          on={UNITS.rupiah}
+          value={unit}
+          onChange={(id) => onUnitChange(id as Unit)}
+        />
         <Button variant="outline" size="sm" onClick={() => undefined}>
           <span className="flex items-center gap-8">
             <DownloadSimple size={16} />

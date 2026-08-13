@@ -21,7 +21,7 @@
 // =============================================================================
 
 import type { ReactNode } from 'react'
-import { Badge } from '@/design-system/components'
+import { Badge, Toggle } from '@/design-system/components'
 import {
   Cross,
   ChevronDown,
@@ -453,36 +453,49 @@ export function BucketCard({
   )
 }
 
-// --- Segmented control -------------------------------------------------------
+// --- Unit toggle -------------------------------------------------------------
 
-/** A compact switch between two readings of the same page. */
-export function Segmented({
-  items,
-  activeId,
+/**
+ * A switch between two readings of the same page, on the FunDS `Toggle`.
+ *
+ * Both readings are named, one either side of the switch, and the live one is
+ * bold: neither unit is the obvious default, so a single trailing label would
+ * leave the reader working out what "off" means. The labels are clickable too —
+ * a 32px switch is a small target for a control this central.
+ */
+export function UnitToggle({
+  off,
+  on,
+  value,
   onChange,
 }: {
-  items: { id: string; label: string }[]
-  activeId: string
+  /** The reading the switch shows when it is off, drawn on the left. */
+  off: { id: string; label: string }
+  on: { id: string; label: string }
+  value: string
   onChange: (id: string) => void
 }) {
+  const isOn = value === on.id
+  const label = (side: { id: string; label: string }, live: boolean) => (
+    <button
+      type="button"
+      onClick={() => onChange(side.id)}
+      className={`text-12 ${live ? 'font-bold text-default' : 'font-regular text-caption'}`}
+    >
+      {side.label}
+    </button>
+  )
+
   return (
-    <div className="flex items-center gap-2 rounded-full bg-neutral-50 p-2">
-      {items.map((item) => {
-        const on = item.id === activeId
-        return (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onChange(item.id)}
-            className={`rounded-full px-12 py-4 text-12 ${
-              on ? 'bg-neutral-white font-bold text-link' : 'font-regular text-caption'
-            }`}
-          >
-            {item.label}
-          </button>
-        )
-      })}
-    </div>
+    <span className="flex items-center gap-8">
+      {label(off, !isOn)}
+      <Toggle
+        checked={isOn}
+        aria-label={`${off.label} / ${on.label}`}
+        onChange={(e) => onChange(e.target.checked ? on.id : off.id)}
+      />
+      {label(on, isOn)}
+    </span>
   )
 }
 
