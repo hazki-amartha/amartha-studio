@@ -12,6 +12,7 @@ import { useState, type ReactNode } from 'react'
 import { useFlow } from '@/platform/runtime'
 import { Badge, Modal } from '@/design-system/components'
 import { FoShell } from '../lib/shell'
+import { setSelectedBp } from '../lib/store'
 import { LockedFilter, PageHeading, Panel, Select, Tabs } from '../lib/ui'
 import {
   BP_ROWS,
@@ -109,6 +110,9 @@ function CashOutstanding() {
     row.outstandingItems.filter((it, i) => it.resubmitRequested && !approved[`${row.id}:${i}`])
       .length
 
+  /** BPs whose last setoran is stale — the "terlambat setoran" headcount. */
+  const lateCount = BP_ROWS.filter(isSetoranStale).length
+
   return (
     <div className="flex flex-col gap-16">
       <span className="text-16 font-bold text-default">{WEEK_LABEL}</span>
@@ -116,13 +120,14 @@ function CashOutstanding() {
       <div className="flex flex-wrap gap-16">
         <TotalCard label="Belum disetor" value={rupiah(TOTAL_OUTSTANDING)} tone="text-red-500" />
         <TotalCard label="Sudah disetor" value={rupiah(TOTAL_SETTLED)} tone="text-green-500" />
+        <TotalCard label="BP Terlambat Setoran" value={`${lateCount} orang`} tone="text-red-500" />
       </div>
 
       <Panel className="p-0">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="bg-neutral-50">
-              <th className="rounded-tl-12 px-16 py-12 text-12 font-bold text-default">BP</th>
+              <th className="rounded-tl-12 px-16 py-12 text-12 font-bold text-default">Nama BP</th>
               <th className="px-16 py-12 text-12 font-bold text-default">Belum disetor</th>
               <th className="px-16 py-12 text-12 font-bold text-default">Sudah disetor</th>
               <th className="rounded-tr-12 px-16 py-12 text-12 font-bold text-default">
@@ -145,7 +150,13 @@ function CashOutstanding() {
                   <MoneyCell amount={row.settled} onDetail={() => setDetail({ row, kind: 'settled' })} />
                 </td>
                 <td className="px-16 py-12">
-                  <SetoranTerakhir row={row} onMangkir={() => flow.go('fo-user-management')} />
+                  <SetoranTerakhir
+                    row={row}
+                    onMangkir={() => {
+                      setSelectedBp(row.name)
+                      flow.go('fo-user-management')
+                    }}
+                  />
                 </td>
               </tr>
             ))}
@@ -195,7 +206,7 @@ function MoneyCell({
           <button
             type="button"
             onClick={onDetail}
-            className="text-12 font-bold text-link active:opacity-70"
+            className="text-12 font-regular text-link underline active:opacity-70"
           >
             Rincian
           </button>
@@ -225,7 +236,7 @@ function SetoranTerakhir({ row, onMangkir }: { row: BpRow; onMangkir: () => void
           <button
             type="button"
             onClick={onMangkir}
-            className="text-12 font-bold text-link active:opacity-70"
+            className="text-12 font-regular text-link underline active:opacity-70"
           >
             tandai BP sebagai mangkir
           </button>{' '}
@@ -345,7 +356,7 @@ function OutstandingBreakdown({
                       <button
                         type="button"
                         onClick={() => onApprove(key)}
-                        className="text-12 font-bold text-link active:opacity-70"
+                        className="text-12 font-regular text-link underline active:opacity-70"
                       >
                         Approve
                       </button>
