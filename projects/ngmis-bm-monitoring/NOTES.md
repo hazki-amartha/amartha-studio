@@ -13,6 +13,7 @@ In `lib/ui.tsx`:
 - `Textarea` — same gap. `morning-report`, `evening-report`.
 - `RatePill` — a rate wearing its verdict: green when it clears its standard, red when it does not, plain text when the bucket has no standard to be judged against.
 - `MetricCard` — a headline rate with the target it is judged against underneath.
+- `UnitToggle` — the FunDS `Toggle` with a label either side, switching Pembayaran between Jumlah pinjaman and Nominal (Rp). Both readings are named because neither is the obvious default; a lone trailing label would leave "off" unexplained.
 - `DataTable` — sortable headers, zebra rows. Used only by `report-history` now.
 - `SideSheet` / `SheetSection` — the right-hand panel the action brief opens in. FunDS ships `BottomSheet`, which is the phone answer: on a 1440-wide console a sheet from the bottom covers the table it is about. Positioned `absolute` so it stays inside the device frame in prototype view.
 - `ReportTile`, `SunGlyph`, `MoonGlyph` — the morning/evening tiles. Sun and moon are genuinely absent from the 166-icon set, so they are one-offs. Currently unused by any screen; the two report screens they belong to still exist.
