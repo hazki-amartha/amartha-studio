@@ -10,17 +10,14 @@ In `lib/ui.tsx`:
 - `SidebarPromo` — the "We've updated our portal!" card above Report/Settings.
 - `Breadcrumbs`, `PageHeading`, `Panel`, `PanelHeading`, `Tabs` — page chrome.
 - `Select` — FunDS has no select; a phone uses a bottom sheet. Supports labelled `groups`, which the BP filter needs because it mixes a status and a name in one list.
-- `Textarea` — same gap. `morning-report`, `evening-report`.
 - `RatePill` — a rate wearing its verdict: green when it clears its standard, red when it does not, plain text when the bucket has no standard to be judged against.
 - `MetricCard` — a headline rate with the target it is judged against underneath.
 - `UnitToggle` — the FunDS `Toggle` with a label either side, switching Pembayaran between Jumlah pinjaman and Nominal (Rp). Both readings are named because neither is the obvious default; a lone trailing label would leave "off" unexplained.
-- `DataTable` — sortable headers, zebra rows. Used only by `report-history` now.
 - `SideSheet` / `SheetSection` — the right-hand panel the action brief opens in. FunDS ships `BottomSheet`, which is the phone answer: on a 1440-wide console a sheet from the bottom covers the table it is about. Positioned `absolute` so it stays inside the device frame in prototype view.
-- `ReportTile`, `SunGlyph`, `MoonGlyph` — the morning/evening tiles. Sun and moon are genuinely absent from the 166-icon set, so they are one-offs. Currently unused by any screen; the two report screens they belong to still exist.
 
 Elsewhere in `lib/`:
 
-- `branch-summary-page.tsx` — the Performa page shared by both variations, so chrome cannot drift between them. Tugas and Pencairan render a deliberate "belum dirancang" empty state: invented placeholder content gets reviewed as though it were a proposal.
+- `branch-summary-page.tsx` — the Performa page shared by both variations, so chrome cannot drift between them. Tugas renders a deliberate "belum dirancang" empty state: invented placeholder content gets reviewed as though it were a proposal.
 - `repayment-table.tsx` — the MVP cut. Counts and rate side by side in every bucket.
 - `repayment-grid.tsx` — the end state. Rate leads, and every BP missing a standard carries a recommended action with a brief behind it.
 - `bp-filter.tsx` — the shared filter, by target status or by BP name.

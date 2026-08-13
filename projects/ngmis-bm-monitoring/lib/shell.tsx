@@ -1,7 +1,7 @@
 'use client'
 
-// The BM's sidebar, identical on every screen — so the four screens each render
-// `<BmShell>` rather than repeating the nav list and the user row.
+// The BM's sidebar — kept out of the screen so the nav list and the user row
+// are written once rather than repeated wherever the shell is drawn.
 
 import { useState, type ReactNode } from 'react'
 import {
