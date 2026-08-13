@@ -212,7 +212,7 @@ function SectionMatrix({
                             className={`px-12 py-8 text-14 ${j === 0 ? 'border-l border-default' : ''}`}
                           >
                             <span className={`block ${toneMainClass(tone)}`}>
-                              {fmtMain(cells[mm.id], row.kind)}
+                              {fmtMain(cells[mm.id], mm.kind ?? row.kind)}
                             </span>
                             {note ? (
                               <span className={`block text-12 ${toneNoteClass(tone)}`}>{note}</span>

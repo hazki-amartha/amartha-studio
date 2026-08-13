@@ -59,6 +59,9 @@ export interface Measure {
   label: string
   /** A same-day result the morning briefing hasn't produced yet → zeroed then. */
   actual?: boolean
+  /** Overrides the row's `kind` when a row's measures are not the same unit —
+   *  Disbursement pairs a mitra COUNT with a rupiah AMOUNT on one row. */
+  kind?: CellKind
 }
 
 /** The threshold the 2nd measure's percentage (of the 1st) is judged against —
@@ -239,19 +242,27 @@ export const SECTIONS: MatrixSection[] = [
         m: { outstanding: [5_000_000, 0, 3_000_000, 3_000_000, 1_000_000, 2_000_000] } },
     ],
   ),
+  // Two rows, not four: NTB and ETB are the two kinds of disbursement, and how
+  // many mitra and how much money are two READINGS of each — so they sit side
+  // by side as measures rather than stacking as rows that repeat the label.
   section(
     'disbursement',
     'Disbursement',
-    [{ id: 'completed', label: 'Completed', actual: true }],
     [
-      { id: 'ntb-mitra', label: 'NTB - Mitra new',
-        m: { completed: [4, 1, 2, 4, 1, 2] } },
-      { id: 'ntb-amount', label: 'NTB - Disbursement amount (Rp)', kind: 'rupiah',
-        m: { completed: [45_000_000, 15_000_000, 20_000_000, 40_000_000, 12_000_000, 20_000_000] } },
-      { id: 'etb-mitra', label: 'ETB - Renewal mitra',
-        m: { completed: [3, 2, 3, 3, 1, 3] } },
-      { id: 'etb-amount', label: 'ETB - Disbursement amount (Rp)', kind: 'rupiah',
-        m: { completed: [28_000_000, 20_000_000, 25_000_000, 28_000_000, 15_000_000, 22_000_000] } },
+      { id: 'mitra', label: 'Mitra', actual: true },
+      { id: 'amount', label: 'Amount (Rp)', actual: true, kind: 'rupiah' },
+    ],
+    [
+      { id: 'ntb', label: 'NTB', sublabel: 'Mitra new',
+        m: {
+          mitra: [4, 1, 2, 4, 1, 2],
+          amount: [45_000_000, 15_000_000, 20_000_000, 40_000_000, 12_000_000, 20_000_000],
+        } },
+      { id: 'etb', label: 'ETB', sublabel: 'Renewal',
+        m: {
+          mitra: [3, 2, 3, 3, 1, 3],
+          amount: [28_000_000, 20_000_000, 25_000_000, 28_000_000, 15_000_000, 22_000_000],
+        } },
     ],
   ),
 ]
@@ -319,7 +330,7 @@ export function rowSummary(
   const second = cells[section.measures[1].id]
   return section.measures.map((mm, j) => {
     const raw = cells[mm.id]
-    const main = row.kind === 'rupiah' ? rupiah(raw) : String(raw)
+    const main = (mm.kind ?? row.kind) === 'rupiah' ? rupiah(raw) : String(raw)
     let note = ''
     if (j === 1 && row.note === 'pct') note = ` (${pctText(second, first)})`
     else if (j === 1 && row.note === 'sisa') note = ` · Sisa ${rupiah(first - second)}`
