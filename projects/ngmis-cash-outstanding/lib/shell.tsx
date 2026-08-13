@@ -43,14 +43,17 @@ export function FoShell({
   breadcrumbs,
   header,
   children,
+  activeNav = 'branches',
 }: {
   breadcrumbs?: { label: string; current?: boolean }[]
   header?: ReactNode
   children: ReactNode
+  /** Which sidebar item is lit. The FO Report lives under Branches; the User
+   *  details page lives under Settings. */
+  activeNav?: string
 }) {
-  // Which nav item is lit is chrome, not flow: this surface lives under
-  // Branches, so it stays local to the shell.
-  const [navId, setNavId] = useState('branches')
+  // Which nav item is lit is chrome, not flow, so it stays local to the shell.
+  const [navId, setNavId] = useState(activeNav)
 
   return (
     <MisShell

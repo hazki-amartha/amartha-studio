@@ -53,6 +53,7 @@ export function FoUserManagementScreen() {
 
   return (
     <FoShell
+      activeNav="settings"
       breadcrumbs={[
         { label: 'Home' },
         { label: 'Settings' },

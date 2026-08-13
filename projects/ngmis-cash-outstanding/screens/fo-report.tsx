@@ -169,6 +169,7 @@ function CashOutstanding() {
                 <td className="px-16 py-12">
                   <MoneyCell
                     amount={row.outstanding}
+                    reopenCount={row.entries.filter((e) => e.item.reopenRequested).length}
                     onDetail={() => setDetail({ rowId: row.id, kind: 'outstanding' })}
                   />
                 </td>
@@ -225,11 +226,27 @@ function TotalCard({ label, value, tone }: { label: string; value: string; tone:
 }
 
 /** A money figure with its "Rincian" breakdown link — hidden when there is
- *  nothing to break down. */
-function MoneyCell({ amount, onDetail }: { amount: number; onDetail: () => void }) {
+ *  nothing to break down. A red counter beside the nominal flags how many of the
+ *  BP's tugas the BP has asked to re-open. */
+function MoneyCell({
+  amount,
+  onDetail,
+  reopenCount = 0,
+}: {
+  amount: number
+  onDetail: () => void
+  reopenCount?: number
+}) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-14 text-default">{rupiah(amount)}</span>
+      <span className="flex items-center gap-4">
+        <span className="text-14 text-default">{rupiah(amount)}</span>
+        {reopenCount > 0 ? (
+          <span className="inline-flex h-16 min-w-16 items-center justify-center rounded-full bg-red-500 px-4 text-10 font-bold text-neutral-white">
+            {reopenCount}
+          </span>
+        ) : null}
+      </span>
       {amount > 0 ? (
         <button
           type="button"
@@ -394,6 +411,11 @@ function OutstandingBreakdown({
             <td className={tdClass}>
               <span className="flex flex-col gap-4">
                 <span className="text-14 text-default">{originText(entry.item.origin)}</span>
+                {entry.item.reopenRequested ? (
+                  <span className="text-12 font-regular text-red-500">
+                    BP requested to re-open
+                  </span>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => onReopen(entry)}
