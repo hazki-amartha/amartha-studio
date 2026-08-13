@@ -37,14 +37,12 @@ import {
 
 const collectible = MAJELIS.members.filter((m) => !isSelfServe(m))
 
-/** The register as the BP finds it: the pre-paid seeded present, nobody else. */
-const freshAttendance = (): Record<string, Attendance> => {
-  const attendance: Record<string, Attendance> = {}
-  PREPAID.forEach((m) => {
-    attendance[m.id] = 'hadir'
-  })
-  return attendance
-}
+/**
+ * The register as the BP finds it: EMPTY. Paying before the visit says nothing
+ * about who walked into the balai, so nobody is seeded present — see the note
+ * on PREPAID in data.ts.
+ */
+const freshAttendance = (): Record<string, Attendance> => ({})
 
 const freshPayments = (): Record<string, number> => {
   const payments: Record<string, number> = {}

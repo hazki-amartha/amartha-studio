@@ -287,13 +287,13 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/attendance'), 'AttendanceScreen'),
       notes: [
         'Attendance is asked first and on its own, and collection does not open until every mitra is marked. The register is a record other people read later, and a half-marked one cannot be trusted or audited.',
-        'Nothing on this screen mentions money — that is the next stage’s question, and asking both at once is what this split exists to avoid. The 15 who already paid before the visit come pre-marked present, so the BP confirms 7 rather than all 22.',
+        'Nothing on this screen mentions money — that is the next stage’s question, and asking both at once is what this split exists to avoid. The register starts EMPTY for all 22: paying through the app or through the ketua earlier in the week says nothing about who walked into the balai this morning, and a register that answers that on the BP’s behalf is one she has to audit rather than fill.',
       ],
       states: [
         {
           id: 'fresh',
           label: 'Just opened',
-          description: 'The 15 who paid on their own are pre-marked; 7 still to record',
+          description: 'The register as she finds it — nothing marked, all 22 still to record',
           apply: demo.registerFresh,
         },
         {

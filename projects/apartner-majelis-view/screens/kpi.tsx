@@ -557,17 +557,20 @@ function WeightRowCard({ r }: { r: KpiRow }) {
     <div className="rounded-12 border border-default bg-neutral-white p-12">
       <div className="flex items-center gap-8">
         <span className="min-w-0 flex-1 text-14 font-bold text-default">{r.n}</span>
-        {/* The parameter's share of the whole score — the pill the rupiah used
-            to occupy. Green with a tick once it is fully banked. Reads "skor
-            N", same wording as B2: the two versions are arguing about the row
-            BELOW this pill, so the pill itself has no reason to differ. */}
+        {/* What this row has EARNED toward the score, not what it is worth -
+            the pill moves with her performance, and the five pills add up to
+            the headline score exactly. A static weight beside a row she is
+            failing states the row's value to the business, which is not a
+            number she can act on. Same wording as B2: the two versions argue
+            about the row BELOW this pill, so the pill itself has no reason to
+            differ. */}
         {r.met ? (
           <Badge intent="green" size="sm" leadingIcon={<IconCheck size={16} />}>
-            skor {r.weight}
+            skor {r.points}
           </Badge>
         ) : (
           <Badge intent="neutral" size="sm">
-            skor {r.weight}
+            skor {r.points}
           </Badge>
         )}
       </div>
@@ -733,16 +736,16 @@ function WeightRowCardB2({ r }: { r: KpiRow }) {
     <div className="rounded-12 border border-default bg-neutral-white p-12">
       <div className="flex items-center gap-8">
         <span className="min-w-0 flex-1 text-14 font-bold text-default">{r.n}</span>
-        {/* Green with a tick once the target is met, same as B1 — a banked
-            score reads as banked at a glance rather than only through the
-            ratio further down the card. */}
+        {/* Earned points, not the weight - see the note on B1's pill. Green
+            with a tick once the target is met, so a banked score reads as
+            banked at a glance rather than only through the ratio below. */}
         {r.met ? (
           <Badge intent="green" size="sm" leadingIcon={<IconCheck size={16} />}>
-            skor {r.weight}
+            skor {r.points}
           </Badge>
         ) : (
           <Badge intent="neutral" size="sm">
-            skor {r.weight}
+            skor {r.points}
           </Badge>
         )}
       </div>

@@ -430,11 +430,10 @@ const ACTIVE: Mitra[] = [
  * The 15 who settled before the BP opened the page — through the app, or handed
  * to the ketua earlier in the week.
  *
- * They are seeded as PRESENT as well as paid. A blocking attendance step that
- * demanded 22 taps before any money could be collected would make the gate the
- * most annoying screen in the flow for no information gained; a mitra who paid
- * this week is the safest available default for "she was here", and the BP can
- * still change any of them.
+ * They are seeded as PAID ONLY. Attendance starts empty for the whole group:
+ * settling through the app or through the ketua says nothing about who walked
+ * into the balai this morning, and a register that answers that question on the
+ * BP's behalf is one she has to audit rather than fill.
  */
 const PREPAID_NAMES = [
   'Nurhayati',

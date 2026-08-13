@@ -486,12 +486,17 @@ const emptyFollowUp = (leadId: string): FollowUpDraft => ({
   note: '',
 })
 
-// The 15 who settled before the visit opened: present, and paid in full.
+// The 15 who settled before the visit opened — paid in full, and nothing more.
+//
+// Attendance starts EMPTY for all 22. Paying through the app or handing money
+// to the ketua earlier in the week says nothing about who walked into the balai
+// this morning, so seeding those women as present was the register answering a
+// question only the BP standing in the room can answer. The gate is hers to
+// clear; a pre-filled register is one she has to audit rather than fill.
 const seedPayments: Record<string, number> = {}
 const seedAttendance: Record<string, Attendance> = {}
 PREPAID.forEach((m) => {
   seedPayments[m.id] = outstandingOf(m).total
-  seedAttendance[m.id] = 'hadir'
 })
 
 const seedLeads: Record<string, Lead> = {}
