@@ -447,6 +447,15 @@ export const nilaiShortfall = (bp: DisbursementBp) =>
 export const noaBaruShortfall = (bp: DisbursementBp) =>
   Math.max(0, DISBURSEMENT_TARGETS.noaBaru - bp.noaBaru)
 
+/** How many more of the mitra due for renewal have to come back before the BP
+ *  clears the 85% standard — a count, not a percentage-point gap, for the same
+ *  reason Pembayaran reports its shortfall in mitra. */
+export const renewalShortfall = (bp: DisbursementBp) =>
+  Math.max(
+    0,
+    Math.ceil((bp.renewalDue * DISBURSEMENT_TARGETS.renewalRate) / 100) - bp.noaLanjutan,
+  )
+
 /** Does this BP clear the renewal standard — the one figure on the tab that is
  *  a rate, and so the only one that carries a verdict. Pencairan follows
  *  Pembayaran here: the counts are facts and stay black, the rate is the
