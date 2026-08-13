@@ -36,5 +36,7 @@ export const configs: ConfigRegistry = {
   'hello-world': () => import('./hello-world/project.config').then((m) => m.config),
   'ngmis-bm-monitoring-v2': () =>
     import('./ngmis-bm-monitoring-v2/project.config').then((m) => m.config),
+  'ngmis-cash-outstanding': () =>
+    import('./ngmis-cash-outstanding/project.config').then((m) => m.config),
   // <append new projects above this line — one line per project>
 }

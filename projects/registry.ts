@@ -25,5 +25,6 @@ export const registry: Registry = {
   'ngmis-bm-bp-progress': () => import('./ngmis-bm-bp-progress').then((m) => m.project),
   'hello-world': () => import('./hello-world').then((m) => m.project),
   'ngmis-bm-monitoring-v2': () => import('./ngmis-bm-monitoring-v2').then((m) => m.project),
+  'ngmis-cash-outstanding': () => import('./ngmis-cash-outstanding').then((m) => m.project),
   // <append new projects above this line — one line per project>
 }
