@@ -4,8 +4,8 @@
 //
 // Drawn on the same shapes as Pembayaran, so the two tabs are read the same
 // way: a row of cards for the branch headline, then one row per BP under
-// grouped headers, then a caption line beneath each group saying how far short
-// it fell.
+// grouped headers, then a caption line beneath the column each shortfall is
+// about.
 //
 // Disbursement is read as two questions and not one: how MANY loans went out
 // (NoA) and how MUCH they were worth, each split into mitra baru and mitra
@@ -59,6 +59,8 @@ const GROUPS = [
 
 const SUB = ['Total', 'Mitra baru', 'Mitra lanjutan']
 
+const SHORT_CELL = 'px-12 pb-16 pt-4 text-center text-10 text-caption'
+
 /**
  * The branch headline, on Pembayaran's cards: the figure plain and black, the
  * target it is read against sitting underneath as a caption. The verdict is not
@@ -72,25 +74,21 @@ export function DisbursementMetrics() {
     <div className="grid grid-cols-4 gap-16 pb-16">
       <BucketCard
         label="Mitra baru"
-        intent="neutral"
         value={`${branch.baru}`}
         caption={`Target ${DISBURSEMENT_TARGETS.noaBaru} mitra / bulan`}
       />
       <BucketCard
         label="Mitra lanjutan"
-        intent="neutral"
         value={`${branch.lanjutan}`}
         caption={`Dari ${branch.due} mitra jatuh tempo`}
       />
       <BucketCard
         label="Renewal"
-        intent="neutral"
         value={pct(branch.renewal)}
         caption={`Target ${DISBURSEMENT_TARGETS.renewalRate}% / bulan`}
       />
       <BucketCard
         label="Nilai pencairan"
-        intent="neutral"
         value={`${nilai} juta`}
         prefix="Rp"
         caption={`Target ${juta(DISBURSEMENT_TARGETS.nilai)} / bulan`}
@@ -214,11 +212,14 @@ function BpRow({ bp, zebra }: { bp: DisbursementBp; zebra: boolean }) {
         <td className="px-12 pt-16 text-center text-14 text-default">{bp.noaBaru}</td>
         {/* The count and the rate together — the count is the half the BM can
             name mitra for, the rate is the half the target is written in, and
-            the only figure on the tab carrying a verdict. */}
+            the only figure on the tab carrying a verdict. The denominator is
+            left off: it is the same renewalDue the rate is already computed
+            from, and reading it beside the count invites the two to be
+            compared as though they were different facts. */}
         <td className="px-12 pt-16 text-center">
           <span className="flex flex-col items-center gap-4">
             <span className="text-14 text-default">{bp.noaLanjutan}</span>
-            <RatePill ok={meetsRenewal(bp)}>{`${pct(renewalRate(bp))} dari ${bp.renewalDue}`}</RatePill>
+            <RatePill ok={meetsRenewal(bp)}>{pct(renewalRate(bp))}</RatePill>
           </span>
         </td>
 
@@ -229,19 +230,19 @@ function BpRow({ bp, zebra }: { bp: DisbursementBp; zebra: boolean }) {
         <td className="px-12 pt-16 text-center text-14 text-default">{juta(bp.nilaiLanjutan)}</td>
       </tr>
 
+      {/* Each shortfall sits under the column it is about — the mitra-baru gap
+          beneath Mitra baru, the rupiah gap beneath the Nilai total it is
+          measured from — rather than centred under the whole group, where it
+          read as belonging to all three columns at once. */}
       <tr className={`border-b border-default align-top ${stripe}`}>
-        <td
-          colSpan={3}
-          className="border-l border-default px-12 pb-16 pt-4 text-center text-10 text-caption"
-        >
-          {noaShort ? `Kurang ${noaShort} mitra baru` : null}
-        </td>
-        <td
-          colSpan={3}
-          className="border-l border-default px-12 pb-16 pt-4 text-center text-10 text-caption"
-        >
+        <td className="border-l border-default px-12 pb-16 pt-4" />
+        <td className={SHORT_CELL}>{noaShort ? `Kurang ${noaShort} mitra baru` : null}</td>
+        <td className="px-12 pb-16 pt-4" />
+        <td className={`border-l border-default ${SHORT_CELL}`}>
           {nilaiShort ? `Kurang ${juta(nilaiShort)}` : null}
         </td>
+        <td className="px-12 pb-16 pt-4" />
+        <td className="px-12 pb-16 pt-4" />
       </tr>
     </Fragment>
   )

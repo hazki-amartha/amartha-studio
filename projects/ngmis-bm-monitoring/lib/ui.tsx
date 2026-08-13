@@ -408,10 +408,6 @@ export function RatePill({ ok, children }: { ok: boolean | null; children: React
 // --- Bucket card -------------------------------------------------------------
 
 const BUCKET_CHIP: Record<string, string> = {
-  // Pencairan's cards have no severity to carry — they are four cuts of the
-  // same month, not an ageing scale — so their chip stays uncoloured rather
-  // than borrowing a verdict from the DPD ramp.
-  neutral: 'border-default bg-neutral-50 text-caption',
   green: 'border-green-200 bg-green-50 text-green-600',
   yellow: 'border-yellow-200 bg-yellow-50 text-yellow-700',
   orange: 'border-orange-200 bg-orange-50 text-orange-600',
@@ -419,12 +415,14 @@ const BUCKET_CHIP: Record<string, string> = {
 }
 
 /**
- * One ageing bucket as its own card: the bucket named in a coloured chip, the
- * figure plain beneath.
+ * One bucket as its own card: the bucket named at the top, the figure plain
+ * beneath.
  *
- * Colour sits on the chip rather than the number because the chip is what the
- * colour is about — how old the debt is. Tinting the figure as well would put
- * two meanings on one card.
+ * `intent` puts the name in a coloured chip, which is what Pembayaran's ageing
+ * buckets want — colour sits on the chip rather than the number because the
+ * chip is what the colour is about, how old the debt is. Omit it and the name
+ * is plain black text: Pencairan's cards are four cuts of the same month with
+ * no severity between them, so a chip there would promise a scale that isn't.
  */
 export function BucketCard({
   label,
@@ -434,18 +432,22 @@ export function BucketCard({
   caption,
 }: {
   label: string
-  intent: string
+  intent?: string
   value: string
   prefix?: string
   caption: string
 }) {
   return (
     <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-16">
-      <span
-        className={`self-start rounded-8 border px-8 py-2 text-12 font-bold ${BUCKET_CHIP[intent]}`}
-      >
-        {label}
-      </span>
+      {intent ? (
+        <span
+          className={`self-start rounded-8 border px-8 py-2 text-12 font-bold ${BUCKET_CHIP[intent]}`}
+        >
+          {label}
+        </span>
+      ) : (
+        <span className="text-12 font-bold text-default">{label}</span>
+      )}
       <span className="flex flex-col gap-2">
         <span className="text-24 font-bold text-default">
           {prefix ? <span className="text-16">{prefix}</span> : null}
