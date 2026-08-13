@@ -30,7 +30,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { PanelShell, type PanelSurface } from '@/platform/chrome/SidePanel'
+import { PanelShell } from '@/platform/chrome/SidePanel'
 import { ancestorChain, labelOf, resolveTarget } from '@/platform/inspect/resolve'
 import {
   colorEntries,
@@ -78,7 +78,6 @@ export interface EditPanelProps {
   slug: string
   screenId: string
   className?: string
-  surface?: PanelSurface
   onMinimize?: () => void
 }
 
@@ -226,10 +225,9 @@ export function EditPanel({
   slug,
   screenId,
   className,
-  surface,
   onMinimize,
 }: EditPanelProps) {
-  const shell = { title: 'Edit', surface, onMinimize, className }
+  const shell = { title: 'Edit', onMinimize, className }
   const store = useSyncExternalStore(
     subscribeEditStore,
     getEditStoreState,

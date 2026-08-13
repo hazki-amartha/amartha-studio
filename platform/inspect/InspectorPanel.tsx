@@ -14,7 +14,7 @@
 // =============================================================================
 
 import { useCallback, useMemo, useState } from 'react'
-import { PanelShell, type PanelSurface } from '@/platform/chrome/SidePanel'
+import { PanelShell } from '@/platform/chrome/SidePanel'
 import { ancestorChain, labelOf, resolveTarget } from './resolve'
 import { copyForAgent } from './copyForAgent'
 import { copySpec } from './copySpec'
@@ -26,7 +26,6 @@ export interface InspectorPanelProps {
   screenId: string
   /** The annotations column geometry, handed down by the prototype view. */
   className?: string
-  surface?: PanelSurface
   onMinimize?: () => void
 }
 
@@ -69,11 +68,10 @@ export function InspectorPanel({
   slug,
   screenId,
   className,
-  surface,
   onMinimize,
 }: InspectorPanelProps) {
   const [copied, setCopied] = useState<'agent' | 'spec' | null>(null)
-  const shell = { title: 'Inspect', surface, onMinimize, className }
+  const shell = { title: 'Inspect', onMinimize, className }
 
   // Recomputed per pin rather than per frame — computed styles are only read
   // when the selection changes, not while a box is being tracked.
@@ -114,7 +112,6 @@ export function InspectorPanel({
 
   return (
     <PanelShell {...shell}>
-
       <div className="flex flex-col gap-4">
         <h2 className="text-16 font-bold text-default dark:text-neutral-50">
           {target.component ?? `<${target.tag}>`}

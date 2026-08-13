@@ -61,7 +61,7 @@ import {
 import { InspectLayer, InspectorPanel, LayersPanel } from '@/platform/inspect'
 import { EditPanel } from '@/platform/edit'
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '@/platform/chrome/icons'
-import { PanelPill, PanelShell, type PanelSurface } from '@/platform/chrome/SidePanel'
+import { PanelPill, PanelShell } from '@/platform/chrome/SidePanel'
 import { DeviceFrame } from './DeviceFrame'
 import { DEVICE_SPECS, outerSize } from './device'
 import styles from './prototype.module.css'
@@ -139,13 +139,11 @@ function AnnotationPanel({
   screens,
   projectNotes,
   className,
-  surface,
   onMinimize,
 }: {
   screens: ScreenDef[]
   projectNotes?: string[]
   className?: string
-  surface?: PanelSurface
   onMinimize?: () => void
 }) {
   const { current } = useFlow()
@@ -153,7 +151,7 @@ function AnnotationPanel({
   const notes = active?.notes && active.notes.length > 0 ? active.notes : (projectNotes ?? [])
 
   return (
-    <PanelShell title="Notes" surface={surface} onMinimize={onMinimize} className={className}>
+    <PanelShell title="Notes" onMinimize={onMinimize} className={className}>
       {active ? (
         <h2 className="text-16 font-bold text-default dark:text-neutral-50">{active.title}</h2>
       ) : null}
@@ -190,12 +188,10 @@ function AnnotationPanel({
 function StatesPanel({
   screens,
   className,
-  surface,
   onMinimize,
 }: {
   screens: ScreenDef[]
   className?: string
-  surface?: PanelSurface
   onMinimize?: () => void
 }) {
   const { current } = useFlow()
@@ -206,7 +202,7 @@ function StatesPanel({
   useEffect(() => setApplied(null), [current])
 
   return (
-    <PanelShell title="States" surface={surface} onMinimize={onMinimize} className={className}>
+    <PanelShell title="States" onMinimize={onMinimize} className={className}>
       <div className="flex flex-col gap-8">
         {states.map((state) => {
           const on = applied === state.id
@@ -426,6 +422,15 @@ function useInspectState() {
 // phone, a drawer over a 1440 canvas — so everything about WHICH panel is
 // showing lives here, once.
 
+/**
+ * The surface a panel sits on — the same in both layouts, so a prototype's
+ * panels don't change character with the device it happens to be.
+ * `flex max-h-full flex-col` is load-bearing: it bounds the panel against the
+ * view so it scrolls inside its card instead of running off the screen.
+ */
+const PANEL_CARD =
+  'flex max-h-full flex-col rounded-16 border border-default bg-neutral-white px-12 pb-12 dark:border-ink-700 dark:bg-ink-900'
+
 /** The right slot holds one of two things, or nothing. */
 type RightSlot = 'tool' | 'notes' | null
 
@@ -459,7 +464,6 @@ interface SlotProps {
   setPinned: (el: Element | null) => void
   setPreview: (el: Element | null) => void
   slots: ReturnType<typeof usePanelSlots>
-  surface: PanelSurface
   /** Geometry for an open panel: a fixed column, or `w-full` inside a drawer. */
   panelClassName?: string
 }
@@ -481,7 +485,6 @@ function panelSlots(a: SlotProps) {
     !leftExists || !slots.leftOpen ? null : a.picking ? (
       <LayersPanel
         className={a.panelClassName}
-        surface={a.surface}
         onMinimize={hideLeft}
         pinned={a.pinned}
         onPin={a.setPinned}
@@ -491,7 +494,6 @@ function panelSlots(a: SlotProps) {
       <StatesPanel
         screens={a.screens}
         className={a.panelClassName}
-        surface={a.surface}
         onMinimize={hideLeft}
       />
     )
@@ -506,7 +508,6 @@ function panelSlots(a: SlotProps) {
     a.edit ? (
       <EditPanel
         className={a.panelClassName}
-        surface={a.surface}
         onMinimize={() => slots.setRight(null)}
         pinned={a.pinned}
         onPin={a.setPinned}
@@ -516,7 +517,6 @@ function panelSlots(a: SlotProps) {
     ) : (
       <InspectorPanel
         className={a.panelClassName}
-        surface={a.surface}
         onMinimize={() => slots.setRight(null)}
         pinned={a.pinned}
         onPin={a.setPinned}
@@ -529,7 +529,6 @@ function panelSlots(a: SlotProps) {
       screens={a.screens}
       projectNotes={a.config.notes}
       className={a.panelClassName}
-      surface={a.surface}
       onMinimize={() => slots.setRight(null)}
     />
   ) : null
@@ -576,7 +575,6 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
     setPinned,
     setPreview,
     slots,
-    surface: 'canvas',
   })
 
   return (
@@ -584,7 +582,7 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
       className={`h-full min-h-0 w-full gap-32 overflow-hidden bg-neutral-50 px-16 py-24 dark:bg-ink-950 ${styles.desktop}`}
     >
       {left ? (
-        <div className={styles.states}>{left}</div>
+        <div className={`${styles.states} ${PANEL_CARD}`}>{left}</div>
       ) : (
         <div className={`${styles.states} pt-8`}>{leftPill}</div>
       )}
@@ -603,7 +601,7 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
       </DeviceStepper>
 
       {right ? (
-        <div className={styles.annotations}>{right}</div>
+        <div className={`${styles.annotations} ${PANEL_CARD}`}>{right}</div>
       ) : (
         <div className={`${styles.annotations} flex flex-col items-end gap-4 pt-8`}>
           {rightPills}
@@ -640,7 +638,6 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
     setPinned,
     setPreview,
     slots,
-    surface: 'panel',
     panelClassName: 'w-full',
   })
 
@@ -673,14 +670,14 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
 
       {left ? (
         <div
-          className={`rounded-16 bg-neutral-white px-12 pb-12 dark:bg-ink-900 ${styles.drawer} ${styles.drawerLeft}`}
+          className={`${PANEL_CARD} ${styles.drawer} ${styles.drawerLeft}`}
         >
           {left}
         </div>
       ) : null}
       {right ? (
         <div
-          className={`rounded-16 bg-neutral-white px-12 pb-12 dark:bg-ink-900 ${styles.drawer} ${styles.drawerRight}`}
+          className={`${PANEL_CARD} ${styles.drawer} ${styles.drawerRight}`}
         >
           {right}
         </div>
