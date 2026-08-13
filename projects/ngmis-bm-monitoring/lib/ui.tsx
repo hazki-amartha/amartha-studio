@@ -31,125 +31,16 @@ import {
   ChevronUpDown,
   SignOut,
 } from '@/design-system/icons'
-import { Wordmark } from '@/design-system/assets'
 
 // --- Frame geometry ---------------------------------------------------------
-
-const SIDEBAR_W = 216
-const NAV_ITEM_H = 40
 
 /** Every control on a filter row is this tall, which is what stops the row
  *  looking ragged: FunDS sizes its controls by padding, so `size="sm"` on two
  *  different components lands ~4px apart. */
 const CONTROL_H = 32
 
-// --- Brand lockup -----------------------------------------------------------
-
-/** The corporate amartha lockup — flower mark plus the word, shipped as artwork
- *  in `design-system/assets`. */
-function AmarthaLockup() {
-  return <Wordmark name="amartha" height={24} />
-}
-
-// --- Sidebar ----------------------------------------------------------------
-
-export interface NavItem {
-  id: string
-  label: string
-  icon: ReactNode
-}
-
-export function SideNav({
-  items,
-  footerItems,
-  activeId,
-  onSelect,
-  promo,
-  user,
-}: {
-  items: NavItem[]
-  /** The lower group — Report, Settings — pinned above the user row. */
-  footerItems: NavItem[]
-  activeId: string
-  onSelect: (id: string) => void
-  promo?: ReactNode
-  user: { name: string; role: string; initial: string }
-}) {
-  return (
-    <nav
-      className="flex shrink-0 flex-col border-r border-default bg-neutral-white"
-      style={{ width: SIDEBAR_W }}
-    >
-      <div className="flex items-center px-16 py-20">
-        <AmarthaLockup />
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col justify-between overflow-y-auto px-8">
-        <div className="flex flex-col">
-          {items.map((item) => (
-            <NavButton
-              key={item.id}
-              item={item}
-              active={item.id === activeId}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
-
-        <div className="flex flex-col gap-8 pb-8">
-          {promo}
-          {footerItems.map((item) => (
-            <NavButton
-              key={item.id}
-              item={item}
-              active={item.id === activeId}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-8 border-t border-default bg-neutral-50 px-16 py-12">
-        <span className="flex size-24 shrink-0 items-center justify-center rounded-full bg-green-500 text-12 font-bold text-neutral-white">
-          {user.initial}
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-12 font-bold text-default">{user.name}</span>
-          <span className="truncate text-10 text-caption">{user.role}</span>
-        </span>
-        <button type="button" aria-label="Keluar" className="text-caption hover:text-link">
-          <SignOut size={16} />
-        </button>
-      </div>
-    </nav>
-  )
-}
-
-function NavButton({
-  item,
-  active,
-  onSelect,
-}: {
-  item: NavItem
-  active: boolean
-  onSelect: (id: string) => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(item.id)}
-      className={`flex items-center gap-12 rounded-8 px-8 text-14 ${
-        active ? 'font-bold text-link' : 'font-regular text-default hover:bg-neutral-50'
-      }`}
-      style={{ height: NAV_ITEM_H }}
-    >
-      <span className={active ? 'text-link' : 'text-caption'}>{item.icon}</span>
-      <span className="flex-1 truncate text-left">{item.label}</span>
-    </button>
-  )
-}
-
-/** The purple "we've updated our portal" card that sits above Report/Settings. */
+/** The purple "we've updated our portal" card, pinned under the nav via
+ *  `SideNav`'s footer slot. */
 export function SidebarPromo({
   icon,
   title,
@@ -181,60 +72,6 @@ export function SidebarPromo({
   )
 }
 
-// --- Shell ------------------------------------------------------------------
-
-/**
- * The whole 1440×900 chrome: sidebar down the left, a scrolling content column
- * on the tinted canvas. This is the desktop counterpart to `Screen` — a desktop
- * project uses it INSTEAD of Screen, which is mobile-shaped (32px status strip,
- * 48px top bar, 16px page padding, 12px section gap).
- */
-export function MisShell({
-  sidebar,
-  breadcrumbs,
-  header,
-  children,
-}: {
-  sidebar: ReactNode
-  breadcrumbs?: { label: string; current?: boolean }[]
-  /** Full-bleed white block above the tinted body: title, filters, tabs. */
-  header?: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <div className="relative flex h-full bg-neutral-white">
-      {sidebar}
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-neutral-50">
-        {breadcrumbs?.length || header ? (
-          <div className="shrink-0 border-b border-default bg-neutral-white px-24">
-            {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null}
-            {header}
-          </div>
-        ) : null}
-        <div className="flex min-h-0 flex-1 flex-col px-24 pb-24 pt-16">{children}</div>
-      </div>
-    </div>
-  )
-}
-
-export function Breadcrumbs({ items }: { items: { label: string; current?: boolean }[] }) {
-  return (
-    <div className="flex shrink-0 items-center gap-4 py-12 text-12">
-      {items.map((item, i) => (
-        <span key={item.label} className="flex items-center gap-4">
-          {i > 0 ? <span className="text-placeholder">/</span> : null}
-          <span className={item.current ? 'text-caption' : 'text-default underline'}>
-            {item.label}
-          </span>
-        </span>
-      ))}
-    </div>
-  )
-}
-
-/** Page title + timestamp on the left, filters on the right. The filter row
- *  wraps rather than squeezing: six cascading selects do not fit beside a title
- *  at every window width. */
 export function PageHeading({
   title,
   meta,

@@ -3,9 +3,9 @@
 // The BM's chrome, identical on every screen — so each screen renders
 // `<BmShell>` rather than repeating the nav list. Copied and adapted from
 // projects/ngmis-bm-monitoring (§1: never import across projects); the nav lands
-// on "Branches", where a branch scorecard lives. The amartha lockup and the user
-// profile live in MisShell's top header; the hamburger there collapses the
-// sidebar to an icon rail (the `collapsed` flag passed into `SideNav`).
+// on "Branches", where a branch scorecard lives. The amartha lockup and the account
+// chip live in the shared `AppShell`'s 40px header; the hamburger there
+// collapses the sidebar to an icon rail (the `collapsed` flag it passes in).
 
 import { useState, type ReactNode } from 'react'
 import {
@@ -21,9 +21,9 @@ import {
   Transfer,
   Umbrella,
 } from '@/design-system/icons'
-import { MisShell, SideNav, type NavItem } from './ui'
+import { AppShell, SideNav, type AppNavItem } from '@/design-system/components'
 
-const NAV: NavItem[] = [
+const NAV: AppNavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <Layout size={20} /> },
   { id: 'customer', label: 'Customer', icon: <Contact size={20} /> },
   { id: 'loans', label: 'Loans', icon: <Coins size={20} /> },
@@ -53,15 +53,15 @@ export function BmShell({
   const [navId, setNavId] = useState('branches')
 
   return (
-    <MisShell
+    <AppShell
       breadcrumbs={breadcrumbs}
       header={header}
-      user={USER}
+      user={USER.initial}
       sidebar={(collapsed) => (
         <SideNav items={NAV} activeId={navId} onSelect={setNavId} collapsed={collapsed} />
       )}
     >
       {children}
-    </MisShell>
+    </AppShell>
   )
 }

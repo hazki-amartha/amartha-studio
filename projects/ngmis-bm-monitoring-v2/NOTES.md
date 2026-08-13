@@ -2,12 +2,12 @@
 
 Project-local components (CLAUDE.md §4).
 
-`lib/ui.tsx` and `lib/shell.tsx` are the desktop chrome, copied (not imported —
-§1) from `projects/ngmis-bm-monitoring`, then reworked to a **top-header frame**:
-`MisShell` renders a full-width header (hamburger + amartha lockup + profile
-chip) above a `SideNav` that the hamburger collapses to a 64px icon rail (the
-`collapsed` flag; `sidebar` is a render function so it reads that live state).
-`MenuGlyph` is the project-local hamburger; `Breadcrumbs`, `PageHeading`, `Panel`,
+The desktop chrome is no longer project-local: `lib/shell.tsx` wraps the shared
+`AppShell` / `SideNav` from `design-system/components`, which carry the header,
+the lockup, the account chip and the collapsible rail. This project used to draw
+its own 52px-header version of that.
+
+Still local in `lib/ui.tsx`: `PageHeading`, `Panel`,
 `PanelHeading`,
 `Tabs`, `Select`, `Textarea`, `DataTable`, plus `SunGlyph` / `MoonGlyph` /
 `MicGlyph` / `ArrowUpRightGlyph` (sun, moon, microphone and the diagonal

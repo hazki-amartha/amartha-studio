@@ -9,7 +9,7 @@
 // already ships, so there is nowhere else to navigate to.
 
 import { useMemo, useState } from 'react'
-import { Button } from '@/design-system/components'
+import { AppShell, SideNav, Button, type AppNavItem } from '@/design-system/components'
 import {
   Bank,
   Calculator,
@@ -25,18 +25,15 @@ import {
 import {
   CONTROL_H,
   DataTable,
-  MisShell,
   Pagination,
-  SideNav,
   Tabs,
   TableCard,
   Toolbar,
-  type NavItem,
   type SortDir,
 } from '../lib/ui'
 import { COLUMNS, ROWS } from '../lib/data'
 
-const NAV: NavItem[] = [
+const NAV: AppNavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <Layout size={20} /> },
   { id: 'customers', label: 'Customers', icon: <Contact size={20} /> },
   {
@@ -65,7 +62,6 @@ const TABS = [
 ]
 
 export function CustomerListScreen() {
-  const [collapsed, setCollapsed] = useState(false)
   const [navId, setNavId] = useState('loan-repayment')
   const [tab, setTab] = useState('all')
   const [search, setSearch] = useState('')
@@ -94,10 +90,11 @@ export function CustomerListScreen() {
   }, [search, sort])
 
   return (
-    <MisShell
+    <AppShell
       user="P"
-      onToggleSidebar={() => setCollapsed((v) => !v)}
-      sidebar={
+      canvas="white"
+      contentClassName="px-16"
+      sidebar={(collapsed) => (
         <SideNav
           items={NAV}
           activeId={navId}
@@ -109,7 +106,7 @@ export function CustomerListScreen() {
             </button>
           }
         />
-      }
+      )}
       breadcrumbs={[{ label: 'Home' }, { label: 'User Settings' }, { label: 'User accounts', current: true }]}
     >
       <Tabs items={TABS} activeId={tab} onChange={setTab} />
@@ -143,6 +140,6 @@ export function CustomerListScreen() {
           <Pagination page={1} pageCount={1} total={rows.length} onPageChange={() => undefined} />
         </TableCard>
       </div>
-    </MisShell>
+    </AppShell>
   )
 }

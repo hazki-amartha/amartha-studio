@@ -1,14 +1,16 @@
 # NOTES
 
-Project-local components (CLAUDE.md §4). The shell half is adapted from
-`projects/ngmis-live/lib/ui.tsx` (copied, not imported — §1), so the promotion
-candidates recorded there are the same ones here.
+Project-local components (CLAUDE.md §4).
+
+The desktop chrome is no longer here: `lib/shell.tsx` now wraps the shared
+`AppShell` / `SideNav` from `design-system/components`. This project used to
+draw a sidebar-first frame with the lockup at the top of a 216px sidebar; it
+takes the shipped 40px-header frame like every other NG-MIS project.
 
 In `lib/ui.tsx`:
 
-- `MisShell` / `SideNav` — the desktop chrome. Sidebar-first: the amartha lockup sits at the top of the 216px sidebar instead of in a 40px header strip. `MisShell`'s `header` slot renders the title, filter row and tabs as one full-bleed white block above the tinted body.
-- `SidebarPromo` — the "We've updated our portal!" card above Report/Settings.
-- `Breadcrumbs`, `PageHeading`, `Panel`, `PanelHeading`, `Tabs` — page chrome.
+- `SidebarPromo` — the "We've updated our portal!" card, now pinned via `SideNav`'s footer slot.
+- `PageHeading`, `Panel`, `PanelHeading`, `Tabs` — page chrome.
 - `Select` — FunDS has no select; a phone uses a bottom sheet. Supports labelled `groups`, which the BP filter needs because it mixes a status and a name in one list.
 - `RatePill` — a rate wearing its verdict: green when it clears its standard, red when it does not, plain text when the bucket has no standard to be judged against.
 - `MetricCard` — a headline rate with the target it is judged against underneath.

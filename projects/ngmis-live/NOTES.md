@@ -1,18 +1,19 @@
 # NOTES
 
-Project-local components (CLAUDE.md §4) — all in `lib/ui.tsx`, all promotion
-candidates for `design-system/components` once a second desktop project wants
-them (see `DESKTOP-PLAN.md` §3 Layer B):
+The shell half has been **promoted**: `AppShell` / `AppHeader` / `SideNav` /
+`Breadcrumbs` now ship in `design-system/components`, drawn to this project's
+geometry (DESKTOP-PLAN.md §3 Layer B). Five NG-MIS prototypes had each rebuilt
+it, so this file no longer owns the chrome — it consumes it.
 
-- `MisShell` / `MisHeader` — 1440×900 chrome: 40px header + 232px sidebar. The desktop counterpart to `Screen`, which is mobile-shaped. Used by `screens/customer-list.tsx`.
-- `SideNav` — 232px nav, collapsible to 56px, groups expand in place. Same screen.
-- `Breadcrumbs`, `Tabs` — content-column chrome above the table. Same screen.
+What is still project-local (all in `lib/ui.tsx`), and still a promotion
+candidate:
+
+- `Tabs` — content-column chrome above the table. Used by `screens/customer-list.tsx`.
 - `Toolbar` — search + filter + right-aligned action above a table. Same screen.
 - `DataTable` — checkbox column, sortable headers, three-line cells, zebra rows, row action. The one real gap in FunDS for back-office work. Same screen.
 - `Pagination`, `TableCard` — table footer and the card it all sits on. Same screen.
 - `Checkbox` (inside `DataTable`) — FunDS has `Toggle` but no checkbox; a phone doesn't multi-select rows.
-- `MenuGlyph` — hamburger, genuinely absent from the 166-icon set. One-off, not an addition to the shared module.
-- `AmarthaLockup` — thin wrapper over `<Wordmark name="amartha" />`, now that the corporate lockup ships in `design-system/assets`. Was a text-only stand-in; the asset gap is closed.
+- `MenuGlyph` and `AmarthaLockup` are gone — the hamburger moved inside the shared `AppHeader`, and the lockup is `<Wordmark name="amartha" />`.
 
 Fidelity notes against Figma node 28640-12376:
 
