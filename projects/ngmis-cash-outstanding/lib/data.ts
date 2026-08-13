@@ -27,10 +27,6 @@ export interface SettlementDest {
 export interface OutstandingItem {
   origin: OriginRef
   amount: number
-  /** The BP has asked to submit this task again (a re-open request the BM can
-   *  approve). Surfaced as a red counter beside the cell's "Rincian" link and,
-   *  in the dialog, as an inline "Approve" action. */
-  resubmitRequested?: boolean
 }
 
 export interface SettledItem {
@@ -81,7 +77,7 @@ const SEEDS: BpSeed[] = [
     name: 'Sukma Ayuningrum',
     lastSetoran: '2026-06-24T08:15:00',
     outstandingItems: [
-      { origin: hv('Ibu Siti Aminah'), amount: 120_000, resubmitRequested: true },
+      { origin: hv('Ibu Siti Aminah'), amount: 120_000 },
       { origin: hv('Ibu Ratih Kumala'), amount: 100_000 },
     ],
     settledItems: [
@@ -93,7 +89,7 @@ const SEEDS: BpSeed[] = [
     id: 'bp-b',
     name: 'Diski Tafa Ilham',
     lastSetoran: '2026-06-22T14:30:00',
-    outstandingItems: [{ origin: mv('Majelis Mawar'), amount: 1_500_000, resubmitRequested: true }],
+    outstandingItems: [{ origin: mv('Majelis Mawar'), amount: 1_500_000 }],
     settledItems: [
       { origin: mv('Majelis Mawar'), dest: va('BRI · 8808 7754 1120'), date: '22 Juni 2026', amount: 1_800_000 },
       { origin: hv('Ibu Nurhayati'), dest: agent('Kios Pak Dedi'), date: '22 Juni 2026', amount: 1_000_000 },
@@ -114,8 +110,8 @@ const SEEDS: BpSeed[] = [
     name: 'Laili Maulidia',
     lastSetoran: '2026-06-21T16:20:00',
     outstandingItems: [
-      { origin: mv('Majelis Kenanga'), amount: 2_400_000, resubmitRequested: true },
-      { origin: hv('Ibu Marlina'), amount: 800_000, resubmitRequested: true },
+      { origin: mv('Majelis Kenanga'), amount: 2_400_000 },
+      { origin: hv('Ibu Marlina'), amount: 800_000 },
     ],
     settledItems: [
       { origin: hv('Ibu Siti Aminah'), dest: agent('Warung Bu Yeni'), date: '21 Juni 2026', amount: 1_950_000 },
