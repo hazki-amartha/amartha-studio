@@ -16,6 +16,7 @@ import {
   SelectableCard,
   Toggle,
 } from '@/design-system/components'
+import { NavIcon } from '@/design-system/assets'
 import * as FundsIcons from '@/design-system/icons'
 import {
   Bell,
@@ -360,20 +361,31 @@ function NominalDemo({
   )
 }
 
-/** The bottom menu bar, live — tapping a tab moves the active state. */
+/**
+ * The bottom menu bar as AmarthaFin actually ships it — five tabs drawn with
+ * the NavIcon artwork, whose selected state is baked into the file, so the
+ * icon is rebuilt from `active` rather than recoloured.
+ */
+const NAV_TABS = [
+  { id: 'home', label: 'Home', icon: 'home' },
+  { id: 'pinjaman', label: 'Pinjaman', icon: 'modal' },
+  { id: 'scan', label: 'Scan', icon: 'scan' },
+  { id: 'celengan', label: 'Celengan', icon: 'celengan' },
+  { id: 'transaksi', label: 'Transaksi', icon: 'transaction' },
+] as const
+
 function NavBarDemo() {
   const [active, setActive] = useState('home')
-  const tabs = [
-    { id: 'home', label: 'Beranda', icon: <House size={24} /> },
-    { id: 'invest', label: 'Investasi', icon: <ChartLineUp size={24} />, badge: 2 },
-    { id: 'scan', label: 'Scan', icon: <QrCode size={24} />, feature: true },
-    { id: 'wallet', label: 'Poket', icon: <Wallet size={24} /> },
-    { id: 'profile', label: 'Akun', icon: <User size={24} /> },
-  ]
   return (
     <Phone>
       <NavigationBar
-        items={tabs.map((t) => ({ ...t, active: active === t.id, onClick: () => setActive(t.id) }))}
+        items={NAV_TABS.map((t) => ({
+          id: t.id,
+          label: t.label,
+          icon: <NavIcon name={t.icon} active={active === t.id} />,
+          active: active === t.id,
+          onClick: () => setActive(t.id),
+        }))}
       />
     </Phone>
   )
@@ -685,23 +697,24 @@ export function Manifest({ guidelines }: { guidelines: Guidelines }) {
       </Section>
 
       {/* -------------------------------------------------- Navigation Bar */}
-      <Section id="navigation-bars" title="Navigation Bar" description="The bottom menu bar — up to five tabs, one active, an optional badge and a raised feature tab. Tap a tab to move the active state.">
-        <Stage label="bottom menu bar" variants="active · badge · feature">
+      <Section id="navigation-bars" title="Navigation Bar" description="The bottom menu bar — up to five tabs, one active. The first stage is the bar AmarthaFin ships today; copy that one. Tap a tab to move the active state.">
+        <Stage label="AmarthaFin bottom menu bar" variants="live · five tabs">
           <NavBarDemo />
         </Stage>
-        <Stage label="four tabs" variants="active · badge">
+        <Stage label="optional props" variants="badge · raised feature tab">
           <Phone>
             <NavigationBar
               items={[
                 { id: 'home', label: 'Beranda', icon: <House size={24} />, active: true },
                 { id: 'invest', label: 'Investasi', icon: <ChartLineUp size={24} />, badge: 2 },
+                { id: 'scan', label: 'Scan', icon: <QrCode size={24} />, feature: true },
                 { id: 'wallet', label: 'Poket', icon: <Wallet size={24} /> },
                 { id: 'profile', label: 'Akun', icon: <User size={24} /> },
               ]}
             />
           </Phone>
         </Stage>
-        <CodeBlock code={'<NavigationBar\n  items={[\n    { id: "home", label: "Beranda", icon: <House size={24} />, active: true },\n    { id: "invest", label: "Investasi", icon: <ChartLineUp size={24} />, badge: 2 },\n  ]}\n/>'} copied={copied} copy={copy} />
+        <CodeBlock code={'<NavigationBar\n  items={[\n    { id: "home", label: "Home", icon: <NavIcon name="home" active />, active: true },\n    { id: "pinjaman", label: "Pinjaman", icon: <NavIcon name="modal" /> },\n    { id: "scan", label: "Scan", icon: <NavIcon name="scan" /> },\n    { id: "celengan", label: "Celengan", icon: <NavIcon name="celengan" /> },\n    { id: "transaksi", label: "Transaksi", icon: <NavIcon name="transaction" /> },\n  ]}\n/>'} copied={copied} copy={copy} />
         <Guideline source={guidelines['components/navigation-bar']} />
       </Section>
 

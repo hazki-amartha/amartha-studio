@@ -104,7 +104,8 @@ All props below are optional except where marked **required**.
              primaryAction secondaryAction hideClose
              onBack /* step 2+ of a one-sheet flow: X becomes a back arrow */ />
 
-// NavigationBar — items required
+// NavigationBar — items required. The live AmarthaFin bar is five NavIcon tabs
+// (Home · Pinjaman · Scan · Celengan · Transaksi), no raised feature tab.
 <NavigationBar items={[{ id, label, icon, badge, active, onClick, feature }]} />
 
 // NavigationHeader
@@ -148,6 +149,8 @@ import { NavIcon, ProductLogo, ServiceIcon, Wordmark } from '@/design-system/ass
 
 <ProductLogo name="poket" />           // 56px square — the MARK alone, no words
 <Wordmark name="poket" height={20} /> // wide lockup — mark AND product name
+<Wordmark name="amartha" height={20} /> // the CORPORATE lockup — flower mark +
+                                      // "amartha"; app chrome, not a product
 <ServiceIcon name="pln" size={40} />  // 48px square — PPOB / service tiles
 <NavIcon name="home" active />        // 24px — bottom nav; selected state is
                                       // drawn INTO the art, so it takes

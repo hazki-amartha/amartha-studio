@@ -43,6 +43,10 @@ export const PRODUCT_LOGOS = [
 ] as const
 
 export const WORDMARKS = [
+  // The corporate lockup — flower mark plus the word "amartha". This is the
+  // company, not a product: it belongs in an app's own chrome (the NGMIS menu
+  // header) rather than beside a product tile.
+  'amartha',
   'amartha-link',
   'celengan',
   'empower',

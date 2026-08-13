@@ -12,7 +12,7 @@ them (see `DESKTOP-PLAN.md` §3 Layer B):
 - `Pagination`, `TableCard` — table footer and the card it all sits on. Same screen.
 - `Checkbox` (inside `DataTable`) — FunDS has `Toggle` but no checkbox; a phone doesn't multi-select rows.
 - `MenuGlyph` — hamburger, genuinely absent from the 166-icon set. One-off, not an addition to the shared module.
-- `AmarthaLockup` — `design-system/assets` ships product wordmarks but no corporate amartha lockup, so the header renders the word alone rather than inventing the flower mark. A real asset gap.
+- `AmarthaLockup` — thin wrapper over `<Wordmark name="amartha" />`, now that the corporate lockup ships in `design-system/assets`. Was a text-only stand-in; the asset gap is closed.
 
 Fidelity notes against Figma node 28640-12376:
 

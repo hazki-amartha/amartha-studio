@@ -2,19 +2,27 @@
 
 Bottom tab bar for primary app navigation. Equal-width tabs with icon + label. White surface with a 1px top border.
 
+The bar below is the one AmarthaFin ships today: five tabs, drawn with the
+`NavIcon` artwork from `@/design-system/assets`, no raised feature tab. Copy it
+as-is unless the prototype is deliberately proposing a different bar.
+
 ```tsx
 import { NavigationBar } from '@/design-system/components'
+import { NavIcon } from '@/design-system/assets'
 
 <NavigationBar
   items={[
-    { id: 'home', label: 'Beranda', icon: <HomeIcon />, active: true, onClick: () => router.push('/') },
-    { id: 'invest', label: 'Investasi', icon: <ChartIcon />, onClick: () => router.push('/invest') },
-    { id: 'scan', label: 'Scan', icon: <ScanIcon />, feature: true, onClick: () => router.push('/scan') },
-    { id: 'poket', label: 'Poket', icon: <WalletIcon />, badge: 3, onClick: () => router.push('/poket') },
-    { id: 'profile', label: 'Profil', icon: <PersonIcon />, onClick: () => router.push('/profile') },
+    { id: 'home', label: 'Home', icon: <NavIcon name="home" active />, active: true, onClick: () => go('home') },
+    { id: 'pinjaman', label: 'Pinjaman', icon: <NavIcon name="modal" />, onClick: () => go('pinjaman') },
+    { id: 'scan', label: 'Scan', icon: <NavIcon name="scan" />, onClick: () => go('scan') },
+    { id: 'celengan', label: 'Celengan', icon: <NavIcon name="celengan" />, onClick: () => go('celengan') },
+    { id: 'transaksi', label: 'Transaksi', icon: <NavIcon name="transaction" />, onClick: () => go('transaksi') },
   ]}
 />
 ```
+
+`NavIcon` bakes the selected state into the artwork, so pass it the same `active`
+flag you give the item — never a `text-*` colour. `modal` is the "Pinjaman" tab.
 
 ---
 
@@ -63,13 +71,16 @@ import { NavigationBar } from '@/design-system/components'
 - Positioned at -16px margin-top (rises above bar)
 - White icon color
 - Use for a single center action (e.g. Scan, Camera, Quick Pay)
+- **Optional, and the shipped AmarthaFin bar does not use one** — its Scan tab is
+  a flat tab like the rest. Only raise a tab when the prototype is proposing that
+  change on purpose.
 
 ---
 
 ## Rules
 
 - 3–5 tabs maximum in a navigation bar
-- Use exactly ONE `feature` tab — never zero or two
+- At most ONE `feature` tab — never two; zero is the AmarthaFin default
 - Do NOT use a navigation bar with only 2 tabs — use tabbed navigation instead
 - Labels are ALWAYS shown — do NOT hide labels on active state only
 - Do NOT use the navigation bar on non-root screens — use `NavigationHeader` instead
