@@ -6,9 +6,15 @@
 // before she leaves the house, so a schedule that listed three reminder rows
 // would be three rows she ticks in ten seconds and then re-reads all day.
 //
-// "Kirim pesan" opens the share sheet — drawn rather than real, see ShareSheet
-// in lib/ui.tsx (CLAUDE.md §3). Picking a target IS the send here, so it ticks
-// the group off; the tick stays tappable for a group she messaged elsewhere.
+// "Kirim ke WhatsApp" REALLY opens WhatsApp, with the message prefilled. It is
+// the one integration in this prototype and it is here because it was asked for
+// in words, which is the only bar CLAUDE.md §3 accepts. The cost is real: it
+// leaves the device frame, and on a laptop with no WhatsApp it does nothing.
+//
+// Handing the text off is not the same as sending it, so it does NOT tick the
+// row — she still picks a chat and presses send in another app, and may back
+// out. The tick stays hers, which is also what lets her mark a group she
+// messaged before opening the app.
 //
 // Which groups appear is DERIVED from today's schedule (`todayTasks`) rather
 // than listed here. The reminder is a fact about the day, and a second
@@ -24,13 +30,12 @@
 // remount on navigation, so a local tick would greet her with a clean slate
 // and no way to tell which group she still owes.
 
-import { useState } from 'react'
 import { Badge, Button, NavigationHeader } from '@/design-system/components'
-import { CheckCircleFill, PaperPlaneTilt } from '@/design-system/icons'
+import { CheckCircleFill, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { REMINDER_TASK_ID, findMajelisEntry, type Task } from '../lib/schedule'
 import { store, todayTasks, useApp } from '../lib/store'
-import { AppScreen, SectionTitle, ShareSheet, StickyBar } from '../lib/ui'
+import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
 
 /** What she pastes. Derived per group so the time and place are the real ones. */
 function messageFor(task: Task): string {
@@ -50,9 +55,6 @@ export function ReminderScreen() {
   const flow = useFlow()
   const s = useApp()
   const tasks = todayTasks(s).filter((t) => t.kind === 'majelis')
-  // Which group's share sheet is open. Local: it is a transient control, not a
-  // record — closing the screen with it open loses nothing.
-  const [sharing, setSharing] = useState<Task | null>(null)
 
   const doneCount = tasks.filter((t) => s.remindedTasks.includes(t.id)).length
   const left = tasks.length - doneCount
@@ -70,8 +72,8 @@ export function ReminderScreen() {
       topBar={<NavigationHeader title="Ingatkan majelis" onBack={() => flow.back()} />}
     >
       <p className="text-12 text-caption">
-        {tasks.length} majelis ada kumpulan hari ini. Kirim pesannya ke grup masing-masing —
-        yang sudah terkirim otomatis ditandai.
+        {tasks.length} majelis ada kumpulan hari ini. Kirim ke grup masing-masing lewat
+        WhatsApp, lalu tandai yang sudah diingatkan.
       </p>
 
       {/* The count as a heading, so she can answer "who do I still owe?" without
@@ -105,16 +107,28 @@ export function ReminderScreen() {
                 {messageFor(task)}
               </p>
 
-              {/* Sending ticks the row; the tick is still tappable on its own,
-                  for a group she messaged from her own phone before opening
-                  the app. */}
+              {/* The one place in this prototype that really leaves it.
+                  `wa.me` hands WhatsApp the message already written and lets
+                  her pick the chat — asked for in words, which is the only bar
+                  CLAUDE.md §3 accepts for wiring a real integration.
+
+                  It does NOT tick the row. Handing the text to WhatsApp is not
+                  evidence it was sent: she still picks a chat and presses send
+                  in another app, and she may well back out. The tick stays
+                  hers, so the register records what she did rather than what
+                  the app handed off. */}
               <div className="flex items-center gap-8">
-                <Button variant="outline" className="flex-1" onClick={() => setSharing(task)}>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(messageFor(task))}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ds-btn ds-btn-outline flex-1"
+                >
                   <span className="flex items-center justify-center gap-8">
-                    <PaperPlaneTilt size={20} />
-                    Kirim pesan
+                    <WhatsappLogo size={20} />
+                    Kirim ke WhatsApp
                   </span>
-                </Button>
+                </a>
                 <button
                   type="button"
                   onClick={() => store.toggleReminded(task.id)}
@@ -152,30 +166,6 @@ export function ReminderScreen() {
         ) : null}
       </StickyBar>
 
-      {/* Sending ticks the group off for her — unlike the copy it replaced,
-          picking a target IS the send, so making her tick it afterwards would
-          be asking her to confirm something she just did. The tick stays
-          tappable so she can still mark a group she messaged elsewhere. */}
-      <ShareSheet
-        open={sharing !== null}
-        onClose={() => setSharing(null)}
-        title="Kirim pengingat ke"
-        targets={
-          sharing
-            ? [
-                {
-                  id: sharing.id,
-                  label: `Grup WhatsApp ${findMajelisEntry(sharing.majelisId ?? 'mawar').name}`,
-                  hint: `Kumpulan ${sharing.time}`,
-                },
-              ]
-            : []
-        }
-        onSend={() => {
-          if (sharing && !s.remindedTasks.includes(sharing.id)) store.toggleReminded(sharing.id)
-          setSharing(null)
-        }}
-      />
     </AppScreen>
   )
 }

@@ -94,7 +94,7 @@ export const KPI_DEF: KpiRowDef[] = [
   // "% Repayment rate DPD 0", target 98%, bobot 30% — matches the BP table on
   // both numbers. Base is the DPD_POOL, not the full book — see its doc.
   // min is a placeholder (~94% of target).
-  { k: 'dpd0', n: 'Mitra DPD 0', unit: '%', target: 98, min: 93, base: DPD_POOL, baseLabel: 'mitra', bonus: 400000, weight: 30, group: 'collection' },
+  { k: 'dpd0', n: 'Mitra DPD 0', unit: '%', target: 98, min: 93, base: DPD_POOL, baseLabel: 'mitra', bonus: 20000, weight: 30, group: 'collection' },
   // "% Repayment rate 1–30 dari tunggakan", target 50%, bobot 20%. The BP
   // table's Definisi computes paid ÷ total-in-bucket — a COLLECTION rate, not
   // a population share — so unlike the old model this is higher-is-better: a
@@ -102,7 +102,7 @@ export const KPI_DEF: KpiRowDef[] = [
   // implausibly loose cap, but 50% RECOVERED on what's already overdue in that
   // bucket is a plausible floor. Flagging this directional read for
   // confirmation — it is the one inference in this table, not a stated fact.
-  { k: 'dpd30', n: 'Mitra DPD 1–30', unit: '%', target: 50, min: 47, base: DPD_POOL, baseLabel: 'mitra', bonus: 300000, weight: 20, group: 'collection' },
+  { k: 'dpd30', n: 'Mitra DPD 1–30', unit: '%', target: 50, min: 47, base: DPD_POOL, baseLabel: 'mitra', bonus: 15000, weight: 20, group: 'collection' },
   // "% Repayment rate 31–90 min 1x angsuran", target 5%, bobot 10%. Same
   // Definisi shape as DPD1–30, so the same directional read applies — this
   // used to be a ≤5% population ceiling and is now a ≥5% collection floor. The
@@ -112,16 +112,26 @@ export const KPI_DEF: KpiRowDef[] = [
   // round to the same 2-mitra target, which erases the gap the gate needs. 3%
   // rounds to 1 — the smallest count below 2 that still leaves visible daylight
   // at this pool size.
-  { k: 'dpd90', n: 'Mitra DPD 31–90', unit: '%', target: 5, min: 3, base: DPD_POOL, baseLabel: 'mitra', bonus: 200000, weight: 10, group: 'collection' },
+  { k: 'dpd90', n: 'Mitra DPD 31–90', unit: '%', target: 5, min: 3, base: DPD_POOL, baseLabel: 'mitra', bonus: 10000, weight: 10, group: 'collection' },
   // "# Mitra Cair New per Bulan", target 20, bobot 20%.
-  { k: 'mitraNew', n: 'Pencairan mitra baru per bulan', unit: 'mitra', target: 20, min: 19, bonus: 500000, weight: 20, group: 'growth' },
+  { k: 'mitraNew', n: 'Pencairan mitra baru per bulan', unit: 'mitra', target: 20, min: 19, bonus: 15000, weight: 20, group: 'growth' },
   // "% Renewal Mitra Cair per Bulan", target 85%, bobot 20%. Denominator is
   // "mitra yang melunasi loannya" — its own subset of the 100-mitra book,
   // distinct from the DPD_POOL above — so `base` stays its own plausible count.
-  { k: 'renewal', n: 'Pencairan mitra lama per bulan', unit: '%', target: 85, min: 80, base: 12, baseLabel: 'mitra jatuh tempo', bonus: 500000, weight: 20, group: 'growth' },
+  { k: 'renewal', n: 'Pencairan mitra lama per bulan', unit: '%', target: 85, min: 80, base: 12, baseLabel: 'mitra jatuh tempo', bonus: 15000, weight: 20, group: 'growth' },
 ]
 
-export const KPI_MAX_BONUS = KPI_DEF.reduce((s, r) => s + r.bonus, 0) // Rp1.900.000
+/**
+ * Rp75.000 across the five parameters. Version A pays PER PARAMETER, so each
+ * one is a small, plausible amount (Rp10.000-Rp20.000) rather than a share of
+ * a large pot - a BP reading "Insentif Rp400.000" beside one DPD bucket was
+ * being shown a figure the business does not pay for a single row.
+ *
+ * Scaled by weight, so the two models rank the parameters the same way: a
+ * 30-point row is worth Rp20.000, a 20-point row Rp15.000, a 10-point row
+ * Rp10.000. A row that mattered more in B must not matter less in A.
+ */
+export const KPI_MAX_BONUS = KPI_DEF.reduce((s, r) => s + r.bonus, 0) // Rp75.000
 
 // --- Version B: one weighted score, then three modifiers -------------------
 //
@@ -336,6 +346,18 @@ export interface KpiRow extends KpiRowDef {
    * eye catches the mismatch. Uncapped, same reasoning as `rawProgress`.
    */
   countProgress: number
+  /**
+   * What this parameter actually CONTRIBUTES to the score - its weight scaled
+   * by how far she has come, so a 30-point row at 60% is worth 18.
+   *
+   * The badge on a version B row shows this, not the weight. A static "skor 30"
+   * beside a row she is failing states what the row is worth to the business,
+   * which is not a number she can act on; this one moves with her.
+   *
+   * Uncapped, same as rawProgress: beating a target has to be able to earn
+   * MORE than the weight, or the top band could never be reached.
+   */
+  points: number
 }
 
 /** One of the two conditions that, together, top the incentive up. */
@@ -416,7 +438,22 @@ export const buildKpi = (period: string): KpiView => {
     const countProgress = Math.round(
       (r.lower ? targetCount / Math.max(count, 0.01) : count / targetCount) * 100,
     )
-    return { ...r, val, count, targetCount, minCount, incentivised, met, progress, rawProgress, countProgress }
+    // Her share of this parameter's weight, rounded once here so the badge on
+    // screen and the headline it sums into are the same arithmetic.
+    const points = Math.round((r.weight * rawProgress) / 100)
+    return {
+      ...r,
+      val,
+      count,
+      targetCount,
+      minCount,
+      incentivised,
+      met,
+      progress,
+      rawProgress,
+      countProgress,
+      points,
+    }
   })
 
   // The gate, and it is ONE row: Mitra DPD 0. Growth pay is held only when
@@ -438,10 +475,11 @@ export const buildKpi = (period: string): KpiView => {
 
   // --- Version B ----------------------------------------------------------
   //
-  // The weighted roll-up: each row contributes its UNCAPPED progress scaled by
-  // its weight, and the weights sum to 100, so the total is itself a percentage
-  // — one that can pass 100 when she beats her targets.
-  const score = Math.round(rows.reduce((s, r) => s + r.weight * r.rawProgress, 0) / 100)
+  // The weighted roll-up. Summed from the ROUNDED per-row points rather than
+  // computed from the raw figures and rounded once at the end: the rows print
+  // their own points on screen, and a headline that rounds separately can land
+  // a point away from what the badges above it visibly add up to.
+  const score = rows.reduce((s, r) => s + r.points, 0)
 
   const band = [...KPI_BANDS].reverse().find((b) => score >= b.at) ?? null
   const nextBand = KPI_BANDS.find((b) => score < b.at) ?? null
