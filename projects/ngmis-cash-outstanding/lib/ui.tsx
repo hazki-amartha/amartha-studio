@@ -13,8 +13,8 @@
 // the spacing scale deliberately stops at 48px.
 // =============================================================================
 
-import { useState, type ReactNode } from 'react'
-import { ChevronDown } from '@/design-system/icons'
+import { useEffect, useState, type ReactNode } from 'react'
+import { ChevronDown, Cross } from '@/design-system/icons'
 
 // --- Frame geometry ---------------------------------------------------------
 
@@ -313,6 +313,69 @@ export function Panel({ children, className }: { children: ReactNode; className?
   return (
     <div className={`rounded-12 border border-default bg-neutral-white ${className ?? 'p-16'}`}>
       {children}
+    </div>
+  )
+}
+
+// --- Side drawer ------------------------------------------------------------
+
+/** Full-height panel width — wide enough for the three-column settled table. */
+const DRAWER_W = 520
+
+/**
+ * A full-height panel that slides in from the right, over a scrim. FunDS ships
+ * `BottomSheet`, which is the phone answer to the same problem — on a 1440-wide
+ * console a sheet from the bottom would cover the table it is about. Positioned
+ * the same way the FunDS `Modal` overlay is, and below it in the stack, so a
+ * confirmation dialog opened from inside the drawer sits on top.
+ */
+export function SideDrawer({
+  open,
+  title,
+  onClose,
+  children,
+}: {
+  open: boolean
+  title?: ReactNode
+  onClose: () => void
+  children: ReactNode
+}) {
+  useEffect(() => {
+    if (!open) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-overlay"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="flex h-full flex-col bg-neutral-white"
+        style={{ width: DRAWER_W }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex shrink-0 items-start justify-between gap-16 border-b border-default p-16">
+          <span className="text-16 font-bold text-default">{title}</span>
+          <button
+            type="button"
+            aria-label="Tutup"
+            onClick={onClose}
+            className="text-caption active:opacity-70"
+          >
+            <Cross size={20} />
+          </button>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-16">{children}</div>
+      </div>
     </div>
   )
 }

@@ -4,19 +4,20 @@
 // content header carries the "FO Report" title + the region → branch → BP filter
 // cascade, then the five report tabs. Only the Cash outstanding tab is built:
 // this week's range, the two settlement totals, and the per-BP table. Each money
-// cell carries a "Lihat detail" link that opens a breakdown dialog; each row's
-// kebab menu offers "Tandai sebagai Mangkir", which opens the FO User Management
-// page. Which tab is active and which filters are picked is chrome — local state.
+// cell carries a "Rincian" link that opens the breakdown in a full-height side
+// drawer; in the Belum disetor drawer each tugas can be re-opened, which drops it
+// from the list and off every nominal on the page. The "tandai BP sebagai
+// mangkir" link opens the FO User Management page. Which tab is active and which
+// filters are picked is chrome — local state.
 
 import { useState, type ReactNode } from 'react'
 import { useFlow } from '@/platform/runtime'
-import { Badge, Modal } from '@/design-system/components'
+import { Button, Modal } from '@/design-system/components'
 import { FoShell } from '../lib/shell'
 import { setSelectedBp } from '../lib/store'
-import { LockedFilter, PageHeading, Panel, Select, Tabs } from '../lib/ui'
+import { LockedFilter, PageHeading, Panel, Select, SideDrawer, Tabs } from '../lib/ui'
 import {
   BP_ROWS,
-  TOTAL_OUTSTANDING,
   TOTAL_SETTLED,
   WEEK_LABEL,
   formatSetoran,
@@ -24,6 +25,7 @@ import {
   rupiah,
   type BpRow,
   type OriginRef,
+  type OutstandingItem,
 } from '../lib/data'
 
 const TABS = [
@@ -92,33 +94,58 @@ export function FoReportScreen() {
 
 // --- Cash outstanding tab ---------------------------------------------------
 
-/** The cell + kind the breakdown dialog is showing, or null when it's closed. */
+/** Which cell the drawer is showing, or null when it's closed. The row is held
+ *  by id, not by value, so the drawer re-reads the live list after a re-open. */
 interface DetailTarget {
-  row: BpRow
+  rowId: string
   kind: 'outstanding' | 'settled'
+}
+
+/** One outstanding item plus the stable `${row.id}:${index}` key it is tracked
+ *  by — the list index shifts as items are re-opened, the key does not. */
+interface OutstandingEntry {
+  key: string
+  item: OutstandingItem
+}
+
+/** A BP row with its re-opened tugas taken out: the remaining items and the
+ *  nominal summed from them. */
+interface LiveRow extends BpRow {
+  entries: OutstandingEntry[]
 }
 
 function CashOutstanding() {
   const flow = useFlow()
   const [detail, setDetail] = useState<DetailTarget | null>(null)
-  // Resubmit requests the BM has approved this session, keyed `${row.id}:${index}`.
-  const [approved, setApproved] = useState<Record<string, boolean>>({})
-  const approve = (key: string) => setApproved((a) => ({ ...a, [key]: true }))
+  // Tugas the BM has re-opened this session, keyed `${row.id}:${index}`. A
+  // re-opened tugas leaves the list and stops counting towards any nominal.
+  const [reopened, setReopened] = useState<Record<string, boolean>>({})
+  // The tugas awaiting confirmation, or null when the confirmation is closed.
+  const [confirming, setConfirming] = useState<OutstandingEntry | null>(null)
 
-  /** Outstanding items still waiting on a resubmit approval — the red counter. */
-  const openResubmits = (row: BpRow) =>
-    row.outstandingItems.filter((it, i) => it.resubmitRequested && !approved[`${row.id}:${i}`])
-      .length
+  const rows: LiveRow[] = BP_ROWS.map((row) => {
+    const entries = row.outstandingItems
+      .map((item, i) => ({ key: `${row.id}:${i}`, item }))
+      .filter((entry) => !reopened[entry.key])
+    return {
+      ...row,
+      entries,
+      outstanding: entries.reduce((total, e) => total + e.item.amount, 0),
+    }
+  })
 
+  const totalOutstanding = rows.reduce((total, r) => total + r.outstanding, 0)
   /** BPs whose last setoran is stale — the "terlambat setoran" headcount. */
-  const lateCount = BP_ROWS.filter(isSetoranStale).length
+  const lateCount = rows.filter(isSetoranStale).length
+
+  const detailRow = detail ? rows.find((r) => r.id === detail.rowId) ?? null : null
 
   return (
     <div className="flex flex-col gap-16">
       <span className="text-16 font-bold text-default">{WEEK_LABEL}</span>
 
       <div className="flex flex-wrap gap-16">
-        <TotalCard label="Belum disetor" value={rupiah(TOTAL_OUTSTANDING)} tone="text-red-500" />
+        <TotalCard label="Belum disetor" value={rupiah(totalOutstanding)} tone="text-red-500" />
         <TotalCard label="Sudah disetor" value={rupiah(TOTAL_SETTLED)} tone="text-green-500" />
         <TotalCard label="BP Terlambat Setoran" value={`${lateCount} orang`} tone="text-red-500" />
       </div>
@@ -136,18 +163,20 @@ function CashOutstanding() {
             </tr>
           </thead>
           <tbody>
-            {BP_ROWS.map((row) => (
+            {rows.map((row) => (
               <tr key={row.id} className="border-t border-default align-top">
                 <td className="px-16 py-12 text-14 font-bold text-default">{row.name}</td>
                 <td className="px-16 py-12">
                   <MoneyCell
                     amount={row.outstanding}
-                    resubmitCount={openResubmits(row)}
-                    onDetail={() => setDetail({ row, kind: 'outstanding' })}
+                    onDetail={() => setDetail({ rowId: row.id, kind: 'outstanding' })}
                   />
                 </td>
                 <td className="px-16 py-12">
-                  <MoneyCell amount={row.settled} onDetail={() => setDetail({ row, kind: 'settled' })} />
+                  <MoneyCell
+                    amount={row.settled}
+                    onDetail={() => setDetail({ rowId: row.id, kind: 'settled' })}
+                  />
                 </td>
                 <td className="px-16 py-12">
                   <SetoranTerakhir
@@ -164,11 +193,20 @@ function CashOutstanding() {
         </table>
       </Panel>
 
-      <DetailModal
-        target={detail}
-        approved={approved}
-        onApprove={approve}
+      <DetailDrawer
+        row={detailRow}
+        kind={detail?.kind ?? 'outstanding'}
+        onReopen={setConfirming}
         onClose={() => setDetail(null)}
+      />
+
+      <ReopenConfirm
+        entry={confirming}
+        onCancel={() => setConfirming(null)}
+        onConfirm={(key) => {
+          setReopened((r) => ({ ...r, [key]: true }))
+          setConfirming(null)
+        }}
       />
     </div>
   )
@@ -187,35 +225,19 @@ function TotalCard({ label, value, tone }: { label: string; value: string; tone:
 }
 
 /** A money figure with its "Rincian" breakdown link — hidden when there is
- *  nothing to break down. On the Belum disetor cell a red "(n)" counter sits
- *  beside the link when the BP has pending resubmit requests. */
-function MoneyCell({
-  amount,
-  onDetail,
-  resubmitCount = 0,
-}: {
-  amount: number
-  onDetail: () => void
-  resubmitCount?: number
-}) {
+ *  nothing to break down. */
+function MoneyCell({ amount, onDetail }: { amount: number; onDetail: () => void }) {
   return (
     <div className="flex flex-col gap-2">
       <span className="text-14 text-default">{rupiah(amount)}</span>
       {amount > 0 ? (
-        <span className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={onDetail}
-            className="text-12 font-regular text-link underline active:opacity-70"
-          >
-            Rincian
-          </button>
-          {resubmitCount > 0 ? (
-            <span className="inline-flex h-16 min-w-16 items-center justify-center rounded-full bg-red-500 px-4 text-10 font-bold text-neutral-white">
-              {resubmitCount}
-            </span>
-          ) : null}
-        </span>
+        <button
+          type="button"
+          onClick={onDetail}
+          className="self-start text-12 font-regular text-link underline active:opacity-70"
+        >
+          Rincian
+        </button>
       ) : null}
     </div>
   )
@@ -247,49 +269,75 @@ function SetoranTerakhir({ row, onMangkir }: { row: BpRow; onMangkir: () => void
   )
 }
 
-/** The "Lihat detail" breakdown dialog: where the cell's money comes from, by
- *  majelis (MV) or member (HV). For settled money it also shows the settlement
- *  destination and transfer date; the total sits on the bottom row. The body is
- *  passed as children, not `slot`, so it renders on a plain white surface rather
- *  than the design system's tinted `.ds-modal-slot`. */
-function DetailModal({
-  target,
-  approved,
-  onApprove,
+/** The breakdown drawer: where the cell's money comes from, by majelis (MV) or
+ *  member (HV). For settled money it also shows the settlement destination and
+ *  transfer date; the total sits on the bottom row. Full height from the right,
+ *  so the table it is about stays visible beside it. */
+function DetailDrawer({
+  row,
+  kind,
+  onReopen,
   onClose,
 }: {
-  target: DetailTarget | null
-  approved: Record<string, boolean>
-  onApprove: (key: string) => void
+  row: LiveRow | null
+  kind: 'outstanding' | 'settled'
+  onReopen: (entry: OutstandingEntry) => void
   onClose: () => void
 }) {
-  const settled = target?.kind === 'settled'
+  const settled = kind === 'settled'
   const kindLabel = settled ? 'Sudah disetor' : 'Belum disetor'
-  const total = target ? (settled ? target.row.settled : target.row.outstanding) : 0
+  const total = row ? (settled ? row.settled : row.outstanding) : 0
 
   return (
-    <Modal
-      open={target !== null}
+    <SideDrawer
+      open={row !== null}
       onClose={onClose}
-      size="lg"
-      title={target ? `${target.row.name} - ${kindLabel}` : undefined}
+      title={row ? `${row.name} - ${kindLabel}` : undefined}
     >
-      {target ? (
-        <div className="pt-8">
-          {settled ? (
-            <SettledBreakdown items={target.row.settledItems} total={total} />
-          ) : (
-            <OutstandingBreakdown
-              rowId={target.row.id}
-              items={target.row.outstandingItems}
-              total={total}
-              approved={approved}
-              onApprove={onApprove}
-            />
-          )}
-        </div>
+      {row ? (
+        settled ? (
+          <SettledBreakdown items={row.settledItems} total={total} />
+        ) : (
+          <OutstandingBreakdown entries={row.entries} total={total} onReopen={onReopen} />
+        )
       ) : null}
-    </Modal>
+    </SideDrawer>
+  )
+}
+
+/** "Are you sure?" before a tugas goes back to the BP. Sits above the drawer;
+ *  confirming drops the tugas from the list and off every nominal. */
+function ReopenConfirm({
+  entry,
+  onCancel,
+  onConfirm,
+}: {
+  entry: OutstandingEntry | null
+  onCancel: () => void
+  onConfirm: (key: string) => void
+}) {
+  return (
+    <Modal
+      open={entry !== null}
+      onClose={onCancel}
+      size="sm"
+      title="Re-open task?"
+      description={
+        entry
+          ? `Tugas ${originText(entry.item.origin)} akan dibuka kembali dan BP perlu submit ulang.`
+          : undefined
+      }
+      primaryAction={
+        <Button variant="primary" size="md" onClick={() => entry && onConfirm(entry.key)}>
+          Ya, re-open
+        </Button>
+      }
+      secondaryAction={
+        <Button variant="outline" size="md" onClick={onCancel}>
+          Batal
+        </Button>
+      }
+    />
   )
 }
 
@@ -317,17 +365,13 @@ const thClass = 'px-12 py-8 text-12 font-bold text-default'
 const tdClass = 'px-12 py-8 text-14 text-default'
 
 function OutstandingBreakdown({
-  rowId,
-  items,
+  entries,
   total,
-  approved,
-  onApprove,
+  onReopen,
 }: {
-  rowId: string
-  items: BpRow['outstandingItems']
+  entries: OutstandingEntry[]
   total: number
-  approved: Record<string, boolean>
-  onApprove: (key: string) => void
+  onReopen: (entry: OutstandingEntry) => void
 }) {
   return (
     <BreakdownTable
@@ -338,37 +382,31 @@ function OutstandingBreakdown({
         </>
       }
     >
-      {items.map((item, i) => {
-        const key = `${rowId}:${i}`
-        return (
-          <tr key={key} className="border-t border-default align-top">
+      {entries.length === 0 ? (
+        <tr className="border-t border-default">
+          <td className={`${tdClass} text-caption`} colSpan={2}>
+            Tidak ada tugas tersisa.
+          </td>
+        </tr>
+      ) : (
+        entries.map((entry) => (
+          <tr key={entry.key} className="border-t border-default align-top">
             <td className={tdClass}>
               <span className="flex flex-col gap-4">
-                <span className="text-14 text-default">{originText(item.origin)}</span>
-                {item.resubmitRequested ? (
-                  approved[key] ? (
-                    <Badge intent="green" variant="subtle" size="sm">
-                      Submit ulang disetujui
-                    </Badge>
-                  ) : (
-                    <span className="flex items-center gap-8">
-                      <span className="text-12 text-caption">BP request submit ulang tugas</span>
-                      <button
-                        type="button"
-                        onClick={() => onApprove(key)}
-                        className="text-12 font-regular text-link underline active:opacity-70"
-                      >
-                        Approve
-                      </button>
-                    </span>
-                  )
-                ) : null}
+                <span className="text-14 text-default">{originText(entry.item.origin)}</span>
+                <button
+                  type="button"
+                  onClick={() => onReopen(entry)}
+                  className="self-start text-12 font-regular text-link underline active:opacity-70"
+                >
+                  Re-open task
+                </button>
               </span>
             </td>
-            <td className={`${tdClass} text-right`}>{rupiah(item.amount)}</td>
+            <td className={`${tdClass} text-right`}>{rupiah(entry.item.amount)}</td>
           </tr>
-        )
-      })}
+        ))
+      )}
       <tr className="border-t border-default">
         <td className={`${tdClass} font-bold`}>Total</td>
         <td className={`${tdClass} text-right font-bold`}>{rupiah(total)}</td>
