@@ -111,6 +111,13 @@ All props below are optional except where marked **required**.
 // NavigationHeader
 <NavigationHeader title variant="light|dark" onBack hideBack
                   trailingIcons link onLinkClick showStatusBar />
+
+// AppShell — DESKTOP ONLY. The back-office frame: 40px header + 232px sidebar.
+// Use it INSTEAD of Screen; Screen is mobile-shaped. See the Desktop section.
+<AppShell user="P" sidebar={(collapsed) => <SideNav … />}
+          breadcrumbs header canvas="tinted|white" contentClassName />
+<SideNav items={[{ id, label, icon, children }]} activeId collapsed
+         onSelect footer />
 ```
 
 `primaryAction` / `secondaryAction` on Modal and BottomSheet take a `<Button>`.
@@ -178,6 +185,47 @@ flow.go('screen-id')     // push    flow.back()   // pop    flow.current
 Screens receive **no props** and **remount on every navigation** — any value that
 must survive a `go()` belongs in `projects/<slug>/lib/store.ts` (module store +
 `useSyncExternalStore`), not `useState`.
+
+---
+
+## Desktop — the NG-MIS back-office frame
+
+A desktop project (`device: 'desktop'`) does **not** use `Screen`. It uses
+`AppShell`, which pins chrome on two axes: a 40px header across the top and a
+232px sidebar down the left, both surviving navigation.
+
+```tsx
+import { AppShell, SideNav, type AppNavItem } from '@/design-system/components'
+
+const NAV: AppNavItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: <Layout size={20} /> },
+  // `children` makes a group — sub-items expand IN PLACE, never a flyout
+  { id: 'loan', label: 'Loan', icon: <Coins size={20} />, children: [
+    { id: 'loan-repayment', label: 'Repayment' },
+  ] },
+]
+
+<AppShell
+  user="P"                          // the initial in the account chip
+  breadcrumbs={[{ label: 'Home' }, { label: 'Branches', current: true }]}
+  header={<PageHeading … />}        // full-bleed white block; breadcrumbs move inside it
+  sidebar={(collapsed) => (
+    <SideNav items={NAV} activeId={navId} collapsed={collapsed}
+             onSelect={setNavId} footer={…} />
+  )}
+>
+  {/* content column — neutral-50 canvas, px-24 pb-24 pt-16 */}
+</AppShell>
+```
+
+`AppShell` owns the collapsed flag — the header hamburger toggles it and hands
+it to your `sidebar` function, so never track it yourself.
+
+The geometry is the shipped NG-MIS frame and is **not** a matter of taste:
+40px header, 232px sidebar (56px as a rail), 40px nav rows. A prototype that
+wants a different frame is proposing a product change and should say so.
+`projects/ngmis-live/` is the reference — read it before changing the chrome,
+the same way `amarthafin-live` works for mobile.
 
 ---
 

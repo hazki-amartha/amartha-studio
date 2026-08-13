@@ -502,3 +502,95 @@
   font-size: 14px; font-weight: 700; color: var(--neutral-900);
 }
 .ds-listrow-chevron { width: 20px; height: 20px; flex-shrink: 0; color: var(--neutral-400); }
+
+/* FunDS App Shell — the desktop back-office chrome (AppShell / AppHeader /
+   SideNav / Breadcrumbs). Geometry is the shipped NG-MIS frame, 1440×900;
+   the fixed widths are frame geometry, not spacing tokens. */
+.ds-appshell {
+  display: flex; flex-direction: column; height: 100%;
+  background: var(--neutral-white); font-family: var(--font);
+}
+.ds-appshell-body { display: flex; min-height: 0; flex: 1; }
+.ds-appshell-content {
+  display: flex; flex-direction: column; flex: 1; min-width: 0; overflow-y: auto;
+}
+.ds-appshell-content-tinted { background: var(--neutral-50); }
+/* Breadcrumbs sitting bare in the column (no page-header block) carry the
+   column's own 16px gutter; inside the block, its 24px padding already does. */
+.ds-appshell-content > .ds-crumbs { padding-inline: 16px; }
+.ds-appshell-pageheader {
+  flex-shrink: 0; padding-inline: 24px;
+  background: var(--neutral-white); border-bottom: 1px solid var(--neutral-200);
+}
+.ds-appshell-main { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+/* Header */
+.ds-appshell-header {
+  display: flex; flex-shrink: 0; align-items: center; justify-content: space-between;
+  height: 40px; padding: 0 16px;
+  background: var(--neutral-white); border-bottom: 1px solid var(--neutral-200);
+}
+.ds-appshell-brand { display: flex; align-items: center; gap: 16px; }
+.ds-appshell-menu {
+  display: flex; align-items: center; background: none; border: none; padding: 0;
+  cursor: pointer; color: var(--neutral-900);
+}
+.ds-appshell-account {
+  display: flex; align-items: center; gap: 4px; background: none; border: none;
+  padding: 0; cursor: pointer; color: var(--neutral-600);
+}
+.ds-appshell-avatar {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 9999px;
+  background: var(--green-50); color: var(--green-600);
+  font-size: 12px; font-weight: 700;
+}
+
+/* Sidebar */
+.ds-sidenav {
+  display: flex; flex-direction: column; justify-content: space-between;
+  flex-shrink: 0; width: 232px; padding: 8px; overflow-y: auto;
+  background: var(--neutral-white); border-right: 1px solid var(--neutral-200);
+}
+.ds-sidenav-collapsed { width: 56px; }
+.ds-sidenav-list { display: flex; flex-direction: column; padding-top: 16px; }
+.ds-sidenav-group { display: flex; flex-direction: column; }
+.ds-sidenav-item {
+  display: flex; align-items: center; gap: 12px; height: 40px;
+  padding: 0 8px; border-radius: 8px; border: none; background: none;
+  cursor: pointer; font-family: var(--font); font-size: 14px; font-weight: 500;
+  color: var(--neutral-900);
+}
+.ds-sidenav-item:hover { background: var(--neutral-50); }
+.ds-sidenav-item-active { font-weight: 700; color: var(--primary-500); }
+.ds-sidenav-item-active:hover { background: none; }
+.ds-sidenav-icon { display: inline-flex; color: var(--neutral-600); }
+.ds-sidenav-item-active .ds-sidenav-icon { color: var(--primary-500); }
+.ds-sidenav-label {
+  flex: 1; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ds-sidenav-sub {
+  display: flex; align-items: center; height: 40px;
+  padding: 0 8px 0 48px; border-radius: 8px; border: none; background: none;
+  cursor: pointer; font-family: var(--font); font-size: 14px; font-weight: 500;
+  color: var(--neutral-600); text-align: left;
+}
+.ds-sidenav-sub:hover { background: var(--neutral-50); }
+.ds-sidenav-sub-active { font-weight: 700; color: var(--primary-500); }
+.ds-sidenav-sub-active:hover { background: none; }
+.ds-sidenav-footer { padding: 0 8px 8px; }
+
+/* Breadcrumbs */
+.ds-crumbs {
+  display: flex; flex-shrink: 0; align-items: center; gap: 4px;
+  padding-block: 12px; font-size: 12px; font-family: var(--font);
+}
+.ds-crumbs-item { display: flex; align-items: center; gap: 4px; }
+.ds-crumbs-sep { color: var(--neutral-400); }
+.ds-crumbs-link {
+  background: none; border: none; padding: 0; font: inherit;
+  color: var(--neutral-900); text-decoration: underline;
+}
+button.ds-crumbs-link { cursor: pointer; }
+.ds-crumbs-current { color: var(--neutral-600); }
