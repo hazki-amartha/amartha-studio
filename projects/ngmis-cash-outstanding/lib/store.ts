@@ -75,15 +75,19 @@ export function useCorrections(): Record<string, number> {
 // Keyed by row id, kept here so the "Telat disetujui" confirmation persists across
 // navigation the same way the mangkir mark does.
 
-let acknowledged: Record<string, boolean> = {}
+/** `true` when the BM gave no reason, the reason itself when they typed one. */
+export type Acknowledgement = true | string
+
+let acknowledged: Record<string, Acknowledgement> = {}
 const ackListeners = new Set<() => void>()
 
-export function acknowledgeTelat(id: string) {
-  acknowledged = { ...acknowledged, [id]: true }
+export function acknowledgeTelat(id: string, reason?: string) {
+  const trimmed = reason?.trim()
+  acknowledged = { ...acknowledged, [id]: trimmed ? trimmed : true }
   ackListeners.forEach((l) => l())
 }
 
-export function useAcknowledged(): Record<string, boolean> {
+export function useAcknowledged(): Record<string, Acknowledgement> {
   return useSyncExternalStore(
     (cb) => {
       ackListeners.add(cb)
