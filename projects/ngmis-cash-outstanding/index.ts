@@ -28,6 +28,30 @@ const STATES: ScreenState[] = [
     description: 'Keterlambatan Sukma sudah di-acknowledge — tombolnya nonaktif, ada badge di nama.',
     apply: demo.stateTelat,
   },
+  {
+    id: 'branch-view',
+    label: 'Branch view',
+    description: 'Jawa · Jawa Barat · Cirebon · Belawa — satu cabang, satu tabel.',
+    apply: demo.stateBranchView,
+  },
+  {
+    id: 'area-view',
+    label: 'Area view',
+    description: 'Jawa · Jawa Barat · Cirebon · Semua — satu tabel per cabang di kota itu.',
+    apply: demo.stateAreaView,
+  },
+  {
+    id: 'region-view',
+    label: 'Region view',
+    description: 'Jawa · Jawa Barat · Semua · Semua — seluruh cabang di provinsi itu.',
+    apply: demo.stateRegionView,
+  },
+  {
+    id: 'island-view',
+    label: 'Island view',
+    description: 'Jawa · Semua · Semua · Semua — seluruh cabang di pulau itu.',
+    apply: demo.stateIslandView,
+  },
 ]
 
 export const project: ProjectModule = {

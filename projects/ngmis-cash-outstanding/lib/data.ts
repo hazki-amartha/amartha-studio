@@ -41,6 +41,10 @@ export interface BpRow {
   outstandingItems: OutstandingItem[]
 }
 
+/** The "not narrowed to one" filter value. Picking it at provinsi, kota or branch
+ *  level is what turns the single roster into the grouped area/region view. */
+export const SEMUA = 'semua'
+
 const ONE_DAY = 24 * 60 * 60 * 1000
 /** The settlement deadline each day — a BP still holding cash after this is late. */
 const DEADLINE_HOUR = 16

@@ -2,7 +2,8 @@
 // resets the demo to the "no actions taken" baseline, then sets one condition —
 // so the states are independent, one click each.
 
-import { acknowledgeTelat, markMangkir, resetDemo, setNow } from './store'
+import { SEMUA } from './data'
+import { acknowledgeTelat, markMangkir, resetDemo, setFilters, setNow } from './store'
 
 /** Today, 16.00 — past the deadline, no actions taken yet. */
 export function stateDefault() {
@@ -26,4 +27,32 @@ export function stateTelat() {
 export function stateEarlier() {
   resetDemo()
   setNow('2026-08-13T14:30:00')
+}
+
+// The four zoom levels of the same report, each one filter step wider. Every
+// level left on "Semua" becomes a grouping, so the tables and the headers follow
+// the filter rather than being four separate screens.
+
+/** One branch — the roster the report opens on. */
+export function stateBranchView() {
+  resetDemo()
+  setFilters({ region: 'Jawa', provinsi: 'Jawa Barat', kota: 'Cirebon', branch: 'Belawa' })
+}
+
+/** Every branch in one kota. */
+export function stateAreaView() {
+  resetDemo()
+  setFilters({ region: 'Jawa', provinsi: 'Jawa Barat', kota: 'Cirebon', branch: SEMUA })
+}
+
+/** Every branch in one provinsi. */
+export function stateRegionView() {
+  resetDemo()
+  setFilters({ region: 'Jawa', provinsi: 'Jawa Barat', kota: SEMUA, branch: SEMUA })
+}
+
+/** Every branch on the island. */
+export function stateIslandView() {
+  resetDemo()
+  setFilters({ region: 'Jawa', provinsi: SEMUA, kota: SEMUA, branch: SEMUA })
 }
