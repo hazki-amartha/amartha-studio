@@ -11,10 +11,11 @@
 //    marks the lateness reviewed and the button flips to a "Telat diakui" chip.
 //  - BP mangkir — enabled once a BP is more than a day late; marking it takes the
 //    BP off this report (and off both totals) and opens the User details page.
-// Leaving the Branch filter on "Semua" turns the single roster into one table per
-// branch, each with its own subtotal and headcount; leaving Kota on "Semua" too
-// names the kota in each header. Which tab is active and which filters are picked
-// is chrome — local state.
+// Leaving the Branch filter on "Semua" turns the single roster into one collapsed
+// table per branch, each with its own subtotal and headcount; every wider level
+// left on "Semua" (Kota, Provinsi) is named in those headers, so the same screen
+// reads as a branch, kota or region view. Which tab is active and which filters
+// are picked is chrome — local state.
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { useFlow } from '@/platform/runtime'
@@ -53,24 +54,30 @@ const TABS = [
 
 /** The region → provinsi → kota → branch cascade. Options are illustrative — the
  *  shell doesn't wire the real dependency between levels. */
-const REGIONS = [{ value: 'jawa', label: 'Jawa' }, { value: 'sumatera', label: 'Sumatera' }]
-const PROVINSI = [
-  { value: 'jabar-1', label: 'Jawa Barat' },
-  { value: 'jateng-1', label: 'Jawa Tengah' },
-]
-/** The "not narrowed to one" filter value. Picking it at kota or branch level is
- *  what turns the single roster into the grouped area view. */
+const REGIONS = [{ value: 'Jawa', label: 'Jawa' }, { value: 'Sumatera', label: 'Sumatera' }]
+/** The "not narrowed to one" filter value. Picking it at provinsi, kota or branch
+ *  level is what turns the single roster into the grouped area view. */
 const SEMUA = 'semua'
+const PROVINSI = [
+  { value: SEMUA, label: 'Semua' },
+  { value: 'Jawa Barat', label: 'Jawa Barat' },
+  { value: 'Jawa Tengah', label: 'Jawa Tengah' },
+]
 const KOTA = [
   { value: SEMUA, label: 'Semua' },
   { value: 'Cirebon', label: 'Cirebon' },
   { value: 'Sukabumi', label: 'Sukabumi' },
+  { value: 'Semarang', label: 'Semarang' },
+  { value: 'Kudus', label: 'Kudus' },
 ]
 const BRANCH = [
   { value: SEMUA, label: 'Semua' },
   { value: 'Belawa', label: 'Belawa' },
   { value: 'Cisaat', label: 'Cisaat' },
   { value: 'Cibeureum', label: 'Cibeureum' },
+  { value: 'Gunungpati', label: 'Gunungpati' },
+  { value: 'Mijen', label: 'Mijen' },
+  { value: 'Jekulo', label: 'Jekulo' },
 ]
 
 export function FoReportScreen() {
@@ -78,8 +85,8 @@ export function FoReportScreen() {
   const [activeId, setActiveId] = useState<(typeof TABS)[number]['id']>('cash-outstanding')
   const active = TABS.find((t) => t.id === activeId) ?? TABS[3]
 
-  const [region, setRegion] = useState('jawa')
-  const [provinsi, setProvinsi] = useState('jabar-1')
+  const [region, setRegion] = useState('Jawa')
+  const [provinsi, setProvinsi] = useState('Jawa Barat')
   const [kota, setKota] = useState('Cirebon')
   const [branch, setBranch] = useState('Belawa')
 
@@ -117,7 +124,7 @@ export function FoReportScreen() {
       }
     >
       {activeId === 'cash-outstanding' ? (
-        <CashOutstanding kota={kota} branch={branch} />
+        <CashOutstanding region={region} provinsi={provinsi} kota={kota} branch={branch} />
       ) : (
         <EmptyTab label={active.crumb} />
       )}
@@ -160,7 +167,17 @@ interface CorrectTarget {
   current: number
 }
 
-function CashOutstanding({ kota, branch }: { kota: string; branch: string }) {
+function CashOutstanding({
+  region,
+  provinsi,
+  kota,
+  branch,
+}: {
+  region: string
+  provinsi: string
+  kota: string
+  branch: string
+}) {
   const flow = useFlow()
   const now = useNow()
   const mangkir = useMangkir()
@@ -198,13 +215,20 @@ function CashOutstanding({ kota, branch }: { kota: string; branch: string }) {
     (row) =>
       row.outstanding > 0 &&
       !mangkir[row.id] &&
+      row.region === region &&
+      (provinsi === SEMUA || row.provinsi === provinsi) &&
       (kota === SEMUA || row.kota === kota) &&
       (branch === SEMUA || row.branch === branch),
   )
 
   // Narrowed to one branch it stays a single roster; left on "Semua" the same
-  // rows break into a table per branch, each with its own subtotal.
-  const groups = branch === SEMUA ? groupByBranch(visible, kota === SEMUA) : null
+  // rows break into a table per branch, each with its own subtotal. Every level
+  // above the branch that is also on "Semua" gets named in the header, so a
+  // region-wide view still says which provinsi and kota a branch belongs to.
+  const groups =
+    branch === SEMUA
+      ? groupByBranch(visible, { provinsi: provinsi === SEMUA, kota: kota === SEMUA })
+      : null
 
   const totalOutstanding = visible.reduce((total, r) => total + r.outstanding, 0)
   const lateCount = visible.filter((r) => r.lateness !== 'onTime').length
@@ -286,20 +310,24 @@ interface BranchGroup {
 }
 
 /** Split the visible rows into one group per branch, in the order the branches
- *  first appear. `withKota` prefixes the kota — what the header needs when the
- *  kota filter is open too, so "Belawa" and "Cibeureum" stay placeable. */
-function groupByBranch(rows: LiveRow[], withKota: boolean): BranchGroup[] {
+ *  first appear. `with` says which wider levels are themselves on "Semua" and so
+ *  have to be named in the header — "Jawa Tengah, Semarang, Mijen" — because
+ *  otherwise a branch name alone wouldn't place it. */
+function groupByBranch(
+  rows: LiveRow[],
+  show: { provinsi: boolean; kota: boolean },
+): BranchGroup[] {
   const groups: BranchGroup[] = []
   for (const row of rows) {
-    const key = `${row.kota}/${row.branch}`
+    const key = `${row.provinsi}/${row.kota}/${row.branch}`
     let group = groups.find((g) => g.key === key)
     if (!group) {
-      group = {
-        key,
-        label: withKota ? `${row.kota}, ${row.branch}` : row.branch,
-        rows: [],
-        total: 0,
-      }
+      const parts = [
+        ...(show.provinsi ? [row.provinsi] : []),
+        ...(show.kota ? [row.kota] : []),
+        row.branch,
+      ]
+      group = { key, label: parts.join(', '), rows: [], total: 0 }
       groups.push(group)
     }
     group.rows.push(row)
@@ -309,10 +337,11 @@ function groupByBranch(rows: LiveRow[], withKota: boolean): BranchGroup[] {
 }
 
 /** One branch's card: a header carrying the branch, its subtotal and its BP
- *  headcount, over the branch's own table. Collapsible, so a wide area can be
- *  folded down to the subtotals. */
+ *  headcount, over the branch's own table. Collapsed by default — an area view
+ *  opens as a list of subtotals, and a branch is expanded when it's the one
+ *  being discussed. */
 function BranchSection({ group, children }: { group: BranchGroup; children: ReactNode }) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
   return (
     <Panel className="p-0">
       <button
@@ -322,9 +351,9 @@ function BranchSection({ group, children }: { group: BranchGroup; children: Reac
         className="flex w-full items-center justify-between gap-16 px-16 py-12 text-left"
       >
         <span className="flex flex-wrap items-baseline gap-8">
-          <span className="text-14 font-bold text-default">{group.label}</span>
-          <span className="text-14 font-bold text-red-500">- {rupiah(group.total)}</span>
-          <span className="text-12 text-caption">({group.rows.length} BP)</span>
+          <span className="text-20 font-bold text-default">{group.label}</span>
+          <span className="text-20 font-bold text-red-500">- {rupiah(group.total)}</span>
+          <span className="text-20 font-bold text-red-500">({group.rows.length} BP)</span>
         </span>
         <span className="shrink-0 text-caption">
           {open ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
