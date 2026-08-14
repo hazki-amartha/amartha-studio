@@ -4,14 +4,18 @@
 // carries the "FO Report" title + the region → branch → BP filter cascade, then
 // the five report tabs. Only the Cash outstanding tab is built: a live, all-time
 // per-BP table of what each BP has not yet handed in, a Belum-disetor total and a
-// late-setoran headcount above it, and a Tindakan column of row actions:
-//  - Koreksi nominal — opens the belum-disetor breakdown drawer, where each
-//    mitra's nominal can be corrected (cascading through every total).
-//  - Setujui keterlambatan — enabled while a BP is late on the day (past 16.00),
-//    and locked again once they are over 24 hours late; a confirmation marks the
-//    lateness reviewed and a "Telat disetujui" chip joins the setoran column.
-//  - BP mangkir — enabled once a BP is more than a day late; marking it takes the
-//    BP off this report (and off both totals) and opens the User details page.
+// late-setoran headcount above it, and the actions a row can take:
+//  - Koreksi nominal — a text link under the nominal itself, opening the
+//    belum-disetor breakdown drawer where each mitra's nominal can be corrected
+//    (cascading through every total).
+//  - Setujui keterlambatan — in Tindakan, shown only while a BP is late on the
+//    day (past 16.00) and not yet signed off; a confirmation marks the lateness
+//    reviewed and a "Telat disetujui" chip joins the setoran column.
+//  - BP mangkir — in Tindakan, shown only once a BP is more than a day late;
+//    marking it takes the BP off this report (and off both totals) and opens the
+//    User details page.
+// An action that doesn't apply is absent rather than greyed out, so a row offers
+// exactly what can be done to it.
 // Leaving the Branch filter on "Semua" turns the single roster into one collapsed
 // table per branch, each with its own subtotal and headcount; every wider level
 // left on "Semua" (Kota, Provinsi) is named in those headers, so the same screen
@@ -21,7 +25,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useFlow } from '@/platform/runtime'
 import { Badge, Button, Modal } from '@/design-system/components'
-import { CheckCircleFill, ChevronDown, ChevronUp } from '@/design-system/icons'
+import { CheckCircleFill, ChevronDown, ChevronUp, Warning } from '@/design-system/icons'
 import { FoShell } from '../lib/shell'
 import {
   acknowledgeTelat,
@@ -159,7 +163,7 @@ export function FoReportScreen() {
 
 /** Nama BP · Belum disetor · Setoran terakhir · Tindakan. Percentages, so the
  *  table still fills the page, and fixed, so no state can shift a column. */
-const COLUMN_WIDTHS = ['26%', '16%', '22%', '36%']
+const COLUMN_WIDTHS = ['24%', '20%', '30%', '26%']
 
 /** The same table without Tindakan — the grouped views are for reading, so the
  *  three remaining columns take the whole width. */
@@ -448,7 +452,22 @@ function BpTable({
           {rows.map((row) => (
             <tr key={row.id} className="border-t border-default align-top">
               <td className="px-16 py-12 text-14 font-bold text-default">{row.name}</td>
-              <td className="px-16 py-12 text-14 text-default">{rupiah(row.outstanding)}</td>
+              <td className="px-16 py-12">
+                {/* The correction link sits under the nominal it edits, the same
+                    way it does inside the drawer. */}
+                <span className="flex flex-col items-start gap-4">
+                  <span className="text-14 text-default">{rupiah(row.outstanding)}</span>
+                  {showActions ? (
+                    <button
+                      type="button"
+                      onClick={() => onKoreksi(row)}
+                      className="text-12 font-regular text-link underline active:opacity-70"
+                    >
+                      Koreksi nominal
+                    </button>
+                  ) : null}
+                </span>
+              </td>
               <td className="px-16 py-12">
                 <SetoranTerakhir row={row} acknowledged={!!acknowledged[row.id]} />
               </td>
@@ -457,7 +476,6 @@ function BpTable({
                   <RowActions
                     row={row}
                     acknowledged={!!acknowledged[row.id]}
-                    onKoreksi={() => onKoreksi(row)}
                     onAck={() => onAck(row)}
                     onMangkir={() => onMangkir(row)}
                   />
@@ -506,7 +524,12 @@ function SetoranTerakhir({ row, acknowledged }: { row: LiveRow; acknowledged: bo
       <span className={`text-14 ${row.lateness === 'onTime' ? 'text-default' : `font-bold ${tone}`}`}>
         {formatSetoran(row.lastSetoran)}
       </span>
-      {note ? <span className={`text-12 ${tone}`}>{note}</span> : null}
+      {note ? (
+        <span className={`flex items-center gap-4 text-14 ${tone}`}>
+          <Warning size={16} />
+          {note}
+        </span>
+      ) : null}
       {acknowledged ? (
         <span className="pt-2">
           <Badge
@@ -530,29 +553,30 @@ function SetoranTerakhir({ row, acknowledged }: { row: LiveRow; acknowledged: bo
 function RowActions({
   row,
   acknowledged,
-  onKoreksi,
   onAck,
   onMangkir,
 }: {
   row: LiveRow
   acknowledged: boolean
-  onKoreksi: () => void
   onAck: () => void
   onMangkir: () => void
 }) {
-  const canAck = row.lateness === 'today'
-  const canMangkir = row.lateness === 'overdue'
+  // Each action appears only while it applies, so a row offers what can be done
+  // to it and nothing else — an on-time BP has an empty Tindakan cell.
+  const showAck = row.lateness === 'today' && !acknowledged
+  const showMangkir = row.lateness === 'overdue'
   return (
     <div className="flex flex-wrap items-center gap-8">
-      <Button variant="primary" size="sm" onClick={onKoreksi}>
-        Koreksi nominal
-      </Button>
-      <Button variant="primary" size="sm" disabled={!canAck || acknowledged} onClick={onAck}>
-        Setujui keterlambatan
-      </Button>
-      <Button variant="primary" size="sm" disabled={!canMangkir} onClick={onMangkir}>
-        BP mangkir
-      </Button>
+      {showAck ? (
+        <Button variant="primary" size="sm" onClick={onAck}>
+          Setujui keterlambatan
+        </Button>
+      ) : null}
+      {showMangkir ? (
+        <Button variant="primary" size="sm" onClick={onMangkir}>
+          BP mangkir
+        </Button>
+      ) : null}
     </div>
   )
 }
