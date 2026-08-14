@@ -10,7 +10,7 @@
 import { useState } from 'react'
 import { Button } from '@/design-system/components'
 import { SheetSection, SideSheet } from './ui'
-import { BpTable, RepaymentMetrics } from './repayment-table'
+import { BpTable, RepaymentMetrics, TableHeading } from './repayment-table'
 import { store, useApp } from './store'
 import { ACTION_BRIEFS, recommendedAction, type RepaymentBp, type Unit } from './data'
 
@@ -116,13 +116,20 @@ function ActionSheet({ bp, onClose }: { bp: RepaymentBp; onClose: () => void }) 
   )
 }
 
-export function RepaymentGrid({ unit }: { unit: Unit }) {
+export function RepaymentGrid({
+  unit,
+  onUnitChange,
+}: {
+  unit: Unit
+  onUnitChange: (u: Unit) => void
+}) {
   const [openBp, setOpenBp] = useState<RepaymentBp | null>(null)
   const { scheduled } = useApp()
 
   return (
     <>
       <RepaymentMetrics unit={unit} />
+      <TableHeading unit={unit} onUnitChange={onUnitChange} />
 
       <BpTable
         unit={unit}

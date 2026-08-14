@@ -262,10 +262,17 @@ export function BpTable({
   )
 }
 
-export function RepaymentTable({ unit }: { unit: Unit }) {
+export function RepaymentTable({
+  unit,
+  onUnitChange,
+}: {
+  unit: Unit
+  onUnitChange: (u: Unit) => void
+}) {
   return (
     <>
       <RepaymentMetrics unit={unit} />
+      <TableHeading unit={unit} onUnitChange={onUnitChange} />
       <BpTable unit={unit} />
     </>
   )

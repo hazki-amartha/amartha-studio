@@ -20,10 +20,12 @@ export function BranchSummaryScreen() {
 
   return (
     <BranchSummaryPage
-      unit={unit}
-      onUnitChange={setUnit}
       pembayaran={
-        variant === 'mvp' ? <RepaymentTable unit={unit} /> : <RepaymentGrid unit={unit} />
+        variant === 'mvp' ? (
+          <RepaymentTable unit={unit} onUnitChange={setUnit} />
+        ) : (
+          <RepaymentGrid unit={unit} onUnitChange={setUnit} />
+        )
       }
     />
   )
