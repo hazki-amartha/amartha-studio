@@ -44,26 +44,31 @@ const pct = (v: number) => `${Math.round(v)}%`
 /** The three grouped headers, each naming the monthly target it is read
  *  against — the same line Pembayaran puts under its bucket headers. Total
  *  carries the nilai target, since that is the money version of the other two
- *  and the column the BM is chased on. */
+ *  and the column the BM is chased on. Mitra lanjutan gets its own Rate column
+ *  rather than folding the rate into the NoA cell, so it reads down the page
+ *  the same way every other figure does. */
 const GROUPS = [
   {
     id: 'total',
     header: 'Total',
     target: `Target ${juta(DISBURSEMENT_TARGETS.nilai)} / bulan`,
+    cols: ['NoA', 'Nilai'],
   },
   {
     id: 'baru',
     header: 'Mitra baru',
     target: `Target ${DISBURSEMENT_TARGETS.noaBaru} mitra / bulan`,
+    cols: ['NoA', 'Nilai'],
   },
   {
     id: 'lanjutan',
     header: 'Mitra lanjutan',
     target: `Target ${DISBURSEMENT_TARGETS.renewalRate}% / bulan`,
+    cols: ['NoA', 'Rate', 'Nilai'],
   },
 ] as const
 
-const SUB = ['NoA', 'Nilai']
+const COLSPAN = 1 + GROUPS.reduce((n, g) => n + g.cols.length, 0)
 
 const SHORT_CELL = 'px-12 pb-16 pt-4 text-center text-10 text-caption'
 
@@ -149,7 +154,7 @@ export function DisbursementTable() {
                 {GROUPS.map((group) => (
                   <th
                     key={group.id}
-                    colSpan={SUB.length}
+                    colSpan={group.cols.length}
                     className="border-l border-default px-16 pb-8 pt-16 text-center text-12 font-bold text-default"
                   >
                     <span className="flex flex-col gap-2">
@@ -162,7 +167,7 @@ export function DisbursementTable() {
               <tr className="bg-neutral-200">
                 {GROUPS.map((group) => (
                   <Fragment key={group.id}>
-                    {SUB.map((label, i) => (
+                    {group.cols.map((label, i) => (
                       <th
                         key={label}
                         className={`px-12 pb-12 text-center text-12 font-regular text-caption ${
@@ -179,10 +184,7 @@ export function DisbursementTable() {
             <tbody>
               {DISBURSEMENT_BPS.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={1 + GROUPS.length * SUB.length}
-                    className="px-16 py-24 text-center text-12 text-caption"
-                  >
+                  <td colSpan={COLSPAN} className="px-16 py-24 text-center text-12 text-caption">
                     Belum ada pencairan pada periode ini.
                   </td>
                 </tr>
@@ -211,13 +213,8 @@ function BpRow({ bp, zebra }: { bp: DisbursementBp; zebra: boolean }) {
   return (
     <Fragment>
       <tr className={`align-middle ${stripe}`}>
-        {/* Name over its majelis count: how big a book the row's figures came
-            out of, which is the first thing that explains a low number. */}
-        <td rowSpan={2} className="px-16 py-12">
-          <span className="flex min-w-0 flex-col gap-4">
-            <span className="text-14 text-default">{bp.name}</span>
-            <span className="text-12 text-caption">{bp.majelis} majelis</span>
-          </span>
+        <td rowSpan={2} className="px-16 py-12 text-14 text-default">
+          {bp.name}
         </td>
 
         {/* Total: NoA beside nilai. */}
@@ -232,17 +229,16 @@ function BpRow({ bp, zebra }: { bp: DisbursementBp; zebra: boolean }) {
         </td>
         <td className="px-12 pt-16 text-center text-14 text-default">{juta(bp.nilaiBaru)}</td>
 
-        {/* Mitra lanjutan: the count and the rate on one line — the count is
-            the half the BM can name mitra for, the rate is the half the target
-            is written in, and the only figure on the tab carrying a verdict.
-            The denominator is left off: it is the same renewalDue the rate is
-            already computed from, and reading it beside the count invites the
-            two to be compared as though they were different facts. */}
-        <td className="border-l border-default px-12 pt-16 text-center">
-          <span className="flex items-center justify-center gap-8">
-            <span className="text-14 text-default">{bp.noaLanjutan}</span>
-            <RatePill ok={meetsRenewal(bp)}>{pct(renewalRate(bp))}</RatePill>
-          </span>
+        {/* Mitra lanjutan: NoA, then its own Rate column — the only figure on
+            the tab carrying a verdict. The denominator is left off: it is the
+            same renewalDue the rate is already computed from, and printing it
+            beside the count invites the two to be compared as though they
+            were different facts. */}
+        <td className="border-l border-default px-12 pt-16 text-center text-14 text-default">
+          {bp.noaLanjutan}
+        </td>
+        <td className="px-12 pt-16 text-center">
+          <RatePill ok={meetsRenewal(bp)}>{pct(renewalRate(bp))}</RatePill>
         </td>
         <td className="px-12 pt-16 text-center text-14 text-default">{juta(bp.nilaiLanjutan)}</td>
       </tr>
@@ -255,12 +251,15 @@ function BpRow({ bp, zebra }: { bp: DisbursementBp; zebra: boolean }) {
       <tr className={`border-b border-default align-top ${stripe}`}>
         <td className="border-l border-default px-12 pb-16 pt-4" />
         <td className={SHORT_CELL}>{nilaiShort ? `Kurang ${juta(nilaiShort)}` : null}</td>
-        <td className="border-l border-default px-12 pb-16 pt-4" />
-        <td className={SHORT_CELL}>{noaShort ? `Kurang ${noaShort} mitra baru` : null}</td>
-        <td className="border-l border-default px-12 pb-16 pt-4" />
-        <td className={SHORT_CELL}>
+        <td className={`border-l border-default ${SHORT_CELL}`}>
+          {noaShort ? `Kurang ${noaShort} mitra baru` : null}
+        </td>
+        <td className="px-12 pb-16 pt-4" />
+        <td className={`border-l border-default ${SHORT_CELL}`}>
           {lanjutanShort ? `Kurang ${lanjutanShort} mitra lanjutan` : null}
         </td>
+        <td className="px-12 pb-16 pt-4" />
+        <td className="px-12 pb-16 pt-4" />
       </tr>
     </Fragment>
   )
