@@ -7,16 +7,15 @@
 // grouped headers, then a caption line beneath the column each shortfall is
 // about.
 //
-// Disbursement is read as two questions and not one: how MANY loans went out
-// (NoA) and how MUCH they were worth, each split into mitra baru and mitra
-// lanjutan. A BP can be strong on renewals and put out no new mitra at all, and
-// a single pencairan figure hides exactly that.
+// The table is grouped by mitra segment — Total, mitra baru, mitra lanjutan —
+// rather than by NoA vs nilai, because a BM reads a row segment by segment
+// ("how did mitra baru do") rather than metric by metric: a BP can be strong
+// on renewals and put out no new mitra at all, and grouping by metric instead
+// of segment scatters that story across two halves of the table.
 //
 // Colour follows Pembayaran's rule exactly: the counts and the rupiah are
 // facts, so they stay black, and only the renewal RATE — the one figure on the
-// tab that is a judgement against a stated standard — wears green or red. The
-// earlier three-band red/orange/green colouring is gone: it painted every
-// figure on the page, which left nothing standing out.
+// tab that is a judgement against a stated standard — wears green or red.
 //
 // The targets are monthly and the page now reports a month, so nothing is
 // paced: a figure is judged against the month's target as it stands.
@@ -42,23 +41,29 @@ import {
 const juta = (v: number) => `Rp${v} juta`
 const pct = (v: number) => `${Math.round(v)}%`
 
-/** The two grouped headers, each three columns wide, each naming the monthly
- *  target it is read against — the same line Pembayaran puts under its bucket
- *  headers. */
+/** The three grouped headers, each naming the monthly target it is read
+ *  against — the same line Pembayaran puts under its bucket headers. Total
+ *  carries the nilai target, since that is the money version of the other two
+ *  and the column the BM is chased on. */
 const GROUPS = [
   {
-    id: 'noa',
-    header: 'Jumlah pencairan (NoA)',
-    target: `Target ${DISBURSEMENT_TARGETS.noaBaru} mitra baru / bulan`,
+    id: 'total',
+    header: 'Total',
+    target: `Target ${juta(DISBURSEMENT_TARGETS.nilai)} / bulan`,
   },
   {
-    id: 'nilai',
-    header: 'Nilai pencairan',
-    target: `Target ${juta(DISBURSEMENT_TARGETS.nilai)} / bulan`,
+    id: 'baru',
+    header: 'Mitra baru',
+    target: `Target ${DISBURSEMENT_TARGETS.noaBaru} mitra / bulan`,
+  },
+  {
+    id: 'lanjutan',
+    header: 'Mitra lanjutan',
+    target: `Target ${DISBURSEMENT_TARGETS.renewalRate}% / bulan`,
   },
 ] as const
 
-const SUB = ['Total', 'Mitra baru', 'Mitra lanjutan']
+const SUB = ['NoA', 'Nilai']
 
 const SHORT_CELL = 'px-12 pb-16 pt-4 text-center text-10 text-caption'
 
@@ -144,7 +149,7 @@ export function DisbursementTable() {
                 {GROUPS.map((group) => (
                   <th
                     key={group.id}
-                    colSpan={3}
+                    colSpan={SUB.length}
                     className="border-l border-default px-16 pb-8 pt-16 text-center text-12 font-bold text-default"
                   >
                     <span className="flex flex-col gap-2">
@@ -174,7 +179,10 @@ export function DisbursementTable() {
             <tbody>
               {DISBURSEMENT_BPS.length === 0 ? (
                 <tr>
-                  <td colSpan={1 + GROUPS.length * 3} className="px-16 py-24 text-center text-12 text-caption">
+                  <td
+                    colSpan={1 + GROUPS.length * SUB.length}
+                    className="px-16 py-24 text-center text-12 text-caption"
+                  >
                     Belum ada pencairan pada periode ini.
                   </td>
                 </tr>
@@ -212,45 +220,47 @@ function BpRow({ bp, zebra }: { bp: DisbursementBp; zebra: boolean }) {
           </span>
         </td>
 
+        {/* Total: NoA beside nilai. */}
         <td className="border-l border-default px-12 pt-16 text-center text-14 text-default">
           {noaTotal(bp)}
         </td>
-        <td className="px-12 pt-16 text-center text-14 text-default">{bp.noaBaru}</td>
-        {/* The count and the rate on one line — the count is the half the BM
-            can name mitra for, the rate is the half the target is written in,
-            and the only figure on the tab carrying a verdict. The denominator
-            is left off: it is the same renewalDue the rate is already computed
-            from, and reading it beside the count invites the two to be
-            compared as though they were different facts. */}
-        <td className="px-12 pt-16 text-center">
+        <td className="px-12 pt-16 text-center text-14 text-default">{juta(nilaiTotal(bp))}</td>
+
+        {/* Mitra baru: NoA beside nilai. */}
+        <td className="border-l border-default px-12 pt-16 text-center text-14 text-default">
+          {bp.noaBaru}
+        </td>
+        <td className="px-12 pt-16 text-center text-14 text-default">{juta(bp.nilaiBaru)}</td>
+
+        {/* Mitra lanjutan: the count and the rate on one line — the count is
+            the half the BM can name mitra for, the rate is the half the target
+            is written in, and the only figure on the tab carrying a verdict.
+            The denominator is left off: it is the same renewalDue the rate is
+            already computed from, and reading it beside the count invites the
+            two to be compared as though they were different facts. */}
+        <td className="border-l border-default px-12 pt-16 text-center">
           <span className="flex items-center justify-center gap-8">
             <span className="text-14 text-default">{bp.noaLanjutan}</span>
             <RatePill ok={meetsRenewal(bp)}>{pct(renewalRate(bp))}</RatePill>
           </span>
         </td>
-
-        <td className="border-l border-default px-12 pt-16 text-center text-14 text-default">
-          {juta(nilaiTotal(bp))}
-        </td>
-        <td className="px-12 pt-16 text-center text-14 text-default">{juta(bp.nilaiBaru)}</td>
         <td className="px-12 pt-16 text-center text-14 text-default">{juta(bp.nilaiLanjutan)}</td>
       </tr>
 
-      {/* Each shortfall sits under the column it is about — the mitra-baru gap
-          beneath Mitra baru, the rupiah gap beneath the Nilai total it is
-          measured from — rather than centred under the whole group, where it
-          read as belonging to all three columns at once. */}
+      {/* Each shortfall sits under the column it is about — the rupiah gap
+          beneath Total's nilai, the mitra-baru gap beneath Mitra baru's NoA,
+          the renewal gap beneath Mitra lanjutan's NoA — rather than centred
+          under the whole group, where it read as belonging to every column at
+          once. */}
       <tr className={`border-b border-default align-top ${stripe}`}>
         <td className="border-l border-default px-12 pb-16 pt-4" />
+        <td className={SHORT_CELL}>{nilaiShort ? `Kurang ${juta(nilaiShort)}` : null}</td>
+        <td className="border-l border-default px-12 pb-16 pt-4" />
         <td className={SHORT_CELL}>{noaShort ? `Kurang ${noaShort} mitra baru` : null}</td>
+        <td className="border-l border-default px-12 pb-16 pt-4" />
         <td className={SHORT_CELL}>
           {lanjutanShort ? `Kurang ${lanjutanShort} mitra lanjutan` : null}
         </td>
-        <td className={`border-l border-default ${SHORT_CELL}`}>
-          {nilaiShort ? `Kurang ${juta(nilaiShort)}` : null}
-        </td>
-        <td className="px-12 pb-16 pt-4" />
-        <td className="px-12 pb-16 pt-4" />
       </tr>
     </Fragment>
   )
