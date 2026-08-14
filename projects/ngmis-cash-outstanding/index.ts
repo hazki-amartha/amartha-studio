@@ -11,6 +11,12 @@ const STATES: ScreenState[] = [
     apply: demo.stateDefault,
   },
   {
+    id: 'earlier',
+    label: 'Earlier in the day (14.30)',
+    description: 'Sebelum deadline 16.00 — hanya BP yang telat lebih dari 24 jam yang tampak telat.',
+    apply: demo.stateEarlier,
+  },
+  {
     id: 'mangkir',
     label: 'BP Marked Mangkir',
     description: 'Diski sudah ditandai mangkir — tombolnya nonaktif, ada badge di nama.',
@@ -21,12 +27,6 @@ const STATES: ScreenState[] = [
     label: 'BP Marked Telat',
     description: 'Keterlambatan Sukma sudah di-acknowledge — tombolnya nonaktif, ada badge di nama.',
     apply: demo.stateTelat,
-  },
-  {
-    id: 'earlier',
-    label: 'Earlier in the day (14.30)',
-    description: 'Sebelum deadline 16.00 — hanya BP yang lewat 1 hari yang tampak telat.',
-    apply: demo.stateEarlier,
   },
 ]
 
