@@ -9,7 +9,7 @@ export function stateDefault() {
   resetDemo()
 }
 
-/** A BP (Diski) already marked mangkir — its button is disabled, badge on the name. */
+/** A BP (Diski) already marked mangkir — the row leaves the table and the totals. */
 export function stateMangkir() {
   resetDemo()
   markMangkir('bp-b')

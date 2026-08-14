@@ -28,6 +28,10 @@ export interface OutstandingItem {
 export interface BpRow {
   id: string
   name: string
+  /** Where the BP works. Read by the filter cascade: picking "Semua" at kota or
+   *  branch level groups the table by these instead of listing one roster. */
+  kota: string
+  branch: string
   outstanding: number
   /** ISO datetime of the BP's most recent setoran. */
   lastSetoran: string
@@ -57,9 +61,16 @@ const hvItem = (name: string, amount: number): OutstandingItem => ({
 interface BpSeed {
   id: string
   name: string
+  kota?: string
+  branch?: string
   lastSetoran: string
   outstandingItems: OutstandingItem[]
 }
+
+/** Most of the roster is the Belawa branch in Cirebon; a seed only names its
+ *  kota/branch when it sits somewhere else. */
+const HOME_KOTA = 'Cirebon'
+const HOME_BRANCH = 'Belawa'
 
 const SEEDS: BpSeed[] = [
   {
@@ -118,10 +129,39 @@ const SEEDS: BpSeed[] = [
       ]),
     ],
   },
+  {
+    id: 'bp-g',
+    name: 'Indra Birowo',
+    branch: 'Cisaat',
+    lastSetoran: '2026-08-13T14:00:00',
+    outstandingItems: [hvItem('Ibu Kartini', 200_000)],
+  },
+  {
+    id: 'bp-h',
+    name: 'Ronald Ghazali',
+    branch: 'Cisaat',
+    lastSetoran: '2026-08-11T17:30:00',
+    outstandingItems: [hvItem('Ibu Suminah', 300_000)],
+  },
+  {
+    id: 'bp-i',
+    name: 'Citra Mutiara',
+    kota: 'Sukabumi',
+    branch: 'Cibeureum',
+    lastSetoran: '2026-08-13T14:00:00',
+    outstandingItems: [
+      mvItem('Majelis Cempaka', [
+        { name: 'Ibu Rohayati', amount: 350_000 },
+        { name: 'Ibu Sumarni', amount: 300_000 },
+      ]),
+    ],
+  },
 ]
 
 export const BP_ROWS: BpRow[] = SEEDS.map((seed) => ({
   ...seed,
+  kota: seed.kota ?? HOME_KOTA,
+  branch: seed.branch ?? HOME_BRANCH,
   outstanding: seed.outstandingItems.reduce((total, i) => total + i.amount, 0),
 }))
 
