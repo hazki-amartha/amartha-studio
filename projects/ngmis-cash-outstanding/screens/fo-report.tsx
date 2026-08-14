@@ -10,7 +10,8 @@
 //    (cascading through every total).
 //  - Setujui keterlambatan — in Tindakan, shown only while a BP is late on the
 //    day (past 16.00) and not yet signed off; a confirmation marks the lateness
-//    reviewed and a "Telat disetujui" chip joins the setoran column.
+//    reviewed and a blue "Telat disetujui" line replaces the warning in the
+//    setoran column.
 //  - BP mangkir — in Tindakan, shown only once a BP is more than a day late;
 //    marking it takes the BP off this report (and off both totals) and opens the
 //    User details page.
@@ -24,8 +25,8 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { useFlow } from '@/platform/runtime'
-import { Badge, Button, Modal } from '@/design-system/components'
-import { CheckCircleFill, ChevronDown, ChevronUp, Warning } from '@/design-system/icons'
+import { Button, Modal } from '@/design-system/components'
+import { ChevronDown, ChevronUp, Warning } from '@/design-system/icons'
 import { FoShell } from '../lib/shell'
 import {
   acknowledgeTelat,
@@ -519,27 +520,20 @@ function SetoranTerakhir({ row, acknowledged }: { row: LiveRow; acknowledged: bo
       : row.lateness === 'today'
         ? 'Telat setor (lewat jam 4 sore)'
         : null
+  // Once the lateness is signed off it stops being a warning: the timestamp goes
+  // back to plain black, the red/orange line is replaced rather than joined.
+  const settled = acknowledged || row.lateness === 'onTime'
   return (
     <div className="flex flex-col gap-2">
-      <span className={`text-14 ${row.lateness === 'onTime' ? 'text-default' : `font-bold ${tone}`}`}>
+      <span className={`text-14 ${settled ? 'text-default' : `font-bold ${tone}`}`}>
         {formatSetoran(row.lastSetoran)}
       </span>
-      {note ? (
+      {acknowledged ? (
+        <span className="text-14 text-link">Telat disetujui</span>
+      ) : note ? (
         <span className={`flex items-center gap-4 text-14 ${tone}`}>
           <Warning size={16} />
           {note}
-        </span>
-      ) : null}
-      {acknowledged ? (
-        <span className="pt-2">
-          <Badge
-            intent="green"
-            variant="subtle"
-            size="sm"
-            leadingIcon={<CheckCircleFill size={16} />}
-          >
-            Telat disetujui
-          </Badge>
         </span>
       ) : null}
     </div>
