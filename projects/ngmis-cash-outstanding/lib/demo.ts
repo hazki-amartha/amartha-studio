@@ -29,15 +29,9 @@ export function stateEarlier() {
   setNow('2026-08-13T14:30:00')
 }
 
-// The four zoom levels of the same report, each one filter step wider. Every
-// level left on "Semua" becomes a grouping, so the tables and the headers follow
-// the filter rather than being four separate screens.
-
-/** One branch — the roster the report opens on. */
-export function stateBranchView() {
-  resetDemo()
-  setFilters({ region: 'Jawa', provinsi: 'Jawa Barat', kota: 'Cirebon', branch: 'Belawa' })
-}
+// The wider zoom levels of the same report, each one filter step out from the
+// default branch view. Every level left on "Semua" becomes a grouping, so the
+// tables and the headers follow the filter rather than being separate screens.
 
 /** Every branch in one kota. */
 export function stateAreaView() {

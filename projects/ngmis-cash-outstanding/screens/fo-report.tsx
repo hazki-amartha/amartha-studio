@@ -160,6 +160,10 @@ export function FoReportScreen() {
  *  table still fills the page, and fixed, so no state can shift a column. */
 const COLUMN_WIDTHS = ['26%', '16%', '22%', '36%']
 
+/** The same table without Tindakan — the grouped views are for reading, so the
+ *  three remaining columns take the whole width. */
+const COLUMN_WIDTHS_READONLY = ['40%', '25%', '35%']
+
 /** One live mitra share, its nominal reflecting any correction the BM has made. */
 interface LiveMember {
   key: string
@@ -287,7 +291,7 @@ function CashOutstanding({
       ) : groups ? (
         groups.map((group) => (
           <BranchSection key={group.key} group={group}>
-            <BpTable rows={group.rows} roundedTop={false} {...tableActions} />
+            <BpTable rows={group.rows} roundedTop={false} showActions={false} {...tableActions} />
           </BranchSection>
         ))
       ) : (
@@ -395,7 +399,9 @@ function BranchSection({ group, children }: { group: BranchGroup; children: Reac
 }
 
 /** The per-BP table. One of these on a branch view, one per branch on an area
- *  view — identical either way, so the columns line up down the page. */
+ *  view — identical either way, so the columns line up down the page. The
+ *  grouped views drop Tindakan: the row actions belong to the branch that owns
+ *  the BP, so you narrow the filter to that branch to use them. */
 function BpTable({
   rows,
   acknowledged,
@@ -403,6 +409,7 @@ function BpTable({
   onAck,
   onMangkir,
   roundedTop = true,
+  showActions = true,
 }: {
   rows: LiveRow[]
   acknowledged: Record<string, boolean>
@@ -410,7 +417,9 @@ function BpTable({
   onAck: (row: LiveRow) => void
   onMangkir: (row: LiveRow) => void
   roundedTop?: boolean
+  showActions?: boolean
 }) {
+  const widths = showActions ? COLUMN_WIDTHS : COLUMN_WIDTHS_READONLY
   return (
     <div className="overflow-x-auto">
       {/* Fixed layout: the columns keep these widths whatever a row is showing,
@@ -418,7 +427,7 @@ function BpTable({
           table — and every branch's table matches every other's. */}
       <table className="w-full table-fixed border-collapse text-left">
         <colgroup>
-          {COLUMN_WIDTHS.map((width, i) => (
+          {widths.map((width, i) => (
             <col key={i} style={{ width }} />
           ))}
         </colgroup>
@@ -426,8 +435,12 @@ function BpTable({
           <tr className="bg-neutral-50">
             <th className={`${thHeadClass} ${roundedTop ? 'rounded-tl-12' : ''}`}>Nama BP</th>
             <th className={thHeadClass}>Belum disetor</th>
-            <th className={thHeadClass}>Setoran terakhir</th>
-            <th className={`${thHeadClass} ${roundedTop ? 'rounded-tr-12' : ''}`}>Tindakan</th>
+            <th className={`${thHeadClass} ${roundedTop && !showActions ? 'rounded-tr-12' : ''}`}>
+              Setoran terakhir
+            </th>
+            {showActions ? (
+              <th className={`${thHeadClass} ${roundedTop ? 'rounded-tr-12' : ''}`}>Tindakan</th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -452,15 +465,17 @@ function BpTable({
               <td className="px-16 py-12">
                 <SetoranTerakhir row={row} />
               </td>
-              <td className="px-16 py-12">
-                <RowActions
-                  row={row}
-                  acknowledged={!!acknowledged[row.id]}
-                  onKoreksi={() => onKoreksi(row)}
-                  onAck={() => onAck(row)}
-                  onMangkir={() => onMangkir(row)}
-                />
-              </td>
+              {showActions ? (
+                <td className="px-16 py-12">
+                  <RowActions
+                    row={row}
+                    acknowledged={!!acknowledged[row.id]}
+                    onKoreksi={() => onKoreksi(row)}
+                    onAck={() => onAck(row)}
+                    onMangkir={() => onMangkir(row)}
+                  />
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>

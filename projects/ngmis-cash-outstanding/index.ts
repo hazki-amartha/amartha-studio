@@ -29,12 +29,6 @@ const STATES: ScreenState[] = [
     apply: demo.stateTelat,
   },
   {
-    id: 'branch-view',
-    label: 'Branch view',
-    description: 'Jawa · Jawa Barat · Cirebon · Belawa — satu cabang, satu tabel.',
-    apply: demo.stateBranchView,
-  },
-  {
     id: 'area-view',
     label: 'Area view',
     description: 'Jawa · Jawa Barat · Cirebon · Semua — satu tabel per cabang di kota itu.',
