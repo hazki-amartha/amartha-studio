@@ -1,70 +1,57 @@
-// Mock data for the Cash Outstanding & Settlement tab.
+// Mock data for the Cash Outstanding tab.
 //
 // One row per BP in the branch roster (a handful — the invisible rows of a
 // realistic-scale dataset are pure token cost, §3). Each BP carries the money
-// not yet handed in (belum disetor / outstanding) and the money already handed
-// in (sudah disetor / settled), each broken down into the tasks it came from.
-// The row and summary totals are summed from those items so nothing can drift.
+// not yet handed in (belum disetor), broken down into the tugas it came from,
+// and each tugas is broken down again into the mitra who owe it. Row nominals
+// are summed from those items so nothing can drift.
 
-/** Where a settled/outstanding chunk originates. A whole majelis (MV) settles
- *  together — it can't be split per mitra — while an HV is one mitra's own bill. */
+/** Where an outstanding chunk originates. A whole majelis (MV) is a group of
+ *  mitra; an HV is one mitra's own bill. */
 export interface OriginRef {
   kind: 'MV' | 'HV'
   label: string
 }
 
-/** How a settled chunk reached the company: a Virtual Account transfer, or cash
- *  handed to an Agen AmarthaLink counter. Mirrors the two roads in the APartner
- *  BP New Concept prototype. */
-export interface SettlementDest {
-  via: 'va' | 'agent'
-  /** "Virtual Account" | "Agen AmarthaLink". */
-  label: string
-  /** The account/counter identifier, e.g. "BCA · 8808 3021 5567". */
-  detail: string
+/** One mitra's share of a tugas — the per-member breakdown shown in the drawer. */
+export interface MemberShare {
+  name: string
+  amount: number
 }
 
 export interface OutstandingItem {
   origin: OriginRef
   amount: number
-  /** The BP has asked for this tugas to be re-opened. Surfaced as a red counter
-   *  beside the cell's nominal and, in the Belum disetor drawer, as a red note
-   *  plus a "Re-open task" action. */
-  reopenRequested?: boolean
-}
-
-export interface SettledItem {
-  origin: OriginRef
-  dest: SettlementDest
-  /** Transfer date, e.g. "23 Juni 2026". */
-  date: string
-  amount: number
+  members: MemberShare[]
 }
 
 export interface BpRow {
   id: string
   name: string
   outstanding: number
-  settled: number
   /** ISO datetime of the BP's most recent setoran. */
   lastSetoran: string
   outstandingItems: OutstandingItem[]
-  settledItems: SettledItem[]
 }
 
-export const WEEK_LABEL = 'Minggu ini, 22 – 27 Juni 2026'
-
-/** The "now" the staleness check reads from — mid-week. */
-const NOW = '2026-06-24T12:00:00'
 const ONE_DAY = 24 * 60 * 60 * 1000
+/** The settlement deadline each day — a BP still holding cash after this is late. */
+const DEADLINE_HOUR = 16
 
-const mv = (label: string): OriginRef => ({ kind: 'MV', label })
-const hv = (label: string): OriginRef => ({ kind: 'HV', label })
-const va = (detail: string): SettlementDest => ({ via: 'va', label: 'Virtual Account', detail })
-const agent = (detail: string): SettlementDest => ({
-  via: 'agent',
-  label: 'Agen AmarthaLink',
-  detail,
+const memberSum = (members: MemberShare[]) => members.reduce((total, m) => total + m.amount, 0)
+
+/** A whole-majelis tugas: the amount is the sum of its mitra shares. */
+const mvItem = (label: string, members: MemberShare[]): OutstandingItem => ({
+  origin: { kind: 'MV', label },
+  amount: memberSum(members),
+  members,
+})
+
+/** A single-mitra tugas: the one member is the mitra herself. */
+const hvItem = (name: string, amount: number): OutstandingItem => ({
+  origin: { kind: 'HV', label: name },
+  amount,
+  members: [{ name, amount }],
 })
 
 interface BpSeed {
@@ -72,112 +59,113 @@ interface BpSeed {
   name: string
   lastSetoran: string
   outstandingItems: OutstandingItem[]
-  settledItems: SettledItem[]
 }
 
 const SEEDS: BpSeed[] = [
   {
     id: 'bp-a',
     name: 'Sukma Ayuningrum',
-    lastSetoran: '2026-06-24T08:15:00',
-    outstandingItems: [
-      { origin: hv('Ibu Siti Aminah'), amount: 120_000, reopenRequested: true },
-      { origin: hv('Ibu Ratih Kumala'), amount: 100_000 },
-    ],
-    settledItems: [
-      { origin: mv('Majelis Melati'), dest: va('BCA · 8808 3021 5567'), date: '23 Juni 2026', amount: 2_000_000 },
-      { origin: hv('Ibu Dewi Lestari'), dest: agent('Warung Bu Yeni'), date: '23 Juni 2026', amount: 1_450_000 },
-    ],
+    lastSetoran: '2026-08-13T14:00:00',
+    outstandingItems: [hvItem('Ibu Siti Aminah', 120_000), hvItem('Ibu Ratih Kumala', 100_000)],
   },
   {
     id: 'bp-b',
     name: 'Diski Tafa Ilham',
-    lastSetoran: '2026-06-22T14:30:00',
-    outstandingItems: [{ origin: mv('Majelis Mawar'), amount: 1_500_000, reopenRequested: true }],
-    settledItems: [
-      { origin: mv('Majelis Mawar'), dest: va('BRI · 8808 7754 1120'), date: '22 Juni 2026', amount: 1_800_000 },
-      { origin: hv('Ibu Nurhayati'), dest: agent('Kios Pak Dedi'), date: '22 Juni 2026', amount: 1_000_000 },
+    lastSetoran: '2026-08-11T17:30:00',
+    outstandingItems: [
+      mvItem('Majelis Mawar', [
+        { name: 'Ibu Sri Wahyuni', amount: 600_000 },
+        { name: 'Ibu Endang Sari', amount: 500_000 },
+        { name: 'Ibu Yati Suryani', amount: 400_000 },
+      ]),
     ],
   },
   {
     id: 'bp-c',
     name: 'Cenli Cencen',
-    lastSetoran: '2026-06-24T10:05:00',
+    lastSetoran: '2026-08-13T16:05:00',
     outstandingItems: [],
-    settledItems: [
-      { origin: mv('Majelis Anggrek'), dest: va('BCA · 8808 1190 4432'), date: '24 Juni 2026', amount: 2_600_000 },
-      { origin: hv('Ibu Wulandari'), dest: va('BCA · 8808 1190 4432'), date: '24 Juni 2026', amount: 1_500_000 },
-    ],
   },
   {
     id: 'bp-d',
     name: 'Laili Maulidia',
-    lastSetoran: '2026-06-21T16:20:00',
+    lastSetoran: '2026-08-13T14:00:00',
     outstandingItems: [
-      { origin: mv('Majelis Kenanga'), amount: 2_400_000, reopenRequested: true },
-      { origin: hv('Ibu Marlina'), amount: 800_000, reopenRequested: true },
-    ],
-    settledItems: [
-      { origin: hv('Ibu Siti Aminah'), dest: agent('Warung Bu Yeni'), date: '21 Juni 2026', amount: 1_950_000 },
+      mvItem('Majelis Kenanga', [
+        { name: 'Ibu Yuni Astuti', amount: 800_000 },
+        { name: 'Ibu Retno Wulandari', amount: 700_000 },
+        { name: 'Ibu Lestari', amount: 500_000 },
+        { name: 'Ibu Fitriani', amount: 400_000 },
+      ]),
+      hvItem('Ibu Marlina', 800_000),
     ],
   },
   {
     id: 'bp-e',
     name: 'Fadhil Maulana',
-    lastSetoran: '2026-06-24T09:40:00',
-    outstandingItems: [{ origin: hv('Ibu Ratih Kumala'), amount: 850_000 }],
-    settledItems: [
-      { origin: mv('Majelis Dahlia'), dest: va('Mandiri · 8808 6621 8890'), date: '24 Juni 2026', amount: 3_320_000 },
-      { origin: mv('Majelis Teratai'), dest: va('Mandiri · 8808 6621 8890'), date: '24 Juni 2026', amount: 2_000_000 },
-    ],
+    lastSetoran: '2026-08-12T18:00:00',
+    outstandingItems: [hvItem('Ibu Ratih Kumala', 850_000)],
   },
   {
     id: 'bp-f',
     name: 'Ainur Rohmah',
-    lastSetoran: '2026-06-22T11:15:00',
-    outstandingItems: [{ origin: mv('Majelis Teratai'), amount: 2_080_000 }],
-    settledItems: [
-      { origin: hv('Ibu Dewi Lestari'), dest: agent('Kios Pak Dedi'), date: '22 Juni 2026', amount: 1_100_000 },
-      { origin: hv('Ibu Nurhayati'), dest: va('BRI · 8808 3345 7781'), date: '22 Juni 2026', amount: 1_500_000 },
+    lastSetoran: '2026-08-11T17:15:00',
+    outstandingItems: [
+      mvItem('Majelis Teratai', [
+        { name: 'Ibu Ningsih', amount: 780_000 },
+        { name: 'Ibu Wulan Sari', amount: 700_000 },
+        { name: 'Ibu Dewi Sartika', amount: 600_000 },
+      ]),
     ],
   },
 ]
 
-const sum = (items: { amount: number }[]) => items.reduce((total, i) => total + i.amount, 0)
-
 export const BP_ROWS: BpRow[] = SEEDS.map((seed) => ({
   ...seed,
-  outstanding: sum(seed.outstandingItems),
-  settled: sum(seed.settledItems),
+  outstanding: seed.outstandingItems.reduce((total, i) => total + i.amount, 0),
 }))
-
-export const TOTAL_OUTSTANDING = BP_ROWS.reduce((total, r) => total + r.outstanding, 0)
-export const TOTAL_SETTLED = BP_ROWS.reduce((total, r) => total + r.settled, 0)
 
 /** "7850000" → "Rp7.850.000" — grouped with dots, the way the reference prints money. */
 export function rupiah(value: number): string {
   return `Rp${value.toLocaleString('id-ID')}`
 }
 
-const MONTHS_ID = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+const MONTHS_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
 
-/** "2026-06-23T16:40:00" → "16:40, 23 Juni 2026". Parsed by string, never via
+/** "2026-08-13T14:00:00" → "14:00, 13 Aug 2026". Parsed by string, never via
  *  `Date`, so it renders the same on the server and the client (no timezone
  *  drift, no hydration mismatch). */
 export function formatSetoran(iso: string): string {
   const [date, time] = iso.split('T')
   const [y, m, d] = date.split('-')
   const [hh, mm] = time.split(':')
-  return `${hh}:${mm}, ${parseInt(d, 10)} ${MONTHS_ID[parseInt(m, 10) - 1]} ${y}`
+  return `${hh}:${mm}, ${parseInt(d, 10)} ${MONTHS_SHORT[parseInt(m, 10) - 1]} ${y}`
 }
 
-/** The last setoran is "stale" — shown red — when it is more than a day old AND
- *  the BP still has cash outstanding. Timezone-independent: it compares two
- *  same-zone parses, so only their difference matters. */
-export function isSetoranStale(row: BpRow): boolean {
-  if (row.outstanding <= 0) return false
-  return Date.parse(NOW) - Date.parse(row.lastSetoran) > ONE_DAY
+/**
+ * How late a BP is at settling, driving the timestamp colour, the note, and
+ * which row actions are enabled:
+ *  - 'onTime'  — nothing left to settle, or still before today's 16.00 deadline.
+ *  - 'today'   — still outstanding past today's 16.00 deadline (allows Acknowledge).
+ *  - 'overdue' — outstanding and more than a day late (also allows BP mangkir).
+ */
+export type Lateness = 'onTime' | 'today' | 'overdue'
+
+export function latenessOf(row: BpRow, now: string): Lateness {
+  if (row.outstanding <= 0) return 'onTime'
+  if (Date.parse(now) - Date.parse(row.lastSetoran) > ONE_DAY) return 'overdue'
+  // Not overdue — only late once today's 16.00 deadline has passed.
+  const hour = parseInt(now.split('T')[1]?.split(':')[0] ?? '0', 10)
+  return hour >= DEADLINE_HOUR ? 'today' : 'onTime'
+}
+
+/** "2026-08-13T14:30:00" → "Diperbarui hari ini, 13 Aug 2026, 14.30 WIB". */
+export function formatUpdatedAt(iso: string): string {
+  const [date, time] = iso.split('T')
+  const [y, m, d] = date.split('-')
+  const [hh, mm] = time.split(':')
+  return `Diperbarui hari ini, ${parseInt(d, 10)} ${MONTHS_SHORT[parseInt(m, 10) - 1]} ${y}, ${hh}.${mm} WIB`
 }
