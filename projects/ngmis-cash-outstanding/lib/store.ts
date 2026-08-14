@@ -117,6 +117,44 @@ export function useNow(): string {
   )
 }
 
+// --- Filter cascade ----------------------------------------------------------
+// In the store, not the screen, so a state can open the report already zoomed
+// out to an area, region or island view (CLAUDE.md §3).
+
+export interface Filters {
+  region: string
+  provinsi: string
+  kota: string
+  branch: string
+}
+
+/** One branch in one kota — the view the report opens on. */
+const DEFAULT_FILTERS: Filters = {
+  region: 'Jawa',
+  provinsi: 'Jawa Barat',
+  kota: 'Cirebon',
+  branch: 'Belawa',
+}
+
+let filters: Filters = DEFAULT_FILTERS
+const filterListeners = new Set<() => void>()
+
+export function setFilters(next: Filters) {
+  filters = next
+  filterListeners.forEach((l) => l())
+}
+
+export function useFilters(): Filters {
+  return useSyncExternalStore(
+    (cb) => {
+      filterListeners.add(cb)
+      return () => filterListeners.delete(cb)
+    },
+    () => filters,
+    () => filters,
+  )
+}
+
 // --- Reset ------------------------------------------------------------------
 // Clears every action + restores the default time, for the "no actions taken"
 // state and as the baseline the other states build on.
@@ -126,8 +164,10 @@ export function resetDemo() {
   corrections = {}
   acknowledged = {}
   now = DEFAULT_NOW
+  filters = DEFAULT_FILTERS
   mangkirListeners.forEach((l) => l())
   correctionListeners.forEach((l) => l())
   ackListeners.forEach((l) => l())
   nowListeners.forEach((l) => l())
+  filterListeners.forEach((l) => l())
 }

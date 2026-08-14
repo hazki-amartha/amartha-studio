@@ -26,15 +26,19 @@ import {
   acknowledgeTelat,
   correctNominal,
   markMangkir,
+  setFilters,
   setSelectedBp,
   useAcknowledged,
   useCorrections,
+  useFilters,
   useMangkir,
   useNow,
+  type Filters,
 } from '../lib/store'
 import { LockedFilter, PageHeading, Panel, Select, SideDrawer, Tabs } from '../lib/ui'
 import {
   BP_ROWS,
+  SEMUA,
   formatSetoran,
   formatUpdatedAt,
   latenessOf,
@@ -55,9 +59,6 @@ const TABS = [
 /** The region → provinsi → kota → branch cascade. Options are illustrative — the
  *  shell doesn't wire the real dependency between levels. */
 const REGIONS = [{ value: 'Jawa', label: 'Jawa' }, { value: 'Sumatera', label: 'Sumatera' }]
-/** The "not narrowed to one" filter value. Picking it at provinsi, kota or branch
- *  level is what turns the single roster into the grouped area view. */
-const SEMUA = 'semua'
 const PROVINSI = [
   { value: SEMUA, label: 'Semua' },
   { value: 'Jawa Barat', label: 'Jawa Barat' },
@@ -85,10 +86,11 @@ export function FoReportScreen() {
   const [activeId, setActiveId] = useState<(typeof TABS)[number]['id']>('cash-outstanding')
   const active = TABS.find((t) => t.id === activeId) ?? TABS[3]
 
-  const [region, setRegion] = useState('Jawa')
-  const [provinsi, setProvinsi] = useState('Jawa Barat')
-  const [kota, setKota] = useState('Cirebon')
-  const [branch, setBranch] = useState('Belawa')
+  // The cascade lives in the store so the states selector can open the report at
+  // any of its four zoom levels; picking a filter by hand writes to it too.
+  const { region, provinsi, kota, branch } = useFilters()
+  const setFilter = (patch: Partial<Filters>) =>
+    setFilters({ region, provinsi, kota, branch, ...patch })
 
   return (
     <FoShell
@@ -105,10 +107,30 @@ export function FoReportScreen() {
             meta={formatUpdatedAt(now)}
             actions={
               <>
-                <Select label="Region" value={region} onChange={setRegion} options={REGIONS} />
-                <Select label="Provinsi" value={provinsi} onChange={setProvinsi} options={PROVINSI} />
-                <Select label="Kota" value={kota} onChange={setKota} options={KOTA} />
-                <Select label="Branch" value={branch} onChange={setBranch} options={BRANCH} />
+                <Select
+                  label="Region"
+                  value={region}
+                  onChange={(v) => setFilter({ region: v })}
+                  options={REGIONS}
+                />
+                <Select
+                  label="Provinsi"
+                  value={provinsi}
+                  onChange={(v) => setFilter({ provinsi: v })}
+                  options={PROVINSI}
+                />
+                <Select
+                  label="Kota"
+                  value={kota}
+                  onChange={(v) => setFilter({ kota: v })}
+                  options={KOTA}
+                />
+                <Select
+                  label="Branch"
+                  value={branch}
+                  onChange={(v) => setFilter({ branch: v })}
+                  options={BRANCH}
+                />
                 <LockedFilter label="BP" value="Semua BP" />
               </>
             }
@@ -189,6 +211,8 @@ function CashOutstanding({
   const [correcting, setCorrecting] = useState<CorrectTarget | null>(null)
   // The BP whose lateness acknowledgement is being confirmed.
   const [acking, setAcking] = useState<{ id: string; name: string } | null>(null)
+  // Shown once a correction has been saved.
+  const [correctionSaved, setCorrectionSaved] = useState(false)
 
   const rows: LiveRow[] = BP_ROWS.map((row) => {
     const items = row.outstandingItems.map((item, i) => {
@@ -284,8 +308,11 @@ function CashOutstanding({
         onSave={(key, amount) => {
           correctNominal(key, amount)
           setCorrecting(null)
+          setCorrectionSaved(true)
         }}
       />
+
+      <CorrectionSaved open={correctionSaved} onClose={() => setCorrectionSaved(false)} />
 
       <AckDialog
         target={acking}
@@ -350,13 +377,16 @@ function BranchSection({ group, children }: { group: BranchGroup; children: Reac
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-16 px-16 py-12 text-left"
       >
-        <span className="flex flex-wrap items-baseline gap-8">
-          <span className="text-20 font-bold text-default">{group.label}</span>
-          <span className="text-20 font-bold text-red-500">- {rupiah(group.total)}</span>
-          <span className="text-20 font-bold text-red-500">({group.rows.length} BP)</span>
-        </span>
-        <span className="shrink-0 text-caption">
-          {open ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+        <span className="text-20 font-bold text-default">{group.label}</span>
+        {/* Subtotal and headcount ride the right edge, so they line up down a
+            stack of branches however long the names are. */}
+        <span className="flex shrink-0 items-center gap-8">
+          <span className="text-20 font-bold text-red-500">
+            {rupiah(group.total)} ({group.rows.length} BP)
+          </span>
+          <span className="text-caption">
+            {open ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </span>
         </span>
       </button>
       {open ? children : null}
@@ -640,6 +670,24 @@ function CorrectionDialog({
         </label>
       </div>
     </Modal>
+  )
+}
+
+/** The receipt for a saved correction, with the follow-up the BM owes the BP. */
+function CorrectionSaved({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title="Koreksi nominal berhasil"
+      description="Ingatkan BP untuk kirim bukti bayar terbaru via APartner."
+      primaryAction={
+        <Button variant="primary" size="md" onClick={onClose}>
+          Mengerti
+        </Button>
+      }
+    />
   )
 }
 
