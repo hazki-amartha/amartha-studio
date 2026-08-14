@@ -213,13 +213,8 @@ function BpRow({ bp, zebra }: { bp: DisbursementBp; zebra: boolean }) {
   return (
     <Fragment>
       <tr className={`align-middle ${stripe}`}>
-        {/* Name over its majelis count: how big a book the row's figures came
-            out of, which is the first thing that explains a low number. */}
-        <td rowSpan={2} className="px-16 py-12">
-          <span className="flex min-w-0 flex-col gap-4">
-            <span className="text-14 text-default">{bp.name}</span>
-            <span className="text-12 text-caption">{bp.majelis} majelis</span>
-          </span>
+        <td rowSpan={2} className="px-16 py-12 text-14 text-default">
+          {bp.name}
         </td>
 
         {/* Total: NoA beside nilai. */}
