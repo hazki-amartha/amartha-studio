@@ -15,7 +15,7 @@
 //    marking it takes the BP off this report (and off both totals) and opens the
 //    User details page.
 // An action that doesn't apply is absent rather than greyed out, so a row offers
-// exactly what can be done to it.
+// exactly what can be done to it; a row with nothing to offer says so.
 // Leaving the Branch filter on "Semua" turns the single roster into one collapsed
 // table per branch, each with its own subtotal and headcount; every wider level
 // left on "Semua" (Kota, Provinsi) is named in those headers, so the same screen
@@ -565,6 +565,9 @@ function RowActions({
   // to it and nothing else — an on-time BP has an empty Tindakan cell.
   const showAck = row.lateness === 'today' && !acknowledged
   const showMangkir = row.lateness === 'overdue'
+  if (!showAck && !showMangkir) {
+    return <span className="text-14 text-disabled">Not available</span>
+  }
   return (
     <div className="flex flex-wrap items-center gap-8">
       {showAck ? (
