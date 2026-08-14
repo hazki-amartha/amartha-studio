@@ -19,7 +19,7 @@ const STATES: ScreenState[] = [
   {
     id: 'mangkir',
     label: 'BP Marked Mangkir',
-    description: 'Diski sudah ditandai mangkir — tombolnya nonaktif, ada badge di nama.',
+    description: 'Diski sudah ditandai mangkir — barisnya keluar dari tabel dan dari semua total.',
     apply: demo.stateMangkir,
   },
   {

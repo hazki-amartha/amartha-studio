@@ -9,14 +9,17 @@
 //    mitra's nominal can be corrected (cascading through every total).
 //  - Acknowledge telat — enabled once a BP is late (past 16.00); a confirmation
 //    marks the lateness reviewed and the button flips to a "Telat diakui" chip.
-//  - BP mangkir — enabled once a BP is more than a day late; marks the BP mangkir
-//    (a badge on the name that survives navigation) and opens the User details page.
-// Which tab is active and which filters are picked is chrome — local state.
+//  - BP mangkir — enabled once a BP is more than a day late; marking it takes the
+//    BP off this report (and off both totals) and opens the User details page.
+// Leaving the Branch filter on "Semua" turns the single roster into one table per
+// branch, each with its own subtotal and headcount; leaving Kota on "Semua" too
+// names the kota in each header. Which tab is active and which filters are picked
+// is chrome — local state.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useFlow } from '@/platform/runtime'
 import { Badge, Button, Modal } from '@/design-system/components'
-import { CheckCircleFill } from '@/design-system/icons'
+import { CheckCircleFill, ChevronDown, ChevronUp } from '@/design-system/icons'
 import { FoShell } from '../lib/shell'
 import {
   acknowledgeTelat,
@@ -55,8 +58,20 @@ const PROVINSI = [
   { value: 'jabar-1', label: 'Jawa Barat' },
   { value: 'jateng-1', label: 'Jawa Tengah' },
 ]
-const KOTA = [{ value: 'cirebon', label: 'Cirebon' }, { value: 'cianjur', label: 'Cianjur' }]
-const BRANCH = [{ value: 'belawa', label: 'Belawa' }, { value: 'cisaat', label: 'Cisaat' }]
+/** The "not narrowed to one" filter value. Picking it at kota or branch level is
+ *  what turns the single roster into the grouped area view. */
+const SEMUA = 'semua'
+const KOTA = [
+  { value: SEMUA, label: 'Semua' },
+  { value: 'Cirebon', label: 'Cirebon' },
+  { value: 'Sukabumi', label: 'Sukabumi' },
+]
+const BRANCH = [
+  { value: SEMUA, label: 'Semua' },
+  { value: 'Belawa', label: 'Belawa' },
+  { value: 'Cisaat', label: 'Cisaat' },
+  { value: 'Cibeureum', label: 'Cibeureum' },
+]
 
 export function FoReportScreen() {
   const now = useNow()
@@ -65,8 +80,8 @@ export function FoReportScreen() {
 
   const [region, setRegion] = useState('jawa')
   const [provinsi, setProvinsi] = useState('jabar-1')
-  const [kota, setKota] = useState('cirebon')
-  const [branch, setBranch] = useState('belawa')
+  const [kota, setKota] = useState('Cirebon')
+  const [branch, setBranch] = useState('Belawa')
 
   return (
     <FoShell
@@ -101,7 +116,11 @@ export function FoReportScreen() {
         </>
       }
     >
-      {activeId === 'cash-outstanding' ? <CashOutstanding /> : <EmptyTab label={active.crumb} />}
+      {activeId === 'cash-outstanding' ? (
+        <CashOutstanding kota={kota} branch={branch} />
+      ) : (
+        <EmptyTab label={active.crumb} />
+      )}
     </FoShell>
   )
 }
@@ -141,7 +160,7 @@ interface CorrectTarget {
   current: number
 }
 
-function CashOutstanding() {
+function CashOutstanding({ kota, branch }: { kota: string; branch: string }) {
   const flow = useFlow()
   const now = useNow()
   const mangkir = useMangkir()
@@ -171,15 +190,38 @@ function CashOutstanding() {
     return { ...live, lateness: latenessOf(live, now) }
   })
 
-  // Only BPs who still owe money belong in the table — a BP who has handed
-  // everything in is nothing for the BM to chase. The totals below read from the
-  // full list, but a fully-settled BP adds nothing to either of them.
-  const owing = rows.filter((row) => row.outstanding > 0)
+  // What the report is actually about: BPs who still owe money, are not already
+  // marked mangkir (they have left the BM's chase list), and sit inside the
+  // filtered area. Both totals read from exactly this set, so they always agree
+  // with what is on screen.
+  const visible = rows.filter(
+    (row) =>
+      row.outstanding > 0 &&
+      !mangkir[row.id] &&
+      (kota === SEMUA || row.kota === kota) &&
+      (branch === SEMUA || row.branch === branch),
+  )
 
-  const totalOutstanding = rows.reduce((total, r) => total + r.outstanding, 0)
-  const lateCount = rows.filter((r) => r.lateness !== 'onTime').length
+  // Narrowed to one branch it stays a single roster; left on "Semua" the same
+  // rows break into a table per branch, each with its own subtotal.
+  const groups = branch === SEMUA ? groupByBranch(visible, kota === SEMUA) : null
+
+  const totalOutstanding = visible.reduce((total, r) => total + r.outstanding, 0)
+  const lateCount = visible.filter((r) => r.lateness !== 'onTime').length
 
   const detailRow = detailRowId ? rows.find((r) => r.id === detailRowId) ?? null : null
+
+  // Shared by every table on the page — one roster or one per branch.
+  const tableActions = {
+    acknowledged,
+    onKoreksi: (row: LiveRow) => setDetailRowId(row.id),
+    onAck: (row: LiveRow) => setAcking({ id: row.id, name: row.name }),
+    onMangkir: (row: LiveRow) => {
+      markMangkir(row.id)
+      setSelectedBp(row.name)
+      flow.go('fo-user-management')
+    },
+  }
 
   return (
     <div className="flex flex-col gap-16">
@@ -188,72 +230,23 @@ function CashOutstanding() {
         <TotalCard label="BP Terlambat Setoran" value={`${lateCount} orang`} tone="text-red-500" />
       </div>
 
-      <Panel className="p-0">
-        <div className="overflow-x-auto">
-          {/* Fixed layout: the columns keep these widths whatever a row is
-              showing, so a Mangkir badge appearing or a lateness note wrapping
-              never re-measures the table. */}
-          <table className="w-full table-fixed border-collapse text-left">
-            <colgroup>
-              {COLUMN_WIDTHS.map((width, i) => (
-                <col key={i} style={{ width }} />
-              ))}
-            </colgroup>
-            <thead>
-              <tr className="bg-neutral-50">
-                <th className="rounded-tl-12 px-16 py-12 text-12 font-bold text-default">Nama BP</th>
-                <th className="px-16 py-12 text-12 font-bold text-default">Belum disetor</th>
-                <th className="px-16 py-12 text-12 font-bold text-default">Setoran terakhir</th>
-                <th className="rounded-tr-12 px-16 py-12 text-12 font-bold text-default">Tindakan</th>
-              </tr>
-            </thead>
-            <tbody>
-              {owing.map((row) => (
-                <tr key={row.id} className="border-t border-default align-top">
-                  <td className="px-16 py-12">
-                    <span className="flex flex-wrap items-center gap-8">
-                      <span className="text-14 font-bold text-default">{row.name}</span>
-                      {mangkir[row.id] ? (
-                        <Badge intent="red" variant="subtle" size="sm">
-                          Mangkir
-                        </Badge>
-                      ) : null}
-                      {acknowledged[row.id] ? (
-                        <Badge
-                          intent="green"
-                          variant="subtle"
-                          size="sm"
-                          leadingIcon={<CheckCircleFill size={16} />}
-                        >
-                          Telat diakui
-                        </Badge>
-                      ) : null}
-                    </span>
-                  </td>
-                  <td className="px-16 py-12 text-14 text-default">{rupiah(row.outstanding)}</td>
-                  <td className="px-16 py-12">
-                    <SetoranTerakhir row={row} />
-                  </td>
-                  <td className="px-16 py-12">
-                    <RowActions
-                      row={row}
-                      acknowledged={!!acknowledged[row.id]}
-                      mangkir={!!mangkir[row.id]}
-                      onKoreksi={() => setDetailRowId(row.id)}
-                      onAck={() => setAcking({ id: row.id, name: row.name })}
-                      onMangkir={() => {
-                        markMangkir(row.id)
-                        setSelectedBp(row.name)
-                        flow.go('fo-user-management')
-                      }}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+      {visible.length === 0 ? (
+        <Panel className="p-32">
+          <span className="text-14 text-caption">
+            Tidak ada BP dengan cash outstanding di filter ini.
+          </span>
+        </Panel>
+      ) : groups ? (
+        groups.map((group) => (
+          <BranchSection key={group.key} group={group}>
+            <BpTable rows={group.rows} roundedTop={false} {...tableActions} />
+          </BranchSection>
+        ))
+      ) : (
+        <Panel className="p-0">
+          <BpTable rows={visible} {...tableActions} />
+        </Panel>
+      )}
 
       <DetailDrawer
         row={detailRow}
@@ -281,6 +274,143 @@ function CashOutstanding() {
     </div>
   )
 }
+
+// --- The area view ----------------------------------------------------------
+
+/** One branch's slice of the filtered rows, with its own subtotal. */
+interface BranchGroup {
+  key: string
+  label: string
+  rows: LiveRow[]
+  total: number
+}
+
+/** Split the visible rows into one group per branch, in the order the branches
+ *  first appear. `withKota` prefixes the kota — what the header needs when the
+ *  kota filter is open too, so "Belawa" and "Cibeureum" stay placeable. */
+function groupByBranch(rows: LiveRow[], withKota: boolean): BranchGroup[] {
+  const groups: BranchGroup[] = []
+  for (const row of rows) {
+    const key = `${row.kota}/${row.branch}`
+    let group = groups.find((g) => g.key === key)
+    if (!group) {
+      group = {
+        key,
+        label: withKota ? `${row.kota}, ${row.branch}` : row.branch,
+        rows: [],
+        total: 0,
+      }
+      groups.push(group)
+    }
+    group.rows.push(row)
+    group.total += row.outstanding
+  }
+  return groups
+}
+
+/** One branch's card: a header carrying the branch, its subtotal and its BP
+ *  headcount, over the branch's own table. Collapsible, so a wide area can be
+ *  folded down to the subtotals. */
+function BranchSection({ group, children }: { group: BranchGroup; children: ReactNode }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <Panel className="p-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-16 px-16 py-12 text-left"
+      >
+        <span className="flex flex-wrap items-baseline gap-8">
+          <span className="text-14 font-bold text-default">{group.label}</span>
+          <span className="text-14 font-bold text-red-500">- {rupiah(group.total)}</span>
+          <span className="text-12 text-caption">({group.rows.length} BP)</span>
+        </span>
+        <span className="shrink-0 text-caption">
+          {open ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+        </span>
+      </button>
+      {open ? children : null}
+    </Panel>
+  )
+}
+
+/** The per-BP table. One of these on a branch view, one per branch on an area
+ *  view — identical either way, so the columns line up down the page. */
+function BpTable({
+  rows,
+  acknowledged,
+  onKoreksi,
+  onAck,
+  onMangkir,
+  roundedTop = true,
+}: {
+  rows: LiveRow[]
+  acknowledged: Record<string, boolean>
+  onKoreksi: (row: LiveRow) => void
+  onAck: (row: LiveRow) => void
+  onMangkir: (row: LiveRow) => void
+  roundedTop?: boolean
+}) {
+  return (
+    <div className="overflow-x-auto">
+      {/* Fixed layout: the columns keep these widths whatever a row is showing,
+          so a badge appearing or a lateness note wrapping never re-measures the
+          table — and every branch's table matches every other's. */}
+      <table className="w-full table-fixed border-collapse text-left">
+        <colgroup>
+          {COLUMN_WIDTHS.map((width, i) => (
+            <col key={i} style={{ width }} />
+          ))}
+        </colgroup>
+        <thead>
+          <tr className="bg-neutral-50">
+            <th className={`${thHeadClass} ${roundedTop ? 'rounded-tl-12' : ''}`}>Nama BP</th>
+            <th className={thHeadClass}>Belum disetor</th>
+            <th className={thHeadClass}>Setoran terakhir</th>
+            <th className={`${thHeadClass} ${roundedTop ? 'rounded-tr-12' : ''}`}>Tindakan</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id} className="border-t border-default align-top">
+              <td className="px-16 py-12">
+                <span className="flex flex-wrap items-center gap-8">
+                  <span className="text-14 font-bold text-default">{row.name}</span>
+                  {acknowledged[row.id] ? (
+                    <Badge
+                      intent="green"
+                      variant="subtle"
+                      size="sm"
+                      leadingIcon={<CheckCircleFill size={16} />}
+                    >
+                      Telat diakui
+                    </Badge>
+                  ) : null}
+                </span>
+              </td>
+              <td className="px-16 py-12 text-14 text-default">{rupiah(row.outstanding)}</td>
+              <td className="px-16 py-12">
+                <SetoranTerakhir row={row} />
+              </td>
+              <td className="px-16 py-12">
+                <RowActions
+                  row={row}
+                  acknowledged={!!acknowledged[row.id]}
+                  onKoreksi={() => onKoreksi(row)}
+                  onAck={() => onAck(row)}
+                  onMangkir={() => onMangkir(row)}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+const thHeadClass = 'px-16 py-12 text-12 font-bold text-default'
 
 /** One of the summary boxes above the table. */
 function TotalCard({ label, value, tone }: { label: string; value: string; tone: string }) {
@@ -321,18 +451,16 @@ function SetoranTerakhir({ row }: { row: LiveRow }) {
 
 /** The three row actions. Acknowledge unlocks once the BP is late (past 16.00)
  *  and disables once acknowledged; BP mangkir unlocks once they are more than a
- *  day late and disables once the BP is marked mangkir. */
+ *  day late — marking it drops the BP off this report altogether. */
 function RowActions({
   row,
   acknowledged,
-  mangkir,
   onKoreksi,
   onAck,
   onMangkir,
 }: {
   row: LiveRow
   acknowledged: boolean
-  mangkir: boolean
   onKoreksi: () => void
   onAck: () => void
   onMangkir: () => void
@@ -347,7 +475,7 @@ function RowActions({
       <Button variant="primary" size="sm" disabled={!canAck || acknowledged} onClick={onAck}>
         Acknowledge telat
       </Button>
-      <Button variant="primary" size="sm" disabled={!canMangkir || mangkir} onClick={onMangkir}>
+      <Button variant="primary" size="sm" disabled={!canMangkir} onClick={onMangkir}>
         BP mangkir
       </Button>
     </div>
