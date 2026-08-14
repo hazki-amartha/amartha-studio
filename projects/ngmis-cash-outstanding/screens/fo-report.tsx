@@ -167,6 +167,11 @@ function CashOutstanding() {
     return { ...live, lateness: latenessOf(live, now) }
   })
 
+  // Only BPs who still owe money belong in the table — a BP who has handed
+  // everything in is nothing for the BM to chase. The totals below read from the
+  // full list, but a fully-settled BP adds nothing to either of them.
+  const owing = rows.filter((row) => row.outstanding > 0)
+
   const totalOutstanding = rows.reduce((total, r) => total + r.outstanding, 0)
   const lateCount = rows.filter((r) => r.lateness !== 'onTime').length
 
@@ -191,7 +196,7 @@ function CashOutstanding() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {owing.map((row) => (
                 <tr key={row.id} className="border-t border-default align-top">
                   <td className="px-16 py-12">
                     <span className="flex flex-wrap items-center gap-8">
@@ -378,21 +383,22 @@ function OutstandingBreakdown({
             {item.members.map((m) => (
               <div
                 key={m.key}
-                className="flex flex-col gap-2 border-t border-default py-8 first:border-t-0 first:pt-0"
+                className="flex items-start justify-between gap-16 border-t border-default py-8 first:border-t-0 first:pt-0"
               >
-                <div className="flex items-center justify-between gap-16">
-                  <span className="text-12 text-default">{m.name}</span>
+                <span className="text-12 text-default">{m.name}</span>
+                {/* The correction link sits directly under the nominal it edits. */}
+                <span className="flex flex-col items-end gap-2">
                   <span className="text-12 text-default">{rupiah(m.amount)}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    onCorrect({ key: m.key, memberName: m.name, origin: item.origin, current: m.amount })
-                  }
-                  className="self-start text-12 font-regular text-link underline active:opacity-70"
-                >
-                  Koreksi nominal
-                </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onCorrect({ key: m.key, memberName: m.name, origin: item.origin, current: m.amount })
+                    }
+                    className="text-12 font-regular text-link underline active:opacity-70"
+                  >
+                    Koreksi nominal
+                  </button>
+                </span>
               </div>
             ))}
           </div>
