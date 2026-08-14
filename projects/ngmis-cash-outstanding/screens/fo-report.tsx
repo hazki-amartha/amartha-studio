@@ -108,6 +108,10 @@ export function FoReportScreen() {
 
 // --- Cash outstanding tab ---------------------------------------------------
 
+/** Nama BP · Belum disetor · Setoran terakhir · Tindakan. Percentages, so the
+ *  table still fills the page, and fixed, so no state can shift a column. */
+const COLUMN_WIDTHS = ['26%', '16%', '22%', '36%']
+
 /** One live mitra share, its nominal reflecting any correction the BM has made. */
 interface LiveMember {
   key: string
@@ -186,7 +190,15 @@ function CashOutstanding() {
 
       <Panel className="p-0">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
+          {/* Fixed layout: the columns keep these widths whatever a row is
+              showing, so a Mangkir badge appearing or a lateness note wrapping
+              never re-measures the table. */}
+          <table className="w-full table-fixed border-collapse text-left">
+            <colgroup>
+              {COLUMN_WIDTHS.map((width, i) => (
+                <col key={i} style={{ width }} />
+              ))}
+            </colgroup>
             <thead>
               <tr className="bg-neutral-50">
                 <th className="rounded-tl-12 px-16 py-12 text-12 font-bold text-default">Nama BP</th>
@@ -292,7 +304,11 @@ function SetoranTerakhir({ row }: { row: LiveRow }) {
         ? 'text-orange-500'
         : 'text-default'
   const note =
-    row.lateness === 'overdue' ? 'Lewat 1 hari' : row.lateness === 'today' ? 'Lewat jam 4 sore' : null
+    row.lateness === 'overdue'
+      ? 'Telat setor >24 jam'
+      : row.lateness === 'today'
+        ? 'Telat setor (lewat jam 4 sore)'
+        : null
   return (
     <div className="flex flex-col gap-2">
       <span className={`text-14 ${row.lateness === 'onTime' ? 'text-default' : `font-bold ${tone}`}`}>
@@ -324,7 +340,7 @@ function RowActions({
   const canAck = row.lateness !== 'onTime'
   const canMangkir = row.lateness === 'overdue'
   return (
-    <div className="flex items-center gap-8">
+    <div className="flex flex-wrap items-center gap-8">
       <Button variant="primary" size="sm" onClick={onKoreksi}>
         Koreksi nominal
       </Button>
