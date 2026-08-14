@@ -9,19 +9,19 @@
 //    belum-disetor breakdown drawer where each mitra's nominal can be corrected
 //    (cascading through every total).
 //  - Setujui keterlambatan — in Tindakan, shown only while a BP is late on the
-//    day (past 16.00) and not yet signed off; a confirmation marks the lateness
-//    reviewed and a blue "Telat disetujui" line replaces the warning in the
-//    setoran column.
+//    day (past 16.00) and not yet signed off; a confirmation (with an optional
+//    reason) replaces the button with a blue "Telat disetujui" read-out.
 //  - BP mangkir — in Tindakan, shown only once a BP is more than a day late;
 //    marking it takes the BP off this report (and off both totals) and opens the
 //    User details page.
 // An action that doesn't apply is absent rather than greyed out, so a row offers
 // exactly what can be done to it; a row with nothing to offer says so.
 // Leaving the Branch filter on "Semua" turns the single roster into one collapsed
-// table per branch, each with its own subtotal and headcount; every wider level
-// left on "Semua" (Kota, Provinsi) is named in those headers, so the same screen
-// reads as a branch, kota or region view. Which tab is active and which filters
-// are picked is chrome — local state.
+// table per branch, headed by where the branch sits and its own subtotal and
+// headcount, so the same screen reads as a branch, area or region view. Those
+// grouped tables keep the Tindakan column as a read-out of what has already been
+// done, but not the actions themselves — those belong to the branch that owns the
+// BP. Which tab is active and which filters are picked is chrome — local state.
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { useFlow } from '@/platform/runtime'
@@ -39,6 +39,7 @@ import {
   useFilters,
   useMangkir,
   useNow,
+  type Acknowledgement,
   type Filters,
 } from '../lib/store'
 import { LockedFilter, PageHeading, Panel, Select, SideDrawer, Tabs } from '../lib/ui'
@@ -166,10 +167,6 @@ export function FoReportScreen() {
  *  table still fills the page, and fixed, so no state can shift a column. */
 const COLUMN_WIDTHS = ['24%', '20%', '30%', '26%']
 
-/** The same table without Tindakan — the grouped views are for reading, so the
- *  three remaining columns take the whole width. */
-const COLUMN_WIDTHS_READONLY = ['40%', '25%', '35%']
-
 /** One live mitra share, its nominal reflecting any correction the BM has made. */
 interface LiveMember {
   key: string
@@ -261,7 +258,7 @@ function CashOutstanding({
   // region-wide view still says which provinsi and kota a branch belongs to.
   const groups =
     branch === SEMUA
-      ? groupByBranch(visible, { provinsi: provinsi === SEMUA, kota: kota === SEMUA })
+      ? groupByBranch(visible)
       : null
 
   const totalOutstanding = visible.reduce((total, r) => total + r.outstanding, 0)
@@ -327,8 +324,8 @@ function CashOutstanding({
       <AckDialog
         target={acking}
         onCancel={() => setAcking(null)}
-        onConfirm={(id) => {
-          acknowledgeTelat(id)
+        onConfirm={(id, reason) => {
+          acknowledgeTelat(id, reason)
           setAcking(null)
         }}
       />
@@ -338,33 +335,33 @@ function CashOutstanding({
 
 // --- The area view ----------------------------------------------------------
 
-/** One branch's slice of the filtered rows, with its own subtotal. */
+/** One branch's slice of the filtered rows, with its own subtotal. `place` is the
+ *  small line above the branch name that says where the branch sits. */
 interface BranchGroup {
   key: string
+  place: string
   label: string
   rows: LiveRow[]
   total: number
 }
 
 /** Split the visible rows into one group per branch, in the order the branches
- *  first appear. `with` says which wider levels are themselves on "Semua" and so
- *  have to be named in the header — "Jawa Tengah, Semarang, Mijen" — because
- *  otherwise a branch name alone wouldn't place it. */
-function groupByBranch(
-  rows: LiveRow[],
-  show: { provinsi: boolean; kota: boolean },
-): BranchGroup[] {
+ *  first appear. The branch is the headline; its provinsi and kota sit above it
+ *  as "Region: Jawa Tengah, Area: Semarang", because a branch name alone wouldn't
+ *  place it once the view is wider than one kota. */
+function groupByBranch(rows: LiveRow[]): BranchGroup[] {
   const groups: BranchGroup[] = []
   for (const row of rows) {
     const key = `${row.provinsi}/${row.kota}/${row.branch}`
     let group = groups.find((g) => g.key === key)
     if (!group) {
-      const parts = [
-        ...(show.provinsi ? [row.provinsi] : []),
-        ...(show.kota ? [row.kota] : []),
-        row.branch,
-      ]
-      group = { key, label: parts.join(', '), rows: [], total: 0 }
+      group = {
+        key,
+        place: `Region: ${row.provinsi}, Area: ${row.kota}`,
+        label: row.branch,
+        rows: [],
+        total: 0,
+      }
       groups.push(group)
     }
     group.rows.push(row)
@@ -387,12 +384,15 @@ function BranchSection({ group, children }: { group: BranchGroup; children: Reac
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-16 px-16 py-12 text-left"
       >
-        <span className="text-20 font-bold text-default">{group.label}</span>
+        <span className="flex min-w-0 flex-col gap-2">
+          <span className="text-12 text-caption">{group.place}</span>
+          <span className="text-20 font-bold text-default">{group.label}</span>
+        </span>
         {/* Subtotal and headcount ride the right edge, so they line up down a
             stack of branches however long the names are. */}
         <span className="flex shrink-0 items-center gap-8">
           <span className="text-20 font-bold text-red-500">
-            {rupiah(group.total)} ({group.rows.length} BP)
+            {rupiah(group.total)} - {group.rows.length} BP
           </span>
           <span className="text-caption">
             {open ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -405,9 +405,10 @@ function BranchSection({ group, children }: { group: BranchGroup; children: Reac
 }
 
 /** The per-BP table. One of these on a branch view, one per branch on an area
- *  view — identical either way, so the columns line up down the page. The
- *  grouped views drop Tindakan: the row actions belong to the branch that owns
- *  the BP, so you narrow the filter to that branch to use them. */
+ *  view — identical either way, so the columns line up down the page. Tindakan is
+ *  on every view: on a branch view it offers the actions, on a grouped view it
+ *  reports what has already been done, since the actions belong to the branch
+ *  that owns the BP. */
 function BpTable({
   rows,
   acknowledged,
@@ -418,14 +419,13 @@ function BpTable({
   showActions = true,
 }: {
   rows: LiveRow[]
-  acknowledged: Record<string, boolean>
+  acknowledged: Record<string, Acknowledgement>
   onKoreksi: (row: LiveRow) => void
   onAck: (row: LiveRow) => void
   onMangkir: (row: LiveRow) => void
   roundedTop?: boolean
   showActions?: boolean
 }) {
-  const widths = showActions ? COLUMN_WIDTHS : COLUMN_WIDTHS_READONLY
   return (
     <div className="overflow-x-auto">
       {/* Fixed layout: the columns keep these widths whatever a row is showing,
@@ -433,7 +433,7 @@ function BpTable({
           table — and every branch's table matches every other's. */}
       <table className="w-full table-fixed border-collapse text-left">
         <colgroup>
-          {widths.map((width, i) => (
+          {COLUMN_WIDTHS.map((width, i) => (
             <col key={i} style={{ width }} />
           ))}
         </colgroup>
@@ -441,12 +441,8 @@ function BpTable({
           <tr className="bg-neutral-50">
             <th className={`${thHeadClass} ${roundedTop ? 'rounded-tl-12' : ''}`}>Nama BP</th>
             <th className={thHeadClass}>Belum disetor</th>
-            <th className={`${thHeadClass} ${roundedTop && !showActions ? 'rounded-tr-12' : ''}`}>
-              Setoran terakhir
-            </th>
-            {showActions ? (
-              <th className={`${thHeadClass} ${roundedTop ? 'rounded-tr-12' : ''}`}>Tindakan</th>
-            ) : null}
+            <th className={thHeadClass}>Setoran terakhir</th>
+            <th className={`${thHeadClass} ${roundedTop ? 'rounded-tr-12' : ''}`}>Tindakan</th>
           </tr>
         </thead>
         <tbody>
@@ -470,18 +466,17 @@ function BpTable({
                 </span>
               </td>
               <td className="px-16 py-12">
-                <SetoranTerakhir row={row} acknowledged={!!acknowledged[row.id]} />
+                <SetoranTerakhir row={row} />
               </td>
-              {showActions ? (
-                <td className="px-16 py-12">
-                  <RowActions
-                    row={row}
-                    acknowledged={!!acknowledged[row.id]}
-                    onAck={() => onAck(row)}
-                    onMangkir={() => onMangkir(row)}
-                  />
-                </td>
-              ) : null}
+              <td className="px-16 py-12">
+                <Tindakan
+                  row={row}
+                  acknowledgement={acknowledged[row.id]}
+                  interactive={showActions}
+                  onAck={() => onAck(row)}
+                  onMangkir={() => onMangkir(row)}
+                />
+              </td>
             </tr>
           ))}
         </tbody>
@@ -505,9 +500,9 @@ function TotalCard({ label, value, tone }: { label: string; value: string; tone:
 }
 
 /** The last-setoran timestamp, coloured by how late the BP is, with a warning
- *  under it once they've missed the 16.00 deadline — replaced by a blue "Telat
- *  disetujui" line once the BM has signed that lateness off. */
-function SetoranTerakhir({ row, acknowledged }: { row: LiveRow; acknowledged: boolean }) {
+ *  under it once they've missed the 16.00 deadline. What the BM did about that
+ *  lateness is reported in Tindakan, not here. */
+function SetoranTerakhir({ row }: { row: LiveRow }) {
   const tone =
     row.lateness === 'overdue'
       ? 'text-red-500'
@@ -520,17 +515,14 @@ function SetoranTerakhir({ row, acknowledged }: { row: LiveRow; acknowledged: bo
       : row.lateness === 'today'
         ? 'Telat setor (lewat jam 4 sore)'
         : null
-  // Once the lateness is signed off it stops being a warning: the timestamp goes
-  // back to plain black, the red/orange line is replaced rather than joined.
-  const settled = acknowledged || row.lateness === 'onTime'
   return (
     <div className="flex flex-col gap-2">
-      <span className={`text-14 ${settled ? 'text-default' : `font-bold ${tone}`}`}>
+      <span
+        className={`text-14 ${row.lateness === 'onTime' ? 'text-default' : `font-bold ${tone}`}`}
+      >
         {formatSetoran(row.lastSetoran)}
       </span>
-      {acknowledged ? (
-        <span className="text-14 text-blue-500">Telat disetujui</span>
-      ) : note ? (
+      {note ? (
         <span className={`flex items-center gap-4 text-14 ${tone}`}>
           <Warning size={16} />
           {note}
@@ -540,24 +532,49 @@ function SetoranTerakhir({ row, acknowledged }: { row: LiveRow; acknowledged: bo
   )
 }
 
-/** The three row actions. Setujui keterlambatan covers the same-day slip only —
- *  it unlocks once the BP is past 16.00 and locks again once the lateness is over
- *  24 hours, which is no longer something a BM signs off. BP mangkir takes over
- *  there, and marking it drops the BP off this report altogether. */
-function RowActions({
+/**
+ * The Tindakan cell — what can be done to this row, or what already was.
+ *
+ * Once the lateness is signed off the outcome replaces the button: the cell
+ * reads "Telat disetujui", with the BM's reason under it when they gave one.
+ * Setujui keterlambatan covers the same-day slip only — it appears once the BP
+ * is past 16.00 and goes away once the lateness is over 24 hours, which is no
+ * longer something a BM signs off; BP mangkir takes over there, and marking it
+ * drops the BP off this report altogether.
+ *
+ * On the grouped views the cell is a read-out only: the actions belong to the
+ * branch that owns the BP, so an untouched row says so rather than offering a
+ * button that would act from the wrong place.
+ */
+function Tindakan({
   row,
-  acknowledged,
+  acknowledgement,
+  interactive,
   onAck,
   onMangkir,
 }: {
   row: LiveRow
-  acknowledged: boolean
+  acknowledgement: Acknowledgement | undefined
+  interactive: boolean
   onAck: () => void
   onMangkir: () => void
 }) {
-  // Each action appears only while it applies, so a row offers what can be done
-  // to it and nothing else — an on-time BP has an empty Tindakan cell.
-  const showAck = row.lateness === 'today' && !acknowledged
+  if (acknowledgement) {
+    return (
+      <div className="flex flex-col gap-2">
+        <span className="text-14 text-blue-500">Telat disetujui</span>
+        {typeof acknowledgement === 'string' ? (
+          <span className="text-12 text-caption">{acknowledgement}</span>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (!interactive) {
+    return <span className="text-14 text-disabled">No action have been taken</span>
+  }
+
+  const showAck = row.lateness === 'today'
   const showMangkir = row.lateness === 'overdue'
   if (!showAck && !showMangkir) {
     return <span className="text-14 text-disabled">Not available</span>
@@ -729,7 +746,8 @@ function CorrectionSaved({ open, onClose }: { open: boolean; onClose: () => void
 }
 
 /** Confirm that a BP is simply late — nothing to worry about — before marking
- *  the lateness reviewed. */
+ *  the lateness reviewed. The reason is optional: a BM who has one can leave it
+ *  for whoever reads the report later, and one who doesn't just confirms. */
 function AckDialog({
   target,
   onCancel,
@@ -737,8 +755,13 @@ function AckDialog({
 }: {
   target: { id: string; name: string } | null
   onCancel: () => void
-  onConfirm: (id: string) => void
+  onConfirm: (id: string, reason: string) => void
 }) {
+  const [reason, setReason] = useState('')
+  useEffect(() => {
+    if (target) setReason('')
+  }, [target])
+
   return (
     <Modal
       open={target !== null}
@@ -751,7 +774,7 @@ function AckDialog({
           : undefined
       }
       primaryAction={
-        <Button variant="primary" size="md" onClick={() => target && onConfirm(target.id)}>
+        <Button variant="primary" size="md" onClick={() => target && onConfirm(target.id, reason)}>
           Ya, setujui
         </Button>
       }
@@ -760,7 +783,19 @@ function AckDialog({
           Batal
         </Button>
       }
-    />
+    >
+      <label className="flex flex-col gap-4 pt-8">
+        <span className="text-12 text-caption">Alasan (opsional)</span>
+        <textarea
+          rows={3}
+          aria-label="Alasan keterlambatan"
+          placeholder="Misal: BP izin sakit, setor besok pagi"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          className="w-full resize-none rounded-8 border border-default bg-neutral-white px-12 py-8 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none"
+        />
+      </label>
+    </Modal>
   )
 }
 

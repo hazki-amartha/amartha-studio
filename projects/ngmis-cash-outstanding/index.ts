@@ -26,7 +26,7 @@ const STATES: ScreenState[] = [
     id: 'telat',
     label: 'BP Marked Telat',
     description:
-      'Keterlambatan Sukma sudah disetujui — tombolnya hilang, ada teks biru di kolom setoran.',
+      'Keterlambatan Sukma sudah disetujui — tombolnya hilang, ada teks biru di kolom Tindakan.',
     apply: demo.stateTelat,
   },
   {
