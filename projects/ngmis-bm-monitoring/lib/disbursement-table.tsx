@@ -100,7 +100,7 @@ export function DisbursementMetrics() {
             {pct(branch.renewal)}
           </RatePill>
         }
-        caption={`Dari ${branch.due} mitra jatuh tempo · Target ${DISBURSEMENT_TARGETS.renewalRate}% / bulan`}
+        caption={`Dari ${branch.due} mitra lanjutan · Target ${DISBURSEMENT_TARGETS.renewalRate}% / bulan`}
       />
       <BucketCard
         label="Nilai pencairan"
