@@ -72,7 +72,7 @@ export function useCorrections(): Record<string, number> {
 }
 
 // --- Acknowledged lateness ---------------------------------------------------
-// Keyed by row id, kept here so the "Telat diakui" confirmation persists across
+// Keyed by row id, kept here so the "Telat disetujui" confirmation persists across
 // navigation the same way the mangkir mark does.
 
 let acknowledged: Record<string, boolean> = {}

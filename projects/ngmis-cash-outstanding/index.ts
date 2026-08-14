@@ -25,7 +25,8 @@ const STATES: ScreenState[] = [
   {
     id: 'telat',
     label: 'BP Marked Telat',
-    description: 'Keterlambatan Sukma sudah di-acknowledge — tombolnya nonaktif, ada badge di nama.',
+    description:
+      'Keterlambatan Sukma sudah disetujui — tombolnya nonaktif, ada chip di kolom setoran.',
     apply: demo.stateTelat,
   },
   {

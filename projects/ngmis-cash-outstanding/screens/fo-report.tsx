@@ -7,8 +7,9 @@
 // late-setoran headcount above it, and a Tindakan column of row actions:
 //  - Koreksi nominal — opens the belum-disetor breakdown drawer, where each
 //    mitra's nominal can be corrected (cascading through every total).
-//  - Acknowledge telat — enabled once a BP is late (past 16.00); a confirmation
-//    marks the lateness reviewed and the button flips to a "Telat diakui" chip.
+//  - Setujui keterlambatan — enabled while a BP is late on the day (past 16.00),
+//    and locked again once they are over 24 hours late; a confirmation marks the
+//    lateness reviewed and a "Telat disetujui" chip joins the setoran column.
 //  - BP mangkir — enabled once a BP is more than a day late; marking it takes the
 //    BP off this report (and off both totals) and opens the User details page.
 // Leaving the Branch filter on "Semua" turns the single roster into one collapsed
@@ -446,24 +447,10 @@ function BpTable({
         <tbody>
           {rows.map((row) => (
             <tr key={row.id} className="border-t border-default align-top">
-              <td className="px-16 py-12">
-                <span className="flex flex-wrap items-center gap-8">
-                  <span className="text-14 font-bold text-default">{row.name}</span>
-                  {acknowledged[row.id] ? (
-                    <Badge
-                      intent="green"
-                      variant="subtle"
-                      size="sm"
-                      leadingIcon={<CheckCircleFill size={16} />}
-                    >
-                      Telat diakui
-                    </Badge>
-                  ) : null}
-                </span>
-              </td>
+              <td className="px-16 py-12 text-14 font-bold text-default">{row.name}</td>
               <td className="px-16 py-12 text-14 text-default">{rupiah(row.outstanding)}</td>
               <td className="px-16 py-12">
-                <SetoranTerakhir row={row} />
+                <SetoranTerakhir row={row} acknowledged={!!acknowledged[row.id]} />
               </td>
               {showActions ? (
                 <td className="px-16 py-12">
@@ -499,8 +486,9 @@ function TotalCard({ label, value, tone }: { label: string; value: string; tone:
 }
 
 /** The last-setoran timestamp, coloured by how late the BP is, with a note under
- *  it once they've missed the 16.00 deadline. */
-function SetoranTerakhir({ row }: { row: LiveRow }) {
+ *  it once they've missed the 16.00 deadline — and, once the BM has signed that
+ *  lateness off, the "Telat disetujui" chip directly beneath the note it answers. */
+function SetoranTerakhir({ row, acknowledged }: { row: LiveRow; acknowledged: boolean }) {
   const tone =
     row.lateness === 'overdue'
       ? 'text-red-500'
@@ -519,13 +507,26 @@ function SetoranTerakhir({ row }: { row: LiveRow }) {
         {formatSetoran(row.lastSetoran)}
       </span>
       {note ? <span className={`text-12 ${tone}`}>{note}</span> : null}
+      {acknowledged ? (
+        <span className="pt-2">
+          <Badge
+            intent="green"
+            variant="subtle"
+            size="sm"
+            leadingIcon={<CheckCircleFill size={16} />}
+          >
+            Telat disetujui
+          </Badge>
+        </span>
+      ) : null}
     </div>
   )
 }
 
-/** The three row actions. Acknowledge unlocks once the BP is late (past 16.00)
- *  and disables once acknowledged; BP mangkir unlocks once they are more than a
- *  day late — marking it drops the BP off this report altogether. */
+/** The three row actions. Setujui keterlambatan covers the same-day slip only —
+ *  it unlocks once the BP is past 16.00 and locks again once the lateness is over
+ *  24 hours, which is no longer something a BM signs off. BP mangkir takes over
+ *  there, and marking it drops the BP off this report altogether. */
 function RowActions({
   row,
   acknowledged,
@@ -539,7 +540,7 @@ function RowActions({
   onAck: () => void
   onMangkir: () => void
 }) {
-  const canAck = row.lateness !== 'onTime'
+  const canAck = row.lateness === 'today'
   const canMangkir = row.lateness === 'overdue'
   return (
     <div className="flex flex-wrap items-center gap-8">
@@ -547,7 +548,7 @@ function RowActions({
         Koreksi nominal
       </Button>
       <Button variant="primary" size="sm" disabled={!canAck || acknowledged} onClick={onAck}>
-        Acknowledge telat
+        Setujui keterlambatan
       </Button>
       <Button variant="primary" size="sm" disabled={!canMangkir} onClick={onMangkir}>
         BP mangkir
@@ -722,7 +723,7 @@ function AckDialog({
       open={target !== null}
       onClose={onCancel}
       size="sm"
-      title="Acknowledge keterlambatan?"
+      title="Setujui keterlambatan?"
       description={
         target
           ? `Tandai bahwa ${target.name} hanya terlambat menyetor dan tidak ada masalah. Keterlambatan akan tercatat sudah ditinjau.`
@@ -730,7 +731,7 @@ function AckDialog({
       }
       primaryAction={
         <Button variant="primary" size="md" onClick={() => target && onConfirm(target.id)}>
-          Ya, acknowledge
+          Ya, setujui
         </Button>
       }
       secondaryAction={
