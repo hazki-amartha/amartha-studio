@@ -504,9 +504,9 @@ function TotalCard({ label, value, tone }: { label: string; value: string; tone:
   )
 }
 
-/** The last-setoran timestamp, coloured by how late the BP is, with a note under
- *  it once they've missed the 16.00 deadline — and, once the BM has signed that
- *  lateness off, the "Telat disetujui" chip directly beneath the note it answers. */
+/** The last-setoran timestamp, coloured by how late the BP is, with a warning
+ *  under it once they've missed the 16.00 deadline — replaced by a blue "Telat
+ *  disetujui" line once the BM has signed that lateness off. */
 function SetoranTerakhir({ row, acknowledged }: { row: LiveRow; acknowledged: boolean }) {
   const tone =
     row.lateness === 'overdue'
@@ -529,7 +529,7 @@ function SetoranTerakhir({ row, acknowledged }: { row: LiveRow; acknowledged: bo
         {formatSetoran(row.lastSetoran)}
       </span>
       {acknowledged ? (
-        <span className="text-14 text-link">Telat disetujui</span>
+        <span className="text-14 text-blue-500">Telat disetujui</span>
       ) : note ? (
         <span className={`flex items-center gap-4 text-14 ${tone}`}>
           <Warning size={16} />
