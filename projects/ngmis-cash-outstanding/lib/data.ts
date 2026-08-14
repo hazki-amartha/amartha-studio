@@ -28,8 +28,11 @@ export interface OutstandingItem {
 export interface BpRow {
   id: string
   name: string
-  /** Where the BP works. Read by the filter cascade: picking "Semua" at kota or
-   *  branch level groups the table by these instead of listing one roster. */
+  /** Where the BP works. Read by the filter cascade: picking "Semua" at provinsi,
+   *  kota or branch level groups the table by these instead of listing one
+   *  roster, and every "Semua" above the branch is named in the group header. */
+  region: string
+  provinsi: string
   kota: string
   branch: string
   outstanding: number
@@ -61,14 +64,18 @@ const hvItem = (name: string, amount: number): OutstandingItem => ({
 interface BpSeed {
   id: string
   name: string
+  region?: string
+  provinsi?: string
   kota?: string
   branch?: string
   lastSetoran: string
   outstandingItems: OutstandingItem[]
 }
 
-/** Most of the roster is the Belawa branch in Cirebon; a seed only names its
- *  kota/branch when it sits somewhere else. */
+/** Most of the roster is the Belawa branch in Cirebon, Jawa Barat; a seed only
+ *  names a level when it sits somewhere else. */
+const HOME_REGION = 'Jawa'
+const HOME_PROVINSI = 'Jawa Barat'
 const HOME_KOTA = 'Cirebon'
 const HOME_BRANCH = 'Belawa'
 
@@ -156,10 +163,44 @@ const SEEDS: BpSeed[] = [
       ]),
     ],
   },
+  {
+    id: 'bp-j',
+    name: 'Bagas Prakoso',
+    provinsi: 'Jawa Tengah',
+    kota: 'Semarang',
+    branch: 'Gunungpati',
+    lastSetoran: '2026-08-13T14:00:00',
+    outstandingItems: [hvItem('Ibu Sulastri', 480_000)],
+  },
+  {
+    id: 'bp-k',
+    name: 'Rani Puspitasari',
+    provinsi: 'Jawa Tengah',
+    kota: 'Semarang',
+    branch: 'Mijen',
+    lastSetoran: '2026-08-11T16:45:00',
+    outstandingItems: [
+      mvItem('Majelis Seruni', [
+        { name: 'Ibu Painem', amount: 400_000 },
+        { name: 'Ibu Wagiyem', amount: 320_000 },
+      ]),
+    ],
+  },
+  {
+    id: 'bp-l',
+    name: 'Yoga Pratama',
+    provinsi: 'Jawa Tengah',
+    kota: 'Kudus',
+    branch: 'Jekulo',
+    lastSetoran: '2026-08-12T17:20:00',
+    outstandingItems: [hvItem('Ibu Karsinah', 720_000)],
+  },
 ]
 
 export const BP_ROWS: BpRow[] = SEEDS.map((seed) => ({
   ...seed,
+  region: seed.region ?? HOME_REGION,
+  provinsi: seed.provinsi ?? HOME_PROVINSI,
   kota: seed.kota ?? HOME_KOTA,
   branch: seed.branch ?? HOME_BRANCH,
   outstanding: seed.outstandingItems.reduce((total, i) => total + i.amount, 0),
