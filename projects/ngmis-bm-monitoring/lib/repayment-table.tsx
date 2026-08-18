@@ -2,15 +2,15 @@
 
 // Pembayaran — the bucket cards and the BP table, shared by both states.
 //
-// The page reads in two units, switched by the toggle: how many LOANS are
-// behind, and how much MONEY is. They are not the same story — a handful of
-// large arrears is a rounding error by count and most of the value by rupiah —
-// so both are held on every bucket and neither is derived from the other.
+// The page reads in two units under the hood, LOANS and MONEY — they are not
+// the same story, a handful of large arrears is a rounding error by count and
+// most of the value by rupiah — but the page currently only shows the loan
+// count reading; nothing switches it, so `unit` stays 'pinjaman' throughout.
 //
 // Only the rate wears colour, and only where a standard exists. The two figures
-// beside it are facts; the rate is the judgement. DPD 90+ has no target, so it
-// shows its two figures and stops — a Rate column there would invite a verdict
-// nobody is held to.
+// beside it are facts; the rate is the judgement. Total pinjaman and DPD 90+
+// still print a Rate — it's a real, computable number — but plain, since
+// neither carries a standard to be judged against.
 //
 // Both states render this table, so the thing under review is the one column
 // that differs: the end state adds Aksi, the MVP does not.
@@ -18,7 +18,7 @@
 import { Fragment, type ReactNode } from 'react'
 import { Button } from '@/design-system/components'
 import { DownloadSimple } from '@/design-system/icons'
-import { BucketCard, Panel, RatePill, UnitToggle } from './ui'
+import { BucketCard, Panel, RatePill } from './ui'
 import {
   BUCKET_ORDER,
   REPAYMENT_BPS,
@@ -34,25 +34,19 @@ import {
   type Unit,
 } from './data'
 
-/** The two readings, in switch order: off is Jumlah pinjaman, on is Nominal. */
-export const UNITS = {
-  pinjaman: { id: 'pinjaman', label: 'Jumlah pinjaman' },
-  rupiah: { id: 'rupiah', label: 'Nominal (Rp)' },
-} as const
-
-/** `rated` marks the buckets that carry a standard and so earn a Rate column.
- *  Total pinjaman is an aggregate of the four buckets and DPD 90+ has no
- *  target, so neither gets one — a rate there would invite a verdict nobody is
- *  held to. */
+/** `hasTarget` marks the buckets that carry a standard, so their Rate wears a
+ *  colour. Total pinjaman is an aggregate of the four buckets and DPD 90+ has
+ *  no target — both still print a Rate, plainly, since a rate there is a real
+ *  number, just not one anybody is held to. */
 const GROUPS = [
-  { id: 'total', header: 'Total pinjaman', rated: false },
-  { id: 'dpd0', header: 'DPD 0', rated: true },
-  { id: 'dpd130', header: 'DPD 1-30', rated: true },
-  { id: 'dpd3190', header: 'DPD 31-90', rated: true },
-  { id: 'dpd90', header: 'DPD 90+', rated: false },
+  { id: 'total', header: 'Total pinjaman', hasTarget: false },
+  { id: 'dpd0', header: 'DPD 0', hasTarget: true },
+  { id: 'dpd130', header: 'DPD 1-30', hasTarget: true },
+  { id: 'dpd3190', header: 'DPD 31-90', hasTarget: true },
+  { id: 'dpd90', header: 'DPD 90+', hasTarget: false },
 ] as const
 
-const cols = (g: (typeof GROUPS)[number]) => (g.rated ? 3 : 2)
+const GROUP_COLS = 3
 
 /** The first two columns are labelled by unit: "Aktif / Terbayar" and
  *  "Total due / Total paid" are the same two facts said in different money. */
@@ -66,12 +60,20 @@ const part = (b: Bucket, u: Unit) => (u === 'rupiah' ? b.dibayar : b.paid)
 // Both units group thousands: 1.972 loans and Rp121.885.867 read the same way.
 const show = (n: number, u: Unit) => rupiah(n)
 
-function Rate({ bucket, band, unit }: { bucket: Bucket; band: string; unit: Unit }) {
-  return (
-    <RatePill ok={meetsTarget(bucket, band, unit)}>
-      {`${rate(bucket, unit).toFixed(1).replace('.', ',').replace(',0', '')}%`}
-    </RatePill>
-  )
+function Rate({
+  bucket,
+  band,
+  unit,
+  hasTarget,
+}: {
+  bucket: Bucket
+  band: string
+  unit: Unit
+  hasTarget: boolean
+}) {
+  const label = `${rate(bucket, unit).toFixed(1).replace('.', ',').replace(',0', '')}%`
+  if (!hasTarget) return <span className="text-14 text-default">{label}</span>
+  return <RatePill ok={meetsTarget(bucket, band, unit)}>{label}</RatePill>
 }
 
 /**
@@ -101,31 +103,17 @@ export function RepaymentMetrics({ unit }: { unit: Unit }) {
   )
 }
 
-/** The strip above the table: title left, unit toggle and Download right. */
-export function TableHeading({
-  unit,
-  onUnitChange,
-}: {
-  unit: Unit
-  onUnitChange: (u: Unit) => void
-}) {
+/** The strip above the table: title left, Download right. */
+export function TableHeading() {
   return (
     <div className="flex flex-wrap items-center justify-between gap-16 pb-12">
       <span className="text-16 font-bold text-default">Performa BP</span>
-      <div className="flex items-center gap-8">
-        <UnitToggle
-          off={UNITS.pinjaman}
-          on={UNITS.rupiah}
-          value={unit}
-          onChange={(id) => onUnitChange(id as Unit)}
-        />
-        <Button variant="outline" size="sm" onClick={() => undefined}>
-          <span className="flex items-center gap-8">
-            <DownloadSimple size={16} />
-            Download
-          </span>
-        </Button>
-      </div>
+      <Button variant="outline" size="sm" onClick={() => undefined}>
+        <span className="flex items-center gap-8">
+          <DownloadSimple size={16} />
+          Download
+        </span>
+      </Button>
     </div>
   )
 }
@@ -155,7 +143,7 @@ export function BpTable({
               {GROUPS.map((group) => (
                 <th
                   key={group.id}
-                  colSpan={cols(group)}
+                  colSpan={GROUP_COLS}
                   className="border-l border-default px-16 pb-8 pt-16 text-center text-12 font-bold text-default"
                 >
                   <span className="flex flex-col gap-2">
@@ -189,11 +177,7 @@ export function BpTable({
                   <th className="px-12 pb-12 text-center text-12 font-regular text-caption">
                     {SUB[unit][1]}
                   </th>
-                  {group.rated ? (
-                    <th className="px-12 pb-12 text-center text-12 font-regular text-caption">
-                      Rate
-                    </th>
-                  ) : null}
+                  <th className="px-12 pb-12 text-center text-12 font-regular text-caption">Rate</th>
                 </Fragment>
               ))}
             </tr>
@@ -201,58 +185,40 @@ export function BpTable({
           <tbody>
             {REPAYMENT_BPS.map((bp, i) => {
               // Zebra striping, so the eye can track a row across sixteen
-              // columns without losing its line. Each BP is two table rows —
-              // the figures, then the shortfall centred beneath its whole
-              // group — so they share a background and only the second carries
-              // the dividing border.
+              // columns without losing its line.
               const zebra = i % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'
               return (
-                <Fragment key={bp.id}>
-                  <tr className={`align-middle ${zebra}`}>
-                    <td rowSpan={2} className="px-16 text-14 text-default">
-                      {bp.name}
-                    </td>
-                    {GROUPS.map((group) => {
-                      const bucket = bp[group.id]
-                      return (
-                        <Fragment key={group.id}>
-                          <td className="border-l border-default px-12 pt-16 text-center text-14 text-default">
-                            {show(whole(bucket, unit), unit)}
-                          </td>
-                          <td className="px-12 pt-16 text-center text-14 text-default">
-                            {show(part(bucket, unit), unit)}
-                          </td>
-                          {group.rated ? (
-                            <td className="px-12 pt-16 text-center">
-                              <Rate bucket={bucket} band={group.id} unit={unit} />
-                            </td>
-                          ) : null}
-                        </Fragment>
-                      )
-                    })}
-                    {action ? (
-                      <td rowSpan={2} className="border-l border-default px-16">
-                        {action.render(bp)}
-                      </td>
-                    ) : null}
-                  </tr>
-                  <tr className={`border-b border-default align-top ${zebra}`}>
-                    {GROUPS.map((group) => {
-                      const bucket = bp[group.id]
-                      const short = shortfall(bucket, group.id, unit)
-                      const missing = meetsTarget(bucket, group.id, unit) === false
-                      return (
-                        <td
-                          key={group.id}
-                          colSpan={cols(group)}
-                          className="border-l border-default px-12 pb-16 pt-4 text-center text-10 text-caption"
-                        >
-                          {missing && short ? shortfallLabel(short, unit) : null}
+                <tr key={bp.id} className={`border-b border-default ${zebra}`}>
+                  <td className="px-16 py-16 text-14 text-default">{bp.name}</td>
+                  {GROUPS.map((group) => {
+                    const bucket = bp[group.id]
+                    const short = shortfall(bucket, group.id, unit)
+                    const missing = meetsTarget(bucket, group.id, unit) === false
+                    return (
+                      <Fragment key={group.id}>
+                        <td className="border-l border-default px-12 py-16 text-center text-14 text-default">
+                          {show(whole(bucket, unit), unit)}
                         </td>
-                      )
-                    })}
-                  </tr>
-                </Fragment>
+                        <td className="px-12 py-16 text-center text-14 text-default">
+                          <span className="flex flex-col items-center gap-2">
+                            <span>{show(part(bucket, unit), unit)}</span>
+                            {missing && short ? (
+                              <span className="text-10 font-regular text-caption">
+                                {shortfallLabel(short, unit)}
+                              </span>
+                            ) : null}
+                          </span>
+                        </td>
+                        <td className="px-12 py-16 text-center">
+                          <Rate bucket={bucket} band={group.id} unit={unit} hasTarget={group.hasTarget} />
+                        </td>
+                      </Fragment>
+                    )
+                  })}
+                  {action ? (
+                    <td className="border-l border-default px-16 py-16">{action.render(bp)}</td>
+                  ) : null}
+                </tr>
               )
             })}
           </tbody>
@@ -262,17 +228,11 @@ export function BpTable({
   )
 }
 
-export function RepaymentTable({
-  unit,
-  onUnitChange,
-}: {
-  unit: Unit
-  onUnitChange: (u: Unit) => void
-}) {
+export function RepaymentTable({ unit }: { unit: Unit }) {
   return (
     <>
       <RepaymentMetrics unit={unit} />
-      <TableHeading unit={unit} onUnitChange={onUnitChange} />
+      <TableHeading />
       <BpTable unit={unit} />
     </>
   )

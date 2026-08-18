@@ -116,20 +116,14 @@ function ActionSheet({ bp, onClose }: { bp: RepaymentBp; onClose: () => void }) 
   )
 }
 
-export function RepaymentGrid({
-  unit,
-  onUnitChange,
-}: {
-  unit: Unit
-  onUnitChange: (u: Unit) => void
-}) {
+export function RepaymentGrid({ unit }: { unit: Unit }) {
   const [openBp, setOpenBp] = useState<RepaymentBp | null>(null)
   const { scheduled } = useApp()
 
   return (
     <>
       <RepaymentMetrics unit={unit} />
-      <TableHeading unit={unit} onUnitChange={onUnitChange} />
+      <TableHeading />
 
       <BpTable
         unit={unit}
