@@ -443,9 +443,17 @@ export const renewalRate = (bp: DisbursementBp) =>
 export const nilaiShortfall = (bp: DisbursementBp) =>
   Math.max(0, DISBURSEMENT_TARGETS.nilai - nilaiTotal(bp))
 
+/** Share of the month's nilai target this BP has disbursed so far. */
+export const nilaiRate = (bp: DisbursementBp) => (nilaiTotal(bp) / DISBURSEMENT_TARGETS.nilai) * 100
+export const meetsNilai = (bp: DisbursementBp) => nilaiRate(bp) >= 100
+
 /** Mitra baru still to disburse before the BP clears the month's count target. */
 export const noaBaruShortfall = (bp: DisbursementBp) =>
   Math.max(0, DISBURSEMENT_TARGETS.noaBaru - bp.noaBaru)
+
+/** Share of the month's mitra baru target this BP has disbursed so far. */
+export const noaBaruRate = (bp: DisbursementBp) => (bp.noaBaru / DISBURSEMENT_TARGETS.noaBaru) * 100
+export const meetsNoaBaru = (bp: DisbursementBp) => noaBaruRate(bp) >= 100
 
 /** How many more of the mitra due for renewal have to come back before the BP
  *  clears the 85% standard — a count, not a percentage-point gap, for the same

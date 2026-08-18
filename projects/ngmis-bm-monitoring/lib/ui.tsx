@@ -21,7 +21,7 @@
 // =============================================================================
 
 import type { ReactNode } from 'react'
-import { Badge, Toggle } from '@/design-system/components'
+import { Badge } from '@/design-system/components'
 import {
   Cross,
   ChevronDown,
@@ -432,6 +432,7 @@ export function BucketCard({
   prefix,
   trailing,
   caption,
+  targetLabel,
 }: {
   label: string
   intent?: string
@@ -439,18 +440,24 @@ export function BucketCard({
   prefix?: string
   trailing?: ReactNode
   caption: string
+  /** "Target: 100%", pinned top-right of the label row — for cards read
+   *  against a monthly count target rather than a rate. */
+  targetLabel?: string
 }) {
   return (
     <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-16">
-      {intent ? (
-        <span
-          className={`self-start rounded-8 border px-8 py-2 text-12 font-bold ${BUCKET_CHIP[intent]}`}
-        >
-          {label}
-        </span>
-      ) : (
-        <span className="text-12 font-bold text-default">{label}</span>
-      )}
+      <span className="flex items-start justify-between gap-8">
+        {intent ? (
+          <span
+            className={`self-start rounded-8 border px-8 py-2 text-12 font-bold ${BUCKET_CHIP[intent]}`}
+          >
+            {label}
+          </span>
+        ) : (
+          <span className="text-12 font-bold text-default">{label}</span>
+        )}
+        {targetLabel ? <span className="text-12 text-caption">{targetLabel}</span> : null}
+      </span>
       <span className="flex flex-col gap-2">
         <span className="flex items-center gap-8">
           <span className="text-24 font-bold text-default">
@@ -462,52 +469,6 @@ export function BucketCard({
         <span className="text-12 text-caption">{caption}</span>
       </span>
     </div>
-  )
-}
-
-// --- Unit toggle -------------------------------------------------------------
-
-/**
- * A switch between two readings of the same page, on the FunDS `Toggle`.
- *
- * Both readings are named, one either side of the switch, and the live one is
- * bold: neither unit is the obvious default, so a single trailing label would
- * leave the reader working out what "off" means. The labels are clickable too —
- * a 32px switch is a small target for a control this central.
- */
-export function UnitToggle({
-  off,
-  on,
-  value,
-  onChange,
-}: {
-  /** The reading the switch shows when it is off, drawn on the left. */
-  off: { id: string; label: string }
-  on: { id: string; label: string }
-  value: string
-  onChange: (id: string) => void
-}) {
-  const isOn = value === on.id
-  const label = (side: { id: string; label: string }, live: boolean) => (
-    <button
-      type="button"
-      onClick={() => onChange(side.id)}
-      className={`text-12 ${live ? 'font-bold text-default' : 'font-regular text-caption'}`}
-    >
-      {side.label}
-    </button>
-  )
-
-  return (
-    <span className="flex items-center gap-8">
-      {label(off, !isOn)}
-      <Toggle
-        checked={isOn}
-        aria-label={`${off.label} / ${on.label}`}
-        onChange={(e) => onChange(e.target.checked ? on.id : off.id)}
-      />
-      {label(on, isOn)}
-    </span>
   )
 }
 

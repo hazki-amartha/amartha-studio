@@ -12,7 +12,6 @@ In `lib/ui.tsx`:
 - `Select` — FunDS has no select; a phone uses a bottom sheet. Supports labelled `groups`, which the BP filter needs because it mixes a status and a name in one list.
 - `RatePill` — a rate wearing its verdict: green when it clears its standard, red when it does not, plain text when the bucket has no standard to be judged against.
 - `MetricCard` — a headline rate with the target it is judged against underneath.
-- `UnitToggle` — the FunDS `Toggle` with a label either side, switching Pembayaran between Jumlah pinjaman and Nominal (Rp). Both readings are named because neither is the obvious default; a lone trailing label would leave "off" unexplained.
 - `SideSheet` / `SheetSection` — the right-hand panel the action brief opens in. FunDS ships `BottomSheet`, which is the phone answer: on a 1440-wide console a sheet from the bottom covers the table it is about. Positioned `absolute` so it stays inside the device frame in prototype view.
 
 Elsewhere in `lib/`:
