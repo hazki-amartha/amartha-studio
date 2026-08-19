@@ -240,11 +240,17 @@ export const project: ProjectModule = {
       title: 'Sales',
       component: lazyScreen(() => import('./screens/sales'), 'SalesScreen'),
       flowsTo: [
+        { to: 'lead-detail', label: 'buka lead' },
         { to: 'today', label: 'tab Jadwal' },
         { to: 'majelis-list', label: 'tab Majelis' },
         { to: 'mitra-list', label: 'tab Mitra' },
         { to: 'profile', label: 'tab Profil' },
       ],
+    },
+    {
+      id: 'lead-detail',
+      title: 'Detail Lead',
+      component: lazyScreen(() => import('./screens/lead-detail'), 'LeadDetailScreen'),
     },
     {
       id: 'bukti-rekap',
