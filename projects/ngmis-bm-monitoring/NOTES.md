@@ -16,10 +16,12 @@ In `lib/ui.tsx`:
 
 Elsewhere in `lib/`:
 
-- `branch-summary-page.tsx` — the Performa page shared by both variations, so chrome cannot drift between them. Tugas renders a deliberate "belum dirancang" empty state: invented placeholder content gets reviewed as though it were a proposal.
+- `branch-summary-page.tsx` — the Performa page shared by both variations, so chrome cannot drift between them.
 - `repayment-table.tsx` — the MVP cut. Counts and rate side by side in every bucket.
 - `repayment-grid.tsx` — the end state. Rate leads, and every BP missing a standard carries a recommended action with a brief behind it.
 - `bp-filter.tsx` — the shared filter, by target status or by BP name.
+- `daily-dashboard.tsx` + `daily-scorecard.tsx` + `daily-briefing-form.tsx` + `daily-data.ts` + `daily-store.ts` + `daily-ui.tsx` — Progres harian, followed exactly from `ngmis-bm-monitoring-v2`'s Daily Monitoring dashboard: the banner, the full Task/Repayment/Cash settlement/Disbursement scorecard, and the real briefing journey (Mulai Briefing → the morning/evening form → Kirim → the read-only detail view; Riwayat briefing → the history table). Kept on its own six-BP roster and its own module store rather than remapped onto this project's ten-BP one — a straight port, not a redesign. `screens/briefing-morning.tsx`, `briefing-evening.tsx`, `briefing-history.tsx` and `briefing-detail.tsx` are the flow's other screens; only their back-navigation target changed, from v2's `dashboard` id to this project's `branch-summary`.
+- `cash-table.tsx` — Setor tunai. Ported from `ngmis-cash-outstanding`'s Cash outstanding tab (read only — the per-mitra correction drawer and the acknowledge/mangkir workflow stayed behind; Koreksi nominal and Tindakan are placeholders, same as Download elsewhere in this project).
 - `store.ts` + `demo.ts` — which cut is on screen and which BPs have a task booked. The cut is driven from the STATES panel rather than a control inside the prototype.
 
 Judgement calls worth challenging:

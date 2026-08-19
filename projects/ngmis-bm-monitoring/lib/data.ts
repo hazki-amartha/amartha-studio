@@ -41,9 +41,10 @@ export const BP_FILTER = [
 // --- Tabs -------------------------------------------------------------------
 
 export const TABS = [
-  { id: 'task', label: 'Tugas' },
-  { id: 'disbursement', label: 'Pencairan' },
+  { id: 'daily', label: 'Progres harian' },
   { id: 'repayment', label: 'Pembayaran' },
+  { id: 'cash', label: 'Setor tunai' },
+  { id: 'disbursement', label: 'Pencairan' },
 ]
 
 /** The band under the tabs: what period the figures cover, and when they last
@@ -478,3 +479,73 @@ export function branchDisbursement() {
   const due = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.renewalDue, 0)
   return { baru, lanjutan, due, renewal: due === 0 ? 0 : (lanjutan / due) * 100 }
 }
+
+// --- Progres harian ------------------------------------------------------
+
+/** A BP's day, task by task: how many were owed and how many are done. Each
+ *  task type is its own target — a BP can clear her majelis visits (MV) and
+ *  still owe follow-ups (NTB - FU), and burying that inside one combined
+ *  count would hide which one. */
+export interface TaskMetric {
+  target: number
+  completed: number
+}
+
+export interface DailyTaskRow {
+  id: string
+  name: string
+  mv: TaskMetric
+  hv: TaskMetric
+  ntbFu: TaskMetric
+  ntbSos: TaskMetric
+  etbRenewal: TaskMetric
+  etbTopup: TaskMetric
+  /** Has the BP closed out her day in the BP App yet. */
+  tutupHari: boolean
+}
+
+/** Same roster and row order as `REPAYMENT_BPS`, so a BP reads the same
+ *  wherever she appears in the app. */
+export const DAILY_TASKS: DailyTaskRow[] = [
+  { id: 'bp-sukma', name: 'Sukma Ayuningrum', mv: { target: 6, completed: 6 }, hv: { target: 3, completed: 2 }, ntbFu: { target: 1, completed: 1 }, ntbSos: { target: 2, completed: 1 }, etbRenewal: { target: 2, completed: 2 }, etbTopup: { target: 2, completed: 1 }, tutupHari: false },
+  { id: 'bp-diski', name: 'Diski Tafa Ilham', mv: { target: 6, completed: 6 }, hv: { target: 3, completed: 3 }, ntbFu: { target: 1, completed: 1 }, ntbSos: { target: 2, completed: 2 }, etbRenewal: { target: 1, completed: 1 }, etbTopup: { target: 2, completed: 2 }, tutupHari: true },
+  { id: 'bp-cenli', name: 'Cenli Cencen', mv: { target: 6, completed: 4 }, hv: { target: 3, completed: 3 }, ntbFu: { target: 1, completed: 0 }, ntbSos: { target: 2, completed: 1 }, etbRenewal: { target: 3, completed: 2 }, etbTopup: { target: 1, completed: 1 }, tutupHari: false },
+  { id: 'bp-laili', name: 'Laili Maulidia', mv: { target: 6, completed: 6 }, hv: { target: 4, completed: 2 }, ntbFu: { target: 1, completed: 1 }, ntbSos: { target: 3, completed: 2 }, etbRenewal: { target: 2, completed: 2 }, etbTopup: { target: 2, completed: 1 }, tutupHari: false },
+  { id: 'bp-fadhil', name: 'Fadhil Maulana', mv: { target: 6, completed: 5 }, hv: { target: 3, completed: 1 }, ntbFu: { target: 1, completed: 1 }, ntbSos: { target: 2, completed: 0 }, etbRenewal: { target: 1, completed: 1 }, etbTopup: { target: 3, completed: 2 }, tutupHari: false },
+  { id: 'bp-ainur', name: 'Ainur Rohmah', mv: { target: 6, completed: 6 }, hv: { target: 3, completed: 2 }, ntbFu: { target: 1, completed: 1 }, ntbSos: { target: 2, completed: 1 }, etbRenewal: { target: 2, completed: 2 }, etbTopup: { target: 2, completed: 2 }, tutupHari: false },
+  { id: 'bp-rudi', name: 'Rudi Hartono', mv: { target: 6, completed: 6 }, hv: { target: 3, completed: 3 }, ntbFu: { target: 1, completed: 1 }, ntbSos: { target: 2, completed: 2 }, etbRenewal: { target: 2, completed: 2 }, etbTopup: { target: 2, completed: 2 }, tutupHari: true },
+  { id: 'bp-budi', name: 'Budi Ngurah', mv: { target: 6, completed: 6 }, hv: { target: 3, completed: 2 }, ntbFu: { target: 1, completed: 1 }, ntbSos: { target: 2, completed: 1 }, etbRenewal: { target: 2, completed: 2 }, etbTopup: { target: 2, completed: 1 }, tutupHari: true },
+  { id: 'bp-alif', name: 'M. Alif Rizqi', mv: { target: 6, completed: 5 }, hv: { target: 3, completed: 3 }, ntbFu: { target: 1, completed: 1 }, ntbSos: { target: 2, completed: 2 }, etbRenewal: { target: 2, completed: 1 }, etbTopup: { target: 2, completed: 2 }, tutupHari: false },
+  { id: 'bp-fauzan', name: 'Fauzan Aditama', mv: { target: 6, completed: 6 }, hv: { target: 3, completed: 3 }, ntbFu: { target: 1, completed: 1 }, ntbSos: { target: 2, completed: 2 }, etbRenewal: { target: 2, completed: 2 }, etbTopup: { target: 2, completed: 2 }, tutupHari: true },
+]
+
+// --- Setor tunai -----------------------------------------------------------
+//
+// What each BP is still holding at end of day. The 16.00 cutoff is when a BP
+// is expected to have handed cash in; a BP still holding it after that is
+// late for the day, and still holding it a day later is overdue — each state
+// offers a different action to the BM.
+
+export interface CashRow {
+  id: string
+  name: string
+  belumDisetor: number
+  lastSetoran: string
+  /** Why the row needs attention — null once there's nothing outstanding. */
+  status: string | null
+  /** What the BM can do about it — null alongside `status`. */
+  action: string | null
+}
+
+export const CASH_ROWS: CashRow[] = [
+  { id: 'bp-sukma', name: 'Sukma Ayuningrum', belumDisetor: 220_000, lastSetoran: '14:00, 26 Jun 2026', status: 'Telat setor (lewat jam 4 sore)', action: 'Setujui keterlambatan' },
+  { id: 'bp-diski', name: 'Diski Tafa Ilham', belumDisetor: 1_500_000, lastSetoran: '17:30, 24 Jun 2026', status: 'Telat setor >24 jam', action: 'BP mangkir' },
+  { id: 'bp-cenli', name: 'Cenli Cencen', belumDisetor: 0, lastSetoran: '16:05, 26 Jun 2026', status: null, action: null },
+  { id: 'bp-laili', name: 'Laili Maulidia', belumDisetor: 3_200_000, lastSetoran: '14:00, 26 Jun 2026', status: 'Telat setor (lewat jam 4 sore)', action: 'Setujui keterlambatan' },
+  { id: 'bp-fadhil', name: 'Fadhil Maulana', belumDisetor: 850_000, lastSetoran: '18:00, 25 Jun 2026', status: 'Telat setor (lewat jam 4 sore)', action: 'Setujui keterlambatan' },
+  { id: 'bp-ainur', name: 'Ainur Rohmah', belumDisetor: 2_080_000, lastSetoran: '17:15, 24 Jun 2026', status: 'Telat setor >24 jam', action: 'BP mangkir' },
+  { id: 'bp-rudi', name: 'Rudi Hartono', belumDisetor: 0, lastSetoran: '16:00, 26 Jun 2026', status: null, action: null },
+  { id: 'bp-budi', name: 'Budi Ngurah', belumDisetor: 0, lastSetoran: '15:30, 26 Jun 2026', status: null, action: null },
+  { id: 'bp-alif', name: 'M. Alif Rizqi', belumDisetor: 450_000, lastSetoran: '14:30, 26 Jun 2026', status: 'Telat setor (lewat jam 4 sore)', action: 'Setujui keterlambatan' },
+  { id: 'bp-fauzan', name: 'Fauzan Aditama', belumDisetor: 0, lastSetoran: '15:45, 26 Jun 2026', status: null, action: null },
+]
