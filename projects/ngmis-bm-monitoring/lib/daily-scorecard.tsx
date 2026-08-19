@@ -1,0 +1,271 @@
+'use client'
+
+// The branch scorecard: one Panel + matrix per subject. BPs run across the top,
+// each spanning its subject's paired measures (Target/Completed, Aktif/Terbayar,
+// Collected/Settled); the metrics run down the side. A two-level header carries
+// the BP name over its measure pair. Shared by the Monitoring tab (read-only)
+// and both briefing forms, which pass `comment` to add a "Komentar" row.
+//
+// Ported from ngmis-bm-monitoring-v2 (§1) — Panel/PanelHeading are our own
+// shared components, ArrowUpRightGlyph comes from daily-ui.tsx.
+
+import type { ReactNode } from 'react'
+import { Badge } from '@/design-system/components'
+import { CheckCircleFill, CrossCircleFill, NotePencil } from '@/design-system/icons'
+import { Panel, PanelHeading } from './ui'
+import { ArrowUpRightGlyph } from './daily-ui'
+import {
+  BPS,
+  SECTIONS,
+  commentKey,
+  measureTone,
+  pctText,
+  rupiah,
+  type Bp,
+  type CellKind,
+  type MatrixRow,
+  type MatrixSection,
+  type Tone,
+} from './daily-data'
+
+/** Figure colour: red when a target is missed, green when a goal is met. */
+const toneMainClass = (t: Tone): string =>
+  t === 'bad' ? 'font-bold text-red-500' : t === 'good' ? 'font-bold text-green-500' : 'text-default'
+const toneNoteClass = (t: Tone): string =>
+  t === 'bad' ? 'text-red-500' : t === 'good' ? 'text-green-500' : 'text-caption'
+
+// Fixed widths (frame geometry → inline, not spacing tokens). One measure width
+// for EVERY subject — so each BP's column sits at the same x in all four tables
+// and the eye can skim a BP straight down the page. 132 fits the widest cell
+// (a rupiah amount over a "Sisa …" line).
+const W_LABEL = 220
+const MEASURE_W = 132
+
+/** How the "Komentar" row behaves: absent (Monitoring), an editable box (a live
+ *  briefing), or seeded read-only text (a past briefing). */
+export type CommentMode =
+  | { kind: 'none' }
+  | { kind: 'edit'; comments: Record<string, string>; onChange: (key: string, value: string) => void }
+  | { kind: 'read'; comments: Record<string, string> }
+  | { kind: 'cta'; comments: Record<string, string>; onOpen: (sectionId: string, bpId: string) => void }
+
+const fmtMain = (value: number, kind: CellKind): string =>
+  kind === 'rupiah' ? rupiah(value) : String(value)
+
+/** The secondary line under a row's SECOND measure: a percentage of the first
+ *  (Terbayar of Aktif) or the remainder still held (Collected less Settled). */
+function noteText(row: MatrixRow, first: number, second: number): string | null {
+  if (row.note === 'pct') return `(${pctText(second, first)})`
+  if (row.note === 'sisa') return `Sisa ${rupiah(first - second)}`
+  return null
+}
+
+function CommentInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Tulis komentar…"
+      rows={2}
+      className="w-full resize-none rounded-8 border border-default bg-neutral-white p-8 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none"
+    />
+  )
+}
+
+function commentCell(comment: CommentMode, sectionId: string, bpId: string): ReactNode {
+  if (comment.kind === 'none') return null
+  const key = commentKey(sectionId, bpId)
+  const value = comment.comments[key]
+  if (comment.kind === 'edit') {
+    return <CommentInput value={value ?? ''} onChange={(v) => comment.onChange(key, v)} />
+  }
+  if (comment.kind === 'cta') {
+    return (
+      <div className="flex flex-col items-start gap-4">
+        {value ? <span className="block whitespace-normal text-14 text-default">{value}</span> : null}
+        <button
+          type="button"
+          onClick={() => comment.onOpen(sectionId, bpId)}
+          className="flex items-center gap-4 text-14 font-bold text-link active:opacity-70"
+        >
+          <NotePencil size={16} /> {value ? 'Ubah' : 'Isi'}
+        </button>
+      </div>
+    )
+  }
+  return (
+    <span className="block whitespace-normal text-14 text-default">
+      {value ? value : <span className="text-placeholder">—</span>}
+    </span>
+  )
+}
+
+function SectionMatrix({
+  section,
+  bps,
+  comment,
+}: {
+  section: MatrixSection
+  bps: Bp[]
+  comment: CommentMode
+}) {
+  const { measures } = section
+  // Every subject keeps the same per-BP width (two measures wide), so a 1-measure
+  // subject (Cash settlement's Outstanding) gets one double-width column and the
+  // BP columns still line up across every card.
+  const mw = (MEASURE_W * 2) / measures.length
+  const totalWidth = W_LABEL + bps.length * measures.length * mw
+
+  return (
+    <Panel>
+      <PanelHeading
+        title={section.title}
+        titleAction={
+          <button
+            type="button"
+            aria-label={`Buka laporan ${section.title} di tab baru`}
+            title="Buka laporan di tab baru"
+            className="flex items-center gap-4 text-14 font-bold text-link active:opacity-70"
+          >
+            Buka laporan <ArrowUpRightGlyph size={16} />
+          </button>
+        }
+      />
+      <div className="overflow-x-auto">
+        <table className="table-fixed border-collapse text-left" style={{ width: totalWidth }}>
+          <colgroup>
+            <col style={{ width: W_LABEL }} />
+            {bps.flatMap((bp) =>
+              measures.map((mm) => <col key={`${bp.id}-${mm.id}`} style={{ width: mw }} />),
+            )}
+          </colgroup>
+          <thead>
+            <tr className="bg-neutral-50">
+              <th
+                rowSpan={2}
+                className="sticky left-0 z-10 rounded-l-8 border-r border-default bg-neutral-50 px-12 py-8 text-left align-bottom text-12 font-bold text-default"
+              />
+              {bps.map((bp, i) => (
+                <th
+                  key={bp.id}
+                  colSpan={measures.length}
+                  className={`border-l border-default px-12 py-8 text-12 font-bold text-default ${
+                    i === bps.length - 1 ? 'rounded-tr-8' : ''
+                  }`}
+                >
+                  {bp.name}
+                </th>
+              ))}
+            </tr>
+            <tr className="bg-neutral-50">
+              {bps.flatMap((bp) =>
+                measures.map((mm, j) => (
+                  <th
+                    key={`${bp.id}-${mm.id}`}
+                    className={`px-12 py-8 text-12 font-regular text-caption ${
+                      j === 0 ? 'border-l border-default' : ''
+                    }`}
+                  >
+                    {mm.label}
+                  </th>
+                )),
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {section.rows.map((row) => (
+              <tr
+                key={row.id}
+                className="border-b border-default align-top bg-neutral-white"
+              >
+                <td className="sticky left-0 z-10 border-r border-default bg-neutral-white px-12 py-8">
+                  <span className="block text-14 font-bold text-default">{row.label}</span>
+                  {row.sublabel ? (
+                    <span className="block text-12 font-regular text-caption">{row.sublabel}</span>
+                  ) : null}
+                </td>
+                {row.merged
+                  ? bps.map((bp, i) => (
+                      <td key={bp.id} colSpan={measures.length} className="border-l border-default px-12 py-8">
+                        <StatusBadge done={row.status?.[i] ?? false} />
+                      </td>
+                    ))
+                  : bps.flatMap((bp) => {
+                      const cells = section.values[bp.id][row.id]
+                      const first = cells[measures[0].id]
+                      const second = measures.length > 1 ? cells[measures[1].id] : 0
+                      return measures.map((mm, j) => {
+                        const note = j === 1 ? noteText(row, first, second) : null
+                        const tone = measureTone(section, row, cells, j)
+                        return (
+                          <td
+                            key={`${bp.id}-${mm.id}`}
+                            className={`px-12 py-8 text-14 ${j === 0 ? 'border-l border-default' : ''}`}
+                          >
+                            <span className={`block ${toneMainClass(tone)}`}>
+                              {fmtMain(cells[mm.id], row.kind)}
+                            </span>
+                            {note ? (
+                              <span className={`block text-12 ${toneNoteClass(tone)}`}>{note}</span>
+                            ) : null}
+                          </td>
+                        )
+                      })
+                    })}
+              </tr>
+            ))}
+            {comment.kind !== 'none' ? (
+              <tr className="border-b border-default bg-neutral-white align-top">
+                <td className="sticky left-0 z-10 border-r border-default bg-neutral-white px-12 py-8 text-14 font-bold text-default">
+                  Catatan tambahan
+                </td>
+                {bps.map((bp) => (
+                  <td
+                    key={bp.id}
+                    colSpan={measures.length}
+                    className="border-l border-default px-12 py-8"
+                  >
+                    {commentCell(comment, section.id, bp.id)}
+                  </td>
+                ))}
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  )
+}
+
+/** The subject matrices in the reference's order. */
+export function Scorecard({
+  sections = SECTIONS,
+  bps = BPS,
+  comment = { kind: 'none' },
+}: {
+  sections?: MatrixSection[]
+  bps?: Bp[]
+  comment?: CommentMode
+}) {
+  return (
+    <div className="flex flex-col gap-16">
+      {sections.map((section) => (
+        <SectionMatrix key={section.id} section={section} bps={bps} comment={comment} />
+      ))}
+    </div>
+  )
+}
+
+/** A merged row's status — plain Sudah/Belum, since the row label already says
+ *  what's done or not ("Ingatkan kumpulan", "Tutup hari"). */
+function StatusBadge({ done }: { done: boolean }) {
+  return done ? (
+    <Badge intent="green" variant="subtle" size="sm" leadingIcon={<CheckCircleFill size={16} />}>
+      Sudah
+    </Badge>
+  ) : (
+    <Badge intent="red" variant="subtle" size="sm" leadingIcon={<CrossCircleFill size={16} />}>
+      Belum
+    </Badge>
+  )
+}

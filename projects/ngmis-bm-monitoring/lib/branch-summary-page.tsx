@@ -7,15 +7,20 @@
 // in the body it wants. That way a change to the chrome cannot drift between
 // variations, and a review is comparing the one thing that actually differs.
 //
-// Tugas is deliberately empty: the earlier placeholder content there was
-// invented, and a plausible-looking chart nobody has designed is worse than a
-// blank — it gets reviewed as though it were a proposal. Pencairan now has a
-// design of its own and draws it.
+// Progres harian is ngmis-bm-monitoring-v2's Daily Monitoring dashboard,
+// followed exactly — banner, filters, full scorecard and the real briefing
+// flow (see lib/daily-dashboard.tsx and NOTES.md). It brings its own
+// PageHeading and "diperbarui" line, so the shared scope strip below is
+// skipped for that tab rather than saying the same fact twice. Setor tunai is
+// a lighter port of a different prototype's Cash outstanding tab (lib/cash-
+// table.tsx). Pembayaran and Pencairan are unchanged by any of this.
 
 import { useState, type ReactNode } from 'react'
+import { CashTable } from './cash-table'
+import { DailyDashboard } from './daily-dashboard'
 import { DisbursementTable } from './disbursement-table'
 import { BmShell } from './shell'
-import { PageHeading, Panel, Select, Tabs } from './ui'
+import { PageHeading, Select, Tabs } from './ui'
 import {
   BP_FILTER,
   BRANCHES,
@@ -27,20 +32,6 @@ import {
   UPDATE_BAR,
 } from './data'
 
-/** A tab that has not been designed yet, saying so plainly. */
-function NotDesignedYet({ label }: { label: string }) {
-  return (
-    <Panel>
-      <div className="flex flex-col items-center gap-8 py-48 text-center">
-        <span className="text-16 font-bold text-default">{label} belum dirancang</span>
-        <span className="text-12 text-caption">
-          Fokus saat ini ada di tab Pembayaran.
-        </span>
-      </div>
-    </Panel>
-  )
-}
-
 export function BranchSummaryPage({ pembayaran }: { pembayaran: ReactNode }) {
   const [tab, setTab] = useState(DEFAULT_TAB)
   const [region, setRegion] = useState('jawa')
@@ -50,7 +41,6 @@ export function BranchSummaryPage({ pembayaran }: { pembayaran: ReactNode }) {
   const [bp, setBp] = useState('all')
 
   const kotaLabel = KOTA.find((k) => k.value === kota)?.label ?? ''
-  const tabLabel = TABS.find((t) => t.id === tab)?.label ?? ''
 
   return (
     <BmShell
@@ -86,17 +76,21 @@ export function BranchSummaryPage({ pembayaran }: { pembayaran: ReactNode }) {
     >
       {/* Scope on the left, freshness on the right — two different facts. The
           scope follows the tab: Pembayaran is read a week at a time, Pencairan
-          is set and chased by the month. */}
-      <div className="flex flex-wrap items-baseline justify-between gap-16 pb-16">
-        <span className="text-16 font-bold text-default">
-          {tab === 'disbursement' ? UPDATE_BAR.scopeMonthly : UPDATE_BAR.scope}
-        </span>
-        <span className="text-12 text-caption">{UPDATE_BAR.refreshed}</span>
-      </div>
+          is set and chased by the month. Progres harian carries its own, so
+          it draws neither. */}
+      {tab === 'daily' ? null : (
+        <div className="flex flex-wrap items-baseline justify-between gap-16 pb-16">
+          <span className="text-16 font-bold text-default">
+            {tab === 'disbursement' ? UPDATE_BAR.scopeMonthly : UPDATE_BAR.scope}
+          </span>
+          <span className="text-12 text-caption">{UPDATE_BAR.refreshed}</span>
+        </div>
+      )}
 
+      {tab === 'daily' ? <DailyDashboard /> : null}
       {tab === 'repayment' ? pembayaran : null}
+      {tab === 'cash' ? <CashTable /> : null}
       {tab === 'disbursement' ? <DisbursementTable /> : null}
-      {tab === 'task' ? <NotDesignedYet label={tabLabel} /> : null}
     </BmShell>
   )
 }

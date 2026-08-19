@@ -8,6 +8,7 @@
 // from the page having been built that way.
 
 import { store } from './store'
+import { store as dailyStore } from './daily-store'
 
 /** What ships first: the figures, no movement, no ranking. */
 export const showMvp = () => {
@@ -21,3 +22,9 @@ export const showEndState = () => {
   store.clearTasks()
   store.setVariant('end')
 }
+
+/** Evening is the briefing scheduled now — Progres harian's banner prompts it. */
+export const scheduleEvening = () => dailyStore.set({ scheduled: 'evening' })
+
+/** Morning is the briefing scheduled now — Progres harian's banner prompts it. */
+export const scheduleMorning = () => dailyStore.set({ scheduled: 'morning' })
