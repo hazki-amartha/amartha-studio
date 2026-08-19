@@ -48,6 +48,25 @@ export function useMangkir(): Record<string, boolean> {
   )
 }
 
+// --- Open-status-dialog intent ----------------------------------------------
+// A one-shot flag: "Tandai mangkir" sets it before navigating to User details,
+// which consumes it on mount to open the status dialog straight away. Plain
+// module state (not a hook) because it is read once and cleared, never rendered.
+
+let statusEditRequested = false
+
+export function requestStatusEdit() {
+  statusEditRequested = true
+}
+
+/** Returns whether a status edit was requested, clearing the flag so a later
+ *  arrival at the page (a back-navigation, a refresh) doesn't reopen it. */
+export function consumeStatusEdit(): boolean {
+  const requested = statusEditRequested
+  statusEditRequested = false
+  return requested
+}
+
 // --- Nominal corrections -----------------------------------------------------
 // Keyed `${row.id}:${item}:${member}`. In the store (not a screen's useState) so
 // a correction survives the round-trip to the User details page.
@@ -167,6 +186,7 @@ export function resetDemo() {
   mangkir = {}
   corrections = {}
   acknowledged = {}
+  statusEditRequested = false
   now = DEFAULT_NOW
   filters = DEFAULT_FILTERS
   mangkirListeners.forEach((l) => l())

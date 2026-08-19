@@ -8,10 +8,10 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { Badge, Button, Modal } from '@/design-system/components'
-import { ChevronLeft, ChevronRight } from '@/design-system/icons'
+import { ChevronDown, ChevronLeft, ChevronRight } from '@/design-system/icons'
 import { FoShell } from '../lib/shell'
 import { Panel, Select } from '../lib/ui'
-import { useSelectedBp } from '../lib/store'
+import { consumeStatusEdit, useSelectedBp } from '../lib/store'
 
 type StatusId = 'active' | 'inactive' | 'leave'
 
@@ -49,7 +49,28 @@ const ACTIVITIES = [
 export function FoUserManagementScreen() {
   const name = useSelectedBp()
   const [statusId, setStatusId] = useState<StatusId>('active')
-  const [editingStatus, setEditingStatus] = useState(false)
+  // The status-change flow: closed, on the edit dialog, or on the confirmation.
+  const [step, setStep] = useState<'closed' | 'edit' | 'confirm'>('closed')
+  // The pending choice + reason, held while the flow is open and committed only
+  // once the FO confirms.
+  const [draftStatus, setDraftStatus] = useState<StatusId>('active')
+  const [reason, setReason] = useState('')
+
+  function openFlow() {
+    setDraftStatus(statusId)
+    setReason('')
+    setStep('edit')
+  }
+
+  // Arriving from "Tandai mangkir" opens the status flow straight away, so the
+  // FO can change the status without a second click.
+  useEffect(() => {
+    if (consumeStatusEdit()) {
+      setDraftStatus('active')
+      setReason('')
+      setStep('edit')
+    }
+  }, [])
 
   return (
     <FoShell
@@ -65,21 +86,29 @@ export function FoUserManagementScreen() {
       }
     >
       <div className="flex flex-wrap items-start gap-16">
-        <ProfileCard
-          name={name}
-          statusId={statusId}
-          onUpdateStatus={() => setEditingStatus(true)}
-        />
+        <ProfileCard name={name} statusId={statusId} onUpdateStatus={openFlow} />
         <ActivitiesCard />
       </div>
 
-      <StatusDialog
-        open={editingStatus}
-        current={statusId}
-        onClose={() => setEditingStatus(false)}
-        onSave={(next) => {
-          setStatusId(next)
-          setEditingStatus(false)
+      <StatusEditDialog
+        open={step === 'edit'}
+        status={draftStatus}
+        reason={reason}
+        onStatus={setDraftStatus}
+        onReason={setReason}
+        onClose={() => setStep('closed')}
+        onContinue={() => setStep('confirm')}
+      />
+
+      <StatusConfirmDialog
+        open={step === 'confirm'}
+        name={name}
+        from={statusId}
+        to={draftStatus}
+        onCancel={() => setStep('edit')}
+        onConfirm={() => {
+          setStatusId(draftStatus)
+          setStep('closed')
         }}
       />
     </FoShell>
@@ -240,21 +269,26 @@ function ActivitiesCard() {
 
 // --- Status dialog ----------------------------------------------------------
 
-function StatusDialog({
+/** Step one: pick the new status and give a reason. Continue stays disabled
+ *  until a reason is filled, then hands off to the confirmation. */
+function StatusEditDialog({
   open,
-  current,
+  status,
+  reason,
+  onStatus,
+  onReason,
   onClose,
-  onSave,
+  onContinue,
 }: {
   open: boolean
-  current: StatusId
+  status: StatusId
+  reason: string
+  onStatus: (next: StatusId) => void
+  onReason: (next: string) => void
   onClose: () => void
-  onSave: (next: StatusId) => void
+  onContinue: () => void
 }) {
-  const [choice, setChoice] = useState<StatusId>(current)
-  useEffect(() => {
-    if (open) setChoice(current)
-  }, [open, current])
+  const canContinue = reason.trim().length > 0
   return (
     <Modal
       open={open}
@@ -262,39 +296,100 @@ function StatusDialog({
       size="sm"
       title="Update status"
       primaryAction={
-        <Button variant="primary" size="md" onClick={() => onSave(choice)}>
-          Simpan
+        <Button variant="primary" size="md" disabled={!canContinue} onClick={onContinue}>
+          Continue
         </Button>
       }
       secondaryAction={
         <Button variant="outline" size="md" onClick={onClose}>
-          Batal
+          Cancel
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-16 pt-8">
+        <div className="flex flex-col gap-4">
+          <span className="text-14 font-bold text-default">Status</span>
+          <div className="relative">
+            <select
+              aria-label="Status"
+              value={status}
+              onChange={(e) => onStatus(e.target.value as StatusId)}
+              className="w-full appearance-none rounded-8 border border-default bg-neutral-white py-8 pl-12 pr-32 text-14 font-regular text-default focus:border-primary-500 focus:outline-none"
+            >
+              {STATUSES.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute right-8 top-8 text-caption">
+              <ChevronDown size={16} />
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-4">
+          <span className="text-14 font-bold text-default">Reason</span>
+          <textarea
+            value={reason}
+            onChange={(e) => onReason(e.target.value.slice(0, 255))}
+            rows={2}
+            placeholder="Fill in your reasons"
+            className="w-full resize-none rounded-8 border border-default bg-neutral-white px-12 py-8 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none"
+          />
+          <span className="text-12 text-caption">{reason.length}/255 characters</span>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/** Step two: confirm the change, spelling out the from → to and its effect. */
+function StatusConfirmDialog({
+  open,
+  name,
+  from,
+  to,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean
+  name: string
+  from: StatusId
+  to: StatusId
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const fromLabel = STATUSES.find((s) => s.id === from)?.label ?? from
+  const toLabel = STATUSES.find((s) => s.id === to)?.label ?? to
+  return (
+    <Modal
+      open={open}
+      onClose={onCancel}
+      size="sm"
+      title="Update status"
+      hideClose
+      primaryAction={
+        <Button variant="primary" size="md" onClick={onConfirm}>
+          Confirm
+        </Button>
+      }
+      secondaryAction={
+        <Button variant="outline" size="md" onClick={onCancel}>
+          Cancel
         </Button>
       }
     >
       <div className="flex flex-col gap-8 pt-8">
-        {STATUSES.map((s) => {
-          const on = s.id === choice
-          return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setChoice(s.id)}
-              className={`flex items-center gap-12 rounded-8 border px-12 py-12 text-left ${
-                on ? 'border-primary-500 bg-primary-50' : 'border-default hover:bg-neutral-50'
-              }`}
-            >
-              <span
-                className={`flex size-16 items-center justify-center rounded-full border-2 ${
-                  on ? 'border-primary-500' : 'border-default'
-                }`}
-              >
-                {on ? <span className="size-8 rounded-full bg-primary-500" /> : null}
-              </span>
-              <span className="text-14 font-regular text-default">{s.label}</span>
-            </button>
-          )
-        })}
+        <p className="text-16 font-bold text-default">
+          {`Update ${name}'s status from `}
+          <span className="underline">{fromLabel}</span>
+          {' to '}
+          <span className="underline">{toLabel}</span>
+          {'?'}
+        </p>
+        <p className="text-14 font-regular text-caption">
+          {`The status will update immediately and the user's tasks should be reassigned to another user.`}
+        </p>
       </div>
     </Modal>
   )
