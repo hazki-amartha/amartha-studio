@@ -209,12 +209,22 @@ export const queueEveryOutcome = () => {
 
 /** Start of day: the first majelis is the active task. */
 export const scheduleMajelis = () =>
-  store.set({ day: 'today', doneTasks: [], remindedTasks: [] })
+  store.set({ day: 'today', doneTasks: [], remindedTasks: [], showBukti: false })
+
+/**
+ * The same start-of-day, but a nominal was corrected on the internal dashboard
+ * after she had already collected — so two re-send tasks now sit near the top
+ * of the list: the majelis recap, and one mitra's bukti bayar. The only state
+ * that turns `showBukti` on; every other schedule state leaves it off.
+ */
+export const buktiBaru = () =>
+  store.set({ day: 'today', doneTasks: [], remindedTasks: [], showBukti: true })
 
 /** Everything before the 13.00 door is done — a home visit is now "Sekarang". */
 export const scheduleHomeVisit = () =>
   store.set({
     day: 'today',
+    showBukti: false,
     doneTasks: ['t0', 't1', 't2', 't2b'],
     remindedTasks: REMINDED,
     sentTasks: [],
@@ -234,6 +244,7 @@ export const scheduleHomeVisit = () =>
 export const scheduleClosing = () =>
   store.set({
     day: 'today',
+    showBukti: false,
     doneTasks: CLOSING_DONE,
     remindedTasks: REMINDED,
     sentTasks: CLOSING_DONE,
@@ -254,6 +265,7 @@ export const scheduleClosing = () =>
 export const scheduleCloseable = () =>
   store.set({
     day: 'today',
+    showBukti: false,
     doneTasks: CLOSING_DONE,
     remindedTasks: REMINDED,
     sentTasks: CLOSING_DONE,
@@ -279,6 +291,7 @@ export const scheduleCloseable = () =>
 export const scheduleCapped = () =>
   store.set({
     day: 'today',
+    showBukti: false,
     doneTasks: ['t0', 't1', 't2', 't2b', 't3', 't4', 't5'],
     remindedTasks: REMINDED,
     // Everything sent, so the late majelis's cash IS settleable — it is the cap,
@@ -312,6 +325,7 @@ export const scheduleCapped = () =>
 export const scheduleClosed = () =>
   store.set({
     day: 'today',
+    showBukti: false,
     doneTasks: CLOSING_DONE,
     remindedTasks: REMINDED,
     sentTasks: CLOSING_DONE,

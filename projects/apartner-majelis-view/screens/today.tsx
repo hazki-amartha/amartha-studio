@@ -75,6 +75,9 @@ const KIND_TINT: Record<Task['kind'], Tint> = {
   // Purple, same as a pelayanan: reminding a majelis IS majelis work, done the
   // morning before. The code below is what tells the two apart.
   reminder: 'primary',
+  // Orange, the app's colour for something that needs attention now: a nominal
+  // was corrected upstream and the proof she already sent is stale.
+  bukti: 'orange',
 }
 
 const kindTint = (kind: Task['kind']): Tint => KIND_TINT[kind]
@@ -89,6 +92,7 @@ const KIND_LABEL: Record<Task['kind'], string> = {
   sosialisasi: 'Sos',
   'follow-up': 'FU',
   reminder: 'Ingat',
+  bukti: 'BB',
 }
 
 /**
@@ -105,6 +109,7 @@ const KIND_NAME: Record<Task['kind'], string> = {
   sosialisasi: 'Sosialisasi',
   'follow-up': 'Follow Up',
   reminder: 'Ingatkan Majelis',
+  bukti: 'Kirim Bukti Bayar',
 }
 
 /**
@@ -463,6 +468,12 @@ export function TodayScreen() {
     if (task.kind === 'reminder') {
       store.startReminder(task.id)
       flow.go('reminder')
+      return
+    }
+    if (task.kind === 'bukti') {
+      // The two re-sends: the majelis recap goes to the group, the mitra receipt
+      // to one door. No store setup — each draft is authored in lib/bukti.ts.
+      flow.go(task.id === 'bb-majelis' ? 'bukti-rekap' : 'bukti-bayar')
       return
     }
     if (task.kind === 'setoran') {

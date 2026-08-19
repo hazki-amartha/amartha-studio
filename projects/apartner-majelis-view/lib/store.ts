@@ -286,6 +286,15 @@ export interface AppState {
    */
   sentTasks: string[]
   /**
+   * Whether ops has changed a nominal on the internal dashboard AFTER the BP
+   * collected — the condition the two `bukti` re-send tasks exist for. Off on a
+   * normal day, so those tasks stay out of the schedule (`todayTasks`); a demo
+   * state flips it on to show the correction landing. It is a fact about the day
+   * arriving from outside the app, which is why it is a flag rather than
+   * something the BP ever sets herself.
+   */
+  showBukti: boolean
+  /**
    * The task the open pelayanan belongs to, so submitting the recap closes the
    * right row on the schedule. Null when the roster was opened from the Majelis
    * tab instead, where the task is recovered from the group itself.
@@ -525,6 +534,7 @@ const initial: AppState = {
   startedTasks: [],
   remindedTasks: [],
   sentTasks: [],
+  showBukti: false,
   activeTask: null,
   openMajelis: 'mawar',
   majelisDay: null,
@@ -1509,6 +1519,8 @@ const SETTLE_KIND_LABEL: Record<TaskKind, string> = {
   // Never actually reached — a reminder banks no cash, so it never appears in
   // a settlement breakdown. Present because the map is keyed by every kind.
   reminder: 'Ingatkan Majelis',
+  // Same — a re-send moves no money, so it never reaches a settlement.
+  bukti: 'Kirim Bukti Bayar',
 }
 
 /**
@@ -1672,7 +1684,15 @@ export const openHomeTask = (s: AppState): Task | undefined => findTask(s.openHo
  * in front of a closing it has nothing to do with.
  */
 export const todayTasks = (s: AppState): Task[] =>
-  TASKS.filter((t) => !s.reschedules[t.id] && !s.rejects[t.id] && !s.skips[t.id])
+  TASKS.filter(
+    (t) =>
+      !s.reschedules[t.id] &&
+      !s.rejects[t.id] &&
+      !s.skips[t.id] &&
+      // The bukti re-send tasks are off the day until a dashboard correction has
+      // actually landed — every other kind is always on the plate.
+      (t.kind !== 'bukti' || s.showBukti),
+  )
 
 /** Visits the BP moved to another day — off today's plate, not done. */
 export const rescheduledTasks = (s: AppState): Task[] =>

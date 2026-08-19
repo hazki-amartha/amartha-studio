@@ -124,7 +124,9 @@ export function KpiScreen() {
         <ScoredBodyB2 d={d} />
       )}
 
-      <TabBar active="kpi" />
+      {/* KPI is reached from the Profil menu now, not a tab of its own, so the
+          bar keeps Profil lit while she is on this page. */}
+      <TabBar active="profile" />
     </AppScreen>
   )
 }

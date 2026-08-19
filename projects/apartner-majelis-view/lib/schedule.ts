@@ -25,6 +25,12 @@ export type TaskKind =
   | 'sosialisasi'
   | 'follow-up'
   | 'reminder'
+  // A re-send prompted from OUTSIDE the app: ops changes a mitra's nominal on
+  // the internal dashboard after the BP has already collected, so the proof she
+  // sent no longer matches the bill. She has to send the corrected version —
+  // the majelis recap, or one mitra's bukti bayar. It only ever appears when
+  // that correction has actually landed (see `showBukti`), never on a plain day.
+  | 'bukti'
 
 export interface Task {
   id: string
@@ -78,6 +84,31 @@ export const TASKS: Task[] = [
     title: 'Ingatkan Majelis Hari Ini',
     place: 'Kirim pesan ke grup WhatsApp majelis',
     reason: '3 majelis ada kumpulan hari ini',
+  },
+  // Two re-send tasks that only surface after ops changed a nominal on the
+  // internal dashboard — off a normal day entirely, gated by `showBukti` in the
+  // store. Kept here in TASKS (not a side array) so the schedule renders them
+  // like any other row; `todayTasks` is what filters them out until the
+  // correction has landed. No majelisId / mitraId on purpose: they are a send,
+  // not a visit, so they must not be picked up as a group's pelayanan or a
+  // door — the group and the mitra they concern live in the place line instead.
+  {
+    id: 'bb-majelis',
+    kind: 'bukti',
+    time: '07.30',
+    until: '07.45',
+    title: 'Kirim Bukti Bayar Baru',
+    place: 'Kirim ulang rekap ke grup WhatsApp Majelis Mawar',
+    reason: 'Nominal diubah dari dashboard · rekap grup perlu dikirim ulang',
+  },
+  {
+    id: 'bb-mitra',
+    kind: 'bukti',
+    time: '07.35',
+    until: '07.50',
+    title: 'Kirim Bukti Bayar Baru',
+    place: 'Kirim ulang bukti bayar ke Ibu Wati Nurhasanah',
+    reason: 'Nominal diubah dari dashboard · bukti bayar perlu dikirim ulang',
   },
   {
     id: 't1',
@@ -448,6 +479,7 @@ export const taskCode = (taskId: string): string => {
     'follow-up': 'FU',
     setoran: 'Setor',
     reminder: 'Ingat',
+    bukti: 'BB',
   }[kind]
 }
 

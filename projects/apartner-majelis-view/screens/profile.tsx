@@ -6,22 +6,24 @@
 // directions should differ on the pelayanan, not on where "Keluar" lives, and a
 // second invention of a settings page is noise in that comparison.
 //
-// One change from the source. That version put a KPI card here as a second
-// route into the scoreboard, which made sense when Profil sat behind an avatar
-// in a header. Here KPI is its own tab one thumb away, so the card would be a
-// shortcut to the thing beside it.
+// KPI now lives at the head of the menu here, with the month's running target
+// count as its subtitle — the scoreboard has left the bottom bar (that slot is
+// Sales now), so Profil is its way in.
 //
 // It is the only L0 surface with no back button — it is a destination, not a
 // page opened from somewhere.
 
 import { Badge, Card, ListRow } from '@/design-system/components'
-import { GearSix, Headset, ShieldCheck, SignOut, User } from '@/design-system/icons'
+import { ChartLineUp, GearSix, Headset, ShieldCheck, SignOut, User } from '@/design-system/icons'
 import { TopBar } from '@/platform/primitives'
+import { useFlow } from '@/platform/runtime'
 import { BP } from '../lib/schedule'
 import { TabBar } from '../lib/tabs'
 import { AppScreen, Avatar } from '../lib/ui'
 
 export function ProfileScreen() {
+  const { go } = useFlow()
+
   return (
     <AppScreen topBar={<TopBar>Profil</TopBar>}>
       <Card>
@@ -38,6 +40,13 @@ export function ProfileScreen() {
       </Card>
 
       <Card flush>
+        <ListRow
+          title="KPI"
+          description="Penuhi 2 target lagi - sisa 12 hari"
+          leading={<ChartLineUp size={20} />}
+          chevron
+          onClick={() => go('kpi')}
+        />
         <ListRow title="Data diri" leading={<User size={20} />} chevron onClick={() => {}} />
         <ListRow
           title="Keamanan akun"
