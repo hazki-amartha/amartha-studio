@@ -514,34 +514,3 @@ export const DAILY_TASKS: DailyTaskRow[] = [
   { id: 'bp-alif', name: 'M. Alif Rizqi', mv: { target: 6, completed: 5 }, hv: { target: 3, completed: 3 }, ntbFu: { target: 1, completed: 1 }, ntbSos: { target: 2, completed: 2 }, etbRenewal: { target: 2, completed: 1 }, etbTopup: { target: 2, completed: 2 }, tutupHari: false },
   { id: 'bp-fauzan', name: 'Fauzan Aditama', mv: { target: 6, completed: 6 }, hv: { target: 3, completed: 3 }, ntbFu: { target: 1, completed: 1 }, ntbSos: { target: 2, completed: 2 }, etbRenewal: { target: 2, completed: 2 }, etbTopup: { target: 2, completed: 2 }, tutupHari: true },
 ]
-
-// --- Setor tunai -----------------------------------------------------------
-//
-// What each BP is still holding at end of day. The 16.00 cutoff is when a BP
-// is expected to have handed cash in; a BP still holding it after that is
-// late for the day, and still holding it a day later is overdue — each state
-// offers a different action to the BM.
-
-export interface CashRow {
-  id: string
-  name: string
-  belumDisetor: number
-  lastSetoran: string
-  /** Why the row needs attention — null once there's nothing outstanding. */
-  status: string | null
-  /** What the BM can do about it — null alongside `status`. */
-  action: string | null
-}
-
-export const CASH_ROWS: CashRow[] = [
-  { id: 'bp-sukma', name: 'Sukma Ayuningrum', belumDisetor: 220_000, lastSetoran: '14:00, 26 Jun 2026', status: 'Telat setor (lewat jam 4 sore)', action: 'Setujui keterlambatan' },
-  { id: 'bp-diski', name: 'Diski Tafa Ilham', belumDisetor: 1_500_000, lastSetoran: '17:30, 24 Jun 2026', status: 'Telat setor >24 jam', action: 'BP mangkir' },
-  { id: 'bp-cenli', name: 'Cenli Cencen', belumDisetor: 0, lastSetoran: '16:05, 26 Jun 2026', status: null, action: null },
-  { id: 'bp-laili', name: 'Laili Maulidia', belumDisetor: 3_200_000, lastSetoran: '14:00, 26 Jun 2026', status: 'Telat setor (lewat jam 4 sore)', action: 'Setujui keterlambatan' },
-  { id: 'bp-fadhil', name: 'Fadhil Maulana', belumDisetor: 850_000, lastSetoran: '18:00, 25 Jun 2026', status: 'Telat setor (lewat jam 4 sore)', action: 'Setujui keterlambatan' },
-  { id: 'bp-ainur', name: 'Ainur Rohmah', belumDisetor: 2_080_000, lastSetoran: '17:15, 24 Jun 2026', status: 'Telat setor >24 jam', action: 'BP mangkir' },
-  { id: 'bp-rudi', name: 'Rudi Hartono', belumDisetor: 0, lastSetoran: '16:00, 26 Jun 2026', status: null, action: null },
-  { id: 'bp-budi', name: 'Budi Ngurah', belumDisetor: 0, lastSetoran: '15:30, 26 Jun 2026', status: null, action: null },
-  { id: 'bp-alif', name: 'M. Alif Rizqi', belumDisetor: 450_000, lastSetoran: '14:30, 26 Jun 2026', status: 'Telat setor (lewat jam 4 sore)', action: 'Setujui keterlambatan' },
-  { id: 'bp-fauzan', name: 'Fauzan Aditama', belumDisetor: 0, lastSetoran: '15:45, 26 Jun 2026', status: null, action: null },
-]

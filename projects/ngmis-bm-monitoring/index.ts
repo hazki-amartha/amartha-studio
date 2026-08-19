@@ -41,6 +41,7 @@ export const project: ProjectModule = {
         { to: 'briefing-morning', label: 'Mulai briefing pagi' },
         { to: 'briefing-evening', label: 'Mulai briefing sore' },
         { to: 'briefing-history', label: 'Riwayat briefing' },
+        { to: 'bp-user-details', label: 'Tandai BP mangkir' },
       ],
     },
     {
@@ -69,6 +70,12 @@ export const project: ProjectModule = {
       title: 'Detail Briefing',
       component: lazyScreen(() => import('./screens/briefing-detail'), 'BriefingDetailScreen'),
       flowsTo: [{ to: 'briefing-history', label: 'Kembali' }],
+    },
+    {
+      id: 'bp-user-details',
+      title: 'User Details',
+      component: lazyScreen(() => import('./screens/bp-user-details'), 'BpUserDetailsScreen'),
+      flowsTo: [{ to: 'branch-summary', label: 'Kembali' }],
     },
   ],
 }

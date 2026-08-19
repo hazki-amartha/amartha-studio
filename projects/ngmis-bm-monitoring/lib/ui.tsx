@@ -360,7 +360,9 @@ export function SideSheet({
   description?: string
   onClose: () => void
   children: ReactNode
-  footer: ReactNode
+  /** Omit for a sheet with nothing to confirm — a body-only read/edit surface
+   *  (e.g. Setor tunai's breakdown drawer) skips the footer strip entirely. */
+  footer?: ReactNode
 }) {
   return (
     <div className="absolute inset-0 z-20 flex justify-end bg-overlay">
@@ -377,9 +379,9 @@ export function SideSheet({
 
         <div className="flex min-h-0 flex-1 flex-col gap-24 overflow-y-auto p-24">{children}</div>
 
-        <div className="flex shrink-0 items-center gap-12 border-t border-default p-24">
-          {footer}
-        </div>
+        {footer ? (
+          <div className="flex shrink-0 items-center gap-12 border-t border-default p-24">{footer}</div>
+        ) : null}
       </div>
     </div>
   )
