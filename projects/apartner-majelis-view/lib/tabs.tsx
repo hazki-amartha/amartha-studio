@@ -22,11 +22,12 @@
 // Sales" mid-collection is how focused work turns back into browsing.
 
 import { NavigationBar } from '@/design-system/components'
-// `Contact`, `Storefront` and `User` come from the shared set rather than this
-// project's local icons: a person-card, a storefront and a single silhouette
-// are exactly the trio that separates a list of borrowers, the selling surface,
-// and "me", and the local file has none of them.
-import { Contact, Storefront, User } from '@/design-system/icons'
+// `Contact`, `File` and `User` come from the shared set rather than this
+// project's local icons: a person-card, a document and a single silhouette are
+// exactly the trio that separates a list of borrowers, the Sales pipeline (a
+// stack of lead records the BP works through), and "me", and the local file has
+// none of them.
+import { Contact, File, User } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { IconCalendar, IconUsers } from './icons'
 
@@ -36,7 +37,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'today', label: 'Tugas', icon: <IconCalendar /> },
   { id: 'majelis-list', label: 'Majelis', icon: <IconUsers /> },
   { id: 'mitra-list', label: 'Mitra', icon: <Contact /> },
-  { id: 'sales', label: 'Sales', icon: <Storefront /> },
+  { id: 'sales', label: 'Sales', icon: <File /> },
   { id: 'profile', label: 'Profil', icon: <User /> },
 ]
 
