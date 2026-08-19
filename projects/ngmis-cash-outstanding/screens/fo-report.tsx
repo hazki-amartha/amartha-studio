@@ -377,8 +377,8 @@ interface BranchGroup {
 
 /** Split the visible rows into one group per branch, in the order the branches
  *  first appear. The branch is the headline; its provinsi and kota sit above it
- *  as "Region: Jawa Tengah, Area: Semarang", because a branch name alone wouldn't
- *  place it once the view is wider than one kota. */
+ *  as "Jawa Tengah, Semarang", because a branch name alone wouldn't place it
+ *  once the view is wider than one kota. */
 function groupByBranch(rows: LiveRow[]): BranchGroup[] {
   const groups: BranchGroup[] = []
   for (const row of rows) {
@@ -387,7 +387,7 @@ function groupByBranch(rows: LiveRow[]): BranchGroup[] {
     if (!group) {
       group = {
         key,
-        place: `Region: ${row.provinsi}, Area: ${row.kota}`,
+        place: `${row.provinsi}, ${row.kota}`,
         label: row.branch,
         rows: [],
         total: 0,
@@ -415,7 +415,7 @@ function BranchSection({ group, children }: { group: BranchGroup; children: Reac
         className="flex w-full items-center justify-between gap-16 px-16 py-12 text-left"
       >
         <span className="flex min-w-0 flex-col gap-2">
-          <span className="text-12 text-caption">{group.place}</span>
+          <span className="text-16 text-caption">{group.place}</span>
           <span className="text-20 font-bold text-default">{group.label}</span>
         </span>
         {/* Subtotal and headcount ride the right edge, so they line up down a
