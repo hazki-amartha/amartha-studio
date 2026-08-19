@@ -78,6 +78,9 @@ export interface MatrixRow {
   /** A smaller, greyed line under the label, when a row needs a second line. */
   sublabel?: string
   kind: CellKind
+  /** The SECOND measure's kind, when it differs from the first — Pencairan's
+   *  Mitra/Jumlah pair is a count then a rupiah amount. Defaults to `kind`. */
+  kind2?: CellKind
   note?: NoteKind
   goal?: RowGoal
   /** Per-row colour rule for the 2nd measure: 'below' reds when it trails the 1st
@@ -137,6 +140,9 @@ export interface MatrixSection {
   /** Repayment: the 2nd measure (Terbayar) is judged against the 1st (Aktif) as
    *  its target — green when it meets Aktif, red when short. */
   paidTone?: boolean
+  /** The row axis's own name, in the sticky corner cell above the row labels —
+   *  "DPD" reads oddly without it once every row already says "DPD 0" etc. */
+  rowAxisLabel?: string
   /** values[bpId][rowId][measureId] */
   values: Record<string, Record<string, Record<string, number>>>
 }
@@ -147,6 +153,7 @@ interface RowSpec {
   label: string
   sublabel?: string
   kind?: CellKind
+  kind2?: CellKind
   note?: NoteKind
   goal?: RowGoal
   redWhen?: 'below' | 'above'
@@ -163,6 +170,7 @@ function section(
   rowSpecs: RowSpec[],
   shortfallTone = false,
   paidTone = false,
+  rowAxisLabel?: string,
 ): MatrixSection {
   const values: MatrixSection['values'] = {}
   BPS.forEach((bp, i) => {
@@ -180,11 +188,13 @@ function section(
     measures,
     shortfallTone,
     paidTone,
+    rowAxisLabel,
     rows: rowSpecs.map((r) => ({
       id: r.id,
       label: r.label,
       sublabel: r.sublabel,
       kind: r.kind ?? 'count',
+      kind2: r.kind2,
       note: r.note,
       goal: r.goal,
       redWhen: r.redWhen,
@@ -221,6 +231,8 @@ export const SECTIONS: MatrixSection[] = [
         status: BPS.map((bp) => bp.closedDay), m: {} },
     ],
     true,
+    false,
+    'Tugas',
   ),
   section(
     'repayment',
@@ -239,6 +251,7 @@ export const SECTIONS: MatrixSection[] = [
     ],
     false,
     true,
+    'DPD',
   ),
   section(
     'cash-settlement',
@@ -246,23 +259,28 @@ export const SECTIONS: MatrixSection[] = [
     [{ id: 'outstanding', label: 'Outstanding', actual: true }],
     [
       // Outstanding = cash collected but not yet settled today (red when any left).
-      { id: 'setoran', label: 'Setor tunai', kind: 'rupiah', firstRedWhenPositive: true,
+      { id: 'setoran', label: 'Belum disetor', kind: 'rupiah', firstRedWhenPositive: true,
         m: { outstanding: [5_000_000, 0, 3_000_000, 3_000_000, 1_000_000, 2_000_000] } },
     ],
   ),
   section(
     'disbursement',
     'Pencairan',
-    [{ id: 'completed', label: 'Completed', actual: true }],
     [
-      { id: 'ntb-mitra', label: 'NTB - Mitra new',
-        m: { completed: [4, 1, 2, 4, 1, 2] } },
-      { id: 'ntb-amount', label: 'NTB - Disbursement amount (Rp)', kind: 'rupiah',
-        m: { completed: [45_000_000, 15_000_000, 20_000_000, 40_000_000, 12_000_000, 20_000_000] } },
-      { id: 'etb-mitra', label: 'ETB - Renewal mitra',
-        m: { completed: [3, 2, 3, 3, 1, 3] } },
-      { id: 'etb-amount', label: 'ETB - Disbursement amount (Rp)', kind: 'rupiah',
-        m: { completed: [28_000_000, 20_000_000, 25_000_000, 28_000_000, 15_000_000, 22_000_000] } },
+      { id: 'mitra', label: 'Mitra' },
+      { id: 'jumlah', label: 'Jumlah', actual: true },
+    ],
+    [
+      { id: 'mitra-baru', label: 'Mitra baru', kind: 'count', kind2: 'rupiah',
+        m: {
+          mitra: [4, 1, 2, 4, 1, 2],
+          jumlah: [45_000_000, 15_000_000, 20_000_000, 40_000_000, 12_000_000, 20_000_000],
+        } },
+      { id: 'mitra-lanjutan', label: 'Mitra lanjutan', kind: 'count', kind2: 'rupiah',
+        m: {
+          mitra: [3, 2, 3, 3, 1, 3],
+          jumlah: [28_000_000, 20_000_000, 25_000_000, 28_000_000, 15_000_000, 22_000_000],
+        } },
     ],
   ),
 ]
@@ -330,7 +348,8 @@ export function rowSummary(
   const second = cells[section.measures[1].id]
   return section.measures.map((mm, j) => {
     const raw = cells[mm.id]
-    const main = row.kind === 'rupiah' ? rupiah(raw) : String(raw)
+    const kind = j === 1 ? (row.kind2 ?? row.kind) : row.kind
+    const main = kind === 'rupiah' ? rupiah(raw) : String(raw)
     let note = ''
     if (j === 1 && row.note === 'pct') note = ` (${pctText(second, first)})`
     else if (j === 1 && row.note === 'sisa') note = ` · Sisa ${rupiah(first - second)}`

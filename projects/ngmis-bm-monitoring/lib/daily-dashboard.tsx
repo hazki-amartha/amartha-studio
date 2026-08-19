@@ -60,10 +60,21 @@ export function DailyDashboard() {
   )
 }
 
+/** The banner's own copy — lowercase second word ("Briefing sore"), distinct
+ *  from BRIEFING_LABEL's Title Case (used on the CTA and everywhere else). */
+const BANNER_TITLE: Record<BriefingKind, string> = {
+  morning: 'Briefing pagi',
+  evening: 'Briefing sore',
+}
+
+const BANNER_COPY: Record<BriefingKind, string> = {
+  morning: 'Bahas target dan rencana tim Anda hari ini.',
+  evening: 'Bahas pencapaian dan kendala tim Anda hari ini.',
+}
+
 /** A single tinted row, not a bordered card: icon + copy on the left, the CTA
- *  on the right. Blue for the morning briefing, primary for the evening one —
- *  the CTA itself stays the brand primary either way, the only allowed action
- *  colour. */
+ *  on the right. One consistent tint for both briefings — the CTA stays the
+ *  brand primary, the only allowed action colour. */
 function BriefingBanner({
   kind,
   inProgress,
@@ -73,26 +84,17 @@ function BriefingBanner({
   inProgress: boolean
   onStart: () => void
 }) {
-  const morning = kind === 'morning'
   const label = BRIEFING_LABEL[kind]
   return (
-    <div
-      className={`flex flex-wrap items-center justify-between gap-16 rounded-12 p-16 ${
-        morning ? 'bg-blue-50' : 'bg-primary-50'
-      }`}
-    >
+    <div className="flex flex-wrap items-center justify-between gap-16 rounded-12 bg-orange-50 p-16">
       <div className="flex items-center gap-12">
-        <span className={morning ? 'text-blue-500' : 'text-primary-500'}>
-          {morning ? <SunGlyph /> : <MoonGlyph />}
+        <span className="text-primary-500">
+          {kind === 'morning' ? <SunGlyph /> : <MoonGlyph />}
         </span>
         <span className="flex flex-col gap-2">
-          <span className="text-16 font-bold text-default">{label}</span>
+          <span className="text-16 font-bold text-default">{BANNER_TITLE[kind]}</span>
           <span className="text-12 text-caption">
-            {inProgress
-              ? 'Briefing tersimpan sebagian. Lanjutkan dan kirim.'
-              : `Beri tahu tim Anda tentang target dan rencana hari ini. Mulai briefing ${
-                  morning ? 'pagi' : 'sore'
-                } sekarang.`}
+            {inProgress ? 'Briefing tersimpan sebagian. Lanjutkan dan kirim.' : BANNER_COPY[kind]}
           </span>
         </span>
       </div>

@@ -11,7 +11,7 @@
 
 import type { ReactNode } from 'react'
 import { Badge } from '@/design-system/components'
-import { CheckCircleFill, CrossCircleFill, NotePencil } from '@/design-system/icons'
+import { CheckCircleFill, Hourglass, NotePencil } from '@/design-system/icons'
 import { Panel, PanelHeading } from './ui'
 import { ArrowUpRightGlyph } from './daily-ui'
 import {
@@ -51,6 +51,11 @@ export type CommentMode =
 
 const fmtMain = (value: number, kind: CellKind): string =>
   kind === 'rupiah' ? rupiah(value) : String(value)
+
+/** The second measure's kind, when a row's two measures aren't the same
+ *  (Pencairan's Mitra/Jumlah — a count then a rupiah amount). */
+const kindAt = (row: MatrixRow, measureIndex: number): CellKind =>
+  measureIndex === 1 ? (row.kind2 ?? row.kind) : row.kind
 
 /** The secondary line under a row's SECOND measure: a percentage of the first
  *  (Terbayar of Aktif) or the remainder still held (Collected less Settled). */
@@ -142,9 +147,11 @@ function SectionMatrix({
           <thead>
             <tr className="bg-neutral-50">
               <th
-                rowSpan={2}
+                rowSpan={measures.length > 1 ? 2 : 1}
                 className="sticky left-0 z-10 rounded-l-8 border-r border-default bg-neutral-50 px-12 py-8 text-left align-bottom text-12 font-bold text-default"
-              />
+              >
+                {section.rowAxisLabel}
+              </th>
               {bps.map((bp, i) => (
                 <th
                   key={bp.id}
@@ -157,20 +164,24 @@ function SectionMatrix({
                 </th>
               ))}
             </tr>
-            <tr className="bg-neutral-50">
-              {bps.flatMap((bp) =>
-                measures.map((mm, j) => (
-                  <th
-                    key={`${bp.id}-${mm.id}`}
-                    className={`px-12 py-8 text-12 font-regular text-caption ${
-                      j === 0 ? 'border-l border-default' : ''
-                    }`}
-                  >
-                    {mm.label}
-                  </th>
-                )),
-              )}
-            </tr>
+            {/* A single-measure subject (Belum disetor) skips this row — the
+                measure name would just repeat the row label under every BP. */}
+            {measures.length > 1 ? (
+              <tr className="bg-neutral-50">
+                {bps.flatMap((bp) =>
+                  measures.map((mm, j) => (
+                    <th
+                      key={`${bp.id}-${mm.id}`}
+                      className={`px-12 py-8 text-12 font-regular text-caption ${
+                        j === 0 ? 'border-l border-default' : ''
+                      }`}
+                    >
+                      {mm.label}
+                    </th>
+                  )),
+                )}
+              </tr>
+            ) : null}
           </thead>
           <tbody>
             {section.rows.map((row) => (
@@ -203,7 +214,7 @@ function SectionMatrix({
                             className={`px-12 py-8 text-14 ${j === 0 ? 'border-l border-default' : ''}`}
                           >
                             <span className={`block ${toneMainClass(tone)}`}>
-                              {fmtMain(cells[mm.id], row.kind)}
+                              {fmtMain(cells[mm.id], kindAt(row, j))}
                             </span>
                             {note ? (
                               <span className={`block text-12 ${toneNoteClass(tone)}`}>{note}</span>
@@ -257,14 +268,15 @@ export function Scorecard({
 }
 
 /** A merged row's status — plain Sudah/Belum, since the row label already says
- *  what's done or not ("Ingatkan kumpulan", "Tutup hari"). */
+ *  what's done or not ("Ingatkan kumpulan", "Tutup hari"). "Belum" is neutral,
+ *  not red: the day isn't over, so it's still pending rather than missed. */
 function StatusBadge({ done }: { done: boolean }) {
   return done ? (
     <Badge intent="green" variant="subtle" size="sm" leadingIcon={<CheckCircleFill size={16} />}>
       Sudah
     </Badge>
   ) : (
-    <Badge intent="red" variant="subtle" size="sm" leadingIcon={<CrossCircleFill size={16} />}>
+    <Badge intent="neutral" variant="subtle" size="sm" leadingIcon={<Hourglass size={16} />}>
       Belum
     </Badge>
   )
