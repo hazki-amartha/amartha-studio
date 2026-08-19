@@ -26,7 +26,13 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useFlow } from '@/platform/runtime'
 import { Button, Modal } from '@/design-system/components'
-import { ChevronDown, ChevronUp, Warning } from '@/design-system/icons'
+import {
+  ChevronDown,
+  ChevronUp,
+  TriangleDownFill,
+  TriangleUpFill,
+  Warning,
+} from '@/design-system/icons'
 import { FoShell } from '../lib/shell'
 import {
   acknowledgeTelat,
@@ -57,9 +63,8 @@ import {
 
 const TABS = [
   { id: 'daily', label: 'Daily', crumb: 'Daily' },
-  { id: 'tugas', label: 'Tugas', crumb: 'Tugas' },
   { id: 'repayment', label: 'Repayment', crumb: 'Repayment' },
-  { id: 'cash-outstanding', label: 'Cash outstanding', crumb: 'Cash outstanding' },
+  { id: 'cash-outstanding', label: 'Sisa Setor Tunai', crumb: 'Sisa Setor Tunai' },
   { id: 'disbursement', label: 'Disbursement', crumb: 'Disbursement' },
 ] as const
 
@@ -91,7 +96,7 @@ const BRANCH = [
 export function FoReportScreen() {
   const now = useNow()
   const [activeId, setActiveId] = useState<(typeof TABS)[number]['id']>('cash-outstanding')
-  const active = TABS.find((t) => t.id === activeId) ?? TABS[3]
+  const active = TABS.find((t) => t.id === activeId) ?? TABS[2]
 
   // The cascade lives in the store so the states selector can open the report at
   // any of its four zoom levels; picking a filter by hand writes to it too.
@@ -165,7 +170,23 @@ export function FoReportScreen() {
 
 /** Nama BP · Belum disetor · Setoran terakhir · Tindakan. Percentages, so the
  *  table still fills the page, and fixed, so no state can shift a column. */
-const COLUMN_WIDTHS = ['24%', '20%', '30%', '26%']
+const COLUMN_WIDTHS = ['24%', '20%', '26%', '30%']
+
+/** Which column the tables are sorted by, and in which direction. The report
+ *  opens on the highest belum-disetor amount. */
+type SortKey = 'outstanding' | 'setoran'
+type SortState = { key: SortKey; dir: 'asc' | 'desc' }
+
+function sortRows(rows: LiveRow[], sort: SortState): LiveRow[] {
+  const factor = sort.dir === 'asc' ? 1 : -1
+  return [...rows].sort((a, b) => {
+    const cmp =
+      sort.key === 'outstanding'
+        ? a.outstanding - b.outstanding
+        : a.lastSetoran.localeCompare(b.lastSetoran)
+    return cmp * factor
+  })
+}
 
 /** One live mitra share, its nominal reflecting any correction the BM has made. */
 interface LiveMember {
@@ -220,6 +241,12 @@ function CashOutstanding({
   const [acking, setAcking] = useState<{ id: string; name: string } | null>(null)
   // Shown once a correction has been saved.
   const [correctionSaved, setCorrectionSaved] = useState(false)
+  // How every table on the page is sorted — opens on highest belum disetor.
+  const [sort, setSort] = useState<SortState>({ key: 'outstanding', dir: 'desc' })
+  const onSort = (key: SortKey) =>
+    setSort((s) =>
+      s.key === key ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' },
+    )
 
   const rows: LiveRow[] = BP_ROWS.map((row) => {
     const items = row.outstandingItems.map((item, i) => {
@@ -256,9 +283,10 @@ function CashOutstanding({
   // rows break into a table per branch, each with its own subtotal. Every level
   // above the branch that is also on "Semua" gets named in the header, so a
   // region-wide view still says which provinsi and kota a branch belongs to.
+  const sortedVisible = sortRows(visible, sort)
   const groups =
     branch === SEMUA
-      ? groupByBranch(visible)
+      ? groupByBranch(sortedVisible)
       : null
 
   const totalOutstanding = visible.reduce((total, r) => total + r.outstanding, 0)
@@ -269,6 +297,8 @@ function CashOutstanding({
   // Shared by every table on the page — one roster or one per branch.
   const tableActions = {
     acknowledged,
+    sort,
+    onSort,
     onKoreksi: (row: LiveRow) => setDetailRowId(row.id),
     onAck: (row: LiveRow) => setAcking({ id: row.id, name: row.name }),
     onMangkir: (row: LiveRow) => {
@@ -281,8 +311,8 @@ function CashOutstanding({
   return (
     <div className="flex flex-col gap-16">
       <div className="flex flex-wrap gap-16">
-        <TotalCard label="Belum disetor" value={rupiah(totalOutstanding)} tone="text-red-500" />
-        <TotalCard label="BP Terlambat Setoran" value={`${lateCount} orang`} tone="text-red-500" />
+        <TotalCard label="Belum disetor" value={rupiah(totalOutstanding)} tone="text-default" />
+        <TotalCard label="BP Terlambat Setoran" value={`${lateCount} orang`} tone="text-default" />
       </div>
 
       {visible.length === 0 ? (
@@ -299,7 +329,7 @@ function CashOutstanding({
         ))
       ) : (
         <Panel className="p-0">
-          <BpTable rows={visible} {...tableActions} />
+          <BpTable rows={sortedVisible} {...tableActions} />
         </Panel>
       )}
 
@@ -391,7 +421,7 @@ function BranchSection({ group, children }: { group: BranchGroup; children: Reac
         {/* Subtotal and headcount ride the right edge, so they line up down a
             stack of branches however long the names are. */}
         <span className="flex shrink-0 items-center gap-8">
-          <span className="text-20 font-bold text-red-500">
+          <span className="text-20 font-bold text-default">
             {rupiah(group.total)} - {group.rows.length} BP
           </span>
           <span className="text-caption">
@@ -412,6 +442,8 @@ function BranchSection({ group, children }: { group: BranchGroup; children: Reac
 function BpTable({
   rows,
   acknowledged,
+  sort,
+  onSort,
   onKoreksi,
   onAck,
   onMangkir,
@@ -420,6 +452,8 @@ function BpTable({
 }: {
   rows: LiveRow[]
   acknowledged: Record<string, Acknowledgement>
+  sort: SortState
+  onSort: (key: SortKey) => void
   onKoreksi: (row: LiveRow) => void
   onAck: (row: LiveRow) => void
   onMangkir: (row: LiveRow) => void
@@ -438,37 +472,36 @@ function BpTable({
           ))}
         </colgroup>
         <thead>
-          <tr className="bg-neutral-50">
+          <tr className="bg-neutral-200">
             <th className={`${thHeadClass} ${roundedTop ? 'rounded-tl-12' : ''}`}>Nama BP</th>
-            <th className={thHeadClass}>Belum disetor</th>
-            <th className={thHeadClass}>Setoran terakhir</th>
-            <th className={`${thHeadClass} ${roundedTop ? 'rounded-tr-12' : ''}`}>Tindakan</th>
+            <th className={`${thHeadClass} ${colDivider}`}>
+              <SortHeader label="Belum disetor" active={sort.key === 'outstanding'} dir={sort.dir} onClick={() => onSort('outstanding')} />
+            </th>
+            <th className={`${thHeadClass} ${colDivider}`}>Tindakan</th>
+            <th className={`${thHeadClass} ${colDivider} ${roundedTop ? 'rounded-tr-12' : ''}`}>
+              <SortHeader label="Setoran terakhir" active={sort.key === 'setoran'} dir={sort.dir} onClick={() => onSort('setoran')} />
+            </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className="border-t border-default align-top">
-              <td className="px-16 py-12 text-14 font-bold text-default">{row.name}</td>
-              <td className="px-16 py-12">
-                {/* The correction link sits under the nominal it edits, the same
-                    way it does inside the drawer. */}
-                <span className="flex flex-col items-start gap-4">
-                  <span className="text-14 text-default">{rupiah(row.outstanding)}</span>
+          {rows.map((row, i) => (
+            <tr
+              key={row.id}
+              className={`border-t border-default align-top ${i % 2 === 1 ? 'bg-neutral-50' : 'bg-white'}`}
+            >
+              <td className="px-16 py-12 text-16 font-regular text-default">{row.name}</td>
+              <td className={`px-16 py-12 ${colDivider}`}>
+                {/* The correction control sits beside the nominal it edits. */}
+                <span className="flex items-center gap-8">
+                  <span className="flex-1 text-18 font-bold text-default">{rupiah(row.outstanding)}</span>
                   {showActions ? (
-                    <button
-                      type="button"
-                      onClick={() => onKoreksi(row)}
-                      className="text-12 font-regular text-link underline active:opacity-70"
-                    >
-                      Koreksi nominal
-                    </button>
+                    <Button variant="secondary" size="sm" onClick={() => onKoreksi(row)}>
+                      Ubah
+                    </Button>
                   ) : null}
                 </span>
               </td>
-              <td className="px-16 py-12">
-                <SetoranTerakhir row={row} />
-              </td>
-              <td className="px-16 py-12">
+              <td className={`px-16 py-12 ${colDivider}`}>
                 <Tindakan
                   row={row}
                   acknowledgement={acknowledged[row.id]}
@@ -476,6 +509,9 @@ function BpTable({
                   onAck={() => onAck(row)}
                   onMangkir={() => onMangkir(row)}
                 />
+              </td>
+              <td className={`px-16 py-12 ${colDivider}`}>
+                <SetoranTerakhir row={row} />
               </td>
             </tr>
           ))}
@@ -485,7 +521,41 @@ function BpTable({
   )
 }
 
-const thHeadClass = 'px-16 py-12 text-12 font-bold text-default'
+const thHeadClass = 'px-16 py-12 text-16 font-bold text-default'
+// A vertical stroke on the left of every column but the first, matching the
+// reference table's column dividers.
+const colDivider = 'border-l border-default'
+
+/** A sortable column header: the label with a two-triangle sort toggle beside
+ *  it. Both triangles read grey at rest; the one matching the active direction
+ *  turns blue when the table is sorted by this column. */
+function SortHeader({
+  label,
+  active,
+  dir,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  dir: 'asc' | 'desc'
+  onClick: () => void
+}) {
+  const up = active && dir === 'asc' ? 'text-blue-500' : 'text-disabled'
+  const down = active && dir === 'desc' ? 'text-blue-500' : 'text-disabled'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-4 text-left active:opacity-70"
+    >
+      {label}
+      <span className="relative inline-block h-16 w-16 shrink-0">
+        <TriangleUpFill size={16} className={`absolute left-0 top-0 ${up}`} />
+        <TriangleDownFill size={16} className={`absolute left-0 top-0 ${down}`} />
+      </span>
+    </button>
+  )
+}
 
 /** One of the summary boxes above the table. */
 function TotalCard({ label, value, tone }: { label: string; value: string; tone: string }) {
@@ -518,12 +588,12 @@ function SetoranTerakhir({ row }: { row: LiveRow }) {
   return (
     <div className="flex flex-col gap-2">
       <span
-        className={`text-14 ${row.lateness === 'onTime' ? 'text-default' : `font-bold ${tone}`}`}
+        className="text-16 font-regular text-default"
       >
         {formatSetoran(row.lastSetoran)}
       </span>
       {note ? (
-        <span className={`flex items-center gap-4 text-14 ${tone}`}>
+        <span className={`flex items-center gap-4 text-16 ${tone}`}>
           <Warning size={16} />
           {note}
         </span>
@@ -562,33 +632,33 @@ function Tindakan({
   if (acknowledgement) {
     return (
       <div className="flex flex-col gap-2">
-        <span className="text-14 text-blue-500">Telat disetujui</span>
+        <span className="text-16 text-default">Telat telah disetujui</span>
         {typeof acknowledgement === 'string' ? (
-          <span className="text-12 text-caption">{acknowledgement}</span>
+          <span className="text-16 text-caption">Alasan: {acknowledgement}</span>
         ) : null}
       </div>
     )
   }
 
   if (!interactive) {
-    return <span className="text-14 text-disabled">No action have been taken</span>
+    return <span className="text-16 text-disabled">No action have been taken</span>
   }
 
   const showAck = row.lateness === 'today'
   const showMangkir = row.lateness === 'overdue'
   if (!showAck && !showMangkir) {
-    return <span className="text-14 text-disabled">Not available</span>
+    return <span className="text-16 text-disabled">Not available</span>
   }
   return (
     <div className="flex flex-wrap items-center gap-8">
       {showAck ? (
-        <Button variant="primary" size="sm" onClick={onAck}>
+        <Button variant="secondary" size="sm" onClick={onAck}>
           Setujui keterlambatan
         </Button>
       ) : null}
       {showMangkir ? (
-        <Button variant="primary" size="sm" onClick={onMangkir}>
-          BP mangkir
+        <Button variant="secondary" size="sm" onClick={onMangkir}>
+          Tandai mangkir
         </Button>
       ) : null}
     </div>
