@@ -17,6 +17,7 @@
 // from having done the work by hand.
 
 import { WEEKLY_BILL, type JourneyPhase } from './data'
+import { cardStateStore } from './revolving'
 import { store } from './store'
 
 /** Wipe every screen-crossing value back to a fresh, unpaid week. */
@@ -40,6 +41,19 @@ const reset = () =>
 export const mitraAktif = () => {
   reset()
   store.set({ mitraStage: 'active' })
+  // Home - alt's "Angsuran Anda" card: mendekati pencairan, kelompok
+  // belum lancar — state 2b.
+  cardStateStore.set({ state: 'mendekati', kelompokLancar: false, remaining: 6 })
+}
+
+/** Home - alt only: the card's AWAL state. Resets `mitraStage` back to
+ *  'active' same as every other Home - alt entry — without it, landing here
+ *  right after "New mitra" left `mitraStage: 'new'` behind would keep
+ *  Pinjaman Ibu on screen and hide this state entirely. */
+export const earlyRepayment = () => {
+  reset()
+  store.set({ mitraStage: 'active' })
+  cardStateStore.set({ state: 'awal' })
 }
 
 /** No repayment history yet, so the nearest goal is the first disbursement. */
@@ -64,6 +78,9 @@ export const sudahLunas = () => {
     poketBalance: 1000,
     billState: 'paid',
   })
+  // Home - alt's "Angsuran Anda" card: same status-box read as Active mitra,
+  // but a step closer — she just cleared this week's instalment.
+  cardStateStore.set({ state: 'mendekati', kelompokLancar: false, remaining: 5 })
 }
 
 /** Claimed via an off-app method, not yet verified — the amber "Cek status". */
@@ -76,6 +93,8 @@ export const menungguKonfirmasi = () => {
     paidAmount: WEEKLY_BILL,
     billState: 'pending',
   })
+  // Home - alt's "Angsuran Anda" card: same status-box read as Active mitra.
+  cardStateStore.set({ state: 'mendekati', kelompokLancar: false, remaining: 6 })
 }
 
 /**
@@ -93,9 +112,13 @@ export const titipBayar = () => {
     paidAmount: WEEKLY_BILL,
     billState: 'titip',
   })
+  // Home - alt's "Angsuran Anda" card: same status-box read as Active mitra,
+  // but a step closer — the officer's cash still settles this week's bill.
+  cardStateStore.set({ state: 'mendekati', kelompokLancar: false, remaining: 5 })
 }
 
-/** A short payment landed, so the rest is arrears and the task says "Bayar sisa". */
+/** A partial instalment landed this week — Rp50.000 in, Rp100.000 still due
+ *  before kumpulan. Not overdue, so not menunggak. */
 export const sisaTunggakan = () => {
   reset()
   store.set({
@@ -106,6 +129,7 @@ export const sisaTunggakan = () => {
     poketBalance: 101000,
     billState: 'paid',
   })
+  cardStateStore.set({ state: 'kurang-bayar', kelompokLancar: true, remaining: 6 })
 }
 
 /**
@@ -117,6 +141,8 @@ export const sisaTunggakan = () => {
 export const rewardBerisiko = () => {
   reset()
   store.set({ mitraStage: 'active', atRisk: true })
+  // Home - alt's "Angsuran Anda" card: menunggak — state 3.
+  cardStateStore.set({ state: 'menunggak' })
 }
 
 /** She has turned up this week, so the kumpulan row ticks while the bill is
@@ -144,6 +170,9 @@ export const semuaBeres = () => {
     hadirKumpulan: true,
     majelisLancar: true,
   })
+  // Home - alt's "Angsuran Anda" card: mendekati pencairan, semua
+  // lancar — state 2a.
+  cardStateStore.set({ state: 'mendekati', kelompokLancar: true, remaining: 6 })
 }
 
 /**
@@ -155,6 +184,7 @@ export const semuaBeres = () => {
 export const limitTerbuka = () => {
   reset()
   store.set({ mitraStage: 'active', journeyPhase: 'jul' })
+  cardStateStore.set({ state: 'limit-terbuka', kelompokLancar: true, remaining: 6 })
 }
 
 // --- Payment flow ----------------------------------------------------------
