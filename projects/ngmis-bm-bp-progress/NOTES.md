@@ -1,13 +1,16 @@
 # NOTES
 
-Project-local components (CLAUDE.md §4) — all in `lib/ui.tsx`. The shell half is
-adapted from `projects/ngmis-bm-monitoring/lib/ui.tsx` (copied, not imported —
-§1), so its promotion candidates are the same ones:
+Project-local components (CLAUDE.md §4) — all in `lib/ui.tsx`.
 
-- `MisShell` / `SideNav` / `Breadcrumbs` / `PageHeading` — the desktop chrome. Every screen wraps in it.
+The desktop chrome is no longer here: `MisShell` is now a thin wrapper that
+holds this project's nav list and renders the shared `AppShell` / `SideNav`
+from `design-system/components`. It used to draw a sidebar-first frame with the
+lockup at the top of the sidebar; it takes the shipped 40px-header frame now.
+
+- `MisShell` — the nav list plus the shared frame. Every screen wraps in it.
+- `PageHeading` — page title row.
 - `Panel` / `PanelHeading` — the white bordered section card. FunDS `Card` is the mobile 16px tile.
 - `SimpleTable` — flat table for the detail pages. `bp`, `task-majelis`.
-- `AmarthaLockup` (inside `SideNav`) — thin wrapper over `<Wordmark name="amartha" />`, now that the corporate lockup ships in `design-system/assets`. The asset gap it recorded is closed.
 - `CaretUp` / `CaretDown` (inside `RateCell`) — `TriangleUpFill` in the shared set is a 24px glyph, far heavier than an 8px caret inline with 12px text.
 
 New here, and the reason the project exists:

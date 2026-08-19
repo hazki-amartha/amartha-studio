@@ -28,6 +28,7 @@ const GUIDELINE_FILES: Record<string, string> = {
   'components/bottom-sheet': 'components/bottom-sheet.md',
   'components/navigation-bar': 'components/navigation-bar.md',
   'components/navigation-header': 'components/navigation-header.md',
+  'components/app-shell': 'components/app-shell.md',
 }
 
 async function loadGuidelines(): Promise<Guidelines> {

@@ -17,7 +17,7 @@
 // device bezel, and the spacing scale deliberately stops at 48px.
 // =============================================================================
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   ArrowLeft,
   Bank,
@@ -32,20 +32,11 @@ import {
   TransferArrow,
   Umbrella,
 } from '@/design-system/icons'
-import { Wordmark } from '@/design-system/assets'
-
-const SIDEBAR_W = 216
-const NAV_ITEM_H = 40
+import { AppShell, SideNav, type AppNavItem } from '@/design-system/components'
 
 // --- Sidebar ----------------------------------------------------------------
 
-interface NavItem {
-  id: string
-  label: string
-  icon: ReactNode
-}
-
-const NAV: NavItem[] = [
+const NAV: AppNavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <Layout size={20} /> },
   { id: 'customer', label: 'Customer', icon: <Contact size={20} /> },
   { id: 'loans', label: 'Loans', icon: <Coins size={20} /> },
@@ -57,73 +48,21 @@ const NAV: NavItem[] = [
   { id: 'product-config', label: 'Product Config', icon: <Sliders size={20} /> },
 ]
 
-const FOOTER_NAV: NavItem[] = [
+const FOOTER_NAV: AppNavItem[] = [
   { id: 'report', label: 'Report', icon: <ChartLineUp size={20} /> },
   { id: 'settings', label: 'Settings', icon: <GearSix size={20} /> },
 ]
 
 const USER = { name: 'Budi Santoso', role: 'Branch Manager', initial: 'B' }
 
-/** The corporate amartha lockup — flower mark plus the word, shipped as artwork
- *  in `design-system/assets`. */
-function AmarthaLockup() {
-  return <Wordmark name="amartha" height={24} />
-}
-
-function SideNav() {
-  return (
-    <nav
-      className="flex shrink-0 flex-col border-r border-default bg-neutral-white"
-      style={{ width: SIDEBAR_W }}
-    >
-      <div className="flex items-center px-16 py-20">
-        <AmarthaLockup />
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col justify-between overflow-y-auto px-8">
-        <div className="flex flex-col">
-          {NAV.map((item) => (
-            <NavButton key={item.id} item={item} active={item.id === 'branches'} />
-          ))}
-        </div>
-        <div className="flex flex-col pb-8">
-          {FOOTER_NAV.map((item) => (
-            <NavButton key={item.id} item={item} active={false} />
-          ))}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-8 border-t border-default bg-neutral-50 px-16 py-12">
-        <span className="flex size-24 shrink-0 items-center justify-center rounded-full bg-green-500 text-12 font-bold text-neutral-white">
-          {USER.initial}
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-12 font-bold text-default">{USER.name}</span>
-          <span className="truncate text-10 text-caption">{USER.role}</span>
-        </span>
-      </div>
-    </nav>
-  )
-}
-
-function NavButton({ item, active }: { item: NavItem; active: boolean }) {
-  return (
-    <span
-      className={`flex items-center gap-12 rounded-8 px-8 text-14 ${
-        active ? 'font-bold text-link' : 'font-regular text-default'
-      }`}
-      style={{ height: NAV_ITEM_H }}
-    >
-      <span className={active ? 'text-link' : 'text-caption'}>{item.icon}</span>
-      <span className="flex-1 truncate text-left">{item.label}</span>
-    </span>
-  )
-}
-
 // --- Shell ------------------------------------------------------------------
 
-/** The whole desktop frame: sidebar left, a scrolling content column on the
- *  tinted canvas. The desktop counterpart to `Screen`, which is mobile-shaped. */
+/**
+ * This project's chrome, so a screen renders `<MisShell>` rather than repeating
+ * the nav list. The frame itself is the shared `AppShell`: the amartha lockup
+ * and the account chip ride in its 40px header, and the hamburger there
+ * collapses the sidebar to an icon rail.
+ */
 export function MisShell({
   breadcrumbs,
   header,
@@ -133,36 +72,27 @@ export function MisShell({
   header?: ReactNode
   children: ReactNode
 }) {
-  return (
-    <div className="flex h-full bg-neutral-white">
-      <SideNav />
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-neutral-50">
-        <div className="shrink-0 border-b border-default bg-neutral-white px-24">
-          {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null}
-          {header}
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-12 px-24 pb-24 pt-16">{children}</div>
-      </div>
-    </div>
-  )
-}
+  // Which nav item is lit is chrome, not flow: this surface lives under
+  // Branches, so it stays local to the shell.
+  const [navId, setNavId] = useState('branches')
 
-function Breadcrumbs({ items }: { items: { label: string; onClick?: () => void }[] }) {
   return (
-    <div className="flex shrink-0 items-center gap-4 py-12 text-12">
-      {items.map((item, i) => (
-        <span key={item.label} className="flex items-center gap-4">
-          {i > 0 ? <span className="text-placeholder">/</span> : null}
-          {item.onClick ? (
-            <button type="button" onClick={item.onClick} className="text-default underline">
-              {item.label}
-            </button>
-          ) : (
-            <span className="text-caption">{item.label}</span>
-          )}
-        </span>
-      ))}
-    </div>
+    <AppShell
+      user={USER.initial}
+      breadcrumbs={breadcrumbs}
+      header={header}
+      contentClassName="gap-12 px-24 pb-24 pt-16"
+      sidebar={(collapsed) => (
+        <SideNav
+          items={[...NAV, ...FOOTER_NAV]}
+          activeId={navId}
+          collapsed={collapsed}
+          onSelect={setNavId}
+        />
+      )}
+    >
+      {children}
+    </AppShell>
   )
 }
 

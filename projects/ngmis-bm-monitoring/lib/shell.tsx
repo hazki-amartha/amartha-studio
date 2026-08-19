@@ -1,7 +1,9 @@
 'use client'
 
-// The BM's sidebar — kept out of the screen so the nav list and the user row
-// are written once rather than repeated wherever the shell is drawn.
+// The BM's sidebar — kept out of the screen so the nav list is written once
+// rather than repeated wherever the shell is drawn. The frame is the shared
+// `AppShell`: the amartha lockup and the account chip ride in its 40px header,
+// and the hamburger there collapses the sidebar to an icon rail.
 
 import { useState, type ReactNode } from 'react'
 import {
@@ -18,9 +20,10 @@ import {
   Transfer,
   Umbrella,
 } from '@/design-system/icons'
-import { MisShell, SideNav, SidebarPromo, type NavItem } from './ui'
+import { AppShell, SideNav, type AppNavItem } from '@/design-system/components'
+import { SidebarPromo } from './ui'
 
-const NAV: NavItem[] = [
+const NAV: AppNavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <Layout size={20} /> },
   { id: 'customer', label: 'Customer', icon: <Contact size={20} /> },
   { id: 'loans', label: 'Loans', icon: <Coins size={20} /> },
@@ -32,7 +35,7 @@ const NAV: NavItem[] = [
   { id: 'product-config', label: 'Product Config', icon: <Sliders size={20} /> },
 ]
 
-const FOOTER_NAV: NavItem[] = [
+const FOOTER_NAV: AppNavItem[] = [
   { id: 'report', label: 'Report', icon: <ChartLineUp size={20} /> },
   { id: 'settings', label: 'Settings', icon: <GearSix size={20} /> },
 ]
@@ -53,17 +56,17 @@ export function BmShell({
   const [navId, setNavId] = useState('dashboard')
 
   return (
-    <MisShell
+    <AppShell
+      user={USER.initial}
       breadcrumbs={breadcrumbs}
       header={header}
-      sidebar={
+      sidebar={(collapsed) => (
         <SideNav
-          items={NAV}
-          footerItems={FOOTER_NAV}
+          items={[...NAV, ...FOOTER_NAV]}
           activeId={navId}
+          collapsed={collapsed}
           onSelect={setNavId}
-          user={USER}
-          promo={
+          footer={
             <SidebarPromo
               icon={<LightningFill size={16} />}
               title="We've updated our portal!"
@@ -73,9 +76,9 @@ export function BmShell({
             />
           }
         />
-      }
+      )}
     >
       {children}
-    </MisShell>
+    </AppShell>
   )
 }

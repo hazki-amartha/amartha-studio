@@ -746,6 +746,20 @@ export function Manifest({ guidelines }: { guidelines: Guidelines }) {
         <Guideline source={guidelines['components/navigation-header']} />
       </Section>
 
+      {/* -------------------------------------------------- App Shell */}
+      <Section
+        id="app-shell"
+        title="App Shell"
+        description="Desktop only — the NG-MIS back-office frame. A 40px header and a 232px sidebar, both persistent. There is no live stage here: it is drawn at 1440×900 and will not fit a phone. Open projects/ngmis-live to see it running."
+      >
+        <CodeBlock
+          code={'<AppShell\n  user="P"\n  breadcrumbs={[{ label: "Home" }, { label: "Branches", current: true }]}\n  header={<PageHeading title="Monitoring BP" />}\n  sidebar={(collapsed) => (\n    <SideNav items={NAV} activeId={navId} collapsed={collapsed} onSelect={setNavId} />\n  )}\n>\n  {/* content */}\n</AppShell>'}
+          copied={copied}
+          copy={copy}
+        />
+        <Guideline source={guidelines['components/app-shell']} />
+      </Section>
+
       {/* -------------------------------------------------- Prompts */}
       <Section id="prompts" title="Prompts" description="Canonical, copy-ready component usage — the shape an agent should reach for first.">
         <CodeBlock
