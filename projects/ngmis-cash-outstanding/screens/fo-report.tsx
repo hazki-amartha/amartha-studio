@@ -38,6 +38,7 @@ import {
   acknowledgeTelat,
   correctNominal,
   markMangkir,
+  requestStatusEdit,
   setFilters,
   setSelectedBp,
   useAcknowledged,
@@ -304,6 +305,7 @@ function CashOutstanding({
     onMangkir: (row: LiveRow) => {
       markMangkir(row.id)
       setSelectedBp(row.name)
+      requestStatusEdit()
       flow.go('fo-user-management')
     },
   }
