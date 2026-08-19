@@ -70,6 +70,66 @@ const homeStates = [
   },
 ]
 
+/**
+ * The "Angsuran Anda" card on Home - alt only — its own selector
+ * (lib/revolving.ts), independent of the AppState signals homeStates above
+ * writes to. Only AWAL is a genuinely new scenario; the other three ride
+ * existing homeStates entries instead of adding three more rows to an
+ * already-10-deep panel:
+ *   - "All clear" (semuaBeres)     → mendekati, kelompok lancar   (2a)
+ *   - "Active mitra" (mitraAktif)  → mendekati, kelompok belum lancar (2b)
+ *   - "Reward at risk" (rewardBerisiko) → menunggak              (3)
+ * See the cardStateStore.set(...) calls added to those three in demo.ts.
+ */
+const cardStates = [
+  {
+    id: 'card-awal',
+    label: 'Early repayment',
+    description: 'Loan repayment in early stages. Nothing to offer but a motivation only.',
+    apply: demo.earlyRepayment,
+  },
+]
+
+/** Only these actually move the "Angsuran Anda" card (see the
+ *  cardStateStore.set(...) calls in demo.ts and cardStates above) — every
+ *  other homeStates entry still drives the rest of Home - alt (Poket,
+ *  billing) exactly as it does on `home`, but leaves this card exactly where
+ *  it was. Marked with a trailing "*" in the panel so a designer isn't left
+ *  wondering why the card didn't change. */
+const CARD_DESIGNED_IDS = new Set([
+  'card-awal',
+  'mitra-baru',
+  'mitra-aktif',
+  'sudah-lunas',
+  'menunggu-konfirmasi',
+  'titip-bayar',
+  'sisa-tunggakan',
+  'semua-beres',
+  'reward-berisiko',
+  'limit-terbuka',
+])
+const markUndesigned = <T extends { id: string; label: string }>(s: T): T =>
+  CARD_DESIGNED_IDS.has(s.id) ? s : { ...s, label: `${s.label} *` }
+
+/** Home - alt's own ordering — Early repayment slotted in at position 2,
+ *  "All clear" moved just above Limit ready to draw. A separate array so
+ *  `home`'s own panel keeps its original order and its unmarked labels.
+ *  "New mitra" is relabelled here only — this is the one state that swaps
+ *  the whole card for "Pinjaman Ibu" rather than moving cardStateStore. */
+const homeAltStates = [
+  { ...homeStates.find((s) => s.id === 'mitra-baru')!, label: 'New Mitra — belum pernah mencairkan' },
+  cardStates[0],
+  homeStates.find((s) => s.id === 'mitra-aktif')!,
+  homeStates.find((s) => s.id === 'menunggu-konfirmasi')!,
+  homeStates.find((s) => s.id === 'sudah-lunas')!,
+  homeStates.find((s) => s.id === 'titip-bayar')!,
+  homeStates.find((s) => s.id === 'sisa-tunggakan')!,
+  homeStates.find((s) => s.id === 'reward-berisiko')!,
+  homeStates.find((s) => s.id === 'sudah-hadir')!,
+  homeStates.find((s) => s.id === 'semua-beres')!,
+  homeStates.find((s) => s.id === 'limit-terbuka')!,
+].map(markUndesigned)
+
 /** Shared by both Perjalanan pendanaan layouts, so a phase means the same
  *  thing on whichever of the two is on screen. */
 const journeyStates = [
@@ -142,6 +202,25 @@ export const project: ProjectModule = {
         { to: 'disburse-amount', label: 'cairkan (mitra baru)' },
       ],
     },
+    // "Alt" set — revolving-credit reframe of the naik-limit card. Sits right
+    // under the screen it's an alternative to, so the two are easy to compare.
+    // home-v2.tsx and progress.tsx / progress-alt.tsx above are untouched;
+    // these read the same store, so a demo state set on either means the same
+    // thing on both.
+    {
+      id: 'home-alt',
+      title: 'Home - alt',
+      component: lazyScreen(() => import('./screens/home-alt'), 'HomeAltScreen'),
+      states: homeAltStates,
+      flowsTo: [
+        { to: 'perjalanan-alt2', label: 'lihat semua' },
+        { to: 'riwayat', label: 'lihat riwayat (status angsuran)' },
+        { to: 'majelis-alt', label: 'cek kelompok (status kelompok)' },
+        { to: 'amount', label: 'bayar' },
+        { to: 'pending', label: 'cek status (awaiting confirmation)' },
+        { to: 'milestone-12-alt', label: 'cairkan pinjaman (limit terbuka)' },
+      ],
+    },
     {
       id: 'progress',
       title: 'Perjalanan 48 minggu',
@@ -156,6 +235,23 @@ export const project: ProjectModule = {
         { to: 'riwayat', label: 'progress pribadi' },
         { to: 'majelis', label: 'progress majelis' },
         { to: 'home', label: 'kembali' },
+      ],
+    },
+    {
+      id: 'perjalanan-alt2',
+      title: 'Perjalanan 48w - alt 2',
+      component: lazyScreen(() => import('./screens/perjalanan-alt2'), 'PerjalananAlt2Screen'),
+      states: journeyStates,
+      flowsTo: [
+        { to: 'milestone-12-alt', label: 'cairkan (rung terbuka)' },
+        { to: 'milestone-unlocked', label: 'rung sudah dicairkan' },
+        { to: 'milestone-progress', label: '6 Okt — lihat progress' },
+        { to: 'milestone-pelunasan', label: '26 Jan — lihat progress' },
+        { to: 'milestone-limit', label: '23 Mar — lihat progress' },
+        { to: 'milestone-missed', label: 'rung terlewat' },
+        { to: 'riwayat', label: 'riwayat angsuran' },
+        { to: 'majelis-alt', label: 'detail majelis' },
+        { to: 'home-alt', label: 'kembali' },
       ],
     },
     {
@@ -232,6 +328,12 @@ export const project: ProjectModule = {
       ],
     },
     {
+      id: 'majelis-alt',
+      title: 'Majelis Melati 07 - alt',
+      component: lazyScreen(() => import('./screens/majelis-alt'), 'MajelisAltScreen'),
+      flowsTo: [{ to: 'home-alt', label: 'kembali' }],
+    },
+    {
       id: 'whatsapp-reminder',
       title: 'Kirim pengingat',
       component: lazyScreen(() => import('./screens/whatsapp-reminder'), 'WhatsAppReminderScreen'),
@@ -244,6 +346,15 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'disburse-amount', label: 'cairkan sekarang' },
         { to: 'progress', label: 'nanti saja' },
+      ],
+    },
+    {
+      id: 'milestone-12-alt',
+      title: 'Milestone minggu 12 - alt',
+      component: lazyScreen(() => import('./screens/milestone-12-alt'), 'Milestone12AltScreen'),
+      flowsTo: [
+        { to: 'cairkan-alt', label: 'cairkan sekarang' },
+        { to: 'home-alt', label: 'nanti saja' },
       ],
     },
     {
@@ -260,6 +371,12 @@ export const project: ProjectModule = {
       title: 'Cairkan modal tambahan',
       component: lazyScreen(() => import('./screens/disburse-amount'), 'DisburseAmountScreen'),
       flowsTo: [{ to: 'disburse-success', label: 'cairkan' }],
+    },
+    {
+      id: 'cairkan-alt',
+      title: 'Cairkan modal tambahan - alt',
+      component: lazyScreen(() => import('./screens/cairkan-alt'), 'CairkanAltScreen'),
+      flowsTo: [{ to: 'home-alt', label: 'cairkan' }],
     },
     {
       id: 'disburse-success',
