@@ -19,14 +19,15 @@ import { MAJELIS_DIRECTORY } from '../lib/schedule'
 import {
   MAJELIS_FILTER_NONE,
   SOURCE_LABEL,
-  STATUS_FILTER_ORDER,
+  STATUS_FILTERS,
   STATUS_META,
   majelisLine,
   matchesMajelis,
+  matchesStatusFilter,
   newMajelisFilterValue,
   statusBadge,
   type PipelineLead,
-  type PipelineStatus,
+  type StatusFilter,
 } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import { TabBar } from '../lib/tabs'
@@ -44,10 +45,13 @@ import {
 
 type MenuId = 'status' | 'majelis' | null
 
-const STATUS_OPTIONS: { label: string; value: PipelineStatus | null }[] = [
+const STATUS_OPTIONS: { label: string; value: StatusFilter | null }[] = [
   { label: 'Semua status', value: null },
-  ...STATUS_FILTER_ORDER.map((s) => ({ label: STATUS_META[s].label, value: s })),
+  ...STATUS_FILTERS,
 ]
+
+const statusChipLabel = (value: StatusFilter): string =>
+  STATUS_FILTERS.find((o) => o.value === value)?.label ?? 'Status'
 
 /**
  * The majelis filter options, from the leads on screen: every active group,
@@ -85,13 +89,10 @@ function SalesRow({ lead, onOpen }: { lead: PipelineLead; onOpen: () => void }) 
       <Avatar name={lead.name} />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="truncate text-14 font-bold text-default">{lead.name}</span>
-        {/* Majelis and source on one line: which group she is bound for — a
-            forming one reads "… (Baru)" in the name itself — and where she came
-            from, the two standing facts about a lead. */}
-        <span className="flex min-w-0 items-center gap-4 text-12 text-caption">
-          <span className="truncate">{majelisLine(lead)}</span>
-          <span className="shrink-0 whitespace-nowrap">· {SOURCE_LABEL[lead.source]}</span>
-        </span>
+        {/* Three stacked lines: name, the majelis she is bound for (a forming
+            one reads "… (Baru)"), then where she came from on its own line. */}
+        <span className="truncate text-12 text-caption">{majelisLine(lead)}</span>
+        <span className="truncate text-12 text-caption">{SOURCE_LABEL[lead.source]}</span>
       </div>
       {/* Status pinned to the right edge, like the DPD badge on a mitra card.
           A finished lead reads as its result — "Berhasil" or "Gagal". */}
@@ -106,7 +107,7 @@ export function SalesScreen() {
   const flow = useFlow()
   const { leads, order } = usePipeline()
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<PipelineStatus | null>(null)
+  const [status, setStatus] = useState<StatusFilter | null>(null)
   const [majelis, setMajelis] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuId>(null)
 
@@ -120,7 +121,7 @@ export function SalesScreen() {
   const rows = all
     .filter((lead) => {
       if (q && !lead.name.toLowerCase().includes(q)) return false
-      if (status && lead.status !== status) return false
+      if (status && !matchesStatusFilter(lead, status)) return false
       if (majelis && !matchesMajelis(lead, majelis)) return false
       return true
     })
@@ -152,7 +153,7 @@ export function SalesScreen() {
 
       <FilterBar>
         <FilterChip
-          label={status ? STATUS_META[status].label : 'Status'}
+          label={status ? statusChipLabel(status) : 'Status'}
           active={Boolean(status)}
           open={menu === 'status'}
           onClick={() => setMenu('status')}

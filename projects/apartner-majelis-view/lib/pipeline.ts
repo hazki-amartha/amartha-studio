@@ -103,15 +103,37 @@ export const STATUS_META: Record<
   selesai: { label: 'Selesai', intent: 'neutral', order: 5 },
 }
 
-/** The filter's status list, in the order the concept spells out. */
-export const STATUS_FILTER_ORDER: PipelineStatus[] = [
-  'baru',
-  'tidak-tertarik',
-  'belum-memutuskan',
-  'tertarik',
-  'diajukan',
-  'selesai',
+/**
+ * What the status filter offers. It splits `selesai` into its two results —
+ * "Berhasil" and "Gagal" — because that is how a finished lead reads on her row
+ * (there is no bare "Selesai" badge), so the filter has to match the words the
+ * BP sees. Order follows the concept, with the two outcomes at the end.
+ */
+export type StatusFilter =
+  | 'baru'
+  | 'tidak-tertarik'
+  | 'belum-memutuskan'
+  | 'tertarik'
+  | 'diajukan'
+  | 'berhasil'
+  | 'gagal'
+
+export const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: 'baru', label: 'Baru' },
+  { value: 'tidak-tertarik', label: 'Tidak tertarik' },
+  { value: 'belum-memutuskan', label: 'Belum memutuskan' },
+  { value: 'tertarik', label: 'Tertarik' },
+  { value: 'diajukan', label: 'Diajukan' },
+  { value: 'berhasil', label: 'Berhasil' },
+  { value: 'gagal', label: 'Gagal' },
 ]
+
+/** Does this lead pass the chosen status filter? */
+export function matchesStatusFilter(lead: PipelineLead, value: StatusFilter): boolean {
+  if (value === 'berhasil') return lead.status === 'selesai' && lead.outcome === 'success'
+  if (value === 'gagal') return lead.status === 'selesai' && lead.outcome === 'failed'
+  return lead.status === value
+}
 
 export const SOURCE_LABEL: Record<LeadSource, string> = {
   referral: 'Referral',
