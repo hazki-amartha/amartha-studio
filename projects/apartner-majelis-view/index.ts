@@ -241,6 +241,7 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/sales'), 'SalesScreen'),
       flowsTo: [
         { to: 'lead-detail', label: 'buka lead' },
+        { to: 'lead-new', label: 'Tambah lead' },
         { to: 'today', label: 'tab Jadwal' },
         { to: 'majelis-list', label: 'tab Majelis' },
         { to: 'mitra-list', label: 'tab Mitra' },
@@ -251,6 +252,12 @@ export const project: ProjectModule = {
       id: 'lead-detail',
       title: 'Detail Lead',
       component: lazyScreen(() => import('./screens/lead-detail'), 'LeadDetailScreen'),
+    },
+    {
+      id: 'lead-new',
+      title: 'Tambah Lead',
+      component: lazyScreen(() => import('./screens/lead-new'), 'LeadNewScreen'),
+      flowsTo: [{ to: 'lead-detail', label: 'simpan → buka record' }],
     },
     {
       id: 'bukti-rekap',

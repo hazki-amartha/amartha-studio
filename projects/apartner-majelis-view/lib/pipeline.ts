@@ -1,63 +1,68 @@
-// The Sales pipeline — the new-concept status model that the Sales tab is built
-// on. It sits alongside `leads.ts` (the sosialisasi capture flow) rather than
-// replacing it: this is the *record* side, every prospect the BP is carrying
-// toward a first loan, drawn as one filterable roster.
+// The Sales pipeline — a two-level status model, per the concept.
 //
-// The pipeline is a straight line of six statuses. A lead moves along it at each
-// follow-up; the status IS the next thing the BP has to do about her, which is
-// why the roster leads with it.
+// A lead carries TWO statuses at once:
 //
-//   Baru            — a fresh lead, never followed up. From a referral or a POI
-//                     visit / sosialisasi.
-//   Tertarik        — wants in. Can be submitted within 2 days; follow up fast.
-//   Belum memutuskan— still weighing it. Follow up after ~1 week.
-//   Tidak tertarik  — a no, for now. Follow up after ~1 month.
-//   Diajukan        — handed to the BM, being processed. Nothing left for the BP.
-//   Selesai         — closed. Either converted to a Mitra (success) or the
-//                     pengajuan failed (failed).
+//   MAIN status (the funnel)   — how far she is toward a disbursed loan:
+//     Unqualified → Qualified → Submitted → Approved → Disbursed, with Rejected
+//     branching off once a loan is in review. This is what the roster sorts and
+//     colours by.
 //
-// Majelis assignment is orthogonal to status (a lead at ANY status can already
-// have a majelis): she joins an existing majelis, a new one the BP is forming,
-// or none yet — in which case only the branch she falls to is fixed.
+//   INTEREST sub-status         — how she feels about it: Interested / Undecided
+//     / Not interested. It only means anything while she is still being worked —
+//     Unqualified and Qualified — because once a loan is Submitted the decision
+//     has left her hands. Submitted and beyond carry no interest.
+//
+// What the two levels gate is the WORK: interest sets the follow-up cadence
+// (3 days / 1 week / 1 month), and the main status sets everything else — when
+// KTP is captured (Qualified), when a loan form goes in (Submitted), and when
+// there is nothing left to do but wait (Submitted, Approved) or nothing left at
+// all (Disbursed → she is a Mitra, Rejected → follow up in 6 months).
 
 import { MAJELIS_DIRECTORY } from './schedule'
 
-export type PipelineStatus =
-  | 'baru'
-  | 'tertarik'
-  | 'belum-memutuskan'
-  | 'tidak-tertarik'
-  | 'diajukan'
-  | 'selesai'
+/** The funnel. A lead sits at exactly one of these. */
+export type MainStatus =
+  | 'unqualified'
+  | 'qualified'
+  | 'submitted'
+  | 'approved'
+  | 'disbursed'
+  | 'rejected'
 
-/** Only meaningful when `status` is `selesai`. */
-export type SelesaiOutcome = 'success' | 'failed'
+/** The interest note — only meaningful at Unqualified / Qualified. */
+export type Interest = 'interested' | 'undecided' | 'not-interested'
+
+/** The two loan products a submission picks between. */
+export type Product = 'GL' | 'Modal'
 
 /** Where the lead came from. */
 export type LeadSource = 'referral' | 'poi'
 
+/** Who referred her — a mitra, or one of the non-mitra kinds. */
+export type ReferrerKind = 'mitra' | 'employee' | 'neighbor' | 'friend'
+
 /**
- * Which majelis she joins — the three shapes the concept calls out.
+ * Which majelis she joins.
  * - `existing` — an active `MAJELIS_DIRECTORY` group.
  * - `new`      — a majelis the BP is forming; `name` is what she is calling it.
- * - `none`     — not assigned to any majelis yet; only her `branch` is fixed.
+ * - `none`     — not assigned yet; only her `branch` is fixed.
  */
 export type MajelisAssignment =
   | { kind: 'existing'; id: string }
   | { kind: 'new'; name: string }
   | { kind: 'none'; branch: string }
 
-/** How a follow-up was made. `poi` is the first touch, in the field. */
+/** How a contact was made. `poi` is the first touch, in the field. */
 export type Channel = 'poi' | 'wa' | 'telepon'
 
 /** One recorded contact — the lead's history, oldest first. */
 export interface PipelineLog {
-  /** "14 Juli" — the day it happened. */
   at: string
   via: Channel
-  /** One line, already phrased for the next person to read it. */
   outcome: string
   note: string
+  /** The follow-up this contact scheduled — the "action selanjutnya" line. */
+  next?: string
 }
 
 export interface PipelineLead {
@@ -65,79 +70,118 @@ export interface PipelineLead {
   name: string
   phone: string
   source: LeadSource
+  /** POI only — which point of interest she was met at. */
+  poi?: string
   /** Referral only — who sent her. */
   referredBy: string
-  status: PipelineStatus
-  /** `selesai` only. */
-  outcome: SelesaiOutcome | null
+  /** Referral only — what kind of person the referrer is. */
+  referrerKind?: ReferrerKind | null
+
+  status: MainStatus
+  /** The interest note. Null once Submitted — the decision has left her hands. */
+  interest: Interest | null
+
   majelis: MajelisAssignment
-  /** Resolved date label — "24 Juli". Null when nothing is scheduled. */
-  followUpAt: string | null
-  /** 16-digit NIK, captured at Ajukan. Empty until then. */
+  /** 16-digit NIK. Present from Qualified onward (the KTP that qualifies her). */
   nik: string
   /** Foto KTP attached. */
   ktp: boolean
+
+  /** The product the loan was submitted under. Null before Submitted. */
+  product: Product | null
+  /** Disbursement amount — requested at Submit, finalised at Approved. */
+  amount: string
+  /** When it disburses / disbursed. Set from Approved onward. */
+  disburseDate: string
+  /** The next follow-up date, set when a call is recorded. */
+  nextFollowUp?: string
+
   log: PipelineLog[]
 }
 
 // --- Vocabulary ------------------------------------------------------------
 
 /**
- * Each status carries its badge intent, so the roster reads by colour before it
- * reads by word. `order` sorts the roster by what needs the BP first: the two
- * live, actionable states up top, closed ones at the bottom.
+ * Each main status carries its badge intent and a funnel `order` the roster
+ * sorts by — the ones the BP still works (Unqualified, Qualified) at the top,
+ * the waiting and closed ones below.
  */
 export const STATUS_META: Record<
-  PipelineStatus,
+  MainStatus,
   {
     label: string
-    intent: 'primary' | 'green' | 'yellow' | 'red' | 'blue' | 'neutral'
+    intent: 'primary' | 'green' | 'yellow' | 'red' | 'blue' | 'orange' | 'neutral'
     order: number
   }
 > = {
-  baru: { label: 'Baru', intent: 'primary', order: 0 },
-  tertarik: { label: 'Tertarik', intent: 'green', order: 1 },
-  'belum-memutuskan': { label: 'Belum memutuskan', intent: 'yellow', order: 2 },
-  'tidak-tertarik': { label: 'Tidak tertarik', intent: 'red', order: 3 },
-  diajukan: { label: 'Diajukan', intent: 'blue', order: 4 },
-  selesai: { label: 'Selesai', intent: 'neutral', order: 5 },
+  unqualified: { label: 'Unqualified', intent: 'neutral', order: 0 },
+  qualified: { label: 'Qualified', intent: 'primary', order: 1 },
+  submitted: { label: 'Submitted', intent: 'blue', order: 2 },
+  approved: { label: 'Approved', intent: 'orange', order: 3 },
+  disbursed: { label: 'Disbursed', intent: 'green', order: 4 },
+  rejected: { label: 'Rejected', intent: 'red', order: 5 },
 }
 
-/**
- * What the status filter offers. It splits `selesai` into its two results —
- * "Berhasil" and "Gagal" — because that is how a finished lead reads on her row
- * (there is no bare "Selesai" badge), so the filter has to match the words the
- * BP sees. Order follows the concept, with the two outcomes at the end.
- */
-export type StatusFilter =
-  | 'baru'
-  | 'tidak-tertarik'
-  | 'belum-memutuskan'
-  | 'tertarik'
-  | 'diajukan'
-  | 'berhasil'
-  | 'gagal'
-
-export const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
-  { value: 'baru', label: 'Baru' },
-  { value: 'tidak-tertarik', label: 'Tidak tertarik' },
-  { value: 'belum-memutuskan', label: 'Belum memutuskan' },
-  { value: 'tertarik', label: 'Tertarik' },
-  { value: 'diajukan', label: 'Diajukan' },
-  { value: 'berhasil', label: 'Berhasil' },
-  { value: 'gagal', label: 'Gagal' },
+export const STATUS_ORDER: MainStatus[] = [
+  'unqualified',
+  'qualified',
+  'submitted',
+  'approved',
+  'disbursed',
+  'rejected',
 ]
 
-/** Does this lead pass the chosen status filter? */
-export function matchesStatusFilter(lead: PipelineLead, value: StatusFilter): boolean {
-  if (value === 'berhasil') return lead.status === 'selesai' && lead.outcome === 'success'
-  if (value === 'gagal') return lead.status === 'selesai' && lead.outcome === 'failed'
-  return lead.status === value
+/**
+ * The interest note — its label, its colour, and the follow-up cadence it sets.
+ * The hint is the "what to do" for a lead still being worked.
+ */
+export const INTEREST_META: Record<
+  Interest,
+  { label: string; intent: 'green' | 'yellow' | 'red'; hint: string }
+> = {
+  interested: { label: 'Interested', intent: 'green', hint: 'Follow up dalam 3 hari' },
+  undecided: { label: 'Undecided', intent: 'yellow', hint: 'Follow up minimal 1 minggu' },
+  'not-interested': { label: 'Not interested', intent: 'red', hint: 'Follow up minimal 1 bulan' },
 }
+
+export const INTEREST_ORDER: Interest[] = ['interested', 'undecided', 'not-interested']
 
 export const SOURCE_LABEL: Record<LeadSource, string> = {
   referral: 'Referral',
   poi: 'POI Visit',
+}
+
+/** The points of interest a POI Visit lead can be captured at. */
+export const POI_LIST = [
+  'Pasar Ciseeng',
+  'Posyandu RW 04',
+  'Balai Desa Ciseeng',
+  'Warung Bu Ipah, Cibeuteung',
+  'Majelis Taklim Al-Hidayah',
+]
+
+/** A short roster of mitra, for the searchable referral picker. */
+export const MITRA_REFERRERS = [
+  'Rina Marlina (Majelis Mawar)',
+  'Yanti Suryani (Majelis Melati)',
+  'Imas Kurniasih (Majelis Kenanga)',
+  'Euis Rohaeti (Majelis Dahlia)',
+  'Nining Suryani (Majelis Seruni)',
+  'Kokom Komariah (Majelis Anggrek)',
+]
+
+/** The non-mitra referrer kinds — the "Others" branch of the referral picker. */
+export const OTHER_REFERRERS: { value: ReferrerKind; label: string }[] = [
+  { value: 'employee', label: 'Karyawan Amartha' },
+  { value: 'neighbor', label: 'Tetangga' },
+  { value: 'friend', label: 'Teman' },
+]
+
+export const REFERRER_KIND_LABEL: Record<ReferrerKind, string> = {
+  mitra: 'Mitra',
+  employee: 'Karyawan Amartha',
+  neighbor: 'Tetangga',
+  friend: 'Teman',
 }
 
 export const CHANNEL_LABEL: Record<Channel, string> = {
@@ -146,99 +190,103 @@ export const CHANNEL_LABEL: Record<Channel, string> = {
   telepon: 'Telepon',
 }
 
-/**
- * When the next follow-up is due, per status — the rule the concept sets on
- * each state. Shown as a hint on the record so the BP knows when to come back.
- * Only the states a BP still works carry one.
- */
-export const FOLLOWUP_HINT: Partial<Record<PipelineStatus, string>> = {
-  tertarik: 'Ajukan dalam 2 hari',
-  'belum-memutuskan': 'Follow up minimal 1 minggu lagi',
-  'tidak-tertarik': 'Follow up minimal 1 bulan lagi',
+// --- Derivations -----------------------------------------------------------
+
+/** Interest only applies while the lead is still the BP's to work. */
+export const hasInterest = (status: MainStatus): boolean =>
+  status === 'unqualified' || status === 'qualified'
+
+/** The status badge a lead wears — main funnel status, coloured. */
+export function statusBadge(lead: PipelineLead): {
+  label: string
+  intent: 'primary' | 'green' | 'yellow' | 'red' | 'blue' | 'orange' | 'neutral'
+} {
+  const meta = STATUS_META[lead.status]
+  return { label: meta.label, intent: meta.intent }
 }
 
 /**
- * What recording a call can change a lead into, per current status — the
- * branches the concept draws off each state. `ajukan` is not a status: it opens
- * the Submit-ke-BM form, which is what moves her to `diajukan`. `diajukan` and
- * `selesai` are absent: once handed to the BM, nothing here is the BP's to do.
+ * The one line of "what to do" for a lead, by status — the concept's action
+ * table. Unqualified / Qualified defer to the interest cadence; everything else
+ * is a fixed instruction.
  */
-export type CallOutcome = PipelineStatus | 'ajukan'
-
-export const CALL_OUTCOMES: Partial<Record<PipelineStatus, { value: CallOutcome; label: string }[]>> = {
-  baru: [
-    { value: 'tertarik', label: 'Tertarik' },
-    { value: 'belum-memutuskan', label: 'Belum memutuskan' },
-    { value: 'tidak-tertarik', label: 'Tidak tertarik' },
-  ],
-  tertarik: [
-    { value: 'ajukan', label: 'Ajukan ke BM' },
-    { value: 'belum-memutuskan', label: 'Belum memutuskan' },
-    { value: 'tidak-tertarik', label: 'Tidak jadi mengajukan' },
-  ],
-  'belum-memutuskan': [
-    { value: 'tertarik', label: 'Tertarik' },
-    { value: 'belum-memutuskan', label: 'Masih belum memutuskan' },
-    { value: 'tidak-tertarik', label: 'Tidak tertarik' },
-  ],
-  'tidak-tertarik': [
-    { value: 'tertarik', label: 'Tertarik' },
-    { value: 'belum-memutuskan', label: 'Belum memutuskan' },
-    { value: 'tidak-tertarik', label: 'Masih tidak tertarik' },
-  ],
+export function statusAction(lead: PipelineLead): string {
+  switch (lead.status) {
+    case 'unqualified':
+    case 'qualified':
+      return lead.interest ? INTEREST_META[lead.interest].hint : 'Hubungi & catat minat'
+    case 'submitted':
+      return 'Menunggu hasil Uji Kelayakan (UK)'
+    case 'approved':
+      return 'Menunggu pencairan'
+    case 'disbursed':
+      return 'Perlakukan sebagai Mitra'
+    case 'rejected':
+      return 'Follow up setelah 6 bulan'
+  }
 }
 
-/** Whether the BP can still act on a lead in this status. */
-export const isActionable = (status: PipelineStatus): boolean =>
-  status !== 'diajukan' && status !== 'selesai'
+/**
+ * The one line under her name: which majelis she is bound for. A new majelis
+ * reads "Majelis X (Baru)"; an unassigned lead reads "Tanpa majelis" (her branch
+ * is not shown — every lead on this surface is already this BP's).
+ */
+export function majelisLine(lead: PipelineLead): string {
+  const m = lead.majelis
+  if (m.kind === 'existing') return MAJELIS_DIRECTORY.find((g) => g.id === m.id)?.name ?? 'Majelis'
+  if (m.kind === 'new') return `${m.name} (Baru)`
+  return 'Tanpa majelis'
+}
 
-// --- Special majelis-filter values -----------------------------------------
-// Beyond each existing group, the majelis filter carries a "Tanpa majelis"
-// bucket, and one entry per NEW majelis — listed by its own name so a group the
-// BP is still forming filters exactly like an existing one, just marked (Baru).
+// --- Detail-row values -----------------------------------------------------
+// The three editable rows on the record — source, majelis, KTP — plus the
+// "action selanjutnya" line and the follow-up date a recorded call schedules.
+
+export function sourceDetail(lead: PipelineLead): string {
+  if (lead.source === 'poi') return lead.poi ? `POI ${lead.poi}` : 'POI Visit'
+  return lead.referredBy ? `Referral · ${lead.referredBy}` : 'Referral'
+}
+
+/** Like `majelisLine`, but an unassigned lead reads "Belum ditentukan". */
+export function majelisDetail(lead: PipelineLead): string {
+  return lead.majelis.kind === 'none' ? 'Belum ditentukan' : majelisLine(lead)
+}
+
+export function ktpDetail(lead: PipelineLead): string {
+  // Once captured, the KTP reads as its number outright — no "Terlampir" prefix.
+  return lead.nik ? lead.nik : 'Belum ada'
+}
+
+const TODAY = new Date(2026, 6, 21) // 21 Juli 2026
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+const fmtDate = (d: Date): string => `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`
+
+/** When to come back, by interest: +3 days / +1 week / +1 month from today. */
+export function followUpDateFor(interest: Interest): string {
+  const d = new Date(TODAY)
+  d.setDate(d.getDate() + (interest === 'interested' ? 3 : interest === 'undecided' ? 7 : 30))
+  return fmtDate(d)
+}
+
+/** The "action selanjutnya" value: a follow-up date while worked, else the wait. */
+export function actionLine(lead: PipelineLead): string {
+  if (hasInterest(lead.status)) {
+    const date = lead.nextFollowUp ?? (lead.interest ? followUpDateFor(lead.interest) : null)
+    return date ? `Follow up - ${date}` : 'Hubungi & catat minat'
+  }
+  return statusAction(lead)
+}
+
+/** How a history entry names its channel: field visits vs. follow-up calls. */
+export const historyChannel = (via: Channel): string => (via === 'poi' ? 'POI Visit' : 'Follow-up')
+
+// --- Filters ---------------------------------------------------------------
 
 export const MAJELIS_FILTER_NONE = '__none__'
-
 const NEW_PREFIX = 'new:'
 
 /** The filter value for a new majelis, keyed by its name. */
 export const newMajelisFilterValue = (name: string): string => `${NEW_PREFIX}${name}`
-
-// --- Derivations -----------------------------------------------------------
-
-/**
- * The one line under her name: which majelis she is bound for. A new majelis
- * reads as its own name with "(Baru)" beside it — "Majelis Cibeuteung (Baru)" —
- * so it names the group like any other, just marked as still being formed.
- */
-export function majelisLine(lead: PipelineLead): string {
-  const m = lead.majelis
-  if (m.kind === 'existing') {
-    return MAJELIS_DIRECTORY.find((g) => g.id === m.id)?.name ?? 'Majelis'
-  }
-  if (m.kind === 'new') return `${m.name} (Baru)`
-  // Branch is intentionally not shown: every lead on this surface already
-  // belongs to this BP, so naming her branch on every row says nothing.
-  return 'Tanpa majelis'
-}
-
-/**
- * The one status badge a lead wears — on her row and at the top of her record.
- * A finished lead reads as its RESULT, one badge: "Berhasil" if she converted,
- * "Gagal" if the pengajuan fell through. Every other status shows its own name.
- */
-export function statusBadge(lead: PipelineLead): {
-  label: string
-  intent: 'primary' | 'green' | 'yellow' | 'red' | 'blue' | 'neutral'
-} {
-  if (lead.status === 'selesai') {
-    return lead.outcome === 'failed'
-      ? { label: 'Gagal', intent: 'red' }
-      : { label: 'Berhasil', intent: 'green' }
-  }
-  const meta = STATUS_META[lead.status]
-  return { label: meta.label, intent: meta.intent }
-}
 
 /** Does this lead pass the chosen majelis filter value? */
 export function matchesMajelis(lead: PipelineLead, value: string): boolean {
@@ -249,8 +297,8 @@ export function matchesMajelis(lead: PipelineLead, value: string): boolean {
 }
 
 // --- Seed ------------------------------------------------------------------
-// Nine leads spanning every status and every majelis shape (existing / new /
-// none), so the roster and its two filters have something real to sort.
+// Leads spanning every main status and, where it applies, every interest —
+// plus the three majelis shapes (existing / new / none).
 
 export const SEED_PIPELINE: PipelineLead[] = [
   {
@@ -258,117 +306,134 @@ export const SEED_PIPELINE: PipelineLead[] = [
     name: 'Dewi Anggraeni',
     phone: '0812-8834-6721',
     source: 'poi',
+    poi: 'Posyandu RW 04',
     referredBy: '',
-    status: 'baru',
-    outcome: null,
+    status: 'unqualified',
+    interest: 'interested',
     majelis: { kind: 'none', branch: 'BP Ciseeng' },
-    followUpAt: null,
     nik: '',
     ktp: false,
+    product: null,
+    amount: '',
+    disburseDate: '',
     log: [
-      { at: '21 Juli', via: 'poi', outcome: 'Lead baru dari POI Visit', note: 'Punya warung sembako, tanya soal modal usaha.' },
+      { at: '21 Juli', via: 'poi', outcome: 'Lead baru dari POI Visit', note: 'Punya warung sembako, tanya soal modal.' },
     ],
   },
   {
     id: 'p2',
-    name: 'Rohaya',
-    phone: '0857-2290-1188',
-    source: 'referral',
-    referredBy: 'Ibu Rina Marlina (Majelis Mawar)',
-    status: 'baru',
-    outcome: null,
-    majelis: { kind: 'existing', id: 'mawar' },
-    followUpAt: null,
+    name: 'Sri Mulyani',
+    phone: '0858-7712-2043',
+    source: 'poi',
+    poi: 'Pasar Cibeuteung',
+    referredBy: '',
+    status: 'unqualified',
+    interest: 'undecided',
+    majelis: { kind: 'none', branch: 'BP Ciseeng' },
     nik: '',
     ktp: false,
+    product: null,
+    amount: '',
+    disburseDate: '',
+    nextFollowUp: '27 Jul 2026',
     log: [
-      { at: '21 Juli', via: 'poi', outcome: 'Referral dari Bu Rina', note: 'Tetangga Bu Rina, belum sempat dihubungi.' },
+      { at: '3 Juli', via: 'telepon', outcome: 'Interested', note: '', next: '20 Jul 2026' },
+      { at: '20 Juli', via: 'telepon', outcome: 'Undecided', note: 'mau bicara dengan suami', next: '27 Jul 2026' },
     ],
   },
   {
     id: 'p3',
-    name: 'Nia Kurniasih',
-    phone: '0813-6612-4408',
-    source: 'poi',
-    referredBy: '',
-    status: 'tertarik',
-    outcome: null,
-    majelis: { kind: 'existing', id: 'melati' },
-    followUpAt: '22 Juli',
-    nik: '',
-    ktp: false,
-    log: [
-      { at: '14 Juli', via: 'poi', outcome: 'Lead baru dari POI Visit', note: 'Banyak bertanya soal tanggung renteng.' },
-      { at: '18 Juli', via: 'telepon', outcome: 'Tertarik · minta diajukan minggu ini', note: 'Siap ikut Majelis Melati.' },
-    ],
-  },
-  {
-    id: 'p4',
-    name: 'Yuyun Wahyuni',
-    phone: '0812-3390-5514',
-    source: 'referral',
-    referredBy: 'Bu Imas (tokoh warga)',
-    status: 'tertarik',
-    outcome: null,
-    majelis: { kind: 'new', name: 'Majelis Cibeuteung' },
-    followUpAt: '23 Juli',
-    nik: '',
-    ktp: false,
-    log: [
-      { at: '15 Juli', via: 'poi', outcome: 'Referral dari Bu Imas', note: 'Mau ajak 4 tetangga bikin majelis baru.' },
-      { at: '19 Juli', via: 'wa', outcome: 'Tertarik · sedang kumpulkan anggota', note: '' },
-    ],
-  },
-  {
-    id: 'p5',
-    name: 'Sri Mulyani',
-    phone: '0858-7712-2043',
-    source: 'poi',
-    referredBy: '',
-    status: 'belum-memutuskan',
-    outcome: null,
-    majelis: { kind: 'none', branch: 'BP Ciseeng' },
-    followUpAt: '28 Juli',
-    nik: '',
-    ktp: false,
-    log: [
-      { at: '14 Juli', via: 'poi', outcome: 'Lead baru dari POI Visit', note: '' },
-      { at: '20 Juli', via: 'telepon', outcome: 'Belum memutuskan · mau bicara dengan suami', note: 'Hubungi lagi minggu depan.' },
-    ],
-  },
-  {
-    id: 'p6',
     name: 'Halimah',
     phone: '0821-4456-9910',
     source: 'referral',
     referredBy: 'Ibu Yanti (Majelis Kenanga)',
-    status: 'tidak-tertarik',
-    outcome: null,
+    status: 'unqualified',
+    interest: 'not-interested',
     majelis: { kind: 'existing', id: 'kenanga' },
-    followUpAt: '21 Agustus',
     nik: '',
     ktp: false,
+    product: null,
+    amount: '',
+    disburseDate: '',
     log: [
-      { at: '13 Juli', via: 'poi', outcome: 'Referral dari Bu Yanti', note: '' },
-      { at: '17 Juli', via: 'wa', outcome: 'Tidak tertarik · masih ada pinjaman lain', note: 'Keberatan angsuran mingguan.' },
+      { at: '17 Juli', via: 'wa', outcome: 'Not interested · masih ada pinjaman lain', note: 'Keberatan angsuran mingguan.' },
     ],
   },
   {
-    id: 'p7',
+    id: 'p4',
+    name: 'Nia Kurniasih',
+    phone: '0813-6612-4408',
+    source: 'poi',
+    poi: 'Pasar Ciseeng',
+    referredBy: '',
+    status: 'qualified',
+    interest: 'interested',
+    majelis: { kind: 'existing', id: 'melati' },
+    nik: '3201094507900012',
+    ktp: true,
+    product: null,
+    amount: '',
+    disburseDate: '',
+    log: [
+      { at: '14 Juli', via: 'poi', outcome: 'Lead baru dari POI Visit', note: '' },
+      { at: '18 Juli', via: 'telepon', outcome: 'Qualified · KTP dilengkapi', note: 'Siap ikut Majelis Melati.' },
+    ],
+  },
+  {
+    id: 'p5',
+    name: 'Yuyun Wahyuni',
+    phone: '0812-3390-5514',
+    source: 'referral',
+    referredBy: 'Bu Imas (tokoh warga)',
+    status: 'qualified',
+    interest: 'undecided',
+    majelis: { kind: 'new', name: 'Majelis Cibeuteung' },
+    nik: '3201095203910022',
+    ktp: true,
+    product: null,
+    amount: '',
+    disburseDate: '',
+    log: [
+      { at: '15 Juli', via: 'poi', outcome: 'Referral dari Bu Imas', note: 'Mau ajak tetangga bikin majelis baru.' },
+      { at: '19 Juli', via: 'wa', outcome: 'Qualified · masih menimbang', note: '' },
+    ],
+  },
+  {
+    id: 'p6',
     name: 'Euis Komariah',
     phone: '0813-9987-3320',
     source: 'poi',
     referredBy: '',
-    status: 'diajukan',
-    outcome: null,
+    status: 'submitted',
+    interest: null,
     majelis: { kind: 'existing', id: 'mawar' },
-    followUpAt: null,
     nik: '3201094507880002',
     ktp: true,
+    product: 'Modal',
+    amount: 'Rp3.000.000',
+    disburseDate: '',
     log: [
-      { at: '12 Juli', via: 'poi', outcome: 'Lead baru dari POI Visit', note: '' },
-      { at: '16 Juli', via: 'telepon', outcome: 'Tertarik · data dilengkapi', note: '' },
-      { at: '20 Juli', via: 'telepon', outcome: 'Diajukan ke BM', note: 'Plafon Rp3.000.000, Majelis Mawar.' },
+      { at: '16 Juli', via: 'telepon', outcome: 'Qualified · data lengkap', note: '' },
+      { at: '20 Juli', via: 'telepon', outcome: 'Pengajuan dikirim · menunggu UK', note: 'Produk Modal, plafon Rp3.000.000.' },
+    ],
+  },
+  {
+    id: 'p7',
+    name: 'Rohaya',
+    phone: '0857-2290-1188',
+    source: 'referral',
+    referredBy: 'Ibu Rina Marlina (Majelis Mawar)',
+    status: 'approved',
+    interest: null,
+    majelis: { kind: 'existing', id: 'mawar' },
+    nik: '3201096007920003',
+    ktp: true,
+    product: 'GL',
+    amount: 'Rp2.000.000',
+    disburseDate: '24 Juli',
+    log: [
+      { at: '15 Juli', via: 'telepon', outcome: 'Pengajuan dikirim', note: '' },
+      { at: '19 Juli', via: 'telepon', outcome: 'Approved · lolos UK', note: 'Cair Rp2.000.000 pada 24 Juli.' },
     ],
   },
   {
@@ -377,16 +442,17 @@ export const SEED_PIPELINE: PipelineLead[] = [
     phone: '0856-1123-8842',
     source: 'referral',
     referredBy: 'Bu Yanti (Majelis Melati)',
-    status: 'selesai',
-    outcome: 'success',
+    status: 'disbursed',
+    interest: null,
     majelis: { kind: 'existing', id: 'melati' },
-    followUpAt: null,
     nik: '3201095102900007',
     ktp: true,
+    product: 'GL',
+    amount: 'Rp2.500.000',
+    disburseDate: '18 Juli',
     log: [
-      { at: '5 Juli', via: 'poi', outcome: 'Referral dari Bu Yanti', note: '' },
-      { at: '10 Juli', via: 'telepon', outcome: 'Diajukan ke BM', note: '' },
-      { at: '18 Juli', via: 'telepon', outcome: 'Berhasil · jadi mitra Majelis Melati', note: '' },
+      { at: '10 Juli', via: 'telepon', outcome: 'Pengajuan dikirim', note: '' },
+      { at: '18 Juli', via: 'telepon', outcome: 'Disbursed · jadi mitra Majelis Melati', note: 'Cair Rp2.500.000.' },
     ],
   },
   {
@@ -395,16 +461,17 @@ export const SEED_PIPELINE: PipelineLead[] = [
     phone: '0819-2278-6605',
     source: 'poi',
     referredBy: '',
-    status: 'selesai',
-    outcome: 'failed',
+    status: 'rejected',
+    interest: null,
     majelis: { kind: 'existing', id: 'dahlia' },
-    followUpAt: null,
     nik: '3201096003910004',
     ktp: true,
+    product: 'Modal',
+    amount: 'Rp3.000.000',
+    disburseDate: '',
     log: [
-      { at: '4 Juli', via: 'poi', outcome: 'Lead baru dari POI Visit', note: '' },
-      { at: '9 Juli', via: 'telepon', outcome: 'Diajukan ke BM', note: '' },
-      { at: '15 Juli', via: 'telepon', outcome: 'Gagal · tidak lolos pengajuan', note: 'Skor kredit tidak memenuhi.' },
+      { at: '9 Juli', via: 'telepon', outcome: 'Pengajuan dikirim', note: '' },
+      { at: '15 Juli', via: 'telepon', outcome: 'Rejected · tidak lolos UK', note: 'Skor kredit tidak memenuhi.' },
     ],
   },
 ]

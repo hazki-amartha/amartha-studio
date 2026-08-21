@@ -2,38 +2,36 @@
 
 // Sales — the BP's lead pipeline, as one filterable roster.
 //
-// This is the record side of selling: every prospect she is carrying toward a
-// first loan, at whatever point in the line she left them. The list leads with
-// STATUS because the status is the next thing she has to do about a lead —
-// "Baru" means call her, "Tertarik" means submit within two days, "Diajukan"
-// means wait. Colour carries it before the word does.
-//
-// Two filters, the same split as the Mitra tab: by status (where a lead is in
-// the pipeline) and by majelis (which group she is bound for — an existing one,
-// a new one being formed, or none yet). Search is for a woman she can name.
+// Every row carries the TWO statuses the concept splits: the main funnel status
+// as the coloured badge on the right (Unqualified → … → Disbursed / Rejected),
+// and — only while she is still being worked — the interest note as a small tag
+// on her source line. Three filters mirror the model: main status, interest, and
+// which majelis she is bound for.
 
 import { useState } from 'react'
-import { Badge, NavigationHeader } from '@/design-system/components'
+import { Badge, BottomSheet, NavigationHeader, SelectableCard } from '@/design-system/components'
+import { Plus } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS_DIRECTORY } from '../lib/schedule'
 import {
+  INTEREST_META,
+  INTEREST_ORDER,
   MAJELIS_FILTER_NONE,
-  SOURCE_LABEL,
-  STATUS_FILTERS,
   STATUS_META,
+  STATUS_ORDER,
+  hasInterest,
   majelisLine,
   matchesMajelis,
-  matchesStatusFilter,
   newMajelisFilterValue,
   statusBadge,
+  type Interest,
+  type MainStatus,
   type PipelineLead,
-  type StatusFilter,
 } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import { TabBar } from '../lib/tabs'
 import {
   AppScreen,
-  Avatar,
   EmptyState,
   FilterBar,
   FilterChip,
@@ -43,22 +41,33 @@ import {
   VisitTitle,
 } from '../lib/ui'
 
-type MenuId = 'status' | 'majelis' | null
+type MenuId = 'status' | 'interest' | 'majelis' | null
 
-const STATUS_OPTIONS: { label: string; value: StatusFilter | null }[] = [
-  { label: 'Semua status', value: null },
-  ...STATUS_FILTERS,
-]
+// Status and Minat are multi-select — an empty set means "all", so these lists
+// carry only the real values (no "Semua" row; the Reset link clears them).
+const STATUS_OPTIONS: { label: string; value: MainStatus }[] = STATUS_ORDER.map((s) => ({
+  label: STATUS_META[s].label,
+  value: s,
+}))
 
-const statusChipLabel = (value: StatusFilter): string =>
-  STATUS_FILTERS.find((o) => o.value === value)?.label ?? 'Status'
+const INTEREST_OPTIONS: { label: string; value: Interest }[] = INTEREST_ORDER.map((i) => ({
+  label: INTEREST_META[i].label,
+  value: i,
+}))
 
-/**
- * The majelis filter options, from the leads on screen: every active group,
- * then one entry per NEW majelis (by its own name, marked "(Baru)"), then the
- * unassigned bucket. New majelis are listed individually rather than under one
- * "Majelis baru" bucket so each forming group filters like a real one.
- */
+/** Toggles a value in/out of a multi-select array. */
+function toggle<T>(arr: T[], v: T): T[] {
+  return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]
+}
+
+/** The chip label for a multi-select filter: the single choice, or "Name +n". */
+function multiLabel<T>(selected: T[], label: (v: T) => string, fallback: string): string {
+  if (selected.length === 0) return fallback
+  if (selected.length === 1) return label(selected[0])
+  return `${label(selected[0])} +${selected.length - 1}`
+}
+
+/** The majelis filter options, from the leads on screen. */
 function majelisOptions(leads: PipelineLead[]): { label: string; value: string | null }[] {
   const newNames = Array.from(
     new Set(leads.flatMap((l) => (l.majelis.kind === 'new' ? [l.majelis.name] : []))),
@@ -77,8 +86,53 @@ function majelisOptions(leads: PipelineLead[]): { label: string; value: string |
   ]
 }
 
+// The interest note as coloured text (not a chip) under the majelis name. Yellow
+// reads illegibly small, so Undecided borrows the orange it shades toward.
+const INTEREST_TEXT: Record<Interest, string> = {
+  interested: 'text-green-600',
+  undecided: 'text-orange-600',
+  'not-interested': 'text-red-500',
+}
+
+/** A multi-select filter sheet — checkboxes, toggled live; empty = all. */
+function MultiOptionSheet<T extends string>({
+  open,
+  title,
+  name,
+  options,
+  values,
+  onToggle,
+  onClose,
+}: {
+  open: boolean
+  title: string
+  name: string
+  options: { label: string; value: T }[]
+  values: T[]
+  onToggle: (v: T) => void
+  onClose: () => void
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} title={title}>
+      <div className="flex flex-col gap-8">
+        {options.map((o) => (
+          <SelectableCard
+            key={o.value}
+            name={name}
+            inputType="checkbox"
+            title={o.label}
+            checked={values.includes(o.value)}
+            onChange={() => onToggle(o.value)}
+          />
+        ))}
+      </div>
+    </BottomSheet>
+  )
+}
+
 function SalesRow({ lead, onOpen }: { lead: PipelineLead; onOpen: () => void }) {
   const badge = statusBadge(lead)
+  const interest = hasInterest(lead.status) && lead.interest ? lead.interest : null
 
   return (
     <button
@@ -86,16 +140,18 @@ function SalesRow({ lead, onOpen }: { lead: PipelineLead; onOpen: () => void }) 
       onClick={onOpen}
       className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
     >
-      <Avatar name={lead.name} />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="truncate text-14 font-bold text-default">{lead.name}</span>
-        {/* Three stacked lines: name, the majelis she is bound for (a forming
-            one reads "… (Baru)"), then where she came from on its own line. */}
         <span className="truncate text-12 text-caption">{majelisLine(lead)}</span>
-        <span className="truncate text-12 text-caption">{SOURCE_LABEL[lead.source]}</span>
+        {/* The interest note — the sub-status — as coloured text, shown only
+            while she is still being worked. */}
+        {interest ? (
+          <span className={`truncate text-12 font-bold ${INTEREST_TEXT[interest]}`}>
+            {INTEREST_META[interest].label}
+          </span>
+        ) : null}
       </div>
-      {/* Status pinned to the right edge, like the DPD badge on a mitra card.
-          A finished lead reads as its result — "Berhasil" or "Gagal". */}
+      {/* Main funnel status, pinned right like the DPD badge on a mitra card. */}
       <div className="flex shrink-0">
         <Badge intent={badge.intent}>{badge.label}</Badge>
       </div>
@@ -107,7 +163,8 @@ export function SalesScreen() {
   const flow = useFlow()
   const { leads, order } = usePipeline()
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<StatusFilter | null>(null)
+  const [status, setStatus] = useState<MainStatus[]>([])
+  const [interest, setInterest] = useState<Interest[]>([])
   const [majelis, setMajelis] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuId>(null)
 
@@ -121,19 +178,17 @@ export function SalesScreen() {
   const rows = all
     .filter((lead) => {
       if (q && !lead.name.toLowerCase().includes(q)) return false
-      if (status && !matchesStatusFilter(lead, status)) return false
+      if (status.length > 0 && !status.includes(lead.status)) return false
+      if (interest.length > 0 && !(lead.interest && interest.includes(lead.interest))) return false
       if (majelis && !matchesMajelis(lead, majelis)) return false
       return true
     })
-    // Actionable first: Baru and Tertarik up top, closed leads at the bottom;
-    // name breaks ties within a status.
     .sort(
       (a, b) =>
-        STATUS_META[a.status].order - STATUS_META[b.status].order ||
-        a.name.localeCompare(b.name),
+        STATUS_META[a.status].order - STATUS_META[b.status].order || a.name.localeCompare(b.name),
     )
 
-  const filtered = Boolean(status || majelis)
+  const filtered = status.length > 0 || interest.length > 0 || Boolean(majelis)
 
   return (
     <AppScreen
@@ -141,22 +196,30 @@ export function SalesScreen() {
         <NavigationHeader
           hideBack
           title={<VisitTitle title="Sales" when={`${all.length} lead`} />}
+          link={
+            <span className="flex items-center gap-4">
+              <Plus size={16} />
+              Tambah
+            </span>
+          }
+          onLinkClick={() => flow.go('lead-new')}
         />
       }
     >
-      <SearchField
-        value={query}
-        onChange={setQuery}
-        placeholder="Cari nama lead"
-        label="Cari lead"
-      />
+      <SearchField value={query} onChange={setQuery} placeholder="Cari nama lead" label="Cari lead" />
 
       <FilterBar>
         <FilterChip
-          label={status ? statusChipLabel(status) : 'Status'}
-          active={Boolean(status)}
+          label={multiLabel(status, (s) => STATUS_META[s].label, 'Status')}
+          active={status.length > 0}
           open={menu === 'status'}
           onClick={() => setMenu('status')}
+        />
+        <FilterChip
+          label={multiLabel(interest, (i) => INTEREST_META[i].label, 'Minat')}
+          active={interest.length > 0}
+          open={menu === 'interest'}
+          onClick={() => setMenu('interest')}
         />
         <FilterChip
           label={majelis ? majelisChipLabel(majelis) : 'Majelis'}
@@ -167,7 +230,8 @@ export function SalesScreen() {
         {filtered ? (
           <ResetLink
             onClick={() => {
-              setStatus(null)
+              setStatus([])
+              setInterest([])
               setMajelis(null)
             }}
           />
@@ -182,7 +246,7 @@ export function SalesScreen() {
 
       <div className="flex flex-col gap-8 pb-16">
         {rows.length === 0 ? (
-          <EmptyState title="Lead tidak ditemukan" body="Coba nama, status, atau majelis lain." />
+          <EmptyState title="Lead tidak ditemukan" body="Coba nama, status, minat, atau majelis lain." />
         ) : null}
         {rows.map((lead) => (
           <SalesRow
@@ -198,16 +262,22 @@ export function SalesScreen() {
 
       <TabBar active="sales" />
 
-      <OptionSheet
+      <MultiOptionSheet
         open={menu === 'status'}
         title="Status lead"
         name="sales-status"
         options={STATUS_OPTIONS}
-        value={status}
-        onPick={(v) => {
-          setStatus(v)
-          setMenu(null)
-        }}
+        values={status}
+        onToggle={(v) => setStatus((prev) => toggle(prev, v))}
+        onClose={() => setMenu(null)}
+      />
+      <MultiOptionSheet
+        open={menu === 'interest'}
+        title="Minat"
+        name="sales-interest"
+        options={INTEREST_OPTIONS}
+        values={interest}
+        onToggle={(v) => setInterest((prev) => toggle(prev, v))}
         onClose={() => setMenu(null)}
       />
       <OptionSheet
