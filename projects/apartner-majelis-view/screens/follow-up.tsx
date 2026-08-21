@@ -1,56 +1,59 @@
 'use client'
 
-// Follow Up — the call that decides what becomes of a prospect.
+// Follow Up — the call that decides what becomes of a prospect, drawn as the
+// same kind of guided task as a majelis visit or a home visit: a stepper on top,
+// one question per page, a sticky action at the foot.
 //
-// It is the same shape as a home visit and for the same reason: both are one
-// person, both branch on whether you reached her at all, and both are worthless
-// unless the outcome carries a date. So the page asks the tree in one place and
-// grows as she answers, exactly as the doorstep does.
+// Two steps, because a follow-up is two facts asked in order:
 //
-// Three things this screen insists on that a generic "log a call" form doesn't:
+//   1. HASIL KONTAK — did it land at all? Most calls don't connect, and a form
+//      that opened on "how interested is she?" made an unanswered call look like
+//      a lead who went cold. Reached / not answered / wrong number each end the
+//      task their own way; only "Terhubung" carries on to step 2.
+//   2. MINAT SEKARANG — where she stands now, in the SAME words the Sales
+//      pipeline uses (Interested / Undecided / Not interested), so a follow up
+//      and a Sales record grade a prospect the same way. Picking one opens a
+//      bottom sheet to note why, and that note closes the task.
 //
-// * DID IT LAND is asked first, before minat. Most follow-ups don't connect,
-//   and a form that opens on "how interested is she?" makes an unanswered call
-//   look like a lead who went cold. They are completely different facts and
-//   only one of them is about her.
-// * THE BRIEF IS ABOVE THE FORM. What she said last time, and the loan that is
-//   the reason she is being called in July rather than April, sit above the
-//   controls — a BP dials with the phone at her ear and cannot scroll to
-//   remember who this is.
-// * SIAP DIAJUKAN IS GATED ON COMPLETE DATA. Handing onboarding a prospect
-//   without an address or a majelis is how a qualified lead becomes a ticket.
-//   The gate names what's missing and offers the jump to fill it, which is the
-//   navigation the draft lives in the store to survive.
+// The brief sits above the controls on step 1: what she said last time, and the
+// loan that is the reason she is being called now, because a BP dials with the
+// phone at her ear and cannot scroll to remember who this is.
 
 import { useState } from 'react'
-import { Badge, Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
+import { BottomSheet, Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
 import { rupiah } from '../lib/data'
-import {
-  CONTACT_RESULTS,
-  FOLLOW_UP_OPTIONS,
-  INTEREST_META,
-  INTEREST_ORDER,
-  NO_REASONS,
-  missingFields,
-  type ContactResult,
-} from '../lib/leads'
+import { CONTACT_RESULTS, FOLLOW_UP_OPTIONS, type ContactResult, type Interest } from '../lib/leads'
 import { LeadIdentityCard } from '../lib/lead-card'
+import { INTEREST_META, INTEREST_ORDER, type Interest as PipelineInterest } from '../lib/pipeline'
 import { findMajelisEntry } from '../lib/schedule'
 import { openLead, rescheduleCount, store, useApp } from '../lib/store'
-import { AppScreen, Chip, ChipGroup, RescheduleSheet, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
+import {
+  AppScreen,
+  Chip,
+  ChipGroup,
+  RescheduleSheet,
+  SectionTitle,
+  StageBar,
+  StickyBar,
+  VisitTitle,
+} from '../lib/ui'
 
-const NEXT_STEPS: { value: 'siap' | 'lanjut' | 'tidak'; title: string; description: string }[] = [
-  {
-    value: 'siap',
-    title: 'Siap diajukan',
-    description: 'Serahkan ke onboarding — masuk hitungan mitra baru bulan ini',
-  },
-  { value: 'lanjut', title: 'Follow up lagi', description: 'Masih tertarik, belum waktunya' },
-  { value: 'tidak', title: 'Tidak tertarik', description: 'Tutup prospek dengan alasan' },
-]
+const STEP_LABELS = ['Hasil kontak', 'Minat sekarang']
 
-/** Why the number didn't work. Only one of these is recoverable. */
+/**
+ * The interest options, taken from the Sales pipeline so a follow-up records the
+ * same three answers (Interested / Undecided / Not interested) the roster filters
+ * on. Each maps back to this flow's own lead grade for the record it writes.
+ */
+type Minat = PipelineInterest
+const MINAT_OPTIONS: Minat[] = INTEREST_ORDER
+const MINAT_TO_INTEREST: Record<Minat, Interest> = {
+  interested: 'tinggi',
+  undecided: 'sedang',
+  'not-interested': 'tidak',
+}
+
 const WRONG_NUMBER_NOTE =
   'Prospek ditutup. Jika ada nomor lain dari perujuk atau tetangga, catat di bawah dan buat prospek baru.'
 
@@ -58,11 +61,31 @@ export function FollowUpScreen() {
   const flow = useFlow()
   const s = useApp()
   const lead = openLead(s)
-  const draft = s.followUp
-  const gaps = missingFields(lead)
   const lastLog = lead.log[lead.log.length - 1]
   const rostered = s.activeTask !== null
+
+  const [step, setStep] = useState<1 | 2>(1)
+  const [contact, setContact] = useState<ContactResult | null>(null)
+  const [via, setVia] = useState<'wa' | 'telepon'>('wa')
+  const [retryDate, setRetryDate] = useState<string | null>(null)
+  const [altNumber, setAltNumber] = useState('')
+  const [minat, setMinat] = useState<Minat | null>(null)
+  const [reasonOpen, setReasonOpen] = useState(false)
+  const [note, setNote] = useState('')
   const [rescheduling, setRescheduling] = useState(false)
+
+  const connected = contact === 'terhubung'
+  const retry = contact === 'tidak-diangkat'
+  const dead = contact === 'nomor-salah'
+
+  function done() {
+    if (rostered) {
+      store.finishTask()
+      flow.go('today')
+    } else {
+      flow.go('lead')
+    }
+  }
 
   function reschedule(reason: string, date: string) {
     if (s.activeTask) store.rescheduleTask(s.activeTask, reason, date)
@@ -76,314 +99,242 @@ export function FollowUpScreen() {
     flow.go('today')
   }
 
-  const set = (patch: Parameters<typeof store.setFollowUpDraft>[0]) => store.setFollowUpDraft(patch)
+  // --- Step 1 outcomes that finish without a minat ------------------------
 
-  const connected = draft.contact === 'terhubung'
-  const retry = draft.contact === 'tidak-diangkat'
-  const dead = draft.contact === 'nomor-salah'
-
-  // "Siap diajukan" is the only outcome the record can veto.
-  const canQualify = gaps.length === 0
-
-  const ready =
-    draft.contact !== null &&
-    (dead ||
-      (retry && draft.followUpPicked) ||
-      (connected &&
-        draft.interest !== null &&
-        ((draft.next === 'siap' && canQualify) ||
-          (draft.next === 'lanjut' && draft.followUpPicked) ||
-          (draft.next === 'tidak' && draft.reason !== ''))))
-
-  function save() {
-    if (!ready) return
-
-    const stage = dead || draft.next === 'tidak' ? 'tidak' : draft.next === 'siap' ? 'siap' : 'follow-up'
-
-    const outcome = dead
-      ? 'Nomor tidak aktif · prospek ditutup'
-      : retry
-        ? `Tidak diangkat · coba lagi ${draft.followUpAt ?? 'belum dijadwalkan'}`
-        : draft.next === 'siap'
-          ? 'Terhubung · siap diajukan ke onboarding'
-          : draft.next === 'tidak'
-            ? `Terhubung · tidak tertarik — ${draft.reason}`
-            : `Terhubung · ${draft.interest ? INTEREST_META[draft.interest].label.toLowerCase() : 'minat dicatat'} · follow up ${draft.followUpAt ?? 'belum dijadwalkan'}`
-
+  function saveRetry() {
     store.recordFollowUp(lead.id, {
-      contact: draft.contact as ContactResult,
-      via: draft.via,
-      // An unanswered call says nothing about how interested she is, so it must
-      // not overwrite the grade her last real conversation earned.
-      interest: connected ? draft.interest : null,
-      stage,
-      reason: draft.next === 'tidak' ? draft.reason : dead ? 'Nomor tidak aktif' : draft.reason,
-      followUpAt: stage === 'follow-up' ? draft.followUpAt : null,
-      followUpTomorrow: stage === 'follow-up' && draft.followUpAt === '22 Juli',
-      note: draft.note,
-      outcome,
+      contact: 'tidak-diangkat',
+      via,
+      interest: null,
+      stage: 'follow-up',
+      reason: '',
+      followUpAt: retryDate,
+      followUpTomorrow: retryDate === '22 Juli',
+      note: '',
+      outcome: `Tidak diangkat · coba lagi ${retryDate ?? 'belum dijadwalkan'}`,
     })
-
-    // Only a rostered call closes a row on the day. The same follow-up reached
-    // from her record page is real work with no task behind it.
-    if (rostered) {
-      store.finishTask()
-      flow.go('today')
-    } else {
-      flow.go('lead')
-    }
+    done()
   }
+
+  function saveDead() {
+    store.recordFollowUp(lead.id, {
+      contact: 'nomor-salah',
+      via,
+      interest: null,
+      stage: 'tidak',
+      reason: 'Nomor tidak aktif',
+      followUpAt: null,
+      followUpTomorrow: false,
+      note: altNumber.trim(),
+      outcome: 'Nomor tidak aktif · prospek ditutup',
+    })
+    done()
+  }
+
+  // --- Step 2 outcome: reached, with a grade and a reason -----------------
+
+  function saveConnected() {
+    if (!minat) return
+    store.recordFollowUp(lead.id, {
+      contact: 'terhubung',
+      via,
+      interest: MINAT_TO_INTEREST[minat],
+      stage: minat === 'not-interested' ? 'tidak' : 'follow-up',
+      reason: note.trim(),
+      followUpAt: null,
+      followUpTomorrow: false,
+      note: note.trim(),
+      outcome: `Terhubung · ${INTEREST_META[minat].label}`,
+    })
+    setReasonOpen(false)
+    done()
+  }
+
+  // What the sticky action does, per state.
+  const step1Ready = dead || (retry && retryDate !== null) || connected
 
   return (
     <AppScreen
       topBar={
         <NavigationHeader
           title={<VisitTitle title={lead.name} when="Follow up · Selasa, 11.45" />}
-          link={rostered ? 'Jadwal ulang' : undefined}
-          onLinkClick={rostered ? () => setRescheduling(true) : undefined}
-          onBack={() => flow.go(rostered ? 'today' : 'lead')}
+          link={rostered && step === 1 ? 'Jadwal ulang' : undefined}
+          onLinkClick={rostered && step === 1 ? () => setRescheduling(true) : undefined}
+          onBack={() => {
+            if (step === 2) setStep(1)
+            else flow.go(rostered ? 'today' : 'lead')
+          }}
         />
       }
     >
-      {/* Tapping WhatsApp or the handset records the channel, so the log says
-          how she was reached rather than assuming. */}
-      <LeadIdentityCard lead={lead} onContact={(via) => set({ via })} />
+      <StageBar current={step} labels={STEP_LABELS} />
 
-      {/* --- The brief. Everything the BP needs in her head before the line
-          connects, and nothing she needs afterwards. */}
-      <Card>
-        <div className="flex flex-col gap-8">
-          <span className="text-14 font-bold text-default">Sebelum menghubungi</span>
-          {lastLog ? (
-            <div className="flex flex-col gap-2 rounded-8 bg-canvas-blue px-12 py-8">
-              <span className="text-12 font-bold text-default">
-                {lastLog.at} · {lastLog.outcome}
-              </span>
-              {lastLog.note ? <span className="text-12 text-caption">{lastLog.note}</span> : null}
-            </div>
-          ) : null}
-          {lead.otherLoan ? (
-            <span className="text-12 text-default">
-              Pinjaman {lead.otherLoan.lender} sisa {rupiah(lead.otherLoan.amount)} · perkiraan
-              lunas <span className="font-bold">{lead.otherLoan.ends || 'belum diketahui'}</span>
-            </span>
-          ) : null}
-          {lead.majelisId ? (
-            <span className="text-12 text-caption">
-              Majelis tujuan {findMajelisEntry(lead.majelisId).name} ·{' '}
-              {findMajelisEntry(lead.majelisId).day}, {findMajelisEntry(lead.majelisId).time}
-            </span>
-          ) : null}
-        </div>
-      </Card>
-
-      {/* --- Did it land. Asked before anything about her. */}
-      <SectionTitle>Hasil kontak</SectionTitle>
-      <div className="flex flex-col gap-8">
-        {CONTACT_RESULTS.map((option) => (
-          <SelectableCard
-            key={option.value}
-            name="hasil-kontak"
-            inputType="radio"
-            title={option.title}
-            description={option.description}
-            checked={draft.contact === option.value}
-            onChange={() =>
-              set({
-                contact: option.value,
-                next: null,
-                reason: '',
-                followUpAt: null,
-                followUpPicked: false,
-              })
-            }
-          />
-        ))}
-      </div>
-
-      {/* --- Nobody answered. One question: when to try again. */}
-      {retry ? (
-        <Card>
-          <ChipGroup label="Coba lagi kapan">
-            {FOLLOW_UP_OPTIONS.filter((o) => o.value !== null).map((option) => (
-              <Chip
-                key={option.label}
-                selected={draft.followUpPicked && draft.followUpAt === option.value}
-                onClick={() => set({ followUpAt: option.value, followUpPicked: true })}
-              >
-                {option.label}
-              </Chip>
-            ))}
-          </ChipGroup>
-        </Card>
-      ) : null}
-
-      {dead ? (
-        <Card>
-          <div className="flex flex-col gap-12">
-            <span className="text-12 text-default">{WRONG_NUMBER_NOTE}</span>
-            <Input
-              label="Nomor alternatif"
-              optionalText="opsional"
-              inputMode="tel"
-              placeholder="08xx-xxxx-xxxx"
-              value={draft.note}
-              onChange={(e) => set({ note: e.target.value })}
-            />
-          </div>
-        </Card>
-      ) : null}
-
-      {/* --- She answered. Now the two questions that are actually about her. */}
-      {connected ? (
+      {step === 1 ? (
         <>
-          <SectionTitle>Minat sekarang</SectionTitle>
+          {/* Tapping WhatsApp or the handset records the channel the call took. */}
+          <LeadIdentityCard lead={lead} onContact={(v) => setVia(v)} />
+
+          {/* The brief — everything the BP needs in her head before the line
+              connects, and nothing she needs afterwards. */}
           <Card>
             <div className="flex flex-col gap-8">
-              <div className="flex flex-wrap gap-8">
-                {INTEREST_ORDER.map((level) => (
-                  <Chip
-                    key={level}
-                    selected={draft.interest === level}
-                    onClick={() =>
-                      set({
-                        interest: level,
-                        // A "tidak tertarik" grade has exactly one honest next
-                        // step, so pre-select it instead of letting the two
-                        // controls contradict each other.
-                        next: level === 'tidak' ? 'tidak' : draft.next === 'tidak' ? null : draft.next,
-                      })
-                    }
-                  >
-                    {INTEREST_META[level].label}
-                  </Chip>
-                ))}
-              </div>
-              {lead.interest && draft.interest && draft.interest !== lead.interest ? (
+              <span className="text-14 font-bold text-default">Sebelum menghubungi</span>
+              {lastLog ? (
+                <div className="flex flex-col gap-2 rounded-8 bg-canvas-blue px-12 py-8">
+                  <span className="text-12 font-bold text-default">
+                    {lastLog.at} · {lastLog.outcome}
+                  </span>
+                  {lastLog.note ? (
+                    <span className="text-12 text-caption">{lastLog.note}</span>
+                  ) : null}
+                </div>
+              ) : null}
+              {lead.otherLoan ? (
+                <span className="text-12 text-default">
+                  Pinjaman {lead.otherLoan.lender} sisa {rupiah(lead.otherLoan.amount)} · perkiraan
+                  lunas{' '}
+                  <span className="font-bold">{lead.otherLoan.ends || 'belum diketahui'}</span>
+                </span>
+              ) : null}
+              {lead.majelisId ? (
                 <span className="text-12 text-caption">
-                  Berubah dari {INTEREST_META[lead.interest].label.toLowerCase()} sejak{' '}
-                  {lastLog?.at ?? 'kontak terakhir'}.
+                  Majelis tujuan {findMajelisEntry(lead.majelisId).name} ·{' '}
+                  {findMajelisEntry(lead.majelisId).day}, {findMajelisEntry(lead.majelisId).time}
                 </span>
               ) : null}
             </div>
           </Card>
 
-          {draft.interest ? (
-            <>
-              <SectionTitle>Langkah berikutnya</SectionTitle>
-              <div className="flex flex-col gap-8">
-                {NEXT_STEPS.map((step) => (
-                  <SelectableCard
-                    key={step.value}
-                    name="langkah"
-                    inputType="radio"
-                    title={step.title}
-                    description={step.description}
-                    checked={draft.next === step.value}
-                    onChange={() => set({ next: step.value, reason: '', followUpPicked: false })}
-                  />
-                ))}
-              </div>
-            </>
-          ) : null}
+          <SectionTitle>Hasil kontak</SectionTitle>
+          <div className="flex flex-col gap-8">
+            {CONTACT_RESULTS.map((option) => (
+              <SelectableCard
+                key={option.value}
+                name="hasil-kontak"
+                inputType="radio"
+                title={option.title}
+                description={option.description}
+                checked={contact === option.value}
+                onChange={() => {
+                  setContact(option.value)
+                  setRetryDate(null)
+                  setAltNumber('')
+                }}
+              />
+            ))}
+          </div>
 
-          {/* The gate. It names the gap and offers the fix rather than just
-              refusing — a disabled button with no explanation is how a BP
-              concludes the app is broken and phones her BM instead. */}
-          {draft.next === 'siap' && !canQualify ? (
+          {/* Nobody answered — one question: when to try again. */}
+          {retry ? (
             <Card>
-              <div className="flex flex-col gap-12">
-                <span className="text-12 text-default">
-                  Belum bisa diajukan — {gaps.join(', ').toLowerCase()} masih kosong.
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => flow.go('lead')}
-                >
-                  Lengkapi Data Prospek
-                </Button>
-              </div>
-            </Card>
-          ) : null}
-
-          {draft.next === 'siap' && canQualify ? (
-            <div className="rounded-8 bg-green-50 px-12 py-8 text-12 text-green-500">
-              Data lengkap. Prospek diteruskan ke onboarding dan dihitung pada target pencairan
-              mitra baru bulan ini.
-            </div>
-          ) : null}
-
-          {draft.next === 'lanjut' ? (
-            <Card>
-              <div className="flex flex-col gap-16">
-                <ChipGroup label="Hubungi lagi kapan">
-                  {FOLLOW_UP_OPTIONS.filter((o) => o.value !== null).map((option) => (
-                    <Chip
-                      key={option.label}
-                      selected={draft.followUpPicked && draft.followUpAt === option.value}
-                      onClick={() => set({ followUpAt: option.value, followUpPicked: true })}
-                    >
-                      {option.label}
-                    </Chip>
-                  ))}
-                </ChipGroup>
-                {/* The date is only useful if the next BP knows what it is
-                    waiting for. "Oktober" is a guess; "after the BRI loan
-                    finishes" is a reason that survives the date moving. */}
-                <Input
-                  label="Menunggu apa"
-                  optionalText="opsional"
-                  placeholder="Setelah pinjaman BRI lunas"
-                  value={draft.reason}
-                  onChange={(e) => set({ reason: e.target.value })}
-                />
-              </div>
-            </Card>
-          ) : null}
-
-          {draft.next === 'tidak' ? (
-            <Card>
-              <ChipGroup label="Alasan">
-                {NO_REASONS.map((option) => (
+              <ChipGroup label="Coba lagi kapan">
+                {FOLLOW_UP_OPTIONS.filter((o) => o.value !== null).map((option) => (
                   <Chip
-                    key={option}
-                    selected={draft.reason === option}
-                    onClick={() => set({ reason: option })}
+                    key={option.label}
+                    selected={retryDate === option.value}
+                    onClick={() => setRetryDate(option.value)}
                   >
-                    {option}
+                    {option.label}
                   </Chip>
                 ))}
               </ChipGroup>
             </Card>
           ) : null}
+
+          {dead ? (
+            <Card>
+              <div className="flex flex-col gap-12">
+                <span className="text-12 text-default">{WRONG_NUMBER_NOTE}</span>
+                <Input
+                  label="Nomor alternatif"
+                  optionalText="opsional"
+                  inputMode="tel"
+                  placeholder="08xx-xxxx-xxxx"
+                  value={altNumber}
+                  onChange={(e) => setAltNumber(e.target.value)}
+                />
+              </div>
+            </Card>
+          ) : null}
+
+          <StickyBar>
+            <Button
+              size="lg"
+              className="w-full"
+              disabled={!step1Ready}
+              onClick={() => {
+                if (connected) setStep(2)
+                else if (retry) saveRetry()
+                else if (dead) saveDead()
+              }}
+            >
+              {connected ? 'Lanjut' : 'Simpan & Selesai'}
+            </Button>
+          </StickyBar>
         </>
-      ) : null}
-
-      {!dead && draft.contact ? (
-        <Input
-          label="Catatan"
-          optionalText="opsional"
-          placeholder="Apa yang dia katakan"
-          value={draft.note}
-          onChange={(e) => set({ note: e.target.value })}
-        />
-      ) : null}
-
-      <StickyBar>
-        {draft.followUpPicked && draft.followUpAt === '22 Juli' ? (
-          <div className="flex items-center gap-8">
-            <span className="flex-1 text-12 text-caption">Masuk jadwal besok</span>
-            <Badge intent="primary" size="sm">
-              22 Juli
-            </Badge>
+      ) : (
+        <>
+          <SectionTitle>Minat sekarang</SectionTitle>
+          <div className="flex flex-col gap-8">
+            {MINAT_OPTIONS.map((value) => (
+              <SelectableCard
+                key={value}
+                name="minat"
+                inputType="radio"
+                title={INTEREST_META[value].label}
+                description={INTEREST_META[value].hint}
+                checked={minat === value}
+                onChange={() => setMinat(value)}
+              />
+            ))}
           </div>
-        ) : null}
-        <Button size="lg" className="w-full" disabled={!ready} onClick={save}>
-          Simpan & Selesai
-        </Button>
-      </StickyBar>
+
+          {lead.interest && minat && MINAT_TO_INTEREST[minat] !== lead.interest ? (
+            <span className="text-12 text-caption">
+              Berubah dari catatan terakhir sejak {lastLog?.at ?? 'kontak terakhir'}.
+            </span>
+          ) : null}
+
+          <StickyBar>
+            <Button
+              size="lg"
+              className="w-full"
+              disabled={!minat}
+              onClick={() => setReasonOpen(true)}
+            >
+              Lanjut
+            </Button>
+          </StickyBar>
+        </>
+      )}
+
+      {/* The reason, in a sheet — the last thing between a graded call and a
+          closed task. The note is what the next BP reads before the next call. */}
+      <BottomSheet
+        open={reasonOpen}
+        onClose={() => setReasonOpen(false)}
+        title={minat === 'not-interested' ? 'Alasan tidak tertarik' : 'Catatan follow up'}
+        description={
+          minat
+            ? `Minat sekarang: ${INTEREST_META[minat].label}. Catat alasannya sebelum menutup tugas.`
+            : undefined
+        }
+        primaryAction={
+          <Button size="lg" className="w-full" onClick={saveConnected}>
+            Simpan & Selesai
+          </Button>
+        }
+      >
+        <Input
+          label={minat === 'not-interested' ? 'Alasan' : 'Catatan'}
+          optionalText="opsional"
+          placeholder={
+            minat === 'not-interested' ? 'Kenapa dia tidak tertarik' : 'Apa yang dia katakan'
+          }
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </BottomSheet>
 
       <RescheduleSheet
         open={rescheduling}

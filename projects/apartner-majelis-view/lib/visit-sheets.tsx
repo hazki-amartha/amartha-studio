@@ -44,25 +44,30 @@ export function VisitGateSheet({
   onClose,
   onWork,
   onSkip,
+  // The copy and button labels default to the majelis-visit wording; a follow-up
+  // asks the same question in its own words (call now, or skip and reschedule).
+  title = 'Apakah tugas dapat dikerjakan?',
+  description = 'Kerjakan tugas bila mitra ada yang hadir. Jika mitra tidak hadir semua, silahkan lewati tugas.',
+  workLabel = 'Kerjakan tugas',
+  skipLabel = 'Lewati tugas',
 }: {
   open: boolean
   onClose: () => void
   onWork: () => void
   onSkip: () => void
+  title?: string
+  description?: string
+  workLabel?: string
+  skipLabel?: string
 }) {
   return (
-    <BottomSheet
-      open={open}
-      onClose={onClose}
-      title="Apakah tugas dapat dikerjakan?"
-      description="Kerjakan tugas bila mitra ada yang hadir. Jika mitra tidak hadir semua, silahkan lewati tugas."
-    >
+    <BottomSheet open={open} onClose={onClose} title={title} description={description}>
       <div className="flex flex-col gap-8 pt-8">
         <Button size="lg" className="w-full" onClick={onWork}>
-          Kerjakan tugas
+          {workLabel}
         </Button>
         <Button variant="outline" size="lg" className="w-full" onClick={onSkip}>
-          Lewati tugas
+          {skipLabel}
         </Button>
       </div>
     </BottomSheet>
