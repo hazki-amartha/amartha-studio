@@ -4,20 +4,42 @@
 // is set — on capture (Add Lead), at submission, and when reassigning. Kept here
 // so the three screens draw the exact same control rather than three of them.
 
-import { useEffect, useState } from 'react'
-import { BottomSheet, Button, Input, SelectableCard } from '@/design-system/components'
-import { Camera, FileCheck } from '@/design-system/icons'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Badge, BottomSheet, Button, Card, Input, SelectableCard } from '@/design-system/components'
+import { Camera, FileCheck, NotePencil, WhatsappLogo } from '@/design-system/icons'
 import { MAJELIS_DIRECTORY } from './schedule'
 import {
+  INTEREST_META,
+  INTEREST_ORDER,
   MITRA_REFERRERS,
   OTHER_REFERRERS,
   POI_LIST,
   SOURCE_LABEL,
+  actionDetail,
+  hasInterest,
+  historyChannel,
+  ktpDetail,
+  majelisDetail,
+  sourceDetail,
+  statusBadge,
+  type Interest,
   type LeadSource,
   type MajelisAssignment,
+  type PipelineLead,
+  type Product,
   type ReferrerKind,
 } from './pipeline'
-import { SearchField } from './ui'
+import { pipelineStore } from './pipeline-store'
+import { ContactButton, SearchField, SectionTitle } from './ui'
+import { IconPhone } from './icons'
+
+// Interest as coloured text — yellow reads illegibly small, so Undecided borrows
+// the orange it shades toward.
+export const INTEREST_TEXT: Record<Interest, string> = {
+  interested: 'text-green-600',
+  undecided: 'text-orange-600',
+  'not-interested': 'text-red-500',
+}
 
 export function assignmentLabel(m: MajelisAssignment): string {
   if (m.kind === 'existing') return MAJELIS_DIRECTORY.find((g) => g.id === m.id)?.name ?? 'Majelis'
@@ -429,5 +451,338 @@ export function EditContactSheet({
         />
       </div>
     </BottomSheet>
+  )
+}
+
+// --- The record card + history + action sheets -----------------------------
+// Shared by the Sales detail page and the Follow-Up task, so a lead reads the
+// same way whether the BP reached her from the roster or from her schedule.
+
+/** A label / value row with an optional "Ubah", ruled off from its neighbours. */
+export function DetailRow({ label, value, onEdit }: { label: string; value: string; onEdit?: () => void }) {
+  return (
+    <div className="flex items-center gap-8 border-t border-default py-12 first:border-t-0">
+      <span className="min-w-0 flex-1 text-14 text-default">
+        <span className="text-caption">{label}: </span>
+        {value}
+      </span>
+      {onEdit ? (
+        <button type="button" onClick={onEdit} className="shrink-0 text-12 font-bold text-link">
+          Ubah
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * The identity card: name + phone (editable), WA/call buttons, the two-level
+ * status, the editable Sumber/Majelis/KTP rows, the "action selanjutnya" line,
+ * and an action slot at the foot. Every callback is optional so a read-only
+ * surface can drop the edit affordances.
+ */
+export function LeadRecordCard({
+  lead,
+  onEditContact,
+  onEditSource,
+  onEditMajelis,
+  onEditKtp,
+  onContact,
+  action,
+}: {
+  lead: PipelineLead
+  onEditContact?: () => void
+  onEditSource?: () => void
+  onEditMajelis?: () => void
+  onEditKtp?: () => void
+  onContact?: () => void
+  action?: ReactNode
+}) {
+  const badge = statusBadge(lead)
+  const worked = hasInterest(lead.status)
+  const interest = worked && lead.interest ? lead.interest : null
+
+  return (
+    <Card>
+      <div className="flex flex-col gap-12">
+        <div className="flex items-start gap-12">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <span className="truncate text-18 font-bold text-default">{lead.name}</span>
+            <span className="flex items-center gap-8">
+              <span className="truncate text-14 text-caption">{lead.phone}</span>
+              {onEditContact ? (
+                <button
+                  type="button"
+                  aria-label="Ubah kontak"
+                  onClick={onEditContact}
+                  className="shrink-0 text-primary-500"
+                >
+                  <NotePencil size={16} />
+                </button>
+              ) : null}
+            </span>
+          </div>
+          {worked && onContact ? (
+            <div className="flex shrink-0 gap-8">
+              <ContactButton label={`WhatsApp ${lead.name}`} tone="green" onClick={onContact}>
+                <WhatsappLogo size={20} />
+              </ContactButton>
+              <ContactButton label={`Telepon ${lead.name}`} tone="primary" onClick={onContact}>
+                <IconPhone size={20} />
+              </ContactButton>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-8">
+          <Badge intent={badge.intent} variant="outline">
+            {badge.label}
+          </Badge>
+          {interest ? (
+            <span className={`text-14 font-bold ${INTEREST_TEXT[interest]}`}>
+              {INTEREST_META[interest].label}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col">
+          <DetailRow label="Sumber" value={sourceDetail(lead)} onEdit={onEditSource} />
+          <DetailRow label="KTP" value={ktpDetail(lead)} onEdit={onEditKtp} />
+          <DetailRow label="Majelis" value={majelisDetail(lead)} onEdit={onEditMajelis} />
+          {lead.product ? (
+            <DetailRow label="Produk" value={`${lead.product}${lead.amount ? ` · ${lead.amount}` : ''}`} />
+          ) : null}
+        </div>
+
+        {(() => {
+          const detail = actionDetail(lead)
+          return (
+            <div className="flex flex-col gap-2 rounded-8 bg-canvas-blue px-12 py-8">
+              <span className="text-12 text-caption">Action selanjutnya:</span>
+              <span className="text-14 font-bold text-default">{detail.title}</span>
+              {detail.sub ? <span className="text-12 text-caption">{detail.sub}</span> : null}
+            </div>
+          )
+        })()}
+
+        {action}
+      </div>
+    </Card>
+  )
+}
+
+/** The call history — one card per contact, newest first. */
+export function RiwayatPanggilan({ lead }: { lead: PipelineLead }) {
+  return (
+    <>
+      <SectionTitle>Riwayat Panggilan</SectionTitle>
+      <div className="flex flex-col gap-8 pb-16">
+        {lead.log
+          .slice()
+          .reverse()
+          .map((entry, i) => (
+            <Card key={`${entry.at}-${i}`}>
+              <div className="flex flex-col gap-2">
+                <span className="text-12 text-caption">
+                  {entry.at} · {historyChannel(entry.via)}
+                </span>
+                <span className="text-14 font-bold text-default">
+                  {entry.outcome}
+                  {entry.note ? ` · ${entry.note}` : ''}
+                </span>
+                {entry.next ? (
+                  <span className="text-12 text-caption">Action selanjutnya: Follow up {entry.next}</span>
+                ) : null}
+              </div>
+            </Card>
+          ))}
+      </div>
+    </>
+  )
+}
+
+/**
+ * Perbarui status — records the interest note, and carries "Ajukan Pinjaman" as
+ * a choice (selectable only once Qualified). `onSaved` fires after a status is
+ * recorded, so the caller can close the sheet or finish a task.
+ */
+export function PerbaruiStatusSheet({
+  lead,
+  open,
+  canSubmit,
+  onClose,
+  onAjukan,
+  onSaved,
+}: {
+  lead: PipelineLead
+  open: boolean
+  canSubmit: boolean
+  onClose: () => void
+  onAjukan: () => void
+  onSaved: () => void
+}) {
+  const [pick, setPick] = useState<Interest | 'ajukan' | null>(null)
+  const [note, setNote] = useState('')
+
+  function reset() {
+    setPick(null)
+    setNote('')
+  }
+
+  function save() {
+    if (!pick) return
+    if (pick === 'ajukan') {
+      reset()
+      onAjukan()
+      return
+    }
+    pipelineStore.recordInterest(lead.id, pick, INTEREST_META[pick].label, note)
+    reset()
+    onSaved()
+  }
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={() => {
+        reset()
+        onClose()
+      }}
+      title="Perbarui status"
+      description="Bagaimana minatnya sekarang?"
+      primaryAction={
+        <Button size="lg" className="w-full" disabled={!pick} onClick={save}>
+          {pick === 'ajukan' ? 'Lanjut' : 'Simpan'}
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-8">
+        {INTEREST_ORDER.map((value) => (
+          <SelectableCard
+            key={value}
+            name="interest"
+            inputType="radio"
+            title={INTEREST_META[value].label}
+            description={INTEREST_META[value].hint}
+            checked={pick === value}
+            onChange={() => setPick(value)}
+          />
+        ))}
+        <SelectableCard
+          name="interest"
+          inputType="radio"
+          title="Ajukan Pinjaman"
+          description={canSubmit ? 'Kirim pengajuan pinjaman' : 'Lengkapi KTP dulu untuk mengajukan'}
+          disabled={!canSubmit}
+          checked={pick === 'ajukan'}
+          onChange={() => setPick('ajukan')}
+        />
+        {pick !== 'ajukan' ? (
+          <label className="flex flex-col gap-4 pt-4">
+            <span className="text-12 text-caption">Catatan (opsional)</span>
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Hasil pembicaraan…" />
+          </label>
+        ) : null}
+      </div>
+    </BottomSheet>
+  )
+}
+
+/** Ajukan Pinjaman — the Qualified → Submitted form. `onSaved` fires on submit. */
+export function SubmitSheet({
+  lead,
+  open,
+  onClose,
+  onSaved,
+}: {
+  lead: PipelineLead
+  open: boolean
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [product, setProduct] = useState<Product | null>(null)
+  const [amount, setAmount] = useState('')
+  const [majelis, setMajelis] = useState<MajelisAssignment>(lead.majelis)
+  const [picking, setPicking] = useState(false)
+
+  function reset() {
+    setProduct(null)
+    setAmount('')
+    setMajelis(lead.majelis)
+    setPicking(false)
+  }
+
+  function submit() {
+    if (!product) return
+    pipelineStore.submitLoan(lead.id, { product, majelis, amount, nik: lead.nik })
+    reset()
+    onSaved()
+  }
+
+  return (
+    <>
+      <BottomSheet
+        open={open && !picking}
+        onClose={() => {
+          reset()
+          onClose()
+        }}
+        title="Ajukan Pinjaman"
+        description="Kirim form pengajuan ke sistem. Setelah ini lead menunggu hasil UK."
+        primaryAction={
+          <Button size="lg" className="w-full" disabled={!product} onClick={submit}>
+            Kirim Pengajuan
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-12">
+          <div className="flex flex-col gap-4">
+            <span className="text-12 text-caption">Produk</span>
+            <div className="flex flex-col gap-8">
+              {(['GL', 'Modal'] as Product[]).map((p) => (
+                <SelectableCard
+                  key={p}
+                  name="submit-product"
+                  inputType="radio"
+                  title={p}
+                  checked={product === p}
+                  onChange={() => setProduct(p)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <label className="flex flex-col gap-4">
+            <span className="text-12 text-caption">Majelis</span>
+            <button
+              type="button"
+              onClick={() => setPicking(true)}
+              className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-left text-14 text-default"
+            >
+              <span className="truncate">{assignmentLabel(majelis)}</span>
+              <span className="shrink-0 text-12 font-bold text-link">Ubah</span>
+            </button>
+          </label>
+
+          <Input
+            label="Plafon diajukan"
+            optionalText="opsional"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Rp3.000.000"
+          />
+        </div>
+      </BottomSheet>
+
+      <MajelisPickerSheet
+        open={open && picking}
+        value={majelis}
+        onClose={() => setPicking(false)}
+        onPick={(m) => {
+          setMajelis(m)
+          setPicking(false)
+        }}
+      />
+    </>
   )
 }

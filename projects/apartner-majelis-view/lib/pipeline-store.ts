@@ -23,6 +23,12 @@ interface PipelineState {
   order: string[]
   /** Which lead the detail page renders. */
   openId: string
+  /**
+   * The schedule task id when this lead was opened AS a Follow-Up task, so the
+   * detail screen can complete that task on the schedule when the call is
+   * recorded. Null when opened from the Sales roster.
+   */
+  followUpTaskId: string | null
 }
 
 const seedLeads: Record<string, PipelineLead> = {}
@@ -34,6 +40,7 @@ let state: PipelineState = {
   leads: seedLeads,
   order: SEED_PIPELINE.map((l) => l.id),
   openId: SEED_PIPELINE[0].id,
+  followUpTaskId: null,
 }
 
 const listeners = new Set<() => void>()
@@ -57,9 +64,21 @@ export const pipelineStore = {
     return () => listeners.delete(listener)
   },
 
-  /** Opens a lead's record. */
+  /** Opens a lead's record from the roster (not as a task). */
   open(id: string) {
-    state = { ...state, openId: id }
+    state = { ...state, openId: id, followUpTaskId: null }
+    emit()
+  },
+
+  /** Opens a lead AS a Follow-Up task, carrying the schedule task id. */
+  openFollowUp(id: string, taskId: string) {
+    state = { ...state, openId: id, followUpTaskId: taskId }
+    emit()
+  },
+
+  /** Clears the Follow-Up task link once the task is done or left. */
+  endFollowUp() {
+    state = { ...state, followUpTaskId: null }
     emit()
   },
 
@@ -123,14 +142,15 @@ export const pipelineStore = {
 
   /**
    * Records a call that updates the interest note (Unqualified/Qualified) and
-   * schedules the next follow-up from the interest cadence.
+   * schedules the next follow-up. `next` defaults to the interest cadence but the
+   * BP can override it with a date she picked.
    */
-  recordInterest(id: string, interest: Interest, label: string, note: string) {
-    const next = followUpDateFor(interest)
+  recordInterest(id: string, interest: Interest, label: string, note: string, next?: string) {
+    const when = next ?? followUpDateFor(interest)
     patchLead(id, (lead) => ({
       interest,
-      nextFollowUp: next,
-      log: [...lead.log, { at: '21 Juli', via: 'telepon' as const, outcome: label, note: note.trim(), next }],
+      nextFollowUp: when,
+      log: [...lead.log, { at: '21 Juli', via: 'telepon' as const, outcome: label, note: note.trim(), next: when }],
     }))
   },
 

@@ -86,8 +86,8 @@ function majelisOptions(leads: PipelineLead[]): { label: string; value: string |
   ]
 }
 
-// The interest note as coloured text (not a chip) under the majelis name. Yellow
-// reads illegibly small, so Undecided borrows the orange it shades toward.
+// The interest note as coloured text (not a chip). Yellow reads illegibly small,
+// so Undecided borrows the orange it shades toward.
 const INTEREST_TEXT: Record<Interest, string> = {
   interested: 'text-green-600',
   undecided: 'text-orange-600',
@@ -138,22 +138,22 @@ function SalesRow({ lead, onOpen }: { lead: PipelineLead; onOpen: () => void }) 
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-center gap-12 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
+      className="flex w-full items-start gap-8 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
+      {/* Left: name over majelis. */}
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
         <span className="truncate text-14 font-bold text-default">{lead.name}</span>
         <span className="truncate text-12 text-caption">{majelisLine(lead)}</span>
-        {/* The interest note — the sub-status — as coloured text, shown only
-            while she is still being worked. */}
+      </div>
+      {/* Right: the main status, with the interest note (coloured, shown only
+          while she is worked) centred beneath the badge. */}
+      <div className="flex shrink-0 flex-col items-center gap-4">
+        <Badge intent={badge.intent}>{badge.label}</Badge>
         {interest ? (
-          <span className={`truncate text-12 font-bold ${INTEREST_TEXT[interest]}`}>
+          <span className={`text-12 font-regular ${INTEREST_TEXT[interest]}`}>
             {INTEREST_META[interest].label}
           </span>
         ) : null}
-      </div>
-      {/* Main funnel status, pinned right like the DPD badge on a mitra card. */}
-      <div className="flex shrink-0">
-        <Badge intent={badge.intent}>{badge.label}</Badge>
       </div>
     </button>
   )
