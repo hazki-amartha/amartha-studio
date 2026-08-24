@@ -146,6 +146,13 @@ export const INTEREST_META: Record<
 
 export const INTEREST_ORDER: Interest[] = ['interested', 'undecided', 'not-interested']
 
+/** The follow-up cadence each interest implies, as a duration phrase. */
+export const CADENCE_DURATION: Record<Interest, string> = {
+  interested: '3 hari',
+  undecided: '1 minggu',
+  'not-interested': '1 bulan',
+}
+
 export const SOURCE_LABEL: Record<LeadSource, string> = {
   referral: 'Referral',
   poi: 'POI Visit',
@@ -261,20 +268,58 @@ const TODAY = new Date(2026, 6, 21) // 21 Juli 2026
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 const fmtDate = (d: Date): string => `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`
 
-/** When to come back, by interest: +3 days / +1 week / +1 month from today. */
-export function followUpDateFor(interest: Interest): string {
+/** A formatted date `days` after today — for the follow-up date options. */
+export function dateFromToday(days: number): string {
   const d = new Date(TODAY)
-  d.setDate(d.getDate() + (interest === 'interested' ? 3 : interest === 'undecided' ? 7 : 30))
+  d.setDate(d.getDate() + days)
   return fmtDate(d)
 }
 
-/** The "action selanjutnya" value: a follow-up date while worked, else the wait. */
-export function actionLine(lead: PipelineLead): string {
+/** When to come back, by interest: +3 days / +1 week / +1 month from today. */
+export function followUpDateFor(interest: Interest): string {
+  return dateFromToday(interest === 'interested' ? 3 : interest === 'undecided' ? 7 : 30)
+}
+
+/** Six months out — when a rejected lead reactivates. */
+export function rejectedReactivationDate(): string {
+  const d = new Date(TODAY)
+  d.setMonth(d.getMonth() + 6)
+  return fmtDate(d)
+}
+
+/**
+ * The "action selanjutnya" block: a bold headline with the concrete date on top,
+ * and a clarifying statement beneath it. What each says depends on the status.
+ */
+export function actionDetail(lead: PipelineLead): { title: string; sub?: string } {
   if (hasInterest(lead.status)) {
-    const date = lead.nextFollowUp ?? (lead.interest ? followUpDateFor(lead.interest) : null)
-    return date ? `Follow up - ${date}` : 'Hubungi & catat minat'
+    if (!lead.interest) return { title: 'Hubungi & catat minat' }
+    const date = lead.nextFollowUp ?? followUpDateFor(lead.interest)
+    // "[duration] setelah [decision] di follow-up terakhir" — why this date.
+    const sub = `${CADENCE_DURATION[lead.interest]} setelah ${INTEREST_META[lead.interest].label.toLowerCase()} di follow-up terakhir`
+    return { title: `Follow up · ${date}`, sub }
   }
-  return statusAction(lead)
+  switch (lead.status) {
+    case 'submitted':
+      return { title: 'Menunggu hasil Uji Kelayakan (UK)' }
+    case 'approved':
+      return {
+        title: 'Menunggu pencairan',
+        sub: lead.disburseDate ? `Perkiraan cair ${lead.disburseDate}` : undefined,
+      }
+    case 'disbursed':
+      return {
+        title: 'Sudah cair — jadi Mitra',
+        sub: lead.disburseDate ? `Cair ${lead.disburseDate}` : undefined,
+      }
+    case 'rejected':
+      return {
+        title: `Follow up · ${rejectedReactivationDate()}`,
+        sub: 'Setelah 6 bulan, lead otomatis aktif kembali sebagai Qualified untuk ditawari lagi',
+      }
+    default:
+      return { title: statusAction(lead) }
+  }
 }
 
 /** How a history entry names its channel: field visits vs. follow-up calls. */

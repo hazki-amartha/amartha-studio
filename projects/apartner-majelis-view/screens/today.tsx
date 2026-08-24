@@ -60,8 +60,13 @@ import {
   useApp,
   type TaskStatus,
 } from '../lib/store'
+import { pipelineStore } from '../lib/pipeline-store'
 import { TabBar } from '../lib/tabs'
 import { AppScreen, EmptyState, FilterBar, FilterChip, HeaderAction, OptionSheet, Overline, ResetLink, SettlementHistorySheet, type Tint } from '../lib/ui'
+
+// Which pipeline lead a scheduled Follow-Up task works. The rostered call for
+// "Ibu Nia Kurniasih" opens her pipeline record (p4).
+const FU_PIPELINE_LEAD: Record<string, string> = { l1: 'p4' }
 
 // The two NTB kinds get their own tints rather than borrowing purple. Purple is
 // the colour of servicing a majelis on this schedule, and a prospecting stop
@@ -461,7 +466,11 @@ export function TodayScreen() {
       return
     }
     if (task.kind === 'follow-up') {
+      // The Follow-Up task now works a PIPELINE lead, on the same record the
+      // Sales detail uses. `startFollowUp` still does the schedule-side
+      // bookkeeping (marks the row started, sets the active task).
       store.startFollowUp(task.id)
+      pipelineStore.openFollowUp(FU_PIPELINE_LEAD[task.leadId ?? ''] ?? 'p4', task.id)
       flow.go('follow-up')
       return
     }
