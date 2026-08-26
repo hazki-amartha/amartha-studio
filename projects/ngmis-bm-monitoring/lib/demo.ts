@@ -23,6 +23,13 @@ export const showEndState = () => {
   store.setVariant('end')
 }
 
+/** Pencairan, with Mitra baru's lead funnel opened up: no rate on the
+ *  headline cards, Unqualified/Qualified/UK/Disetujui broken out underneath. */
+export const showPencairanLeads = () => store.setPencairanVariant('leads')
+
+/** Back to the plain Pencairan cut — counts and rate, no funnel. */
+export const showPencairanDefault = () => store.setPencairanVariant('default')
+
 /** Evening is the briefing scheduled now — Progres harian's banner prompts it. */
 export const scheduleEvening = () => dailyStore.set({ scheduled: 'evening' })
 

@@ -20,7 +20,7 @@
 // the spacing scale deliberately stops at 48px.
 // =============================================================================
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Badge } from '@/design-system/components'
 import {
   Cross,
@@ -284,6 +284,7 @@ export function BucketCard({
   trailing,
   caption,
   targetLabel,
+  borderClassName,
 }: {
   label: string
   intent?: string
@@ -294,9 +295,16 @@ export function BucketCard({
   /** "Target: 100%", pinned top-right of the label row — for cards read
    *  against a monthly count target rather than a rate. */
   targetLabel?: string
+  /** Overrides the default border, e.g. to bond this card visually to a
+   *  panel underneath it — see Pencairan's "With Leads monitoring". */
+  borderClassName?: string
 }) {
   return (
-    <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-16">
+    <div
+      className={`flex flex-col gap-12 rounded-12 border bg-neutral-white p-16 ${
+        borderClassName ?? 'border-default'
+      }`}
+    >
       <span className="flex items-start justify-between gap-8">
         {intent ? (
           <span
@@ -319,6 +327,50 @@ export function BucketCard({
         </span>
         <span className="text-12 text-caption">{caption}</span>
       </span>
+    </div>
+  )
+}
+
+// --- Collapsible --------------------------------------------------------
+
+/**
+ * A panel that opens to reveal a breakdown underneath its own header —
+ * "Potential mitra" opening onto the lead funnel behind Mitra baru's count,
+ * closed by default so the plain figure is what a BM sees first.
+ */
+export function Collapsible({
+  title,
+  hint,
+  children,
+  borderClassName,
+}: {
+  title: string
+  /** Right-aligned hint in the header, e.g. the total the breakdown adds up to. */
+  hint?: string
+  children: ReactNode
+  /** Overrides the default border, e.g. to bond this panel visually to the
+   *  card it opens up — see Pencairan's "With Leads monitoring". */
+  borderClassName?: string
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className={`rounded-12 border bg-neutral-white ${borderClassName ?? 'border-default'}`}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-8 p-16 text-left"
+      >
+        <span className="flex-1 text-14 font-bold text-default">{title}</span>
+        {hint ? <span className="text-12 text-caption">{hint}</span> : null}
+        <span className="text-caption">
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </span>
+      </button>
+      {open ? (
+        <div className="flex flex-col gap-8 border-t border-default p-16">{children}</div>
+      ) : null}
     </div>
   )
 }

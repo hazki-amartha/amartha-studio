@@ -401,19 +401,29 @@ export interface DisbursementBp {
   /** Rupiah, in juta, so the table can print what the business says out loud. */
   nilaiBaru: number
   nilaiLanjutan: number
+  /** This BP's leads stuck before Disetujui — "With Leads monitoring" opens
+   *  these up per row, same three stages the branch card breaks out. */
+  leadsUnqualified: number
+  leadsQualified: number
+  leadsUk: number
+  /** Leads approved this period. NOT the same as `noaBaru`: an approved lead
+   *  can still fail to disburse in the period it was approved in (paperwork,
+   *  the mitra backing out, a majelis slot slipping to next month), so
+   *  Disetujui can run ahead of the NoA the BP actually cleared. */
+  leadsDisetujui: number
 }
 
 export const DISBURSEMENT_BPS: DisbursementBp[] = [
-  { id: 'bp-sukma', name: 'Sukma Ayuningrum', majelis: 6, noaBaru: 2, noaLanjutan: 11, renewalDue: 14, nilaiBaru: 10, nilaiLanjutan: 72 },
-  { id: 'bp-cenli', name: 'Cenli Cencen', majelis: 8, noaBaru: 2, noaLanjutan: 13, renewalDue: 16, nilaiBaru: 10, nilaiLanjutan: 87 },
-  { id: 'bp-diski', name: 'Diski Tafa Ilham', majelis: 8, noaBaru: 3, noaLanjutan: 13, renewalDue: 15, nilaiBaru: 15, nilaiLanjutan: 89 },
-  { id: 'bp-laili', name: 'Laili Maulidia', majelis: 8, noaBaru: 3, noaLanjutan: 15, renewalDue: 18, nilaiBaru: 15, nilaiLanjutan: 103 },
-  { id: 'bp-ainur', name: 'Ainur Rohmah', majelis: 8, noaBaru: 4, noaLanjutan: 15, renewalDue: 17, nilaiBaru: 20, nilaiLanjutan: 106 },
-  { id: 'bp-fadhil', name: 'Fadhil Maulana', majelis: 7, noaBaru: 4, noaLanjutan: 16, renewalDue: 18, nilaiBaru: 20, nilaiLanjutan: 114 },
-  { id: 'bp-rudi', name: 'Rudi Hartono', majelis: 6, noaBaru: 5, noaLanjutan: 16, renewalDue: 20, nilaiBaru: 25, nilaiLanjutan: 116 },
-  { id: 'bp-alif', name: 'M. Alif Rizqi', majelis: 8, noaBaru: 5, noaLanjutan: 18, renewalDue: 20, nilaiBaru: 25, nilaiLanjutan: 124 },
-  { id: 'bp-budi', name: 'Budi Ngurah', majelis: 6, noaBaru: 6, noaLanjutan: 18, renewalDue: 21, nilaiBaru: 30, nilaiLanjutan: 126 },
-  { id: 'bp-fauzan', name: 'Fauzan Aditama', majelis: 7, noaBaru: 6, noaLanjutan: 19, renewalDue: 21, nilaiBaru: 30, nilaiLanjutan: 133 },
+  { id: 'bp-sukma', name: 'Sukma Ayuningrum', majelis: 6, noaBaru: 2, noaLanjutan: 11, renewalDue: 14, nilaiBaru: 10, nilaiLanjutan: 72, leadsUnqualified: 5, leadsQualified: 2, leadsUk: 1, leadsDisetujui: 3 },
+  { id: 'bp-cenli', name: 'Cenli Cencen', majelis: 8, noaBaru: 2, noaLanjutan: 13, renewalDue: 16, nilaiBaru: 10, nilaiLanjutan: 87, leadsUnqualified: 5, leadsQualified: 2, leadsUk: 1, leadsDisetujui: 2 },
+  { id: 'bp-diski', name: 'Diski Tafa Ilham', majelis: 8, noaBaru: 3, noaLanjutan: 13, renewalDue: 15, nilaiBaru: 15, nilaiLanjutan: 89, leadsUnqualified: 4, leadsQualified: 3, leadsUk: 2, leadsDisetujui: 4 },
+  { id: 'bp-laili', name: 'Laili Maulidia', majelis: 8, noaBaru: 3, noaLanjutan: 15, renewalDue: 18, nilaiBaru: 15, nilaiLanjutan: 103, leadsUnqualified: 4, leadsQualified: 3, leadsUk: 2, leadsDisetujui: 3 },
+  { id: 'bp-ainur', name: 'Ainur Rohmah', majelis: 8, noaBaru: 4, noaLanjutan: 15, renewalDue: 17, nilaiBaru: 20, nilaiLanjutan: 106, leadsUnqualified: 3, leadsQualified: 3, leadsUk: 2, leadsDisetujui: 5 },
+  { id: 'bp-fadhil', name: 'Fadhil Maulana', majelis: 7, noaBaru: 4, noaLanjutan: 16, renewalDue: 18, nilaiBaru: 20, nilaiLanjutan: 114, leadsUnqualified: 3, leadsQualified: 3, leadsUk: 2, leadsDisetujui: 4 },
+  { id: 'bp-rudi', name: 'Rudi Hartono', majelis: 6, noaBaru: 5, noaLanjutan: 16, renewalDue: 20, nilaiBaru: 25, nilaiLanjutan: 116, leadsUnqualified: 3, leadsQualified: 3, leadsUk: 2, leadsDisetujui: 6 },
+  { id: 'bp-alif', name: 'M. Alif Rizqi', majelis: 8, noaBaru: 5, noaLanjutan: 18, renewalDue: 20, nilaiBaru: 25, nilaiLanjutan: 124, leadsUnqualified: 3, leadsQualified: 3, leadsUk: 2, leadsDisetujui: 5 },
+  { id: 'bp-budi', name: 'Budi Ngurah', majelis: 6, noaBaru: 6, noaLanjutan: 18, renewalDue: 21, nilaiBaru: 30, nilaiLanjutan: 126, leadsUnqualified: 2, leadsQualified: 3, leadsUk: 2, leadsDisetujui: 6 },
+  { id: 'bp-fauzan', name: 'Fauzan Aditama', majelis: 7, noaBaru: 6, noaLanjutan: 19, renewalDue: 21, nilaiBaru: 30, nilaiLanjutan: 133, leadsUnqualified: 2, leadsQualified: 3, leadsUk: 2, leadsDisetujui: 6 },
 ]
 
 /**
@@ -475,6 +485,33 @@ export function branchDisbursement() {
   const due = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.renewalDue, 0)
   return { baru, lanjutan, due, renewal: due === 0 ? 0 : (lanjutan / due) * 100 }
 }
+
+/**
+ * The mitra baru acquisition funnel — where the month's leads are sitting
+ * before they get approved, and separately, how many of those approvals
+ * actually disbursed. "With Leads monitoring" is the one Pencairan cut that
+ * opens this up, both per BP and for the branch; the plain cut only ever
+ * shows NoA, the count that made it all the way through.
+ *
+ * Disetujui is NOT `noaBaru`: an approved lead can still miss disbursing in
+ * the same period (paperwork, the mitra backing out, a majelis slot slipping
+ * to next month), so Disetujui can run ahead of NoA — see `leadsDisetujui` on
+ * `DisbursementBp`.
+ */
+export const leadsTotal = (bp: DisbursementBp) =>
+  bp.leadsUnqualified + bp.leadsQualified + bp.leadsUk + bp.leadsDisetujui
+
+/** Branch totals for the funnel, summed from every BP's row. */
+export function potentialMitraFunnel() {
+  return {
+    unqualified: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsUnqualified, 0),
+    qualified: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsQualified, 0),
+    uk: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsUk, 0),
+    disetujui: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsDisetujui, 0),
+  }
+}
+
+export const potentialMitraTotal = () => DISBURSEMENT_BPS.reduce((n, bp) => n + leadsTotal(bp), 0)
 
 // --- Progres harian ------------------------------------------------------
 

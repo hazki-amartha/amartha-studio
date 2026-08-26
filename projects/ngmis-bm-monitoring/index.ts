@@ -1,7 +1,14 @@
 import type { ProjectModule } from '@/platform/types'
 import { lazyScreen } from '@/platform/lazyScreen'
 import { config } from './project.config'
-import { showEndState, showMvp, scheduleEvening, scheduleMorning } from './lib/demo'
+import {
+  showEndState,
+  showMvp,
+  scheduleEvening,
+  scheduleMorning,
+  showPencairanDefault,
+  showPencairanLeads,
+} from './lib/demo'
 
 export const project: ProjectModule = {
   config,
@@ -35,6 +42,19 @@ export const project: ProjectModule = {
           label: 'Jadwal: Briefing Pagi',
           description: 'Progres harian: banner briefing pagi muncul (pagi hari).',
           apply: scheduleMorning,
+        },
+        {
+          id: 'pencairan-leads',
+          label: 'With Leads monitoring',
+          description:
+            'Pencairan: kartu tanpa % dan target, plus panel Potential mitra (Unqualified, Qualified, UK, Disetujui) di bawah Mitra baru.',
+          apply: showPencairanLeads,
+        },
+        {
+          id: 'pencairan-default',
+          label: 'Pencairan: Default',
+          description: 'Kembali ke tampilan Pencairan biasa — kartu dengan % dan target.',
+          apply: showPencairanDefault,
         },
       ],
       flowsTo: [
