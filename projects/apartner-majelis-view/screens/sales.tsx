@@ -9,7 +9,7 @@
 // which majelis she is bound for.
 
 import { useState } from 'react'
-import { Badge, BottomSheet, NavigationHeader, SelectableCard } from '@/design-system/components'
+import { Badge, BottomSheet, Button, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { Plus } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS_DIRECTORY } from '../lib/schedule'
@@ -24,6 +24,7 @@ import {
   matchesMajelis,
   newMajelisFilterValue,
   statusBadge,
+  subStateTag,
   type Interest,
   type MainStatus,
   type PipelineLead,
@@ -42,6 +43,10 @@ import {
 } from '../lib/ui'
 
 type MenuId = 'status' | 'interest' | 'majelis' | null
+
+// The roster opens already narrowed to the statuses a BP actively works — the
+// won/lost ends (Approved / Disbursed / Rejected) are out of the default view.
+const DEFAULT_STATUS: MainStatus[] = ['unqualified', 'qualified', 'submitted']
 
 // Status and Minat are multi-select — an empty set means "all", so these lists
 // carry only the real values (no "Semua" row; the Reset link clears them).
@@ -86,11 +91,10 @@ function majelisOptions(leads: PipelineLead[]): { label: string; value: string |
   ]
 }
 
-// The interest note as coloured text (not a chip). Yellow reads illegibly small,
-// so Undecided borrows the orange it shades toward.
+// The interest note as coloured text: green interested, blue undecided, red not.
 const INTEREST_TEXT: Record<Interest, string> = {
   interested: 'text-green-600',
-  undecided: 'text-orange-600',
+  undecided: 'text-blue-600',
   'not-interested': 'text-red-500',
 }
 
@@ -133,6 +137,8 @@ function MultiOptionSheet<T extends string>({
 function SalesRow({ lead, onOpen }: { lead: PipelineLead; onOpen: () => void }) {
   const badge = statusBadge(lead)
   const interest = hasInterest(lead.status) && lead.interest ? lead.interest : null
+  // For a Submitted lead the slot under the badge shows the system sub-state.
+  const sub = subStateTag(lead)
 
   return (
     <button
@@ -153,6 +159,8 @@ function SalesRow({ lead, onOpen }: { lead: PipelineLead; onOpen: () => void }) 
           <span className={`text-12 font-regular ${INTEREST_TEXT[interest]}`}>
             {INTEREST_META[interest].label}
           </span>
+        ) : sub ? (
+          <span className="text-12 font-regular text-caption">{sub}</span>
         ) : null}
       </div>
     </button>
@@ -163,7 +171,7 @@ export function SalesScreen() {
   const flow = useFlow()
   const { leads, order } = usePipeline()
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<MainStatus[]>([])
+  const [status, setStatus] = useState<MainStatus[]>(DEFAULT_STATUS)
   const [interest, setInterest] = useState<Interest[]>([])
   const [majelis, setMajelis] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuId>(null)
@@ -196,13 +204,6 @@ export function SalesScreen() {
         <NavigationHeader
           hideBack
           title={<VisitTitle title="Sales" when={`${all.length} lead`} />}
-          link={
-            <span className="flex items-center gap-4">
-              <Plus size={16} />
-              Tambah
-            </span>
-          }
-          onLinkClick={() => flow.go('lead-new')}
         />
       }
     >
@@ -260,7 +261,18 @@ export function SalesScreen() {
         ))}
       </div>
 
-      <TabBar active="sales" />
+      {/* Tambah is a floating action, bottom-right, above the nav. */}
+      <TabBar
+        active="sales"
+        action={
+          <Button size="sm" className="shadow-lg" onClick={() => flow.go('lead-new')}>
+            <span className="flex items-center gap-4">
+              <Plus size={16} />
+              Tambah
+            </span>
+          </Button>
+        }
+      />
 
       <MultiOptionSheet
         open={menu === 'status'}

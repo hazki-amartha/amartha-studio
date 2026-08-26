@@ -8,12 +8,13 @@
 import { useSyncExternalStore } from 'react'
 import {
   SEED_PIPELINE,
-  SOURCE_LABEL,
   followUpDateFor,
+  type Channel,
   type Interest,
   type LeadSource,
   type MajelisAssignment,
   type PipelineLead,
+  type PipelineLog,
   type Product,
   type ReferrerKind,
 } from './pipeline'
@@ -46,8 +47,10 @@ let state: PipelineState = {
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
 
-function log(lead: PipelineLead, outcome: string, note = '') {
-  return [...lead.log, { at: '21 Juli', via: 'telepon' as const, outcome, note: note.trim() }]
+// Appends one history entry. A thin helper so the fixed `at` and the array
+// spread live in one place; callers pass the two-level status the entry records.
+function appendLog(lead: PipelineLead, entry: Omit<PipelineLog, 'at'>) {
+  return [...lead.log, { at: '21 Juli', ...entry }]
 }
 
 function patchLead(id: string, make: (lead: PipelineLead) => Partial<PipelineLead>) {
@@ -103,13 +106,6 @@ export const pipelineStore = {
     // difference between Unqualified (name + phone) and Qualified.
     const qualified = data.ktp && data.nik.replace(/\D/g, '').length === 16
     const referral = data.source === 'referral'
-    const originNote = referral
-      ? data.referredBy.trim()
-        ? `Referral dari ${data.referredBy.trim()}`
-        : ''
-      : data.poi.trim()
-        ? `Ditemui di ${data.poi.trim()}`
-        : ''
     const lead: PipelineLead = {
       id,
       name: data.name.trim(),
@@ -126,12 +122,14 @@ export const pipelineStore = {
       product: null,
       amount: '',
       disburseDate: '',
+      // The first touch reads as her opening status, on the channel she came in.
       log: [
         {
           at: '21 Juli',
-          via: data.source === 'poi' ? 'poi' : 'telepon',
-          outcome: `Lead baru dari ${SOURCE_LABEL[data.source]}`,
-          note: originNote,
+          via: data.source === 'poi' ? 'poi' : 'manual',
+          status: qualified ? 'qualified' : 'unqualified',
+          interest: 'interested',
+          note: referral && data.referredBy.trim() ? `Referral dari ${data.referredBy.trim()}` : '',
         },
       ],
     }
@@ -145,12 +143,20 @@ export const pipelineStore = {
    * schedules the next follow-up. `next` defaults to the interest cadence but the
    * BP can override it with a date she picked.
    */
-  recordInterest(id: string, interest: Interest, label: string, note: string, next?: string) {
+  recordInterest(
+    id: string,
+    interest: Interest,
+    note: string,
+    next?: string,
+    via: Channel = 'telepon',
+  ) {
     const when = next ?? followUpDateFor(interest)
     patchLead(id, (lead) => ({
       interest,
       nextFollowUp: when,
-      log: [...lead.log, { at: '21 Juli', via: 'telepon' as const, outcome: label, note: note.trim(), next: when }],
+      // Recording interest never changes the main status — the entry keeps her
+      // current one (Unqualified / Qualified) and pairs it with the new interest.
+      log: appendLog(lead, { via, status: lead.status, interest, note: note.trim(), next: when }),
     }))
   },
 
@@ -181,25 +187,40 @@ export const pipelineStore = {
         nik,
         ktp,
         status: qualifies ? 'qualified' : lead.status,
-        log: qualifies ? log(lead, 'Qualified · KTP dilengkapi') : lead.log,
+        log: qualifies
+          ? appendLog(lead, {
+              via: 'manual',
+              status: 'qualified',
+              interest: lead.interest ?? 'interested',
+              system: 'KTP dilengkapi',
+            })
+          : lead.log,
       }
     })
   },
 
   /**
-   * Submits the loan form — the Qualified → Submitted step. Fixes the product,
-   * the majelis, and the requested amount. After this the BP waits for UK.
+   * Submits the loan form — the Qualified → Submitted step. Fixes the product
+   * and the majelis. After this the BP waits for UK. (The plafon is no longer
+   * captured here; it is finalised later, at approval.)
    */
-  submitLoan(id: string, data: { product: Product; majelis: MajelisAssignment; amount: string; nik: string }) {
+  submitLoan(id: string, data: { product: Product; majelis: MajelisAssignment; nik: string }) {
     patchLead(id, (lead) => ({
       status: 'submitted',
       interest: null,
+      // Freshly submitted → the first system sub-state: the calon mitra now does
+      // self-serve KYC on AFIN. Everything past here is system-driven.
+      subStatus: 'kyc',
       product: data.product,
       majelis: data.majelis,
-      amount: data.amount.trim(),
       nik: data.nik || lead.nik,
       ktp: true,
-      log: log(lead, 'Pengajuan dikirim · menunggu UK', `Produk ${data.product}${data.amount ? `, plafon ${data.amount}` : ''}`),
+      log: appendLog(lead, {
+        via: 'manual',
+        status: 'submitted',
+        stage: 'kyc',
+        system: `Produk ${data.product}`,
+      }),
     }))
   },
 

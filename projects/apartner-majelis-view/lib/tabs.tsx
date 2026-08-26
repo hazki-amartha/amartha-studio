@@ -21,6 +21,7 @@
 // visit is a three-stage sequence with its own sticky CTA, and offering "jump to
 // Sales" mid-collection is how focused work turns back into browsing.
 
+import type { ReactNode } from 'react'
 import { NavigationBar } from '@/design-system/components'
 // `Contact`, `File` and `User` come from the shared set rather than this
 // project's local icons: a person-card, a document and a single silhouette are
@@ -41,13 +42,21 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'profile', label: 'Profil', icon: <User /> },
 ]
 
-export function TabBar({ active }: { active: TabId }) {
+export function TabBar({ active, action }: { active: TabId; action?: ReactNode }) {
   const flow = useFlow()
 
   return (
     // Pinned to the bottom of the scrollport, edge to edge — the Screen
     // primitive owns the 16px page padding, so the bar negates it.
     <div className="sticky bottom-0 -mx-16 mt-auto">
+      {/* A floating action rides just above the nav, right-aligned. The row
+          itself is click-through (pointer-events-none) so it never blocks the
+          content scrolling behind the gap; only the button inside catches taps. */}
+      {action ? (
+        <div className="pointer-events-none flex justify-end px-16 pb-12">
+          <span className="pointer-events-auto">{action}</span>
+        </div>
+      ) : null}
       <NavigationBar
         items={TABS.map((tab) => ({
           id: tab.id,

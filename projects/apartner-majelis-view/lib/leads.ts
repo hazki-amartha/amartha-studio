@@ -113,6 +113,8 @@ export interface SosialisasiEvent {
   title: string
   place: string
   target: number
+  /** The POI a prospect captured here is sourced from, in the Sales pipeline. */
+  poi: string
 }
 
 export const EVENTS: SosialisasiEvent[] = [
@@ -121,6 +123,7 @@ export const EVENTS: SosialisasiEvent[] = [
     title: 'Sosialisasi Ciseeng',
     place: 'Warung Bu Ipah, Kp. Cibeuteung RT 03',
     target: 10,
+    poi: 'Warung Bu Ipah, Cibeuteung',
   },
   // Last week's, in Putat Nutug. Nothing opens it — it exists so the seeded
   // leads have somewhere to have come from, which is what makes today's
@@ -130,6 +133,7 @@ export const EVENTS: SosialisasiEvent[] = [
     title: 'Sosialisasi Putat Nutug',
     place: 'Balai RW 02, Putat Nutug',
     target: 10,
+    poi: 'Balai RW 02, Putat Nutug',
   },
 ]
 

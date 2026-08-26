@@ -211,11 +211,13 @@ export function FollowUpScreen() {
                 label="KTP"
                 value={ktpDetail(lead)}
                 onEdit={step === 2 && worked ? () => setSheet('ktp') : undefined}
+                warning={!lead.nik}
               />
               <DetailRow
                 label="Majelis"
                 value={majelisDetail(lead)}
                 onEdit={step === 2 ? () => setSheet('majelis') : undefined}
+                warning={lead.majelis.kind === 'none'}
               />
             </div>
           ) : null}
@@ -279,8 +281,7 @@ export function FollowUpScreen() {
               name="hasil-follow-up"
               inputType="radio"
               title="Ajukan Pinjaman"
-              description={canSubmit ? 'Kirim pengajuan pinjaman' : 'Lengkapi KTP dulu untuk mengajukan'}
-              disabled={!canSubmit}
+              description={canSubmit ? 'Kirim pengajuan pinjaman' : 'Pastikan KTP sudah tersedia'}
               checked={pick === 'ajukan'}
               onChange={() => pickOutcome('ajukan')}
             />
@@ -336,7 +337,7 @@ export function FollowUpScreen() {
           open={sheet === 'when'}
           onClose={() => setSheet(null)}
           onSave={(date, note) => {
-            pipelineStore.recordInterest(lead.id, pick, INTEREST_META[pick].label, note, date)
+            pipelineStore.recordInterest(lead.id, pick, note, date)
             complete()
           }}
         />
@@ -347,7 +348,7 @@ export function FollowUpScreen() {
         open={sheet === 'reason'}
         onClose={() => setSheet(null)}
         onSave={(note) => {
-          pipelineStore.recordInterest(lead.id, 'not-interested', INTEREST_META['not-interested'].label, note)
+          pipelineStore.recordInterest(lead.id, 'not-interested', note)
           complete()
         }}
       />
@@ -371,6 +372,7 @@ export function FollowUpScreen() {
         count={followUpTaskId ? rescheduleCount(s, followUpTaskId) : 0}
         onConfirm={reschedule}
         onReject={reject}
+        hideReason
       />
     </AppScreen>
   )
@@ -405,7 +407,6 @@ function FollowUpWhenSheet({
       open={open}
       onClose={onClose}
       title="Jadwal follow-up berikutnya"
-      description={`Rekomendasi: ${INTEREST_META[interest].hint}`}
       primaryAction={
         <Button size="lg" className="w-full" onClick={() => onSave(date, note)}>
           Simpan & Selesai
@@ -413,17 +414,22 @@ function FollowUpWhenSheet({
       }
     >
       <div className="flex flex-col gap-8">
-        {options.map((o) => (
-          <SelectableCard
-            key={o.date}
-            name="followup-when"
-            inputType="radio"
-            title={o.label}
-            description={o.date}
-            checked={date === o.date}
-            onChange={() => setDate(o.date)}
-          />
-        ))}
+        {options.map((o) => {
+          // The cadence recommendation now rides the option itself, not a
+          // sheet subtitle — e.g. "3 hari lagi (Recommended)".
+          const isRecommended = o.date === recommended
+          return (
+            <SelectableCard
+              key={o.date}
+              name="followup-when"
+              inputType="radio"
+              title={isRecommended ? `${o.label} (Recommended)` : o.label}
+              description={o.date}
+              checked={date === o.date}
+              onChange={() => setDate(o.date)}
+            />
+          )
+        })}
         <label className="flex flex-col gap-4 pt-4">
           <span className="text-12 text-caption">Catatan (opsional)</span>
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Hasil pembicaraan…" />

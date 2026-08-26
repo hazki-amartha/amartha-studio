@@ -34,9 +34,6 @@ export function LeadNewScreen() {
   const [ktp, setKtp] = useState(false)
   const [sheet, setSheet] = useState<SheetId>(null)
 
-  // The one-line summary of the chosen source, shown once it is set.
-  const sourceDetail = source === 'poi' ? poi : referredBy
-
   function pickSource(s: LeadSource) {
     setSource(s)
     setSheet(s === 'poi' ? 'poi' : 'referral')
@@ -75,34 +72,46 @@ export function LeadNewScreen() {
 
       <SectionTitle>Sumber</SectionTitle>
       <div className="flex flex-col gap-8">
-        {SOURCES.map((value) => (
-          <SelectableCard
-            key={value}
-            name="lead-source"
-            inputType="radio"
-            title={SOURCE_LABEL[value]}
-            description={
-              value === 'poi' ? 'Ditemui saat POI Visit / Sosialisasi' : 'Dikenalkan oleh mitra atau warga'
-            }
-            checked={source === value}
-            onChange={() => pickSource(value)}
-          />
-        ))}
-        {/* Once a source is chosen, its detail (which POI / who referred) shows
-            here, tappable to change. */}
-        {source && sourceDetail ? (
-          <button
-            type="button"
-            onClick={() => setSheet(source === 'poi' ? 'poi' : 'referral')}
-            className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-left"
-          >
-            <span className="flex min-w-0 flex-col">
-              <span className="text-12 text-caption">{source === 'poi' ? 'POI' : 'Perujuk'}</span>
-              <span className="truncate text-14 text-default">{sourceDetail}</span>
-            </span>
-            <span className="shrink-0 text-12 font-bold text-link">Ubah</span>
-          </button>
-        ) : null}
+        {SOURCES.map((value) => {
+          const selected = source === value
+          const detail = value === 'poi' ? poi : referredBy
+          const defaultDesc =
+            value === 'poi' ? 'Ditemui saat POI Visit / Sosialisasi' : 'Dikenalkan oleh mitra atau warga'
+          // Once chosen, the card carries its own detail (which POI / who
+          // referred) with an inline "Ubah" right beside it — no slot, no
+          // standalone card beneath.
+          return (
+            <SelectableCard
+              key={value}
+              name="lead-source"
+              inputType="radio"
+              title={SOURCE_LABEL[value]}
+              description={
+                selected && detail ? (
+                  <>
+                    {detail}
+                    {' · '}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setSheet(value === 'poi' ? 'poi' : 'referral')
+                      }}
+                      className="font-bold text-link"
+                    >
+                      Ubah
+                    </button>
+                  </>
+                ) : (
+                  defaultDesc
+                )
+              }
+              checked={selected}
+              onChange={() => pickSource(value)}
+            />
+          )
+        })}
       </div>
 
       <SectionTitle>Majelis</SectionTitle>
