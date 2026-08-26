@@ -38,5 +38,7 @@ export const configs: ConfigRegistry = {
     import('./ngmis-bm-monitoring-v2/project.config').then((m) => m.config),
   'ngmis-cash-outstanding': () =>
     import('./ngmis-cash-outstanding/project.config').then((m) => m.config),
+  'afin-weekly-checkin-ut': () =>
+    import('./afin-weekly-checkin-ut/project.config').then((m) => m.config),
   // <append new projects above this line — one line per project>
 }
