@@ -3,8 +3,8 @@
 // =============================================================================
 // NG-MIS BM shell — project-local components (CLAUDE.md §4).
 //
-// FunDS Lite is a mobile system: no app shell, no sidebar, no table, no
-// pagination, because none of those make sense on a phone. Everything here is
+// FunDS Lite is a mobile system: no app shell, no sidebar and no table,
+// because none of those make sense on a phone. Everything here is
 // built from FunDS tokens and FunDS components only — no hardcoded colour, size
 // or radius that isn't in tailwind.config.ts.
 //
@@ -20,10 +20,10 @@
 // the spacing scale deliberately stops at 48px.
 // =============================================================================
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Badge } from '@/design-system/components'
 import {
-  CheckCircleFill,
+  Cross,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -31,6 +31,7 @@ import {
   ChevronUpDown,
   SignOut,
 } from '@/design-system/icons'
+import { Wordmark } from '@/design-system/assets'
 
 // --- Frame geometry ---------------------------------------------------------
 
@@ -44,13 +45,10 @@ const CONTROL_H = 32
 
 // --- Brand lockup -----------------------------------------------------------
 
-/**
- * The corporate amartha lockup. `design-system/assets` ships product wordmarks
- * (poket, modal, celengan…) but not the company one, so this renders the word
- * alone rather than inventing the flower mark — same gap `ngmis-live` records.
- */
+/** The corporate amartha lockup — flower mark plus the word, shipped as artwork
+ *  in `design-system/assets`. */
 function AmarthaLockup() {
-  return <span className="text-20 font-bold lowercase text-primary-500">amartha</span>
+  return <Wordmark name="amartha" height={24} />
 }
 
 // --- Sidebar ----------------------------------------------------------------
@@ -204,7 +202,7 @@ export function MisShell({
   children: ReactNode
 }) {
   return (
-    <div className="flex h-full bg-neutral-white">
+    <div className="relative flex h-full bg-neutral-white">
       {sidebar}
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-neutral-50">
         {breadcrumbs?.length || header ? (
@@ -241,16 +239,22 @@ export function PageHeading({
   title,
   meta,
   actions,
+  leading,
 }: {
   title: string
   meta?: string
   actions?: ReactNode
+  /** Rendered to the LEFT of the title — e.g. a back button. */
+  leading?: ReactNode
 }) {
   return (
     <div className="flex shrink-0 flex-wrap items-start justify-between gap-16 py-16">
-      <div className="flex flex-col gap-4">
-        <h1 className="text-24 font-bold text-default">{title}</h1>
-        {meta ? <span className="text-12 text-caption">{meta}</span> : null}
+      <div className="flex items-center gap-12">
+        {leading}
+        <div className="flex flex-col gap-4">
+          <h1 className="text-24 font-bold text-default">{title}</h1>
+          {meta ? <span className="text-12 text-caption">{meta}</span> : null}
+        </div>
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-8">{actions}</div> : null}
     </div>
@@ -311,18 +315,253 @@ export function PanelHeading({
   title,
   subtitle,
   action,
+  titleAction,
 }: {
   title: string
   subtitle?: string
   action?: ReactNode
+  /** Rendered inline right beside the title (not pushed to the right edge). */
+  titleAction?: ReactNode
 }) {
   return (
     <div className="flex items-start justify-between gap-16 pb-12">
       <div className="flex flex-col gap-2">
-        <span className="text-16 font-bold text-default">{title}</span>
+        <span className="flex items-center gap-12">
+          <span className="text-16 font-bold text-default">{title}</span>
+          {titleAction}
+        </span>
         {subtitle ? <span className="text-12 text-caption">{subtitle}</span> : null}
       </div>
       {action}
+    </div>
+  )
+}
+
+// --- Side sheet --------------------------------------------------------------
+
+const SHEET_W = 420
+
+/**
+ * A panel that slides over the page from the right. FunDS ships BottomSheet,
+ * which is the phone answer to the same problem — on a 1440-wide console a
+ * sheet from the bottom would cover the table it is about.
+ *
+ * Positioned `absolute`, not `fixed`, so it stays inside the device frame in
+ * prototype view rather than escaping to the browser viewport.
+ */
+export function SideSheet({
+  title,
+  description,
+  onClose,
+  children,
+  footer,
+}: {
+  title: string
+  description?: string
+  onClose: () => void
+  children: ReactNode
+  /** Omit for a sheet with nothing to confirm — a body-only read/edit surface
+   *  (e.g. Setor tunai's breakdown drawer) skips the footer strip entirely. */
+  footer?: ReactNode
+}) {
+  return (
+    <div className="absolute inset-0 z-20 flex justify-end bg-overlay">
+      <div className="flex h-full flex-col bg-neutral-white" style={{ width: SHEET_W }}>
+        <div className="flex shrink-0 items-start justify-between gap-16 border-b border-default p-24">
+          <div className="flex flex-col gap-4">
+            <span className="text-20 font-bold text-default">{title}</span>
+            {description ? <span className="text-14 text-caption">{description}</span> : null}
+          </div>
+          <button type="button" aria-label="Tutup" onClick={onClose} className="text-caption">
+            <Cross size={20} />
+          </button>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-24 overflow-y-auto p-24">{children}</div>
+
+        {footer ? (
+          <div className="flex shrink-0 items-center gap-12 border-t border-default p-24">{footer}</div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+/** One labelled block inside a sheet. The label is the question, the body is
+ *  the answer — so a BM can skim to the part she doubts. */
+export function SheetSection({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-8">
+      <span className="text-12 font-bold text-caption">{label}</span>
+      {children}
+    </div>
+  )
+}
+
+// --- Rate pill ---------------------------------------------------------------
+
+/**
+ * A rate wearing its verdict: a soft pill, green when the figure clears its
+ * standard and red when it does not.
+ *
+ * `ok === null` renders plain text instead. A neutral pill would still read as
+ * a judgement, and Total Mitra and DPD 90+ have no standard to be judged
+ * against.
+ */
+export function RatePill({ ok, children }: { ok: boolean | null; children: ReactNode }) {
+  if (ok === null) return <span className="text-14 text-default">{children}</span>
+  return (
+    <Badge intent={ok ? 'green' : 'red'} variant="subtle" size="sm">
+      {children}
+    </Badge>
+  )
+}
+
+// --- Bucket card -------------------------------------------------------------
+
+const BUCKET_CHIP: Record<string, string> = {
+  green: 'border-green-200 bg-green-50 text-green-600',
+  yellow: 'border-yellow-200 bg-yellow-50 text-yellow-700',
+  orange: 'border-orange-200 bg-orange-50 text-orange-600',
+  red: 'border-red-200 bg-red-50 text-red-600',
+}
+
+/**
+ * One bucket as its own card: the bucket named at the top, the figure plain
+ * beneath.
+ *
+ * `intent` puts the name in a coloured chip, which is what Pembayaran's ageing
+ * buckets want — colour sits on the chip rather than the number because the
+ * chip is what the colour is about, how old the debt is. Omit it and the name
+ * is plain black text: Pencairan's cards are cuts of the same month with no
+ * severity between them, so a chip there would promise a scale that isn't.
+ *
+ * `trailing` sits on the figure's own line, for the one case where a count and
+ * the rate computed from it are the same fact and belong together.
+ */
+export function BucketCard({
+  label,
+  intent,
+  value,
+  prefix,
+  trailing,
+  caption,
+  targetLabel,
+  borderClassName,
+}: {
+  label: string
+  intent?: string
+  value: string
+  prefix?: string
+  trailing?: ReactNode
+  caption: string
+  /** "Target: 100%", pinned top-right of the label row — for cards read
+   *  against a monthly count target rather than a rate. */
+  targetLabel?: string
+  /** Overrides the default border, e.g. to bond this card visually to a
+   *  panel underneath it — see Pencairan's "With Leads monitoring". */
+  borderClassName?: string
+}) {
+  return (
+    <div
+      className={`flex flex-col gap-12 rounded-12 border bg-neutral-white p-16 ${
+        borderClassName ?? 'border-default'
+      }`}
+    >
+      <span className="flex items-start justify-between gap-8">
+        {intent ? (
+          <span
+            className={`self-start rounded-8 border px-8 py-2 text-12 font-bold ${BUCKET_CHIP[intent]}`}
+          >
+            {label}
+          </span>
+        ) : (
+          <span className="text-12 font-bold text-default">{label}</span>
+        )}
+        {targetLabel ? <span className="text-12 text-caption">{targetLabel}</span> : null}
+      </span>
+      <span className="flex flex-col gap-2">
+        <span className="flex items-center gap-8">
+          <span className="text-24 font-bold text-default">
+            {prefix ? <span className="text-16">{prefix}</span> : null}
+            {value}
+          </span>
+          {trailing}
+        </span>
+        <span className="text-12 text-caption">{caption}</span>
+      </span>
+    </div>
+  )
+}
+
+// --- Collapsible --------------------------------------------------------
+
+/**
+ * A panel that opens to reveal a breakdown underneath its own header —
+ * "Potential mitra" opening onto the lead funnel behind Mitra baru's count,
+ * closed by default so the plain figure is what a BM sees first.
+ */
+export function Collapsible({
+  title,
+  hint,
+  children,
+  borderClassName,
+}: {
+  title: string
+  /** Right-aligned hint in the header, e.g. the total the breakdown adds up to. */
+  hint?: string
+  children: ReactNode
+  /** Overrides the default border, e.g. to bond this panel visually to the
+   *  card it opens up — see Pencairan's "With Leads monitoring". */
+  borderClassName?: string
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className={`rounded-12 border bg-neutral-white ${borderClassName ?? 'border-default'}`}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-8 p-16 text-left"
+      >
+        <span className="flex-1 text-14 font-bold text-default">{title}</span>
+        {hint ? <span className="text-12 text-caption">{hint}</span> : null}
+        <span className="text-caption">
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </span>
+      </button>
+      {open ? (
+        <div className="flex flex-col gap-8 border-t border-default p-16">{children}</div>
+      ) : null}
+    </div>
+  )
+}
+
+// --- Metric card ------------------------------------------------------------
+
+/** A headline rate with the target it is judged against sitting underneath, so
+ *  the number is never read without the bar it has to clear. */
+export function MetricCard({
+  label,
+  value,
+  target,
+  onTarget,
+}: {
+  label: string
+  value: string
+  target: string
+  onTarget: boolean
+}) {
+  return (
+    <div className="rounded-12 border border-default bg-neutral-white p-16">
+      <div className="flex flex-col gap-4">
+        <span className="text-14 text-default">{label}</span>
+        <span className={`text-24 font-bold ${onTarget ? 'text-green-500' : 'text-red-500'}`}>
+          {value}
+        </span>
+        <span className="text-12 text-caption">Target: {target}</span>
+      </div>
     </div>
   )
 }
@@ -333,12 +572,16 @@ export function PanelHeading({
 export function Select({
   value,
   options,
+  groups,
   onChange,
   label,
   disabled,
 }: {
   value: string
-  options: { value: string; label: string }[]
+  options?: { value: string; label: string }[]
+  /** Labelled sections, for a list that mixes two kinds of choice — a status
+   *  and a name read as one flat list otherwise. */
+  groups?: { label: string; options: { value: string; label: string }[] }[]
   onChange: (value: string) => void
   label: string
   /** A filter that has nothing left to narrow — greyed rather than hidden, so
@@ -357,10 +600,19 @@ export function Select({
         }`}
         style={{ height: CONTROL_H }}
       >
-        {options.map((o) => (
+        {options?.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>
+        ))}
+        {groups?.map((group) => (
+          <optgroup key={group.label} label={group.label}>
+            {group.options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </optgroup>
         ))}
       </select>
       <span
@@ -371,407 +623,5 @@ export function Select({
         <ChevronDown size={16} />
       </span>
     </div>
-  )
-}
-
-export function Textarea({
-  value,
-  onChange,
-  placeholder,
-  rows = 4,
-}: {
-  value: string
-  onChange: (value: string) => void
-  placeholder?: string
-  rows?: number
-}) {
-  return (
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      rows={rows}
-      className="w-full rounded-8 border border-default bg-neutral-white p-12 text-14 font-regular text-default placeholder:text-placeholder focus:border-primary-500 focus:outline-none"
-    />
-  )
-}
-
-// --- KPI card ---------------------------------------------------------------
-
-export interface StatDelta {
-  /** e.g. "Kemarin: 19.8%" */
-  label: string
-  /** e.g. "0,2%" */
-  value: string
-  direction: 'up' | 'down'
-  /** A rise is not always good news: DPD flow going up is red. */
-  good: boolean
-}
-
-export function StatCard({
-  label,
-  value,
-  delta,
-  average,
-  aside,
-}: {
-  label: string
-  value: string
-  delta: StatDelta
-  average: string
-  /** The second figure some cards carry, e.g. "New mitra / 12". */
-  aside?: { label: string; value: string }
-}) {
-  const tone = delta.good ? 'text-green-500' : 'text-red-500'
-  return (
-    <Panel>
-      <div className="flex items-start justify-between gap-16">
-        <div className="flex min-w-0 flex-col gap-4">
-          <span className="text-14 text-default">{label}</span>
-          <span className="text-24 font-bold text-default">{value}</span>
-          <span className="flex items-center gap-4 text-12 text-caption">
-            {delta.label}
-            <span className={`flex items-center gap-2 ${tone}`}>
-              {delta.direction === 'up' ? <TriangleUpGlyph /> : <TriangleDownGlyph />}
-              {delta.value}
-            </span>
-          </span>
-          <span className="text-12 text-caption">{average}</span>
-        </div>
-        {aside ? (
-          <div className="flex shrink-0 flex-col gap-4 pt-24">
-            <span className="text-12 text-caption">{aside.label}</span>
-            <span className="text-16 font-bold text-default">{aside.value}</span>
-          </div>
-        ) : null}
-      </div>
-    </Panel>
-  )
-}
-
-/** The delta arrowheads. `TriangleUpFill` in the shared set is a 24px glyph that
- *  reads far heavier than the 8px caret the reference draws inline with 12px
- *  text, so these are project-local one-offs (§4). */
-function TriangleUpGlyph() {
-  return (
-    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" aria-hidden>
-      <path d="M4 1.5 7.5 6.5h-7z" />
-    </svg>
-  )
-}
-
-function TriangleDownGlyph() {
-  return (
-    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" aria-hidden>
-      <path d="M4 6.5 0.5 1.5h7z" />
-    </svg>
-  )
-}
-
-// --- Daily report tiles -----------------------------------------------------
-
-/** Sun and moon are genuinely absent from the 166-icon set (§4), so they are
- *  project-local one-offs rather than additions to the shared module. */
-export function SunGlyph() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-      <circle cx="10" cy="10" r="3.5" stroke="currentColor" strokeWidth="1.5" />
-      <path
-        d="M10 2v2m0 12v2M2 10h2m12 0h2M4.7 4.7l1.4 1.4m7.8 7.8 1.4 1.4m0-10.6-1.4 1.4m-7.8 7.8-1.4 1.4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-export function MoonGlyph() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-      <path
-        d="M16 12.3A6.8 6.8 0 0 1 7.7 4a6.8 6.8 0 1 0 8.3 8.3Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-export function ReportTile({
-  icon,
-  iconTone,
-  title,
-  body,
-  action,
-  done,
-}: {
-  icon: ReactNode
-  iconTone: string
-  title: string
-  body: string
-  action: ReactNode
-  /** Replaces the action once the report has been sent. */
-  done?: boolean
-}) {
-  return (
-    <div className="flex flex-1 flex-col gap-8 rounded-12 border border-default p-16">
-      <span className="flex items-center gap-8">
-        <span className={iconTone}>{icon}</span>
-        <span className="text-14 font-bold text-default">{title}</span>
-      </span>
-      <span className="text-12 text-caption">{body}</span>
-      <span className="pt-4">
-        {done ? (
-          <Badge intent="green" variant="subtle" size="sm">
-            Terkirim
-          </Badge>
-        ) : (
-          action
-        )}
-      </span>
-    </div>
-  )
-}
-
-// --- Progress bar -----------------------------------------------------------
-
-const BAR_W = 200
-
-/** The task-completion meter in the BP table. Colour is the read: red is a BP
- *  who has fallen behind, green is one who is on top of it. */
-export function ProgressBar({ percent }: { percent: number }) {
-  const tone = percent >= 80 ? 'bg-green-500' : percent >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-  return (
-    <span className="flex items-center gap-8">
-      <span
-        className="relative h-4 shrink-0 overflow-hidden rounded-full bg-neutral-200"
-        style={{ width: BAR_W }}
-      >
-        <span
-          className={`absolute inset-y-0 left-0 rounded-full ${tone}`}
-          style={{ width: `${Math.max(percent, 1)}%` }}
-        />
-      </span>
-      <span className="text-12 text-caption">{percent}%</span>
-      {percent === 100 ? <CheckCircleFill size={16} className="text-green-500" /> : null}
-    </span>
-  )
-}
-
-// --- Table ------------------------------------------------------------------
-
-export type SortDir = 'asc' | 'desc'
-
-export interface Column {
-  id: string
-  header: string
-  sortable?: boolean
-  align?: 'left' | 'right'
-}
-
-export interface Row {
-  id: string
-  cells: Record<string, ReactNode>
-}
-
-export function DataTable({
-  columns,
-  rows,
-  sort,
-  onSortChange,
-}: {
-  columns: Column[]
-  rows: Row[]
-  sort: { columnId: string; dir: SortDir } | null
-  onSortChange: (columnId: string) => void
-}) {
-  return (
-    <div className="min-w-0 overflow-x-auto">
-      <table className="w-full border-collapse text-left">
-        <thead>
-          <tr className="bg-neutral-50">
-            {columns.map((col, i) => (
-              <th
-                key={col.id}
-                // The tinted header is a bar sitting inside a rounded card, so
-                // its outer corners follow the card rather than staying square.
-                className={`px-12 py-12 text-12 font-bold text-default ${
-                  col.align === 'right' ? 'text-right' : ''
-                } ${i === 0 ? 'rounded-l-8' : ''} ${
-                  i === columns.length - 1 ? 'rounded-r-8' : ''
-                }`}
-              >
-                {col.sortable ? (
-                  <button
-                    type="button"
-                    onClick={() => onSortChange(col.id)}
-                    className="flex items-center gap-4"
-                  >
-                    {col.header}
-                    <span className={sort?.columnId === col.id ? 'text-link' : 'text-caption'}>
-                      {sort?.columnId === col.id ? (
-                        sort.dir === 'asc' ? (
-                          <ChevronUp size={16} />
-                        ) : (
-                          <ChevronDown size={16} />
-                        )
-                      ) : (
-                        <ChevronUpDown size={16} />
-                      )}
-                    </span>
-                  </button>
-                ) : (
-                  col.header
-                )}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr
-              key={row.id}
-              // Zebra striping, so the eye can track a row across 1200px.
-              className={`border-b border-default align-middle ${
-                i % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'
-              }`}
-            >
-              {columns.map((col) => (
-                <td
-                  key={col.id}
-                  className={`px-12 py-12 text-14 text-default ${
-                    col.align === 'right' ? 'text-right' : ''
-                  }`}
-                >
-                  {row.cells[col.id]}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// --- Pagination -------------------------------------------------------------
-
-/**
- * The page numbers to draw: first, last, and the current page with a neighbour
- * either side, `null` where the run is broken. 95 entries at 10/page is ten
- * buttons and at 5/page it would be nineteen, so the row has to window or it
- * becomes the widest thing on the screen.
- */
-function pageWindow(page: number, pageCount: number): (number | null)[] {
-  if (pageCount <= 7) return Array.from({ length: pageCount }, (_, i) => i + 1)
-  const wanted = [1, page - 1, page, page + 1, pageCount]
-    .filter((n) => n >= 1 && n <= pageCount)
-    .sort((a, b) => a - b)
-
-  const out: (number | null)[] = []
-  let prev = 0
-  for (const n of wanted) {
-    if (n === prev) continue
-    if (prev && n - prev > 1) out.push(null)
-    out.push(n)
-    prev = n
-  }
-  return out
-}
-
-export function Pagination({
-  page,
-  pageCount,
-  rangeLabel,
-  onPageChange,
-  perPage,
-  onPerPageChange,
-}: {
-  page: number
-  pageCount: number
-  /** e.g. "1 - 10 of 95 entries." — the count is of the whole set, not the page. */
-  rangeLabel: string
-  onPageChange: (page: number) => void
-  perPage: string
-  onPerPageChange: (perPage: string) => void
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-16 pt-16 text-12 text-caption">
-      <span>{rangeLabel}</span>
-      <div className="flex items-center gap-8">
-        <PageArrow
-          label="Halaman sebelumnya"
-          disabled={page === 1}
-          onClick={() => onPageChange(page - 1)}
-        >
-          <ChevronLeft size={16} />
-        </PageArrow>
-        {pageWindow(page, pageCount).map((n, i) =>
-          n === null ? (
-            // eslint-disable-next-line react/no-array-index-key -- gaps have no id
-            <span key={`gap-${i}`} className="px-4 text-caption">
-              …
-            </span>
-          ) : (
-            <button
-              key={n}
-              type="button"
-              onClick={() => onPageChange(n)}
-              aria-current={n === page ? 'page' : undefined}
-              className={`flex size-32 items-center justify-center rounded-full text-12 ${
-                n === page
-                  ? 'border border-primary-500 font-bold text-link'
-                  : 'font-regular text-caption hover:text-default'
-              }`}
-            >
-              {n}
-            </button>
-          ),
-        )}
-        <PageArrow
-          label="Halaman berikutnya"
-          disabled={page === pageCount}
-          onClick={() => onPageChange(page + 1)}
-        >
-          <ChevronRight size={16} />
-        </PageArrow>
-      </div>
-      <Select
-        label="Baris per halaman"
-        value={perPage}
-        onChange={onPerPageChange}
-        options={[
-          { value: '10', label: '10 / page' },
-          { value: '20', label: '20 / page' },
-          { value: '50', label: '50 / page' },
-        ]}
-      />
-    </div>
-  )
-}
-
-function PageArrow({
-  label,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string
-  disabled: boolean
-  onClick: () => void
-  children: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="flex size-32 items-center justify-center rounded-full text-default disabled:text-placeholder"
-    >
-      {children}
-    </button>
   )
 }

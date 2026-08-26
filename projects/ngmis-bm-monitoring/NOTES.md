@@ -6,31 +6,35 @@ candidates recorded there are the same ones here.
 
 In `lib/ui.tsx`:
 
-- `MisShell` / `SideNav` — the desktop chrome. Sidebar-first: the amartha lockup sits at the top of the 216px sidebar instead of in a 40px header strip, which is the frame the BM portal uses. `MisShell`'s `header` slot renders the title, filter row and tabs as one full-bleed white block above the tinted body. Used by `lib/shell.tsx`, which every screen wraps in.
-- `SidebarPromo` — the "We've updated our portal!" card above Report/Settings. Same file.
-- `Breadcrumbs`, `PageHeading`, `Panel`, `PanelHeading` — content-column chrome. All four screens.
-- `Tabs` — Task / Repayment / Disbursement under the page title. `branch-summary`.
-- `Select` — FunDS has no select; a phone uses a bottom sheet for this. Header filters and both report forms.
-- `Textarea` — same gap. `morning-report`, `evening-report`.
-- `StatCard` — KPI tile: label, figure, day-on-day delta, month average, optional second figure. `branch-summary`.
-- `ProgressBar` — task-completion meter, red/yellow/green by threshold. `branch-summary`.
-- `DataTable` — sortable headers, zebra rows. `branch-summary`, `report-history`.
-- `Pagination` — numbered pages plus a per-page select. `branch-summary`.
-- `ReportTile`, `SunGlyph`, `MoonGlyph` — the morning/evening tiles. Sun and moon are genuinely absent from the 166-icon set, so they are one-offs rather than additions to the shared module. Currently unused by any screen — the Daily Report section was removed from the dashboard, but the two report screens they belong to still exist.
+- `MisShell` / `SideNav` — the desktop chrome. Sidebar-first: the amartha lockup sits at the top of the 216px sidebar instead of in a 40px header strip. `MisShell`'s `header` slot renders the title, filter row and tabs as one full-bleed white block above the tinted body.
+- `SidebarPromo` — the "We've updated our portal!" card above Report/Settings.
+- `Breadcrumbs`, `PageHeading`, `Panel`, `PanelHeading`, `Tabs` — page chrome.
+- `Select` — FunDS has no select; a phone uses a bottom sheet. Supports labelled `groups`, which the BP filter needs because it mixes a status and a name in one list.
+- `RatePill` — a rate wearing its verdict: green when it clears its standard, red when it does not, plain text when the bucket has no standard to be judged against.
+- `MetricCard` — a headline rate with the target it is judged against underneath.
+- `SideSheet` / `SheetSection` — the right-hand panel the action brief opens in. FunDS ships `BottomSheet`, which is the phone answer: on a 1440-wide console a sheet from the bottom covers the table it is about. Positioned `absolute` so it stays inside the device frame in prototype view.
+- `Collapsible` — a header that opens onto a breakdown underneath, closed by default. Used by Pencairan's "With Leads monitoring" cut for the Potential mitra funnel. Takes an optional `borderClassName` to bond it visually to the card above it.
+- `BucketCard` also takes an optional `borderClassName`, same reason — Pencairan's Mitra baru card and the Potential mitra panel below it share a primary-500 border rather than each defaulting to `border-default`.
 
-In `lib/repayment-view.tsx` — the whole Repayment tab, kept out of the screen
-file because it is a full view rather than a section:
+Elsewhere in `lib/`:
 
-- `Paid` — a "Terbayar" figure coloured against a benchmark for **its own DPD bucket** (`RATE_BANDS` in `lib/data.ts`). One flat threshold would paint the DPD 90+ column red on every row, since collecting little on the oldest bucket is normal — that leaves no signal at all. The bands are inferred from the reference screenshot's colouring, not from real targets.
-- `Rank` — the numbered badge; the top 3 are filled red and their rows tinted.
+- `branch-summary-page.tsx` — the Performa page shared by both variations, so chrome cannot drift between them.
+- `repayment-table.tsx` — the MVP cut. Counts and rate side by side in every bucket.
+- `repayment-grid.tsx` — the end state. Rate leads, and every BP missing a standard carries a recommended action with a brief behind it.
+- `bp-filter.tsx` — the shared filter, by target status or by BP name.
+- `daily-dashboard.tsx` + `daily-scorecard.tsx` + `daily-briefing-form.tsx` + `daily-data.ts` + `daily-store.ts` + `daily-ui.tsx` — Progres harian, followed exactly from `ngmis-bm-monitoring-v2`'s Daily Monitoring dashboard: the banner, the full Task/Repayment/Cash settlement/Disbursement scorecard, and the real briefing journey (Mulai Briefing → the morning/evening form → Kirim → the read-only detail view; Riwayat briefing → the history table). Kept on its own six-BP roster and its own module store rather than remapped onto this project's ten-BP one — a straight port, not a redesign. `screens/briefing-morning.tsx`, `briefing-evening.tsx`, `briefing-history.tsx` and `briefing-detail.tsx` are the flow's other screens; only their back-navigation target changed, from v2's `dashboard` id to this project's `branch-summary`.
+- `cash-table.tsx` + `cash-data.ts` + `cash-store.ts` — Setor tunai, with its real journey: Koreksi nominal opens the belum-disetor breakdown drawer (tugas → mitra) where a correction cascades through the row and the branch total; Setujui keterlambatan confirms (with an optional reason) and swaps the button for a "Telat disetujui" read-out; BP mangkir drops the BP off the report and opens `screens/bp-user-details.tsx`. Ported from `ngmis-cash-outstanding`, on this project's own ten-BP roster rather than that project's six.
+- `store.ts` + `demo.ts` — which cut is on screen and which BPs have a task booked. The cut is driven from the STATES panel rather than a control inside the prototype.
 
-Open questions on the Repayment tab:
+Judgement calls worth challenging:
 
-- No period control — the figures are undated. No week or month selector exists.
-- Row order is fixed in the data, not computed, so it will not re-sort if the figures change.
-- No actions anywhere on the tab. It is purely a monitoring surface.
-
-Deliberate divergence elsewhere:
-
-- The **Flow rate to DPD 1-30** delta on the Task tab reads red, not green. A rise in DPD flow is bad news; the source screenshot gives it the same green treatment as the KPIs where a rise is good, which inverts the meaning. `StatDelta.good` is the flag that separates the two.
-- KPI figures are `text-24`, the largest size token. The source screenshot's are ~32px, which is off-scale.
+- **Targets come from the biz team** — DPD 0 at 98%, DPD 1-30 at 55%, DPD 31-90 at 13% (`TARGETS`). Total Mitra and DPD 90+ carry none: the first is an aggregate of the others, and nobody is held to a number on the oldest bucket. Both are left uncoloured rather than given an invented verdict.
+- **A missed bucket reports a shortfall in mitra, not percentage points.** "kurang 37 mitra" is something a BP can act on; a percentage-point gap is arithmetic the reader has to convert first.
+- **The recommended action keys off the bucket with the biggest shortfall in mitra**, because the three failures want different responses: nothing collected at DPD 0 is what a surprise visit tests, DPD 1-30 is a coaching problem, and 31-90 is past what a BP can fix alone. A BP clearing every standard gets no action at all — one on every row would bury the ones that need it.
+- **A created task lives in the module store, not the grid**, because switching tab or state unmounts the grid and a task disappearing mid-walkthrough is worse than useless.
+- The **Flow rate to DPD 1-30** metric scores downwards while Repayment rate scores upwards; `Metric.higherIsBetter` is what keeps one of them from reading backwards.
+- `DisbursementTable` / `DisbursementMetrics` (`disbursement-table.tsx`) — the Pencairan tab, which used to be a "belum dirancang" placeholder. NoA and Nilai each split into mitra baru / mitra lanjutan, plus the rupiah still missing from the month's target.
+- **Renewal is shown as a rate, not just a count.** Eleven renewals is excellent on a book with twelve mitra maturing and poor on one with twenty, and the target ("85% renewal mitra cair per bulan") is written as a percentage — so the mitra lanjutan cell carries "% dari N" under its count, against a per-BP `renewalDue`.
+- **Pencairan is reported by the MONTH, Pembayaran by the week.** The targets were always monthly; the page used to report a week and pace them, which meant a figure was judged against a quarter of the number printed beside it. The scope line above the table now follows the tab.
+- **Pencairan wears colour on one figure only — the renewal rate.** Same rule as Pembayaran: counts and rupiah are facts and stay black, the rate is the judgement. The earlier red/orange/green banding coloured almost every cell, which left nothing standing out, and it is gone along with the standalone "Kurang dari target" column — the two shortfalls now read as caption lines beneath their own group, the way Pembayaran does it.
+- **"With Leads monitoring"** (`disbursement-table-leads.tsx`, `store.pencairanVariant`) is a second Pencairan cut, picked from the STATES panel same as Pembayaran's mvp/end. The three headline cards drop their % and "Target: …" label — read as plain counts and rupiah. **Potential mitra is its own group, never folded into Mitra baru** — both in the panel above the table and as its own column group inside it — because a lead is not yet a mitra: Leads tanpa KTP, Leads dengan KTP, UK (uji kelayakan) and Disetujui (`leadsUnqualified`/`leadsQualified`/`leadsUk`/`leadsDisetujui` on each `DisbursementBp`, `potentialMitraFunnel()` in `data.ts` — field names kept from an earlier "Unqualified/Qualified" pass; only the on-screen labels changed, to name what the stage actually is instead of a status a BM had to go look up). Mitra baru keeps its plain NoA/Pencairan, unchanged from the default cut. The panel adds one more box past Disetujui, behind a chevron: labelled "Disbursed" (the same figure as Mitra baru's NoA), highlighted in primary — the funnel's actual target, not just its last stage. Mitra baru's card and the panel are bonded by an accent line — the card's bottom edge, a short connector bar, the panel's top edge — rather than a full primary-500 border around the card: a full border around only Mitra baru, next to two cards still in `border-default`, read as "this one is selected" (a filter-chip's grammar), not "this one continues below"; the edge-only version was the fix. Narrowing the panel to fit under just Mitra baru's column was also considered and dropped — it stays full width with the same spacious grid the rest of the cut uses. **Disetujui and NoA are kept as separate figures, not merged**: an approved lead can still miss disbursing in the period it was approved in (paperwork, the mitra backing out, a slot slipping to next month), so Disetujui can run ahead of NoA — collapsing the two into one column was tried and reverted because it hides exactly the gap this cut exists to surface. The shortfall caption sits under Mitra baru's own NoA, since that's the figure the target is judged against; Potential mitra carries no shortfall of its own, being a leading indicator rather than a pass/fail line.

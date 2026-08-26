@@ -1,32 +1,100 @@
 import type { ProjectModule } from '@/platform/types'
 import { lazyScreen } from '@/platform/lazyScreen'
 import { config } from './project.config'
+import {
+  showEndState,
+  showMvp,
+  scheduleEvening,
+  scheduleMorning,
+  showPencairanDefault,
+  showPencairanLeads,
+} from './lib/demo'
 
 export const project: ProjectModule = {
   config,
   screens: [
     {
       id: 'branch-summary',
-      title: 'Branch Summary',
+      title: 'Performa cabang',
       component: lazyScreen(() => import('./screens/branch-summary'), 'BranchSummaryScreen'),
       entry: true,
+      states: [
+        {
+          id: 'mvp',
+          label: 'MVP',
+          description: 'Angka apa adanya — jumlah mitra, terbayar, dan rate per bucket',
+          apply: showMvp,
+        },
+        {
+          id: 'end-state',
+          label: 'End state',
+          description: 'Rate memimpin dan diberi warna terhadap target, plus aksi untuk BP yang belum capai',
+          apply: showEndState,
+        },
+        {
+          id: 'jadwal-sore',
+          label: 'Jadwal: Briefing Sore',
+          description: 'Progres harian: banner briefing sore muncul (default, sore hari).',
+          apply: scheduleEvening,
+        },
+        {
+          id: 'jadwal-pagi',
+          label: 'Jadwal: Briefing Pagi',
+          description: 'Progres harian: banner briefing pagi muncul (pagi hari).',
+          apply: scheduleMorning,
+        },
+        {
+          id: 'pencairan-leads',
+          label: 'With Leads monitoring',
+          description:
+            'Pencairan: kartu tanpa % dan target, plus panel Potential mitra (Unqualified, Qualified, UK, Disetujui) di bawah Mitra baru.',
+          apply: showPencairanLeads,
+        },
+        {
+          id: 'pencairan-default',
+          label: 'Pencairan: Default',
+          description: 'Kembali ke tampilan Pencairan biasa — kartu dengan % dan target.',
+          apply: showPencairanDefault,
+        },
+      ],
+      flowsTo: [
+        { to: 'briefing-morning', label: 'Mulai briefing pagi' },
+        { to: 'briefing-evening', label: 'Mulai briefing sore' },
+        { to: 'briefing-history', label: 'Riwayat briefing' },
+        { to: 'bp-user-details', label: 'Tandai BP mangkir' },
+      ],
     },
     {
-      id: 'morning-report',
-      title: 'Morning report',
-      component: lazyScreen(() => import('./screens/morning-report'), 'MorningReportScreen'),
-      flowsTo: [{ to: 'branch-summary', label: 'Kirim' }],
+      id: 'briefing-history',
+      title: 'Riwayat Briefing',
+      component: lazyScreen(() => import('./screens/briefing-history'), 'BriefingHistoryScreen'),
+      flowsTo: [
+        { to: 'briefing-detail', label: 'Lihat' },
+        { to: 'branch-summary', label: 'Kembali' },
+      ],
     },
     {
-      id: 'evening-report',
-      title: 'Evening report',
-      component: lazyScreen(() => import('./screens/evening-report'), 'EveningReportScreen'),
-      flowsTo: [{ to: 'branch-summary', label: 'Kirim' }],
+      id: 'briefing-morning',
+      title: 'Briefing Pagi',
+      component: lazyScreen(() => import('./screens/briefing-morning'), 'BriefingMorningScreen'),
+      flowsTo: [{ to: 'briefing-detail', label: 'Kirim' }],
     },
     {
-      id: 'report-history',
-      title: 'Riwayat report',
-      component: lazyScreen(() => import('./screens/report-history'), 'ReportHistoryScreen'),
+      id: 'briefing-evening',
+      title: 'Briefing Sore',
+      component: lazyScreen(() => import('./screens/briefing-evening'), 'BriefingEveningScreen'),
+      flowsTo: [{ to: 'briefing-detail', label: 'Kirim' }],
+    },
+    {
+      id: 'briefing-detail',
+      title: 'Detail Briefing',
+      component: lazyScreen(() => import('./screens/briefing-detail'), 'BriefingDetailScreen'),
+      flowsTo: [{ to: 'briefing-history', label: 'Kembali' }],
+    },
+    {
+      id: 'bp-user-details',
+      title: 'User Details',
+      component: lazyScreen(() => import('./screens/bp-user-details'), 'BpUserDetailsScreen'),
       flowsTo: [{ to: 'branch-summary', label: 'Kembali' }],
     },
   ],
