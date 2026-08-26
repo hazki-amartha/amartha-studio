@@ -14,13 +14,18 @@ import { useSyncExternalStore } from 'react'
 
 export type Variant = 'mvp' | 'end'
 
+/** Which cut of Pencairan is on screen — plain counts, or the same table with
+ *  Mitra baru's lead funnel opened up ("With Leads monitoring"). */
+export type PencairanVariant = 'default' | 'leads'
+
 interface State {
   variant: Variant
+  pencairanVariant: PencairanVariant
   /** BP id → the date its task is booked for. */
   scheduled: Record<string, string>
 }
 
-let state: State = { variant: 'mvp', scheduled: {} }
+let state: State = { variant: 'mvp', pencairanVariant: 'default', scheduled: {} }
 const listeners = new Set<() => void>()
 
 function set(next: State) {
@@ -32,6 +37,10 @@ export const store = {
   setVariant(variant: Variant) {
     if (variant === state.variant) return
     set({ ...state, variant })
+  },
+  setPencairanVariant(pencairanVariant: PencairanVariant) {
+    if (pencairanVariant === state.pencairanVariant) return
+    set({ ...state, pencairanVariant })
   },
   scheduleTask(bpId: string, date: string) {
     if (state.scheduled[bpId] === date) return

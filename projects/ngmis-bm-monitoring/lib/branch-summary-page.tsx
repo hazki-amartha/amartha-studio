@@ -19,7 +19,9 @@ import { useState, type ReactNode } from 'react'
 import { CashTable } from './cash-table'
 import { DailyDashboard } from './daily-dashboard'
 import { DisbursementTable } from './disbursement-table'
+import { DisbursementTableLeads } from './disbursement-table-leads'
 import { BmShell } from './shell'
+import { useApp } from './store'
 import { PageHeading, Select, Tabs } from './ui'
 import {
   BP_FILTER,
@@ -33,6 +35,7 @@ import {
 } from './data'
 
 export function BranchSummaryPage({ pembayaran }: { pembayaran: ReactNode }) {
+  const { pencairanVariant } = useApp()
   const [tab, setTab] = useState(DEFAULT_TAB)
   const [region, setRegion] = useState('jawa')
   const [province, setProvince] = useState('jawa-barat')
@@ -90,7 +93,13 @@ export function BranchSummaryPage({ pembayaran }: { pembayaran: ReactNode }) {
       {tab === 'daily' ? <DailyDashboard /> : null}
       {tab === 'repayment' ? pembayaran : null}
       {tab === 'cash' ? <CashTable /> : null}
-      {tab === 'disbursement' ? <DisbursementTable /> : null}
+      {tab === 'disbursement' ? (
+        pencairanVariant === 'leads' ? (
+          <DisbursementTableLeads />
+        ) : (
+          <DisbursementTable />
+        )
+      ) : null}
     </BmShell>
   )
 }
