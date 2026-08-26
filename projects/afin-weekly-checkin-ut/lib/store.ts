@@ -51,6 +51,8 @@ export interface AppState {
    * true, because a tenor in progress means the money already moved.
    */
   principalTaken: boolean
+  /** Visual variant for the home-b status card. Undefined falls back to 'lancar'. */
+  homeBVariant?: 'first-week' | 'lancar' | 'group-bad' | 'menunggak' | 'limit-ready'
 }
 
 // Week 15 — the third week of window 2, with window 1 closed clean behind her.

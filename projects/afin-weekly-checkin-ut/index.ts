@@ -8,6 +8,11 @@ import {
   groupGood,
   groupLost,
   groupWatch,
+  homeBFirstWeek,
+  homeBGroupBad,
+  homeBLancar,
+  homeBLimitReady,
+  homeBMenunggak,
   lateCaught,
   neverWithdrew,
   newMitra,
@@ -98,9 +103,13 @@ export const project: ProjectModule = {
       title: 'Beranda — Angsuran Ibu',
       component: lazyScreen(() => import('./screens/home-b'), 'HomeBScreen'),
       entry: true,
-      // No state controls on home: the card is drawn at one condition — saldo
-      // sudah terkumpul, belum dicairkan — and reads none of the journey, so a
-      // chip here would be a control that visibly does nothing.
+      states: [
+        { id: 'hb-first-week',  label: 'First week',              description: 'Minggu pertama tenor, belum ada riwayat pembayaran.',                            apply: homeBFirstWeek  },
+        { id: 'hb-lancar',      label: 'Lancar',                  description: 'Semua pembayaran lancar, status Sangat Baik, kelompok ikut lancar.',              apply: homeBLancar     },
+        { id: 'hb-group-bad',   label: 'Kelompok Tidak Lancar',   description: 'Ibu sendiri lancar, tapi ada anggota kelompok yang belum membayar.',             apply: homeBGroupBad   },
+        { id: 'hb-menunggak',   label: 'Menunggak',               description: 'Ada angsuran yang belum terbayar, status turun ke Kurang Baik.',                 apply: homeBMenunggak  },
+        { id: 'hb-limit-ready', label: 'Limit able to disbursed', description: 'Penilaian 12 minggu bersih, limit siap dicairkan sebelum akhir tenor.',          apply: homeBLimitReady },
+      ],
     },
     {
       id: 'majelis',

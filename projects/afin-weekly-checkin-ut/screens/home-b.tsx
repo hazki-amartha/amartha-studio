@@ -19,17 +19,16 @@
 // and not hers. And the disbursement is never a gift: it is principal she has
 // already repaid, borrowed again, and the note under the figure says so.
 
-import { useState, type ReactNode } from 'react'
+import { Badge } from '@/design-system/components'
+import type { BadgeIntent } from '@/design-system/components/Badge'
 import {
-  ChatCircleQuestion,
   Check,
   CheckCircleFill,
-  CreditCard,
-  Majelis,
-  Users,
+  ChevronRight,
 } from '@/design-system/icons'
-import { Wordmark } from '@/design-system/assets'
+import { ProductLogo, Wordmark } from '@/design-system/assets'
 import { useFlow } from '@/platform/runtime'
+import { useApp } from '../lib/store'
 import { HomeShell } from '../lib/ui'
 
 // The rail's geometry, and the one bit of arithmetic the layout needs.
@@ -46,6 +45,34 @@ import { HomeShell } from '../lib/ui'
 //
 // — a percentage minus a constant, which is exactly what calc() is for. Nothing
 // here needs to measure the card.
+type StatusKey = 'sangat-baik' | 'baik' | 'sedang' | 'kurang-baik' | 'tidak-baik'
+const STATUS_CONFIG: Record<StatusKey, { label: string; cardBg: string; labelColor: string }> = {
+  'sangat-baik': { label: 'Sangat Baik', cardBg: '#EDFAF3', labelColor: '#0F7A3D' },
+  'baik':        { label: 'Baik',        cardBg: '#D8F0E3', labelColor: '#0F7A3D' },
+  'sedang':      { label: 'Sedang',      cardBg: '#FFF3E8', labelColor: '#B45309' },
+  'kurang-baik': { label: 'Kurang Baik', cardBg: '#FFF0F0', labelColor: '#B91C1C' },
+  'tidak-baik':  { label: 'Tidak Baik',  cardBg: '#FFE0E0', labelColor: '#B91C1C' },
+}
+
+type HomeBVariant = 'first-week' | 'lancar' | 'group-bad' | 'menunggak' | 'limit-ready'
+const VARIANT_CONFIG: Record<HomeBVariant, {
+  status: StatusKey
+  weekLabel: string
+  angsuranCaption: string
+  kumpulanCaption: string
+  groupBadgeIntent: BadgeIntent
+  groupBadgeLabel: string
+  groupCaption: string
+  groupRowBg?: string
+  showCheckmarks: boolean
+}> = {
+  'first-week':  { status: 'sangat-baik', weekLabel: '1 dari 48 minggu',  angsuranCaption: 'Rp112.000 · Otomatis dari Poket, 19 Jun', kumpulanCaption: 'Kamis, 19 Jun, 09:00',        groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Bisa meningkatkan limit di akhir tenor',      showCheckmarks: false },
+  'lancar':      { status: 'sangat-baik', weekLabel: '14 dari 48 minggu', angsuranCaption: 'Terbayar dari Poket',                     kumpulanCaption: 'Ibu tercatat hadir kumpulan', groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Semua sudah bayar · Bisa meningkatkan limit', showCheckmarks: true  },
+  'group-bad':   { status: 'sangat-baik', weekLabel: '14 dari 48 minggu', angsuranCaption: 'Terbayar dari Petugas, Pak Andi Saputra',  kumpulanCaption: 'Ibu tercatat hadir kumpulan', groupBadgeIntent: 'red',    groupBadgeLabel: 'Tidak Lancar', groupCaption: 'Ingatkan 3 anggota yang tidak bayar',         groupRowBg: '#FFF5F5', showCheckmarks: false },
+  'menunggak':   { status: 'kurang-baik', weekLabel: '14 dari 48 minggu', angsuranCaption: 'Rp112.000 · Otomatis dari Poket, 19 Jun', kumpulanCaption: 'Kamis, 19 Jun, 09:00',        groupBadgeIntent: 'red',    groupBadgeLabel: 'Tidak Lancar', groupCaption: 'Bisa meningkatkan limit di akhir tenor',      showCheckmarks: false },
+  'limit-ready': { status: 'sangat-baik', weekLabel: '24 dari 48 minggu', angsuranCaption: 'Rp112.000 · Otomatis dari Poket, 19 Jun', kumpulanCaption: 'Kamis, 19 Jun, 09:00',        groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Bisa meningkatkan limit di akhir tenor',      showCheckmarks: false },
+}
+
 const TILE = 28
 const GAP = 16
 const TODAY_X = `calc(50% - ${TILE / 2 + GAP / 2}px)`
@@ -53,18 +80,13 @@ const TODAY_X = `calc(50% - ${TILE / 2 + GAP / 2}px)`
 const DOT = 24
 
 export function HomeBScreen() {
+  const { homeBVariant } = useApp()
+  const variant = VARIANT_CONFIG[homeBVariant ?? 'lancar']
+  const { cardBg } = STATUS_CONFIG[variant.status]
+
   return (
     <HomeShell>
-      <div className="overflow-hidden rounded-16 border border-default bg-neutral-white">
-        {/* The track opens the card now. It is the only part that answers "when
-            do I get something", so it takes the position the eye lands on
-            first; the standing follows as the evidence that it is on course.
-
-            The headline that used to sit above it is parked — see "limit
-            akhir". */}
-        {/* Full-bleed so the tint reaches the card's own edges and the two
-            outer dates stay flush where they were — the px-16 inside restores
-            exactly the geometry the track was built against. */}
+      <div className="overflow-hidden rounded-16 border border-default" style={{ background: cardBg }}>
         {/* repayment timeline */}
         {/*
         <div className="px-16 pb-12 pt-16" style={{ background: '#FAF7FC' }}>
@@ -72,14 +94,26 @@ export function HomeBScreen() {
         </div>
         */}
 
-        <Standing />
+        <Standing status={variant.status} weekLabel={variant.weekLabel} />
 
-        <div className="px-16 pt-16">
-          <Ask />
+        <div className="overflow-hidden rounded-16 bg-neutral-white">
+          <Benefit />
 
-          <p className="mt-12 pb-16 text-center text-12 text-caption">
-            Tap tanggal lain di atas untuk lihat yang berikutnya
-          </p>
+          <div className="px-16 pb-16 pt-12">
+            <p className="text-14 font-bold text-default">Tugas Ibu minggu ini</p>
+            <p className="text-12 text-caption">Lengkapi tugas berikut untuk menjaga status tetap {STATUS_CONFIG[variant.status].label}</p>
+            <div className="pt-12">
+              <Ask
+                angsuranCaption={variant.angsuranCaption}
+                kumpulanCaption={variant.kumpulanCaption}
+                groupBadgeIntent={variant.groupBadgeIntent}
+                groupBadgeLabel={variant.groupBadgeLabel}
+                groupCaption={variant.groupCaption}
+                groupRowBg={variant.groupRowBg}
+                showCheckmarks={variant.showCheckmarks}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </HomeShell>
@@ -91,28 +125,29 @@ export function HomeBScreen() {
  * no visible basis is an opinion. Green because it is the only part of the card
  * that is purely a report: nothing here is asked of her, it is already true.
  */
-function Standing() {
+function Standing({ status, weekLabel }: { status: StatusKey; weekLabel: string }) {
+  const { label, labelColor } = STATUS_CONFIG[status]
   return (
     <div>
+      {/* logo modal */}
+      {/*
       <div className="px-16 pt-12">
         <Wordmark name="modal" height={24} />
       </div>
       <div className="mt-12 border-t border-default" />
-      <div className="flex items-center justify-between gap-12 px-16 py-12">
-        <span className="min-w-0">
-          <span className="flex items-center gap-4">
-            <span className="uppercase text-10 text-caption" style={{ lineHeight: '1.2' }}>
-              Status pinjaman
-            </span>
-            <span className="text-10 text-caption" style={{ lineHeight: '1.2' }}>
-              (14 dari 48 minggu)
-            </span>
+      */}
+      <div className="flex items-center justify-between gap-8 px-16 py-12">
+        <ProductLogo name="modal" size={28} className="shrink-0 self-start" style={{ marginTop: '2px' }} />
+        <span className="min-w-0 flex-1">
+          <span className="block uppercase text-10 text-caption" style={{ lineHeight: '1' }}>
+            Status pinjaman Modal{' '}
+            <span className="normal-case">· {weekLabel}</span>
           </span>
-          <span className="flex items-center gap-4 mt-2">
-            <span className="text-16 font-bold text-green-500">Sangat Baik</span>
-            <ChatCircleQuestion size={16} className="text-caption" />
+          <span className="mt-2 flex items-center gap-4" style={{ lineHeight: '1' }}>
+            <span className="text-16 font-bold" style={{ color: labelColor }}>{label}</span>
           </span>
         </span>
+        <ChevronRight size={16} className="shrink-0 text-caption" />
       </div>
     </div>
   )
@@ -353,91 +388,125 @@ function TimelineTooltip() {
   )
 }
 
-/**
- * Part 3, hanging off the 5 Sep point. It never repeats that date — the track
- * said it once, and this block says "2 minggu lagi" and "sampai tanggal itu"
- * so the two cannot be read as two separate deadlines.
- *
- * The note under the figure is not a disclaimer, it is the point: this is her
- * own repaid principal, lent again. A card that let it read as a bonus would be
- * selling debt.
- */
-function Ask() {
-  const [paid, setPaid] = useState(false)
-
+function Ask({
+  angsuranCaption,
+  kumpulanCaption,
+  groupBadgeIntent,
+  groupBadgeLabel,
+  groupCaption,
+  groupRowBg,
+  showCheckmarks,
+}: {
+  angsuranCaption: string
+  kumpulanCaption: string
+  groupBadgeIntent: BadgeIntent
+  groupBadgeLabel: string
+  groupCaption: string
+  groupRowBg?: string
+  showCheckmarks: boolean
+}) {
   return (
-    <div className="rounded-16 bg-primary-50 p-12">
-      <p className="text-12 font-bold text-primary-500">2 minggu lagi</p>
-      <p className="mt-8 text-14 text-default">Ibu bisa cairkan hingga</p>
-      <p className="mt-2 text-24 font-bold text-primary-500">Rp1.250.000</p>
-      <p className="mt-8 text-12 text-caption">
-        Uangnya dari angsuran yang sudah Ibu bayar. Nanti dibayar lagi seperti biasa.
-      </p>
+    <div
+      className="bg-neutral-white"
+      style={{ border: '1px solid #E9DEF6', borderRadius: '14px', overflow: 'hidden' }}
+    >
+      {/* Row 1 — Bayar angsuran */}
+      <div className="flex items-center gap-12 px-12 py-12">
+        <span
+          className="flex shrink-0 items-center justify-center"
+          style={{ width: '24px', height: '24px', borderRadius: '10px', background: '#F4ECFC', fontSize: '13px' }}
+        >
+          💳
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-14 font-regular text-default">Bayar angsuran</span>
+          <span className="block text-12" style={{ color: '#8E86A3' }}>{angsuranCaption}</span>
+        </span>
+        {showCheckmarks && <CheckCircleFill size={20} className="shrink-0" style={{ color: '#0F7A3D' }} />}
+      </div>
 
-      <p className="mt-16 text-12 text-caption">
-        Kalau lancar sampai tanggal itu, tiap minggu Ibu perlu:
-      </p>
+      <div style={{ height: '1px', background: '#F4F0F9' }} />
 
-      <div className="mt-8 flex flex-col gap-8">
-        <Row
-          icon={<CreditCard size={20} />}
-          label="Bayar angsuran"
-          detail="Rp112.000 · minggu ini"
-          done={paid}
-          action={
-            <button
-              type="button"
-              onClick={() => setPaid(true)}
-              className="shrink-0 rounded-full bg-primary-500 px-24 py-8 text-14 font-bold text-neutral-white"
-            >
-              Bayar
-            </button>
-          }
-        />
-        <Row icon={<Users size={20} />} label="Datang kumpulan Kamis" done />
-        <Row icon={<Majelis size={20} />} label="Kelompok ikut lancar" done />
+      {/* Row 2 — Datang kumpulan */}
+      <div className="flex items-center gap-12 px-12 py-12">
+        <span
+          className="flex shrink-0 items-center justify-center"
+          style={{ width: '24px', height: '24px', borderRadius: '10px', background: '#E6F5EB', fontSize: '13px' }}
+        >
+          👭
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-14 text-default">Datang kumpulan</span>
+          <span className="block text-12 text-caption">{kumpulanCaption}</span>
+        </span>
+        {showCheckmarks && <CheckCircleFill size={20} className="shrink-0" style={{ color: '#0F7A3D' }} />}
+      </div>
+
+      <div style={{ height: '1px', background: '#F4F0F9' }} />
+
+      {/* Row 3 — Jaga status kelompok */}
+      <div className="flex items-center gap-12 px-12 py-12" style={groupRowBg ? { background: groupRowBg } : undefined}>
+        <span
+          className="flex shrink-0 items-center justify-center"
+          style={{ width: '24px', height: '24px', borderRadius: '10px', background: '#E6F5EB', fontSize: '13px' }}
+        >
+          ⚠️
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-4 text-14 text-default">
+            Jaga status kelompok
+            <Badge intent={groupBadgeIntent} variant="subtle" size="sm"
+              style={groupBadgeIntent === 'red' ? { background: '#FF0000', color: '#fff' } : undefined}
+            >{groupBadgeLabel}</Badge>
+          </span>
+          <span className="block text-12 text-caption">{groupCaption}</span>
+        </span>
+        {showCheckmarks
+          ? <CheckCircleFill size={20} className="shrink-0" style={{ color: '#0F7A3D' }} />
+          : <ChevronRight size={16} className="shrink-0 text-caption" />}
       </div>
     </div>
   )
 }
 
-/**
- * One of the three weekly asks, on white so it reads as a thing to act on
- * rather than as more of the pale surface it sits in. Only the first row has an
- * action, and it is the strongest control on the card — nothing else is a solid
- * button.
- */
-function Row({
-  icon,
-  label,
-  detail,
-  done,
-  action,
-}: {
-  icon: ReactNode
-  label: string
-  detail?: string
-  done: boolean
-  action?: ReactNode
-}) {
+function Benefit() {
   return (
-    <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
+    <div className="px-16 pb-16 pt-12">
+      <div className="flex items-center justify-between">
+        <p className="text-14 font-bold text-default">Keuntungan menjaga status</p>
+      </div>
+      <div className="mt-12 flex gap-12">
+        <BenefitCard
+          icon="⚡"
+          label="Desember bisa cairkan limit lagi"
+          caption="Sampai Rp1.500.000 di 5 Desember 2026"
+        />
+        <BenefitCard
+          icon="💰"
+          label="Limit pinjaman naik"
+          caption="Sampai Rp7.000.000 di Juni 2027"
+        />
+      </div>
+    </div>
+  )
+}
+
+function BenefitCard({ icon, label, caption }: { icon: string; label: string; caption: string }) {
+  return (
+    <div
+      className="flex flex-1 flex-col gap-8 rounded-12 p-12"
+      style={{ border: '1px solid #E9DEF6', background: 'linear-gradient(to bottom, #F6FBFD, #FCFEFD)' }}
+    >
       <span
-        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-12 ${
-          done ? 'bg-green-50 text-green-500' : 'bg-primary-50 text-primary-500'
-        }`}
+        className="flex items-center justify-center rounded-full"
+        style={{ width: '24px', height: '24px', background: '#F2F2F4', fontSize: '13px' }}
       >
         {icon}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-14 text-default">{label}</span>
-        {detail ? <span className="mt-2 block text-12 text-caption">{detail}</span> : null}
+      <span>
+        <span className="block text-14 font-bold text-default">{label}</span>
+        <span className="block text-12 text-caption">{caption}</span>
       </span>
-      {done ? (
-        <CheckCircleFill size={24} className="shrink-0 text-green-500" />
-      ) : (
-        action
-      )}
     </div>
   )
 }

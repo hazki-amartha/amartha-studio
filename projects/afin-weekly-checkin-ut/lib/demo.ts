@@ -152,3 +152,20 @@ export const groupLost = seed({
   groupBroken: [4, 9, 11, 17, 22, 26],
   windowLog: ['full', 'full'],
 })
+
+// --- Home-B card states -----------------------------------------------------
+
+/** Minggu pertama — belum ada riwayat, tenor baru dimulai. */
+export function homeBFirstWeek() { store.set({ homeBVariant: 'first-week' }) }
+
+/** Semua lancar — status Sangat Baik, kelompok ikut lancar. */
+export function homeBLancar() { store.set({ homeBVariant: 'lancar' }) }
+
+/** Kelompok tidak lancar — ibu sendiri lancar tapi ada anggota kelompok yang belum bayar. */
+export function homeBGroupBad() { store.set({ homeBVariant: 'group-bad' }) }
+
+/** Menunggak — ada angsuran yang belum terbayar, status turun. */
+export function homeBMenunggak() { store.set({ homeBVariant: 'menunggak' }) }
+
+/** Bisa cairkan limit — penilaian bersih, limit siap dicairkan. */
+export function homeBLimitReady() { store.set({ homeBVariant: 'limit-ready' }) }
