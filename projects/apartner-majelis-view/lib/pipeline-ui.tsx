@@ -6,7 +6,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, Card, Input, SelectableCard } from '@/design-system/components'
-import { Camera, FileCheck, NotePencil, WhatsappLogo } from '@/design-system/icons'
+import { Camera, FileCheck, NotePencil, Warning, WhatsappLogo } from '@/design-system/icons'
 import { MAJELIS_DIRECTORY } from './schedule'
 import {
   INTEREST_META,
@@ -17,11 +17,13 @@ import {
   SOURCE_LABEL,
   actionDetail,
   hasInterest,
-  historyChannel,
+  historyActivity,
+  historyStatusLabel,
   ktpDetail,
   majelisDetail,
   sourceDetail,
   statusBadge,
+  subStateTag,
   type Interest,
   type LeadSource,
   type MajelisAssignment,
@@ -33,11 +35,11 @@ import { pipelineStore } from './pipeline-store'
 import { ContactButton, SearchField, SectionTitle } from './ui'
 import { IconPhone } from './icons'
 
-// Interest as coloured text — yellow reads illegibly small, so Undecided borrows
-// the orange it shades toward.
+// Interest as coloured text: green for interested, blue (informational) for
+// undecided, red for not interested.
 export const INTEREST_TEXT: Record<Interest, string> = {
   interested: 'text-green-600',
-  undecided: 'text-orange-600',
+  undecided: 'text-blue-600',
   'not-interested': 'text-red-500',
 }
 
@@ -458,13 +460,32 @@ export function EditContactSheet({
 // Shared by the Sales detail page and the Follow-Up task, so a lead reads the
 // same way whether the BP reached her from the roster or from her schedule.
 
-/** A label / value row with an optional "Ubah", ruled off from its neighbours. */
-export function DetailRow({ label, value, onEdit }: { label: string; value: string; onEdit?: () => void }) {
+/**
+ * A label / value row with an optional "Ubah", ruled off from its neighbours by
+ * a top divider. `warning` paints the value orange with a caution icon — for a
+ * missing KTP or an unassigned majelis.
+ */
+export function DetailRow({
+  label,
+  value,
+  onEdit,
+  warning,
+}: {
+  label: string
+  value: string
+  onEdit?: () => void
+  warning?: boolean
+}) {
   return (
-    <div className="flex items-center gap-8 border-t border-default py-12 first:border-t-0">
-      <span className="min-w-0 flex-1 text-14 text-default">
-        <span className="text-caption">{label}: </span>
-        {value}
+    <div className="flex items-center gap-8 border-t border-default py-12">
+      <span className="flex min-w-0 flex-1 items-center gap-4 text-14">
+        <span className="shrink-0 text-caption">{label}:</span>
+        <span className={warning ? 'text-orange-600' : 'text-default'}>{value}</span>
+        {warning ? (
+          <span className="shrink-0 text-orange-600">
+            <Warning size={16} />
+          </span>
+        ) : null}
       </span>
       {onEdit ? (
         <button type="button" onClick={onEdit} className="shrink-0 text-12 font-bold text-link">
@@ -501,6 +522,8 @@ export function LeadRecordCard({
   const badge = statusBadge(lead)
   const worked = hasInterest(lead.status)
   const interest = worked && lead.interest ? lead.interest : null
+  // For a Submitted lead the interest slot carries the system sub-state instead.
+  const sub = subStateTag(lead)
 
   return (
     <Card>
@@ -542,13 +565,20 @@ export function LeadRecordCard({
             <span className={`text-14 font-bold ${INTEREST_TEXT[interest]}`}>
               {INTEREST_META[interest].label}
             </span>
+          ) : sub ? (
+            <span className="text-14 text-caption">{sub}</span>
           ) : null}
         </div>
 
         <div className="flex flex-col">
           <DetailRow label="Sumber" value={sourceDetail(lead)} onEdit={onEditSource} />
-          <DetailRow label="KTP" value={ktpDetail(lead)} onEdit={onEditKtp} />
-          <DetailRow label="Majelis" value={majelisDetail(lead)} onEdit={onEditMajelis} />
+          <DetailRow label="KTP" value={ktpDetail(lead)} onEdit={onEditKtp} warning={!lead.nik} />
+          <DetailRow
+            label="Majelis"
+            value={majelisDetail(lead)}
+            onEdit={onEditMajelis}
+            warning={lead.majelis.kind === 'none'}
+          />
           {lead.product ? (
             <DetailRow label="Produk" value={`${lead.product}${lead.amount ? ` · ${lead.amount}` : ''}`} />
           ) : null}
@@ -571,27 +601,27 @@ export function LeadRecordCard({
   )
 }
 
-/** The call history — one card per contact, newest first. */
+/** The lead's history — one card per event, newest first. */
 export function RiwayatPanggilan({ lead }: { lead: PipelineLead }) {
   return (
     <>
-      <SectionTitle>Riwayat Panggilan</SectionTitle>
+      <SectionTitle>Riwayat</SectionTitle>
       <div className="flex flex-col gap-8 pb-16">
         {lead.log
           .slice()
           .reverse()
           .map((entry, i) => (
             <Card key={`${entry.at}-${i}`}>
+              {/* Date · activity, the status, then any system detail (plain) and
+                  the BP's free-text catatan (italic, quoted). */}
               <div className="flex flex-col gap-2">
                 <span className="text-12 text-caption">
-                  {entry.at} · {historyChannel(entry.via)}
+                  {entry.at} · {historyActivity(entry, lead)}
                 </span>
-                <span className="text-14 font-bold text-default">
-                  {entry.outcome}
-                  {entry.note ? ` · ${entry.note}` : ''}
-                </span>
-                {entry.next ? (
-                  <span className="text-12 text-caption">Action selanjutnya: Follow up {entry.next}</span>
+                <span className="text-14 font-bold text-default">{historyStatusLabel(entry)}</span>
+                {entry.system ? <span className="text-12 text-default">{entry.system}</span> : null}
+                {entry.note ? (
+                  <span className="text-12 italic text-default">&ldquo;{entry.note}&rdquo;</span>
                 ) : null}
               </div>
             </Card>
@@ -636,7 +666,8 @@ export function PerbaruiStatusSheet({
       onAjukan()
       return
     }
-    pipelineStore.recordInterest(lead.id, pick, INTEREST_META[pick].label, note)
+    // Updating status from the record (not a scheduled call) logs as "Manual".
+    pipelineStore.recordInterest(lead.id, pick, note, undefined, 'manual')
     reset()
     onSaved()
   }
@@ -672,8 +703,7 @@ export function PerbaruiStatusSheet({
           name="interest"
           inputType="radio"
           title="Ajukan Pinjaman"
-          description={canSubmit ? 'Kirim pengajuan pinjaman' : 'Lengkapi KTP dulu untuk mengajukan'}
-          disabled={!canSubmit}
+          description={canSubmit ? 'Kirim pengajuan pinjaman' : 'Pastikan KTP sudah tersedia'}
           checked={pick === 'ajukan'}
           onChange={() => setPick('ajukan')}
         />
@@ -701,20 +731,30 @@ export function SubmitSheet({
   onSaved: () => void
 }) {
   const [product, setProduct] = useState<Product | null>(null)
-  const [amount, setAmount] = useState('')
   const [majelis, setMajelis] = useState<MajelisAssignment>(lead.majelis)
-  const [picking, setPicking] = useState(false)
+  const [nik, setNik] = useState(lead.nik)
+  const [ktp, setKtp] = useState(lead.ktp)
+  // Which sub-sheet is open over the form — the majelis picker or the KTP form.
+  const [editing, setEditing] = useState<'majelis' | 'ktp' | null>(null)
 
   function reset() {
     setProduct(null)
-    setAmount('')
     setMajelis(lead.majelis)
-    setPicking(false)
+    setNik(lead.nik)
+    setKtp(lead.ktp)
+    setEditing(null)
   }
 
+  // A loan can't be submitted without a majelis — she has to belong to a group
+  // before the form goes in. "Tanpa majelis" does not count.
+  const hasMajelis = majelis.kind !== 'none'
+  // KTP is the prerequisite for a pengajuan, but it no longer blocks getting
+  // INTO this flow — it can be attached right here if it is still missing.
+  const hasKtp = ktp && nik.replace(/\D/g, '').length === 16
+
   function submit() {
-    if (!product) return
-    pipelineStore.submitLoan(lead.id, { product, majelis, amount, nik: lead.nik })
+    if (!product || !hasMajelis || !hasKtp) return
+    pipelineStore.submitLoan(lead.id, { product, majelis, nik })
     reset()
     onSaved()
   }
@@ -722,7 +762,7 @@ export function SubmitSheet({
   return (
     <>
       <BottomSheet
-        open={open && !picking}
+        open={open && editing === null}
         onClose={() => {
           reset()
           onClose()
@@ -730,12 +770,63 @@ export function SubmitSheet({
         title="Ajukan Pinjaman"
         description="Kirim form pengajuan ke sistem. Setelah ini lead menunggu hasil UK."
         primaryAction={
-          <Button size="lg" className="w-full" disabled={!product} onClick={submit}>
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={!product || !hasMajelis || !hasKtp}
+            onClick={submit}
+          >
             Kirim Pengajuan
           </Button>
         }
       >
         <div className="flex flex-col gap-12">
+          {/* KTP first — the prerequisite the pengajuan is built on. Editable
+              here so a missing KTP can be attached without leaving the flow. */}
+          <div className="flex flex-col gap-4">
+            <span className="text-12 text-caption">KTP</span>
+            <button
+              type="button"
+              onClick={() => setEditing('ktp')}
+              className={`flex items-center gap-8 rounded-8 border bg-neutral-white px-12 py-8 text-left text-14 ${
+                hasKtp ? 'border-default text-default' : 'border-red-500 text-caption'
+              }`}
+            >
+              {hasKtp ? (
+                <span className="shrink-0 text-green-500">
+                  <FileCheck size={20} />
+                </span>
+              ) : (
+                <span className="shrink-0 text-orange-500">
+                  <Warning size={20} />
+                </span>
+              )}
+              <span className="min-w-0 flex-1 truncate">{hasKtp ? nik : 'Belum ada'}</span>
+              <span className="shrink-0 text-12 font-bold text-link">{hasKtp ? 'Ubah' : 'Lengkapi'}</span>
+            </button>
+            {!hasKtp ? (
+              <span className="text-12 text-red-500">Pastikan KTP sudah tersedia.</span>
+            ) : null}
+          </div>
+
+          {/* Then Majelis — she must belong to a group before a loan is filed. */}
+          <label className="flex flex-col gap-4">
+            <span className="text-12 text-caption">Majelis</span>
+            <button
+              type="button"
+              onClick={() => setEditing('majelis')}
+              className={`flex items-center justify-between gap-8 rounded-8 border bg-neutral-white px-12 py-8 text-left text-14 ${
+                hasMajelis ? 'border-default text-default' : 'border-red-500 text-caption'
+              }`}
+            >
+              <span className="truncate">{hasMajelis ? assignmentLabel(majelis) : 'Pilih majelis'}</span>
+              <span className="shrink-0 text-12 font-bold text-link">{hasMajelis ? 'Ubah' : 'Pilih'}</span>
+            </button>
+            {!hasMajelis ? (
+              <span className="text-12 text-red-500">Pilih majelis dulu untuk mengajukan.</span>
+            ) : null}
+          </label>
+
           <div className="flex flex-col gap-4">
             <span className="text-12 text-caption">Produk</span>
             <div className="flex flex-col gap-8">
@@ -751,36 +842,28 @@ export function SubmitSheet({
               ))}
             </div>
           </div>
-
-          <label className="flex flex-col gap-4">
-            <span className="text-12 text-caption">Majelis</span>
-            <button
-              type="button"
-              onClick={() => setPicking(true)}
-              className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-left text-14 text-default"
-            >
-              <span className="truncate">{assignmentLabel(majelis)}</span>
-              <span className="shrink-0 text-12 font-bold text-link">Ubah</span>
-            </button>
-          </label>
-
-          <Input
-            label="Plafon diajukan"
-            optionalText="opsional"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Rp3.000.000"
-          />
         </div>
       </BottomSheet>
 
       <MajelisPickerSheet
-        open={open && picking}
+        open={open && editing === 'majelis'}
         value={majelis}
-        onClose={() => setPicking(false)}
+        onClose={() => setEditing(null)}
         onPick={(m) => {
           setMajelis(m)
-          setPicking(false)
+          setEditing(null)
+        }}
+      />
+
+      <KtpSheet
+        open={open && editing === 'ktp'}
+        nik={nik}
+        ktp={ktp}
+        onClose={() => setEditing(null)}
+        onSave={(n, k) => {
+          setNik(n)
+          setKtp(k)
+          setEditing(null)
         }}
       />
     </>

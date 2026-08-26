@@ -11,48 +11,40 @@
 //
 // Which is why the target is on screen and not on a report. "4 dari 10" at
 // 14.30 is a BP who works the room for another hour; the same fact discovered
-// at 17.00 is a BP who goes home short. A count that only exists after the
-// event is a count that cannot change the event.
+// at 17.00 is a BP who goes home short.
 //
-// Capture is the QUICK tier only (see `leads.ts`) and it opens in a fullscreen
-// sheet rather than a page, because the list behind it IS the context — she is
-// adding to something visible, and the count she is working toward should not
-// disappear the moment she starts typing.
+// Every prospect captured here IS a Sales lead from THIS POI Visit — so the
+// capture form is the Sales "Tambah Lead" form, with its source fixed to this
+// sosialisasi's POI, and each save lands a real lead in the pipeline. The list
+// and counter show the ones taken in this session.
 
 import { useState } from 'react'
 import { Badge, BottomSheet, Button, Card, Input, NavigationHeader } from '@/design-system/components'
+import { Camera, FileCheck } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import {
-  FOLLOW_UP_OPTIONS,
-  INTEREST_META,
-  INTEREST_ORDER,
-  NO_REASONS,
-  REFERRAL_KINDS,
-  type Interest,
-  type LeadSource,
-  type ReferralKind,
-} from '../lib/leads'
-import { LeadRow } from '../lib/lead-card'
+import { statusBadge, type MajelisAssignment } from '../lib/pipeline'
+import { pipelineStore, usePipeline } from '../lib/pipeline-store'
+import { MajelisPickerSheet, assignmentLabel } from '../lib/pipeline-ui'
 import { IconUserPlus } from '../lib/icons'
-import { eventProgress, leadsOfEvent, openEvent, rescheduleCount, store, useApp } from '../lib/store'
-import { AppScreen, Chip, ChipGroup, PinMark, ProgressCard, RescheduleSheet, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
-
-const SOURCES: { value: LeadSource; label: string }[] = [
-  { value: 'sosialisasi', label: 'Hadir di sosialisasi' },
-  { value: 'referral', label: 'Referral' },
-]
+import { openEvent, rescheduleCount, store, useApp } from '../lib/store'
+import { AppScreen, PinMark, ProgressCard, RescheduleSheet, SectionTitle, StickyBar, VisitTitle } from '../lib/ui'
 
 export function SosialisasiScreen() {
   const flow = useFlow()
   const s = useApp()
+  const { leads } = usePipeline()
   const event = openEvent(s)
-  const leads = leadsOfEvent(s, event.id)
-  const progress = eventProgress(s, event)
-  const [adding, setAdding] = useState(false)
   const [rescheduling, setRescheduling] = useState(false)
+  const [adding, setAdding] = useState(false)
+  // The prospects captured in THIS session — pipeline lead ids, newest last.
+  const [capturedIds, setCapturedIds] = useState<string[]>([])
   // Only a rostered sosialisasi has a task to move; opened without one, the
   // reschedule entry point stays off.
   const taskId = s.activeTask
+
+  const captured = capturedIds.map((id) => leads[id]).filter(Boolean)
+  const percent = Math.min(100, Math.round((captured.length / event.target) * 100))
+  const hit = captured.length >= event.target
 
   function finish() {
     store.finishTask()
@@ -84,10 +76,10 @@ export function SosialisasiScreen() {
     >
       <ProgressCard
         title="Prospek terkumpul"
-        value={String(progress.captured)}
-        of={`${progress.target} target`}
-        percent={progress.percent}
-        tone={progress.captured >= progress.target ? 'green' : 'primary'}
+        value={String(captured.length)}
+        of={`${event.target} target`}
+        percent={percent}
+        tone={hit ? 'green' : 'primary'}
       />
 
       <Card>
@@ -109,20 +101,30 @@ export function SosialisasiScreen() {
         </div>
       </Card>
 
-      {leads.length > 0 ? (
+      {captured.length > 0 ? (
         <>
           <SectionTitle>Prospek hari ini</SectionTitle>
           <div className="flex flex-col gap-8">
-            {leads.map((lead) => (
-              <LeadRow
-                key={lead.id}
-                lead={lead}
-                onOpen={() => {
-                  store.openLeadPage(lead.id)
-                  flow.go('lead')
-                }}
-              />
-            ))}
+            {captured.map((lead) => {
+              const badge = statusBadge(lead)
+              return (
+                <button
+                  key={lead.id}
+                  type="button"
+                  onClick={() => {
+                    pipelineStore.open(lead.id)
+                    flow.go('lead-detail')
+                  }}
+                  className="flex w-full items-center gap-8 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
+                >
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <span className="truncate text-14 font-bold text-default">{lead.name}</span>
+                    <span className="truncate text-12 text-caption">{lead.phone}</span>
+                  </div>
+                  <Badge intent={badge.intent}>{badge.label}</Badge>
+                </button>
+              )
+            })}
           </div>
         </>
       ) : (
@@ -130,7 +132,7 @@ export function SosialisasiScreen() {
           <div className="flex flex-col items-center gap-8 py-24 text-center">
             <span className="text-14 font-bold text-default">Belum ada prospek</span>
             <span className="text-12 text-caption">
-              Catat nama dan nomor WhatsApp setiap ibu yang tertarik. Data lengkapnya bisa
+              Catat setiap ibu yang tertarik sebagai lead POI Visit. Data lengkapnya bisa
               menyusul saat follow up.
             </span>
           </div>
@@ -140,12 +142,10 @@ export function SosialisasiScreen() {
       <StickyBar>
         <div className="flex items-center gap-8">
           <span className="flex-1 text-12 text-caption">
-            {progress.captured >= progress.target
-              ? 'Target tercapai'
-              : `Kurang ${progress.target - progress.captured} prospek dari target`}
+            {hit ? 'Target tercapai' : `Kurang ${event.target - captured.length} prospek dari target`}
           </span>
-          <Badge intent={progress.captured >= progress.target ? 'green' : 'orange'} size="sm">
-            {progress.captured}/{progress.target}
+          <Badge intent={hit ? 'green' : 'orange'} size="sm">
+            {captured.length}/{event.target}
           </Badge>
         </div>
         {/* Not gated on the target. A sosialisasi where four women turned up is
@@ -156,7 +156,15 @@ export function SosialisasiScreen() {
         </Button>
       </StickyBar>
 
-      <AddLeadSheet open={adding} onClose={() => setAdding(false)} />
+      <AddProspekSheet
+        open={adding}
+        onClose={() => setAdding(false)}
+        poi={event.poi}
+        onSaved={(id) => {
+          setCapturedIds((prev) => [...prev, id])
+          setAdding(false)
+        }}
+      />
 
       <RescheduleSheet
         open={rescheduling}
@@ -171,211 +179,173 @@ export function SosialisasiScreen() {
   )
 }
 
+const DEFAULT_MAJELIS: MajelisAssignment = { kind: 'none', branch: 'BP Ciseeng' }
+
 /**
- * The quick tier, and every field in it is one a woman answers out loud in a
- * crowded room. Address, competing loans and destination majelis are all
- * deliberately absent: they need her to think, and asking them here is how a
- * BP gets four leads instead of ten.
- *
- * `useState` is safe in a way it is not anywhere else in this project — the
- * sheet never navigates, so the draft cannot outlive a `go()`. It is committed
- * to the store in one act, at "Simpan".
+ * The Sales "Tambah Lead" form, adapted for a sosialisasi: Sumber is fixed to
+ * this POI Visit (everyone here came from it, so it isn't a question), and each
+ * save is a real `pipelineStore.addLead` — a lead sourced from this POI. It
+ * lives in a fullscreen sheet, not a page, so the count and list behind it stay
+ * in view while the BP works the room name after name.
  */
-function AddLeadSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+function AddProspekSheet({
+  open,
+  onClose,
+  poi,
+  onSaved,
+}: {
+  open: boolean
+  onClose: () => void
+  poi: string
+  onSaved: (id: string) => void
+}) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [source, setSource] = useState<LeadSource>('sosialisasi')
-  const [referredBy, setReferredBy] = useState('')
-  const [referralKind, setReferralKind] = useState<ReferralKind | null>(null)
-  const [interest, setInterest] = useState<Interest | null>(null)
-  const [followUp, setFollowUp] = useState<string | null>(null)
-  const [followUpPicked, setFollowUpPicked] = useState(false)
-  const [reason, setReason] = useState('')
-  const [note, setNote] = useState('')
+  const [majelis, setMajelis] = useState<MajelisAssignment>(DEFAULT_MAJELIS)
+  const [nik, setNik] = useState('')
+  const [ktp, setKtp] = useState(false)
+  const [picking, setPicking] = useState(false)
 
-  // A no is a result, so it asks for a reason instead of a date. Everything
-  // else asks when to come back — which is the field this whole flow exists
-  // for, since "tertarik" with no date is the lead nobody ever calls.
-  const refused = interest === 'tidak'
-  // What is still missing, in the order the form asks it. A disabled CTA with
-  // nothing beside it reads as a broken button — the BP taps "Simpan", nothing
-  // happens, and the form never says which of six fields it is waiting on. So
-  // the gate names the next one, the same way closing names the visit still
-  // open rather than only refusing to close.
-  const missing: string[] = []
-  if (name.trim().length <= 1) missing.push('nama')
-  if (phone.trim().length <= 5) missing.push('no. WhatsApp')
-  if (source === 'referral' && referredBy.trim() === '') missing.push('nama perujuk')
-  if (source === 'referral' && referralKind === null) missing.push('hubungan perujuk')
-  if (interest === null) missing.push('tingkat minat')
-  else if (refused && reason === '') missing.push('alasan')
-  else if (!refused && !followUpPicked) missing.push('kapan dihubungi lagi')
-
-  const ready = missing.length === 0
+  const ready = name.trim() !== '' && phone.trim() !== ''
 
   function reset() {
     setName('')
     setPhone('')
-    setSource('sosialisasi')
-    setReferredBy('')
-    setReferralKind(null)
-    setInterest(null)
-    setFollowUp(null)
-    setFollowUpPicked(false)
-    setReason('')
-    setNote('')
+    setMajelis(DEFAULT_MAJELIS)
+    setNik('')
+    setKtp(false)
+    setPicking(false)
   }
 
   function save() {
-    if (!ready || !interest) return
-    store.addLead({
+    if (!ready) return
+    const id = pipelineStore.addLead({
       name,
       phone,
-      source,
-      referredBy,
-      referralKind,
-      interest,
-      followUpAt: refused ? null : followUp,
-      followUpTomorrow: !refused && followUp === '22 Juli',
-      note: refused ? [reason, note].filter(Boolean).join(' — ') : note,
+      source: 'poi',
+      poi,
+      referredBy: '',
+      referrerKind: null,
+      majelis,
+      nik,
+      ktp,
     })
     reset()
-    onClose()
+    onSaved(id)
   }
 
   return (
-    <BottomSheet
-      open={open}
-      onClose={onClose}
-      size="fullscreen"
-      title="Tambah Prospek"
-      primaryAction={
-        <div className="flex w-full flex-col gap-8">
-          {!ready ? (
-            <span className="text-center text-12 font-bold text-orange-500">
-              Lengkapi dulu: {missing.join(', ')}
-            </span>
-          ) : null}
+    <>
+      <BottomSheet
+        open={open && !picking}
+        onClose={() => {
+          reset()
+          onClose()
+        }}
+        size="fullscreen"
+        title="Tambah Prospek"
+        primaryAction={
           <Button size="lg" className="w-full" disabled={!ready} onClick={save}>
             Simpan Prospek
           </Button>
-        </div>
-      }
-    >
-      <div className="flex flex-col gap-16">
-        <Input
-          label="Nama"
-          required
-          placeholder="Nama lengkap"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <Input
-          label="No. WhatsApp"
-          required
-          inputMode="tel"
-          placeholder="08xx-xxxx-xxxx"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          helperText="Satu-satunya cara menghubunginya lagi — pastikan benar."
-        />
-
-        <ChipGroup label="Dari mana">
-          {SOURCES.map((option) => (
-            <Chip
-              key={option.value}
-              selected={source === option.value}
-              onClick={() => setSource(option.value)}
-            >
-              {option.label}
-            </Chip>
-          ))}
-        </ChipGroup>
-
-        {/* A referral's value is the name attached to it, so it is asked here
-            and not deferred — it is also the one question the person standing
-            in front of her answers instantly. */}
-        {source === 'referral' ? (
-          <>
+        }
+      >
+        <div className="flex flex-col gap-16">
+          <div className="flex flex-col gap-12">
             <Input
-              label="Direferensikan oleh"
+              label="Nama"
               required
-              placeholder="Nama perujuk"
-              value={referredBy}
-              onChange={(e) => setReferredBy(e.target.value)}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nama calon mitra"
             />
-            <ChipGroup label="Hubungan perujuk">
-              {REFERRAL_KINDS.map((kind) => (
-                <Chip
-                  key={kind.value}
-                  selected={referralKind === kind.value}
-                  onClick={() => setReferralKind(kind.value)}
-                >
-                  {kind.label}
-                </Chip>
-              ))}
-            </ChipGroup>
-          </>
-        ) : null}
-
-        <ChipGroup label="Tingkat minat">
-          {INTEREST_ORDER.map((level) => (
-            <Chip
-              key={level}
-              selected={interest === level}
-              onClick={() => {
-                setInterest(level)
-                setReason('')
-              }}
-            >
-              {INTEREST_META[level].label}
-            </Chip>
-          ))}
-        </ChipGroup>
-
-        {interest && !refused ? (
-          <ChipGroup label="Hubungi lagi kapan">
-            {FOLLOW_UP_OPTIONS.map((option) => (
-              <Chip
-                key={option.label}
-                selected={followUpPicked && followUp === option.value}
-                onClick={() => {
-                  setFollowUp(option.value)
-                  setFollowUpPicked(true)
-                }}
-              >
-                {option.label}
-              </Chip>
-            ))}
-          </ChipGroup>
-        ) : null}
-
-        {refused ? (
-          <ChipGroup label="Alasan">
-            {NO_REASONS.map((option) => (
-              <Chip key={option} selected={reason === option} onClick={() => setReason(option)}>
-                {option}
-              </Chip>
-            ))}
-          </ChipGroup>
-        ) : null}
-
-        {/* The line that turns a name into a person a month from now. Optional,
-            and phrased as a prompt because "Catatan" alone gets left empty. */}
-        <Input
-          label="Catatan"
-          optionalText="opsional"
-          placeholder="Usahanya apa, kebutuhannya apa"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
-
-        {interest && !refused && followUpPicked && followUp === '22 Juli' ? (
-          <div className="rounded-8 bg-primary-50 px-12 py-8 text-12 text-primary-500">
-            Tugas follow up otomatis masuk ke jadwal besok.
+            <Input
+              label="No. HP"
+              required
+              inputMode="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="08xx-xxxx-xxxx"
+            />
           </div>
-        ) : null}
-      </div>
-    </BottomSheet>
+
+          {/* Sumber is fixed — everyone captured at this sosialisasi came from
+              this POI Visit, so it is shown as a locked, pre-selected source
+              rather than a choice. */}
+          <div className="flex flex-col gap-4">
+            <span className="text-12 text-caption">Sumber</span>
+            <div className="flex flex-col gap-2 rounded-8 border border-primary-500 bg-primary-50 px-12 py-12">
+              <span className="text-14 font-bold text-default">POI Visit</span>
+              <span className="text-12 text-caption">{poi}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <span className="text-12 text-caption">Majelis</span>
+            <button
+              type="button"
+              onClick={() => setPicking(true)}
+              className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-12 text-left text-14 text-default"
+            >
+              <span className="truncate">{assignmentLabel(majelis)}</span>
+              <span className="shrink-0 text-12 font-bold text-link">Ubah</span>
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <span className="text-12 text-caption">KTP</span>
+            <div className="flex flex-col gap-12">
+              <span className="text-12 text-caption">
+                Lampirkan KTP sekarang agar lead langsung jadi Qualified. Tanpa KTP, lead masuk
+                sebagai Unqualified.
+              </span>
+              {ktp ? (
+                <div className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12">
+                  <span className="text-green-500">
+                    <FileCheck size={20} />
+                  </span>
+                  <span className="flex-1 text-default">Foto KTP terlampir</span>
+                  <button
+                    type="button"
+                    onClick={() => setKtp(false)}
+                    className="shrink-0 text-12 font-bold text-link"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setKtp(true)}
+                  className="flex w-full flex-col items-center gap-4 rounded-8 border border-default bg-canvas-blue p-16 text-caption"
+                >
+                  <Camera size={24} />
+                  <span className="text-14 text-default">Upload Foto KTP</span>
+                </button>
+              )}
+              <Input
+                label="NIK (16 digit)"
+                optionalText="opsional"
+                inputMode="numeric"
+                maxLength={16}
+                value={nik}
+                onChange={(e) => setNik(e.target.value)}
+                placeholder="Masukkan 16 digit NIK"
+              />
+            </div>
+          </div>
+        </div>
+      </BottomSheet>
+
+      <MajelisPickerSheet
+        open={open && picking}
+        value={majelis}
+        onClose={() => setPicking(false)}
+        onPick={(m) => {
+          setMajelis(m)
+          setPicking(false)
+        }}
+      />
+    </>
   )
 }

@@ -32,6 +32,14 @@ export type MainStatus =
 /** The interest note — only meaningful at Unqualified / Qualified. */
 export type Interest = 'interested' | 'undecided' | 'not-interested'
 
+/**
+ * The two sub-states of Submitted. Once a loan is filed the process is entirely
+ * system-driven with no BP action: the calon mitra does self-serve KYC on AFIN
+ * (`kyc`), then the system underwrites (`underwriting`), then the status resolves
+ * to Approved or Rejected — all of it logged as "System", not the BP's work.
+ */
+export type SubmittedStage = 'kyc' | 'underwriting'
+
 /** The two loan products a submission picks between. */
 export type Product = 'GL' | 'Modal'
 
@@ -52,15 +60,31 @@ export type MajelisAssignment =
   | { kind: 'new'; name: string }
   | { kind: 'none'; branch: string }
 
-/** How a contact was made. `poi` is the first touch, in the field. */
-export type Channel = 'poi' | 'wa' | 'telepon'
+/**
+ * How a contact was made. `poi` is the first touch in the field; `manual` is a
+ * status update the BP made directly (not from a scheduled follow-up call);
+ * `system` is a change the platform made on its own, after Submitted — KYC,
+ * underwriting, the Approved / Rejected decision — with no BP action at all.
+ */
+export type Channel = 'poi' | 'wa' | 'telepon' | 'manual' | 'system'
 
 /** One recorded contact — the lead's history, oldest first. */
 export interface PipelineLog {
   at: string
   via: Channel
-  outcome: string
-  note: string
+  /** The main funnel status recorded at this point. */
+  status: MainStatus
+  /** The interest sub-state, when the status carries one (unqualified/qualified). */
+  interest?: Interest
+  /** The submitted sub-state, when the status is 'submitted'. */
+  stage?: SubmittedStage
+  /** Free-text catatan, in the BP's own words. Shown italic, in quotes. */
+  note?: string
+  /**
+   * System-generated detail — product/plafon at submit, the UK result and cair
+   * amount at approve/disburse, KTP captured, referral origin. Shown plain.
+   */
+  system?: string
   /** The follow-up this contact scheduled — the "action selanjutnya" line. */
   next?: string
 }
@@ -80,6 +104,12 @@ export interface PipelineLead {
   status: MainStatus
   /** The interest note. Null once Submitted — the decision has left her hands. */
   interest: Interest | null
+  /**
+   * Which sub-state of Submitted she is in — set only while `status` is
+   * 'submitted', advanced by the system (KYC → underwriting). Undefined for
+   * every other status.
+   */
+  subStatus?: SubmittedStage
 
   majelis: MajelisAssignment
   /** 16-digit NIK. Present from Qualified onward (the KTP that qualifies her). */
@@ -146,6 +176,16 @@ export const INTEREST_META: Record<
 
 export const INTEREST_ORDER: Interest[] = ['interested', 'undecided', 'not-interested']
 
+/**
+ * The Submitted sub-states — the compact tag shown beside the Submitted badge,
+ * and the "action selanjutnya" line, which in both cases says the same thing:
+ * the system is handling it and the BP has nothing to do.
+ */
+export const SUBMITTED_STAGE_META: Record<SubmittedStage, { label: string; action: string }> = {
+  kyc: { label: 'Menunggu KYC', action: 'Calon mitra KYC mandiri di AFIN — tanpa aksi BP' },
+  underwriting: { label: 'Underwriting', action: 'Sistem sedang underwriting — tanpa aksi BP' },
+}
+
 /** The follow-up cadence each interest implies, as a duration phrase. */
 export const CADENCE_DURATION: Record<Interest, string> = {
   interested: '3 hari',
@@ -195,6 +235,8 @@ export const CHANNEL_LABEL: Record<Channel, string> = {
   poi: 'POI Visit',
   wa: 'WhatsApp',
   telepon: 'Telepon',
+  manual: 'Manual',
+  system: 'System',
 }
 
 // --- Derivations -----------------------------------------------------------
@@ -213,6 +255,16 @@ export function statusBadge(lead: PipelineLead): {
 }
 
 /**
+ * The small tag shown beside the badge for a Submitted lead — which system
+ * sub-state she is in (Menunggu KYC / Underwriting). Null for every other
+ * status; the interest tag takes that slot while she is still being worked.
+ */
+export function subStateTag(lead: PipelineLead): string | null {
+  if (lead.status !== 'submitted' || !lead.subStatus) return null
+  return SUBMITTED_STAGE_META[lead.subStatus].label
+}
+
+/**
  * The one line of "what to do" for a lead, by status — the concept's action
  * table. Unqualified / Qualified defer to the interest cadence; everything else
  * is a fixed instruction.
@@ -223,7 +275,9 @@ export function statusAction(lead: PipelineLead): string {
     case 'qualified':
       return lead.interest ? INTEREST_META[lead.interest].hint : 'Hubungi & catat minat'
     case 'submitted':
-      return 'Menunggu hasil Uji Kelayakan (UK)'
+      return lead.subStatus
+        ? SUBMITTED_STAGE_META[lead.subStatus].action
+        : 'Diproses sistem — tanpa aksi BP'
     case 'approved':
       return 'Menunggu pencairan'
     case 'disbursed':
@@ -301,7 +355,9 @@ export function actionDetail(lead: PipelineLead): { title: string; sub?: string 
   }
   switch (lead.status) {
     case 'submitted':
-      return { title: 'Menunggu hasil Uji Kelayakan (UK)' }
+      return lead.subStatus
+        ? { title: SUBMITTED_STAGE_META[lead.subStatus].label, sub: SUBMITTED_STAGE_META[lead.subStatus].action }
+        : { title: 'Diproses sistem', sub: 'Tanpa aksi BP' }
     case 'approved':
       return {
         title: 'Menunggu pencairan',
@@ -322,8 +378,32 @@ export function actionDetail(lead: PipelineLead): { title: string; sub?: string 
   }
 }
 
-/** How a history entry names its channel: field visits vs. follow-up calls. */
-export const historyChannel = (via: Channel): string => (via === 'poi' ? 'POI Visit' : 'Follow-up')
+/**
+ * How a history entry names its activity: a POI Visit (with the place), a
+ * manual status update, or a follow-up call.
+ */
+export function historyActivity(entry: PipelineLog, lead: PipelineLead): string {
+  if (entry.via === 'poi') return lead.poi ? `POI Visit: ${lead.poi}` : 'POI Visit'
+  if (entry.via === 'manual') return 'Manual'
+  // A change the platform made on its own — KYC, underwriting, the decision.
+  if (entry.via === 'system') return 'System'
+  return 'Follow-up'
+}
+
+/**
+ * Line 2 of a history card: the main status, plus its sub-state when the status
+ * carries one — an interest (Unqualified / Qualified) or a Submitted stage.
+ * "Unqualified · Interested", "Submitted · Underwriting", or just "Approved".
+ */
+export function historyStatusLabel(entry: PipelineLog): string {
+  const main = STATUS_META[entry.status].label
+  const sub = entry.interest
+    ? INTEREST_META[entry.interest].label
+    : entry.stage
+      ? SUBMITTED_STAGE_META[entry.stage].label
+      : null
+  return sub ? `${main} · ${sub}` : main
+}
 
 // --- Filters ---------------------------------------------------------------
 
@@ -362,7 +442,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     amount: '',
     disburseDate: '',
     log: [
-      { at: '21 Juli', via: 'poi', outcome: 'Lead baru dari POI Visit', note: 'Punya warung sembako, tanya soal modal.' },
+      { at: '21 Juli', via: 'poi', status: 'unqualified', interest: 'interested', note: 'Punya warung sembako, tanya soal modal.' },
     ],
   },
   {
@@ -382,8 +462,10 @@ export const SEED_PIPELINE: PipelineLead[] = [
     disburseDate: '',
     nextFollowUp: '27 Jul 2026',
     log: [
-      { at: '3 Juli', via: 'telepon', outcome: 'Interested', note: '', next: '20 Jul 2026' },
-      { at: '20 Juli', via: 'telepon', outcome: 'Undecided', note: 'mau bicara dengan suami', next: '27 Jul 2026' },
+      { at: '26 Juni', via: 'poi', status: 'unqualified', interest: 'interested' },
+      { at: '3 Juli', via: 'telepon', status: 'unqualified', interest: 'interested', note: 'Tertarik, tapi tunggu loan dari Mekaar selesai' },
+      { at: '4 Juli', via: 'manual', status: 'unqualified', interest: 'interested', note: 'Tertarik, tapi tunggu loan dari Mekaar selesai' },
+      { at: '20 Juli', via: 'telepon', status: 'unqualified', interest: 'undecided', note: 'Mau diskusi dengan suami lagi' },
     ],
   },
   {
@@ -401,7 +483,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
     amount: '',
     disburseDate: '',
     log: [
-      { at: '17 Juli', via: 'wa', outcome: 'Not interested · masih ada pinjaman lain', note: 'Keberatan angsuran mingguan.' },
+      { at: '13 Juli', via: 'manual', status: 'unqualified', interest: 'interested', system: 'Referral dari Ibu Yanti (Majelis Kenanga)' },
+      { at: '17 Juli', via: 'telepon', status: 'unqualified', interest: 'not-interested', note: 'Masih ada pinjaman lain, keberatan angsuran mingguan.' },
     ],
   },
   {
@@ -420,8 +503,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
     amount: '',
     disburseDate: '',
     log: [
-      { at: '14 Juli', via: 'poi', outcome: 'Lead baru dari POI Visit', note: '' },
-      { at: '18 Juli', via: 'telepon', outcome: 'Qualified · KTP dilengkapi', note: 'Siap ikut Majelis Melati.' },
+      { at: '14 Juli', via: 'poi', status: 'unqualified', interest: 'interested' },
+      { at: '18 Juli', via: 'telepon', status: 'qualified', interest: 'interested', system: 'KTP dilengkapi', note: 'Siap ikut Majelis Melati.' },
     ],
   },
   {
@@ -439,8 +522,9 @@ export const SEED_PIPELINE: PipelineLead[] = [
     amount: '',
     disburseDate: '',
     log: [
-      { at: '15 Juli', via: 'poi', outcome: 'Referral dari Bu Imas', note: 'Mau ajak tetangga bikin majelis baru.' },
-      { at: '19 Juli', via: 'wa', outcome: 'Qualified · masih menimbang', note: '' },
+      { at: '15 Juli', via: 'manual', status: 'unqualified', interest: 'interested', system: 'Referral dari Bu Imas', note: 'Mau ajak tetangga bikin majelis baru.' },
+      { at: '18 Juli', via: 'telepon', status: 'qualified', interest: 'interested', system: 'KTP dilengkapi' },
+      { at: '19 Juli', via: 'telepon', status: 'qualified', interest: 'undecided', note: 'Masih menimbang.' },
     ],
   },
   {
@@ -448,18 +532,21 @@ export const SEED_PIPELINE: PipelineLead[] = [
     name: 'Euis Komariah',
     phone: '0813-9987-3320',
     source: 'poi',
+    poi: 'Balai Desa Ciseeng',
     referredBy: '',
     status: 'submitted',
     interest: null,
+    subStatus: 'kyc',
     majelis: { kind: 'existing', id: 'mawar' },
     nik: '3201094507880002',
     ktp: true,
     product: 'Modal',
-    amount: 'Rp3.000.000',
+    amount: '',
     disburseDate: '',
     log: [
-      { at: '16 Juli', via: 'telepon', outcome: 'Qualified · data lengkap', note: '' },
-      { at: '20 Juli', via: 'telepon', outcome: 'Pengajuan dikirim · menunggu UK', note: 'Produk Modal, plafon Rp3.000.000.' },
+      { at: '14 Juli', via: 'poi', status: 'unqualified', interest: 'interested' },
+      { at: '16 Juli', via: 'telepon', status: 'qualified', interest: 'interested', system: 'KTP dilengkapi' },
+      { at: '20 Juli', via: 'manual', status: 'submitted', stage: 'kyc', system: 'Produk Modal' },
     ],
   },
   {
@@ -477,8 +564,10 @@ export const SEED_PIPELINE: PipelineLead[] = [
     amount: 'Rp2.000.000',
     disburseDate: '24 Juli',
     log: [
-      { at: '15 Juli', via: 'telepon', outcome: 'Pengajuan dikirim', note: '' },
-      { at: '19 Juli', via: 'telepon', outcome: 'Approved · lolos UK', note: 'Cair Rp2.000.000 pada 24 Juli.' },
+      { at: '12 Juli', via: 'manual', status: 'unqualified', interest: 'interested', system: 'Referral dari Ibu Rina Marlina (Majelis Mawar)' },
+      { at: '15 Juli', via: 'manual', status: 'submitted', stage: 'kyc', system: 'Produk GL' },
+      { at: '16 Juli', via: 'system', status: 'submitted', stage: 'underwriting', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '19 Juli', via: 'system', status: 'approved', system: 'Lolos underwriting, cair Rp2.000.000 pada 24 Juli' },
     ],
   },
   {
@@ -496,8 +585,11 @@ export const SEED_PIPELINE: PipelineLead[] = [
     amount: 'Rp2.500.000',
     disburseDate: '18 Juli',
     log: [
-      { at: '10 Juli', via: 'telepon', outcome: 'Pengajuan dikirim', note: '' },
-      { at: '18 Juli', via: 'telepon', outcome: 'Disbursed · jadi mitra Majelis Melati', note: 'Cair Rp2.500.000.' },
+      { at: '5 Juli', via: 'manual', status: 'unqualified', interest: 'interested', system: 'Referral dari Bu Yanti (Majelis Melati)' },
+      { at: '10 Juli', via: 'manual', status: 'submitted', stage: 'kyc', system: 'Produk GL' },
+      { at: '12 Juli', via: 'system', status: 'submitted', stage: 'underwriting', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '15 Juli', via: 'system', status: 'approved', system: 'Lolos underwriting, cair Rp2.500.000' },
+      { at: '18 Juli', via: 'system', status: 'disbursed', system: 'Cair Rp2.500.000, jadi mitra Majelis Melati' },
     ],
   },
   {
@@ -505,6 +597,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     name: 'Wati Ningsih',
     phone: '0819-2278-6605',
     source: 'poi',
+    poi: 'Warung Bu Ipah, Cibeuteung',
     referredBy: '',
     status: 'rejected',
     interest: null,
@@ -512,11 +605,35 @@ export const SEED_PIPELINE: PipelineLead[] = [
     nik: '3201096003910004',
     ktp: true,
     product: 'Modal',
-    amount: 'Rp3.000.000',
+    amount: '',
     disburseDate: '',
     log: [
-      { at: '9 Juli', via: 'telepon', outcome: 'Pengajuan dikirim', note: '' },
-      { at: '15 Juli', via: 'telepon', outcome: 'Rejected · tidak lolos UK', note: 'Skor kredit tidak memenuhi.' },
+      { at: '4 Juli', via: 'poi', status: 'unqualified', interest: 'interested' },
+      { at: '9 Juli', via: 'manual', status: 'submitted', stage: 'kyc', system: 'Produk Modal' },
+      { at: '11 Juli', via: 'system', status: 'submitted', stage: 'underwriting', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '15 Juli', via: 'system', status: 'rejected', system: 'Tidak lolos underwriting, skor kredit tidak memenuhi' },
+    ],
+  },
+  {
+    id: 'p10',
+    name: 'Ratna Sari',
+    phone: '0813-4471-9026',
+    source: 'referral',
+    referredBy: 'Bu Sari (Majelis Melati)',
+    status: 'submitted',
+    interest: null,
+    subStatus: 'underwriting',
+    majelis: { kind: 'existing', id: 'melati' },
+    nik: '3201094601910005',
+    ktp: true,
+    product: 'GL',
+    amount: '',
+    disburseDate: '',
+    log: [
+      { at: '13 Juli', via: 'manual', status: 'unqualified', interest: 'interested', system: 'Referral dari Bu Sari (Majelis Melati)' },
+      { at: '17 Juli', via: 'telepon', status: 'qualified', interest: 'interested', system: 'KTP dilengkapi' },
+      { at: '19 Juli', via: 'manual', status: 'submitted', stage: 'kyc', system: 'Produk GL' },
+      { at: '21 Juli', via: 'system', status: 'submitted', stage: 'underwriting', system: 'KYC calon mitra selesai, masuk proses underwriting' },
     ],
   },
 ]

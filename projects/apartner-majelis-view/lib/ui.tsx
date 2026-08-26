@@ -1912,6 +1912,7 @@ export function RescheduleSheet({
   count = 0,
   onConfirm,
   onReject,
+  hideReason = false,
 }: {
   open: boolean
   onClose: () => void
@@ -1924,6 +1925,12 @@ export function RescheduleSheet({
   onConfirm: (reason: string, date: string) => void
   /** Closes the task for good. Omitting it keeps the reject path off entirely. */
   onReject?: (reason: string) => void
+  /**
+   * Drops the "Alasan" picker, leaving just the date. For a follow-up call that
+   * didn't connect — the visit-shaped reasons (distance, weather) don't fit, and
+   * the only question left is when to try again.
+   */
+  hideReason?: boolean
 }) {
   const [reason, setReason] = useState('')
   const [date, setDate] = useState('')
@@ -1935,7 +1942,11 @@ export function RescheduleSheet({
   const canReject = Boolean(onReject) && count >= REJECT_AFTER
   const rejecting = mode === 'reject'
 
-  const ready = rejecting ? rejectReason.trim().length > 0 : Boolean(reason && date)
+  const ready = rejecting
+    ? rejectReason.trim().length > 0
+    : hideReason
+      ? Boolean(date)
+      : Boolean(reason && date)
 
   // Fresh every time it opens: a reschedule cancelled on one task must not
   // pre-fill its answers on the next, and the mode always reopens on reschedule.
@@ -2012,13 +2023,15 @@ export function RescheduleSheet({
           // read before it can be tapped, and a date is picked by scanning down
           // a column, which is how a calendar is read everywhere else.
           <>
-            <ChoiceList
-              plain
-              label="Alasan"
-              options={RESCHEDULE_REASONS}
-              value={reason || undefined}
-              onPick={setReason}
-            />
+            {hideReason ? null : (
+              <ChoiceList
+                plain
+                label="Alasan"
+                options={RESCHEDULE_REASONS}
+                value={reason || undefined}
+                onPick={setReason}
+              />
+            )}
             <ChoiceList
               plain
               label="Jadwal baru"
