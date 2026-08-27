@@ -158,14 +158,24 @@ export const groupLost = seed({
 /** Minggu pertama — belum ada riwayat, tenor baru dimulai. */
 export function homeBFirstWeek() { store.set({ homeBVariant: 'first-week' }) }
 
-/** Semua lancar — status Sangat Baik, kelompok ikut lancar. */
-export function homeBLancar() { store.set({ homeBVariant: 'lancar' }) }
-
-/** Kelompok tidak lancar — ibu sendiri lancar tapi ada anggota kelompok yang belum bayar. */
-export function homeBGroupBad() { store.set({ homeBVariant: 'group-bad' }) }
-
-/** Menunggak — ada angsuran yang belum terbayar, status turun. */
-export function homeBMenunggak() { store.set({ homeBVariant: 'menunggak' }) }
-
 /** Bisa cairkan limit — penilaian bersih, limit siap dicairkan. */
 export function homeBLimitReady() { store.set({ homeBVariant: 'limit-ready' }) }
+
+// --- Matriks status: pembayaran pribadi x pembayaran kelompok ---------------
+// Lima tingkat, masing-masing hasil dari satu baris matriks. Tidak satu pun
+// bisa dicapai dengan mengetuk layar — perlu berminggu-minggu riwayat bayar.
+
+/** Pribadi 95% · Kelompok 95%. */
+export function homeBMatrixSangatBaik()  { store.set({ homeBVariant: 'matrix-sangat-baik'  }) }
+
+/** Pribadi 75% · Kelompok ≤ 95%. */
+export function homeBMatrixBaik()        { store.set({ homeBVariant: 'matrix-baik'         }) }
+
+/** Pribadi 50% · Kelompok ≤ 90%. */
+export function homeBMatrixSedang()      { store.set({ homeBVariant: 'matrix-sedang'       }) }
+
+/** Pribadi 50% · Kelompok ≤ 50%. */
+export function homeBMatrixBuruk()       { store.set({ homeBVariant: 'matrix-buruk'        }) }
+
+/** Pribadi < 50% · Kelompok ≤ 30%. */
+export function homeBMatrixSangatBuruk() { store.set({ homeBVariant: 'matrix-sangat-buruk' }) }

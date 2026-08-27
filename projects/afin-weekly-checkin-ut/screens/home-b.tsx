@@ -19,7 +19,7 @@
 // and not hers. And the disbursement is never a gift: it is principal she has
 // already repaid, borrowed again, and the note under the figure says so.
 
-import { Badge } from '@/design-system/components'
+import { Badge, Button } from '@/design-system/components'
 import type { BadgeIntent } from '@/design-system/components/Badge'
 import {
   Check,
@@ -45,32 +45,67 @@ import { HomeShell } from '../lib/ui'
 //
 // — a percentage minus a constant, which is exactly what calc() is for. Nothing
 // here needs to measure the card.
-type StatusKey = 'sangat-baik' | 'baik' | 'sedang' | 'kurang-baik' | 'tidak-baik'
+type StatusKey =
+  | 'sangat-baik' | 'baik' | 'baik-orange' | 'sedang' | 'buruk' | 'sangat-buruk'
+  | 'kurang-baik' | 'tidak-baik'
 const STATUS_CONFIG: Record<StatusKey, { label: string; cardBg: string; labelColor: string }> = {
-  'sangat-baik': { label: 'Sangat Baik', cardBg: '#EDFAF3', labelColor: '#0F7A3D' },
-  'baik':        { label: 'Baik',        cardBg: '#D8F0E3', labelColor: '#0F7A3D' },
-  'sedang':      { label: 'Sedang',      cardBg: '#FFF3E8', labelColor: '#B45309' },
-  'kurang-baik': { label: 'Kurang Baik', cardBg: '#FFF0F0', labelColor: '#B91C1C' },
-  'tidak-baik':  { label: 'Tidak Baik',  cardBg: '#FFE0E0', labelColor: '#B91C1C' },
+  'sangat-baik':  { label: 'Sangat Baik',  cardBg: '#EDFAF3', labelColor: '#0F7A3D' },
+  'baik':         { label: 'Baik',         cardBg: '#D8F0E3', labelColor: '#0F7A3D' },
+  'baik-orange':  { label: 'Baik',         cardBg: '#FFF3E8', labelColor: '#B45309' },
+  'sedang':       { label: 'Sedang',       cardBg: '#FFF3E8', labelColor: '#B45309' },
+  'buruk':        { label: 'Buruk',        cardBg: '#FFF0F0', labelColor: '#B91C1C' },
+  'sangat-buruk': { label: 'Sangat Buruk', cardBg: '#FFE0E0', labelColor: '#B91C1C' },
+  'kurang-baik':  { label: 'Kurang Baik',  cardBg: '#FFF0F0', labelColor: '#B91C1C' },
+  'tidak-baik':   { label: 'Tidak Baik',   cardBg: '#FFE0E0', labelColor: '#B91C1C' },
 }
 
-type HomeBVariant = 'first-week' | 'lancar' | 'group-bad' | 'menunggak' | 'limit-ready'
+type HomeBVariant =
+  | 'first-week'
+  | 'limit-ready'
+  // The status matrix — pribadi % x kelompok % lands on one of five grades.
+  | 'matrix-sangat-baik' | 'matrix-baik' | 'matrix-sedang' | 'matrix-buruk' | 'matrix-sangat-buruk'
 const VARIANT_CONFIG: Record<HomeBVariant, {
   status: StatusKey
   weekLabel: string
+  weeklyTitle: string
+  weeklySubtitle: string
+  showBenefit: boolean
+  benefitIcon: string
+  benefitIconBg: string
+  benefitTitle?: string
+  benefitText: string
+  benefitAmount: string
+  benefitLink?: string
+  /** The disbursement card above the reward line — only when a limit is actually ready to be pulled. */
+  disbursementAmount?: string
+  disbursementGiftAmount?: string
+  overdueMode: boolean
+  overdueLabel: string
+  overdueAmount: string
+  overdueSubtitle: string
+  overdueFooter: string
   angsuranCaption: string
   kumpulanCaption: string
+  groupTitle?: string
   groupBadgeIntent: BadgeIntent
   groupBadgeLabel: string
+  showGroupBadge?: boolean
   groupCaption: string
   groupRowBg?: string
   showCheckmarks: boolean
 }> = {
-  'first-week':  { status: 'sangat-baik', weekLabel: '1 dari 48 minggu',  angsuranCaption: 'Rp112.000 · Otomatis dari Poket, 19 Jun', kumpulanCaption: 'Kamis, 19 Jun, 09:00',        groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Bisa meningkatkan limit di akhir tenor',      showCheckmarks: false },
-  'lancar':      { status: 'sangat-baik', weekLabel: '14 dari 48 minggu', angsuranCaption: 'Terbayar dari Poket',                     kumpulanCaption: 'Ibu tercatat hadir kumpulan', groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Semua sudah bayar · Bisa meningkatkan limit', showCheckmarks: true  },
-  'group-bad':   { status: 'sangat-baik', weekLabel: '14 dari 48 minggu', angsuranCaption: 'Terbayar dari Petugas, Pak Andi Saputra',  kumpulanCaption: 'Ibu tercatat hadir kumpulan', groupBadgeIntent: 'red',    groupBadgeLabel: 'Tidak Lancar', groupCaption: 'Ingatkan 3 anggota yang tidak bayar',         groupRowBg: '#FFF5F5', showCheckmarks: false },
-  'menunggak':   { status: 'kurang-baik', weekLabel: '14 dari 48 minggu', angsuranCaption: 'Rp112.000 · Otomatis dari Poket, 19 Jun', kumpulanCaption: 'Kamis, 19 Jun, 09:00',        groupBadgeIntent: 'red',    groupBadgeLabel: 'Tidak Lancar', groupCaption: 'Bisa meningkatkan limit di akhir tenor',      showCheckmarks: false },
-  'limit-ready': { status: 'sangat-baik', weekLabel: '24 dari 48 minggu', angsuranCaption: 'Rp112.000 · Otomatis dari Poket, 19 Jun', kumpulanCaption: 'Kamis, 19 Jun, 09:00',        groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Bisa meningkatkan limit di akhir tenor',      showCheckmarks: false },
+  'first-week':     { status: 'sangat-baik', weekLabel: '1 dari 48 minggu',  weeklyTitle: 'Tugas Ibu minggu ini',  weeklySubtitle: 'Lengkapi tugas berikut untuk menjaga status tetap {status}',                                    showBenefit: true,  benefitIcon: '🎁', benefitIconBg: '#FFF3E8', benefitText: 'Jika Sangat Baik hingga Desember, Ibu bisa cairkan limit hingga {amount}.', benefitAmount: 'Rp1.500.000', benefitLink: 'Lihat hadiah', overdueMode: false, overdueLabel: '', overdueAmount: '', overdueSubtitle: '', overdueFooter: '', angsuranCaption: 'Rp112.000 · Otomatis dari Poket, 19 Juni', kumpulanCaption: 'Kamis, 19 Juni, 09:00',        groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Bisa meningkatkan limit di akhir tenor',      showCheckmarks: false },
+  // ── The status matrix ─────────────────────────────────────────────────────
+  // Her own repayment rate and her majelis's rate together decide the grade.
+  // Both captions carry the figure that produced it, so the state control is
+  // enough to read WHY the card says what it says.
+  'matrix-sangat-baik':  { status: 'sangat-baik', weekLabel: '14 dari 48 minggu', weeklyTitle: 'Tugas Ibu minggu ini',  weeklySubtitle: 'Lengkapi tugas berikut untuk menjaga status tetap {status}',                                       showBenefit: true,  benefitIcon: '🎁', benefitIconBg: '#FFF3E8', benefitText: 'Jika Sangat Baik hingga Desember, Ibu bisa cairkan limit hingga {amount}.', benefitAmount: 'Rp1.500.000', benefitLink: 'Lihat hadiah', overdueMode: false, overdueLabel: '', overdueAmount: '', overdueSubtitle: '', overdueFooter: '', angsuranCaption: 'Terbayar dari Poket',                     kumpulanCaption: 'Ibu tercatat hadir kumpulan', groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Semua sudah bayar · Bisa meningkatkan limit', showCheckmarks: true  },
+  'matrix-baik':         { status: 'baik',         weekLabel: '14 dari 48 minggu', weeklyTitle: 'Tugas Ibu minggu ini', weeklySubtitle: '', showBenefit: true, benefitIcon: '⚠️', benefitIconBg: '#FFF3E8', benefitText: 'Status turun karena anggota kumpulan tidak bayar. Hadiah berpotensi berkurang hingga {amount}.', benefitAmount: 'Rp250.000', benefitLink: 'Lihat hadiah', overdueMode: false, overdueLabel: '', overdueAmount: '', overdueSubtitle: '', overdueFooter: '', angsuranCaption: 'Terbayar melalui Andi Saputra',         kumpulanCaption: 'Ibu tercatat hadir kumpulan',     groupTitle: 'Jaga kelancaran kumpulan', showGroupBadge: false, groupBadgeIntent: 'red', groupBadgeLabel: '',       groupCaption: 'Ingatkan 3 anggota yang tidak bayar',       groupRowBg: '#FFF5F5', showCheckmarks: false },
+  'matrix-sedang':       { status: 'sedang',       weekLabel: '14 dari 48 minggu', weeklyTitle: 'Segera bayar angsuran untuk memperbaiki status', weeklySubtitle: '', showBenefit: true, benefitIcon: '⚠️', benefitIconBg: '#FFF3E8', benefitText: 'Hadiah Ibu berpotensi berkurang hingga {amount}.', benefitAmount: 'Rp500.000', benefitLink: 'Lihat hadiah', overdueMode: true, overdueLabel: 'Sudah lewat 7 minggu', overdueAmount: 'Rp875.000', overdueSubtitle: 'Bisa bayar sebagian dari Rp50.000', overdueFooter: 'Diskusikan kepada petugas kemampuan bayar Ibu pada kumpulan hari Kamis, 19 Juni', angsuranCaption: 'Pembayaran Ibu 50% tepat waktu',        kumpulanCaption: 'Ibu 2 kali tidak hadir kumpulan', groupBadgeIntent: 'orange', groupBadgeLabel: 'Perlu Dijaga', groupCaption: 'Kelompok di bawah 90% tepat waktu',         showCheckmarks: false },
+  'matrix-buruk':        { status: 'buruk',        weekLabel: '14 dari 48 minggu', weeklyTitle: 'Segera bayar angsuran untuk memperbaiki status', weeklySubtitle: '', showBenefit: true, benefitIcon: '⚠️', benefitIconBg: '#FFF3E8', benefitText: 'Hadiah Ibu berpotensi berkurang hingga {amount}.', benefitAmount: 'Rp250.000', benefitLink: 'Lihat hadiah', overdueMode: true, overdueLabel: 'Sudah lewat 10 minggu', overdueAmount: 'Rp1.250.000', overdueSubtitle: 'Bisa bayar sebagian dari Rp50.000', overdueFooter: 'Diskusikan kepada petugas kemampuan bayar Ibu pada kumpulan hari Kamis, 19 Juni', angsuranCaption: 'Pembayaran Ibu 50% tepat waktu',        kumpulanCaption: 'Ibu 3 kali tidak hadir kumpulan', groupBadgeIntent: 'red',    groupBadgeLabel: 'Tidak Lancar', groupCaption: 'Kelompok di bawah 50% tepat waktu',  groupRowBg: '#FFF5F5', showCheckmarks: false },
+  'matrix-sangat-buruk': { status: 'sangat-buruk', weekLabel: '14 dari 48 minggu', weeklyTitle: 'Segera bayar angsuran untuk memperbaiki status', weeklySubtitle: '', showBenefit: true, benefitIcon: '⚠️', benefitIconBg: '#FFF3E8', benefitText: 'Hadiah Ibu di bulan Desember berpotensi hangus.',  benefitAmount: '',            benefitLink: 'Lihat hadiah', overdueMode: true, overdueLabel: 'Sudah lewat 13 minggu', overdueAmount: 'Rp1.625.000', overdueSubtitle: 'Bisa bayar sebagian dari Rp50.000', overdueFooter: 'Diskusikan kepada petugas kemampuan bayar Ibu pada kumpulan hari Kamis, 19 Juni', angsuranCaption: 'Pembayaran Ibu kurang dari 50% tepat waktu', kumpulanCaption: 'Ibu 5 kali tidak hadir kumpulan', groupBadgeIntent: 'red',    groupBadgeLabel: 'Tidak Lancar', groupCaption: 'Kelompok di bawah 30% tepat waktu',  groupRowBg: '#FFF5F5', showCheckmarks: false },
+
+  'limit-ready': { status: 'sangat-baik', weekLabel: '24 dari 48 minggu', weeklyTitle: 'Tugas Ibu minggu ini',  weeklySubtitle: 'Lengkapi tugas berikut untuk menjaga status tetap {status}',                                       showBenefit: false, benefitIcon: '🎁', benefitIconBg: '#FFF3E8', benefitText: '', benefitAmount: '', disbursementAmount: 'Rp2.250.000', disbursementGiftAmount: '+1,25jt', overdueMode: false, overdueLabel: '', overdueAmount: '', overdueSubtitle: '', overdueFooter: '', angsuranCaption: 'Rp112.000 · Otomatis dari Poket, 19 Juni', kumpulanCaption: 'Kamis, 19 Juni, 09:00',        groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Bisa meningkatkan limit di akhir tenor',      showCheckmarks: false },
 }
 
 const TILE = 28
@@ -81,8 +116,8 @@ const DOT = 24
 
 export function HomeBScreen() {
   const { homeBVariant } = useApp()
-  const variant = VARIANT_CONFIG[homeBVariant ?? 'lancar']
-  const { cardBg } = STATUS_CONFIG[variant.status]
+  const variant = VARIANT_CONFIG[homeBVariant ?? 'matrix-sangat-baik']
+  const { cardBg, labelColor } = STATUS_CONFIG[variant.status]
 
   return (
     <HomeShell>
@@ -97,21 +132,48 @@ export function HomeBScreen() {
         <Standing status={variant.status} weekLabel={variant.weekLabel} />
 
         <div className="overflow-hidden rounded-16 bg-neutral-white">
-          <Benefit />
-
+          {variant.disbursementAmount && (
+            <div className="px-16 pt-12">
+              <DisbursementCard amount={variant.disbursementAmount} giftAmount={variant.disbursementGiftAmount ?? ''} />
+            </div>
+          )}
+          {variant.showBenefit && (
+            <Benefit
+              icon={variant.benefitIcon}
+              iconBg={variant.benefitIconBg}
+              title={variant.benefitTitle}
+              text={variant.benefitText}
+              amount={variant.benefitAmount}
+              link={variant.benefitLink}
+            />
+          )}
           <div className="px-16 pb-16 pt-12">
-            <p className="text-14 font-bold text-default">Tugas Ibu minggu ini</p>
-            <p className="text-12 text-caption">Lengkapi tugas berikut untuk menjaga status tetap {STATUS_CONFIG[variant.status].label}</p>
+            <p className="text-14 font-bold text-default">{variant.weeklyTitle}</p>
+            {variant.weeklySubtitle && (
+              <p className="text-12 text-caption">{variant.weeklySubtitle.replace('{status}', STATUS_CONFIG[variant.status].label)}</p>
+            )}
             <div className="pt-12">
-              <Ask
-                angsuranCaption={variant.angsuranCaption}
-                kumpulanCaption={variant.kumpulanCaption}
-                groupBadgeIntent={variant.groupBadgeIntent}
-                groupBadgeLabel={variant.groupBadgeLabel}
-                groupCaption={variant.groupCaption}
-                groupRowBg={variant.groupRowBg}
-                showCheckmarks={variant.showCheckmarks}
-              />
+              {variant.overdueMode ? (
+                <OverdueCard
+                  label={variant.overdueLabel}
+                  amount={variant.overdueAmount}
+                  subtitle={variant.overdueSubtitle}
+                  footer={variant.overdueFooter}
+                  accent={labelColor}
+                />
+              ) : (
+                <Ask
+                  angsuranCaption={variant.angsuranCaption}
+                  kumpulanCaption={variant.kumpulanCaption}
+                  groupTitle={variant.groupTitle}
+                  groupBadgeIntent={variant.groupBadgeIntent}
+                  groupBadgeLabel={variant.groupBadgeLabel}
+                  showGroupBadge={variant.showGroupBadge}
+                  groupCaption={variant.groupCaption}
+                  groupRowBg={variant.groupRowBg}
+                  showCheckmarks={variant.showCheckmarks}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -126,6 +188,7 @@ export function HomeBScreen() {
  * that is purely a report: nothing here is asked of her, it is already true.
  */
 function Standing({ status, weekLabel }: { status: StatusKey; weekLabel: string }) {
+  const flow = useFlow()
   const { label, labelColor } = STATUS_CONFIG[status]
   return (
     <div>
@@ -136,7 +199,11 @@ function Standing({ status, weekLabel }: { status: StatusKey; weekLabel: string 
       </div>
       <div className="mt-12 border-t border-default" />
       */}
-      <div className="flex items-center justify-between gap-8 px-16 py-12">
+      <button
+        type="button"
+        onClick={() => flow.go('status-detail')}
+        className="flex w-full items-center justify-between gap-8 px-16 py-12 text-left"
+      >
         <ProductLogo name="modal" size={28} className="shrink-0 self-start" style={{ marginTop: '2px' }} />
         <span className="min-w-0 flex-1">
           <span className="block uppercase text-10 text-caption" style={{ lineHeight: '1' }}>
@@ -148,7 +215,7 @@ function Standing({ status, weekLabel }: { status: StatusKey; weekLabel: string 
           </span>
         </span>
         <ChevronRight size={16} className="shrink-0 text-caption" />
-      </div>
+      </button>
     </div>
   )
 }
@@ -388,19 +455,41 @@ function TimelineTooltip() {
   )
 }
 
+function OverdueCard({ label, amount, subtitle, footer, accent }: { label: string; amount: string; subtitle: string; footer: string; accent: string }) {
+  return (
+    <div className="rounded-16 border border-default bg-neutral-white p-16">
+      <p className="text-12 font-bold" style={{ color: accent, lineHeight: '1' }}>
+        {label}
+      </p>
+      <p className="mt-4 font-bold" style={{ color: accent, fontSize: '34px', lineHeight: '1.1' }}>{amount}</p>
+      <p className="mt-4 text-12 text-caption">{subtitle}</p>
+      <div className="mt-16">
+        <Button variant="primary" size="sm" className="w-full">Bayar sekarang</Button>
+      </div>
+      <p className="mt-12 text-center text-12 text-caption">
+        {footer}
+      </p>
+    </div>
+  )
+}
+
 function Ask({
   angsuranCaption,
   kumpulanCaption,
+  groupTitle = 'Jaga status kelompok',
   groupBadgeIntent,
   groupBadgeLabel,
+  showGroupBadge = true,
   groupCaption,
   groupRowBg,
   showCheckmarks,
 }: {
   angsuranCaption: string
   kumpulanCaption: string
+  groupTitle?: string
   groupBadgeIntent: BadgeIntent
   groupBadgeLabel: string
+  showGroupBadge?: boolean
   groupCaption: string
   groupRowBg?: string
   showCheckmarks: boolean
@@ -454,59 +543,79 @@ function Ask({
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-4 text-14 text-default">
-            Jaga status kelompok
-            <Badge intent={groupBadgeIntent} variant="subtle" size="sm"
-              style={groupBadgeIntent === 'red' ? { background: '#FF0000', color: '#fff' } : undefined}
-            >{groupBadgeLabel}</Badge>
+            {groupTitle}
+            {showGroupBadge && (
+              <Badge intent={groupBadgeIntent} variant="subtle" size="sm"
+                style={groupBadgeIntent === 'red' ? { background: '#FF0000', color: '#fff' } : undefined}
+              >{groupBadgeLabel}</Badge>
+            )}
           </span>
           <span className="block text-12 text-caption">{groupCaption}</span>
         </span>
-        {showCheckmarks
-          ? <CheckCircleFill size={20} className="shrink-0" style={{ color: '#0F7A3D' }} />
-          : <ChevronRight size={16} className="shrink-0 text-caption" />}
+        {showCheckmarks && <CheckCircleFill size={20} className="shrink-0" style={{ color: '#0F7A3D' }} />}
       </div>
     </div>
   )
 }
 
-function Benefit() {
+function Benefit({ icon, iconBg, title, text, amount, link }: { icon: string; iconBg: string; title?: string; text: string; amount: string; link?: string }) {
+  const flow = useFlow()
+  const [before, after] = text.split('{amount}')
   return (
-    <div className="px-16 pb-16 pt-12">
-      <div className="flex items-center justify-between">
-        <p className="text-14 font-bold text-default">Keuntungan menjaga status</p>
-      </div>
-      <div className="mt-12 flex gap-12">
-        <BenefitCard
-          icon="⚡"
-          label="Desember bisa cairkan limit lagi"
-          caption="Sampai Rp1.500.000 di 5 Desember 2026"
-        />
-        <BenefitCard
-          icon="💰"
-          label="Limit pinjaman naik"
-          caption="Sampai Rp7.000.000 di Juni 2027"
-        />
+    <div className="px-16 pb-0 pt-12">
+      <div className="flex items-start gap-8 rounded-12 border border-default bg-neutral-white p-12">
+        <span className="flex shrink-0 items-center justify-center" style={{ width: '24px', height: '24px', borderRadius: '10px', background: iconBg, fontSize: '13px' }}>{icon}</span>
+        <span className="min-w-0 flex-1">
+          {title && <span className="block text-12 font-bold text-default">{title}</span>}
+          <span className={title ? 'mt-2 block text-12 text-caption' : 'block text-12 text-caption'}>
+            {/* The figure is bolded in place. A copy with no {amount} at all is
+                legal — some states name no number — so the span only appears
+                when the placeholder was actually there to replace. */}
+            {before}
+            {after !== undefined && <span className="font-bold text-default">{amount}</span>}
+            {after}
+          </span>
+          {link && (
+            <button type="button" className="mt-4 block text-12 font-bold text-primary-500" onClick={() => flow.go('perjalanan-limit')}>
+              {link}
+            </button>
+          )}
+        </span>
       </div>
     </div>
   )
 }
 
-function BenefitCard({ icon, label, caption }: { icon: string; label: string; caption: string }) {
+/** The disbursement card — a limit that is actually ready to be pulled, with the reward already folded into it. */
+function DisbursementCard({ amount, giftAmount }: { amount: string; giftAmount: string }) {
   return (
-    <div
-      className="flex flex-1 flex-col gap-8 rounded-12 p-12"
-      style={{ border: '1px solid #E9DEF6', background: 'linear-gradient(to bottom, #F6FBFD, #FCFEFD)' }}
-    >
-      <span
-        className="flex items-center justify-center rounded-full"
-        style={{ width: '24px', height: '24px', background: '#F2F2F4', fontSize: '13px' }}
-      >
-        {icon}
-      </span>
-      <span>
-        <span className="block text-14 font-bold text-default">{label}</span>
-        <span className="block text-12 text-caption">{caption}</span>
-      </span>
+    <div className="rounded-16 border border-default bg-neutral-white p-16">
+      <p className="text-12 text-caption">Hadiah yang bisa dicairkan</p>
+      <div className="mt-4 flex items-center justify-between gap-8">
+        <p className="text-18 font-bold text-default">{amount}</p>
+        <Button variant="primary" size="xs" className="shrink-0">Cairkan</Button>
+      </div>
+      {giftAmount && (
+        <>
+          <div className="my-12" style={{ height: '1px', background: '#F4F0F9' }} />
+          <p className="text-12 text-caption">
+            Pencairan limit berikutnya Desember 2026.{' '}
+            <PerjalananLimitLink />
+          </p>
+        </>
+      )}
     </div>
   )
 }
+
+/** The link into the milestone journey — a plain purple word inline in a sentence. */
+function PerjalananLimitLink() {
+  const flow = useFlow()
+  return (
+    <button type="button" className="font-bold text-primary-500" onClick={() => flow.go('perjalanan-limit')}>
+      Lihat hadiah.
+    </button>
+  )
+}
+
+
