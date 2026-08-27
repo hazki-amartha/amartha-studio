@@ -105,8 +105,8 @@ export const pipelineStore = {
     product?: Product | null
   }): string {
     const id = `p${Date.now()}`
-    // KTP captured up front qualifies her on the spot — that is the whole
-    // difference between Unqualified (name + phone) and Qualified.
+    // KTP captured up front makes her Qualified (a type), but her status opens
+    // the same either way: Interested, the first touch that put her in the funnel.
     const qualified = data.ktp && data.nik.replace(/\D/g, '').length === 16
     const referral = data.source === 'referral'
     const lead: PipelineLead = {
@@ -117,8 +117,7 @@ export const pipelineStore = {
       poi: referral ? '' : data.poi.trim(),
       referredBy: referral ? data.referredBy.trim() : '',
       referrerKind: referral ? data.referrerKind : null,
-      status: qualified ? 'qualified' : 'unqualified',
-      interest: 'interested',
+      status: 'interested',
       majelis: data.majelis,
       role: data.majelis.kind === 'new' ? data.role ?? 'anggota' : 'anggota',
       nik: qualified ? data.nik : '',
@@ -131,8 +130,7 @@ export const pipelineStore = {
         {
           at: '21 Juli',
           via: data.source === 'poi' ? 'poi' : 'manual',
-          status: qualified ? 'qualified' : 'unqualified',
-          interest: 'interested',
+          status: 'interested',
           note: referral && data.referredBy.trim() ? `Referral dari ${data.referredBy.trim()}` : '',
         },
       ],
@@ -156,11 +154,10 @@ export const pipelineStore = {
   ) {
     const when = next ?? followUpDateFor(interest)
     patchLead(id, (lead) => ({
-      interest,
+      // Her interest IS her status while she is in the New phase.
+      status: interest,
       nextFollowUp: when,
-      // Recording interest never changes the main status — the entry keeps her
-      // current one (Unqualified / Qualified) and pairs it with the new interest.
-      log: appendLog(lead, { via, status: lead.status, interest, note: note.trim(), next: when }),
+      log: appendLog(lead, { via, status: interest, note: note.trim(), next: when }),
     }))
   },
 
@@ -180,49 +177,39 @@ export const pipelineStore = {
   },
 
   /**
-   * Captures or edits the KTP (NIK + photo). An Unqualified lead who now has a
-   * valid KTP is promoted to Qualified — that is the whole difference between
-   * the two.
+   * Captures or edits the KTP (NIK + photo). This completes her data — she
+   * becomes Qualified (a type, derived from KTP) — but her status is unchanged;
+   * the completion is noted in her history.
    */
   updateKtp(id: string, nik: string, ktp: boolean) {
     patchLead(id, (lead) => {
-      const qualifies = lead.status === 'unqualified' && ktp && nik.replace(/\D/g, '').length === 16
+      const wasIncomplete = !(lead.ktp && lead.nik.replace(/\D/g, '').length === 16)
+      const nowComplete = ktp && nik.replace(/\D/g, '').length === 16
       return {
         nik,
         ktp,
-        status: qualifies ? 'qualified' : lead.status,
-        log: qualifies
-          ? appendLog(lead, {
-              via: 'manual',
-              status: 'qualified',
-              interest: lead.interest ?? 'interested',
-              system: 'KTP dilengkapi',
-            })
-          : lead.log,
+        log:
+          wasIncomplete && nowComplete
+            ? appendLog(lead, { via: 'manual', status: lead.status, system: 'KTP dilengkapi' })
+            : lead.log,
       }
     })
   },
 
   /**
-   * Submits the loan form — the Qualified → Submitted step. Fixes the product
-   * and the majelis. After this the BP waits for UK. (The plafon is no longer
-   * captured here; it is finalised later, at approval.)
+   * Files the pengajuan — the pengajuan form goes in and she moves to Waiting
+   * for KYC. After this the process is system-driven.
    */
   submitLoan(id: string, data: { product: Product; majelis: MajelisAssignment; nik: string }) {
     patchLead(id, (lead) => ({
-      status: 'submitted',
-      interest: null,
-      // Freshly submitted → the first system sub-state: the calon mitra now does
-      // self-serve KYC on AFIN. Everything past here is system-driven.
-      subStatus: 'kyc',
+      status: 'waiting-kyc',
       product: data.product,
       majelis: data.majelis,
       nik: data.nik || lead.nik,
       ktp: true,
       log: appendLog(lead, {
         via: 'manual',
-        status: 'submitted',
-        stage: 'kyc',
+        status: 'waiting-kyc',
         system: `Produk ${data.product}`,
       }),
     }))
@@ -258,14 +245,11 @@ export const pipelineStore = {
     patchLead(id, (lead) => {
       if (!lead.product) return {}
       return {
-        status: 'submitted',
-        interest: null,
-        subStatus: 'kyc',
+        status: 'waiting-kyc',
         ktp: true,
         log: appendLog(lead, {
           via: 'manual',
-          status: 'submitted',
-          stage: 'kyc',
+          status: 'waiting-kyc',
           system: `Produk ${lead.product}`,
         }),
       }

@@ -2,11 +2,11 @@
 
 // Sales — the BP's lead pipeline, as one filterable roster.
 //
-// Every row carries the TWO statuses the concept splits: the main funnel status
-// as the coloured badge on the right (Unqualified → … → Disbursed / Rejected),
-// and — only while she is still being worked — the interest note as a small tag
-// on her source line. Three filters mirror the model: main status, interest, and
-// which majelis she is bound for.
+// Each row shows her single, flat status as the coloured badge on the right
+// (Interested / Undecided / Not interested → Waiting for KYC → Underwriting
+// ongoing → Approved / Rejected → Disbursed). Whether her data is complete is a
+// TYPE, not a status: an unqualified lead (no KTP yet) is flagged on the card
+// with "Data pribadi belum lengkap". Three filters: Status, Type, and Majelis.
 
 import { useState } from 'react'
 import { Badge, BottomSheet, Button, NavigationHeader, SelectableCard } from '@/design-system/components'
@@ -14,19 +14,21 @@ import { Plus } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS_DIRECTORY } from '../lib/schedule'
 import {
-  INTEREST_META,
-  INTEREST_ORDER,
+  ACTIVE_STATUSES,
+  INCOMPLETE_LABEL,
   MAJELIS_FILTER_NONE,
+  POI_LIST,
   STATUS_META,
   STATUS_ORDER,
-  hasInterest,
+  TYPE_LABEL,
+  leadType,
   majelisLine,
   matchesMajelis,
   newMajelisFilterValue,
+  sourceDetail,
   statusBadge,
-  subStateTag,
-  type Interest,
-  type MainStatus,
+  type LeadStatus,
+  type LeadType,
   type PipelineLead,
 } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
@@ -42,34 +44,42 @@ import {
   VisitTitle,
 } from '../lib/ui'
 
-type MenuId = 'status' | 'interest' | 'majelis' | null
+type MenuId = 'status' | 'type' | 'sumber' | 'majelis' | null
 
-// The roster opens already narrowed to the statuses a BP actively works — the
-// won/lost ends (Approved / Disbursed / Rejected) are out of the default view.
-const DEFAULT_STATUS: MainStatus[] = ['unqualified', 'qualified', 'submitted']
+// The Sumber filter: Referral, or any of the POIs. Value 'referral' or a POI name.
+const SUMBER_REFERRAL = '__referral__'
+const SUMBER_OPTIONS: { label: string; value: string | null }[] = [
+  { label: 'Semua sumber', value: null },
+  { label: 'Referral', value: SUMBER_REFERRAL },
+  ...POI_LIST.map((p) => ({ label: `POI ${p}`, value: p as string | null })),
+]
 
-// Status and Minat are multi-select — an empty set means "all", so these lists
-// carry only the real values (no "Semua" row; the Reset link clears them).
-const STATUS_OPTIONS: { label: string; value: MainStatus }[] = STATUS_ORDER.map((s) => ({
+function matchesSumber(lead: PipelineLead, value: string): boolean {
+  if (value === SUMBER_REFERRAL) return lead.source === 'referral'
+  return lead.source === 'poi' && lead.poi === value
+}
+
+// The roster opens narrowed to the statuses a BP actively works — the closed
+// ends (Approved / Rejected / Disbursed) are out of the default view.
+const DEFAULT_STATUS: LeadStatus[] = ACTIVE_STATUSES
+
+// Status is multi-select — an empty set means "all", so this list carries only
+// the real values (no "Semua" row; the Reset link clears them).
+const STATUS_OPTIONS: { label: string; value: LeadStatus }[] = STATUS_ORDER.map((s) => ({
   label: STATUS_META[s].label,
   value: s,
 }))
 
-const INTEREST_OPTIONS: { label: string; value: Interest }[] = INTEREST_ORDER.map((i) => ({
-  label: INTEREST_META[i].label,
-  value: i,
-}))
+// Type is single-select, "All" plus the two types.
+const TYPE_OPTIONS: { label: string; value: LeadType | null }[] = [
+  { label: 'All', value: null },
+  { label: TYPE_LABEL.qualified, value: 'qualified' },
+  { label: TYPE_LABEL.unqualified, value: 'unqualified' },
+]
 
 /** Toggles a value in/out of a multi-select array. */
 function toggle<T>(arr: T[], v: T): T[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]
-}
-
-/** The chip label for a multi-select filter: the single choice, or "Name +n". */
-function multiLabel<T>(selected: T[], label: (v: T) => string, fallback: string): string {
-  if (selected.length === 0) return fallback
-  if (selected.length === 1) return label(selected[0])
-  return `${label(selected[0])} +${selected.length - 1}`
 }
 
 /** The majelis filter options, from the leads on screen. */
@@ -89,13 +99,6 @@ function majelisOptions(leads: PipelineLead[]): { label: string; value: string |
     })),
     { label: 'Tanpa majelis', value: MAJELIS_FILTER_NONE },
   ]
-}
-
-// The interest note as coloured text: green interested, blue undecided, red not.
-const INTEREST_TEXT: Record<Interest, string> = {
-  interested: 'text-green-600',
-  undecided: 'text-blue-600',
-  'not-interested': 'text-red-500',
 }
 
 /** A multi-select filter sheet — checkboxes, toggled live; empty = all. */
@@ -136,9 +139,7 @@ function MultiOptionSheet<T extends string>({
 
 function SalesRow({ lead, onOpen }: { lead: PipelineLead; onOpen: () => void }) {
   const badge = statusBadge(lead)
-  const interest = hasInterest(lead.status) && lead.interest ? lead.interest : null
-  // For a Submitted lead the slot under the badge shows the system sub-state.
-  const sub = subStateTag(lead)
+  const unqualified = leadType(lead) === 'unqualified'
 
   return (
     <button
@@ -146,23 +147,17 @@ function SalesRow({ lead, onOpen }: { lead: PipelineLead; onOpen: () => void }) 
       onClick={onOpen}
       className="flex w-full items-start gap-8 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
     >
-      {/* Left: name over majelis. */}
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
+      {/* Left: name over majelis, with the "data incomplete" flag when unqualified. */}
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="truncate text-14 font-bold text-default">{lead.name}</span>
         <span className="truncate text-12 text-caption">{majelisLine(lead)}</span>
-      </div>
-      {/* Right: the main status, with the interest note (coloured, shown only
-          while she is worked) centred beneath the badge. */}
-      <div className="flex shrink-0 flex-col items-center gap-4">
-        <Badge intent={badge.intent}>{badge.label}</Badge>
-        {interest ? (
-          <span className={`text-12 font-regular ${INTEREST_TEXT[interest]}`}>
-            {INTEREST_META[interest].label}
-          </span>
-        ) : sub ? (
-          <span className="text-12 font-regular text-caption">{sub}</span>
+        <span className="truncate text-12 text-caption">{sourceDetail(lead)}</span>
+        {unqualified ? (
+          <span className="truncate text-12 text-orange-600">{INCOMPLETE_LABEL}</span>
         ) : null}
       </div>
+      {/* Right: her flat status. */}
+      <Badge intent={badge.intent}>{badge.label}</Badge>
     </button>
   )
 }
@@ -171,8 +166,9 @@ export function SalesScreen() {
   const flow = useFlow()
   const { leads, order } = usePipeline()
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<MainStatus[]>(DEFAULT_STATUS)
-  const [interest, setInterest] = useState<Interest[]>([])
+  const [status, setStatus] = useState<LeadStatus[]>(DEFAULT_STATUS)
+  const [type, setType] = useState<LeadType | null>(null)
+  const [sumber, setSumber] = useState<string | null>(null)
   const [majelis, setMajelis] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuId>(null)
 
@@ -180,14 +176,13 @@ export function SalesScreen() {
   const q = query.trim().toLowerCase()
 
   const majelisOpts = majelisOptions(all)
-  const majelisChipLabel = (value: string): string =>
-    majelisOpts.find((o) => o.value === value)?.label ?? 'Majelis'
 
   const rows = all
     .filter((lead) => {
       if (q && !lead.name.toLowerCase().includes(q)) return false
       if (status.length > 0 && !status.includes(lead.status)) return false
-      if (interest.length > 0 && !(lead.interest && interest.includes(lead.interest))) return false
+      if (type && leadType(lead) !== type) return false
+      if (sumber && !matchesSumber(lead, sumber)) return false
       if (majelis && !matchesMajelis(lead, majelis)) return false
       return true
     })
@@ -196,7 +191,7 @@ export function SalesScreen() {
         STATUS_META[a.status].order - STATUS_META[b.status].order || a.name.localeCompare(b.name),
     )
 
-  const filtered = status.length > 0 || interest.length > 0 || Boolean(majelis)
+  const filtered = status.length > 0 || Boolean(type) || Boolean(sumber) || Boolean(majelis)
 
   return (
     <AppScreen
@@ -211,19 +206,25 @@ export function SalesScreen() {
 
       <FilterBar>
         <FilterChip
-          label={multiLabel(status, (s) => STATUS_META[s].label, 'Status')}
+          label={status.length > 0 ? `Status (${status.length})` : 'Status'}
           active={status.length > 0}
           open={menu === 'status'}
           onClick={() => setMenu('status')}
         />
         <FilterChip
-          label={multiLabel(interest, (i) => INTEREST_META[i].label, 'Minat')}
-          active={interest.length > 0}
-          open={menu === 'interest'}
-          onClick={() => setMenu('interest')}
+          label="Tipe"
+          active={Boolean(type)}
+          open={menu === 'type'}
+          onClick={() => setMenu('type')}
         />
         <FilterChip
-          label={majelis ? majelisChipLabel(majelis) : 'Majelis'}
+          label="Sumber"
+          active={Boolean(sumber)}
+          open={menu === 'sumber'}
+          onClick={() => setMenu('sumber')}
+        />
+        <FilterChip
+          label="Majelis"
           active={Boolean(majelis)}
           open={menu === 'majelis'}
           onClick={() => setMenu('majelis')}
@@ -232,7 +233,8 @@ export function SalesScreen() {
           <ResetLink
             onClick={() => {
               setStatus([])
-              setInterest([])
+              setType(null)
+              setSumber(null)
               setMajelis(null)
             }}
           />
@@ -247,7 +249,7 @@ export function SalesScreen() {
 
       <div className="flex flex-col gap-8 pb-16">
         {rows.length === 0 ? (
-          <EmptyState title="Lead tidak ditemukan" body="Coba nama, status, minat, atau majelis lain." />
+          <EmptyState title="Lead tidak ditemukan" body="Coba nama, status, tipe, atau majelis lain." />
         ) : null}
         {rows.map((lead) => (
           <SalesRow
@@ -283,13 +285,28 @@ export function SalesScreen() {
         onToggle={(v) => setStatus((prev) => toggle(prev, v))}
         onClose={() => setMenu(null)}
       />
-      <MultiOptionSheet
-        open={menu === 'interest'}
-        title="Minat"
-        name="sales-interest"
-        options={INTEREST_OPTIONS}
-        values={interest}
-        onToggle={(v) => setInterest((prev) => toggle(prev, v))}
+      <OptionSheet
+        open={menu === 'type'}
+        title="Tipe lead"
+        name="sales-type"
+        options={TYPE_OPTIONS}
+        value={type}
+        onPick={(v) => {
+          setType(v)
+          setMenu(null)
+        }}
+        onClose={() => setMenu(null)}
+      />
+      <OptionSheet
+        open={menu === 'sumber'}
+        title="Sumber lead"
+        name="sales-sumber"
+        options={SUMBER_OPTIONS}
+        value={sumber}
+        onPick={(v) => {
+          setSumber(v)
+          setMenu(null)
+        }}
         onClose={() => setMenu(null)}
       />
       <OptionSheet

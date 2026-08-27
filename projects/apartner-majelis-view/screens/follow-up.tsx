@@ -14,41 +14,42 @@
 
 import { useEffect, useState } from 'react'
 import { Badge, BottomSheet, Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
-import { NotePencil, WhatsappLogo } from '@/design-system/icons'
+import { WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   INTEREST_META,
   INTEREST_ORDER,
   dateFromToday,
   followUpDateFor,
-  hasInterest,
-  ktpDetail,
-  majelisDetail,
+  leadType,
   sourceDetail,
   statusBadge,
   type Interest,
 } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import {
-  DetailRow,
-  EditContactSheet,
-  INTEREST_TEXT,
-  KtpSheet,
-  MajelisPickerSheet,
-  SourceSheet,
-  SubmitSheet,
-} from '../lib/pipeline-ui'
+import { RiwayatSheet, SubmitSheet } from '../lib/pipeline-ui'
 import { findTask } from '../lib/schedule'
 import { rescheduleCount, store, useApp } from '../lib/store'
 import { AppScreen, ContactButton, RescheduleSheet, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
 import { IconPhone } from '../lib/icons'
 
-type Contact = 'terhubung' | 'tidak-diangkat' | 'nomor-salah'
+type Method = 'call' | 'visit'
+type Contact = 'terhubung' | 'tidak-diangkat' | 'nomor-salah' | 'ketemu' | 'tidak-ketemu'
 
-const CONTACTS: { value: Contact; title: string; desc: string }[] = [
+const METHODS: { value: Method; title: string; desc?: string }[] = [
+  { value: 'call', title: 'Call' },
+  { value: 'visit', title: 'Visit', desc: 'Recommended jika kemungkinan pengajuan tinggi' },
+]
+
+const CALL_OUTCOMES: { value: Contact; title: string; desc: string }[] = [
   { value: 'terhubung', title: 'Terhubung', desc: 'Sempat bicara - catat minat dan langkah berikutnya' },
   { value: 'tidak-diangkat', title: 'Tidak diangkat / tidak dibalas', desc: 'Jadwalkan percobaan berikutnya' },
   { value: 'nomor-salah', title: 'Nomor tidak aktif / salah', desc: 'Prospek ditutup kecuali ada nomor lain' },
+]
+
+const VISIT_OUTCOMES: { value: Contact; title: string; desc: string }[] = [
+  { value: 'ketemu', title: 'Ketemu', desc: 'Sempat bertemu - catat minat dan langkah berikutnya' },
+  { value: 'tidak-ketemu', title: 'Tidak ketemu', desc: 'Jadwalkan percobaan berikutnya' },
 ]
 
 const STEP_LABELS = ['Hubungi', 'Follow-up']
@@ -69,10 +70,7 @@ function whenOptions(interest: Interest): { label: string; date: string }[] {
 }
 
 type SheetId =
-  | 'contact'
-  | 'source'
-  | 'majelis'
-  | 'ktp'
+  | 'riwayat'
   | 'submit'
   | 'when'
   | 'reason'
@@ -87,8 +85,8 @@ export function FollowUpScreen() {
   const lead = leads[openId]
 
   const [step, setStep] = useState<1 | 2>(1)
+  const [method, setMethod] = useState<Method | null>(null)
   const [contact, setContact] = useState<Contact | null>(null)
-  const [expanded, setExpanded] = useState(false)
   const [pick, setPick] = useState<Interest | 'ajukan' | null>(null)
   const [sheet, setSheet] = useState<SheetId>(null)
 
@@ -100,12 +98,9 @@ export function FollowUpScreen() {
     )
   }
 
-  const canSubmit = lead.status === 'qualified'
-  const worked = hasInterest(lead.status)
+  const canSubmit = leadType(lead) === 'qualified'
   const when = `Follow up · Selasa, ${findTask(followUpTaskId)?.time ?? '11.45'}`
   const badge = statusBadge(lead)
-  const interest = worked && lead.interest ? lead.interest : null
-  const rowsVisible = step === 2 || expanded
 
   function complete() {
     setSheet(null)
@@ -123,7 +118,9 @@ export function FollowUpScreen() {
   // outcomes open their sheet on tap and are completed there.
   function selectContact(value: Contact) {
     setContact(value)
-    if (value === 'tidak-diangkat') setSheet('reschedule')
+    // Both "not reached" outcomes close & reschedule; a wrong number asks for
+    // an alternative first. Terhubung / Ketemu are confirmed with Lanjut.
+    if (value === 'tidak-diangkat' || value === 'tidak-ketemu') setSheet('reschedule')
     else if (value === 'nomor-salah') setSheet('altnumber')
   }
 
@@ -163,19 +160,7 @@ export function FollowUpScreen() {
           <div className="flex items-start gap-12">
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               <span className="truncate text-18 font-bold text-default">{lead.name}</span>
-              <span className="flex items-center gap-8">
-                <span className="truncate text-14 text-caption">{lead.phone}</span>
-                {step === 2 ? (
-                  <button
-                    type="button"
-                    aria-label="Ubah kontak"
-                    onClick={() => setSheet('contact')}
-                    className="shrink-0 text-primary-500"
-                  >
-                    <NotePencil size={16} />
-                  </button>
-                ) : null}
-              </span>
+              <span className="truncate text-14 text-caption">{lead.phone}</span>
             </div>
             <div className="flex shrink-0 gap-8">
               <ContactButton label={`WhatsApp ${lead.name}`} tone="green" onClick={() => {}}>
@@ -187,75 +172,72 @@ export function FollowUpScreen() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-8">
+          {/* Sumber, with a divider below it. */}
+          <div className="flex items-start gap-4 border-b border-default pb-12 text-14">
+            <span className="shrink-0 text-caption">Sumber:</span>
+            <span className="text-default">{sourceDetail(lead)}</span>
+          </div>
+
+          {/* Her flat status, with the full log one tap away beside it. */}
+          <div className="flex items-center gap-8">
             <Badge intent={badge.intent} variant="outline">
               {badge.label}
             </Badge>
-            {interest ? (
-              <span className={`text-14 font-bold ${INTEREST_TEXT[interest]}`}>
-                {INTEREST_META[interest].label}
-              </span>
-            ) : null}
-          </div>
-
-          {rowsVisible ? (
-            <div className="flex flex-col">
-              {/* Sumber and KTP lock once she is past Qualified; Majelis stays
-                  editable. Editing is only offered on step 2. */}
-              <DetailRow
-                label="Sumber"
-                value={sourceDetail(lead)}
-                onEdit={step === 2 && worked ? () => setSheet('source') : undefined}
-              />
-              <DetailRow
-                label="KTP"
-                value={ktpDetail(lead)}
-                onEdit={step === 2 && worked ? () => setSheet('ktp') : undefined}
-                warning={!lead.nik}
-              />
-              <DetailRow
-                label="Majelis"
-                value={majelisDetail(lead)}
-                onEdit={step === 2 ? () => setSheet('majelis') : undefined}
-                warning={lead.majelis.kind === 'none'}
-              />
-            </div>
-          ) : null}
-
-          {/* Show / hide toggle — only on step 1, where the record starts compact. */}
-          {step === 1 ? (
             <button
               type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="self-start text-12 font-bold text-link underline"
+              onClick={() => setSheet('riwayat')}
+              className="text-12 text-link"
             >
-              {expanded ? 'Lihat lebih sedikit' : 'Lihat selengkapnya'}
+              Lihat riwayat
             </button>
-          ) : null}
+          </div>
         </div>
       </Card>
 
       {step === 1 ? (
         <>
-          <SectionTitle>Hasil kontak</SectionTitle>
+          <SectionTitle>Metode</SectionTitle>
           <div className="flex flex-col gap-8">
-            {CONTACTS.map((o) => (
+            {METHODS.map((m) => (
               <SelectableCard
-                key={o.value}
-                name="hasil-kontak"
+                key={m.value}
+                name="metode"
                 inputType="radio"
-                title={o.title}
-                description={o.desc}
-                checked={contact === o.value}
-                onChange={() => selectContact(o.value)}
+                title={m.title}
+                description={m.desc}
+                checked={method === m.value}
+                onChange={() => {
+                  setMethod(m.value)
+                  setContact(null)
+                }}
               />
             ))}
           </div>
+
+          {method ? (
+            <>
+              <SectionTitle>{method === 'call' ? 'Hasil kontak' : 'Hasil kunjungan'}</SectionTitle>
+              <div className="flex flex-col gap-8">
+                {(method === 'call' ? CALL_OUTCOMES : VISIT_OUTCOMES).map((o) => (
+                  <SelectableCard
+                    key={o.value}
+                    name="hasil-kontak"
+                    inputType="radio"
+                    title={o.title}
+                    description={o.desc}
+                    checked={contact === o.value}
+                    onChange={() => selectContact(o.value)}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
+
           <StickyBar>
             <Button
               size="lg"
               className="w-full"
-              disabled={contact !== 'terhubung'}
+              disabled={contact !== 'terhubung' && contact !== 'ketemu'}
               onClick={() => setStep(2)}
             >
               Lanjut
@@ -289,43 +271,7 @@ export function FollowUpScreen() {
         </>
       )}
 
-      <EditContactSheet
-        open={sheet === 'contact'}
-        name={lead.name}
-        phone={lead.phone}
-        onClose={() => setSheet(null)}
-        onSave={(name, phone) => {
-          pipelineStore.updateContact(lead.id, name, phone)
-          setSheet(null)
-        }}
-      />
-      <SourceSheet
-        open={sheet === 'source'}
-        onClose={() => setSheet(null)}
-        onDone={(data) => {
-          pipelineStore.setSource(lead.id, data)
-          setSheet(null)
-        }}
-      />
-      <MajelisPickerSheet
-        open={sheet === 'majelis'}
-        value={lead.majelis}
-        onClose={() => setSheet(null)}
-        onPick={(m) => {
-          pipelineStore.assignMajelis(lead.id, m)
-          setSheet(null)
-        }}
-      />
-      <KtpSheet
-        open={sheet === 'ktp'}
-        nik={lead.nik}
-        ktp={lead.ktp}
-        onClose={() => setSheet(null)}
-        onSave={(nik, ktp) => {
-          pipelineStore.updateKtp(lead.id, nik, ktp)
-          setSheet(null)
-        }}
-      />
+      <RiwayatSheet lead={lead} open={sheet === 'riwayat'} onClose={() => setSheet(null)} />
 
       {/* Ajukan runs the same submit flow as the Sales page; both finish the task. */}
       <SubmitSheet lead={lead} open={sheet === 'submit'} onClose={() => setSheet(null)} onSaved={complete} />

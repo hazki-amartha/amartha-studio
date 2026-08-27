@@ -17,48 +17,62 @@ import {
 } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
 import { pipelineStore } from '../lib/pipeline-store'
-import { DetailRow, KtpSheet, MajelisPickerSheet, assignmentLabel } from '../lib/pipeline-ui'
+import { DetailRow, KtpSheet, MajelisPickerSheet, SourceSheet, assignmentLabel } from '../lib/pipeline-ui'
 import { AppScreen, StickyBar } from '../lib/ui'
 import {
   MEMBER_ROLE_LABEL,
+  type LeadSource,
   type MajelisAssignment,
   type MemberRole,
   type Product,
+  type ReferrerKind,
 } from '../lib/pipeline'
 
 const DEFAULT_MAJELIS: MajelisAssignment = { kind: 'none', branch: 'BP Ciseeng' }
 
-type SheetId = 'ktp' | 'majelis' | 'role' | 'product' | null
+type SheetId = 'source' | 'ktp' | 'majelis' | 'role' | 'product' | null
+
+interface Sumber {
+  source: LeadSource
+  poi: string
+  referredBy: string
+  referrerKind: ReferrerKind | null
+}
+
+function sumberLabel(s: Sumber | null): string {
+  if (!s) return 'Belum dipilih'
+  if (s.source === 'poi') return s.poi ? `POI ${s.poi}` : 'POI Visit'
+  return s.referredBy ? `Referral · ${s.referredBy}` : 'Referral'
+}
 
 export function LeadNewScreen() {
   const flow = useFlow()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [sumber, setSumber] = useState<Sumber | null>(null)
   const [majelis, setMajelis] = useState<MajelisAssignment>(DEFAULT_MAJELIS)
-  const [role, setRole] = useState<MemberRole>('anggota')
+  const [role, setRole] = useState<MemberRole | null>(null)
   const [nik, setNik] = useState('')
   const [ktp, setKtp] = useState(false)
   const [product, setProduct] = useState<Product | null>(null)
   const [sheet, setSheet] = useState<SheetId>(null)
 
   const isNewMajelis = majelis.kind === 'new'
-  const effectiveRole: MemberRole = isNewMajelis ? role : 'anggota'
   const hasKtp = ktp && nik.replace(/\D/g, '').length === 16
   const majelisValue = majelis.kind === 'none' ? 'Belum ditentukan' : assignmentLabel(majelis)
-  const ready = name.trim() !== '' && phone.trim() !== ''
+  const ready = name.trim() !== '' && phone.trim() !== '' && sumber !== null
 
   function save() {
-    if (!ready) return
-    // Source is fixed: a lead added from Sales is captured as a POI Visit.
+    if (!ready || !sumber) return
     pipelineStore.addLead({
       name,
       phone,
-      source: 'poi',
-      poi: '',
-      referredBy: '',
-      referrerKind: null,
+      source: sumber.source,
+      poi: sumber.poi,
+      referredBy: sumber.referredBy,
+      referrerKind: sumber.referrerKind,
       majelis,
-      role: effectiveRole,
+      role: role ?? undefined,
       nik,
       ktp,
       product,
@@ -90,13 +104,14 @@ export function LeadNewScreen() {
             />
           </div>
           <div className="flex flex-col">
-            {/* Source is pre-filled and locked — no "Ubah". */}
-            <DetailRow label="Sumber" value="POI Visit" />
+            {/* Source is required — the BP picks POI Visit or Referral. (When a
+                lead is captured from a POI Visit / sosialisasi it is pre-filled
+                and locked instead; that flow lives on the Sosialisasi screen.) */}
+            <DetailRow label="Sumber" value={sumberLabel(sumber)} onEdit={() => setSheet('source')} />
             <DetailRow
               label="KTP"
               value={hasKtp ? nik : 'Belum ada'}
               onEdit={() => setSheet('ktp')}
-              warning={!hasKtp}
             />
           </div>
         </div>
@@ -111,18 +126,16 @@ export function LeadNewScreen() {
               label="Majelis"
               value={majelisValue}
               onEdit={() => setSheet('majelis')}
-              warning={majelis.kind === 'none'}
             />
             <DetailRow
               label="Status anggota"
-              value={MEMBER_ROLE_LABEL[effectiveRole]}
+              value={role ? MEMBER_ROLE_LABEL[role] : 'Belum dipilih'}
               onEdit={() => setSheet('role')}
             />
             <DetailRow
               label="Produk"
               value={product ?? 'Belum dipilih'}
               onEdit={() => setSheet('product')}
-              warning={!product}
             />
           </div>
         </div>
@@ -134,6 +147,14 @@ export function LeadNewScreen() {
         </Button>
       </StickyBar>
 
+      <SourceSheet
+        open={sheet === 'source'}
+        onClose={() => setSheet(null)}
+        onDone={(data) => {
+          setSumber(data)
+          setSheet(null)
+        }}
+      />
       <KtpSheet
         open={sheet === 'ktp'}
         nik={nik}
@@ -163,7 +184,7 @@ export function LeadNewScreen() {
             name="role"
             inputType="radio"
             title={MEMBER_ROLE_LABEL.anggota}
-            checked={effectiveRole === 'anggota'}
+            checked={role === 'anggota'}
             onChange={() => {
               setRole('anggota')
               setSheet(null)
@@ -175,7 +196,7 @@ export function LeadNewScreen() {
             title={MEMBER_ROLE_LABEL.ketua}
             description={isNewMajelis ? undefined : 'Hanya untuk majelis baru'}
             disabled={!isNewMajelis}
-            checked={effectiveRole === 'ketua'}
+            checked={role === 'ketua'}
             onChange={() => {
               setRole('ketua')
               setSheet(null)

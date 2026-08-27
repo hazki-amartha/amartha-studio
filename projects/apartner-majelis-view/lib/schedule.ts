@@ -149,6 +149,16 @@ export const TASKS: Task[] = [
     leadId: 'l1',
   },
   {
+    id: 't2c',
+    kind: 'follow-up',
+    time: '12.30',
+    until: '13.00',
+    title: 'Ibu Sri Mulyani',
+    place: 'WhatsApp / telepon',
+    reason: 'Masih menimbang · janji ditindaklanjuti',
+    leadId: 'l2',
+  },
+  {
     id: 't3',
     kind: 'home-visit',
     time: '13.00',

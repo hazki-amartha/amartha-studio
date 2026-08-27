@@ -18,13 +18,12 @@ import {
   NavigationHeader,
   SelectableCard,
 } from '@/design-system/components'
-import { WhatsappLogo } from '@/design-system/icons'
+import { NotePencil, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import {
   DetailRow,
   EditContactSheet,
-  INTEREST_TEXT,
   KtpSheet,
   MajelisPickerSheet,
   PerbaruiStatusSheet,
@@ -35,15 +34,13 @@ import { AppScreen, ContactButton } from '../lib/ui'
 import { StickyBar } from '../lib/ui'
 import { IconPhone } from '../lib/icons'
 import {
-  INTEREST_META,
   MEMBER_ROLE_LABEL,
   actionDetail,
-  hasInterest,
+  isNew,
   ktpDetail,
   majelisDetail,
   sourceDetail,
   statusBadge,
-  subStateTag,
   type MemberRole,
   type Product,
 } from '../lib/pipeline'
@@ -55,7 +52,8 @@ type SheetId =
   | 'role'
   | 'product'
   | 'ktp'
-  | 'perbarui'
+  | 'ajukan'
+  | 'pandu'
   | 'interest'
   | 'riwayat'
   | null
@@ -97,14 +95,9 @@ export function LeadDetailScreen() {
     )
   }
 
-  const worked = hasInterest(lead.status)
+  const worked = isNew(lead.status)
   const badge = statusBadge(lead)
-  const interest = worked && lead.interest ? lead.interest : null
-  const sub = subStateTag(lead)
   const detail = actionDetail(lead)
-  // The header sub-state: her interest while she is worked, the system stage
-  // once she is Submitted.
-  const headerSub = interest ? INTEREST_META[interest].label : sub
   const isNewMajelis = lead.majelis.kind === 'new'
   const role: MemberRole = isNewMajelis ? lead.role ?? 'anggota' : 'anggota'
   // Inviting her (the pengajuan) needs her data complete: KTP, a majelis, and a
@@ -142,16 +135,20 @@ export function LeadDetailScreen() {
           </button>
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             <span className="truncate text-16 font-bold text-default">{lead.name}</span>
-            <span className="flex items-center gap-4">
+            <span className="flex items-center gap-8">
               <Badge intent={badge.intent} variant="outline" size="sm">
                 {badge.label}
               </Badge>
-              {headerSub ? (
-                <span
-                  className={`text-12 font-regular ${interest ? INTEREST_TEXT[interest] : 'text-caption'}`}
+              {/* Editable only in the New phase (Interested / Undecided / Not interested). */}
+              {worked ? (
+                <button
+                  type="button"
+                  aria-label="Perbarui status minat"
+                  onClick={() => setSheet('interest')}
+                  className="shrink-0 text-primary-500"
                 >
-                  {headerSub}
-                </span>
+                  <NotePencil size={16} />
+                </button>
               ) : null}
             </span>
           </div>
@@ -181,10 +178,7 @@ export function LeadDetailScreen() {
       </div>
 
       {/* Info Pribadi */}
-      <FormCard
-        title="Info Pribadi"
-        subtitle={hasKtp ? undefined : 'Lengkapi untuk mengubah jadi qualified lead'}
-      >
+      <FormCard title="Info Pribadi">
         <DetailRow label="Nama" value={lead.name} onEdit={() => setSheet('contact')} />
         <DetailRow label="No. HP" value={lead.phone} onEdit={() => setSheet('contact')} />
         <DetailRow
@@ -201,12 +195,7 @@ export function LeadDetailScreen() {
       </FormCard>
 
       {/* Detail Pengajuan */}
-      <FormCard
-        title="Detail Pengajuan"
-        subtitle={
-          hasMajelis && lead.product ? undefined : 'Lengkapi untuk bisa mulai pengajuan'
-        }
-      >
+      <FormCard title="Detail Pengajuan">
         <DetailRow
           label="Majelis"
           value={majelisDetail(lead)}
@@ -226,48 +215,68 @@ export function LeadDetailScreen() {
         />
       </FormCard>
 
-      {/* The one action the page drives to — a choice of what to update. Offered
-          while she is still the BP's to work; once Submitted it is system-led. */}
+      {/* The one action the page drives to — filing the pengajuan. Offered while
+          she is still the BP's to work, disabled until her data is complete. */}
       {worked ? (
         <StickyBar>
-          <Button size="lg" className="w-full" onClick={() => setSheet('perbarui')}>
-            Perbarui Lead
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={!canInvite}
+            onClick={() => setSheet('ajukan')}
+          >
+            Ajukan Pinjaman
           </Button>
+          {!canInvite ? (
+            <span className="text-center text-12 text-caption">Lengkapi data terlebih dahulu</span>
+          ) : null}
+        </StickyBar>
+      ) : lead.status === 'waiting-kyc' ? (
+        <StickyBar>
+          <Button size="lg" className="w-full" onClick={() => setSheet('pandu')}>
+            Takeover Pengajuan
+          </Button>
+          <span className="text-center text-12 text-caption">Pandu calon mitra KYC via APartner</span>
         </StickyBar>
       ) : null}
 
-      {/* Perbarui Lead — the choice of what to update. */}
-      <BottomSheet open={sheet === 'perbarui'} onClose={() => setSheet(null)} title="Perbarui Lead">
+      {/* Ajukan Pinjaman — how the calon mitra completes the pengajuan. */}
+      <BottomSheet open={sheet === 'ajukan'} onClose={() => setSheet(null)} title="Ajukan Pinjaman">
         <div className="flex flex-col gap-8">
           <button
             type="button"
-            disabled={!canInvite}
+            disabled={isNewMajelis}
             onClick={() => {
               pipelineStore.invite(lead.id)
               setSheet(null)
             }}
             className={`flex flex-col gap-2 rounded-12 border p-16 text-left ${
-              canInvite ? 'border-default bg-neutral-white' : 'border-default bg-neutral-50'
+              isNewMajelis ? 'border-default bg-neutral-50' : 'border-default bg-neutral-white'
             }`}
           >
-            <span className={`text-14 font-bold ${canInvite ? 'text-default' : 'text-disabled'}`}>
-              Undang sebagai calon mitra
+            <span className={`text-14 font-bold ${isNewMajelis ? 'text-disabled' : 'text-default'}`}>
+              Calon mitra isi sendiri di AFin
             </span>
             <span className="text-12 text-caption">
-              {canInvite
-                ? 'Mulai tahap pengajuan pinjaman'
-                : 'Lengkapi KTP, majelis, dan produk dulu'}
+              {isNewMajelis
+                ? 'Tidak tersedia untuk majelis baru — perlu dipandu'
+                : 'Kirim tautan; ia melengkapi pengajuan sendiri'}
             </span>
           </button>
           <button
             type="button"
-            onClick={() => setSheet('interest')}
+            onClick={() => setSheet('pandu')}
             className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left"
           >
-            <span className="text-14 font-bold text-default">Update status ketertarikan</span>
-            <span className="text-12 text-caption">Catat minat terbarunya</span>
+            <span className="text-14 font-bold text-default">Pandu calon Mitra</span>
+            <span className="text-12 text-caption">Dampingi ia mengisi pengajuan</span>
           </button>
         </div>
+      </BottomSheet>
+
+      {/* Pandu calon Mitra — the guided flow. Blank for now. */}
+      <BottomSheet open={sheet === 'pandu'} onClose={() => setSheet(null)} size="fullscreen" title="Pandu Calon Mitra">
+        <span className="text-14 text-caption">Alur pandu akan dibuat di sini.</span>
       </BottomSheet>
 
       {/* Status anggota picker. Ketua is only offered for a majelis being formed. */}
