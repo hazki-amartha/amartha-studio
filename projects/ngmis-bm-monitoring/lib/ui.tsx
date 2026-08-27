@@ -57,6 +57,9 @@ export interface NavItem {
   id: string
   label: string
   icon: ReactNode
+  /** A section that opens onto its own sub-pages — Branches ▸ Overview,
+   *  Activity, Organization, Majelis. Plain items skip this entirely. */
+  children?: { id: string; label: string }[]
 }
 
 export function SideNav({
@@ -75,6 +78,14 @@ export function SideNav({
   promo?: ReactNode
   user: { name: string; role: string; initial: string }
 }) {
+  // A section auto-opens the first time one of its own children is active —
+  // so landing on "Branches ▸ FO monitoring" shows the section already expanded,
+  // rather than making the BM hunt for where the current page lives — and
+  // stays open after that until she collapses it herself.
+  const [openId, setOpenId] = useState<string | null>(
+    () => items.find((item) => item.children?.some((c) => c.id === activeId))?.id ?? null,
+  )
+
   return (
     <nav
       className="flex shrink-0 flex-col border-r border-default bg-neutral-white"
@@ -90,7 +101,9 @@ export function SideNav({
             <NavButton
               key={item.id}
               item={item}
-              active={item.id === activeId}
+              activeId={activeId}
+              open={item.id === openId}
+              onToggle={() => setOpenId(item.id === openId ? null : item.id)}
               onSelect={onSelect}
             />
           ))}
@@ -102,7 +115,9 @@ export function SideNav({
             <NavButton
               key={item.id}
               item={item}
-              active={item.id === activeId}
+              activeId={activeId}
+              open={item.id === openId}
+              onToggle={() => setOpenId(item.id === openId ? null : item.id)}
               onSelect={onSelect}
             />
           ))}
@@ -127,25 +142,74 @@ export function SideNav({
 
 function NavButton({
   item,
-  active,
+  activeId,
+  open,
+  onToggle,
   onSelect,
 }: {
   item: NavItem
-  active: boolean
+  activeId: string
+  /** Only meaningful when `item.children` is set. */
+  open: boolean
+  onToggle: () => void
   onSelect: (id: string) => void
 }) {
+  const hasChildren = !!item.children?.length
+  // A section reads as "active" while it's open, or while the page showing
+  // is one of its own children — not just while its own id is selected,
+  // since a section itself is never the page a BM lands on.
+  const sectionActive = open || item.children?.some((c) => c.id === activeId)
+  const active = item.id === activeId
+
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(item.id)}
-      className={`flex items-center gap-12 rounded-8 px-8 text-14 ${
-        active ? 'font-bold text-link' : 'font-regular text-default hover:bg-neutral-50'
-      }`}
-      style={{ height: NAV_ITEM_H }}
-    >
-      <span className={active ? 'text-link' : 'text-caption'}>{item.icon}</span>
-      <span className="flex-1 truncate text-left">{item.label}</span>
-    </button>
+    <div className="flex flex-col">
+      <button
+        type="button"
+        onClick={() => (hasChildren ? onToggle() : onSelect(item.id))}
+        aria-expanded={hasChildren ? open : undefined}
+        className={`flex items-center gap-12 rounded-8 px-8 text-14 ${
+          active
+            ? 'font-bold text-link'
+            : sectionActive
+              ? 'bg-primary-50 font-bold text-link'
+              : 'font-regular text-default hover:bg-neutral-50'
+        }`}
+        style={{ height: NAV_ITEM_H }}
+      >
+        <span
+          className={`flex size-24 shrink-0 items-center justify-center rounded-8 ${
+            sectionActive ? 'bg-primary-500 text-neutral-white' : 'text-caption'
+          } ${active && !hasChildren ? 'text-link' : ''}`}
+        >
+          {item.icon}
+        </span>
+        <span className="flex-1 truncate text-left">{item.label}</span>
+        {hasChildren ? (
+          <span className="text-caption">
+            {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </span>
+        ) : null}
+      </button>
+
+      {hasChildren && open ? (
+        <div className="flex flex-col gap-2 py-4">
+          {item.children?.map((child) => (
+            <button
+              key={child.id}
+              type="button"
+              onClick={() => onSelect(child.id)}
+              className={`rounded-8 py-8 pl-48 pr-8 text-left text-14 ${
+                child.id === activeId
+                  ? 'bg-primary-50 font-bold text-link'
+                  : 'font-regular text-default hover:bg-neutral-50'
+              }`}
+            >
+              {child.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -448,6 +512,7 @@ export function BucketCard({
   caption,
   targetLabel,
   borderClassName,
+  footer,
 }: {
   label: string
   intent?: string
@@ -461,6 +526,11 @@ export function BucketCard({
   /** Overrides the default border, e.g. to bond this card visually to a
    *  panel underneath it — see Pencairan's "With Leads monitoring". */
   borderClassName?: string
+  /** Below the caption, e.g. a ghost-button entry point into a breakdown
+   *  that's otherwise hidden until asked for — see Pencairan's "With Leads
+   *  monitoring", where Potential mitra opens from here rather than showing
+   *  by default. */
+  footer?: ReactNode
 }) {
   return (
     <div
@@ -490,6 +560,7 @@ export function BucketCard({
         </span>
         <span className="text-12 text-caption">{caption}</span>
       </span>
+      {footer}
     </div>
   )
 }

@@ -38,7 +38,12 @@
 // A blended, borderless gutter is the version that reads as "part of the
 // same table" while still landing exactly at the seam it opens.
 //
-// The panel is still visually bonded to the Mitra baru card, though: an
+// Potential mitra isn't just closed by default — it isn't rendered at all
+// until asked for. The entry point is a ghost button in Mitra baru's own
+// card ("Lihat potential mitra"), not a header bar that sits on the page
+// whether or not anyone wants it; a BM who never opens it never sees a
+// second panel competing with the three headline cards for attention. Once
+// open, the panel is still visually bonded to the card that opened it: an
 // accent line — the card's bottom edge, a short connector bar, the panel's
 // top edge — runs from one into the other. It's deliberately an edge accent,
 // not a full accent border around the card: a full border around only Mitra
@@ -61,7 +66,7 @@
 import { Fragment, useState } from 'react'
 import { Button } from '@/design-system/components'
 import { ChevronLeft, ChevronRight, DownloadSimple } from '@/design-system/icons'
-import { BucketCard, Collapsible, Panel, RatePill } from './ui'
+import { BucketCard, Panel, RatePill } from './ui'
 import {
   DISBURSEMENT_BPS,
   DISBURSEMENT_TARGETS,
@@ -110,10 +115,10 @@ const POTENTIAL_GROUP = {
   id: 'potential',
   header: 'Potential mitra',
   target: 'Menuju Mitra baru',
-  cols: ['Tanpa KTP', 'Dengan KTP', 'UK', 'Disetujui'],
+  cols: ['Tanpa KTP', 'Dengan KTP', 'Follow up', 'UK', 'Disetujui'],
 } as const
 
-const GUTTER_COL_WIDTH = 28
+const GUTTER_COL_WIDTH = 48
 
 /** Fixed per-column widths, so every sub-column lines up the same amount of
  *  space under its header regardless of how long the label is — without
@@ -127,6 +132,7 @@ const COL_WIDTH: Record<string, number> = {
   Pencairan: 116,
   'Tanpa KTP': 96,
   'Dengan KTP': 96,
+  'Follow up': 84,
   UK: 72,
   Disetujui: 88,
   '%NoA': 72,
@@ -137,6 +143,7 @@ const SHORT_CELL = 'px-4 pb-16 pt-4 text-center text-10 text-caption whitespace-
 const FUNNEL_STAGES = [
   { id: 'unqualified', label: 'Tanpa KTP', hint: undefined },
   { id: 'qualified', label: 'Dengan KTP', hint: undefined },
+  { id: 'followUp', label: 'Follow up', hint: undefined },
   { id: 'uk', label: 'UK', hint: 'Uji kelayakan' },
   { id: 'disetujui', label: 'Disetujui', hint: undefined },
 ] as const
@@ -212,37 +219,44 @@ export function DisbursementMetricsLeads({
           label="Mitra baru"
           value={`${branch.baru}`}
           caption={`/${DISBURSEMENT_TARGETS.noaBaru * DISBURSEMENT_BPS.length}`}
-          borderClassName="border-default border-b-2 border-b-neutral-400"
+          borderClassName={open ? 'border-default border-b-2 border-b-neutral-400' : undefined}
+          footer={
+            <Button variant="ghost" size="sm" onClick={() => onToggle(!open)}>
+              {open ? 'Sembunyikan potential mitra' : 'Lihat potential mitra'}
+            </Button>
+          }
         />
         <BucketCard label="Mitra lanjutan" value={`${branch.lanjutan}`} caption={`/${branch.due}`} />
       </div>
 
-      <div className="grid grid-cols-3">
-        <div />
-        <div className="mx-auto bg-neutral-400" style={{ width: 2, height: 8 }} />
-        <div />
-      </div>
-
-      <Collapsible
-        title="Potential mitra — menuju Mitra baru"
-        hint={`${potentialMitraTotal()} lead`}
-        borderClassName="border-default border-t-2 border-t-neutral-400"
-        open={open}
-        onToggle={onToggle}
-      >
-        <div className="flex flex-col gap-8">
-          <span className="text-12 text-caption">Alur rekrutmen menuju Mitra baru.</span>
-          <div className="flex items-stretch gap-8">
-            {FUNNEL_STAGES.map((stage) => (
-              <FunnelBox key={stage.id} label={stage.label} value={funnel[stage.id]} hint={stage.hint} />
-            ))}
-            <span className="flex items-center text-disabled">
-              <ChevronRight size={16} />
-            </span>
-            <FunnelBox label="Disbursed" value={branch.baru} highlight />
+      {open ? (
+        <>
+          <div className="grid grid-cols-3">
+            <div />
+            <div className="mx-auto bg-neutral-400" style={{ width: 2, height: 8 }} />
+            <div />
           </div>
-        </div>
-      </Collapsible>
+
+          <div className="rounded-12 border border-default border-t-2 border-t-neutral-400 bg-neutral-white p-16">
+            <div className="flex flex-col gap-8">
+              <span className="flex items-center justify-between gap-8">
+                <span className="text-14 font-bold text-default">Potential mitra — menuju Mitra baru</span>
+                <span className="text-12 text-caption">{potentialMitraTotal()} lead</span>
+              </span>
+              <span className="text-12 text-caption">Alur rekrutmen menuju Mitra baru.</span>
+              <div className="flex items-stretch gap-8">
+                {FUNNEL_STAGES.map((stage) => (
+                  <FunnelBox key={stage.id} label={stage.label} value={funnel[stage.id]} hint={stage.hint} />
+                ))}
+                <span className="flex items-center text-disabled">
+                  <ChevronRight size={16} />
+                </span>
+                <FunnelBox label="Disbursed" value={branch.baru} highlight />
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }
@@ -327,12 +341,22 @@ export function DisbursementTableLeads() {
                     border or fill of its own, so the column reads as a seam
                     in the same table rather than a lane running down it — it
                     inherits this row's `bg-neutral-200` same as every other
-                    header cell here. The handle inside is what's visible: a
-                    small pill sitting right on the seam, the same way
-                    gsheet's own column-group control does, rather than a
-                    bare icon floating with nothing to say "grab me". */}
+                    header cell here. The handle inside is what's visible:
+                    gsheet's own column-group control, copied — a tinted
+                    pill straddling the seam with both directions in it, a
+                    hairline divider down the middle, rather than a single
+                    bare chevron with nothing to say "grab me". */}
                 <th rowSpan={2} className="p-0">
-                  <div className="flex h-full items-center justify-center">
+                  {/* Grey and white, not the brand purple — this is a
+                      structural control, not a highlight, same reasoning as
+                      the connector line below it. Positioned absolutely so
+                      its own centre divider sits exactly on the real column
+                      border (the gutter's right edge, where the next
+                      group's `border-l` already is) regardless of how wide
+                      the gutter itself is — a centred flex would put the
+                      divider in the middle of the gutter instead, off the
+                      actual grid line. */}
+                  <div className="relative h-full">
                     <button
                       type="button"
                       onClick={() => setPotentialOpen(!potentialOpen)}
@@ -340,9 +364,25 @@ export function DisbursementTableLeads() {
                       aria-label={
                         potentialOpen ? 'Sembunyikan Potential mitra' : 'Tampilkan Potential mitra'
                       }
-                      className="flex size-20 items-center justify-center rounded-full border border-default bg-neutral-white text-caption hover:border-link hover:text-link"
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '100%',
+                        transform: 'translate(-50%, -50%)',
+                      }}
+                      className="flex h-24 items-stretch overflow-hidden rounded-8 border border-default bg-neutral-white text-caption hover:text-default"
                     >
-                      {potentialOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+                      {/* Closed points outward (‹ ›) — expand out from the
+                          line. Open reverses to point inward (› ‹) — collapse
+                          back into it. Same pill, same position on the line
+                          either way; only the arrows flip. */}
+                      <span className="flex w-20 items-center justify-center">
+                        {potentialOpen ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                      </span>
+                      <span className="w-px bg-neutral-200" />
+                      <span className="flex w-20 items-center justify-center">
+                        {potentialOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+                      </span>
                     </button>
                   </div>
                 </th>
@@ -442,10 +482,11 @@ function BpRow({
             it, same as the panel above the table. */}
         {potentialOpen ? (
           <>
-            <td className="px-12 pt-16 text-center text-14 text-default">
+            <td className="border-l border-default px-12 pt-16 text-center text-14 text-default">
               {bp.leadsUnqualified}
             </td>
             <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsQualified}</td>
+            <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsFollowUp}</td>
             <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsUk}</td>
             <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsDisetujui}</td>
           </>
@@ -477,6 +518,7 @@ function BpRow({
             indicator, not something with a monthly pass/fail line. */}
         {potentialOpen ? (
           <>
+            <td className="border-l border-default px-12 pb-16 pt-4" />
             <td className="px-12 pb-16 pt-4" />
             <td className="px-12 pb-16 pt-4" />
             <td className="px-12 pb-16 pt-4" />

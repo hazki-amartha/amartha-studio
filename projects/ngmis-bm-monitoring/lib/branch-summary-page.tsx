@@ -47,7 +47,11 @@ export function BranchSummaryPage({ pembayaran }: { pembayaran: ReactNode }) {
 
   return (
     <BmShell
-      breadcrumbs={[{ label: 'Home' }, { label: 'Branches' }, { label: 'Activity', current: true }]}
+      breadcrumbs={[
+        { label: 'Home' },
+        { label: 'Branches' },
+        { label: 'FO monitoring', current: true },
+      ]}
       header={
         <>
           <PageHeading

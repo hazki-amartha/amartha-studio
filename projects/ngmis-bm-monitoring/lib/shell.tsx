@@ -26,7 +26,18 @@ const NAV: NavItem[] = [
   { id: 'loans', label: 'Loans', icon: <Coins size={20} /> },
   { id: 'matchmaking', label: 'Matchmaking', icon: <Transfer size={20} /> },
   { id: 'accounting', label: 'Accounting', icon: <Calculator size={20} /> },
-  { id: 'branches', label: 'Branches', icon: <Bank size={20} /> },
+  {
+    id: 'branches',
+    label: 'Branches',
+    icon: <Bank size={20} />,
+    children: [
+      { id: 'fo-monitoring', label: 'FO monitoring' },
+      { id: 'overview', label: 'Overview' },
+      { id: 'activity', label: 'Activity' },
+      { id: 'organization', label: 'Organization' },
+      { id: 'majelis', label: 'Majelis' },
+    ],
+  },
   { id: 'transactions', label: 'Transactions', icon: <TransferArrow size={20} /> },
   { id: 'insurance', label: 'Insurance', icon: <Umbrella size={20} /> },
   { id: 'product-config', label: 'Product Config', icon: <Sliders size={20} /> },
@@ -49,8 +60,9 @@ export function BmShell({
   children: ReactNode
 }) {
   // Which nav item is lit is chrome, not flow: it never leaves the dashboard
-  // section, so it stays local to the shell.
-  const [navId, setNavId] = useState('dashboard')
+  // section, so it stays local to the shell. Starts on Branches ▸ FO
+  // monitoring — the default landing page for the BM dashboard.
+  const [navId, setNavId] = useState('fo-monitoring')
 
   return (
     <MisShell
