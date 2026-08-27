@@ -8,42 +8,8 @@
 import { NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
+import { STATUS_DETAIL, VARIANT_STATUS, type StatusKey, type StatusRow } from '../lib/status'
 import { useApp } from '../lib/store'
-
-type StatusKey = 'sangat-baik' | 'baik' | 'sedang' | 'buruk' | 'sangat-buruk'
-
-// Which grade each home-b variant currently shows — kept in step with the
-// VARIANT_CONFIG in home-b.tsx by hand, since this page has no props of its
-// own and reads the same store.
-const VARIANT_STATUS: Record<string, StatusKey> = {
-  'first-week':          'sangat-baik',
-  'matrix-sangat-baik':  'sangat-baik',
-  'matrix-baik':         'baik',
-  'matrix-sedang':       'sedang',
-  'matrix-buruk':        'buruk',
-  'matrix-sangat-buruk': 'sangat-buruk',
-  'limit-ready':         'sangat-baik',
-}
-
-interface Row {
-  title: string
-  link: string
-  done: number
-  total: number
-  /** What's being counted — "minggu berjalan" for her own habits, "anggota kumpulan" for the group's. */
-  unit: string
-  desc: string
-}
-
-interface StatusDetail {
-  label: string
-  color: string
-  rows: Row[]
-  rewardIcon: string
-  rewardText: string
-  /** A reward still on offer reads green; one at risk reads amber. */
-  rewardTone: 'gift' | 'warn'
-}
 
 // The five grades in order, best first — the ladder under "Penjelasan status".
 // Printing them as a list rather than as a sentence is the whole point: she can
@@ -61,59 +27,6 @@ const HABITS = [
   { icon: '🧕', bg: '#E6F5EB', text: 'Hadiri kumpulan setiap minggunya' },
   { icon: '👭', bg: '#FFF3E8', text: 'Jaga kelancaran 1 kumpulan' },
 ]
-
-const STATUS_DETAIL: Record<StatusKey, StatusDetail> = {
-  'sangat-baik': {
-    label: 'Sangat Baik', color: '#22C55E',
-    rows: [
-      { title: 'Kelancaran pembayaran', link: 'Lihat riwayat', done: 11, total: 12, unit: 'minggu berjalan', desc: 'Pembayaran kamu hampir selalu lancar dan tepat waktu.' },
-      { title: 'Kehadiran kumpulan',    link: 'Lihat riwayat', done: 11, total: 12, unit: 'minggu berjalan', desc: 'Kehadiran kamu hampir selalu lancar dan tepat waktu.' },
-      { title: 'Pembayaran anggota',    link: 'Lihat majelis', done: 19, total: 20, unit: 'anggota kumpulan', desc: 'Pembayaran anggota kamu hampir selalu lancar dan tepat waktu.' },
-    ],
-    rewardIcon: '🎁', rewardTone: 'gift',
-    rewardText: 'Jika status tetap Sangat Baik hingga Desember, Ibu bisa cairkan limit hingga Rp1.500.000, dan dapat tambahan pinjaman 4 x Rp1,25jt — dikasih setiap 3 bulan (12x pembayaran).',
-  },
-  'baik': {
-    label: 'Baik', color: '#0F7A3D',
-    rows: [
-      { title: 'Kelancaran pembayaran', link: 'Lihat riwayat', done: 11, total: 12, unit: 'minggu berjalan', desc: 'Pembayaran kamu hampir selalu lancar dan tepat waktu.' },
-      { title: 'Kehadiran kumpulan',    link: 'Lihat riwayat', done: 11, total: 12, unit: 'minggu berjalan', desc: 'Kehadiran kamu hampir selalu lancar dan tepat waktu.' },
-      { title: 'Pembayaran anggota',    link: 'Lihat majelis', done: 15, total: 20, unit: 'anggota kumpulan', desc: 'Beberapa anggota kelompok kamu belum bayar tepat waktu.' },
-    ],
-    rewardIcon: '⚠️', rewardTone: 'warn',
-    rewardText: 'Status turun karena anggota kumpulan tidak bayar. Hadiah berpotensi berkurang hingga Rp250.000.',
-  },
-  'sedang': {
-    label: 'Sedang', color: '#B45309',
-    rows: [
-      { title: 'Kelancaran pembayaran', link: 'Lihat riwayat', done: 6,  total: 12, unit: 'minggu berjalan', desc: 'Pembayaran kamu beberapa kali terlambat.' },
-      { title: 'Kehadiran kumpulan',    link: 'Lihat riwayat', done: 6,  total: 12, unit: 'minggu berjalan', desc: 'Kamu 2 kali tidak hadir kumpulan.' },
-      { title: 'Pembayaran anggota',    link: 'Lihat majelis', done: 18, total: 20, unit: 'anggota kumpulan', desc: 'Kelompok kamu mulai perlu dijaga.' },
-    ],
-    rewardIcon: '⚠️', rewardTone: 'warn',
-    rewardText: 'Hadiah Ibu berpotensi berkurang hingga Rp500.000.',
-  },
-  'buruk': {
-    label: 'Buruk', color: '#B91C1C',
-    rows: [
-      { title: 'Kelancaran pembayaran', link: 'Lihat riwayat', done: 6,  total: 12, unit: 'minggu berjalan', desc: 'Pembayaran kamu sering terlambat.' },
-      { title: 'Kehadiran kumpulan',    link: 'Lihat riwayat', done: 6,  total: 12, unit: 'minggu berjalan', desc: 'Kamu 3 kali tidak hadir kumpulan.' },
-      { title: 'Pembayaran anggota',    link: 'Lihat majelis', done: 10, total: 20, unit: 'anggota kumpulan', desc: 'Kelompok kamu tidak lancar.' },
-    ],
-    rewardIcon: '⚠️', rewardTone: 'warn',
-    rewardText: 'Hadiah Ibu berpotensi berkurang hingga Rp250.000.',
-  },
-  'sangat-buruk': {
-    label: 'Sangat Buruk', color: '#B91C1C',
-    rows: [
-      { title: 'Kelancaran pembayaran', link: 'Lihat riwayat', done: 5, total: 12, unit: 'minggu berjalan', desc: 'Pembayaran kamu kurang dari separuh tepat waktu.' },
-      { title: 'Kehadiran kumpulan',    link: 'Lihat riwayat', done: 5, total: 12, unit: 'minggu berjalan', desc: 'Kamu 5 kali tidak hadir kumpulan.' },
-      { title: 'Pembayaran anggota',    link: 'Lihat majelis', done: 6, total: 20, unit: 'anggota kumpulan', desc: 'Kelompok kamu tidak lancar.' },
-    ],
-    rewardIcon: '⚠️', rewardTone: 'warn',
-    rewardText: 'Hadiah Ibu di bulan Desember berpotensi hangus.',
-  },
-}
 
 export function StatusDetailScreen() {
   const flow = useFlow()
@@ -134,7 +47,17 @@ export function StatusDetailScreen() {
           <SectionTitle>Status kamu dipengaruhi oleh</SectionTitle>
           <div className="mt-12 flex flex-col gap-8">
             {detail.rows.map((row) => (
-              <FactorCard key={row.title} {...row} />
+              <FactorCard
+                key={row.title}
+                {...row}
+                onLinkClick={
+                  row.title === 'Kelancaran pembayaran' || row.title === 'Kehadiran kumpulan'
+                    ? () => flow.go('riwayat-pembayaran')
+                    : row.title === 'Pembayaran anggota'
+                      ? () => flow.go('majelis-melati')
+                      : undefined
+                }
+              />
             ))}
           </div>
         </div>
@@ -265,12 +188,18 @@ function Gauge({ status, label, color }: { status: StatusKey; label: string; col
   )
 }
 
-function FactorCard({ title, link, done, total, unit, desc }: Row) {
+function FactorCard({ title, link, done, total, unit, desc, onLinkClick }: StatusRow & { onLinkClick?: () => void }) {
   return (
     <div className="rounded-12 bg-neutral-white p-12" style={{ border: '1px solid #E9DEF6' }}>
       <div className="flex items-center justify-between gap-8">
         <span className="text-14 font-bold text-default">{title}</span>
-        <span className="shrink-0 text-12 font-bold text-primary-500">{link}</span>
+        {onLinkClick ? (
+          <button type="button" onClick={onLinkClick} className="shrink-0 text-12 font-bold text-primary-500">
+            {link}
+          </button>
+        ) : (
+          <span className="shrink-0 text-12 font-bold text-primary-500">{link}</span>
+        )}
       </div>
       <p className="mt-4 text-14 text-default">{done} dari {total} {unit}</p>
       <p className="mt-2 text-12 text-caption">{desc}</p>

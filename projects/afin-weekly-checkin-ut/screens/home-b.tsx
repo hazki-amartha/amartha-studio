@@ -87,25 +87,27 @@ const VARIANT_CONFIG: Record<HomeBVariant, {
   angsuranCaption: string
   kumpulanCaption: string
   groupTitle?: string
+  groupIcon?: string
   groupBadgeIntent: BadgeIntent
   groupBadgeLabel: string
   showGroupBadge?: boolean
   groupCaption: string
   groupRowBg?: string
+  groupTarget?: string
   showCheckmarks: boolean
 }> = {
-  'first-week':     { status: 'sangat-baik', weekLabel: '1 dari 48 minggu',  weeklyTitle: 'Tugas Ibu minggu ini',  weeklySubtitle: 'Lengkapi tugas berikut untuk menjaga status tetap {status}',                                    showBenefit: true,  benefitIcon: '🎁', benefitIconBg: '#FFF3E8', benefitText: 'Jika Sangat Baik hingga Desember, Ibu bisa cairkan limit hingga {amount}.', benefitAmount: 'Rp1.500.000', benefitLink: 'Lihat hadiah', overdueMode: false, overdueLabel: '', overdueAmount: '', overdueSubtitle: '', overdueFooter: '', angsuranCaption: 'Rp112.000 · Otomatis dari Poket, 19 Juni', kumpulanCaption: 'Kamis, 19 Juni, 09:00',        groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Bisa meningkatkan limit di akhir tenor',      showCheckmarks: false },
+  'first-week':     { status: 'sangat-baik', weekLabel: '1 dari 48 minggu',  weeklyTitle: 'Tugas Ibu minggu ini',  weeklySubtitle: 'Lengkapi tugas berikut untuk menjaga status tetap {status}',                                    showBenefit: true,  benefitIcon: '🎁', benefitIconBg: '#FFF3E8', benefitText: 'Jika Sangat Baik hingga Desember, Ibu bisa cairkan limit hingga {amount}.', benefitAmount: 'Rp1.500.000', benefitLink: 'Lihat hadiah', overdueMode: false, overdueLabel: '', overdueAmount: '', overdueSubtitle: '', overdueFooter: '', angsuranCaption: 'Rp112.000 · Otomatis dari Poket, 19 Juni', kumpulanCaption: 'Kamis, 19 Juni, 09:00',        groupIcon: '🤝', showGroupBadge: false, groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Bisa meningkatkan limit di akhir tenor',      showCheckmarks: false },
   // ── The status matrix ─────────────────────────────────────────────────────
   // Her own repayment rate and her majelis's rate together decide the grade.
   // Both captions carry the figure that produced it, so the state control is
   // enough to read WHY the card says what it says.
-  'matrix-sangat-baik':  { status: 'sangat-baik', weekLabel: '14 dari 48 minggu', weeklyTitle: 'Tugas Ibu minggu ini',  weeklySubtitle: 'Lengkapi tugas berikut untuk menjaga status tetap {status}',                                       showBenefit: true,  benefitIcon: '🎁', benefitIconBg: '#FFF3E8', benefitText: 'Jika Sangat Baik hingga Desember, Ibu bisa cairkan limit hingga {amount}.', benefitAmount: 'Rp1.500.000', benefitLink: 'Lihat hadiah', overdueMode: false, overdueLabel: '', overdueAmount: '', overdueSubtitle: '', overdueFooter: '', angsuranCaption: 'Terbayar dari Poket',                     kumpulanCaption: 'Ibu tercatat hadir kumpulan', groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Semua sudah bayar · Bisa meningkatkan limit', showCheckmarks: true  },
-  'matrix-baik':         { status: 'baik',         weekLabel: '14 dari 48 minggu', weeklyTitle: 'Tugas Ibu minggu ini', weeklySubtitle: '', showBenefit: true, benefitIcon: '⚠️', benefitIconBg: '#FFF3E8', benefitText: 'Status turun karena anggota kumpulan tidak bayar. Hadiah berpotensi berkurang hingga {amount}.', benefitAmount: 'Rp250.000', benefitLink: 'Lihat hadiah', overdueMode: false, overdueLabel: '', overdueAmount: '', overdueSubtitle: '', overdueFooter: '', angsuranCaption: 'Terbayar melalui Andi Saputra',         kumpulanCaption: 'Ibu tercatat hadir kumpulan',     groupTitle: 'Jaga kelancaran kumpulan', showGroupBadge: false, groupBadgeIntent: 'red', groupBadgeLabel: '',       groupCaption: 'Ingatkan 3 anggota yang tidak bayar',       groupRowBg: '#FFF5F5', showCheckmarks: false },
+  'matrix-sangat-baik':  { status: 'sangat-baik', weekLabel: '14 dari 48 minggu', weeklyTitle: 'Tugas Ibu minggu ini',  weeklySubtitle: 'Lengkapi tugas berikut untuk menjaga status tetap {status}',                                       showBenefit: true,  benefitIcon: '🎁', benefitIconBg: '#FFF3E8', benefitText: 'Jika Sangat Baik hingga Desember, Ibu bisa cairkan limit hingga {amount}.', benefitAmount: 'Rp1.500.000', benefitLink: 'Lihat hadiah', overdueMode: false, overdueLabel: '', overdueAmount: '', overdueSubtitle: '', overdueFooter: '', angsuranCaption: 'Terbayar dari Poket',                     kumpulanCaption: 'Ibu tercatat hadir kumpulan', groupIcon: '🤝', showGroupBadge: false, groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Semua sudah bayar · Bisa meningkatkan limit', showCheckmarks: true  },
+  'matrix-baik':         { status: 'baik',         weekLabel: '14 dari 48 minggu', weeklyTitle: 'Tugas Ibu minggu ini', weeklySubtitle: '', showBenefit: true, benefitIcon: '⚠️', benefitIconBg: '#FFF3E8', benefitText: 'Status turun karena anggota kumpulan tidak bayar. Hadiah berpotensi berkurang hingga {amount}.', benefitAmount: 'Rp250.000', benefitLink: 'Lihat hadiah', overdueMode: false, overdueLabel: '', overdueAmount: '', overdueSubtitle: '', overdueFooter: '', angsuranCaption: 'Terbayar melalui Andi Saputra',         kumpulanCaption: 'Ibu tercatat hadir kumpulan',     showGroupBadge: false, groupBadgeIntent: 'red', groupBadgeLabel: '',       groupCaption: 'Ingatkan 6 anggota yang tidak bayar',       groupRowBg: '#FFF5F5', groupTarget: 'majelis-melati', showCheckmarks: false },
   'matrix-sedang':       { status: 'sedang',       weekLabel: '14 dari 48 minggu', weeklyTitle: 'Segera bayar angsuran untuk memperbaiki status', weeklySubtitle: '', showBenefit: true, benefitIcon: '⚠️', benefitIconBg: '#FFF3E8', benefitText: 'Hadiah Ibu berpotensi berkurang hingga {amount}.', benefitAmount: 'Rp500.000', benefitLink: 'Lihat hadiah', overdueMode: true, overdueLabel: 'Sudah lewat 7 minggu', overdueAmount: 'Rp875.000', overdueSubtitle: 'Bisa bayar sebagian dari Rp50.000', overdueFooter: 'Diskusikan kepada petugas kemampuan bayar Ibu pada kumpulan hari Kamis, 19 Juni', angsuranCaption: 'Pembayaran Ibu 50% tepat waktu',        kumpulanCaption: 'Ibu 2 kali tidak hadir kumpulan', groupBadgeIntent: 'orange', groupBadgeLabel: 'Perlu Dijaga', groupCaption: 'Kelompok di bawah 90% tepat waktu',         showCheckmarks: false },
   'matrix-buruk':        { status: 'buruk',        weekLabel: '14 dari 48 minggu', weeklyTitle: 'Segera bayar angsuran untuk memperbaiki status', weeklySubtitle: '', showBenefit: true, benefitIcon: '⚠️', benefitIconBg: '#FFF3E8', benefitText: 'Hadiah Ibu berpotensi berkurang hingga {amount}.', benefitAmount: 'Rp250.000', benefitLink: 'Lihat hadiah', overdueMode: true, overdueLabel: 'Sudah lewat 10 minggu', overdueAmount: 'Rp1.250.000', overdueSubtitle: 'Bisa bayar sebagian dari Rp50.000', overdueFooter: 'Diskusikan kepada petugas kemampuan bayar Ibu pada kumpulan hari Kamis, 19 Juni', angsuranCaption: 'Pembayaran Ibu 50% tepat waktu',        kumpulanCaption: 'Ibu 3 kali tidak hadir kumpulan', groupBadgeIntent: 'red',    groupBadgeLabel: 'Tidak Lancar', groupCaption: 'Kelompok di bawah 50% tepat waktu',  groupRowBg: '#FFF5F5', showCheckmarks: false },
   'matrix-sangat-buruk': { status: 'sangat-buruk', weekLabel: '14 dari 48 minggu', weeklyTitle: 'Segera bayar angsuran untuk memperbaiki status', weeklySubtitle: '', showBenefit: true, benefitIcon: '⚠️', benefitIconBg: '#FFF3E8', benefitText: 'Hadiah Ibu di bulan Desember berpotensi hangus.',  benefitAmount: '',            benefitLink: 'Lihat hadiah', overdueMode: true, overdueLabel: 'Sudah lewat 13 minggu', overdueAmount: 'Rp1.625.000', overdueSubtitle: 'Bisa bayar sebagian dari Rp50.000', overdueFooter: 'Diskusikan kepada petugas kemampuan bayar Ibu pada kumpulan hari Kamis, 19 Juni', angsuranCaption: 'Pembayaran Ibu kurang dari 50% tepat waktu', kumpulanCaption: 'Ibu 5 kali tidak hadir kumpulan', groupBadgeIntent: 'red',    groupBadgeLabel: 'Tidak Lancar', groupCaption: 'Kelompok di bawah 30% tepat waktu',  groupRowBg: '#FFF5F5', showCheckmarks: false },
 
-  'limit-ready': { status: 'sangat-baik', weekLabel: '24 dari 48 minggu', weeklyTitle: 'Tugas Ibu minggu ini',  weeklySubtitle: 'Lengkapi tugas berikut untuk menjaga status tetap {status}',                                       showBenefit: false, benefitIcon: '🎁', benefitIconBg: '#FFF3E8', benefitText: '', benefitAmount: '', disbursementAmount: 'Rp2.250.000', disbursementGiftAmount: '+1,25jt', overdueMode: false, overdueLabel: '', overdueAmount: '', overdueSubtitle: '', overdueFooter: '', angsuranCaption: 'Rp112.000 · Otomatis dari Poket, 19 Juni', kumpulanCaption: 'Kamis, 19 Juni, 09:00',        groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Bisa meningkatkan limit di akhir tenor',      showCheckmarks: false },
+  'limit-ready': { status: 'sangat-baik', weekLabel: '24 dari 48 minggu', weeklyTitle: 'Tugas Ibu minggu ini',  weeklySubtitle: 'Lengkapi tugas berikut untuk menjaga status tetap {status}',                                       showBenefit: false, benefitIcon: '🎁', benefitIconBg: '#FFF3E8', benefitText: '', benefitAmount: '', disbursementAmount: 'Rp2.250.000', disbursementGiftAmount: '+1,25jt', overdueMode: false, overdueLabel: '', overdueAmount: '', overdueSubtitle: '', overdueFooter: '', angsuranCaption: 'Rp112.000 · Otomatis dari Poket, 19 Juni', kumpulanCaption: 'Kamis, 19 Juni, 09:00',        groupIcon: '🤝', showGroupBadge: false, groupBadgeIntent: 'green', groupBadgeLabel: 'Lancar',       groupCaption: 'Bisa meningkatkan limit di akhir tenor',      showCheckmarks: false },
 }
 
 const TILE = 28
@@ -166,11 +168,13 @@ export function HomeBScreen() {
                   angsuranCaption={variant.angsuranCaption}
                   kumpulanCaption={variant.kumpulanCaption}
                   groupTitle={variant.groupTitle}
+                  groupIcon={variant.groupIcon}
                   groupBadgeIntent={variant.groupBadgeIntent}
                   groupBadgeLabel={variant.groupBadgeLabel}
                   showGroupBadge={variant.showGroupBadge}
                   groupCaption={variant.groupCaption}
                   groupRowBg={variant.groupRowBg}
+                  groupTarget={variant.groupTarget}
                   showCheckmarks={variant.showCheckmarks}
                 />
               )}
@@ -476,24 +480,30 @@ function OverdueCard({ label, amount, subtitle, footer, accent }: { label: strin
 function Ask({
   angsuranCaption,
   kumpulanCaption,
-  groupTitle = 'Jaga status kelompok',
+  groupTitle = 'Jaga kelancaran kumpulan',
+  groupIcon = '⚠️',
   groupBadgeIntent,
   groupBadgeLabel,
   showGroupBadge = true,
   groupCaption,
   groupRowBg,
+  groupTarget,
   showCheckmarks,
 }: {
   angsuranCaption: string
   kumpulanCaption: string
   groupTitle?: string
+  groupIcon?: string
   groupBadgeIntent: BadgeIntent
   groupBadgeLabel: string
   showGroupBadge?: boolean
   groupCaption: string
   groupRowBg?: string
+  /** Screen id to open when the caption is tapped — only set when there's somewhere for it to go. */
+  groupTarget?: string
   showCheckmarks: boolean
 }) {
+  const flow = useFlow()
   return (
     <div
       className="bg-neutral-white"
@@ -539,7 +549,7 @@ function Ask({
           className="flex shrink-0 items-center justify-center"
           style={{ width: '24px', height: '24px', borderRadius: '10px', background: '#E6F5EB', fontSize: '13px' }}
         >
-          ⚠️
+          {groupIcon}
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-4 text-14 text-default">
@@ -550,7 +560,24 @@ function Ask({
               >{groupBadgeLabel}</Badge>
             )}
           </span>
-          <span className="block text-12 text-caption">{groupCaption}</span>
+          {groupTarget ? (
+            <button
+              type="button"
+              onClick={() => flow.go(groupTarget)}
+              className="flex items-center gap-2 text-12 font-bold underline"
+              style={{ color: '#B91C1C' }}
+            >
+              {groupCaption}
+              <ChevronRight size={16} className="shrink-0" style={{ color: '#B91C1C' }} />
+            </button>
+          ) : (
+            <span
+              className={groupRowBg ? 'block text-12 font-bold underline' : 'block text-12 text-caption'}
+              style={groupRowBg ? { color: '#B91C1C' } : undefined}
+            >
+              {groupCaption}
+            </span>
+          )}
         </span>
         {showCheckmarks && <CheckCircleFill size={20} className="shrink-0" style={{ color: '#0F7A3D' }} />}
       </div>
