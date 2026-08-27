@@ -343,6 +343,8 @@ export function Collapsible({
   hint,
   children,
   borderClassName,
+  open: openProp,
+  onToggle,
 }: {
   title: string
   /** Right-aligned hint in the header, e.g. the total the breakdown adds up to. */
@@ -351,14 +353,22 @@ export function Collapsible({
   /** Overrides the default border, e.g. to bond this panel visually to the
    *  card it opens up — see Pencairan's "With Leads monitoring". */
   borderClassName?: string
+  /** Controlled open state — pass this (with `onToggle`) when something else
+   *  on the page needs to open or read the same state, e.g. a matching
+   *  gsheet-style column-group toggle in a table below. Omit both for the
+   *  plain uncontrolled panel, which tracks its own open state. */
+  open?: boolean
+  onToggle?: (open: boolean) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = openProp ?? uncontrolledOpen
+  const toggle = () => (onToggle ?? setUncontrolledOpen)(!open)
 
   return (
     <div className={`rounded-12 border bg-neutral-white ${borderClassName ?? 'border-default'}`}>
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={toggle}
         aria-expanded={open}
         className="flex w-full items-center gap-8 p-16 text-left"
       >
