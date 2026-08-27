@@ -123,6 +123,16 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/status-detail'), 'StatusDetailScreen'),
     },
     {
+      id: 'riwayat-pembayaran',
+      title: 'Riwayat pembayaran',
+      component: lazyScreen(() => import('./screens/riwayat-pembayaran'), 'RiwayatPembayaranScreen'),
+    },
+    {
+      id: 'majelis-melati',
+      title: 'Majelis Melati 07',
+      component: lazyScreen(() => import('./screens/majelis-melati'), 'MajelisMelatiScreen'),
+    },
+    {
       id: 'perjalanan-limit',
       title: 'Hadiah bayar pinjaman',
       component: lazyScreen(() => import('./screens/perjalanan-limit'), 'PerjalananLimitScreen'),
