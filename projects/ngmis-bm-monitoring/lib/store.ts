@@ -25,7 +25,7 @@ interface State {
   scheduled: Record<string, string>
 }
 
-let state: State = { variant: 'mvp', pencairanVariant: 'default', scheduled: {} }
+let state: State = { variant: 'mvp', pencairanVariant: 'leads', scheduled: {} }
 const listeners = new Set<() => void>()
 
 function set(next: State) {
