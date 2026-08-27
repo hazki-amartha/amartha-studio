@@ -13,6 +13,7 @@ import {
   type Interest,
   type LeadSource,
   type MajelisAssignment,
+  type MemberRole,
   type PipelineLead,
   type PipelineLog,
   type Product,
@@ -98,8 +99,10 @@ export const pipelineStore = {
     referredBy: string
     referrerKind: ReferrerKind | null
     majelis: MajelisAssignment
+    role?: MemberRole
     nik: string
     ktp: boolean
+    product?: Product | null
   }): string {
     const id = `p${Date.now()}`
     // KTP captured up front qualifies her on the spot — that is the whole
@@ -117,9 +120,10 @@ export const pipelineStore = {
       status: qualified ? 'qualified' : 'unqualified',
       interest: 'interested',
       majelis: data.majelis,
+      role: data.majelis.kind === 'new' ? data.role ?? 'anggota' : 'anggota',
       nik: qualified ? data.nik : '',
       ktp: qualified,
-      product: null,
+      product: data.product ?? null,
       amount: '',
       disburseDate: '',
       // The first touch reads as her opening status, on the channel she came in.
@@ -224,9 +228,48 @@ export const pipelineStore = {
     }))
   },
 
-  /** Reassigns the majelis — allowed at any status (per the concept). */
+  /**
+   * Reassigns the majelis — allowed at any status (per the concept). Joining an
+   * existing group drops any `ketua` role: an existing majelis already has one.
+   */
   assignMajelis(id: string, majelis: MajelisAssignment) {
-    patchLead(id, () => ({ majelis }))
+    patchLead(id, (lead) => ({
+      majelis,
+      role: majelis.kind === 'new' ? lead.role : 'anggota',
+    }))
+  },
+
+  /** Sets her role in the majelis (Anggota / Ketua). */
+  setRole(id: string, role: MemberRole) {
+    patchLead(id, () => ({ role }))
+  },
+
+  /** Picks the loan product on the record, before the pengajuan goes in. */
+  setProduct(id: string, product: Product) {
+    patchLead(id, () => ({ product }))
+  },
+
+  /**
+   * Invites her as a calon mitra — files the pengajuan straight from the record
+   * she already has (KTP, majelis, product), no re-entry. Qualified → Submitted,
+   * and the system takes over (KYC → underwriting → decision).
+   */
+  invite(id: string) {
+    patchLead(id, (lead) => {
+      if (!lead.product) return {}
+      return {
+        status: 'submitted',
+        interest: null,
+        subStatus: 'kyc',
+        ktp: true,
+        log: appendLog(lead, {
+          via: 'manual',
+          status: 'submitted',
+          stage: 'kyc',
+          system: `Produk ${lead.product}`,
+        }),
+      }
+    })
   },
 }
 

@@ -1,165 +1,130 @@
 'use client'
 
-// Tambah Lead — capturing a prospect the BP just met.
-//
-// The source is asked with a follow-up, in a sheet: a POI Visit lead names WHICH
-// point of interest; a Referral names WHO sent her — a mitra (searchable) or one
-// of the non-mitra kinds. KTP can be attached right here: a lead who arrives with
-// her KTP is captured Qualified, skipping the extra call it would otherwise take.
+// Tambah Lead — capturing a prospect the BP just met, on the same form the
+// Detail Lead page uses: Info Pribadi (Nama & No. HP required, a fixed POI
+// Visit source, KTP) and Detail Pengajuan (Majelis, Status anggota, Produk),
+// each optional field edited in place via the same sheets. Saving opens her
+// record.
 
 import { useState } from 'react'
-import { Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
-import { Camera, FileCheck } from '@/design-system/icons'
+import {
+  BottomSheet,
+  Button,
+  Card,
+  Input,
+  NavigationHeader,
+  SelectableCard,
+} from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
-import { SOURCE_LABEL, type LeadSource, type MajelisAssignment, type ReferrerKind } from '../lib/pipeline'
 import { pipelineStore } from '../lib/pipeline-store'
-import { MajelisPickerSheet, PoiSheet, ReferralSheet, assignmentLabel } from '../lib/pipeline-ui'
-import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
+import { DetailRow, KtpSheet, MajelisPickerSheet, assignmentLabel } from '../lib/pipeline-ui'
+import { AppScreen, StickyBar } from '../lib/ui'
+import {
+  MEMBER_ROLE_LABEL,
+  type MajelisAssignment,
+  type MemberRole,
+  type Product,
+} from '../lib/pipeline'
 
-const SOURCES: LeadSource[] = ['poi', 'referral']
 const DEFAULT_MAJELIS: MajelisAssignment = { kind: 'none', branch: 'BP Ciseeng' }
 
-type SheetId = 'poi' | 'referral' | 'majelis' | null
+type SheetId = 'ktp' | 'majelis' | 'role' | 'product' | null
 
 export function LeadNewScreen() {
   const flow = useFlow()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [source, setSource] = useState<LeadSource | null>(null)
-  const [poi, setPoi] = useState('')
-  const [referredBy, setReferredBy] = useState('')
-  const [referrerKind, setReferrerKind] = useState<ReferrerKind | null>(null)
   const [majelis, setMajelis] = useState<MajelisAssignment>(DEFAULT_MAJELIS)
+  const [role, setRole] = useState<MemberRole>('anggota')
   const [nik, setNik] = useState('')
   const [ktp, setKtp] = useState(false)
+  const [product, setProduct] = useState<Product | null>(null)
   const [sheet, setSheet] = useState<SheetId>(null)
 
-  function pickSource(s: LeadSource) {
-    setSource(s)
-    setSheet(s === 'poi' ? 'poi' : 'referral')
-  }
-
-  const sourceReady = source === 'poi' ? poi !== '' : source === 'referral' ? referredBy !== '' : false
-  const ready = name.trim() !== '' && phone.trim() !== '' && sourceReady
+  const isNewMajelis = majelis.kind === 'new'
+  const effectiveRole: MemberRole = isNewMajelis ? role : 'anggota'
+  const hasKtp = ktp && nik.replace(/\D/g, '').length === 16
+  const majelisValue = majelis.kind === 'none' ? 'Belum ditentukan' : assignmentLabel(majelis)
+  const ready = name.trim() !== '' && phone.trim() !== ''
 
   function save() {
-    if (!ready || !source) return
-    pipelineStore.addLead({ name, phone, source, poi, referredBy, referrerKind, majelis, nik, ktp })
+    if (!ready) return
+    // Source is fixed: a lead added from Sales is captured as a POI Visit.
+    pipelineStore.addLead({
+      name,
+      phone,
+      source: 'poi',
+      poi: '',
+      referredBy: '',
+      referrerKind: null,
+      majelis,
+      role: effectiveRole,
+      nik,
+      ktp,
+      product,
+    })
     flow.go('lead-detail')
   }
 
   return (
     <AppScreen topBar={<NavigationHeader title="Tambah Lead" onBack={() => flow.back()} />}>
+      {/* Info Pribadi */}
       <Card>
-        <div className="flex flex-col gap-12">
-          <Input
-            label="Nama"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nama calon mitra"
-          />
-          <Input
-            label="No. HP"
-            required
-            inputMode="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="08xx-xxxx-xxxx"
-          />
+        <div className="flex flex-col gap-8">
+          <span className="text-14 font-bold text-default">Info Pribadi</span>
+          <div className="flex flex-col gap-12">
+            <Input
+              label="Nama"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nama calon mitra"
+            />
+            <Input
+              label="No. HP"
+              required
+              inputMode="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="08xx-xxxx-xxxx"
+            />
+          </div>
+          <div className="flex flex-col">
+            {/* Source is pre-filled and locked — no "Ubah". */}
+            <DetailRow label="Sumber" value="POI Visit" />
+            <DetailRow
+              label="KTP"
+              value={hasKtp ? nik : 'Belum ada'}
+              onEdit={() => setSheet('ktp')}
+              warning={!hasKtp}
+            />
+          </div>
         </div>
       </Card>
 
-      <SectionTitle>Sumber</SectionTitle>
-      <div className="flex flex-col gap-8">
-        {SOURCES.map((value) => {
-          const selected = source === value
-          const detail = value === 'poi' ? poi : referredBy
-          const defaultDesc =
-            value === 'poi' ? 'Ditemui saat POI Visit / Sosialisasi' : 'Dikenalkan oleh mitra atau warga'
-          // Once chosen, the card carries its own detail (which POI / who
-          // referred) with an inline "Ubah" right beside it — no slot, no
-          // standalone card beneath.
-          return (
-            <SelectableCard
-              key={value}
-              name="lead-source"
-              inputType="radio"
-              title={SOURCE_LABEL[value]}
-              description={
-                selected && detail ? (
-                  <>
-                    {detail}
-                    {' · '}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setSheet(value === 'poi' ? 'poi' : 'referral')
-                      }}
-                      className="font-bold text-link"
-                    >
-                      Ubah
-                    </button>
-                  </>
-                ) : (
-                  defaultDesc
-                )
-              }
-              checked={selected}
-              onChange={() => pickSource(value)}
-            />
-          )
-        })}
-      </div>
-
-      <SectionTitle>Majelis</SectionTitle>
-      <button
-        type="button"
-        onClick={() => setSheet('majelis')}
-        className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-12 text-left text-14 text-default"
-      >
-        <span className="truncate">{assignmentLabel(majelis)}</span>
-        <span className="shrink-0 text-12 font-bold text-link">Ubah</span>
-      </button>
-
-      <SectionTitle>KTP</SectionTitle>
+      {/* Detail Pengajuan */}
       <Card>
-        <div className="flex flex-col gap-12">
-          <span className="text-12 text-caption">
-            Lampirkan KTP sekarang agar lead langsung jadi Qualified. Tanpa KTP, lead masuk sebagai
-            Unqualified.
-          </span>
-          {ktp ? (
-            <div className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12">
-              <span className="text-green-500">
-                <FileCheck size={20} />
-              </span>
-              <span className="flex-1 text-default">Foto KTP terlampir</span>
-              <button type="button" onClick={() => setKtp(false)} className="shrink-0 text-12 font-bold text-link">
-                Hapus
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setKtp(true)}
-              className="flex w-full flex-col items-center gap-4 rounded-8 border border-default bg-canvas-blue p-16 text-caption"
-            >
-              <Camera size={24} />
-              <span className="text-14 text-default">Upload Foto KTP</span>
-            </button>
-          )}
-          <Input
-            label="NIK (16 digit)"
-            optionalText="opsional"
-            inputMode="numeric"
-            maxLength={16}
-            value={nik}
-            onChange={(e) => setNik(e.target.value)}
-            placeholder="Masukkan 16 digit NIK"
-          />
+        <div className="flex flex-col gap-8">
+          <span className="text-14 font-bold text-default">Detail Pengajuan</span>
+          <div className="flex flex-col">
+            <DetailRow
+              label="Majelis"
+              value={majelisValue}
+              onEdit={() => setSheet('majelis')}
+              warning={majelis.kind === 'none'}
+            />
+            <DetailRow
+              label="Status anggota"
+              value={MEMBER_ROLE_LABEL[effectiveRole]}
+              onEdit={() => setSheet('role')}
+            />
+            <DetailRow
+              label="Produk"
+              value={product ?? 'Belum dipilih'}
+              onEdit={() => setSheet('product')}
+              warning={!product}
+            />
+          </div>
         </div>
       </Card>
 
@@ -169,21 +134,14 @@ export function LeadNewScreen() {
         </Button>
       </StickyBar>
 
-      <PoiSheet
-        open={sheet === 'poi'}
-        value={poi}
+      <KtpSheet
+        open={sheet === 'ktp'}
+        nik={nik}
+        ktp={ktp}
         onClose={() => setSheet(null)}
-        onPick={(p) => {
-          setPoi(p)
-          setSheet(null)
-        }}
-      />
-      <ReferralSheet
-        open={sheet === 'referral'}
-        onClose={() => setSheet(null)}
-        onPick={(name, kind) => {
-          setReferredBy(name)
-          setReferrerKind(kind)
+        onSave={(n, k) => {
+          setNik(n)
+          setKtp(k)
           setSheet(null)
         }}
       />
@@ -193,9 +151,57 @@ export function LeadNewScreen() {
         onClose={() => setSheet(null)}
         onPick={(m) => {
           setMajelis(m)
+          if (m.kind !== 'new') setRole('anggota')
           setSheet(null)
         }}
       />
+
+      {/* Status anggota — Ketua only for a majelis being formed. */}
+      <BottomSheet open={sheet === 'role'} onClose={() => setSheet(null)} title="Status anggota">
+        <div className="flex flex-col gap-8">
+          <SelectableCard
+            name="role"
+            inputType="radio"
+            title={MEMBER_ROLE_LABEL.anggota}
+            checked={effectiveRole === 'anggota'}
+            onChange={() => {
+              setRole('anggota')
+              setSheet(null)
+            }}
+          />
+          <SelectableCard
+            name="role"
+            inputType="radio"
+            title={MEMBER_ROLE_LABEL.ketua}
+            description={isNewMajelis ? undefined : 'Hanya untuk majelis baru'}
+            disabled={!isNewMajelis}
+            checked={effectiveRole === 'ketua'}
+            onChange={() => {
+              setRole('ketua')
+              setSheet(null)
+            }}
+          />
+        </div>
+      </BottomSheet>
+
+      {/* Produk */}
+      <BottomSheet open={sheet === 'product'} onClose={() => setSheet(null)} title="Produk">
+        <div className="flex flex-col gap-8">
+          {(['GL', 'Modal'] as Product[]).map((p) => (
+            <SelectableCard
+              key={p}
+              name="product"
+              inputType="radio"
+              title={p}
+              checked={product === p}
+              onChange={() => {
+                setProduct(p)
+                setSheet(null)
+              }}
+            />
+          ))}
+        </div>
+      </BottomSheet>
     </AppScreen>
   )
 }
