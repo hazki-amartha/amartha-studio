@@ -50,6 +50,17 @@ export type LeadSource = 'referral' | 'poi'
 export type ReferrerKind = 'mitra' | 'employee' | 'neighbor' | 'friend'
 
 /**
+ * Her role in the majelis she joins. `ketua` (the majelis chair) is only
+ * offered for a majelis the BP is forming — an existing group already has one.
+ */
+export type MemberRole = 'anggota' | 'ketua'
+
+export const MEMBER_ROLE_LABEL: Record<MemberRole, string> = {
+  anggota: 'Anggota',
+  ketua: 'Ketua Majelis',
+}
+
+/**
  * Which majelis she joins.
  * - `existing` — an active `MAJELIS_DIRECTORY` group.
  * - `new`      — a majelis the BP is forming; `name` is what she is calling it.
@@ -112,6 +123,11 @@ export interface PipelineLead {
   subStatus?: SubmittedStage
 
   majelis: MajelisAssignment
+  /**
+   * Her role in that majelis. `ketua` only applies to a `new` majelis; joining
+   * an existing group she is always an `anggota`. Undefined reads as `anggota`.
+   */
+  role?: MemberRole
   /** 16-digit NIK. Present from Qualified onward (the KTP that qualifies her). */
   nik: string
   /** Foto KTP attached. */

@@ -6,7 +6,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, Card, Input, SelectableCard } from '@/design-system/components'
-import { Camera, FileCheck, NotePencil, Warning, WhatsappLogo } from '@/design-system/icons'
+import { Camera, FileCheck, NotePencil, Warning } from '@/design-system/icons'
 import { MAJELIS_DIRECTORY } from './schedule'
 import {
   INTEREST_META,
@@ -15,15 +15,8 @@ import {
   OTHER_REFERRERS,
   POI_LIST,
   SOURCE_LABEL,
-  actionDetail,
-  hasInterest,
   historyActivity,
   historyStatusLabel,
-  ktpDetail,
-  majelisDetail,
-  sourceDetail,
-  statusBadge,
-  subStateTag,
   type Interest,
   type LeadSource,
   type MajelisAssignment,
@@ -32,8 +25,7 @@ import {
   type ReferrerKind,
 } from './pipeline'
 import { pipelineStore } from './pipeline-store'
-import { ContactButton, SearchField, SectionTitle } from './ui'
-import { IconPhone } from './icons'
+import { SearchField } from './ui'
 
 // Interest as coloured text: green for interested, blue (informational) for
 // undecided, red for not interested.
@@ -470,15 +462,21 @@ export function DetailRow({
   value,
   onEdit,
   warning,
+  pencil,
+  right,
 }: {
   label: string
-  value: string
+  value: ReactNode
   onEdit?: () => void
   warning?: boolean
+  /** Render the edit affordance as a pencil beside the value, not "Ubah" at the far right. */
+  pencil?: boolean
+  /** Extra content pinned to the far right of the row — e.g. contact buttons. */
+  right?: ReactNode
 }) {
   return (
-    <div className="flex items-center gap-8 border-t border-default py-12">
-      <span className="flex min-w-0 flex-1 items-center gap-4 text-14">
+    <div className="flex items-start gap-8 border-t border-default py-12">
+      <span className="flex min-w-0 flex-1 items-start gap-4 text-14">
         <span className="shrink-0 text-caption">{label}:</span>
         <span className={warning ? 'text-orange-600' : 'text-default'}>{value}</span>
         {warning ? (
@@ -486,8 +484,19 @@ export function DetailRow({
             <Warning size={16} />
           </span>
         ) : null}
+        {onEdit && pencil ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Ubah ${label}`}
+            className="shrink-0 text-primary-500"
+          >
+            <NotePencil size={16} />
+          </button>
+        ) : null}
       </span>
-      {onEdit ? (
+      {right ? <span className="shrink-0">{right}</span> : null}
+      {onEdit && !pencil ? (
         <button type="button" onClick={onEdit} className="shrink-0 text-12 font-bold text-link">
           Ubah
         </button>
@@ -496,117 +505,24 @@ export function DetailRow({
   )
 }
 
+
 /**
- * The identity card: name + phone (editable), WA/call buttons, the two-level
- * status, the editable Sumber/Majelis/KTP rows, the "action selanjutnya" line,
- * and an action slot at the foot. Every callback is optional so a read-only
- * surface can drop the edit affordances.
+ * The lead's history, in a fullscreen sheet reached from the detail header —
+ * one card per event, newest first. Off the main page so the record stays about
+ * what to do next, with the trail one tap away.
  */
-export function LeadRecordCard({
+export function RiwayatSheet({
   lead,
-  onEditContact,
-  onEditSource,
-  onEditMajelis,
-  onEditKtp,
-  onContact,
-  action,
+  open,
+  onClose,
 }: {
   lead: PipelineLead
-  onEditContact?: () => void
-  onEditSource?: () => void
-  onEditMajelis?: () => void
-  onEditKtp?: () => void
-  onContact?: () => void
-  action?: ReactNode
+  open: boolean
+  onClose: () => void
 }) {
-  const badge = statusBadge(lead)
-  const worked = hasInterest(lead.status)
-  const interest = worked && lead.interest ? lead.interest : null
-  // For a Submitted lead the interest slot carries the system sub-state instead.
-  const sub = subStateTag(lead)
-
   return (
-    <Card>
-      <div className="flex flex-col gap-12">
-        <div className="flex items-start gap-12">
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <span className="truncate text-18 font-bold text-default">{lead.name}</span>
-            <span className="flex items-center gap-8">
-              <span className="truncate text-14 text-caption">{lead.phone}</span>
-              {onEditContact ? (
-                <button
-                  type="button"
-                  aria-label="Ubah kontak"
-                  onClick={onEditContact}
-                  className="shrink-0 text-primary-500"
-                >
-                  <NotePencil size={16} />
-                </button>
-              ) : null}
-            </span>
-          </div>
-          {worked && onContact ? (
-            <div className="flex shrink-0 gap-8">
-              <ContactButton label={`WhatsApp ${lead.name}`} tone="green" onClick={onContact}>
-                <WhatsappLogo size={20} />
-              </ContactButton>
-              <ContactButton label={`Telepon ${lead.name}`} tone="primary" onClick={onContact}>
-                <IconPhone size={20} />
-              </ContactButton>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-8">
-          <Badge intent={badge.intent} variant="outline">
-            {badge.label}
-          </Badge>
-          {interest ? (
-            <span className={`text-14 font-bold ${INTEREST_TEXT[interest]}`}>
-              {INTEREST_META[interest].label}
-            </span>
-          ) : sub ? (
-            <span className="text-14 text-caption">{sub}</span>
-          ) : null}
-        </div>
-
-        <div className="flex flex-col">
-          <DetailRow label="Sumber" value={sourceDetail(lead)} onEdit={onEditSource} />
-          <DetailRow label="KTP" value={ktpDetail(lead)} onEdit={onEditKtp} warning={!lead.nik} />
-          <DetailRow
-            label="Majelis"
-            value={majelisDetail(lead)}
-            onEdit={onEditMajelis}
-            warning={lead.majelis.kind === 'none'}
-          />
-          {lead.product ? (
-            <DetailRow label="Produk" value={`${lead.product}${lead.amount ? ` · ${lead.amount}` : ''}`} />
-          ) : null}
-        </div>
-
-        {(() => {
-          const detail = actionDetail(lead)
-          return (
-            <div className="flex flex-col gap-2 rounded-8 bg-canvas-blue px-12 py-8">
-              <span className="text-12 text-caption">Action selanjutnya:</span>
-              <span className="text-14 font-bold text-default">{detail.title}</span>
-              {detail.sub ? <span className="text-12 text-caption">{detail.sub}</span> : null}
-            </div>
-          )
-        })()}
-
-        {action}
-      </div>
-    </Card>
-  )
-}
-
-/** The lead's history — one card per event, newest first. */
-export function RiwayatPanggilan({ lead }: { lead: PipelineLead }) {
-  return (
-    <>
-      <SectionTitle>Riwayat</SectionTitle>
-      <div className="flex flex-col gap-8 pb-16">
+    <BottomSheet open={open} onClose={onClose} size="fullscreen" title="Riwayat">
+      <div className="flex flex-col gap-8">
         {lead.log
           .slice()
           .reverse()
@@ -627,31 +543,27 @@ export function RiwayatPanggilan({ lead }: { lead: PipelineLead }) {
             </Card>
           ))}
       </div>
-    </>
+    </BottomSheet>
   )
 }
 
 /**
- * Perbarui status — records the interest note, and carries "Ajukan Pinjaman" as
- * a choice (selectable only once Qualified). `onSaved` fires after a status is
- * recorded, so the caller can close the sheet or finish a task.
+ * Perbarui status — records just the interest note (Interested / Undecided / Not
+ * interested). The pengajuan is its own action now, so it is no longer a choice
+ * here. `onSaved` fires after the interest is recorded.
  */
 export function PerbaruiStatusSheet({
   lead,
   open,
-  canSubmit,
   onClose,
-  onAjukan,
   onSaved,
 }: {
   lead: PipelineLead
   open: boolean
-  canSubmit: boolean
   onClose: () => void
-  onAjukan: () => void
   onSaved: () => void
 }) {
-  const [pick, setPick] = useState<Interest | 'ajukan' | null>(null)
+  const [pick, setPick] = useState<Interest | null>(null)
   const [note, setNote] = useState('')
 
   function reset() {
@@ -661,11 +573,6 @@ export function PerbaruiStatusSheet({
 
   function save() {
     if (!pick) return
-    if (pick === 'ajukan') {
-      reset()
-      onAjukan()
-      return
-    }
     // Updating status from the record (not a scheduled call) logs as "Manual".
     pipelineStore.recordInterest(lead.id, pick, note, undefined, 'manual')
     reset()
@@ -683,7 +590,7 @@ export function PerbaruiStatusSheet({
       description="Bagaimana minatnya sekarang?"
       primaryAction={
         <Button size="lg" className="w-full" disabled={!pick} onClick={save}>
-          {pick === 'ajukan' ? 'Lanjut' : 'Simpan'}
+          Simpan
         </Button>
       }
     >
@@ -699,20 +606,10 @@ export function PerbaruiStatusSheet({
             onChange={() => setPick(value)}
           />
         ))}
-        <SelectableCard
-          name="interest"
-          inputType="radio"
-          title="Ajukan Pinjaman"
-          description={canSubmit ? 'Kirim pengajuan pinjaman' : 'Pastikan KTP sudah tersedia'}
-          checked={pick === 'ajukan'}
-          onChange={() => setPick('ajukan')}
-        />
-        {pick !== 'ajukan' ? (
-          <label className="flex flex-col gap-4 pt-4">
-            <span className="text-12 text-caption">Catatan (opsional)</span>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Hasil pembicaraan…" />
-          </label>
-        ) : null}
+        <label className="flex flex-col gap-4 pt-4">
+          <span className="text-12 text-caption">Catatan (opsional)</span>
+          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Hasil pembicaraan…" />
+        </label>
       </div>
     </BottomSheet>
   )
@@ -730,7 +627,7 @@ export function SubmitSheet({
   onClose: () => void
   onSaved: () => void
 }) {
-  const [product, setProduct] = useState<Product | null>(null)
+  const [product, setProduct] = useState<Product | null>(lead.product)
   const [majelis, setMajelis] = useState<MajelisAssignment>(lead.majelis)
   const [nik, setNik] = useState(lead.nik)
   const [ktp, setKtp] = useState(lead.ktp)
@@ -738,7 +635,7 @@ export function SubmitSheet({
   const [editing, setEditing] = useState<'majelis' | 'ktp' | null>(null)
 
   function reset() {
-    setProduct(null)
+    setProduct(lead.product)
     setMajelis(lead.majelis)
     setNik(lead.nik)
     setKtp(lead.ktp)
