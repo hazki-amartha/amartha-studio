@@ -66,7 +66,7 @@ import { AppScreen, EmptyState, FilterBar, FilterChip, HeaderAction, OptionSheet
 
 // Which pipeline lead a scheduled Follow-Up task works. The rostered call for
 // "Ibu Nia Kurniasih" opens her pipeline record (p4).
-const FU_PIPELINE_LEAD: Record<string, string> = { l1: 'p4' }
+const FU_PIPELINE_LEAD: Record<string, string> = { l1: 'p4', l2: 'p2' }
 
 // The two NTB kinds get their own tints rather than borrowing purple. Purple is
 // the colour of servicing a majelis on this schedule, and a prospecting stop
