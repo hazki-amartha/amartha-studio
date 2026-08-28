@@ -15,11 +15,14 @@ import {
   BottomSheet,
   Button,
   Card,
+  Input,
   NavigationHeader,
   SelectableCard,
 } from '@/design-system/components'
-import { NotePencil, WhatsappLogo } from '@/design-system/icons'
+import { MapPin, NotePencil, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
+import { FU_TASK_FOR_LEAD, findTask } from '../lib/schedule'
+import { store } from '../lib/store'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import {
   DetailRow,
@@ -32,7 +35,6 @@ import {
 } from '../lib/pipeline-ui'
 import { AppScreen, ContactButton } from '../lib/ui'
 import { StickyBar } from '../lib/ui'
-import { IconPhone } from '../lib/icons'
 import {
   MEMBER_ROLE_LABEL,
   actionDetail,
@@ -52,6 +54,7 @@ type SheetId =
   | 'role'
   | 'product'
   | 'ktp'
+  | 'address'
   | 'ajukan'
   | 'pandu'
   | 'interest'
@@ -81,6 +84,84 @@ function FormCard({
   )
 }
 
+/** Capture her address, with an optional Google Maps coordinate. */
+function AddressSheet({
+  open,
+  address,
+  mapsCoord,
+  onClose,
+  onSave,
+}: {
+  open: boolean
+  address: string
+  mapsCoord: string
+  onClose: () => void
+  onSave: (address: string, mapsCoord: string) => void
+}) {
+  const [addr, setAddr] = useState(address)
+  // The map pin is a boolean here, not a typed coordinate. The BP marks the
+  // address on a map instead of copying numbers; `coord` just carries a stand-in
+  // string so the record knows a pin was dropped (the prototype draws the map,
+  // §3 — nothing opens a real Google Maps).
+  const [coord, setCoord] = useState(mapsCoord)
+  const pinned = Boolean(coord)
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="Alamat"
+      primaryAction={
+        <Button size="lg" className="w-full" onClick={() => onSave(addr, coord)}>
+          Simpan
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-12">
+        <Input
+          label="Alamat"
+          value={addr}
+          onChange={(e) => setAddr(e.target.value)}
+          placeholder="Kampung / RT / RW, desa"
+        />
+        <div className="flex flex-col gap-8">
+          <span className="text-12 font-bold text-default">Lokasi di peta</span>
+          {pinned ? (
+            <>
+              {/* A stand-in map with a dropped pin — the review is of the
+                  affordance, not a live map embed. */}
+              <div className="relative flex items-center justify-center rounded-8 bg-blue-50 py-32">
+                <span className="text-primary-500">
+                  <MapPin size={24} />
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-12 text-green-600">Lokasi sudah ditandai</span>
+                <button
+                  type="button"
+                  onClick={() => setCoord('')}
+                  className="text-12 font-bold text-link"
+                >
+                  Ubah pin
+                </button>
+              </div>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCoord('pinned')}
+              className="flex items-center justify-center gap-8 rounded-8 border border-dashed border-default py-16 text-14 font-bold text-primary-500"
+            >
+              <MapPin size={20} />
+              Tandai lokasi di peta
+            </button>
+          )}
+        </div>
+      </div>
+    </BottomSheet>
+  )
+}
+
 export function LeadDetailScreen() {
   const flow = useFlow()
   const { leads, openId } = usePipeline()
@@ -105,6 +186,16 @@ export function LeadDetailScreen() {
   const hasKtp = lead.nik.replace(/\D/g, '').length === 16
   const hasMajelis = lead.majelis.kind !== 'none'
   const canInvite = hasKtp && hasMajelis && Boolean(lead.product)
+  // A follow-up booked for her today — she can start it straight from the record.
+  const fuTaskId = FU_TASK_FOR_LEAD[lead.id]
+  const fuToday = Boolean(fuTaskId) && Boolean(findTask(fuTaskId))
+
+  function startFollowUp() {
+    if (!fuTaskId) return
+    store.startFollowUp(fuTaskId)
+    pipelineStore.openFollowUp(lead.id, fuTaskId)
+    flow.go('follow-up')
+  }
 
   return (
     <AppScreen
@@ -156,8 +247,8 @@ export function LeadDetailScreen() {
             <ContactButton label={`WhatsApp ${lead.name}`} tone="green" onClick={() => {}}>
               <WhatsappLogo size={20} />
             </ContactButton>
-            <ContactButton label={`Telepon ${lead.name}`} tone="primary" onClick={() => {}}>
-              <IconPhone size={20} />
+            <ContactButton label={`Peta ${lead.name}`} tone="red" onClick={() => {}}>
+              <MapPin size={20} />
             </ContactButton>
           </div>
         </div>
@@ -175,12 +266,23 @@ export function LeadDetailScreen() {
         >
           Lihat riwayat
         </button>
+        {fuToday ? (
+          <Button size="sm" className="mt-8 w-full" onClick={startFollowUp}>
+            Mulai Follow Up
+          </Button>
+        ) : null}
       </div>
 
       {/* Info Pribadi */}
       <FormCard title="Info Pribadi">
         <DetailRow label="Nama" value={lead.name} onEdit={() => setSheet('contact')} />
         <DetailRow label="No. HP" value={lead.phone} onEdit={() => setSheet('contact')} />
+        <DetailRow
+          label="Alamat"
+          value={lead.address ? lead.address : 'Belum ada'}
+          onEdit={() => setSheet('address')}
+          warning={!lead.address}
+        />
         <DetailRow
           label="Sumber"
           value={sourceDetail(lead)}
@@ -255,12 +357,12 @@ export function LeadDetailScreen() {
             }`}
           >
             <span className={`text-14 font-bold ${isNewMajelis ? 'text-disabled' : 'text-default'}`}>
-              Calon mitra isi sendiri di AFin
+              Undang pengajuan via AFin
             </span>
             <span className="text-12 text-caption">
               {isNewMajelis
                 ? 'Tidak tersedia untuk majelis baru — perlu dipandu'
-                : 'Kirim tautan; ia melengkapi pengajuan sendiri'}
+                : 'Calon mitra pengajuan mandiri'}
             </span>
           </button>
           <button
@@ -268,8 +370,8 @@ export function LeadDetailScreen() {
             onClick={() => setSheet('pandu')}
             className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left"
           >
-            <span className="text-14 font-bold text-default">Pandu calon Mitra</span>
-            <span className="text-12 text-caption">Dampingi ia mengisi pengajuan</span>
+            <span className="text-14 font-bold text-default">Ajukan langsung via APartner</span>
+            <span className="text-12 text-caption">Bantu mitra lakukan pengajuan</span>
           </button>
         </div>
       </BottomSheet>
@@ -362,6 +464,17 @@ export function LeadDetailScreen() {
         onClose={() => setSheet(null)}
         onSave={(nik, ktp) => {
           pipelineStore.updateKtp(lead.id, nik, ktp)
+          setSheet(null)
+        }}
+      />
+      <AddressSheet
+        key={sheet === 'address' ? 'addr-open' : 'addr-closed'}
+        open={sheet === 'address'}
+        address={lead.address ?? ''}
+        mapsCoord={lead.mapsCoord ?? ''}
+        onClose={() => setSheet(null)}
+        onSave={(address, mapsCoord) => {
+          pipelineStore.setAddress(lead.id, address, mapsCoord)
           setSheet(null)
         }}
       />

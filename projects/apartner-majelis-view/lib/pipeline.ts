@@ -106,6 +106,10 @@ export interface PipelineLead {
   id: string
   name: string
   phone: string
+  /** Her home address — free text, captured on the record. */
+  address?: string
+  /** Optional Google Maps coordinate for the address. */
+  mapsCoord?: string
   source: LeadSource
   /** POI only — which point of interest she was met at. */
   poi?: string

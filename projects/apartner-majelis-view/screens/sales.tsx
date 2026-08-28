@@ -12,7 +12,7 @@ import { useState } from 'react'
 import { Badge, BottomSheet, Button, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { Plus } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { MAJELIS_DIRECTORY } from '../lib/schedule'
+import { FU_TASK_FOR_LEAD, MAJELIS_DIRECTORY } from '../lib/schedule'
 import {
   ACTIVE_STATUSES,
   INCOMPLETE_LABEL,
@@ -65,16 +65,37 @@ const DEFAULT_STATUS: LeadStatus[] = ACTIVE_STATUSES
 
 // Status is multi-select — an empty set means "all", so this list carries only
 // the real values (no "Semua" row; the Reset link clears them).
+// The filter spells out what a couple of statuses mean (the funnel phase they
+// belong to) — clearer in the picker than on the compact card badge.
+const STATUS_FILTER_LABEL: Partial<Record<LeadStatus, string>> = {
+  'waiting-kyc': 'Waiting for KYC (Invited)',
+  underwriting: 'Underwriting ongoing (Submitted)',
+}
 const STATUS_OPTIONS: { label: string; value: LeadStatus }[] = STATUS_ORDER.map((s) => ({
-  label: STATUS_META[s].label,
+  label: STATUS_FILTER_LABEL[s] ?? STATUS_META[s].label,
   value: s,
 }))
 
-// Type is single-select, "All" plus the two types.
+// How the roster is ordered: most advanced status first, but the three New-phase
+// statuses keep their natural interest order at the bottom (interested before
+// undecided before not-interested) rather than the pure reverse of the funnel.
+const SALES_SORT_ORDER: LeadStatus[] = [
+  'disbursed',
+  'rejected',
+  'approved',
+  'underwriting',
+  'waiting-kyc',
+  'interested',
+  'undecided',
+  'not-interested',
+]
+const salesRank = (s: LeadStatus): number => SALES_SORT_ORDER.indexOf(s)
+
+// Type is single-select, "All" plus the two types (with their meaning spelled out).
 const TYPE_OPTIONS: { label: string; value: LeadType | null }[] = [
   { label: 'All', value: null },
-  { label: TYPE_LABEL.qualified, value: 'qualified' },
-  { label: TYPE_LABEL.unqualified, value: 'unqualified' },
+  { label: `${TYPE_LABEL.qualified} (Data pribadi lengkap)`, value: 'qualified' },
+  { label: `${TYPE_LABEL.unqualified} (Data pribadi belum lengkap)`, value: 'unqualified' },
 ]
 
 /** Toggles a value in/out of a multi-select array. */
@@ -140,24 +161,34 @@ function MultiOptionSheet<T extends string>({
 function SalesRow({ lead, onOpen }: { lead: PipelineLead; onOpen: () => void }) {
   const badge = statusBadge(lead)
   const unqualified = leadType(lead) === 'unqualified'
+  const fuToday = Boolean(FU_TASK_FOR_LEAD[lead.id])
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-start gap-8 rounded-12 bg-neutral-white p-12 text-left active:bg-neutral-50"
+      className="flex w-full flex-col gap-8 overflow-hidden rounded-12 border border-default bg-neutral-white p-12 text-left active:bg-neutral-50"
     >
-      {/* Left: name over majelis, with the "data incomplete" flag when unqualified. */}
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="truncate text-14 font-bold text-default">{lead.name}</span>
-        <span className="truncate text-12 text-caption">{majelisLine(lead)}</span>
-        <span className="truncate text-12 text-caption">{sourceDetail(lead)}</span>
-        {unqualified ? (
-          <span className="truncate text-12 text-orange-600">{INCOMPLETE_LABEL}</span>
-        ) : null}
+      <div className="flex w-full items-start gap-8">
+        {/* Left: name over majelis, with the "data incomplete" flag when unqualified. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="truncate text-14 font-bold text-default">{lead.name}</span>
+          <span className="truncate text-12 text-caption">{majelisLine(lead)}</span>
+          <span className="truncate text-12 text-caption">{sourceDetail(lead)}</span>
+          {unqualified ? (
+            <span className="truncate text-12 text-orange-600">{INCOMPLETE_LABEL}</span>
+          ) : null}
+        </div>
+        {/* Right: her flat status. */}
+        <Badge intent={badge.intent}>{badge.label}</Badge>
       </div>
-      {/* Right: her flat status. */}
-      <Badge intent={badge.intent}>{badge.label}</Badge>
+      {fuToday ? (
+        // A real footer: pulled to the card's edges (negating the p-12) and
+        // rounded only at the bottom so it seats flush against the card corners.
+        <span className="-mx-12 -mb-12 rounded-b-12 bg-canvas-blue px-12 py-8 text-12 font-regular text-blue-500">
+          Follow up dijadwalkan hari ini
+        </span>
+      ) : null}
     </button>
   )
 }
@@ -186,10 +217,8 @@ export function SalesScreen() {
       if (majelis && !matchesMajelis(lead, majelis)) return false
       return true
     })
-    .sort(
-      (a, b) =>
-        STATUS_META[a.status].order - STATUS_META[b.status].order || a.name.localeCompare(b.name),
-    )
+    // Most advanced status first (see SALES_SORT_ORDER), name A→Z within a status.
+    .sort((a, b) => salesRank(a.status) - salesRank(b.status) || a.name.localeCompare(b.name))
 
   const filtered = status.length > 0 || Boolean(type) || Boolean(sumber) || Boolean(majelis)
 

@@ -70,6 +70,12 @@ export interface Task {
   payLikely?: boolean
 }
 
+/**
+ * Pipeline lead id → the follow-up schedule task id it is booked under today.
+ * Lets a lead's own record and roster row know she has a follow-up due today.
+ */
+export const FU_TASK_FOR_LEAD: Record<string, string> = { p4: 't2b', p2: 't2c' }
+
 export const TASKS: Task[] = [
   // First thing, before any balai opens: one message out to every group meeting
   // today. It sits on the schedule as a task rather than living inside each
@@ -144,7 +150,7 @@ export const TASKS: Task[] = [
     // Named plainly. The card now says "Follow Up" on its own line above the
     // title, so a "Follow Up:" prefix here would print the kind twice.
     title: 'Ibu Nia Kurniasih',
-    place: 'WhatsApp / telepon',
+    place: 'Telepon / Visit',
     reason: 'Minat tinggi · dijanjikan dihubungi hari ini',
     leadId: 'l1',
   },
@@ -154,7 +160,7 @@ export const TASKS: Task[] = [
     time: '12.30',
     until: '13.00',
     title: 'Ibu Sri Mulyani',
-    place: 'WhatsApp / telepon',
+    place: 'Telepon / Visit',
     reason: 'Masih menimbang · janji ditindaklanjuti',
     leadId: 'l2',
   },
@@ -169,17 +175,29 @@ export const TASKS: Task[] = [
     mitraId: 'h1',
     distanceKm: 2.4,
   },
-  // The one stop on the day that is not about a woman who already borrows.
+  // The two stops on the day that are not about a woman who already borrows —
+  // two POI Visits back to back, each its own sosialisasi.
   {
     id: 't3b',
     kind: 'sosialisasi',
     time: '14.00',
-    until: '15.15',
-    title: 'Sosialisasi Ciseeng',
-    place: 'Warung Bu Ipah, Kp. Cibeuteung RT 03',
-    reason: 'Target 10 prospek · desa baru, belum ada majelis',
+    until: '15.00',
+    title: 'Warung Bu Ipah',
+    place: 'Jl. Batu Sangkar VII, No.15',
+    reason: 'Target 9 prospek · desa baru, belum ada majelis',
     eventId: 'e1',
     distanceKm: 2.9,
+  },
+  {
+    id: 't3c',
+    kind: 'sosialisasi',
+    time: '15.00',
+    until: '16.00',
+    title: 'Pasar Ikan Ciseeng',
+    place: 'Jl. Burung Perkutut XI, No.41',
+    reason: 'Target 20 prospek · pasar ramai, mayoritas perempuan',
+    eventId: 'e2',
+    distanceKm: 3.4,
   },
   {
     id: 't4',

@@ -61,12 +61,23 @@ import {
   type TaskStatus,
 } from '../lib/store'
 import { pipelineStore } from '../lib/pipeline-store'
+import { sourceDetail } from '../lib/pipeline'
 import { TabBar } from '../lib/tabs'
 import { AppScreen, EmptyState, FilterBar, FilterChip, HeaderAction, OptionSheet, Overline, ResetLink, SettlementHistorySheet, type Tint } from '../lib/ui'
 
 // Which pipeline lead a scheduled Follow-Up task works. The rostered call for
 // "Ibu Nia Kurniasih" opens her pipeline record (p4).
 const FU_PIPELINE_LEAD: Record<string, string> = { l1: 'p4', l2: 'p2' }
+
+// The prospect's own source line — "POI Pasar Ciseeng" — for the Follow-Up card,
+// so the BP sees where the lead came from before she taps into the call. Read
+// straight off the pipeline record the task works; leads' sources don't change,
+// so a snapshot read is honest here.
+function fuSource(task: Task): string | null {
+  const leadId = FU_PIPELINE_LEAD[task.leadId ?? '']
+  const lead = leadId ? pipelineStore.get().leads[leadId] : undefined
+  return lead ? sourceDetail(lead) : null
+}
 
 // The two NTB kinds get their own tints rather than borrowing purple. Purple is
 // the colour of servicing a majelis on this schedule, and a prospecting stop
@@ -228,6 +239,12 @@ function TaskBody({
         {status ? <span className="flex shrink-0">{status}</span> : null}
       </span>
       <span className="text-16 font-bold text-default">{task.title}</span>
+      {/* A follow-up carries the lead's source on its own second line —
+          "Sumber: POI Pasar Ciseeng" — so the BP sees where she came from
+          right under her name. */}
+      {task.kind === 'follow-up' && fuSource(task) ? (
+        <span className="text-12 font-regular text-caption">Sumber: {fuSource(task)}</span>
+      ) : null}
       <span className="line-clamp-2 text-14 font-regular text-default">{task.place}</span>
       <TaskLabels task={task} />
       {note ? <span className="text-12 font-regular text-caption">{note}</span> : null}
