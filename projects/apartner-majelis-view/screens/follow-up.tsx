@@ -49,7 +49,16 @@ const CALL_OUTCOMES: { value: Contact; title: string; desc: string }[] = [
 
 const VISIT_OUTCOMES: { value: Contact; title: string; desc: string }[] = [
   { value: 'ketemu', title: 'Ketemu', desc: 'Sempat bertemu - catat minat dan langkah berikutnya' },
-  { value: 'tidak-ketemu', title: 'Tidak ketemu', desc: 'Jadwalkan percobaan berikutnya' },
+  { value: 'tidak-ketemu', title: 'Tidak ketemu', desc: 'Catat alasan lalu jadwalkan ulang' },
+]
+
+// Why she wasn't home when the BP visited — same list the home visit uses.
+const ABSENT_REASONS = [
+  'Sedang bekerja',
+  'Sedang berdagang',
+  'Sakit',
+  'Sedang bepergian',
+  'Tidak tahu',
 ]
 
 const STEP_LABELS = ['Hubungi', 'Follow-up']
@@ -75,6 +84,7 @@ type SheetId =
   | 'when'
   | 'reason'
   | 'altnumber'
+  | 'visit-reason'
   | 'reschedule'
   | null
 
@@ -87,6 +97,7 @@ export function FollowUpScreen() {
   const [step, setStep] = useState<1 | 2>(1)
   const [method, setMethod] = useState<Method | null>(null)
   const [contact, setContact] = useState<Contact | null>(null)
+  const [visitReason, setVisitReason] = useState<string | null>(null)
   const [pick, setPick] = useState<Interest | 'ajukan' | null>(null)
   const [sheet, setSheet] = useState<SheetId>(null)
 
@@ -120,7 +131,10 @@ export function FollowUpScreen() {
     setContact(value)
     // Both "not reached" outcomes close & reschedule; a wrong number asks for
     // an alternative first. Terhubung / Ketemu are confirmed with Lanjut.
-    if (value === 'tidak-diangkat' || value === 'tidak-ketemu') setSheet('reschedule')
+    // A missed visit records WHY first, then reschedules; a missed call goes
+    // straight to reschedule; a wrong number asks for an alternative.
+    if (value === 'tidak-ketemu') setSheet('visit-reason')
+    else if (value === 'tidak-diangkat') setSheet('reschedule')
     else if (value === 'nomor-salah') setSheet('altnumber')
   }
 
@@ -133,7 +147,8 @@ export function FollowUpScreen() {
   }
 
   function reschedule(reason: string, date: string) {
-    if (followUpTaskId) store.rescheduleTask(followUpTaskId, reason, date)
+    // For a missed visit the reason is the absence reason picked first.
+    if (followUpTaskId) store.rescheduleTask(followUpTaskId, visitReason ?? reason, date)
     leave()
   }
 
@@ -309,6 +324,29 @@ export function FollowUpScreen() {
         }}
         onCloseProspek={complete}
       />
+
+      {/* Tidak ketemu — record why she wasn't there, then reschedule. */}
+      <BottomSheet
+        open={sheet === 'visit-reason'}
+        onClose={() => setSheet(null)}
+        title="Kenapa tidak ketemu?"
+      >
+        <div className="flex flex-col gap-8">
+          {ABSENT_REASONS.map((r) => (
+            <SelectableCard
+              key={r}
+              name="visit-reason"
+              inputType="radio"
+              title={r}
+              checked={visitReason === r}
+              onChange={() => {
+                setVisitReason(r)
+                setSheet('reschedule')
+              }}
+            />
+          ))}
+        </div>
+      </BottomSheet>
 
       <RescheduleSheet
         open={sheet === 'reschedule'}
