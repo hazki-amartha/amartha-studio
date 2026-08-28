@@ -209,6 +209,40 @@ export const INTEREST_META: Record<
 
 export const INTEREST_ORDER: Interest[] = ['interested', 'undecided', 'not-interested']
 
+// A reason is MANDATORY when a lead lands on Undecided or Not interested — those
+// two statuses are the ones a later BP (or the BM) has to act on, and "kenapa"
+// is the whole of what makes them actionable. Interested needs none. `Lainnya`
+// is always last and opens a free-text field.
+export const REASON_OTHER = 'Lainnya'
+
+export const NOT_INTERESTED_REASONS: string[] = [
+  'Angsuran terlalu tinggi',
+  'Masih ada pinjaman lain',
+  'Tidak butuh pinjaman',
+  'Tidak diizinkan keluarga',
+  REASON_OTHER,
+]
+
+export const UNDECIDED_REASONS: string[] = [
+  'Perlu diskusi dengan keluarga',
+  'Perlu waktu untuk berpikir',
+  'Menunggu pinjaman lain selesai',
+  REASON_OTHER,
+]
+
+/** The reason options for a status, or null when no reason is required. */
+export function statusReasons(interest: Interest): string[] | null {
+  if (interest === 'not-interested') return NOT_INTERESTED_REASONS
+  if (interest === 'undecided') return UNDECIDED_REASONS
+  return null
+}
+
+/** Title for the "why" sheet/section, per the status being recorded. */
+export const REASON_TITLE: Partial<Record<Interest, string>> = {
+  undecided: 'Kenapa masih ragu?',
+  'not-interested': 'Kenapa tidak berminat?',
+}
+
 /** The follow-up cadence each interest implies, as a duration phrase. */
 export const CADENCE_DURATION: Record<Interest, string> = {
   interested: '3 hari',
@@ -446,6 +480,34 @@ export const SEED_PIPELINE: PipelineLead[] = [
     disburseDate: '',
     log: [
       { at: '21 Juli', via: 'poi', status: 'interested', note: 'Punya warung sembako, tanya soal modal.' },
+    ],
+  },
+  // Pre-recorded by the creator (BM/AM) before the visit — Bu Ipah, the warung
+  // owner, is the anchor the sosialisasi is built around. She shows on the
+  // Warung Bu Ipah POI leads list from the start (1/9).
+  {
+    id: 'pipah',
+    name: 'Ibu Ipah',
+    phone: '0813-2245-8890',
+    source: 'poi',
+    poi: 'Warung Bu Ipah, Cibeuteung',
+    referredBy: '',
+    status: 'interested',
+    majelis: { kind: 'new', name: 'Majelis Batu Sangkar' },
+    role: 'ketua',
+    nik: '',
+    ktp: false,
+    product: null,
+    amount: '',
+    disburseDate: '',
+    log: [
+      {
+        at: '20 Juli',
+        via: 'manual',
+        status: 'interested',
+        system: 'Didaftarkan oleh BM/AM',
+        note: 'Pemilik warung; punya 8 teman yang juga tertarik.',
+      },
     ],
   },
   {

@@ -19,6 +19,7 @@ import { useFlow } from '@/platform/runtime'
 import {
   INTEREST_META,
   INTEREST_ORDER,
+  REASON_TITLE,
   dateFromToday,
   followUpDateFor,
   leadType,
@@ -27,7 +28,7 @@ import {
   type Interest,
 } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { RiwayatSheet } from '../lib/pipeline-ui'
+import { ReasonRadios, RiwayatSheet } from '../lib/pipeline-ui'
 import { findTask } from '../lib/schedule'
 import { rescheduleCount, store, useApp } from '../lib/store'
 import { AppScreen, ContactButton, RescheduleSheet, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
@@ -99,6 +100,8 @@ export function FollowUpScreen() {
   const [contact, setContact] = useState<Contact | null>(null)
   const [visitReason, setVisitReason] = useState<string | null>(null)
   const [pick, setPick] = useState<Interest | 'ajukan' | null>(null)
+  // The mandatory "why" behind an Undecided / Not interested outcome.
+  const [statusReason, setStatusReason] = useState('')
   const [sheet, setSheet] = useState<SheetId>(null)
 
   if (!lead) {
@@ -143,8 +146,11 @@ export function FollowUpScreen() {
   function pickOutcome(value: Interest | 'ajukan') {
     setPick(value)
     if (value === 'ajukan') setSheet('ajukan')
-    else if (value === 'not-interested') setSheet('reason')
-    else setSheet('when')
+    // Undecided / Not interested both go through the mandatory reason first.
+    else if (value === 'undecided' || value === 'not-interested') {
+      setStatusReason('')
+      setSheet('reason')
+    } else setSheet('when')
   }
 
   function reschedule(reason: string, date: string) {
@@ -328,28 +334,49 @@ export function FollowUpScreen() {
         <span className="text-14 text-caption">Alur pandu akan dibuat di sini.</span>
       </BottomSheet>
 
-      {/* Interested / Undecided — pick when to follow up next, cadence recommended. */}
+      {/* Interested / Undecided — pick when to follow up next, cadence recommended.
+          An undecided outcome carries the reason picked on the step before. */}
       {pick && pick !== 'ajukan' ? (
         <FollowUpWhenSheet
           interest={pick}
           open={sheet === 'when'}
           onClose={() => setSheet(null)}
           onSave={(date, note) => {
-            pipelineStore.recordInterest(lead.id, pick, note, date)
+            const finalNote = [statusReason, note].filter((x) => x.trim() !== '').join(' — ')
+            pipelineStore.recordInterest(lead.id, pick, finalNote, date)
             complete()
           }}
         />
       ) : null}
 
-      {/* Not interested — just the reason. */}
-      <ReasonSheet
-        open={sheet === 'reason'}
-        onClose={() => setSheet(null)}
-        onSave={(note) => {
-          pipelineStore.recordInterest(lead.id, 'not-interested', note)
-          complete()
-        }}
-      />
+      {/* Undecided / Not interested — a mandatory reason. Not interested closes on
+          it; undecided carries it into the "when" step. */}
+      {pick === 'undecided' || pick === 'not-interested' ? (
+        <BottomSheet
+          open={sheet === 'reason'}
+          onClose={() => setSheet(null)}
+          title={REASON_TITLE[pick]}
+          primaryAction={
+            <Button
+              size="lg"
+              className="w-full"
+              disabled={statusReason.trim() === ''}
+              onClick={() => {
+                if (pick === 'not-interested') {
+                  pipelineStore.recordInterest(lead.id, 'not-interested', statusReason)
+                  complete()
+                } else {
+                  setSheet('when')
+                }
+              }}
+            >
+              {pick === 'not-interested' ? 'Simpan & Selesai' : 'Lanjut'}
+            </Button>
+          }
+        >
+          <ReasonRadios key={pick} interest={pick} onChange={setStatusReason} />
+        </BottomSheet>
+      ) : null}
 
       {/* Nomor tidak aktif — an alternative number keeps her open; none closes her. */}
       <AltNumberSheet
@@ -456,43 +483,6 @@ function FollowUpWhenSheet({
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Hasil pembicaraan…" />
         </label>
       </div>
-    </BottomSheet>
-  )
-}
-
-/** The reason a lead is not interested. */
-function ReasonSheet({
-  open,
-  onClose,
-  onSave,
-}: {
-  open: boolean
-  onClose: () => void
-  onSave: (note: string) => void
-}) {
-  const [note, setNote] = useState('')
-  useEffect(() => {
-    if (open) setNote('')
-  }, [open])
-
-  return (
-    <BottomSheet
-      open={open}
-      onClose={onClose}
-      title="Catat alasan"
-      primaryAction={
-        <Button size="lg" className="w-full" disabled={note.trim() === ''} onClick={() => onSave(note)}>
-          Simpan & Selesai
-        </Button>
-      }
-    >
-      <Input
-        label="Alasan"
-        required
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder="Apa yang dia katakan"
-      />
     </BottomSheet>
   )
 }
