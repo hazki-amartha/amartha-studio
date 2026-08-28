@@ -166,6 +166,11 @@ export const pipelineStore = {
     patchLead(id, () => ({ name: name.trim(), phone: phone.trim() }))
   },
 
+  /** Sets her home address (and an optional maps coordinate). */
+  setAddress(id: string, address: string, mapsCoord: string) {
+    patchLead(id, () => ({ address: address.trim(), mapsCoord: mapsCoord.trim() }))
+  },
+
   /** Changes the source — which POI, or who referred her. */
   setSource(id: string, data: { source: LeadSource; poi: string; referredBy: string; referrerKind: ReferrerKind | null }) {
     patchLead(id, () => ({

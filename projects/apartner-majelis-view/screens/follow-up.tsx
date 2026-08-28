@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from 'react'
 import { Badge, BottomSheet, Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
-import { WhatsappLogo } from '@/design-system/icons'
+import { MapPin, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   INTEREST_META,
@@ -27,11 +27,10 @@ import {
   type Interest,
 } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { RiwayatSheet, SubmitSheet } from '../lib/pipeline-ui'
+import { RiwayatSheet } from '../lib/pipeline-ui'
 import { findTask } from '../lib/schedule'
 import { rescheduleCount, store, useApp } from '../lib/store'
 import { AppScreen, ContactButton, RescheduleSheet, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
-import { IconPhone } from '../lib/icons'
 
 type Method = 'call' | 'visit'
 type Contact = 'terhubung' | 'tidak-diangkat' | 'nomor-salah' | 'ketemu' | 'tidak-ketemu'
@@ -80,7 +79,8 @@ function whenOptions(interest: Interest): { label: string; date: string }[] {
 
 type SheetId =
   | 'riwayat'
-  | 'submit'
+  | 'ajukan'
+  | 'pandu'
   | 'when'
   | 'reason'
   | 'altnumber'
@@ -110,6 +110,7 @@ export function FollowUpScreen() {
   }
 
   const canSubmit = leadType(lead) === 'qualified'
+  const isNewMajelis = lead.majelis.kind === 'new'
   const when = `Follow up · Selasa, ${findTask(followUpTaskId)?.time ?? '11.45'}`
   const badge = statusBadge(lead)
 
@@ -141,7 +142,7 @@ export function FollowUpScreen() {
   // Step 2 — tapping an outcome opens its sheet.
   function pickOutcome(value: Interest | 'ajukan') {
     setPick(value)
-    if (value === 'ajukan') setSheet('submit')
+    if (value === 'ajukan') setSheet('ajukan')
     else if (value === 'not-interested') setSheet('reason')
     else setSheet('when')
   }
@@ -181,8 +182,8 @@ export function FollowUpScreen() {
               <ContactButton label={`WhatsApp ${lead.name}`} tone="green" onClick={() => {}}>
                 <WhatsappLogo size={20} />
               </ContactButton>
-              <ContactButton label={`Telepon ${lead.name}`} tone="primary" onClick={() => {}}>
-                <IconPhone size={20} />
+              <ContactButton label={`Peta ${lead.name}`} tone="red" onClick={() => {}}>
+                <MapPin size={20} />
               </ContactButton>
             </div>
           </div>
@@ -288,8 +289,44 @@ export function FollowUpScreen() {
 
       <RiwayatSheet lead={lead} open={sheet === 'riwayat'} onClose={() => setSheet(null)} />
 
-      {/* Ajukan runs the same submit flow as the Sales page; both finish the task. */}
-      <SubmitSheet lead={lead} open={sheet === 'submit'} onClose={() => setSheet(null)} onSaved={complete} />
+      {/* Ajukan Pinjaman — the same choice the Sales record offers. */}
+      <BottomSheet open={sheet === 'ajukan'} onClose={() => setSheet(null)} title="Ajukan Pinjaman">
+        <div className="flex flex-col gap-8">
+          <button
+            type="button"
+            disabled={isNewMajelis}
+            onClick={() => {
+              pipelineStore.invite(lead.id)
+              complete()
+            }}
+            className={`flex flex-col gap-2 rounded-12 border p-16 text-left ${
+              isNewMajelis ? 'border-default bg-neutral-50' : 'border-default bg-neutral-white'
+            }`}
+          >
+            <span className={`text-14 font-bold ${isNewMajelis ? 'text-disabled' : 'text-default'}`}>
+              Undang pengajuan via AFin
+            </span>
+            <span className="text-12 text-caption">
+              {isNewMajelis
+                ? 'Tidak tersedia untuk majelis baru — perlu dipandu'
+                : 'Calon mitra pengajuan mandiri'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSheet('pandu')}
+            className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left"
+          >
+            <span className="text-14 font-bold text-default">Ajukan langsung via APartner</span>
+            <span className="text-12 text-caption">Bantu mitra lakukan pengajuan</span>
+          </button>
+        </div>
+      </BottomSheet>
+
+      {/* Pandu calon Mitra — the guided flow. Blank for now; closing finishes the task. */}
+      <BottomSheet open={sheet === 'pandu'} onClose={complete} size="fullscreen" title="Pandu Calon Mitra">
+        <span className="text-14 text-caption">Alur pandu akan dibuat di sini.</span>
+      </BottomSheet>
 
       {/* Interested / Undecided — pick when to follow up next, cadence recommended. */}
       {pick && pick !== 'ajukan' ? (
