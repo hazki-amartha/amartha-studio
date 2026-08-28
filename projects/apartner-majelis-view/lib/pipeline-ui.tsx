@@ -14,9 +14,11 @@ import {
   MITRA_REFERRERS,
   OTHER_REFERRERS,
   POI_LIST,
+  REASON_OTHER,
   SOURCE_LABEL,
   historyActivity,
   historyStatusLabel,
+  statusReasons,
   type Interest,
   type LeadSource,
   type MajelisAssignment,
@@ -552,6 +554,56 @@ export function RiwayatSheet({
  * interested). The pengajuan is its own action now, so it is no longer a choice
  * here. `onSaved` fires after the interest is recorded.
  */
+/**
+ * The mandatory "why" a lead is Undecided / Not interested — a radio list of the
+ * common reasons plus a `Lainnya` free-text. Self-contained: it tracks its own
+ * selection and emits the resolved reason string (empty until a valid one is
+ * picked, so the caller can gate its Save on it). Keyed/remounted by the caller
+ * to reset when the status changes. Interested needs none, so the caller only
+ * renders this for the two statuses `statusReasons` returns options for.
+ */
+export function ReasonRadios({
+  interest,
+  onChange,
+}: {
+  interest: Interest
+  onChange: (reason: string) => void
+}) {
+  const options = statusReasons(interest) ?? []
+  const [pick, setPick] = useState<string | null>(null)
+  const [other, setOther] = useState('')
+  const isOther = pick === REASON_OTHER
+
+  return (
+    <div className="flex flex-col gap-8">
+      {options.map((r) => (
+        <SelectableCard
+          key={r}
+          name="status-reason"
+          inputType="radio"
+          title={r}
+          checked={pick === r}
+          onChange={() => {
+            setPick(r)
+            onChange(r === REASON_OTHER ? other.trim() : r)
+          }}
+        />
+      ))}
+      {isOther ? (
+        <Input
+          label="Alasan lain"
+          value={other}
+          onChange={(e) => {
+            setOther(e.target.value)
+            onChange(e.target.value.trim())
+          }}
+          placeholder="Tuliskan alasan"
+        />
+      ) : null}
+    </div>
+  )
+}
+
 export function PerbaruiStatusSheet({
   lead,
   open,
@@ -565,16 +617,22 @@ export function PerbaruiStatusSheet({
 }) {
   const [pick, setPick] = useState<Interest | null>(null)
   const [note, setNote] = useState('')
+  const [reason, setReason] = useState('')
 
   function reset() {
     setPick(null)
     setNote('')
+    setReason('')
   }
 
+  // Undecided / Not interested must carry a reason; Interested's note stays optional.
+  const needsReason = pick === 'undecided' || pick === 'not-interested'
+  const ready = Boolean(pick) && (!needsReason || reason.trim() !== '')
+
   function save() {
-    if (!pick) return
+    if (!pick || !ready) return
     // Updating status from the record (not a scheduled call) logs as "Manual".
-    pipelineStore.recordInterest(lead.id, pick, note, undefined, 'manual')
+    pipelineStore.recordInterest(lead.id, pick, needsReason ? reason : note, undefined, 'manual')
     reset()
     onSaved()
   }
@@ -589,7 +647,7 @@ export function PerbaruiStatusSheet({
       title="Perbarui status"
       description="Bagaimana minatnya sekarang?"
       primaryAction={
-        <Button size="lg" className="w-full" disabled={!pick} onClick={save}>
+        <Button size="lg" className="w-full" disabled={!ready} onClick={save}>
           Simpan
         </Button>
       }
@@ -603,13 +661,23 @@ export function PerbaruiStatusSheet({
             title={INTEREST_META[value].label}
             description={INTEREST_META[value].hint}
             checked={pick === value}
-            onChange={() => setPick(value)}
+            onChange={() => {
+              setPick(value)
+              setReason('')
+            }}
           />
         ))}
-        <label className="flex flex-col gap-4 pt-4">
-          <span className="text-12 text-caption">Catatan (opsional)</span>
-          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Hasil pembicaraan…" />
-        </label>
+        {needsReason ? (
+          <div className="flex flex-col gap-4 pt-4">
+            <span className="text-12 text-caption">Alasan (wajib)</span>
+            <ReasonRadios key={pick} interest={pick} onChange={setReason} />
+          </div>
+        ) : (
+          <label className="flex flex-col gap-4 pt-4">
+            <span className="text-12 text-caption">Catatan (opsional)</span>
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Hasil pembicaraan…" />
+          </label>
+        )}
       </div>
     </BottomSheet>
   )

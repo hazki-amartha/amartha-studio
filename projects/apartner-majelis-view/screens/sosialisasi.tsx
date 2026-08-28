@@ -29,7 +29,7 @@ const STEP_LABELS = ['Kunjungi POI', 'Catat lead', 'Bukti']
 export function SosialisasiScreen() {
   const flow = useFlow()
   const s = useApp()
-  const { leads } = usePipeline()
+  const { leads, order } = usePipeline()
   const event = openEvent(s)
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [rescheduling, setRescheduling] = useState(false)
@@ -39,14 +39,17 @@ export function SosialisasiScreen() {
   // When she moves on short of the target, why — captured before the proof step.
   const [missSheet, setMissSheet] = useState(false)
   const [missReason, setMissReason] = useState('')
-  // The prospects captured in THIS session — pipeline lead ids, newest last.
-  const [capturedIds, setCapturedIds] = useState<string[]>([])
   // Only a rostered sosialisasi has a task to move; opened without one, the
   // reschedule entry point stays off.
   const taskId = s.activeTask
   const when = findTask(taskId)?.time ?? '14.00'
 
-  const captured = capturedIds.map((id) => leads[id]).filter(Boolean)
+  // Every prospect sourced from THIS POI — the ones the creator (BM/AM) pre-
+  // recorded plus whatever the BP adds in this session, since a POI capture
+  // lands in the pipeline with its source fixed to this POI.
+  const captured = order
+    .map((id) => leads[id])
+    .filter((l) => l && l.source === 'poi' && l.poi === event.poi)
   const hit = captured.length >= event.target
 
   function finish() {
@@ -127,8 +130,6 @@ export function SosialisasiScreen() {
               >
                 {event.contact || '-'}
               </BriefRow>
-
-              <BriefRow label="Tipe">{event.type}</BriefRow>
 
               <BriefRow label="Capaian/target">
                 {captured.length}/{event.target} leads
@@ -276,10 +277,7 @@ export function SosialisasiScreen() {
         open={adding}
         onClose={() => setAdding(false)}
         poi={event.poi}
-        onSaved={(id) => {
-          setCapturedIds((prev) => [...prev, id])
-          setAdding(false)
-        }}
+        onSaved={() => setAdding(false)}
       />
 
       <RescheduleSheet
