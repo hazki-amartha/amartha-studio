@@ -403,7 +403,7 @@ export function actionDetail(lead: PipelineLead): { title: string; sub?: string 
   }
   switch (lead.status) {
     case 'waiting-kyc':
-      return { title: 'Menunggu KYC', sub: 'Calon mitra KYC mandiri di AFIN — tanpa aksi BP' }
+      return { title: 'Menunggu calon mitra KYC mandiri', sub: 'Calon mitra KYC mandiri di AFIN — tanpa aksi BP' }
     case 'underwriting':
       return { title: 'Underwriting', sub: 'Sistem sedang underwriting — tanpa aksi BP' }
     case 'approved':
