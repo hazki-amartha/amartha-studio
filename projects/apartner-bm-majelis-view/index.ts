@@ -246,14 +246,17 @@ export const project: ProjectModule = {
       ],
       flowsTo: [
         { to: 'lead-detail', label: 'buka lead dari POI' },
-        { to: 'poi-new', label: 'Tambah POI' },
+        { to: 'lead-new', label: 'Tambah Lead' },
       ],
     },
     {
       id: 'poi-new',
       title: 'Tambah POI',
       component: lazyScreen(() => import('./screens/poi-new'), 'PoiNewScreen'),
-      flowsTo: [{ to: 'poi-detail', label: 'Simpan → buka POI' }],
+      flowsTo: [
+        { to: 'sales', label: 'Simpan → kembali ke daftar' },
+        { to: 'poi-detail', label: 'Lanjut isi Leads → buka POI' },
+      ],
     },
     {
       id: 'comms',

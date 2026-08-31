@@ -254,6 +254,7 @@ export const pipelineStore = {
     contactName?: string
     contactPhone?: string
     photo?: boolean
+    target?: number
     note?: string
   }): string {
     const id = `poi-${Date.now()}`
@@ -266,6 +267,7 @@ export const pipelineStore = {
       contactName: data.contactName?.trim() || undefined,
       contactPhone: data.contactPhone?.trim() || undefined,
       photo: data.photo || undefined,
+      target: data.target || undefined,
       note: data.note?.trim() || undefined,
     }
     state = { ...state, pois: { ...state.pois, [id]: poi }, poiOrder: [id, ...state.poiOrder], openPoiId: id }
@@ -292,6 +294,7 @@ export const pipelineStore = {
       contactName?: string
       contactPhone?: string
       photo?: boolean
+      target?: number
       note?: string
     },
   ) {
@@ -299,6 +302,7 @@ export const pipelineStore = {
       const next: Partial<PointOfInterest> = {}
       if (patch.name !== undefined) next.name = patch.name.trim()
       if (patch.area !== undefined) next.area = patch.area.trim()
+      if (patch.target !== undefined) next.target = patch.target || undefined
       if (patch.mapsCoord !== undefined) next.mapsCoord = patch.mapsCoord.trim() || undefined
       if (patch.contactName !== undefined) next.contactName = patch.contactName.trim() || undefined
       if (patch.contactPhone !== undefined) next.contactPhone = patch.contactPhone.trim() || undefined

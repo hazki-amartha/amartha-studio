@@ -48,7 +48,6 @@ import {
   OptionSheet,
   ResetLink,
   SearchField,
-  VisitTitle,
 } from '../lib/ui'
 
 type MenuId = 'status' | 'type' | 'sumber' | 'majelis' | 'petugas' | null
@@ -153,8 +152,8 @@ function MultiOptionSheet<T extends string>({
   )
 }
 
-/** The two-tab segmented control — a white pill on a neutral track. */
-function SegTabs({
+/** The Leads / POI tabs, part of the pinned header (an underline, not a chip). */
+function HeaderTabs({
   tab,
   onTab,
   leadCount,
@@ -165,19 +164,23 @@ function SegTabs({
   leadCount: number
   poiCount: number
 }) {
-  const item = (id: Tab, label: string) => (
-    <button
-      type="button"
-      onClick={() => onTab(id)}
-      className={`flex-1 rounded-full px-12 py-8 text-14 font-bold ${
-        tab === id ? 'border border-default bg-neutral-white text-primary-500' : 'text-caption'
-      }`}
-    >
-      {label}
-    </button>
-  )
+  const item = (id: Tab, label: string) => {
+    const active = tab === id
+    return (
+      <button
+        type="button"
+        onClick={() => onTab(id)}
+        aria-selected={active}
+        className={`-mb-px flex-1 border-b-2 py-12 text-center text-14 font-bold ${
+          active ? 'border-primary-500 text-primary-500' : 'border-transparent text-caption'
+        }`}
+      >
+        {label}
+      </button>
+    )
+  }
   return (
-    <div className="flex gap-4 rounded-full bg-neutral-100 p-4">
+    <div className="flex border-b border-default bg-neutral-white px-16">
       {item('leads', `Leads (${leadCount})`)}
       {item('poi', `POI (${poiCount})`)}
     </div>
@@ -282,14 +285,12 @@ export function SalesScreen() {
   return (
     <AppScreen
       topBar={
-        <NavigationHeader
-          hideBack
-          title={<VisitTitle title="Sales" when={`${allLeads.length} lead · ${allPois.length} POI`} />}
-        />
+        <div className="bg-neutral-white">
+          <NavigationHeader hideBack title="Sales" />
+          <HeaderTabs tab={tab} onTab={setTab} leadCount={allLeads.length} poiCount={allPois.length} />
+        </div>
       }
     >
-      <SegTabs tab={tab} onTab={setTab} leadCount={allLeads.length} poiCount={allPois.length} />
-
       <SearchField
         value={query}
         onChange={setQuery}
