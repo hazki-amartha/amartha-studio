@@ -136,6 +136,8 @@ export interface PointOfInterest {
   contactPhone?: string
   /** A photo of the place attached (a boolean stand-in — the prototype draws it). */
   photo?: boolean
+  /** Lead target for this POI — the denominator of "capaian/target". */
+  target?: number
   /** One line of why this POI is worth a visit. */
   note?: string
 }
@@ -433,15 +435,21 @@ export const SEED_POIS: PointOfInterest[] = [
   {
     id: 'poi-ipah',
     name: 'Warung Bu Ipah, Cibeuteung',
-    area: 'Cibeuteung Udik, Ciseeng',
+    area: 'Jl. Batu Sangkar VII, No.15, Kab. Ciseeng, Jawa Barat',
+    mapsCoord: 'pinned',
     assignedTo: SELF,
-    note: 'Pemilik warung punya 8 teman yang juga tertarik — calon majelis baru.',
+    contactName: 'Ibu Ipah',
+    contactPhone: '0813-2245-8890',
+    photo: true,
+    target: 9,
+    note: 'Bu Ipah (pemilik warung) memiliki 8 orang teman yang juga tertarik untuk mengambil pinjaman Amartha.',
   },
   {
     id: 'poi-pasar',
     name: 'Pasar Ciseeng',
     area: 'Ciseeng, Bogor',
     assignedTo: 'bp1',
+    target: 15,
     note: 'Ramai hari Selasa & Jumat — pedagang perempuan.',
   },
   {
@@ -449,6 +457,7 @@ export const SEED_POIS: PointOfInterest[] = [
     name: 'Posyandu RW 04',
     area: 'Desa Ciseeng',
     assignedTo: 'bp2',
+    target: 10,
   },
   {
     id: 'poi-balai',
