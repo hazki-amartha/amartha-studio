@@ -9,17 +9,19 @@
 // leaving the BP's seven here would put a page of confident numbers in front of
 // the designer that describe the wrong person.
 //
-// The tab stays. What belongs on it is the next conversation.
+// It has moved off the bottom bar into Profil (that slot is Sales now), so it is
+// reached with a back button rather than a tab. What belongs on it is the next
+// conversation.
 
 import { NavigationHeader } from '@/design-system/components'
-import { TabBar } from '../lib/tabs'
+import { useFlow } from '@/platform/runtime'
 import { AppScreen, EmptyState } from '../lib/ui'
 
 export function KpiScreen() {
+  const flow = useFlow()
   return (
-    <AppScreen topBar={<NavigationHeader hideBack title="KPI" />}>
+    <AppScreen topBar={<NavigationHeader title="KPI" onBack={() => flow.back()} />}>
       <EmptyState title="Belum ada isi" body="Halaman KPI untuk BM menyusul." />
-      <TabBar active="kpi" />
     </AppScreen>
   )
 }

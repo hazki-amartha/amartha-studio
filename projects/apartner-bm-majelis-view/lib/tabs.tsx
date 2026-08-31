@@ -9,7 +9,9 @@
 //   Mitra   — every borrower, across groups. The Majelis tab answers "who is in
 //             this group"; this one answers "where is Ibu Rina", which is the
 //             question you cannot ask a directory of groups.
-//   KPI     — the seven monthly parameters, checked rather than handed over.
+//   Sales   — the branch's lead pipeline and its POIs, the BM assigning each to
+//             a BP or to herself. KPI used to hold this slot and has moved into
+//             Profil (it is scored on the BPs, not a book she carries).
 //   Profil  — her own record, and the settings nobody navigates to twice a day.
 //
 // Five is the ceiling, and this hits it. The two added here are both LOOK-UP
@@ -18,33 +20,41 @@
 //
 // The bar shows on those five screens ONLY. Inside a pelayanan it is hidden: a
 // visit is a three-stage sequence with its own sticky CTA, and offering "jump to
-// KPI" mid-collection is how focused work turns back into browsing.
+// Sales" mid-collection is how focused work turns back into browsing.
 
+import type { ReactNode } from 'react'
 import { NavigationBar } from '@/design-system/components'
-// `Contact` and `User` come from the shared set rather than this project's
-// local icons: a person-card and a single silhouette are exactly the pair that
-// separates "a list of borrowers" from "me", and the local file has neither.
-import { Contact, User } from '@/design-system/icons'
+// `Contact`, `File` and `User` come from the shared set rather than this
+// project's local icons: a person-card, a document and a single silhouette
+// separate a list of borrowers, the Sales pipeline, and "me".
+import { Contact, File, User } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { IconCalendar, IconChart, IconUsers } from './icons'
+import { IconCalendar, IconUsers } from './icons'
 
-export type TabId = 'today' | 'majelis-list' | 'mitra-list' | 'kpi' | 'profile'
+export type TabId = 'today' | 'majelis-list' | 'mitra-list' | 'sales' | 'profile'
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'today', label: 'Tugas', icon: <IconCalendar /> },
   { id: 'majelis-list', label: 'Majelis', icon: <IconUsers /> },
   { id: 'mitra-list', label: 'Mitra', icon: <Contact /> },
-  { id: 'kpi', label: 'KPI', icon: <IconChart /> },
+  { id: 'sales', label: 'Sales', icon: <File /> },
   { id: 'profile', label: 'Profil', icon: <User /> },
 ]
 
-export function TabBar({ active }: { active: TabId }) {
+export function TabBar({ active, action }: { active: TabId; action?: ReactNode }) {
   const flow = useFlow()
 
   return (
     // Pinned to the bottom of the scrollport, edge to edge — the Screen
     // primitive owns the 16px page padding, so the bar negates it.
     <div className="sticky bottom-0 -mx-16 mt-auto">
+      {/* A floating action rides just above the nav, right-aligned. The row is
+          click-through so it never blocks content scrolling behind the gap. */}
+      {action ? (
+        <div className="pointer-events-none flex justify-end px-16 pb-12">
+          <span className="pointer-events-auto">{action}</span>
+        </div>
+      ) : null}
       <NavigationBar
         items={TABS.map((tab) => ({
           id: tab.id,
