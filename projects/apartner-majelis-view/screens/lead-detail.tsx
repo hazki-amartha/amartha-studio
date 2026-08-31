@@ -186,6 +186,9 @@ export function LeadDetailScreen() {
   const hasKtp = lead.nik.replace(/\D/g, '').length === 16
   const hasMajelis = lead.majelis.kind !== 'none'
   const canInvite = hasKtp && hasMajelis && Boolean(lead.product)
+  // Once the pengajuan is under review, her personal data is frozen — the system
+  // is underwriting exactly what is on file, so Info Pribadi becomes read-only.
+  const infoLocked = lead.status === 'underwriting'
   // A follow-up booked for her today — she can start it straight from the record.
   const fuTaskId = FU_TASK_FOR_LEAD[lead.id]
   const fuToday = Boolean(fuTaskId) && Boolean(findTask(fuTaskId))
@@ -275,12 +278,12 @@ export function LeadDetailScreen() {
 
       {/* Info Pribadi */}
       <FormCard title="Info Pribadi">
-        <DetailRow label="Nama" value={lead.name} onEdit={() => setSheet('contact')} />
-        <DetailRow label="No. HP" value={lead.phone} onEdit={() => setSheet('contact')} />
+        <DetailRow label="Nama" value={lead.name} onEdit={infoLocked ? undefined : () => setSheet('contact')} />
+        <DetailRow label="No. HP" value={lead.phone} onEdit={infoLocked ? undefined : () => setSheet('contact')} />
         <DetailRow
           label="Alamat"
           value={lead.address ? lead.address : 'Belum ada'}
-          onEdit={() => setSheet('address')}
+          onEdit={infoLocked ? undefined : () => setSheet('address')}
           warning={!lead.address}
         />
         <DetailRow
