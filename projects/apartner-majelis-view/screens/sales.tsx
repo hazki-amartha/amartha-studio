@@ -30,7 +30,7 @@ import {
   type LeadType,
   type PipelineLead,
 } from '../lib/pipeline'
-import { pipelineStore, usePipeline } from '../lib/pipeline-store'
+import { pipelineStore, setAddLeadEntry, usePipeline } from '../lib/pipeline-store'
 import { TabBar } from '../lib/tabs'
 import {
   AppScreen,
@@ -295,7 +295,14 @@ export function SalesScreen() {
       <TabBar
         active="sales"
         action={
-          <Button size="sm" className="shadow-lg" onClick={() => flow.go('lead-new')}>
+          <Button
+            size="sm"
+            className="shadow-lg"
+            onClick={() => {
+              setAddLeadEntry({ mode: 'save', draft: null })
+              flow.go('lead-new')
+            }}
+          >
             <span className="flex items-center gap-4">
               <Plus size={16} />
               Tambah

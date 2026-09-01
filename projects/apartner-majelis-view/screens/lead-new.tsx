@@ -6,7 +6,7 @@
 // each optional field edited in place via the same sheets. Saving opens her
 // record.
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   BottomSheet,
   Button,
@@ -16,7 +16,7 @@ import {
   SelectableCard,
 } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
-import { pipelineStore } from '../lib/pipeline-store'
+import { getAddLeadEntry, pipelineStore, type AddLeadEntry } from '../lib/pipeline-store'
 import { AddressSheet, KtpSheet, MajelisPickerSheet, SelectField, SourceSheet, assignmentLabel } from '../lib/pipeline-ui'
 import { AppScreen, StickyBar } from '../lib/ui'
 import {
@@ -30,7 +30,7 @@ import {
 
 const DEFAULT_MAJELIS: MajelisAssignment = { kind: 'none', branch: 'BP Ciseeng' }
 
-type SheetId = 'source' | 'ktp' | 'majelis' | 'role' | 'product' | 'address' | null
+type SheetId = 'source' | 'ktp' | 'majelis' | 'role' | 'product' | 'address' | 'ajukan' | 'pandu' | null
 
 interface Sumber {
   source: LeadSource
@@ -47,26 +47,39 @@ function sumberLabel(s: Sumber | null): string {
 
 export function LeadNewScreen() {
   const flow = useFlow()
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
+  // How this screen was opened: a plain save, or a direct pengajuan carrying the
+  // name/phone/KTP typed in the sosialisasi quick capture. Consumed once.
+  const entry = useRef<AddLeadEntry | null>(null)
+  if (entry.current === null) entry.current = getAddLeadEntry()
+  const ajukan = entry.current.mode === 'ajukan'
+  const draft = entry.current.draft
+
+  const [name, setName] = useState(draft?.name ?? '')
+  const [phone, setPhone] = useState(draft?.phone ?? '')
   const [address, setAddress] = useState('')
   const [mapsCoord, setMapsCoord] = useState('')
-  const [sumber, setSumber] = useState<Sumber | null>(null)
+  const [sumber, setSumber] = useState<Sumber | null>(
+    draft?.poi ? { source: 'poi', poi: draft.poi, referredBy: '', referrerKind: null } : null,
+  )
   const [majelis, setMajelis] = useState<MajelisAssignment>(DEFAULT_MAJELIS)
   const [role, setRole] = useState<MemberRole | null>(null)
-  const [nik, setNik] = useState('')
-  const [ktp, setKtp] = useState(false)
+  const [nik, setNik] = useState(draft?.nik ?? '')
+  const [ktp, setKtp] = useState(draft?.ktp ?? false)
   const [product, setProduct] = useState<Product | null>(null)
   const [sheet, setSheet] = useState<SheetId>(null)
 
   const isNewMajelis = majelis.kind === 'new'
   const hasKtp = ktp && nik.replace(/\D/g, '').length === 16
+  const hasMajelis = majelis.kind !== 'none'
   const majelisValue = majelis.kind === 'none' ? 'Belum ditentukan' : assignmentLabel(majelis)
   const ready = name.trim() !== '' && phone.trim() !== '' && sumber !== null
+  // Filing the pengajuan needs the lead's data complete: KTP, majelis, product.
+  const canAjukan = ready && hasKtp && hasMajelis && Boolean(product)
+  const canSubmit = ajukan ? canAjukan : ready
 
-  function save() {
-    if (!ready || !sumber) return
-    pipelineStore.addLead({
+  function createLead(): string | null {
+    if (!ready || !sumber) return null
+    return pipelineStore.addLead({
       name,
       phone,
       address,
@@ -81,11 +94,29 @@ export function LeadNewScreen() {
       ktp,
       product,
     })
+  }
+
+  // Plain save (Sales "Tambah lead") — captures the lead and opens her record.
+  function save() {
+    const id = createLead()
+    if (id) flow.go('lead-detail')
+  }
+
+  // Ajukan → "Undang pengajuan via AFin": files the pengajuan (→ Waiting for KYC).
+  function undangAFin() {
+    const id = createLead()
+    if (!id) return
+    pipelineStore.invite(id)
     flow.go('lead-detail')
   }
 
+  // Ajukan → "Ajukan langsung via APartner": the guided (pandu) flow.
+  function ajukanApartner() {
+    if (createLead()) setSheet('pandu')
+  }
+
   return (
-    <AppScreen topBar={<NavigationHeader title="Tambah Lead" onBack={() => flow.back()} />}>
+    <AppScreen topBar={<NavigationHeader title={ajukan ? 'Ajukan Pinjaman' : 'Tambah Lead'} onBack={() => flow.back()} />}>
       {/* Info Pribadi */}
       <Card>
         <div className="flex flex-col gap-8">
@@ -115,6 +146,13 @@ export function LeadNewScreen() {
                 <span className="text-green-600">Lokasi sudah ditandai di peta</span>
               ) : undefined}
             />
+            <SelectField
+              label="KTP"
+              required={ajukan}
+              value={hasKtp ? nik : undefined}
+              placeholder="Lengkapi KTP"
+              onClick={() => setSheet('ktp')}
+            />
             {/* Source is required — POI Visit or Referral. */}
             <SelectField
               label="Sumber"
@@ -122,12 +160,6 @@ export function LeadNewScreen() {
               value={sumber ? sumberLabel(sumber) : undefined}
               placeholder="Pilih sumber"
               onClick={() => setSheet('source')}
-            />
-            <SelectField
-              label="KTP"
-              value={hasKtp ? nik : undefined}
-              placeholder="Lengkapi KTP"
-              onClick={() => setSheet('ktp')}
             />
           </div>
         </div>
@@ -140,18 +172,21 @@ export function LeadNewScreen() {
           <div className="flex flex-col gap-12">
             <SelectField
               label="Majelis"
+              required={ajukan}
               value={majelis.kind === 'none' ? undefined : majelisValue}
               placeholder="Pilih majelis"
               onClick={() => setSheet('majelis')}
             />
             <SelectField
               label="Status anggota"
+              required={ajukan}
               value={role ? MEMBER_ROLE_LABEL[role] : undefined}
               placeholder="Pilih status"
               onClick={() => setSheet('role')}
             />
             <SelectField
               label="Produk"
+              required={ajukan}
               value={product ?? undefined}
               placeholder="Pilih produk"
               onClick={() => setSheet('product')}
@@ -161,10 +196,55 @@ export function LeadNewScreen() {
       </Card>
 
       <StickyBar>
-        <Button size="lg" className="w-full" disabled={!ready} onClick={save}>
-          Simpan
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={!canSubmit}
+          onClick={ajukan ? () => setSheet('ajukan') : save}
+        >
+          {ajukan ? 'Ajukan Pinjaman' : 'Simpan'}
         </Button>
       </StickyBar>
+
+      {/* Ajukan Pinjaman — the same two-option flow as the Detail Lead page. */}
+      <BottomSheet open={sheet === 'ajukan'} onClose={() => setSheet(null)} title="Ajukan Pinjaman">
+        <div className="flex flex-col gap-8">
+          <button
+            type="button"
+            disabled={isNewMajelis}
+            onClick={undangAFin}
+            className={`flex flex-col gap-2 rounded-12 border p-16 text-left ${
+              isNewMajelis ? 'border-default bg-neutral-50' : 'border-default bg-neutral-white'
+            }`}
+          >
+            <span className={`text-14 font-bold ${isNewMajelis ? 'text-disabled' : 'text-default'}`}>
+              Undang pengajuan via AFin
+            </span>
+            <span className="text-12 text-caption">
+              {isNewMajelis
+                ? 'Tidak tersedia untuk majelis baru — perlu dipandu'
+                : 'Calon mitra pengajuan mandiri'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={ajukanApartner}
+            className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left"
+          >
+            <span className="text-14 font-bold text-default">Ajukan langsung via APartner</span>
+            <span className="text-12 text-caption">Bantu mitra lakukan pengajuan</span>
+          </button>
+        </div>
+      </BottomSheet>
+
+      <BottomSheet
+        open={sheet === 'pandu'}
+        onClose={() => flow.go('lead-detail')}
+        size="fullscreen"
+        title="Pandu Calon Mitra"
+      >
+        <span className="text-14 text-caption">Alur pandu akan dibuat di sini.</span>
+      </BottomSheet>
 
       <AddressSheet
         key={sheet === 'address' ? 'addr-open' : 'addr-closed'}

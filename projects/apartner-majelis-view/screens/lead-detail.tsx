@@ -215,6 +215,7 @@ export function LeadDetailScreen() {
       <FormCard title="Info Lead" editing={editSection === 'info'} onToggleEdit={() => toggle('info')}>
         <TextField
           label="Nama"
+          required
           value={lead.name}
           editing={editSection === 'info'}
           disabled={infoLocked}
@@ -223,6 +224,7 @@ export function LeadDetailScreen() {
         />
         <TextField
           label="No. HP"
+          required
           inputMode="tel"
           value={lead.phone}
           editing={editSection === 'info'}
@@ -242,6 +244,7 @@ export function LeadDetailScreen() {
         />
         <SelectField
           label="KTP"
+          required
           value={lead.nik || undefined}
           placeholder="Lengkapi KTP"
           readOnly={editSection !== 'info' || !worked}
@@ -260,6 +263,7 @@ export function LeadDetailScreen() {
       <FormCard title="Detail Pengajuan" editing={editSection === 'pengajuan'} onToggleEdit={() => toggle('pengajuan')}>
         <SelectField
           label="Majelis"
+          required
           value={lead.majelis.kind === 'none' ? undefined : majelisDetail(lead)}
           placeholder="Pilih majelis"
           readOnly={editSection !== 'pengajuan'}
@@ -267,6 +271,7 @@ export function LeadDetailScreen() {
         />
         <SelectField
           label="Status anggota"
+          required
           value={MEMBER_ROLE_LABEL[role]}
           placeholder="Pilih status"
           readOnly={editSection !== 'pengajuan'}
@@ -274,6 +279,7 @@ export function LeadDetailScreen() {
         />
         <SelectField
           label="Produk"
+          required
           value={lead.product ?? undefined}
           placeholder="Pilih produk"
           readOnly={editSection !== 'pengajuan'}
@@ -293,9 +299,6 @@ export function LeadDetailScreen() {
           >
             Ajukan Pinjaman
           </Button>
-          {!canInvite ? (
-            <span className="text-center text-12 text-caption">Lengkapi data terlebih dahulu</span>
-          ) : null}
         </StickyBar>
       ) : lead.status === 'waiting-kyc' ? (
         <StickyBar>
