@@ -290,3 +290,26 @@ export const pipelineStore = {
 export function usePipeline(): PipelineState {
   return useSyncExternalStore(pipelineStore.subscribe, pipelineStore.get, pipelineStore.get)
 }
+
+// --- Add-Lead entry -------------------------------------------------------
+// How the Add Lead screen behaves on its next open: a plain save, or a direct
+// pengajuan ("Langsung Ajukan Pinjaman" from a sosialisasi), optionally with a
+// draft (name/phone/KTP/POI) carried over from the quick capture. It is a plain
+// module value — set right before navigating, consumed once on mount.
+
+export interface AddLeadEntry {
+  mode: 'save' | 'ajukan'
+  draft: { name: string; phone: string; nik: string; ktp: boolean; poi: string } | null
+}
+
+let addLeadEntry: AddLeadEntry = { mode: 'save', draft: null }
+
+// Set right before navigating to Add Lead; NOT reset on read, so it survives a
+// StrictMode double-mount. Every entry point sets it explicitly (Sales → save).
+export function setAddLeadEntry(entry: AddLeadEntry) {
+  addLeadEntry = entry
+}
+
+export function getAddLeadEntry(): AddLeadEntry {
+  return addLeadEntry
+}

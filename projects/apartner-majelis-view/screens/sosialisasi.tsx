@@ -15,7 +15,7 @@ import { Badge, BottomSheet, Button, Card, Input, NavigationHeader } from '@/des
 import { Camera, FileCheck, MapPin, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { INCOMPLETE_LABEL, dateFromToday, leadType, majelisLine, statusBadge, type MajelisAssignment } from '../lib/pipeline'
-import { pipelineStore, usePipeline } from '../lib/pipeline-store'
+import { pipelineStore, setAddLeadEntry, usePipeline } from '../lib/pipeline-store'
 import { KtpSheet } from '../lib/pipeline-ui'
 import { IconUserPlus } from '../lib/icons'
 import { openEvent, rescheduleCount, store, useApp } from '../lib/store'
@@ -278,6 +278,11 @@ export function SosialisasiScreen() {
         onClose={() => setAdding(false)}
         poi={event.poi}
         onSaved={() => setAdding(false)}
+        onFullForm={(draft) => {
+          setAddLeadEntry({ mode: 'ajukan', draft: { ...draft, poi: event.poi } })
+          setAdding(false)
+          flow.go('lead-new')
+        }}
       />
 
       <RescheduleSheet
@@ -398,11 +403,15 @@ function AddProspekSheet({
   onClose,
   poi,
   onSaved,
+  onFullForm,
 }: {
   open: boolean
   onClose: () => void
   poi: string
   onSaved: (id: string) => void
+  /** Skip the quick capture — open the full Add Lead form as a pengajuan, with
+   *  the name/phone/KTP already typed carried over. */
+  onFullForm: (draft: { name: string; phone: string; nik: string; ktp: boolean }) => void
 }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -455,11 +464,22 @@ function AddProspekSheet({
           reset()
           onClose()
         }}
-        title="Tambah Prospek"
+        title="Tambah Lead"
         primaryAction={
-          <Button size="lg" className="w-full" disabled={!ready} onClick={save}>
-            Simpan Prospek
-          </Button>
+          <div className="flex flex-col gap-8">
+            <Button
+              variant="secondary"
+              size="lg"
+              className="w-full"
+              disabled={!ready}
+              onClick={() => onFullForm({ name, phone, nik, ktp })}
+            >
+              Langsung Ajukan Pinjaman
+            </Button>
+            <Button size="lg" className="w-full" disabled={!ready} onClick={save}>
+              Simpan Lead
+            </Button>
+          </div>
         }
       >
         <div className="flex flex-col gap-12">
