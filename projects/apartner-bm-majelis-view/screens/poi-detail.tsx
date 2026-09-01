@@ -9,7 +9,7 @@ import { Badge, Button } from '@/design-system/components'
 import { MapPin, Plus, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { leadsForPoi, pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { assigneeName, leadType, majelisLine, statusBadge, type PipelineLead } from '../lib/pipeline'
+import { assigneeName, leadType, majelisLine, sosialisasiLabel, statusBadge, type PipelineLead } from '../lib/pipeline'
 import { AppScreen, ContactButton, EmptyState } from '../lib/ui'
 
 function LeadRow({ lead, onOpen }: { lead: PipelineLead; onOpen: () => void }) {
@@ -84,6 +84,9 @@ export function PoiDetailScreen() {
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <span className="truncate text-16 font-bold text-default">{poi.name}</span>
             <span className="truncate text-12 text-caption">Petugas · {assigneeName(poi.assignedTo)}</span>
+            <span className={`truncate text-12 ${poi.sosialisasi ? 'text-caption' : 'text-disabled'}`}>
+              Sosialisasi: {sosialisasiLabel(poi.sosialisasi)}
+            </span>
             <button
               type="button"
               onClick={() => flow.go('poi-edit')}
@@ -106,7 +109,9 @@ export function PoiDetailScreen() {
       {/* Leads from this POI */}
       <div className="flex items-center justify-between pt-4">
         <span className="text-14 font-bold text-default">Lead dari POI ini</span>
-        <span className="text-12 text-caption">{poiLeads.length} lead</span>
+        <span className="text-12 text-caption">
+          {poiLeads.length} lead{poi.target ? ` / ${poi.target} target` : ''}
+        </span>
       </div>
       <div className="flex flex-col gap-8 pb-16">
         {poiLeads.length === 0 ? (

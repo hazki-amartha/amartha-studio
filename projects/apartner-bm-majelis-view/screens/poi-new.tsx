@@ -9,10 +9,10 @@ import { BottomSheet, Button, Card, Input, NavigationHeader } from '@/design-sys
 import { Camera } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { pipelineStore } from '../lib/pipeline-store'
-import { AddressSheet, AssigneePickerSheet, SelectField } from '../lib/pipeline-ui'
+import { AddressSheet, AssigneePickerSheet, SelectField, SosialisasiSheet } from '../lib/pipeline-ui'
 import { IconChevronDown } from '../lib/icons'
 import { AppScreen, StickyBar } from '../lib/ui'
-import { assigneeName } from '../lib/pipeline'
+import { assigneeName, sosialisasiLabel, type SosialisasiSchedule } from '../lib/pipeline'
 
 export function PoiNewScreen() {
   const flow = useFlow()
@@ -23,15 +23,16 @@ export function PoiNewScreen() {
   const [coord, setCoord] = useState('')
   // Not preselected — the BM picks who works it.
   const [assignedTo, setAssignedTo] = useState<string>('')
+  const [sosialisasi, setSosialisasi] = useState<SosialisasiSchedule | undefined>(undefined)
   const [contactName, setContactName] = useState('')
   const [contactPhone, setContactPhone] = useState('')
   const [photo, setPhoto] = useState(false)
   const [target, setTarget] = useState('')
   const [note, setNote] = useState('')
-  const [sheet, setSheet] = useState<'assignee' | 'save' | 'address' | null>(null)
+  const [sheet, setSheet] = useState<'assignee' | 'save' | 'address' | 'sosialisasi' | null>(null)
 
   const pinned = Boolean(coord)
-  const ready = name.trim() !== '' && area.trim() !== '' && assignedTo !== ''
+  const ready = name.trim() !== '' && assignedTo !== ''
 
   // Both paths create the POI; they differ only in where they land — back to the
   // Sales list, or straight onto the new POI's page to start adding leads.
@@ -47,6 +48,7 @@ export function PoiNewScreen() {
       photo,
       target: target.trim() === '' ? undefined : parseInt(target, 10),
       note,
+      sosialisasi,
     })
     flow.go(dest)
   }
@@ -82,17 +84,30 @@ export function PoiNewScreen() {
             </button>
           </div>
 
-          {/* Alamat — a select opening the address sheet (text + map pin). */}
+          <Input
+            label={<span className="font-bold">Target lead (opsional)</span>}
+            inputMode="numeric"
+            value={target}
+            onChange={(e) => setTarget(e.target.value.replace(/\D/g, ''))}
+            placeholder="mis. 9"
+            helperText="Jumlah lead yang ditargetkan dari POI ini."
+          />
+
+          {/* Jadwal sosialisasi — right under Target lead. Optional. */}
           <SelectField
-            label="Alamat"
+            label="Jadwal sosialisasi"
             boldLabel
-            required
-            value={area || undefined}
-            placeholder="Isi alamat"
-            onClick={() => setSheet('address')}
-            description={pinned ? (
-                <span className="text-green-600">Lokasi sudah ditandai di peta</span>
-              ) : undefined}
+            value={sosialisasi ? sosialisasiLabel(sosialisasi) : undefined}
+            placeholder="Atur jadwal sosialisasi"
+            onClick={() => setSheet('sosialisasi')}
+          />
+
+          <Input
+            label={<span className="font-bold">Catatan (opsional)</span>}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Kenapa POI ini menjanjikan"
+            helperText="Isi catatan untuk membantu proses sosialisasi. Kenapa POI ini menjanjikan, siapa yang perlu ditargetkan, dsb."
           />
 
           {/* Foto POI — optional, a stand-in for a captured photo. */}
@@ -120,6 +135,18 @@ export function PoiNewScreen() {
             )}
           </div>
 
+          {/* Alamat — a select opening the address sheet (text + map pin). Optional. */}
+          <SelectField
+            label="Alamat"
+            boldLabel
+            value={area || undefined}
+            placeholder="Isi alamat"
+            onClick={() => setSheet('address')}
+            description={pinned ? (
+                <span className="text-green-600">Lokasi sudah ditandai di peta</span>
+              ) : undefined}
+          />
+
           <Input
             label={<span className="font-bold">Nama kontak (opsional)</span>}
             value={contactName}
@@ -132,22 +159,6 @@ export function PoiNewScreen() {
             value={contactPhone}
             onChange={(e) => setContactPhone(e.target.value)}
             placeholder="08xx-xxxx-xxxx"
-          />
-
-          <Input
-            label={<span className="font-bold">Target lead (opsional)</span>}
-            inputMode="numeric"
-            value={target}
-            onChange={(e) => setTarget(e.target.value.replace(/\D/g, ''))}
-            placeholder="mis. 9"
-            helperText="Jumlah lead yang ditargetkan dari POI ini."
-          />
-          <Input
-            label={<span className="font-bold">Catatan (opsional)</span>}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Kenapa POI ini menjanjikan"
-            helperText="Isi catatan untuk membantu proses sosialisasi. Kenapa POI ini menjanjikan, siapa yang perlu ditargetkan, dsb."
           />
         </div>
       </Card>
@@ -176,6 +187,15 @@ export function PoiNewScreen() {
         onClose={() => setSheet(null)}
         onPick={(v) => {
           setAssignedTo(v)
+          setSheet(null)
+        }}
+      />
+      <SosialisasiSheet
+        open={sheet === 'sosialisasi'}
+        value={sosialisasi}
+        onClose={() => setSheet(null)}
+        onSave={(schedule) => {
+          setSosialisasi(schedule)
           setSheet(null)
         }}
       />

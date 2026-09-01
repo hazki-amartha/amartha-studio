@@ -26,6 +26,7 @@ import {
   STATUS_META,
   STATUS_ORDER,
   assigneeLine,
+  sosialisasiLabel,
   leadType,
   majelisLine,
   matchesMajelis,
@@ -227,6 +228,9 @@ function PoiRow({ poi, leadCount, onOpen }: { poi: PointOfInterest; leadCount: n
         <span className="truncate text-14 font-bold text-default">{poi.name}</span>
         <span className="truncate text-12 text-caption">{poi.area}</span>
         <span className="truncate text-12 text-caption">{assigneeLine(poi.assignedTo)}</span>
+        <span className={`truncate text-12 ${poi.sosialisasi ? 'text-caption' : 'text-disabled'}`}>
+          Sosialisasi: {sosialisasiLabel(poi.sosialisasi)}
+        </span>
       </div>
       <Badge intent={leadCount > 0 ? 'primary' : 'neutral'}>{leadCount} lead</Badge>
     </button>

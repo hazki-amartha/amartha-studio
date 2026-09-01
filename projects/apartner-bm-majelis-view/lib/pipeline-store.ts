@@ -20,6 +20,7 @@ import {
   type PipelineLead,
   type PipelineLog,
   type PointOfInterest,
+  type SosialisasiSchedule,
   type Product,
   type ReferrerKind,
 } from './pipeline'
@@ -276,6 +277,7 @@ export const pipelineStore = {
     photo?: boolean
     target?: number
     note?: string
+    sosialisasi?: SosialisasiSchedule
   }): string {
     const id = `poi-${Date.now()}`
     const poi: PointOfInterest = {
@@ -284,6 +286,7 @@ export const pipelineStore = {
       area: data.area.trim(),
       mapsCoord: data.mapsCoord?.trim() || undefined,
       assignedTo: data.assignedTo,
+      sosialisasi: data.sosialisasi,
       contactName: data.contactName?.trim() || undefined,
       contactPhone: data.contactPhone?.trim() || undefined,
       photo: data.photo || undefined,
@@ -298,6 +301,11 @@ export const pipelineStore = {
   /** Reassigns a POI — to a BP, or to the BM herself (`SELF`). */
   assignPoi(id: string, assignedTo: string) {
     patchPoi(id, () => ({ assignedTo }))
+  },
+
+  /** Sets (or clears, with `undefined`) the POI's sosialisasi schedule. */
+  setSosialisasi(id: string, sosialisasi: SosialisasiSchedule | undefined) {
+    patchPoi(id, () => ({ sosialisasi }))
   },
 
   /** Inline text edits — no trim, so a space typed mid-edit survives. */

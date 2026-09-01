@@ -9,15 +9,15 @@ import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Camera, Image, MapPin } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { leadsForPoi, pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { AddressSheet, AssigneePickerSheet, SelectField, TextField } from '../lib/pipeline-ui'
-import { assigneeName } from '../lib/pipeline'
+import { AddressSheet, AssigneePickerSheet, SelectField, SosialisasiSheet, TextField } from '../lib/pipeline-ui'
+import { assigneeName, sosialisasiLabel } from '../lib/pipeline'
 import { AppScreen, StickyBar } from '../lib/ui'
 
 export function PoiEditScreen() {
   const flow = useFlow()
   const stateSnap = usePipeline()
   const poi = stateSnap.pois[stateSnap.openPoiId]
-  const [sheet, setSheet] = useState<'assignee' | 'address' | null>(null)
+  const [sheet, setSheet] = useState<'assignee' | 'address' | 'sosialisasi' | null>(null)
 
   if (!poi) {
     return (
@@ -49,14 +49,33 @@ export function PoiEditScreen() {
             onClick={() => setSheet('assignee')}
           />
 
+          <TextField
+            label="Target lead"
+            inputMode="numeric"
+            value={poi.target ? String(poi.target) : ''}
+            editing
+            onChange={(e) => {
+              const n = e.target.value.replace(/\D/g, '')
+              pipelineStore.updatePoi(poi.id, { target: n === '' ? 0 : parseInt(n, 10) })
+            }}
+            placeholder="mis. 9"
+            helperText={capaian}
+          />
+
           <SelectField
-            label="Alamat"
-            value={poi.area || undefined}
-            placeholder="Isi alamat"
-            onClick={() => setSheet('address')}
-            description={pinned ? (
-                <span className="text-green-600">Lokasi sudah ditandai di peta</span>
-              ) : undefined}
+            label="Jadwal sosialisasi"
+            value={poi.sosialisasi ? sosialisasiLabel(poi.sosialisasi) : undefined}
+            placeholder="Atur jadwal sosialisasi"
+            onClick={() => setSheet('sosialisasi')}
+          />
+
+          <TextField
+            label="Catatan panduan"
+            value={poi.note ?? ''}
+            editing
+            onChange={(e) => pipelineStore.setPoiText(poi.id, { note: e.target.value })}
+            placeholder="Kenapa POI ini menjanjikan"
+            helperText="Isi catatan untuk membantu proses sosialisasi."
           />
 
           {/* Foto POI */}
@@ -87,6 +106,16 @@ export function PoiEditScreen() {
             )}
           </div>
 
+          <SelectField
+            label="Alamat"
+            value={poi.area || undefined}
+            placeholder="Isi alamat"
+            onClick={() => setSheet('address')}
+            description={pinned ? (
+                <span className="text-green-600">Lokasi sudah ditandai di peta</span>
+              ) : undefined}
+          />
+
           <TextField
             label="Nama kontak"
             value={poi.contactName ?? ''}
@@ -101,27 +130,6 @@ export function PoiEditScreen() {
             editing
             onChange={(e) => pipelineStore.setPoiText(poi.id, { contactPhone: e.target.value })}
             placeholder="08xx-xxxx-xxxx"
-          />
-
-          <TextField
-            label="Target lead"
-            inputMode="numeric"
-            value={poi.target ? String(poi.target) : ''}
-            editing
-            onChange={(e) => {
-              const n = e.target.value.replace(/\D/g, '')
-              pipelineStore.updatePoi(poi.id, { target: n === '' ? 0 : parseInt(n, 10) })
-            }}
-            placeholder="mis. 9"
-            helperText={capaian}
-          />
-          <TextField
-            label="Catatan panduan"
-            value={poi.note ?? ''}
-            editing
-            onChange={(e) => pipelineStore.setPoiText(poi.id, { note: e.target.value })}
-            placeholder="Kenapa POI ini menjanjikan"
-            helperText="Isi catatan untuk membantu proses sosialisasi."
           />
         </div>
       </Card>
@@ -149,6 +157,15 @@ export function PoiEditScreen() {
         onClose={() => setSheet(null)}
         onPick={(v) => {
           pipelineStore.assignPoi(poi.id, v)
+          setSheet(null)
+        }}
+      />
+      <SosialisasiSheet
+        open={sheet === 'sosialisasi'}
+        value={poi.sosialisasi}
+        onClose={() => setSheet(null)}
+        onSave={(schedule) => {
+          pipelineStore.setSosialisasi(poi.id, schedule)
           setSheet(null)
         }}
       />
