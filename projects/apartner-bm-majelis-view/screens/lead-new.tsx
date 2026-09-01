@@ -126,27 +126,19 @@ export function LeadNewScreen() {
               ) : undefined}
             />
             <SelectField
+              label="KTP"
+              value={ktp && nik.replace(/\D/g, '').length === 16 ? nik : undefined}
+              placeholder="Lengkapi KTP"
+              onClick={() => setSheet('ktp')}
+            />
+            <SelectField
               label="Sumber"
               required
               value={sumber ? sumberLabel(sumber) : undefined}
               placeholder="Pilih sumber"
               onClick={() => setSheet('source')}
             />
-            <SelectField
-              label="KTP"
-              value={ktp && nik.replace(/\D/g, '').length === 16 ? nik : undefined}
-              placeholder="Lengkapi KTP"
-              onClick={() => setSheet('ktp')}
-            />
-          </div>
-        </div>
-      </Card>
-
-      {/* Petugas yang bertanggung jawab */}
-      <Card>
-        <div className="flex flex-col gap-8">
-          <span className="text-14 font-bold text-default">Petugas yang bertanggung jawab</span>
-          <div className="flex flex-col gap-12">
+            {/* Petugas — the BM axis: who works this lead. */}
             <SelectField
               label="Petugas"
               value={assigneeName(assignedTo)}

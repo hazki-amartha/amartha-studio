@@ -523,15 +523,20 @@ export function KtpSheet({
 export function ReadonlyField({
   label,
   value,
+  required,
   description,
 }: {
   label: ReactNode
   value?: string
+  required?: boolean
   description?: ReactNode
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-12 text-caption">{label}</span>
+      <span className="text-12 text-caption">
+        {label}
+        {required ? <span className="text-red-500"> *</span> : null}
+      </span>
       <span className="text-14 text-default">{value || '-'}</span>
       {description ? <span className="text-12">{description}</span> : null}
     </div>
@@ -544,6 +549,7 @@ export function TextField({
   value,
   editing,
   disabled,
+  required,
   onChange,
   placeholder,
   inputMode,
@@ -554,6 +560,7 @@ export function TextField({
   value: string
   editing?: boolean
   disabled?: boolean
+  required?: boolean
   onChange: (e: ChangeEvent<HTMLInputElement>) => void
   placeholder?: string
   inputMode?: 'text' | 'tel' | 'numeric'
@@ -561,11 +568,12 @@ export function TextField({
   boldLabel?: boolean
 }) {
   if (!editing || disabled) {
-    return <ReadonlyField label={label} value={value || undefined} description={helperText} />
+    return <ReadonlyField label={label} value={value || undefined} required={required} description={helperText} />
   }
   return (
     <Input
       label={boldLabel ? <span className="font-bold">{label}</span> : label}
+      required={required}
       value={value}
       onChange={onChange}
       placeholder={placeholder}
@@ -599,7 +607,7 @@ export function SelectField({
 }) {
   const filled = Boolean(value)
   if (readOnly) {
-    return <ReadonlyField label={label} value={filled ? value : undefined} description={description} />
+    return <ReadonlyField label={label} value={filled ? value : undefined} required={required} description={description} />
   }
   const body = <span className={filled ? 'text-default' : 'text-placeholder'}>{filled ? value : placeholder}</span>
   return (
