@@ -21,6 +21,9 @@ import {
   PETUGAS_REFERRERS,
   POI_LIST,
   REASON_OTHER,
+  SOS_DAY_LABEL,
+  SOS_DAY_ORDER,
+  SOS_FREQUENCY_LABEL,
   SOURCE_LABEL,
   historyActivity,
   historyStatusLabel,
@@ -30,6 +33,9 @@ import {
   type MajelisAssignment,
   type PipelineLead,
   type ReferrerKind,
+  type SosDay,
+  type SosFrequency,
+  type SosialisasiSchedule,
 } from './pipeline'
 import { pipelineStore } from './pipeline-store'
 import { SearchField } from './ui'
@@ -630,6 +636,142 @@ export function SelectField({
         </span>
       </button>
     </div>
+  )
+}
+
+// --- Sosialisasi schedule ----------------------------------------------------
+
+const SOS_FREQ_ORDER: SosFrequency[] = ['weekly', 'biweekly', 'monthly']
+const SOS_COUNT_OPTIONS = [1, 2, 3, 4, 5, 6]
+
+/** Plan a POI's sosialisasi cadence: how often, and when it stops — after a set
+ *  number of sessions, or once the POI's lead target is reached. */
+export function SosialisasiSheet({
+  open,
+  value,
+  onClose,
+  onSave,
+}: {
+  open: boolean
+  value?: SosialisasiSchedule
+  onClose: () => void
+  onSave: (schedule: SosialisasiSchedule | undefined) => void
+}) {
+  const [day, setDay] = useState<SosDay>('senin')
+  const [frequency, setFrequency] = useState<SosFrequency>('weekly')
+  const [untilKind, setUntilKind] = useState<'count' | 'target'>('count')
+  const [count, setCount] = useState(3)
+
+  useEffect(() => {
+    if (!open) return
+    setDay(value?.day ?? 'senin')
+    setFrequency(value?.frequency ?? 'weekly')
+    if (value?.until.kind === 'target') {
+      setUntilKind('target')
+      setCount(3)
+    } else {
+      setUntilKind('count')
+      setCount(value?.until.kind === 'count' ? value.until.count : 3)
+    }
+  }, [open, value])
+
+  const save = () =>
+    onSave({
+      day,
+      frequency,
+      until: untilKind === 'target' ? { kind: 'target' } : { kind: 'count', count },
+    })
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="Jadwal sosialisasi"
+      primaryAction={
+        <div className="flex flex-col gap-8">
+          <Button size="lg" className="w-full" onClick={save}>
+            Simpan
+          </Button>
+          {value ? (
+            <Button variant="secondary" size="lg" className="w-full" onClick={() => onSave(undefined)}>
+              Hapus jadwal
+            </Button>
+          ) : null}
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-16">
+        <div className="flex flex-col gap-8">
+          <span className="text-12 font-bold text-default">Hari</span>
+          <div className="flex flex-wrap gap-8">
+            {SOS_DAY_ORDER.map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDay(d)}
+                className={`rounded-full border px-16 py-4 text-14 ${
+                  day === d
+                    ? 'border-primary-500 bg-primary-50 font-bold text-primary-500'
+                    : 'border-default bg-neutral-white text-default'
+                }`}
+              >
+                {SOS_DAY_LABEL[d]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-8">
+          <span className="text-12 font-bold text-default">Frekuensi</span>
+          {SOS_FREQ_ORDER.map((f) => (
+            <SelectableCard
+              key={f}
+              name="sos-frequency"
+              inputType="radio"
+              title={SOS_FREQUENCY_LABEL[f]}
+              checked={frequency === f}
+              onChange={() => setFrequency(f)}
+            />
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-8">
+          <span className="text-12 font-bold text-default">Sampai</span>
+          <SelectableCard
+            name="sos-until"
+            inputType="radio"
+            title="Jumlah sesi tertentu"
+            checked={untilKind === 'count'}
+            onChange={() => setUntilKind('count')}
+          />
+          {untilKind === 'count' ? (
+            <div className="flex flex-wrap gap-8 pl-4">
+              {SOS_COUNT_OPTIONS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setCount(n)}
+                  className={`rounded-full border px-16 py-4 text-14 ${
+                    count === n
+                      ? 'border-primary-500 bg-primary-50 font-bold text-primary-500'
+                      : 'border-default bg-neutral-white text-default'
+                  }`}
+                >
+                  {n}x
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <SelectableCard
+            name="sos-until"
+            inputType="radio"
+            title="Sampai target lead penuh"
+            checked={untilKind === 'target'}
+            onChange={() => setUntilKind('target')}
+          />
+        </div>
+      </div>
+    </BottomSheet>
   )
 }
 

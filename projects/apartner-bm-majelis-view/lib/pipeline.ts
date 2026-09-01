@@ -122,6 +122,47 @@ export const ASSIGNEE_FILTER_OPTIONS: { label: string; value: string | null }[] 
 // area, an assignee, and (once leads are captured there) a count. The lead still
 // carries the POI by NAME, so a POI's leads are the ones whose `poi` matches.
 
+/** Which day of the week the sosialisasi runs on, how often, and when the cadence
+ *  stops: after a set number of sessions, or once its lead target is reached.
+ *  Absent = no schedule. */
+export type SosDay = 'senin' | 'selasa' | 'rabu' | 'kamis' | 'jumat' | 'sabtu' | 'minggu'
+export type SosFrequency = 'weekly' | 'biweekly' | 'monthly'
+export interface SosialisasiSchedule {
+  day: SosDay
+  frequency: SosFrequency
+  until: { kind: 'count'; count: number } | { kind: 'target' }
+}
+
+export const SOS_DAY_ORDER: SosDay[] = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu']
+export const SOS_DAY_LABEL: Record<SosDay, string> = {
+  senin: 'Senin',
+  selasa: 'Selasa',
+  rabu: 'Rabu',
+  kamis: 'Kamis',
+  jumat: 'Jumat',
+  sabtu: 'Sabtu',
+  minggu: 'Minggu',
+}
+
+export const SOS_FREQUENCY_LABEL: Record<SosFrequency, string> = {
+  weekly: 'Mingguan',
+  biweekly: '2 minggu sekali',
+  monthly: 'Bulanan',
+}
+
+/** The one-line schedule label — "Senin, Mingguan, sampai 3x", "Rabu, Bulanan,
+ *  sampai target penuh", or "Tidak ada jadwal" when unset. */
+export function sosialisasiLabel(s?: SosialisasiSchedule): string {
+  if (!s) return 'Tidak ada jadwal'
+  const until =
+    s.until.kind === 'target'
+      ? 'sampai target penuh'
+      : s.until.count <= 1
+        ? '1x'
+        : `sampai ${s.until.count}x`
+  return `${SOS_DAY_LABEL[s.day]}, ${SOS_FREQUENCY_LABEL[s.frequency]}, ${until}`
+}
+
 export interface PointOfInterest {
   id: string
   name: string
@@ -131,6 +172,8 @@ export interface PointOfInterest {
   mapsCoord?: string
   /** Who is meant to work it: a BP id, or `SELF`. */
   assignedTo: string
+  /** The sosialisasi cadence planned for this POI. Absent = no schedule. */
+  sosialisasi?: SosialisasiSchedule
   /** An on-site contact — the person who opens the door. Both optional. */
   contactName?: string
   contactPhone?: string
@@ -444,6 +487,7 @@ export const SEED_POIS: PointOfInterest[] = [
     area: 'Jl. Batu Sangkar VII, No.15, Kab. Ciseeng, Jawa Barat',
     mapsCoord: 'pinned',
     assignedTo: SELF,
+    sosialisasi: { day: 'senin', frequency: 'weekly', until: { kind: 'count', count: 1 } },
     contactName: 'Ibu Ipah',
     contactPhone: '0813-2245-8890',
     photo: true,
@@ -455,6 +499,7 @@ export const SEED_POIS: PointOfInterest[] = [
     name: 'Pasar Ciseeng',
     area: 'Ciseeng, Bogor',
     assignedTo: 'bp1',
+    sosialisasi: { day: 'selasa', frequency: 'weekly', until: { kind: 'count', count: 3 } },
     target: 15,
     note: 'Ramai hari Selasa & Jumat — pedagang perempuan.',
   },
@@ -463,6 +508,7 @@ export const SEED_POIS: PointOfInterest[] = [
     name: 'Posyandu RW 04',
     area: 'Desa Ciseeng',
     assignedTo: 'bp2',
+    sosialisasi: { day: 'rabu', frequency: 'monthly', until: { kind: 'target' } },
     target: 10,
   },
   {
@@ -476,6 +522,7 @@ export const SEED_POIS: PointOfInterest[] = [
     name: 'Majelis Taklim Al-Hidayah',
     area: 'Cibeuteung Ilir',
     assignedTo: SELF,
+    sosialisasi: { day: 'kamis', frequency: 'biweekly', until: { kind: 'count', count: 2 } },
     note: 'Pengajian rutin Kamis — akses lewat Bu Ustadzah.',
   },
 ]
@@ -551,8 +598,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     log: [
       { at: '26 Juni', via: 'poi', status: 'interested' },
       { at: '3 Juli', via: 'telepon', status: 'interested', note: 'Tertarik, tapi tunggu loan dari Mekaar selesai' },
-      { at: '4 Juli', via: 'manual', status: 'interested', note: 'Tertarik, tapi tunggu loan dari Mekaar selesai' },
-      { at: '20 Juli', via: 'telepon', status: 'undecided', note: 'Mau diskusi dengan suami lagi' },
+      { at: '10 Juli', via: 'telepon', status: 'undecided', note: 'Mau diskusi dengan suami lagi' },
     ],
   },
   {
