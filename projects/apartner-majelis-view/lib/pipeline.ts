@@ -192,7 +192,7 @@ export const TYPE_LABEL: Record<LeadType, string> = {
 export const TYPE_ORDER: LeadType[] = ['qualified', 'unqualified']
 
 /** Shown on an unqualified lead's card — her data isn't complete yet. */
-export const INCOMPLETE_LABEL = 'Data pribadi belum lengkap'
+export const INCOMPLETE_LABEL = 'Belum ada KTP'
 
 /**
  * The interest note — its label, its colour, and the follow-up cadence it sets.
@@ -272,6 +272,15 @@ export const MITRA_REFERRERS = [
   'Euis Rohaeti (Majelis Dahlia)',
   'Nining Suryani (Majelis Seruni)',
   'Kokom Komariah (Majelis Anggrek)',
+]
+
+/** Amartha staff who can refer a prospect — the "Petugas Amartha" branch. */
+export const PETUGAS_REFERRERS = [
+  'Sari Handayani (BP-10482)',
+  'Rina Marlina (BP-10517)',
+  'Ani Suryani (BP-10603)',
+  'Dewi Lestari (BP-10644)',
+  'Nurhayati (BM-2041)',
 ]
 
 /** The non-mitra referrer kinds — the "Others" branch of the referral picker. */
@@ -654,7 +663,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     name: 'Wati Ningsih',
     phone: '0819-2278-6605',
     source: 'poi',
-    poi: 'Warung Bu Ipah, Cibeuteung',
+    poi: 'Balai Desa Ciseeng',
     referredBy: '',
     status: 'rejected',
     majelis: { kind: 'existing', id: 'dahlia' },

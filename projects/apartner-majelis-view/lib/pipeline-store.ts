@@ -94,6 +94,8 @@ export const pipelineStore = {
   addLead(data: {
     name: string
     phone: string
+    address?: string
+    mapsCoord?: string
     source: LeadSource
     poi: string
     referredBy: string
@@ -113,6 +115,8 @@ export const pipelineStore = {
       id,
       name: data.name.trim(),
       phone: data.phone.trim(),
+      address: data.address?.trim() || undefined,
+      mapsCoord: data.mapsCoord?.trim() || undefined,
       source: data.source,
       poi: referral ? '' : data.poi.trim(),
       referredBy: referral ? data.referredBy.trim() : '',
@@ -161,14 +165,35 @@ export const pipelineStore = {
     }))
   },
 
+  /** Sets just the next follow-up date — used at capture (no extra log entry). */
+  setFollowUp(id: string, date: string) {
+    patchLead(id, () => ({ nextFollowUp: date }))
+  },
+
   /** Edits the lead's name / phone — the pencil on the record. */
   updateContact(id: string, name: string, phone: string) {
     patchLead(id, () => ({ name: name.trim(), phone: phone.trim() }))
   },
 
+  /** Inline setters — no trim, so a space typed mid-edit survives. */
+  setName(id: string, name: string) {
+    patchLead(id, () => ({ name }))
+  },
+  setPhone(id: string, phone: string) {
+    patchLead(id, () => ({ phone }))
+  },
+
   /** Sets her home address (and an optional maps coordinate). */
   setAddress(id: string, address: string, mapsCoord: string) {
     patchLead(id, () => ({ address: address.trim(), mapsCoord: mapsCoord.trim() }))
+  },
+
+  /** Inline address edits — no trim (address), and the map-pin toggle. */
+  setAddressText(id: string, address: string) {
+    patchLead(id, () => ({ address }))
+  },
+  setMapsCoord(id: string, mapsCoord: string) {
+    patchLead(id, () => ({ mapsCoord }))
   },
 
   /** Changes the source — which POI, or who referred her. */
