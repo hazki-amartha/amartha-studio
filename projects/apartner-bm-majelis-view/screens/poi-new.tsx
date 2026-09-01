@@ -6,10 +6,10 @@
 
 import { useState } from 'react'
 import { BottomSheet, Button, Card, Input, NavigationHeader } from '@/design-system/components'
-import { Camera, MapPin } from '@/design-system/icons'
+import { Camera } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { pipelineStore } from '../lib/pipeline-store'
-import { AssigneePickerSheet } from '../lib/pipeline-ui'
+import { AddressSheet, AssigneePickerSheet, SelectField } from '../lib/pipeline-ui'
 import { IconChevronDown } from '../lib/icons'
 import { AppScreen, StickyBar } from '../lib/ui'
 import { assigneeName } from '../lib/pipeline'
@@ -28,7 +28,7 @@ export function PoiNewScreen() {
   const [photo, setPhoto] = useState(false)
   const [target, setTarget] = useState('')
   const [note, setNote] = useState('')
-  const [sheet, setSheet] = useState<'assignee' | 'save' | null>(null)
+  const [sheet, setSheet] = useState<'assignee' | 'save' | 'address' | null>(null)
 
   const pinned = Boolean(coord)
   const ready = name.trim() !== '' && area.trim() !== '' && assignedTo !== ''
@@ -62,43 +62,38 @@ export function PoiNewScreen() {
             onChange={(e) => setName(e.target.value)}
             placeholder="Pasar, posyandu, warung, majelis taklim…"
           />
-          <Input
-            label={<span className="font-bold">Alamat</span>}
-            required
-            value={area}
-            onChange={(e) => setArea(e.target.value)}
-            placeholder="Jl., No., RT/RW, desa, kecamatan"
-            helperText="Isi alamat lengkap"
-          />
 
-          {/* Tandai lokasi di peta — a dropped pin, drawn inside the frame. */}
-          <div className="flex flex-col gap-8">
-            <span className="text-12 font-bold text-default">Lokasi di peta</span>
-            {pinned ? (
-              <>
-                <div className="relative flex items-center justify-center rounded-8 bg-blue-50 py-32">
-                  <span className="text-primary-500">
-                    <MapPin size={24} />
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-12 text-green-600">Lokasi sudah ditandai</span>
-                  <button type="button" onClick={() => setCoord('')} className="text-12 font-bold text-link">
-                    Ubah pin
-                  </button>
-                </div>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setCoord('pinned')}
-                className="flex items-center justify-center gap-8 rounded-8 border border-dashed border-default py-16 text-14 font-bold text-primary-500"
-              >
-                <MapPin size={20} />
-                Tandai lokasi di peta
-              </button>
-            )}
+          {/* Ditugaskan ke — right below Nama POI. Nothing preselected. */}
+          <div className="flex flex-col gap-4">
+            <span className="text-12 font-bold text-default">
+              Ditugaskan ke<span className="text-red-500"> *</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setSheet('assignee')}
+              className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-left text-14"
+            >
+              <span className={assignedTo ? 'text-default' : 'text-placeholder'}>
+                {assignedTo ? assigneeName(assignedTo) : 'Pilih petugas'}
+              </span>
+              <span className="shrink-0 text-disabled">
+                <IconChevronDown size={20} />
+              </span>
+            </button>
           </div>
+
+          {/* Alamat — a select opening the address sheet (text + map pin). */}
+          <SelectField
+            label="Alamat"
+            boldLabel
+            required
+            value={area || undefined}
+            placeholder="Isi alamat"
+            onClick={() => setSheet('address')}
+            description={pinned ? (
+                <span className="text-green-600">Lokasi sudah ditandai di peta</span>
+              ) : undefined}
+          />
 
           {/* Foto POI — optional, a stand-in for a captured photo. */}
           <div className="flex flex-col gap-8">
@@ -139,26 +134,6 @@ export function PoiNewScreen() {
             placeholder="08xx-xxxx-xxxx"
           />
 
-          {/* Penugasan — right under the contact, styled like the other fields:
-              label above, a picker control below, nothing preselected. */}
-          <div className="flex flex-col gap-4">
-            <span className="text-12 font-bold text-default">
-              Ditugaskan ke<span className="text-red-500"> *</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => setSheet('assignee')}
-              className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-left text-14"
-            >
-              <span className={assignedTo ? 'text-default' : 'text-placeholder'}>
-                {assignedTo ? assigneeName(assignedTo) : 'Pilih petugas'}
-              </span>
-              <span className="shrink-0 text-disabled">
-                <IconChevronDown size={20} />
-              </span>
-            </button>
-          </div>
-
           <Input
             label={<span className="font-bold">Target lead (opsional)</span>}
             inputMode="numeric"
@@ -183,6 +158,18 @@ export function PoiNewScreen() {
         </Button>
       </StickyBar>
 
+      <AddressSheet
+        key={sheet === 'address' ? 'addr-open' : 'addr-closed'}
+        open={sheet === 'address'}
+        address={area}
+        mapsCoord={coord}
+        onClose={() => setSheet(null)}
+        onSave={(a, c) => {
+          setArea(a)
+          setCoord(c)
+          setSheet(null)
+        }}
+      />
       <AssigneePickerSheet
         open={sheet === 'assignee'}
         value={assignedTo}

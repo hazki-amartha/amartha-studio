@@ -17,10 +17,11 @@ import {
 import { useFlow } from '@/platform/runtime'
 import { pipelineStore } from '../lib/pipeline-store'
 import {
+  AddressSheet,
   AssigneePickerSheet,
-  DetailRow,
   KtpSheet,
   MajelisPickerSheet,
+  SelectField,
   SourceSheet,
   assignmentLabel,
 } from '../lib/pipeline-ui'
@@ -38,7 +39,7 @@ import {
 
 const DEFAULT_MAJELIS: MajelisAssignment = { kind: 'none', branch: 'BP Ciseeng' }
 
-type SheetId = 'source' | 'ktp' | 'majelis' | 'role' | 'product' | 'assignee' | null
+type SheetId = 'source' | 'ktp' | 'majelis' | 'role' | 'product' | 'assignee' | 'address' | null
 
 interface Sumber {
   source: LeadSource
@@ -57,6 +58,8 @@ export function LeadNewScreen() {
   const flow = useFlow()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState('')
+  const [mapsCoord, setMapsCoord] = useState('')
   const [sumber, setSumber] = useState<Sumber | null>(null)
   const [assignedTo, setAssignedTo] = useState<string>(SELF)
   const [majelis, setMajelis] = useState<MajelisAssignment>(DEFAULT_MAJELIS)
@@ -75,6 +78,8 @@ export function LeadNewScreen() {
     pipelineStore.addLead({
       name,
       phone,
+      address,
+      mapsCoord,
       source: sumber.source,
       poi: sumber.poi,
       referredBy: sumber.referredBy,
@@ -94,7 +99,7 @@ export function LeadNewScreen() {
       {/* Info Pribadi */}
       <Card>
         <div className="flex flex-col gap-8">
-          <span className="text-14 font-bold text-default">Info Pribadi</span>
+          <span className="text-14 font-bold text-default">Info Lead</span>
           <div className="flex flex-col gap-12">
             <Input
               label="Nama"
@@ -111,23 +116,42 @@ export function LeadNewScreen() {
               onChange={(e) => setPhone(e.target.value)}
               placeholder="08xx-xxxx-xxxx"
             />
-          </div>
-          <div className="flex flex-col">
-            <DetailRow label="Sumber" value={sumberLabel(sumber)} onEdit={() => setSheet('source')} />
-            <DetailRow label="KTP" value={ktp && nik.replace(/\D/g, '').length === 16 ? nik : 'Belum ada'} onEdit={() => setSheet('ktp')} />
+            <SelectField
+              label="Alamat"
+              value={address || undefined}
+              placeholder="Isi alamat"
+              onClick={() => setSheet('address')}
+              description={mapsCoord ? (
+                <span className="text-green-600">Lokasi sudah ditandai di peta</span>
+              ) : undefined}
+            />
+            <SelectField
+              label="Sumber"
+              required
+              value={sumber ? sumberLabel(sumber) : undefined}
+              placeholder="Pilih sumber"
+              onClick={() => setSheet('source')}
+            />
+            <SelectField
+              label="KTP"
+              value={ktp && nik.replace(/\D/g, '').length === 16 ? nik : undefined}
+              placeholder="Lengkapi KTP"
+              onClick={() => setSheet('ktp')}
+            />
           </div>
         </div>
       </Card>
 
-      {/* Penugasan */}
+      {/* Petugas yang bertanggung jawab */}
       <Card>
         <div className="flex flex-col gap-8">
-          <span className="text-14 font-bold text-default">Penugasan</span>
-          <div className="flex flex-col">
-            <DetailRow
-              label="Ditugaskan ke"
+          <span className="text-14 font-bold text-default">Petugas yang bertanggung jawab</span>
+          <div className="flex flex-col gap-12">
+            <SelectField
+              label="Petugas"
               value={assigneeName(assignedTo)}
-              onEdit={() => setSheet('assignee')}
+              placeholder="Pilih petugas"
+              onClick={() => setSheet('assignee')}
             />
           </div>
         </div>
@@ -137,14 +161,25 @@ export function LeadNewScreen() {
       <Card>
         <div className="flex flex-col gap-8">
           <span className="text-14 font-bold text-default">Detail Pengajuan</span>
-          <div className="flex flex-col">
-            <DetailRow label="Majelis" value={majelisValue} onEdit={() => setSheet('majelis')} />
-            <DetailRow
-              label="Status anggota"
-              value={role ? MEMBER_ROLE_LABEL[role] : 'Belum dipilih'}
-              onEdit={() => setSheet('role')}
+          <div className="flex flex-col gap-12">
+            <SelectField
+              label="Majelis"
+              value={majelis.kind === 'none' ? undefined : majelisValue}
+              placeholder="Pilih majelis"
+              onClick={() => setSheet('majelis')}
             />
-            <DetailRow label="Produk" value={product ?? 'Belum dipilih'} onEdit={() => setSheet('product')} />
+            <SelectField
+              label="Status anggota"
+              value={role ? MEMBER_ROLE_LABEL[role] : undefined}
+              placeholder="Pilih status"
+              onClick={() => setSheet('role')}
+            />
+            <SelectField
+              label="Produk"
+              value={product ?? undefined}
+              placeholder="Pilih produk"
+              onClick={() => setSheet('product')}
+            />
           </div>
         </div>
       </Card>
@@ -155,6 +190,18 @@ export function LeadNewScreen() {
         </Button>
       </StickyBar>
 
+      <AddressSheet
+        key={sheet === 'address' ? 'addr-open' : 'addr-closed'}
+        open={sheet === 'address'}
+        address={address}
+        mapsCoord={mapsCoord}
+        onClose={() => setSheet(null)}
+        onSave={(a, c) => {
+          setAddress(a)
+          setMapsCoord(c)
+          setSheet(null)
+        }}
+      />
       <SourceSheet
         open={sheet === 'source'}
         onClose={() => setSheet(null)}

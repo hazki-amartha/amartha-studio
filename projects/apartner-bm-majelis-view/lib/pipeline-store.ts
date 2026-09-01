@@ -101,6 +101,8 @@ export const pipelineStore = {
   addLead(data: {
     name: string
     phone: string
+    address?: string
+    mapsCoord?: string
     source: LeadSource
     poi: string
     referredBy: string
@@ -119,6 +121,8 @@ export const pipelineStore = {
       id,
       name: data.name.trim(),
       phone: data.phone.trim(),
+      address: data.address?.trim() || undefined,
+      mapsCoord: data.mapsCoord?.trim() || undefined,
       source: data.source,
       poi: referral ? '' : data.poi.trim(),
       referredBy: referral ? data.referredBy.trim() : '',
@@ -170,8 +174,24 @@ export const pipelineStore = {
     patchLead(id, () => ({ name: name.trim(), phone: phone.trim() }))
   },
 
+  /** Inline setters — no trim, so a space typed mid-edit survives. */
+  setName(id: string, name: string) {
+    patchLead(id, () => ({ name }))
+  },
+  setPhone(id: string, phone: string) {
+    patchLead(id, () => ({ phone }))
+  },
+
   setAddress(id: string, address: string, mapsCoord: string) {
     patchLead(id, () => ({ address: address.trim(), mapsCoord: mapsCoord.trim() }))
+  },
+
+  /** Inline address edits — no trim (address), and the map-pin toggle. */
+  setAddressText(id: string, address: string) {
+    patchLead(id, () => ({ address }))
+  },
+  setMapsCoord(id: string, mapsCoord: string) {
+    patchLead(id, () => ({ mapsCoord }))
   },
 
   setSource(id: string, data: { source: LeadSource; poi: string; referredBy: string; referrerKind: ReferrerKind | null }) {
@@ -278,6 +298,22 @@ export const pipelineStore = {
   /** Reassigns a POI — to a BP, or to the BM herself (`SELF`). */
   assignPoi(id: string, assignedTo: string) {
     patchPoi(id, () => ({ assignedTo }))
+  },
+
+  /** Inline text edits — no trim, so a space typed mid-edit survives. */
+  setPoiText(
+    id: string,
+    patch: { name?: string; area?: string; contactName?: string; contactPhone?: string; note?: string },
+  ) {
+    patchPoi(id, () => {
+      const next: Partial<PointOfInterest> = {}
+      if (patch.name !== undefined) next.name = patch.name
+      if (patch.area !== undefined) next.area = patch.area
+      if (patch.contactName !== undefined) next.contactName = patch.contactName || undefined
+      if (patch.contactPhone !== undefined) next.contactPhone = patch.contactPhone || undefined
+      if (patch.note !== undefined) next.note = patch.note || undefined
+      return next
+    })
   },
 
   /**

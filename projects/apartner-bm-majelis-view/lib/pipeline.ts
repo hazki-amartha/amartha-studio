@@ -217,7 +217,7 @@ export const TYPE_LABEL: Record<LeadType, string> = {
 
 export const TYPE_ORDER: LeadType[] = ['qualified', 'unqualified']
 
-export const INCOMPLETE_LABEL = 'Data pribadi belum lengkap'
+export const INCOMPLETE_LABEL = 'Belum ada KTP'
 
 export const INTEREST_META: Record<
   Interest,
@@ -276,6 +276,12 @@ export const MITRA_REFERRERS = [
   'Euis Rohaeti (Majelis Dahlia)',
   'Nining Suryani (Majelis Seruni)',
   'Kokom Komariah (Majelis Anggrek)',
+]
+
+/** Amartha staff who can refer a prospect — the "Petugas Amartha" branch. */
+export const PETUGAS_REFERRERS = [
+  ...BUSINESS_PARTNERS.map((bp) => `${bp.name} (${bp.code})`),
+  `${ME.name} (BM-2041)`,
 ]
 
 export const OTHER_REFERRERS: { value: ReferrerKind; label: string }[] = [
@@ -677,7 +683,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     name: 'Wati Ningsih',
     phone: '0819-2278-6605',
     source: 'poi',
-    poi: 'Warung Bu Ipah, Cibeuteung',
+    poi: 'Balai Desa Ciseeng',
     referredBy: '',
     status: 'rejected',
     assignedTo: SELF,
