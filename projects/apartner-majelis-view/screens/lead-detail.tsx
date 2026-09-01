@@ -15,7 +15,6 @@ import {
   BottomSheet,
   Button,
   Card,
-  Input,
   NavigationHeader,
   SelectableCard,
 } from '@/design-system/components'
@@ -25,13 +24,14 @@ import { FU_TASK_FOR_LEAD, findTask } from '../lib/schedule'
 import { store } from '../lib/store'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import {
-  DetailRow,
-  EditContactSheet,
+  AddressSheet,
   KtpSheet,
   MajelisPickerSheet,
   PerbaruiStatusSheet,
   RiwayatSheet,
+  SelectField,
   SourceSheet,
+  TextField,
 } from '../lib/pipeline-ui'
 import { AppScreen, ContactButton } from '../lib/ui'
 import { StickyBar } from '../lib/ui'
@@ -39,7 +39,6 @@ import {
   MEMBER_ROLE_LABEL,
   actionDetail,
   isNew,
-  ktpDetail,
   majelisDetail,
   sourceDetail,
   statusBadge,
@@ -48,7 +47,6 @@ import {
 } from '../lib/pipeline'
 
 type SheetId =
-  | 'contact'
   | 'source'
   | 'majelis'
   | 'role'
@@ -64,101 +62,35 @@ type SheetId =
 function FormCard({
   title,
   subtitle,
+  editing,
+  onToggleEdit,
   children,
 }: {
   title: string
   /** A prompt shown under the title while the section is incomplete. */
   subtitle?: string
+  /** When provided, an Ubah / Simpan toggle sits on the card title. */
+  editing?: boolean
+  onToggleEdit?: () => void
   children: ReactNode
 }) {
   return (
     <Card>
       <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-2">
-          <span className="text-14 font-bold text-default">{title}</span>
-          {subtitle ? <span className="text-12 text-caption">{subtitle}</span> : null}
+        <div className="flex items-start justify-between gap-8">
+          <div className="flex flex-col gap-2">
+            <span className="text-14 font-bold text-default">{title}</span>
+            {subtitle ? <span className="text-12 text-caption">{subtitle}</span> : null}
+          </div>
+          {onToggleEdit ? (
+            <button type="button" onClick={onToggleEdit} className="shrink-0 text-12 font-bold text-link">
+              {editing ? 'Simpan' : 'Ubah'}
+            </button>
+          ) : null}
         </div>
-        <div className="flex flex-col">{children}</div>
+        <div className="flex flex-col gap-12">{children}</div>
       </div>
     </Card>
-  )
-}
-
-/** Capture her address, with an optional Google Maps coordinate. */
-function AddressSheet({
-  open,
-  address,
-  mapsCoord,
-  onClose,
-  onSave,
-}: {
-  open: boolean
-  address: string
-  mapsCoord: string
-  onClose: () => void
-  onSave: (address: string, mapsCoord: string) => void
-}) {
-  const [addr, setAddr] = useState(address)
-  // The map pin is a boolean here, not a typed coordinate. The BP marks the
-  // address on a map instead of copying numbers; `coord` just carries a stand-in
-  // string so the record knows a pin was dropped (the prototype draws the map,
-  // §3 — nothing opens a real Google Maps).
-  const [coord, setCoord] = useState(mapsCoord)
-  const pinned = Boolean(coord)
-
-  return (
-    <BottomSheet
-      open={open}
-      onClose={onClose}
-      title="Alamat"
-      primaryAction={
-        <Button size="lg" className="w-full" onClick={() => onSave(addr, coord)}>
-          Simpan
-        </Button>
-      }
-    >
-      <div className="flex flex-col gap-12">
-        <Input
-          label="Alamat"
-          value={addr}
-          onChange={(e) => setAddr(e.target.value)}
-          placeholder="Kampung / RT / RW, desa"
-        />
-        <div className="flex flex-col gap-8">
-          <span className="text-12 font-bold text-default">Lokasi di peta</span>
-          {pinned ? (
-            <>
-              {/* A stand-in map with a dropped pin — the review is of the
-                  affordance, not a live map embed. */}
-              <div className="relative flex items-center justify-center rounded-8 bg-blue-50 py-32">
-                <span className="text-primary-500">
-                  <MapPin size={24} />
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-12 text-green-600">Lokasi sudah ditandai</span>
-                <button
-                  type="button"
-                  onClick={() => setCoord('')}
-                  className="text-12 font-bold text-link"
-                >
-                  Ubah pin
-                </button>
-              </div>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setCoord('pinned')}
-              className="flex items-center justify-center gap-8 rounded-8 border border-dashed border-default py-16 text-14 font-bold text-primary-500"
-            >
-              <MapPin size={20} />
-              Tandai lokasi di peta
-            </button>
-          )}
-        </div>
-      </div>
-    </BottomSheet>
   )
 }
 
@@ -167,6 +99,9 @@ export function LeadDetailScreen() {
   const { leads, openId } = usePipeline()
   const lead = leads[openId]
   const [sheet, setSheet] = useState<SheetId>(null)
+  // The record opens read-only; each card's Ubah button turns its own edit on.
+  const [editSection, setEditSection] = useState<'info' | 'pengajuan' | null>(null)
+  const toggle = (s: 'info' | 'pengajuan') => setEditSection((cur) => (cur === s ? null : s))
 
   if (!lead) {
     return (
@@ -276,47 +211,73 @@ export function LeadDetailScreen() {
         ) : null}
       </div>
 
-      {/* Info Pribadi */}
-      <FormCard title="Info Pribadi">
-        <DetailRow label="Nama" value={lead.name} onEdit={infoLocked ? undefined : () => setSheet('contact')} />
-        <DetailRow label="No. HP" value={lead.phone} onEdit={infoLocked ? undefined : () => setSheet('contact')} />
-        <DetailRow
-          label="Alamat"
-          value={lead.address ? lead.address : 'Belum ada'}
-          onEdit={infoLocked ? undefined : () => setSheet('address')}
-          warning={!lead.address}
+      {/* Info Lead */}
+      <FormCard title="Info Lead" editing={editSection === 'info'} onToggleEdit={() => toggle('info')}>
+        <TextField
+          label="Nama"
+          value={lead.name}
+          editing={editSection === 'info'}
+          disabled={infoLocked}
+          onChange={(e) => pipelineStore.setName(lead.id, e.target.value)}
+          placeholder="Nama calon mitra"
         />
-        <DetailRow
+        <TextField
+          label="No. HP"
+          inputMode="tel"
+          value={lead.phone}
+          editing={editSection === 'info'}
+          disabled={infoLocked}
+          onChange={(e) => pipelineStore.setPhone(lead.id, e.target.value)}
+          placeholder="08xx-xxxx-xxxx"
+        />
+        <SelectField
+          label="Alamat"
+          value={lead.address || undefined}
+          placeholder="Isi alamat"
+          readOnly={editSection !== 'info' || infoLocked}
+          onClick={() => setSheet('address')}
+          description={lead.mapsCoord ? (
+                <span className="text-green-600">Lokasi sudah ditandai di peta</span>
+              ) : undefined}
+        />
+        <SelectField
+          label="KTP"
+          value={lead.nik || undefined}
+          placeholder="Lengkapi KTP"
+          readOnly={editSection !== 'info' || !worked}
+          onClick={() => setSheet('ktp')}
+        />
+        <SelectField
           label="Sumber"
           value={sourceDetail(lead)}
-          onEdit={worked ? () => setSheet('source') : undefined}
-        />
-        <DetailRow
-          label="KTP"
-          value={ktpDetail(lead)}
-          onEdit={worked ? () => setSheet('ktp') : undefined}
-          warning={!lead.nik}
+          placeholder="Pilih sumber"
+          readOnly={editSection !== 'info' || !worked}
+          onClick={() => setSheet('source')}
         />
       </FormCard>
 
       {/* Detail Pengajuan */}
-      <FormCard title="Detail Pengajuan">
-        <DetailRow
+      <FormCard title="Detail Pengajuan" editing={editSection === 'pengajuan'} onToggleEdit={() => toggle('pengajuan')}>
+        <SelectField
           label="Majelis"
-          value={majelisDetail(lead)}
-          onEdit={() => setSheet('majelis')}
-          warning={lead.majelis.kind === 'none'}
+          value={lead.majelis.kind === 'none' ? undefined : majelisDetail(lead)}
+          placeholder="Pilih majelis"
+          readOnly={editSection !== 'pengajuan'}
+          onClick={() => setSheet('majelis')}
         />
-        <DetailRow
+        <SelectField
           label="Status anggota"
           value={MEMBER_ROLE_LABEL[role]}
-          onEdit={() => setSheet('role')}
+          placeholder="Pilih status"
+          readOnly={editSection !== 'pengajuan'}
+          onClick={() => setSheet('role')}
         />
-        <DetailRow
+        <SelectField
           label="Produk"
-          value={lead.product ?? 'Belum dipilih'}
-          onEdit={() => setSheet('product')}
-          warning={!lead.product}
+          value={lead.product ?? undefined}
+          placeholder="Pilih produk"
+          readOnly={editSection !== 'pengajuan'}
+          onClick={() => setSheet('product')}
         />
       </FormCard>
 
@@ -433,16 +394,6 @@ export function LeadDetailScreen() {
 
       <RiwayatSheet lead={lead} open={sheet === 'riwayat'} onClose={() => setSheet(null)} />
 
-      <EditContactSheet
-        open={sheet === 'contact'}
-        name={lead.name}
-        phone={lead.phone}
-        onClose={() => setSheet(null)}
-        onSave={(name, phone) => {
-          pipelineStore.updateContact(lead.id, name, phone)
-          setSheet(null)
-        }}
-      />
       <SourceSheet
         open={sheet === 'source'}
         onClose={() => setSheet(null)}

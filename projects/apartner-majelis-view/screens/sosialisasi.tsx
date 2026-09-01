@@ -14,9 +14,9 @@ import { useState } from 'react'
 import { Badge, BottomSheet, Button, Card, Input, NavigationHeader } from '@/design-system/components'
 import { Camera, FileCheck, MapPin, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { INCOMPLETE_LABEL, leadType, majelisLine, statusBadge, type MajelisAssignment } from '../lib/pipeline'
+import { INCOMPLETE_LABEL, dateFromToday, leadType, majelisLine, statusBadge, type MajelisAssignment } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { MajelisPickerSheet, assignmentLabel } from '../lib/pipeline-ui'
+import { KtpSheet } from '../lib/pipeline-ui'
 import { IconUserPlus } from '../lib/icons'
 import { openEvent, rescheduleCount, store, useApp } from '../lib/store'
 import { findTask } from '../lib/schedule'
@@ -145,7 +145,7 @@ export function SosialisasiScreen() {
 
           <StickyBar>
             <Button size="lg" className="w-full" onClick={() => setStep(2)}>
-              Mulai Sosialisasi
+              Mulai cari leads
             </Button>
           </StickyBar>
         </>
@@ -377,12 +377,21 @@ function PinButton({
 
 const DEFAULT_MAJELIS: MajelisAssignment = { kind: 'none', branch: 'BP Ciseeng' }
 
+// The follow-up options offered right after a prospect is saved. 3 days is the
+// recommended cadence for a fresh (Interested) lead.
+const FOLLOWUP_OPTIONS: { label: string; days: number; recommended?: boolean }[] = [
+  { label: '1 hari lagi', days: 1 },
+  { label: '2 hari lagi', days: 2 },
+  { label: '3 hari lagi', days: 3, recommended: true },
+  { label: '4 hari lagi', days: 4 },
+  { label: '5 hari lagi', days: 5 },
+]
+
 /**
- * The Sales "Tambah Lead" form, adapted for a sosialisasi: Sumber is fixed to
- * this POI Visit (everyone here came from it, so it isn't a question), and each
- * save is a real `pipelineStore.addLead` — a lead sourced from this POI. It
- * lives in a fullscreen sheet, not a page, so the count and list behind it stay
- * in view while the BP works the room name after name.
+ * The Sales "Tambah Lead" form, adapted for a sosialisasi: everyone here is
+ * sourced from this POI Visit, so Sumber and Majelis are not asked. KTP capture
+ * follows the Sales page — the photo reads the NIK straight off it (OCR). Each
+ * save is a real `pipelineStore.addLead`, then the BP picks when to follow up.
  */
 function AddProspekSheet({
   open,
@@ -397,20 +406,21 @@ function AddProspekSheet({
 }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [majelis, setMajelis] = useState<MajelisAssignment>(DEFAULT_MAJELIS)
   const [nik, setNik] = useState('')
   const [ktp, setKtp] = useState(false)
-  const [picking, setPicking] = useState(false)
+  const [sub, setSub] = useState<'ktp' | 'followup' | null>(null)
+  const [savedId, setSavedId] = useState<string | null>(null)
 
   const ready = name.trim() !== '' && phone.trim() !== ''
+  const hasKtp = ktp && nik.replace(/\D/g, '').length === 16
 
   function reset() {
     setName('')
     setPhone('')
-    setMajelis(DEFAULT_MAJELIS)
     setNik('')
     setKtp(false)
-    setPicking(false)
+    setSub(null)
+    setSavedId(null)
   }
 
   function save() {
@@ -422,23 +432,29 @@ function AddProspekSheet({
       poi,
       referredBy: '',
       referrerKind: null,
-      majelis,
+      majelis: DEFAULT_MAJELIS,
       nik,
       ktp,
     })
+    setSavedId(id)
+    setSub('followup')
+  }
+
+  function pickFollowUp(days: number) {
+    const id = savedId
+    if (id) pipelineStore.setFollowUp(id, dateFromToday(days))
     reset()
-    onSaved(id)
+    if (id) onSaved(id)
   }
 
   return (
     <>
       <BottomSheet
-        open={open && !picking}
+        open={open && sub === null}
         onClose={() => {
           reset()
           onClose()
         }}
-        size="fullscreen"
         title="Tambah Prospek"
         primaryAction={
           <Button size="lg" className="w-full" disabled={!ready} onClick={save}>
@@ -446,102 +462,82 @@ function AddProspekSheet({
           </Button>
         }
       >
-        <div className="flex flex-col gap-16">
-          <div className="flex flex-col gap-12">
-            <Input
-              label="Nama"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nama calon mitra"
-            />
-            <Input
-              label="No. HP"
-              required
-              inputMode="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="08xx-xxxx-xxxx"
-            />
-          </div>
+        <div className="flex flex-col gap-12">
+          <Input
+            label="Nama"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nama calon mitra"
+          />
+          <Input
+            label="No. HP"
+            required
+            inputMode="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="08xx-xxxx-xxxx"
+          />
 
-          {/* Sumber is fixed — everyone captured at this sosialisasi came from
-              this POI Visit, so it is shown as a locked, pre-selected source
-              rather than a choice. */}
-          <div className="flex flex-col gap-4">
-            <span className="text-12 text-caption">Sumber</span>
-            <div className="flex flex-col gap-2 rounded-8 border border-primary-500 bg-primary-50 px-12 py-12">
-              <span className="text-14 font-bold text-default">POI Visit</span>
-              <span className="text-12 text-caption">{poi}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4">
-            <span className="text-12 text-caption">Majelis</span>
-            <button
-              type="button"
-              onClick={() => setPicking(true)}
-              className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-12 text-left text-14 text-default"
-            >
-              <span className="truncate">{assignmentLabel(majelis)}</span>
-              <span className="shrink-0 text-12 font-bold text-link">Ubah</span>
-            </button>
-          </div>
-
+          {/* KTP — Sales-page style: opens the KTP sheet; the photo reads the NIK. */}
           <div className="flex flex-col gap-4">
             <span className="text-12 text-caption">KTP</span>
-            <div className="flex flex-col gap-12">
-              <span className="text-12 text-caption">
-                Lampirkan KTP sekarang agar lead langsung jadi Qualified. Tanpa KTP, lead masuk
-                sebagai Unqualified.
+            <button
+              type="button"
+              onClick={() => setSub('ktp')}
+              className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-left text-14"
+            >
+              <span className={hasKtp ? 'text-default' : 'text-placeholder'}>
+                {hasKtp ? nik : 'Lengkapi KTP (opsional)'}
               </span>
-              {ktp ? (
-                <div className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12">
-                  <span className="text-green-500">
-                    <FileCheck size={20} />
-                  </span>
-                  <span className="flex-1 text-default">Foto KTP terlampir</span>
-                  <button
-                    type="button"
-                    onClick={() => setKtp(false)}
-                    className="shrink-0 text-12 font-bold text-link"
-                  >
-                    Hapus
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setKtp(true)}
-                  className="flex w-full flex-col items-center gap-4 rounded-8 border border-default bg-canvas-blue p-16 text-caption"
-                >
-                  <Camera size={24} />
-                  <span className="text-14 text-default">Upload Foto KTP</span>
-                </button>
-              )}
-              <Input
-                label="NIK (16 digit)"
-                optionalText="opsional"
-                inputMode="numeric"
-                maxLength={16}
-                value={nik}
-                onChange={(e) => setNik(e.target.value)}
-                placeholder="Masukkan 16 digit NIK"
-              />
-            </div>
+              <span className="shrink-0 text-12 font-bold text-link">{hasKtp ? 'Ubah' : 'Isi'}</span>
+            </button>
           </div>
         </div>
       </BottomSheet>
 
-      <MajelisPickerSheet
-        open={open && picking}
-        value={majelis}
-        onClose={() => setPicking(false)}
-        onPick={(m) => {
-          setMajelis(m)
-          setPicking(false)
+      <KtpSheet
+        open={open && sub === 'ktp'}
+        nik={nik}
+        ktp={ktp}
+        onClose={() => setSub(null)}
+        onSave={(n, k) => {
+          setNik(n)
+          setKtp(k)
+          setSub(null)
         }}
       />
+
+      {/* After saving, ask when to follow up — 3 days recommended. */}
+      <BottomSheet
+        open={open && sub === 'followup'}
+        onClose={() => pickFollowUp(3)}
+        title="Kapan follow up?"
+        description="Jadwalkan kapan prospek ini dihubungi lagi."
+      >
+        <div className="flex flex-col gap-8">
+          {FOLLOWUP_OPTIONS.map((o) => (
+            <button
+              key={o.days}
+              type="button"
+              onClick={() => pickFollowUp(o.days)}
+              className={`flex items-center justify-between gap-8 rounded-12 border p-16 text-left ${
+                o.recommended ? 'border-primary-500 bg-primary-50' : 'border-default bg-neutral-white'
+              }`}
+            >
+              <span className="flex flex-col gap-2">
+                <span className="text-14 font-bold text-default">{o.label}</span>
+                <span className="text-12 text-caption">{dateFromToday(o.days)}</span>
+              </span>
+              {o.recommended ? (
+                <span className="shrink-0 rounded-full bg-primary-500 px-8 py-2 text-10 font-bold text-neutral-white">
+                  Disarankan
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      </BottomSheet>
     </>
   )
 }
