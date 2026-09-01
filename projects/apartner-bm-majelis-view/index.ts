@@ -242,12 +242,19 @@ export const project: ProjectModule = {
       title: 'Detail POI',
       component: lazyScreen(() => import('./screens/poi-detail'), 'PoiDetailScreen'),
       notes: [
-        'One point of interest: where it is, who the BM handed it to (editable here), and the leads that have come out of it — each row jumping to that lead’s record.',
+        'A compact summary of one POI — its name and who works it — with “Lihat detail” onto the full editable record, and the leads captured here below.',
       ],
       flowsTo: [
+        { to: 'poi-edit', label: 'Lihat detail → record lengkap' },
         { to: 'lead-detail', label: 'buka lead dari POI' },
         { to: 'lead-new', label: 'Tambah Lead' },
       ],
+    },
+    {
+      id: 'poi-edit',
+      title: 'Detail POI Lengkap',
+      component: lazyScreen(() => import('./screens/poi-edit'), 'PoiEditScreen'),
+      flowsTo: [{ to: 'poi-detail', label: 'kembali' }],
     },
     {
       id: 'poi-new',

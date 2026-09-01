@@ -8,16 +8,17 @@
 // The BM addition is `AssigneePickerSheet` — pick a BP, or the BM herself — used
 // wherever a lead or a POI is handed to someone.
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react'
 import { BottomSheet, Button, Card, Input, SelectableCard } from '@/design-system/components'
-import { Camera, FileCheck, NotePencil, Warning } from '@/design-system/icons'
+import { Camera, FileCheck, MapPin, NotePencil, Warning } from '@/design-system/icons'
+import { IconChevronDown } from './icons'
 import { MAJELIS_DIRECTORY } from './schedule'
 import {
   ASSIGNEE_CHOICES,
   INTEREST_META,
   INTEREST_ORDER,
   MITRA_REFERRERS,
-  OTHER_REFERRERS,
+  PETUGAS_REFERRERS,
   POI_LIST,
   REASON_OTHER,
   SOURCE_LABEL,
@@ -207,19 +208,25 @@ export function ReferralSheet({
   onClose: () => void
   onPick: (name: string, kind: ReferrerKind) => void
 }) {
-  const [step, setStep] = useState<'kind' | 'mitra' | 'others'>('kind')
+  const [step, setStep] = useState<'kind' | 'mitra' | 'petugas' | 'lainnya'>('kind')
   const [query, setQuery] = useState('')
+  const [otherName, setOtherName] = useState('')
+  const [otherRole, setOtherRole] = useState('')
 
   useEffect(() => {
     if (!open) {
       setStep('kind')
       setQuery('')
+      setOtherName('')
+      setOtherRole('')
     }
   }, [open])
 
   function close() {
     setStep('kind')
     setQuery('')
+    setOtherName('')
+    setOtherRole('')
     onClose()
   }
 
@@ -248,20 +255,68 @@ export function ReferralSheet({
     )
   }
 
-  if (step === 'others') {
+  if (step === 'petugas') {
+    const q = query.trim().toLowerCase()
+    const rows = PETUGAS_REFERRERS.filter((p) => !q || p.toLowerCase().includes(q))
     return (
-      <BottomSheet open={open} onClose={close} onBack={() => setStep('kind')} title="Perujuk lainnya">
+      <BottomSheet open={open} onClose={close} onBack={() => setStep('kind')} title="Pilih petugas Amartha">
         <div className="flex flex-col gap-8">
-          {OTHER_REFERRERS.map((o) => (
+          <SearchField value={query} onChange={setQuery} placeholder="Cari nama petugas" label="Cari petugas" />
+          {rows.map((p) => (
             <SelectableCard
-              key={o.value}
-              name="referrer-other"
+              key={p}
+              name="referrer-petugas"
               inputType="radio"
-              title={o.label}
+              title={p}
               checked={false}
-              onChange={() => onPick(o.label, o.value)}
+              onChange={() => onPick(p, 'employee')}
             />
           ))}
+          {rows.length === 0 ? (
+            <span className="px-4 py-8 text-12 text-caption">Petugas tidak ditemukan.</span>
+          ) : null}
+        </div>
+      </BottomSheet>
+    )
+  }
+
+  if (step === 'lainnya') {
+    return (
+      <BottomSheet
+        open={open}
+        onClose={close}
+        onBack={() => setStep('kind')}
+        title="Perujuk lainnya"
+        primaryAction={
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={!otherName.trim()}
+            onClick={() =>
+              onPick(
+                otherRole.trim() ? `${otherName.trim()} (${otherRole.trim()})` : otherName.trim(),
+                'friend',
+              )
+            }
+          >
+            Simpan
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-12">
+          <Input
+            label="Nama"
+            required
+            value={otherName}
+            onChange={(e) => setOtherName(e.target.value)}
+            placeholder="Nama orang yang mereferensikan"
+          />
+          <Input
+            label="Peran"
+            value={otherRole}
+            onChange={(e) => setOtherRole(e.target.value)}
+            placeholder="Mis. tokoh warga, guru, kader posyandu"
+          />
         </div>
       </BottomSheet>
     )
@@ -281,10 +336,18 @@ export function ReferralSheet({
         <SelectableCard
           name="referrer-kind"
           inputType="radio"
-          title="Lainnya"
-          description="Karyawan Amartha, tetangga, atau teman"
+          title="Petugas Amartha"
+          description="Dikenalkan oleh petugas Amartha"
           checked={false}
-          onChange={() => setStep('others')}
+          onChange={() => setStep('petugas')}
+        />
+        <SelectableCard
+          name="referrer-kind"
+          inputType="radio"
+          title="Lainnya"
+          description="Perujuk lain — isi nama"
+          checked={false}
+          onChange={() => setStep('lainnya')}
         />
       </div>
     </BottomSheet>
@@ -364,6 +427,9 @@ export function SourceSheet({
 
 // --- KTP --------------------------------------------------------------------
 
+// A stand-in for OCR: uploading the KTP reads its NIK. The BM can still edit it.
+const READ_NIK = '3201094507910023'
+
 export function KtpSheet({
   open,
   nik: initialNik,
@@ -382,12 +448,18 @@ export function KtpSheet({
   const nikValid = nik.replace(/\D/g, '').length === 16
   const canSave = ktp && nikValid
 
+  function uploadKtp() {
+    setKtp(true)
+    // The NIK is read off the photo — filled unless a valid one is already there.
+    if (nik.replace(/\D/g, '').length !== 16) setNik(READ_NIK)
+  }
+
   return (
     <BottomSheet
       open={open}
       onClose={onClose}
       title="KTP"
-      description="Lampirkan foto KTP dan NIK. Lead langsung jadi Qualified."
+      description="Unggah foto KTP — NIK terbaca otomatis dan bisa diubah."
       primaryAction={
         <Button size="lg" className="w-full" disabled={!canSave} onClick={() => onSave(nik, ktp)}>
           Simpan
@@ -408,7 +480,7 @@ export function KtpSheet({
         ) : (
           <button
             type="button"
-            onClick={() => setKtp(true)}
+            onClick={uploadKtp}
             className="flex w-full flex-col items-center gap-4 rounded-8 border border-default bg-canvas-blue p-16 text-caption"
           >
             <Camera size={24} />
@@ -421,10 +493,204 @@ export function KtpSheet({
           maxLength={16}
           value={nik}
           onChange={(e) => setNik(e.target.value)}
-          placeholder="Masukkan 16 digit NIK"
+          placeholder="Unggah KTP untuk mengisi otomatis"
           state={nik && !nikValid ? 'error' : 'default'}
-          helperText={nik && !nikValid ? 'NIK harus 16 digit' : undefined}
+          helperText={
+            nik && !nikValid
+              ? 'NIK harus 16 digit'
+              : ktp && nikValid
+                ? 'Terbaca dari foto KTP — ubah bila perlu'
+                : undefined
+          }
         />
+      </div>
+    </BottomSheet>
+  )
+}
+
+// --- SelectField ------------------------------------------------------------
+
+/**
+ * A picker styled to match the design-system Input: label above, a tappable
+ * control below showing the chosen value (or a placeholder). Tapping opens
+ * whatever sheet the caller wires to `onClick`, so a form mixing text inputs
+ * and pickers reads as one.
+ */
+/**
+ * A read-only field — label over value, no input chrome, like the Mitra record.
+ * This is what every field renders as before its card's "Ubah" is tapped.
+ */
+export function ReadonlyField({
+  label,
+  value,
+  description,
+}: {
+  label: ReactNode
+  value?: string
+  description?: ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-12 text-caption">{label}</span>
+      <span className="text-14 text-default">{value || '-'}</span>
+      {description ? <span className="text-12">{description}</span> : null}
+    </div>
+  )
+}
+
+/** A text field that is an editable Input while active, a read-only row otherwise. */
+export function TextField({
+  label,
+  value,
+  editing,
+  disabled,
+  onChange,
+  placeholder,
+  inputMode,
+  helperText,
+  boldLabel,
+}: {
+  label: string
+  value: string
+  editing?: boolean
+  disabled?: boolean
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void
+  placeholder?: string
+  inputMode?: 'text' | 'tel' | 'numeric'
+  helperText?: ReactNode
+  boldLabel?: boolean
+}) {
+  if (!editing || disabled) {
+    return <ReadonlyField label={label} value={value || undefined} description={helperText} />
+  }
+  return (
+    <Input
+      label={boldLabel ? <span className="font-bold">{label}</span> : label}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      inputMode={inputMode}
+      helperText={helperText}
+    />
+  )
+}
+
+export function SelectField({
+  label,
+  value,
+  placeholder,
+  required,
+  readOnly,
+  description,
+  boldLabel,
+  onClick,
+}: {
+  label: string
+  value?: string
+  placeholder: string
+  required?: boolean
+  /** Render as a read-only row (label over value, no chevron) — for a locked field. */
+  readOnly?: boolean
+  /** A subtitle under the control — e.g. a map-pin status line. */
+  description?: ReactNode
+  /** Bold the label (to match a form whose other field labels are bold). */
+  boldLabel?: boolean
+  onClick: () => void
+}) {
+  const filled = Boolean(value)
+  if (readOnly) {
+    return <ReadonlyField label={label} value={filled ? value : undefined} description={description} />
+  }
+  const body = <span className={filled ? 'text-default' : 'text-placeholder'}>{filled ? value : placeholder}</span>
+  return (
+    <div className="flex flex-col gap-4">
+      <span className={`text-12 text-default ${boldLabel ? 'font-bold' : 'font-regular'}`}>
+        {label}
+        {required ? <span className="text-red-500"> *</span> : null}
+      </span>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-left text-14"
+      >
+        <span className="flex min-w-0 flex-1 flex-col gap-2">
+          {body}
+          {description ? <span className="text-12">{description}</span> : null}
+        </span>
+        <span className="shrink-0 text-disabled">
+          <IconChevronDown size={20} />
+        </span>
+      </button>
+    </div>
+  )
+}
+
+// --- Address ----------------------------------------------------------------
+
+/** Capture / edit an address, with an optional dropped map pin (a stand-in —
+ *  the prototype draws the map; nothing opens a real Google Maps, §3). */
+export function AddressSheet({
+  open,
+  address,
+  mapsCoord,
+  onClose,
+  onSave,
+}: {
+  open: boolean
+  address: string
+  mapsCoord: string
+  onClose: () => void
+  onSave: (address: string, mapsCoord: string) => void
+}) {
+  const [addr, setAddr] = useState(address)
+  const [coord, setCoord] = useState(mapsCoord)
+  const pinned = Boolean(coord)
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="Alamat"
+      primaryAction={
+        <Button size="lg" className="w-full" onClick={() => onSave(addr, coord)}>
+          Simpan
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-12">
+        <Input
+          label="Alamat"
+          value={addr}
+          onChange={(e) => setAddr(e.target.value)}
+          placeholder="Kampung / RT / RW, desa"
+        />
+        <div className="flex flex-col gap-8">
+          <span className="text-12 font-bold text-default">Lokasi di peta</span>
+          {pinned ? (
+            <>
+              <div className="relative flex items-center justify-center rounded-8 bg-blue-50 py-32">
+                <span className="text-primary-500">
+                  <MapPin size={24} />
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-12 text-green-600">Lokasi sudah ditandai</span>
+                <button type="button" onClick={() => setCoord('')} className="text-12 font-bold text-link">
+                  Ubah pin
+                </button>
+              </div>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCoord('pinned')}
+              className="flex items-center justify-center gap-8 rounded-8 border border-dashed border-default py-16 text-14 font-bold text-primary-500"
+            >
+              <MapPin size={20} />
+              Tandai lokasi di peta
+            </button>
+          )}
+        </div>
       </div>
     </BottomSheet>
   )

@@ -25,7 +25,6 @@ import {
   POI_LIST,
   STATUS_META,
   STATUS_ORDER,
-  TYPE_LABEL,
   assigneeLine,
   leadType,
   majelisLine,
@@ -90,8 +89,8 @@ const salesRank = (s: LeadStatus): number => SALES_SORT_ORDER.indexOf(s)
 
 const TYPE_OPTIONS: { label: string; value: LeadType | null }[] = [
   { label: 'All', value: null },
-  { label: `${TYPE_LABEL.qualified} (Data pribadi lengkap)`, value: 'qualified' },
-  { label: `${TYPE_LABEL.unqualified} (Data pribadi belum lengkap)`, value: 'unqualified' },
+  { label: 'Sudah ada KTP', value: 'qualified' },
+  { label: 'Belum ada KTP', value: 'unqualified' },
 ]
 
 function toggle<T>(arr: T[], v: T): T[] {
