@@ -863,28 +863,17 @@ export const project: ProjectModule = {
       ],
       states: [
         {
-          id: 'brief',
-          label: 'Before the call',
-          description: 'The screen as the schedule opens it — nothing answered yet',
-          apply: demo.followUpFresh,
+          id: 'default',
+          label: 'Default',
+          description: 'The default two-step follow-up on a connected lead',
+          apply: demo.followUpDefault,
         },
         {
-          id: 'terhubung',
-          label: 'Reached, interest cooled',
-          description: 'High down to medium — the change between two calls is flagged',
-          apply: demo.followUpCooled,
-        },
-        {
-          id: 'tidak-diangkat',
-          label: 'No answer',
-          description: 'One question left: when to try her again',
-          apply: demo.followUpMissed,
-        },
-        {
-          id: 'siap',
-          label: 'Ready to submit',
-          description: 'Record complete, the qualification gate is open',
-          apply: demo.followUpQualified,
+          id: 'alt',
+          label: 'Alt · Tawarkan pengajuan',
+          description:
+            'Two steps — Hubungi, then Tawarkan pengajuan (Ajukan sekarang / Belum siap → catat minat & jadwal)',
+          apply: demo.followUpAlt,
         },
       ],
       flowsTo: [

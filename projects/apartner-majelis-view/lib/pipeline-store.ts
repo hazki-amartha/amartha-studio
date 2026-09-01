@@ -31,6 +31,10 @@ interface PipelineState {
    * recorded. Null when opened from the Sales roster.
    */
   followUpTaskId: string | null
+  /** Which Follow Up layout to render: the default, or the "Tawarkan pengajuan"
+   *  Alt (a two-step flow). Set by the Alt presentation state; reset on any real
+   *  navigation so a live follow-up always opens the default. */
+  followUpVariant: 'default' | 'alt'
 }
 
 const seedLeads: Record<string, PipelineLead> = {}
@@ -43,6 +47,7 @@ let state: PipelineState = {
   order: SEED_PIPELINE.map((l) => l.id),
   openId: SEED_PIPELINE[0].id,
   followUpTaskId: null,
+  followUpVariant: 'default',
 }
 
 const listeners = new Set<() => void>()
@@ -70,13 +75,19 @@ export const pipelineStore = {
 
   /** Opens a lead's record from the roster (not as a task). */
   open(id: string) {
-    state = { ...state, openId: id, followUpTaskId: null }
+    state = { ...state, openId: id, followUpTaskId: null, followUpVariant: 'default' }
     emit()
   },
 
   /** Opens a lead AS a Follow-Up task, carrying the schedule task id. */
   openFollowUp(id: string, taskId: string) {
-    state = { ...state, openId: id, followUpTaskId: taskId }
+    state = { ...state, openId: id, followUpTaskId: taskId, followUpVariant: 'default' }
+    emit()
+  },
+
+  /** Switches the Follow Up layout — the Alt presentation state sets this. */
+  setFollowUpVariant(variant: 'default' | 'alt') {
+    state = { ...state, followUpVariant: variant }
     emit()
   },
 

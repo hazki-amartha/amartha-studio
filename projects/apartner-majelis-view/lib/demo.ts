@@ -23,6 +23,7 @@ import {
   outstandingOf,
 } from './data'
 import { INTEREST_ORDER, SEED_LEADS, type Lead } from './leads'
+import { pipelineStore } from './pipeline-store'
 import { vaFor, type SettleMethod } from './schedule'
 import {
   store,
@@ -641,6 +642,26 @@ export const followUpMissed = () =>
 
 export const followUpQualified = () =>
   draft({ contact: 'terhubung', interest: 'tinggi', next: 'siap' })
+
+// Both follow-up states open Sri Mulyani AS her rostered task (t2c → p2), the
+// way the schedule does: `startFollowUp` marks the agenda row Dikerjakan, and
+// `openFollowUp` carries the task id so finishing the call ticks it Selesai
+// (rather than leaving it hanging in Dikerjakan).
+const FOLLOW_UP_TASK = 't2c'
+const FOLLOW_UP_LEAD = 'p2'
+
+/** Default layout, on the connected lead, as her scheduled follow-up task. */
+export const followUpDefault = () => {
+  store.startFollowUp(FOLLOW_UP_TASK)
+  pipelineStore.openFollowUp(FOLLOW_UP_LEAD, FOLLOW_UP_TASK)
+}
+
+/** Alt layout: the "Tawarkan pengajuan" flow, same connected lead and task. */
+export const followUpAlt = () => {
+  store.startFollowUp(FOLLOW_UP_TASK)
+  pipelineStore.openFollowUp(FOLLOW_UP_LEAD, FOLLOW_UP_TASK)
+  pipelineStore.setFollowUpVariant('alt')
+}
 
 // --- The roster, and which day it is ---------------------------------------
 //

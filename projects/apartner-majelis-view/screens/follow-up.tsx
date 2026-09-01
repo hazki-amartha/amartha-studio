@@ -19,16 +19,21 @@ import { useFlow } from '@/platform/runtime'
 import {
   INTEREST_META,
   INTEREST_ORDER,
+  MEMBER_ROLE_LABEL,
   REASON_TITLE,
   dateFromToday,
   followUpDateFor,
   leadType,
+  majelisDetail,
   sourceDetail,
   statusBadge,
   type Interest,
+  type MemberRole,
+  type PipelineLead,
+  type Product,
 } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { ReasonRadios, RiwayatSheet } from '../lib/pipeline-ui'
+import { AddressSheet, KtpSheet, MajelisPickerSheet, ReasonRadios, RiwayatSheet, SelectField } from '../lib/pipeline-ui'
 import { findTask } from '../lib/schedule'
 import { rescheduleCount, store, useApp } from '../lib/store'
 import { AppScreen, ContactButton, RescheduleSheet, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
@@ -81,6 +86,7 @@ function whenOptions(interest: Interest): { label: string; date: string }[] {
 type SheetId =
   | 'riwayat'
   | 'ajukan'
+  | 'dokumen'
   | 'pandu'
   | 'when'
   | 'reason'
@@ -92,12 +98,24 @@ type SheetId =
 export function FollowUpScreen() {
   const flow = useFlow()
   const s = useApp()
-  const { leads, openId, followUpTaskId } = usePipeline()
+  const { leads, openId, followUpTaskId, followUpVariant } = usePipeline()
   const lead = leads[openId]
+  const alt = followUpVariant === 'alt'
 
   const [step, setStep] = useState<1 | 2>(1)
   const [method, setMethod] = useState<Method | null>(null)
   const [contact, setContact] = useState<Contact | null>(null)
+  // Alt step 2 — the "Tawarkan pengajuan" decision tree (unused in default):
+  //   offer  · Ajukan sekarang / Tidak mau mengajukan sekarang
+  //   metode · (Ajukan) Undang via AFin / Ajukan langsung via APartner
+  //   docs   · (APartner) Dokumen siap → mulai ajukan / belum → jadwal follow-up
+  const [offer, setOffer] = useState<'ajukan' | 'tidak' | null>(null)
+  const [metode, setMetode] = useState<'afin' | 'apartner' | null>(null)
+  const [docs, setDocs] = useState<'siap' | 'belum' | null>(null)
+  // After picking when to follow up: go to Lengkapi data (Undecided) or just
+  // finish (a follow-up scheduled because documents are not ready yet).
+  const [whenMode, setWhenMode] = useState<'lengkapi' | 'complete'>('complete')
+  const [lengkapi, setLengkapi] = useState(false)
   const [visitReason, setVisitReason] = useState<string | null>(null)
   const [pick, setPick] = useState<Interest | 'ajukan' | null>(null)
   // The mandatory "why" behind an Undecided / Not interested outcome.
@@ -116,6 +134,8 @@ export function FollowUpScreen() {
   const isNewMajelis = lead.majelis.kind === 'new'
   const when = `Follow up · Selasa, ${findTask(followUpTaskId)?.time ?? '11.45'}`
   const badge = statusBadge(lead)
+  // Which follow-up this is: the prior telepon/WA contacts, plus this one.
+  const followUpNo = lead.log.filter((e) => e.via === 'telepon' || e.via === 'wa').length + 1
 
   function complete() {
     setSheet(null)
@@ -171,18 +191,31 @@ export function FollowUpScreen() {
           title={<VisitTitle title={lead.name} when={when} />}
           link="Jadwal ulang"
           onLinkClick={() => setSheet('reschedule')}
-          onBack={step === 2 ? () => setStep(1) : leave}
+          onBack={
+            step === 2
+              ? () => {
+                  setStep(1)
+                  setOffer(null)
+                  setMetode(null)
+                  setDocs(null)
+                }
+              : leave
+          }
         />
       }
     >
-      <StageBar current={step} labels={STEP_LABELS} />
+      <StageBar
+        current={alt && lengkapi ? 3 : step}
+        labels={alt ? ['Hubungi', 'Tawarkan pengajuan', 'Lengkapi data'] : STEP_LABELS}
+      />
 
+      {/* The record summary — hidden on the Lengkapi data step. */}
+      {alt && lengkapi ? null : (
       <Card>
         <div className="flex flex-col gap-12">
           <div className="flex items-start gap-12">
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               <span className="truncate text-18 font-bold text-default">{lead.name}</span>
-              <span className="truncate text-14 text-caption">{lead.phone}</span>
             </div>
             <div className="flex shrink-0 gap-8">
               <ContactButton label={`WhatsApp ${lead.name}`} tone="green" onClick={() => {}}>
@@ -200,21 +233,31 @@ export function FollowUpScreen() {
             <span className="text-default">{sourceDetail(lead)}</span>
           </div>
 
-          {/* Her flat status, with the full log one tap away beside it. */}
-          <div className="flex items-center gap-8">
+          {/* Her flat status — no action here, ruled off below. */}
+          <div className="flex items-center gap-8 border-b border-default pb-12 text-14">
+            <span className="shrink-0 text-caption">Status:</span>
             <Badge intent={badge.intent} variant="outline">
               {badge.label}
             </Badge>
+          </div>
+
+          {/* Which follow-up this is, with the full log one tap away. */}
+          <div className="flex items-center gap-8 text-14">
+            <span className="flex min-w-0 flex-1 items-start gap-4">
+              <span className="shrink-0 text-caption">Catatan:</span>
+              <span className="text-default">Follow up ke-{followUpNo}</span>
+            </span>
             <button
               type="button"
               onClick={() => setSheet('riwayat')}
-              className="text-12 text-link"
+              className="shrink-0 text-12 font-bold text-link"
             >
               Lihat riwayat
             </button>
           </div>
         </div>
       </Card>
+      )}
 
       {step === 1 ? (
         <>
@@ -266,6 +309,100 @@ export function FollowUpScreen() {
             </Button>
           </StickyBar>
         </>
+      ) : alt && !lengkapi ? (
+        <>
+          {/* Alt step 2 — the "Tawarkan pengajuan" decision tree, disclosed one
+              question at a time: offer → cara → dokumen, or offer → catat minat. */}
+          <SectionTitle>Tawarkan pengajuan</SectionTitle>
+          <div className="flex flex-col gap-8">
+            <SelectableCard
+              name="tawarkan"
+              inputType="radio"
+              title="Ajukan sekarang"
+              checked={offer === 'ajukan'}
+              onChange={() => {
+                setOffer('ajukan')
+                setMetode(null)
+                setDocs(null)
+              }}
+            />
+            <SelectableCard
+              name="tawarkan"
+              inputType="radio"
+              title="Tidak mau mengajukan sekarang"
+              checked={offer === 'tidak'}
+              onChange={() => {
+                setOffer('tidak')
+                setMetode(null)
+                setDocs(null)
+              }}
+            />
+          </div>
+
+          {/* Ajukan sekarang → cara pengajuan */}
+          {offer === 'ajukan' ? (
+            <>
+              <SectionTitle>Cara pengajuan</SectionTitle>
+              <div className="flex flex-col gap-8">
+                <SelectableCard
+                  name="metode"
+                  inputType="radio"
+                  title="Undang Pengajuan via AFin"
+                  description={
+                    isNewMajelis
+                      ? 'Tidak tersedia untuk majelis baru — perlu dipandu'
+                      : 'Calon mitra pengajuan mandiri'
+                  }
+                  disabled={isNewMajelis}
+                  checked={metode === 'afin'}
+                  onChange={() => {
+                    setMetode('afin')
+                    setLengkapi(true)
+                  }}
+                />
+                <SelectableCard
+                  name="metode"
+                  inputType="radio"
+                  title="Ajukan langsung via APartner"
+                  description="Bantu mitra lakukan pengajuan"
+                  checked={metode === 'apartner'}
+                  onChange={() => {
+                    setMetode('apartner')
+                    setDocs(null)
+                    setSheet('dokumen')
+                  }}
+                />
+              </div>
+            </>
+          ) : offer === 'tidak' ? (
+            <>
+              {/* Tidak mau mengajukan → catat minat (Undecided / Not interested) */}
+              <SectionTitle>Catat minat</SectionTitle>
+              <div className="flex flex-col gap-8 pb-16">
+                {(['undecided', 'not-interested'] as Interest[]).map((value) => (
+                  <SelectableCard
+                    key={value}
+                    name="hasil-follow-up"
+                    inputType="radio"
+                    title={INTEREST_META[value].label}
+                    description={INTEREST_META[value].hint}
+                    checked={pick === value}
+                    onChange={() => pickOutcome(value)}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
+        </>
+      ) : alt ? (
+        <FollowUpLengkapiData
+          lead={lead}
+          onSubmit={() => {
+            // Reached via "Undang pengajuan via AFin" → file the pengajuan.
+            if (offer === 'ajukan' && metode === 'afin') pipelineStore.invite(lead.id)
+            complete()
+          }}
+        />
       ) : (
         <>
           <SectionTitle>Hasil Follow-Up</SectionTitle>
@@ -281,14 +418,18 @@ export function FollowUpScreen() {
                 onChange={() => pickOutcome(value)}
               />
             ))}
-            <SelectableCard
-              name="hasil-follow-up"
-              inputType="radio"
-              title="Ajukan Pinjaman"
-              description={canSubmit ? 'Kirim pengajuan pinjaman' : 'Pastikan KTP sudah tersedia'}
-              checked={pick === 'ajukan'}
-              onChange={() => pickOutcome('ajukan')}
-            />
+            {/* The Alt keeps Ajukan on the "Tawarkan pengajuan" step, so it is not
+                repeated here; the default layout shows it inline. */}
+            {alt ? null : (
+              <SelectableCard
+                name="hasil-follow-up"
+                inputType="radio"
+                title="Ajukan Pinjaman"
+                description={canSubmit ? 'Kirim pengajuan pinjaman' : 'Pastikan KTP sudah tersedia'}
+                checked={pick === 'ajukan'}
+                onChange={() => pickOutcome('ajukan')}
+              />
+            )}
           </div>
         </>
       )}
@@ -329,10 +470,41 @@ export function FollowUpScreen() {
         </div>
       </BottomSheet>
 
+      {/* Alt · Ajukan langsung via APartner → is her paperwork ready? */}
+      <BottomSheet open={sheet === 'dokumen'} onClose={() => setSheet(null)} title="Kesiapan dokumen">
+        <div className="flex flex-col gap-8">
+          <SelectableCard
+            name="dokumen"
+            inputType="radio"
+            title="Dokumen siap"
+            description="KTP, KK, Buku Tabungan — mulai pengajuan"
+            checked={docs === 'siap'}
+            onChange={() => {
+              setDocs('siap')
+              setSheet('pandu')
+            }}
+          />
+          <SelectableCard
+            name="dokumen"
+            inputType="radio"
+            title="Dokumen belum siap"
+            description="Jadwalkan follow-up berikutnya"
+            checked={docs === 'belum'}
+            onChange={() => {
+              setDocs('belum')
+              setPick('interested')
+              setWhenMode('complete')
+              setSheet('when')
+            }}
+          />
+        </div>
+      </BottomSheet>
+
       {/* Pandu calon Mitra — the guided flow. Blank for now; closing finishes the task. */}
       <BottomSheet open={sheet === 'pandu'} onClose={complete} size="fullscreen" title="Pandu Calon Mitra">
         <span className="text-14 text-caption">Alur pandu akan dibuat di sini.</span>
       </BottomSheet>
+
 
       {/* Interested / Undecided — pick when to follow up next, cadence recommended.
           An undecided outcome carries the reason picked on the step before. */}
@@ -340,11 +512,20 @@ export function FollowUpScreen() {
         <FollowUpWhenSheet
           interest={pick}
           open={sheet === 'when'}
+          submitLabel={alt && whenMode === 'lengkapi' ? 'Lanjut' : 'Simpan & Selesai'}
+          showNote={!(alt && whenMode === 'lengkapi')}
           onClose={() => setSheet(null)}
           onSave={(date, note) => {
             const finalNote = [statusReason, note].filter((x) => x.trim() !== '').join(' — ')
             pipelineStore.recordInterest(lead.id, pick, finalNote, date)
-            complete()
+            // Alt · Undecided → a Lengkapi data step before saving; a follow-up
+            // scheduled only because documents aren't ready just finishes.
+            if (alt && whenMode === 'lengkapi') {
+              setSheet(null)
+              setLengkapi(true)
+            } else {
+              complete()
+            }
           }}
         />
       ) : null}
@@ -366,6 +547,7 @@ export function FollowUpScreen() {
                   pipelineStore.recordInterest(lead.id, 'not-interested', statusReason)
                   complete()
                 } else {
+                  if (alt) setWhenMode('lengkapi')
                   setSheet('when')
                 }
               }}
@@ -432,11 +614,15 @@ function FollowUpWhenSheet({
   open,
   onClose,
   onSave,
+  submitLabel = 'Simpan & Selesai',
+  showNote = true,
 }: {
   interest: Interest
   open: boolean
   onClose: () => void
   onSave: (date: string, note: string) => void
+  submitLabel?: string
+  showNote?: boolean
 }) {
   const recommended = followUpDateFor(interest)
   const options = whenOptions(interest)
@@ -457,7 +643,7 @@ function FollowUpWhenSheet({
       title="Jadwal follow-up berikutnya"
       primaryAction={
         <Button size="lg" className="w-full" onClick={() => onSave(date, note)}>
-          Simpan & Selesai
+          {submitLabel}
         </Button>
       }
     >
@@ -478,10 +664,12 @@ function FollowUpWhenSheet({
             />
           )
         })}
-        <label className="flex flex-col gap-4 pt-4">
-          <span className="text-12 text-caption">Catatan (opsional)</span>
-          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Hasil pembicaraan…" />
-        </label>
+        {showNote ? (
+          <label className="flex flex-col gap-4 pt-4">
+            <span className="text-12 text-caption">Catatan (opsional)</span>
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Hasil pembicaraan…" />
+          </label>
+        ) : null}
       </div>
     </BottomSheet>
   )
@@ -535,5 +723,146 @@ function AltNumberSheet({
         placeholder="08xx-xxxx-xxxx"
       />
     </BottomSheet>
+  )
+}
+
+/** Alt · the "Lengkapi data" step after scheduling a follow-up: the record's
+ *  remaining fields, each edited in place, then "Simpan & Selesai". */
+function FollowUpLengkapiData({ lead, onSubmit }: { lead: PipelineLead; onSubmit: () => void }) {
+  const [sheet, setSheet] = useState<'address' | 'ktp' | 'majelis' | 'role' | 'product' | null>(null)
+  const isNewMajelis = lead.majelis.kind === 'new'
+  const role: MemberRole = isNewMajelis ? lead.role ?? 'anggota' : 'anggota'
+
+  return (
+    <>
+      <SectionTitle>Lengkapi data yang belum tercatat</SectionTitle>
+      <Card>
+        <div className="flex flex-col gap-8">
+          <span className="text-14 font-bold text-default">Info Lead</span>
+          <div className="flex flex-col gap-12">
+            <SelectField
+              label="Alamat"
+              value={lead.address || undefined}
+              placeholder="Isi alamat"
+              onClick={() => setSheet('address')}
+            />
+            <SelectField
+              label="KTP"
+              value={lead.nik || undefined}
+              placeholder="Lengkapi KTP"
+              onClick={() => setSheet('ktp')}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex flex-col gap-8">
+          <span className="text-14 font-bold text-default">Detail Pengajuan</span>
+          <div className="flex flex-col gap-12">
+            <SelectField
+              label="Majelis"
+              value={lead.majelis.kind === 'none' ? undefined : majelisDetail(lead)}
+              placeholder="Pilih majelis"
+              onClick={() => setSheet('majelis')}
+            />
+            <SelectField
+              label="Status anggota"
+              value={MEMBER_ROLE_LABEL[role]}
+              placeholder="Pilih status"
+              onClick={() => setSheet('role')}
+            />
+            <SelectField
+              label="Produk"
+              value={lead.product ?? undefined}
+              placeholder="Pilih produk"
+              onClick={() => setSheet('product')}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <StickyBar>
+        <Button size="lg" className="w-full" onClick={onSubmit}>
+          Simpan & Selesai
+        </Button>
+      </StickyBar>
+
+      <AddressSheet
+        key={sheet === 'address' ? 'addr-open' : 'addr-closed'}
+        open={sheet === 'address'}
+        address={lead.address ?? ''}
+        mapsCoord={lead.mapsCoord ?? ''}
+        onClose={() => setSheet(null)}
+        onSave={(a, c) => {
+          pipelineStore.setAddress(lead.id, a, c)
+          setSheet(null)
+        }}
+      />
+      <KtpSheet
+        open={sheet === 'ktp'}
+        nik={lead.nik}
+        ktp={lead.ktp}
+        onClose={() => setSheet(null)}
+        onSave={(n, k) => {
+          pipelineStore.updateKtp(lead.id, n, k)
+          setSheet(null)
+        }}
+      />
+      <MajelisPickerSheet
+        open={sheet === 'majelis'}
+        value={lead.majelis}
+        onClose={() => setSheet(null)}
+        onPick={(m) => {
+          pipelineStore.assignMajelis(lead.id, m)
+          setSheet(null)
+        }}
+      />
+
+      <BottomSheet open={sheet === 'role'} onClose={() => setSheet(null)} title="Status anggota">
+        <div className="flex flex-col gap-8">
+          <SelectableCard
+            name="fu-role"
+            inputType="radio"
+            title={MEMBER_ROLE_LABEL.anggota}
+            checked={role === 'anggota'}
+            onChange={() => {
+              pipelineStore.setRole(lead.id, 'anggota')
+              setSheet(null)
+            }}
+          />
+          <SelectableCard
+            name="fu-role"
+            inputType="radio"
+            title={MEMBER_ROLE_LABEL.ketua}
+            description={isNewMajelis ? undefined : 'Hanya untuk majelis baru'}
+            disabled={!isNewMajelis}
+            checked={role === 'ketua'}
+            onChange={() => {
+              pipelineStore.setRole(lead.id, 'ketua')
+              setSheet(null)
+            }}
+          />
+        </div>
+      </BottomSheet>
+
+      <BottomSheet open={sheet === 'product'} onClose={() => setSheet(null)} title="Produk">
+        <div className="flex flex-col gap-8">
+          {(['GL', 'Modal'] as Product[]).map((p) => (
+            <SelectableCard
+              key={p}
+              name="fu-product"
+              inputType="radio"
+              title={p}
+              checked={lead.product === p}
+              onChange={() => {
+                pipelineStore.setProduct(lead.id, p)
+                setSheet(null)
+              }}
+            />
+          ))}
+        </div>
+      </BottomSheet>
+    </>
   )
 }

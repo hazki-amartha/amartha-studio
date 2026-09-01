@@ -537,8 +537,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     log: [
       { at: '26 Juni', via: 'poi', status: 'interested' },
       { at: '3 Juli', via: 'telepon', status: 'interested', note: 'Tertarik, tapi tunggu loan dari Mekaar selesai' },
-      { at: '4 Juli', via: 'manual', status: 'interested', note: 'Tertarik, tapi tunggu loan dari Mekaar selesai' },
-      { at: '20 Juli', via: 'telepon', status: 'undecided', note: 'Mau diskusi dengan suami lagi' },
+      { at: '10 Juli', via: 'telepon', status: 'undecided', note: 'Mau diskusi dengan suami lagi' },
     ],
   },
   {
