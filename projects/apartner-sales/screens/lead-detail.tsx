@@ -44,6 +44,8 @@ import {
   statusBadge,
   type MemberRole,
   type Product,
+  EMPTY_ADDRESS,
+  addressLine,
 } from '../lib/pipeline'
 
 type SheetId =
@@ -121,9 +123,9 @@ export function LeadDetailScreen() {
   const hasKtp = lead.nik.replace(/\D/g, '').length === 16
   const hasMajelis = lead.majelis.kind !== 'none'
   const canInvite = hasKtp && hasMajelis && Boolean(lead.product)
-  // Once the pengajuan is under review, her personal data is frozen — the system
-  // is underwriting exactly what is on file, so Info Pribadi becomes read-only.
-  const infoLocked = lead.status === 'underwriting'
+  // Once the survey is in, her personal data is frozen — what was submitted is
+  // exactly what is being decided on, so Info Pribadi becomes read-only.
+  const infoLocked = lead.status === 'survey-submitted' || lead.status === 'approved'
   // A follow-up booked for her today — she can start it straight from the record.
   const fuTaskId = FU_TASK_FOR_LEAD[lead.id]
   const fuToday = Boolean(fuTaskId) && Boolean(findTask(fuTaskId))
@@ -233,12 +235,12 @@ export function LeadDetailScreen() {
           placeholder="08xx-xxxx-xxxx"
         />
         <SelectField
-          label="Alamat"
-          value={lead.address || undefined}
-          placeholder="Isi alamat"
+          label="Alamat Rumah"
+          value={addressLine(lead.address) || undefined}
+          placeholder="Kecamatan, desa, titik lokasi"
           readOnly={editSection !== 'info' || infoLocked}
           onClick={() => setSheet('address')}
-          description={lead.mapsCoord ? (
+          description={lead.address?.mapsCoord ? (
                 <span className="text-green-600">Lokasi sudah ditandai di peta</span>
               ) : undefined}
         />
@@ -300,12 +302,15 @@ export function LeadDetailScreen() {
             Ajukan Pinjaman
           </Button>
         </StickyBar>
-      ) : lead.status === 'waiting-kyc' ? (
+      ) : lead.status === 'survey-created' && lead.surveyMode === 'self' ? (
+        // She was invited to fill the survey in herself and hasn't. The BP can
+        // take it over and sit with her instead — the whole point of offering
+        // both modes is that one of them can rescue the other.
         <StickyBar>
           <Button size="lg" className="w-full" onClick={() => setSheet('pandu')}>
-            Takeover Pengajuan
+            Takeover Survey
           </Button>
-          <span className="text-center text-12 text-caption">Pandu calon mitra KYC via APartner</span>
+          <span className="text-center text-12 text-caption">Pandu calon mitra isi survey via APartner</span>
         </StickyBar>
       ) : null}
 
@@ -427,11 +432,10 @@ export function LeadDetailScreen() {
       <AddressSheet
         key={sheet === 'address' ? 'addr-open' : 'addr-closed'}
         open={sheet === 'address'}
-        address={lead.address ?? ''}
-        mapsCoord={lead.mapsCoord ?? ''}
+        value={lead.address ?? EMPTY_ADDRESS}
         onClose={() => setSheet(null)}
-        onSave={(address, mapsCoord) => {
-          pipelineStore.setAddress(lead.id, address, mapsCoord)
+        onSave={(address) => {
+          pipelineStore.setAddress(lead.id, address)
           setSheet(null)
         }}
       />

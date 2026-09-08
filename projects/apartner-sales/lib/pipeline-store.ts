@@ -7,11 +7,14 @@
 
 import { useSyncExternalStore } from 'react'
 import {
+  CURRENT_FO,
   SEED_PIPELINE,
   followUpDateFor,
   type Channel,
   type Interest,
+  type LeadAddress,
   type LeadSource,
+  type LeadStatus,
   type MajelisAssignment,
   type MemberRole,
   type PipelineLead,
@@ -113,8 +116,9 @@ export const pipelineStore = {
   addLead(data: {
     name: string
     phone: string
-    address?: string
-    mapsCoord?: string
+    address?: LeadAddress
+    fo?: string
+    photo?: boolean
     source: LeadSource
     poi: string
     referredBy: string
@@ -134,13 +138,19 @@ export const pipelineStore = {
       id,
       name: data.name.trim(),
       phone: data.phone.trim(),
-      address: data.address?.trim() || undefined,
-      mapsCoord: data.mapsCoord?.trim() || undefined,
+      address: data.address?.kecamatan ? data.address : undefined,
+      fo: data.fo ?? CURRENT_FO,
+      photo: data.photo ?? false,
       source: data.source,
       poi: referral ? '' : data.poi.trim(),
       referredBy: referral ? data.referredBy.trim() : '',
       referrerKind: referral ? data.referrerKind : null,
-      status: 'interested',
+      // Written down today and never contacted — that is exactly New.
+      status: 'new',
+      ageDays: 0,
+      // Straight onto today's schedule: a lead captured in the field is worked
+      // the same day or it is a name in a notebook.
+      agenda: { day: 'today', kind: 'Diproses', when: 'Hari ini', order: 0 },
       majelis: data.majelis,
       role: data.majelis.kind === 'new' ? data.role ?? 'anggota' : 'anggota',
       nik: qualified ? data.nik : '',
@@ -153,7 +163,7 @@ export const pipelineStore = {
         {
           at: '21 Juli',
           via: data.source === 'poi' ? 'poi' : 'manual',
-          status: 'interested',
+          status: 'new',
           note: referral && data.referredBy.trim() ? `Referral dari ${data.referredBy.trim()}` : '',
         },
       ],
@@ -176,11 +186,15 @@ export const pipelineStore = {
     via: Channel = 'telepon',
   ) {
     const when = next ?? followUpDateFor(interest)
+    // The status model has two contacted outcomes, not three: a lead who is
+    // still thinking has been reached and has not said no, so she sits with the
+    // Interested ones. The undecided-ness survives as the note and the longer
+    // follow-up cadence, which is where it changes what the BP does anyway.
+    const status: LeadStatus = interest === 'not-interested' ? 'not-interested' : 'interested'
     patchLead(id, (lead) => ({
-      // Her interest IS her status while she is in the New phase.
-      status: interest,
+      status,
       nextFollowUp: when,
-      log: appendLog(lead, { via, status: interest, note: note.trim(), next: when }),
+      log: appendLog(lead, { via, status, note: note.trim(), next: when }),
     }))
   },
 
@@ -203,16 +217,18 @@ export const pipelineStore = {
   },
 
   /** Sets her home address (and an optional maps coordinate). */
-  setAddress(id: string, address: string, mapsCoord: string) {
-    patchLead(id, () => ({ address: address.trim(), mapsCoord: mapsCoord.trim() }))
+  setAddress(id: string, address: LeadAddress) {
+    patchLead(id, () => ({ address: { ...address, detail: address.detail.trim() } }))
   },
 
-  /** Inline address edits — no trim (address), and the map-pin toggle. */
-  setAddressText(id: string, address: string) {
-    patchLead(id, () => ({ address }))
+  /** Reassigns the lead to another field officer. */
+  setFo(id: string, fo: string) {
+    patchLead(id, () => ({ fo }))
   },
-  setMapsCoord(id: string, mapsCoord: string) {
-    patchLead(id, () => ({ mapsCoord }))
+
+  /** The capture photo — attached or removed. */
+  setPhoto(id: string, photo: boolean) {
+    patchLead(id, () => ({ photo }))
   },
 
   /** Changes the source — which POI, or who referred her. */
@@ -251,14 +267,16 @@ export const pipelineStore = {
    */
   submitLoan(id: string, data: { product: Product; majelis: MajelisAssignment; nik: string }) {
     patchLead(id, (lead) => ({
-      status: 'waiting-kyc',
+      status: 'survey-created',
+      // Filed with the BP sitting beside her.
+      surveyMode: 'assisted' as const,
       product: data.product,
       majelis: data.majelis,
       nik: data.nik || lead.nik,
       ktp: true,
       log: appendLog(lead, {
         via: 'manual',
-        status: 'waiting-kyc',
+        status: 'survey-created',
         system: `Produk ${data.product}`,
       }),
     }))
@@ -294,11 +312,13 @@ export const pipelineStore = {
     patchLead(id, (lead) => {
       if (!lead.product) return {}
       return {
-        status: 'waiting-kyc',
+        status: 'survey-created',
+        // Invited to fill it in herself, on AFin.
+        surveyMode: 'self' as const,
         ktp: true,
         log: appendLog(lead, {
           via: 'manual',
-          status: 'waiting-kyc',
+          status: 'survey-created',
           system: `Produk ${lead.product}`,
         }),
       }

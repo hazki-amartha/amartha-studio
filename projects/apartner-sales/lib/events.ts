@@ -10,6 +10,8 @@
  * a progress line she can read mid-event is the difference between working the
  * room and discovering at 16.00 that she got four.
  */
+import type { Agenda } from './pipeline'
+
 export interface SosialisasiEvent {
   id: string
   /** The POI name — the title of the visit ("Warung Bu Ipah"). */
@@ -28,6 +30,10 @@ export interface SosialisasiEvent {
   guide: string
   /** Which illustrated scene stands in for a photo of the POI. */
   art: PoiArt
+  /** The kind of place, as the Sales card names it: Warung, Pasar, Balai. */
+  poiType: string
+  /** When the sosialisasi is scheduled. Absent means it is not on the calendar. */
+  agenda?: Agenda
 }
 
 /** The illustrated POI "photos" — one scene drawn per kind of place. */
@@ -45,6 +51,8 @@ export const EVENTS: SosialisasiEvent[] = [
     type: 'Sosialisasi Kelompok',
     guide: 'Bu Ipah (pemilik warung) memiliki 8 orang teman yang juga tertarik untuk mengambil pinjaman Amartha.',
     art: 'warung',
+    poiType: 'Warung',
+    agenda: { day: 'today', kind: 'Sosialisasi POI', when: '14.00', order: 0 },
   },
   {
     id: 'e2',
@@ -57,6 +65,8 @@ export const EVENTS: SosialisasiEvent[] = [
     type: 'Open space selling',
     guide: 'Pasar ikan ini lumayan ramai, ada lebih dari 50 pedagang ikan, mayoritas perempuan. Targetkan pedagang-pedagang yang ada di sana. Beberapa orang sudah punya pinjaman dari Mekaar, tawarkan kemungkinan limit lebih tinggi dari Amartha.',
     art: 'pasar-ikan',
+    poiType: 'Pasar',
+    agenda: { day: 'upcoming', kind: 'Sosialisasi POI', when: 'Besok, 14.00', order: 0 },
   },
   // Last week's, in Putat Nutug. Nothing opens it — it exists so the seeded
   // leads have somewhere to have come from, which is what makes today's
@@ -72,6 +82,7 @@ export const EVENTS: SosialisasiEvent[] = [
     type: 'Sosialisasi Kelompok',
     guide: '',
     art: 'balai',
+    poiType: 'Balai',
   },
 ]
 

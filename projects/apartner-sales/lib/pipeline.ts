@@ -32,13 +32,44 @@ export type Interest = 'interested' | 'undecided' | 'not-interested'
  *   → Disbursed   (After approved — she is a Mitra)
  * Everything from Waiting-KYC on is system-driven; the New statuses are the BP's.
  */
+/**
+ * A lead's single, flat status — five that move forward and two that stop.
+ *
+ * The forward five are the funnel: she is written down, she says yes when
+ * contacted, a survey is raised for her (by the BP or by herself), it goes in,
+ * and it is approved.
+ *
+ * The two COLD ones are not ends. A "not interested" is a no for now — she goes
+ * back to New after a month — and a rejection goes back after six. That is the
+ * whole reason they are statuses rather than a deletion: a lead the branch has
+ * already met is worth more than a stranger, and the wait is what stops a BP
+ * calling her again next Tuesday.
+ */
 export type LeadStatus =
-  | Interest
-  | 'waiting-kyc'
-  | 'underwriting'
+  | 'new'
+  | 'interested'
+  | 'survey-created'
+  | 'survey-submitted'
   | 'approved'
+  | 'not-interested'
   | 'rejected'
-  | 'disbursed'
+
+/** Who raised the survey — the BP sitting with her, or the mitra on her own phone. */
+export type SurveyMode = 'assisted' | 'self'
+
+export const SURVEY_MODE_LABEL: Record<SurveyMode, string> = {
+  assisted: 'Assisted',
+  self: 'Self-service',
+}
+
+/** The two statuses that hold a lead out of the funnel, and for how long. */
+export const COLD_STATUSES: LeadStatus[] = ['not-interested', 'rejected']
+
+/** How long a cold status holds before the lead reopens as New. */
+export const COLD_WAIT: Partial<Record<LeadStatus, string>> = {
+  'not-interested': '1 bulan',
+  rejected: '6 bulan',
+}
 
 /**
  * Her type — NOT a status. It reads whether her data is complete: `qualified`
@@ -102,14 +133,63 @@ export interface PipelineLog {
   next?: string
 }
 
+/**
+ * When a piece of Sales work is due. The Sales page is a schedule before it is a
+ * directory: what a BP wants on opening it is what she is doing at 14.00, not an
+ * alphabetical roster of everyone she has ever met.
+ *
+ * `day` is a bucket rather than a date because the list only ever splits two
+ * ways — today, and after today. The `when` string is what the card prints.
+ */
+export type AgendaDay = 'today' | 'upcoming'
+
+export interface Agenda {
+  day: AgendaDay
+  /** What kind of work it is — "Diproses", "Sosialisasi POI". */
+  kind: string
+  /** The slot, as the card says it: "14.00", "Tomorrow, 14.00". */
+  when: string
+  /** Sorts within a day. */
+  order: number
+}
+
+/** "Diproses - 14.00" — the schedule line at the top of a card. */
+export const agendaLine = (a: Agenda): string => `${a.kind} · ${a.when}`
+
+/** "leads age: 3 hari lalu" — how long she has been sitting in the pipeline. */
+export function ageLabel(days: number): string {
+  if (days <= 0) return 'hari ini'
+  if (days === 1) return '1 hari lalu'
+  return `${days} hari lalu`
+}
+
+/**
+ * The aging buckets the filter offers. A lead's age is the one number on the
+ * card that gets worse on its own, so it earns a filter of its own: "who has
+ * been waiting more than a week" is the question that finds forgotten leads.
+ */
+export const AGING_BUCKETS: { label: string; value: string; max: number }[] = [
+  { label: 'Baru (≤ 3 hari)', value: 'fresh', max: 3 },
+  { label: '4–7 hari', value: 'week', max: 7 },
+  { label: 'Lebih dari 7 hari', value: 'stale', max: Infinity },
+]
+
+export function inAgingBucket(days: number, value: string): boolean {
+  if (value === 'fresh') return days <= 3
+  if (value === 'week') return days > 3 && days <= 7
+  return days > 7
+}
+
 export interface PipelineLead {
   id: string
   name: string
   phone: string
-  /** Her home address — free text, captured on the record. */
-  address?: string
-  /** Optional Google Maps coordinate for the address. */
-  mapsCoord?: string
+  /** Her home address — kecamatan + desa + pin + free text. */
+  address?: LeadAddress
+  /** The field officer this lead belongs to. */
+  fo: string
+  /** A photo taken at capture, standing in as evidence the visit happened. */
+  photo: boolean
   source: LeadSource
   /** POI only — which point of interest she was met at. */
   poi?: string
@@ -120,6 +200,12 @@ export interface PipelineLead {
 
   /** Her single, flat status. Type (qualified/unqualified) is derived, not stored. */
   status: LeadStatus
+  /** Only on `survey-created` — who raised it. */
+  surveyMode?: SurveyMode
+  /** Days since she was written down. Drives "leads age" and the Aging filter. */
+  ageDays: number
+  /** When she is due to be worked. Absent means she is not on the schedule. */
+  agenda?: Agenda
 
   majelis: MajelisAssignment
   /**
@@ -152,36 +238,58 @@ type BadgeIntent = 'primary' | 'green' | 'yellow' | 'red' | 'blue' | 'orange' | 
  * Each status carries its badge intent and an `order` the roster sorts by — the
  * ones the BP still works at the top, the system-driven and closed ones below.
  */
-export const STATUS_META: Record<LeadStatus, { label: string; intent: BadgeIntent; order: number }> = {
-  interested: { label: 'Interested', intent: 'green', order: 0 },
-  undecided: { label: 'Undecided', intent: 'yellow', order: 1 },
-  'not-interested': { label: 'Not interested', intent: 'red', order: 2 },
-  'waiting-kyc': { label: 'Waiting for KYC', intent: 'blue', order: 3 },
-  underwriting: { label: 'Underwriting ongoing', intent: 'blue', order: 4 },
-  approved: { label: 'Approved', intent: 'orange', order: 5 },
-  rejected: { label: 'Rejected', intent: 'red', order: 6 },
-  disbursed: { label: 'Disbursed', intent: 'green', order: 7 },
+/**
+ * The label a status wears, and the colour it earns.
+ *
+ * `full` is the long name from the model ("Contacted: Interested"); `label` is
+ * what fits on a card. The card is read at arm's length in a list of ten, so it
+ * gets the short one — "Contacted:" is the same word on every row that has it,
+ * and a prefix repeated ten times is not information.
+ */
+export const STATUS_META: Record<
+  LeadStatus,
+  { label: string; full: string; intent: BadgeIntent; order: number }
+> = {
+  new: { label: 'New', full: 'New', intent: 'blue', order: 0 },
+  interested: { label: 'Interested', full: 'Contacted: Interested', intent: 'green', order: 1 },
+  'survey-created': {
+    label: 'Survey created',
+    full: 'Survey created',
+    intent: 'orange',
+    order: 2,
+  },
+  'survey-submitted': {
+    label: 'Survey submitted',
+    full: 'Survey submitted',
+    intent: 'orange',
+    order: 3,
+  },
+  approved: { label: 'Approved', full: 'Approved', intent: 'green', order: 4 },
+  'not-interested': {
+    label: 'Not interested',
+    full: 'Contacted: Not interested',
+    intent: 'red',
+    order: 5,
+  },
+  rejected: { label: 'Rejected', full: 'Rejected', intent: 'red', order: 6 },
 }
 
 export const STATUS_ORDER: LeadStatus[] = [
+  'new',
   'interested',
-  'undecided',
-  'not-interested',
-  'waiting-kyc',
-  'underwriting',
+  'survey-created',
+  'survey-submitted',
   'approved',
+  'not-interested',
   'rejected',
-  'disbursed',
 ]
 
-/** The statuses a BP is actively working — the roster's default cut (drops the
- *  closed Approved / Rejected / Disbursed). */
+/** The statuses a BP is actively working — the roster's default cut. */
 export const ACTIVE_STATUSES: LeadStatus[] = [
+  'new',
   'interested',
-  'undecided',
-  'not-interested',
-  'waiting-kyc',
-  'underwriting',
+  'survey-created',
+  'survey-submitted',
 ]
 
 export const TYPE_LABEL: Record<LeadType, string> = {
@@ -264,6 +372,54 @@ export const POI_LIST = [
   'Majelis Taklim Al-Hidayah',
 ]
 
+/**
+ * Her home address, as the form asks for it: an administrative pair the branch
+ * files her under, a pin, and the free text that gets a motorbike to the door.
+ *
+ * Kecamatan and desa are PICKED, not typed. They are what the branch routes and
+ * reports on, and a typed "Ciseeng" that is sometimes "Cisiung" is a lead that
+ * quietly leaves the district it belongs to.
+ */
+export interface LeadAddress {
+  kecamatan: string
+  desa: string
+  /** Kampung / RT / RW — the half of an address no dropdown can hold. */
+  detail: string
+  /** The pin. Empty until she marks it on the map. */
+  mapsCoord: string
+}
+
+export const EMPTY_ADDRESS: LeadAddress = { kecamatan: '', desa: '', detail: '', mapsCoord: '' }
+
+/** The desa in each kecamatan the branch covers. */
+export const WILAYAH: Record<string, string[]> = {
+  Ciseeng: ['Putat Nutug', 'Cibeuteung Udik', 'Karihkil', 'Ciseeng'],
+  'Gunung Sindur': ['Pengasinan', 'Curug', 'Cibadung'],
+  Parung: ['Iwul', 'Bojong Sempu', 'Waru'],
+}
+
+export const KECAMATAN_LIST = Object.keys(WILAYAH)
+
+/** Everything filled in? The lead form requires the whole address. */
+export const addressComplete = (a: LeadAddress): boolean =>
+  a.kecamatan !== '' && a.desa !== '' && a.mapsCoord !== ''
+
+/** "Kp. Cibeuteung RT 02, Desa Putat Nutug, Kec. Ciseeng" — one readable line. */
+export function addressLine(a: LeadAddress | undefined): string {
+  if (!a || !a.kecamatan) return ''
+  const parts = [a.detail.trim(), `Desa ${a.desa}`, `Kec. ${a.kecamatan}`]
+  return parts.filter(Boolean).join(', ')
+}
+
+/**
+ * The field officers a lead can be assigned to. A lead belongs to a person from
+ * the moment it is written down — an unassigned one is a name nobody calls.
+ */
+export const FIELD_OFFICERS = ['Nurhayati', 'Siti Aminah', 'Dewi Lestari', 'Rina Marlina']
+
+/** Whoever is holding the phone. The default assignee on a new lead. */
+export const CURRENT_FO = FIELD_OFFICERS[0]
+
 /** A short roster of mitra, for the searchable referral picker. */
 export const MITRA_REFERRERS = [
   'Rina Marlina (Majelis Mawar)',
@@ -307,12 +463,16 @@ export const CHANNEL_LABEL: Record<Channel, string> = {
 
 // --- Derivations -----------------------------------------------------------
 
-/** A "New" status — the interest phase, still the BP's to work. */
+/**
+ * Still the BP's to work by hand — before a survey exists for her. After that
+ * the record is the system's, and what she does is chase it rather than edit it.
+ */
 export const isNew = (status: LeadStatus): boolean =>
-  status === 'interested' || status === 'undecided' || status === 'not-interested'
+  status === 'new' || status === 'interested' || status === 'not-interested'
 
-/** Is this a status that carries an interest (the New phase)? */
-export const isInterest = (status: LeadStatus): status is Interest => isNew(status)
+/** Is this a status the follow-up screen's interest vocabulary covers? */
+export const isInterest = (status: LeadStatus): boolean =>
+  status === 'interested' || status === 'not-interested'
 
 /**
  * Her type — derived, not stored: qualified once she has a valid KTP, otherwise
@@ -330,18 +490,23 @@ export function statusBadge(lead: PipelineLead): { label: string; intent: BadgeI
 
 /** The one line of "what to do" for a lead, by status. */
 export function statusAction(lead: PipelineLead): string {
-  if (isInterest(lead.status)) return INTEREST_META[lead.status].hint
   switch (lead.status) {
-    case 'waiting-kyc':
-      return 'Calon mitra KYC mandiri di AFIN — tanpa aksi BP'
-    case 'underwriting':
-      return 'Sistem sedang underwriting — tanpa aksi BP'
+    case 'new':
+      return 'Belum dihubungi — hubungi hari ini'
+    case 'interested':
+      return INTEREST_META.interested.hint
+    case 'survey-created':
+      return lead.surveyMode === 'self'
+        ? 'Calon mitra mengisi survey sendiri di AFin — pantau'
+        : 'Lanjutkan survey bersama calon mitra'
+    case 'survey-submitted':
+      return 'Survey sudah masuk — menunggu keputusan'
     case 'approved':
       return 'Menunggu pencairan'
-    case 'disbursed':
-      return 'Perlakukan sebagai Mitra'
+    case 'not-interested':
+      return `Follow up setelah ${COLD_WAIT['not-interested']}`
     case 'rejected':
-      return 'Follow up setelah 6 bulan'
+      return `Follow up setelah ${COLD_WAIT.rejected}`
   }
 }
 
@@ -392,10 +557,13 @@ export function followUpDateFor(status: Interest): string {
   return dateFromToday(status === 'interested' ? 3 : status === 'undecided' ? 7 : 30)
 }
 
-/** Six months out — when a rejected lead reactivates. */
-export function rejectedReactivationDate(): string {
+/**
+ * When a cold lead comes back to the roster as New — one month after a "not
+ * interested", six after a rejection.
+ */
+export function coldReactivationDate(months: number): string {
   const d = new Date(TODAY)
-  d.setMonth(d.getMonth() + 6)
+  d.setMonth(d.getMonth() + months)
   return fmtDate(d)
 }
 
@@ -404,34 +572,43 @@ export function rejectedReactivationDate(): string {
  * and a clarifying statement beneath it. What each says depends on the status.
  */
 export function actionDetail(lead: PipelineLead): { title: string; sub?: string } {
-  if (isInterest(lead.status)) {
-    const date = lead.nextFollowUp ?? followUpDateFor(lead.status)
-    // "[duration] setelah [decision] di follow-up terakhir" — why this date.
-    const sub = `${CADENCE_DURATION[lead.status]} setelah ${INTEREST_META[lead.status].label.toLowerCase()} di follow-up terakhir`
-    return { title: `Follow up · ${date}`, sub }
+  if (lead.status === 'interested') {
+    const date = lead.nextFollowUp ?? followUpDateFor('interested')
+    return {
+      title: `Follow up · ${date}`,
+      sub: `${CADENCE_DURATION.interested} setelah interested di follow-up terakhir`,
+    }
   }
   switch (lead.status) {
-    case 'waiting-kyc':
-      return { title: 'Menunggu calon mitra KYC mandiri', sub: 'Calon mitra KYC mandiri di AFIN — tanpa aksi BP' }
-    case 'underwriting':
-      return { title: 'Underwriting', sub: 'Sistem sedang underwriting — tanpa aksi BP' }
+    case 'new':
+      return { title: 'Hubungi calon mitra', sub: 'Belum pernah dihubungi sejak didata' }
+    case 'survey-created':
+      return lead.surveyMode === 'self'
+        ? {
+            title: 'Menunggu calon mitra mengisi survey',
+            sub: 'Survey dikirim ke AFin — calon mitra mengisi sendiri',
+          }
+        : { title: 'Lanjutkan survey', sub: 'Survey dibuat bersama calon mitra (assisted)' }
+    case 'survey-submitted':
+      return { title: 'Survey sudah masuk', sub: 'Menunggu keputusan — tanpa aksi BP' }
     case 'approved':
       return {
         title: 'Menunggu pencairan',
         sub: lead.disburseDate ? `Perkiraan cair ${lead.disburseDate}` : undefined,
       }
-    case 'disbursed':
+    // The two cold statuses. Neither is an end: the date is when she comes back
+    // to the roster as New, and it is on the record so the BP can see that the
+    // "no" she is looking at expires.
+    case 'not-interested':
       return {
-        title: 'Sudah cair — jadi Mitra',
-        sub: lead.disburseDate ? `Cair ${lead.disburseDate}` : undefined,
+        title: `Aktif kembali · ${coldReactivationDate(1)}`,
+        sub: `Setelah ${COLD_WAIT['not-interested']}, lead otomatis kembali jadi New`,
       }
     case 'rejected':
       return {
-        title: `Follow up · ${rejectedReactivationDate()}`,
-        sub: 'Setelah 6 bulan, lead otomatis aktif kembali sebagai Qualified untuk ditawari lagi',
+        title: `Aktif kembali · ${coldReactivationDate(6)}`,
+        sub: `Setelah ${COLD_WAIT.rejected}, lead otomatis kembali jadi New`,
       }
-    default:
-      return { title: statusAction(lead) }
   }
 }
 
@@ -480,7 +657,12 @@ export const SEED_PIPELINE: PipelineLead[] = [
     source: 'poi',
     poi: 'Posyandu RW 04',
     referredBy: '',
+    fo: 'Nurhayati',
+    photo: true,
+    address: { kecamatan: 'Ciseeng', desa: 'Cibeuteung Udik', detail: 'Kp. Cibeuteung RT 02/RW 05', mapsCoord: 'pinned' },
     status: 'interested',
+    ageDays: 1,
+    agenda: { day: 'today', kind: 'Diproses', when: '13.00', order: 2 },
     majelis: { kind: 'none', branch: 'BP Ciseeng' },
     nik: '',
     ktp: false,
@@ -501,7 +683,13 @@ export const SEED_PIPELINE: PipelineLead[] = [
     source: 'poi',
     poi: 'Warung Bu Ipah, Cibeuteung',
     referredBy: '',
-    status: 'interested',
+    fo: 'Siti Aminah',
+    photo: true,
+    address: { kecamatan: 'Ciseeng', desa: 'Cibeuteung Udik', detail: 'Warung, Jl. Batu Sangkar VII No.15', mapsCoord: 'pinned' },
+    status: 'survey-created',
+    surveyMode: 'assisted',
+    ageDays: 3,
+    agenda: { day: 'today', kind: 'Diproses', when: '14.00', order: 1 },
     majelis: { kind: 'new', name: 'Majelis Batu Sangkar' },
     role: 'ketua',
     nik: '',
@@ -526,7 +714,11 @@ export const SEED_PIPELINE: PipelineLead[] = [
     source: 'poi',
     poi: 'Pasar Cibeuteung',
     referredBy: '',
-    status: 'undecided',
+    fo: 'Nurhayati',
+    photo: false,
+    status: 'interested',
+    ageDays: 12,
+    agenda: { day: 'today', kind: 'Follow up', when: '15.30', order: 3 },
     majelis: { kind: 'none', branch: 'BP Ciseeng' },
     nik: '',
     ktp: false,
@@ -537,7 +729,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     log: [
       { at: '26 Juni', via: 'poi', status: 'interested' },
       { at: '3 Juli', via: 'telepon', status: 'interested', note: 'Tertarik, tapi tunggu loan dari Mekaar selesai' },
-      { at: '10 Juli', via: 'telepon', status: 'undecided', note: 'Mau diskusi dengan suami lagi' },
+      { at: '10 Juli', via: 'telepon', status: 'interested', note: 'Mau diskusi dengan suami lagi' },
     ],
   },
   {
@@ -546,7 +738,11 @@ export const SEED_PIPELINE: PipelineLead[] = [
     phone: '0821-4456-9910',
     source: 'referral',
     referredBy: 'Ibu Yanti (Majelis Kenanga)',
+    fo: 'Dewi Lestari',
+    photo: true,
+    address: { kecamatan: 'Ciseeng', desa: 'Putat Nutug', detail: 'Kp. Nutug RT 01/RW 02', mapsCoord: 'pinned' },
     status: 'not-interested',
+    ageDays: 21,
     majelis: { kind: 'existing', id: 'kenanga' },
     nik: '',
     ktp: false,
@@ -565,7 +761,11 @@ export const SEED_PIPELINE: PipelineLead[] = [
     source: 'poi',
     poi: 'Pasar Ciseeng',
     referredBy: '',
-    status: 'interested',
+    fo: 'Nurhayati',
+    photo: true,
+    status: 'new',
+    ageDays: 2,
+    agenda: { day: 'today', kind: 'Diproses', when: '16.00', order: 4 },
     majelis: { kind: 'existing', id: 'melati' },
     nik: '3201094507900012',
     ktp: true,
@@ -583,7 +783,12 @@ export const SEED_PIPELINE: PipelineLead[] = [
     phone: '0812-3390-5514',
     source: 'referral',
     referredBy: 'Bu Imas (tokoh warga)',
-    status: 'undecided',
+    fo: 'Rina Marlina',
+    photo: false,
+    address: { kecamatan: 'Gunung Sindur', desa: 'Pengasinan', detail: 'Kp. Pengasinan RT 04/RW 01', mapsCoord: 'pinned' },
+    status: 'interested',
+    ageDays: 6,
+    agenda: { day: 'upcoming', kind: 'Follow up', when: 'Rabu, 10.00', order: 1 },
     majelis: { kind: 'new', name: 'Majelis Cibeuteung' },
     nik: '3201095203910022',
     ktp: true,
@@ -593,7 +798,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     log: [
       { at: '15 Juli', via: 'manual', status: 'interested', system: 'Referral dari Bu Imas', note: 'Mau ajak tetangga bikin majelis baru.' },
       { at: '18 Juli', via: 'telepon', status: 'interested', system: 'KTP dilengkapi' },
-      { at: '19 Juli', via: 'telepon', status: 'undecided', note: 'Masih menimbang.' },
+      { at: '19 Juli', via: 'telepon', status: 'interested', note: 'Masih menimbang.' },
     ],
   },
   {
@@ -603,7 +808,12 @@ export const SEED_PIPELINE: PipelineLead[] = [
     source: 'poi',
     poi: 'Balai Desa Ciseeng',
     referredBy: '',
-    status: 'waiting-kyc',
+    fo: 'Nurhayati',
+    photo: true,
+    status: 'survey-created',
+    surveyMode: 'self',
+    ageDays: 5,
+    agenda: { day: 'upcoming', kind: 'Diproses', when: 'Rabu, 13.00', order: 2 },
     majelis: { kind: 'existing', id: 'mawar' },
     nik: '3201094507880002',
     ktp: true,
@@ -613,7 +823,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     log: [
       { at: '14 Juli', via: 'poi', status: 'interested' },
       { at: '16 Juli', via: 'telepon', status: 'interested', system: 'KTP dilengkapi' },
-      { at: '20 Juli', via: 'manual', status: 'waiting-kyc', system: 'Produk Modal' },
+      { at: '20 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
     ],
   },
   {
@@ -622,7 +832,10 @@ export const SEED_PIPELINE: PipelineLead[] = [
     phone: '0857-2290-1188',
     source: 'referral',
     referredBy: 'Ibu Rina Marlina (Majelis Mawar)',
+    fo: 'Siti Aminah',
+    photo: true,
     status: 'approved',
+    ageDays: 18,
     majelis: { kind: 'existing', id: 'mawar' },
     nik: '3201096007920003',
     ktp: true,
@@ -631,8 +844,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
     disburseDate: '24 Juli',
     log: [
       { at: '12 Juli', via: 'manual', status: 'interested', system: 'Referral dari Ibu Rina Marlina (Majelis Mawar)' },
-      { at: '15 Juli', via: 'manual', status: 'waiting-kyc', system: 'Produk GL' },
-      { at: '16 Juli', via: 'system', status: 'underwriting', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '15 Juli', via: 'manual', status: 'survey-created', system: 'Produk GL' },
+      { at: '16 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
       { at: '19 Juli', via: 'system', status: 'approved', system: 'Lolos underwriting, cair Rp2.000.000 pada 24 Juli' },
     ],
   },
@@ -642,7 +855,10 @@ export const SEED_PIPELINE: PipelineLead[] = [
     phone: '0856-1123-8842',
     source: 'referral',
     referredBy: 'Bu Yanti (Majelis Melati)',
-    status: 'disbursed',
+    fo: 'Nurhayati',
+    photo: false,
+    status: 'approved',
+    ageDays: 24,
     majelis: { kind: 'existing', id: 'melati' },
     nik: '3201095102900007',
     ktp: true,
@@ -651,10 +867,10 @@ export const SEED_PIPELINE: PipelineLead[] = [
     disburseDate: '18 Juli',
     log: [
       { at: '5 Juli', via: 'manual', status: 'interested', system: 'Referral dari Bu Yanti (Majelis Melati)' },
-      { at: '10 Juli', via: 'manual', status: 'waiting-kyc', system: 'Produk GL' },
-      { at: '12 Juli', via: 'system', status: 'underwriting', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '10 Juli', via: 'manual', status: 'survey-created', system: 'Produk GL' },
+      { at: '12 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
       { at: '15 Juli', via: 'system', status: 'approved', system: 'Lolos underwriting, cair Rp2.500.000' },
-      { at: '18 Juli', via: 'system', status: 'disbursed', system: 'Cair Rp2.500.000, jadi mitra Majelis Melati' },
+      { at: '18 Juli', via: 'system', status: 'approved', system: 'Cair Rp2.500.000, jadi mitra Majelis Melati' },
     ],
   },
   {
@@ -664,7 +880,10 @@ export const SEED_PIPELINE: PipelineLead[] = [
     source: 'poi',
     poi: 'Balai Desa Ciseeng',
     referredBy: '',
+    fo: 'Dewi Lestari',
+    photo: true,
     status: 'rejected',
+    ageDays: 30,
     majelis: { kind: 'existing', id: 'dahlia' },
     nik: '3201096003910004',
     ktp: true,
@@ -673,8 +892,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
     disburseDate: '',
     log: [
       { at: '4 Juli', via: 'poi', status: 'interested' },
-      { at: '9 Juli', via: 'manual', status: 'waiting-kyc', system: 'Produk Modal' },
-      { at: '11 Juli', via: 'system', status: 'underwriting', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '9 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
+      { at: '11 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
       { at: '15 Juli', via: 'system', status: 'rejected', system: 'Tidak lolos underwriting, skor kredit tidak memenuhi' },
     ],
   },
@@ -684,7 +903,11 @@ export const SEED_PIPELINE: PipelineLead[] = [
     phone: '0813-4471-9026',
     source: 'referral',
     referredBy: 'Bu Sari (Majelis Melati)',
-    status: 'underwriting',
+    fo: 'Nurhayati',
+    photo: true,
+    status: 'survey-submitted',
+    ageDays: 9,
+    agenda: { day: 'upcoming', kind: 'Diproses', when: 'Kamis, 09.00', order: 3 },
     majelis: { kind: 'existing', id: 'melati' },
     nik: '3201094601910005',
     ktp: true,
@@ -694,8 +917,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
     log: [
       { at: '13 Juli', via: 'manual', status: 'interested', system: 'Referral dari Bu Sari (Majelis Melati)' },
       { at: '17 Juli', via: 'telepon', status: 'interested', system: 'KTP dilengkapi' },
-      { at: '19 Juli', via: 'manual', status: 'waiting-kyc', system: 'Produk GL' },
-      { at: '21 Juli', via: 'system', status: 'underwriting', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '19 Juli', via: 'manual', status: 'survey-created', system: 'Produk GL' },
+      { at: '21 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
     ],
   },
 ]

@@ -31,6 +31,8 @@ import {
   type MemberRole,
   type PipelineLead,
   type Product,
+  EMPTY_ADDRESS,
+  addressLine,
 } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import { AddressSheet, KtpSheet, MajelisPickerSheet, ReasonRadios, RiwayatSheet, SelectField } from '../lib/pipeline-ui'
@@ -741,9 +743,9 @@ function FollowUpLengkapiData({ lead, onSubmit }: { lead: PipelineLead; onSubmit
           <span className="text-14 font-bold text-default">Info Lead</span>
           <div className="flex flex-col gap-12">
             <SelectField
-              label="Alamat"
-              value={lead.address || undefined}
-              placeholder="Isi alamat"
+              label="Alamat Rumah"
+              value={addressLine(lead.address) || undefined}
+              placeholder="Kecamatan, desa, titik lokasi"
               onClick={() => setSheet('address')}
             />
             <SelectField
@@ -791,11 +793,10 @@ function FollowUpLengkapiData({ lead, onSubmit }: { lead: PipelineLead; onSubmit
       <AddressSheet
         key={sheet === 'address' ? 'addr-open' : 'addr-closed'}
         open={sheet === 'address'}
-        address={lead.address ?? ''}
-        mapsCoord={lead.mapsCoord ?? ''}
+        value={lead.address ?? EMPTY_ADDRESS}
         onClose={() => setSheet(null)}
-        onSave={(a, c) => {
-          pipelineStore.setAddress(lead.id, a, c)
+        onSave={(a) => {
+          pipelineStore.setAddress(lead.id, a)
           setSheet(null)
         }}
       />

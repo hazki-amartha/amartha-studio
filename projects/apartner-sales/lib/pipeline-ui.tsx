@@ -11,15 +11,19 @@ import { MAJELIS_DIRECTORY } from './schedule'
 import {
   INTEREST_META,
   INTEREST_ORDER,
+  KECAMATAN_LIST,
   MITRA_REFERRERS,
   PETUGAS_REFERRERS,
   POI_LIST,
   REASON_OTHER,
   SOURCE_LABEL,
+  WILAYAH,
+  addressComplete,
   historyActivity,
   historyStatusLabel,
   statusReasons,
   type Interest,
+  type LeadAddress,
   type LeadSource,
   type MajelisAssignment,
   type PipelineLead,
@@ -611,76 +615,231 @@ export function SelectField({
 
 /** Capture / edit an address, with an optional dropped map pin (a stand-in —
  *  the prototype draws the map; nothing opens a real Google Maps, §3). */
+/**
+ * Her home address, in the four parts the branch actually needs.
+ *
+ * Kecamatan and desa are PICKED — they are what the branch files and reports
+ * her under, and a typed district that is sometimes misspelled is a lead that
+ * quietly leaves the area it belongs to. Desa only opens once a kecamatan is
+ * chosen, because the list of desa IS the kecamatan's contents; offering all
+ * ten at once invites a desa that does not sit in the district beside it.
+ *
+ * The pin and the free text are both required and neither replaces the other:
+ * the coordinate is what a BP navigates to, and "Kp. Cibeuteung RT 02" is what
+ * she asks the neighbours when the pin drops her on the wrong side of a river.
+ */
 export function AddressSheet({
   open,
-  address,
-  mapsCoord,
+  value,
   onClose,
   onSave,
 }: {
   open: boolean
-  address: string
-  mapsCoord: string
+  value: LeadAddress
   onClose: () => void
-  onSave: (address: string, mapsCoord: string) => void
+  onSave: (address: LeadAddress) => void
 }) {
-  const [addr, setAddr] = useState(address)
-  const [coord, setCoord] = useState(mapsCoord)
-  const pinned = Boolean(coord)
+  const [draft, setDraft] = useState<LeadAddress>(value)
+  const [picking, setPicking] = useState<'kecamatan' | 'desa' | null>(null)
+  const desaOptions = draft.kecamatan ? WILAYAH[draft.kecamatan] ?? [] : []
+  const pinned = Boolean(draft.mapsCoord)
+  const ready = addressComplete(draft) && draft.detail.trim() !== ''
 
   return (
-    <BottomSheet
-      open={open}
-      onClose={onClose}
-      title="Alamat"
-      primaryAction={
-        <Button size="lg" className="w-full" onClick={() => onSave(addr, coord)}>
-          Simpan
-        </Button>
-      }
-    >
-      <div className="flex flex-col gap-12">
-        <Input
-          label="Alamat"
-          value={addr}
-          onChange={(e) => setAddr(e.target.value)}
-          placeholder="Kampung / RT / RW, desa"
-        />
-        <div className="flex flex-col gap-8">
-          <span className="text-12 font-bold text-default">Lokasi di peta</span>
-          {pinned ? (
-            <>
-              <div className="relative flex items-center justify-center rounded-8 bg-blue-50 py-32">
-                <span className="text-primary-500">
-                  <MapPin size={24} />
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-12 text-green-600">Lokasi sudah ditandai</span>
-                <button type="button" onClick={() => setCoord('')} className="text-12 font-bold text-link">
-                  Ubah pin
-                </button>
-              </div>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setCoord('pinned')}
-              className="flex items-center justify-center gap-8 rounded-8 border border-dashed border-default py-16 text-14 font-bold text-primary-500"
-            >
-              <MapPin size={20} />
-              Tandai lokasi di peta
-            </button>
-          )}
+    <>
+      <BottomSheet
+        open={open && picking === null}
+        onClose={onClose}
+        title="Alamat Rumah"
+        primaryAction={
+          <Button size="lg" className="w-full" disabled={!ready} onClick={() => onSave(draft)}>
+            Simpan
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-12">
+          <SelectField
+            label="Kecamatan"
+            required
+            value={draft.kecamatan || undefined}
+            placeholder="Pilih kecamatan"
+            onClick={() => setPicking('kecamatan')}
+          />
+          <SelectField
+            label="Desa"
+            required
+            value={draft.desa || undefined}
+            placeholder={draft.kecamatan ? 'Pilih desa' : 'Pilih kecamatan dulu'}
+            onClick={() => {
+              if (draft.kecamatan) setPicking('desa')
+            }}
+          />
+          <Input
+            label="Detail alamat"
+            required
+            value={draft.detail}
+            onChange={(e) => setDraft({ ...draft, detail: e.target.value })}
+            placeholder="Kampung / RT / RW"
+          />
+
+          <div className="flex flex-col gap-8">
+            <span className="text-12 font-bold text-default">
+              Titik lokasi <span className="text-red-500">*</span>
+            </span>
+            {pinned ? (
+              <>
+                <div className="relative flex items-center justify-center rounded-8 bg-blue-50 py-32">
+                  <span className="text-primary-500">
+                    <MapPin size={24} />
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-12 text-green-600">Lokasi sudah ditandai</span>
+                  <button
+                    type="button"
+                    onClick={() => setDraft({ ...draft, mapsCoord: '' })}
+                    className="text-12 font-bold text-link"
+                  >
+                    Ubah pin
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setDraft({ ...draft, mapsCoord: 'pinned' })}
+                className="flex items-center justify-center gap-8 rounded-8 border border-dashed border-default py-16 text-14 font-bold text-primary-500"
+              >
+                <MapPin size={20} />
+                Tandai lokasi di peta
+              </button>
+            )}
+          </div>
         </div>
+      </BottomSheet>
+
+      <PickSheet
+        open={open && picking === 'kecamatan'}
+        title="Kecamatan"
+        options={KECAMATAN_LIST}
+        value={draft.kecamatan}
+        onClose={() => setPicking(null)}
+        onPick={(k) => {
+          // A new kecamatan drops the desa under it — the old one belongs to a
+          // district she just left.
+          setDraft({ ...draft, kecamatan: k, desa: k === draft.kecamatan ? draft.desa : '' })
+          setPicking(null)
+        }}
+      />
+      <PickSheet
+        open={open && picking === 'desa'}
+        title="Desa"
+        options={desaOptions}
+        value={draft.desa}
+        onClose={() => setPicking(null)}
+        onPick={(d) => {
+          setDraft({ ...draft, desa: d })
+          setPicking(null)
+        }}
+      />
+    </>
+  )
+}
+
+/** A plain single-choice sheet — the shape every picker on this form takes. */
+export function PickSheet({
+  open,
+  title,
+  options,
+  value,
+  onClose,
+  onPick,
+}: {
+  open: boolean
+  title: string
+  options: string[]
+  value: string
+  onClose: () => void
+  onPick: (option: string) => void
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} title={title}>
+      <div className="flex flex-col gap-8">
+        {options.map((o) => (
+          <SelectableCard
+            key={o}
+            name={`pick-${title}`}
+            inputType="radio"
+            title={o}
+            checked={value === o}
+            onChange={() => onPick(o)}
+          />
+        ))}
       </div>
     </BottomSheet>
   )
 }
 
-// --- Identity ---------------------------------------------------------------
+/**
+ * Foto bukti — the photo taken with the prospect at capture.
+ *
+ * Required, and it is the one field on the form that cannot be filled in later
+ * from memory: it is evidence the meeting happened, so a form that lets it wait
+ * is a form that collects it never.
+ */
+export function PhotoSheet({
+  open,
+  photo,
+  onClose,
+  onSave,
+}: {
+  open: boolean
+  photo: boolean
+  onClose: () => void
+  onSave: (photo: boolean) => void
+}) {
+  const [taken, setTaken] = useState(photo)
 
-/** Edit the lead's name and phone — the pencil beside her number. */
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="Foto bukti"
+      description="Foto calon mitra saat pendataan — bukti kunjungan."
+      primaryAction={
+        <Button size="lg" className="w-full" disabled={!taken} onClick={() => onSave(taken)}>
+          Simpan
+        </Button>
+      }
+    >
+      {taken ? (
+        <div className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12">
+          <span className="text-green-500">
+            <FileCheck size={20} />
+          </span>
+          <span className="flex-1 text-default">Foto terlampir</span>
+          <button
+            type="button"
+            onClick={() => setTaken(false)}
+            className="shrink-0 text-12 font-bold text-link"
+          >
+            Hapus
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setTaken(true)}
+          className="flex w-full flex-col items-center gap-4 rounded-8 border border-default bg-canvas-blue p-16 text-caption"
+        >
+          <Camera size={24} />
+          <span className="text-14 text-default">Ambil Foto</span>
+        </button>
+      )}
+    </BottomSheet>
+  )
+}
+
 export function EditContactSheet({
   open,
   name: initialName,
