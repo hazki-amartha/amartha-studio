@@ -1,383 +1,179 @@
 'use client'
 
-// Sales — the BP's Sales work, as a schedule rather than a directory.
+// Sales — the BP's day as a board of task categories.
 //
-// The page opens on what she is doing at 14.00, not on an alphabetical roster of
-// everyone she has ever met. So the list is her AGENDA: leads to work and POI
-// visits to run, interleaved, grouped into Hari ini and Akan datang. The two
-// kinds of card sit in the same stream because they compete for the same
-// afternoon — a sosialisasi at 14.00 and a lead due at 14.00 are one decision.
-//
-// Each lead card carries four facts, and each earns its place:
-//
-//   the slot      when it is due — the reason the card is on today's list
-//   the status    where she is in the funnel, top-right where the eye lands
-//   the source    which POI or referral she came from, the BP's own shorthand
-//   leads age     how long she has been waiting — the only number on the card
-//                 that gets worse on its own, which is why it has its own filter
-//
-// Leads with nothing scheduled fall into a third group at the bottom rather than
-// out of the list: an unscheduled lead is exactly the one that gets forgotten,
-// so hiding it would make the page lie about the size of her pipeline.
+// The page opens on the KINDS of work waiting for her — Reactivation, POI
+// Visit, 2nd Follow-up, Referral, 1st Follow-up — not on an alphabetical roster
+// of everyone she has ever met. Each category names how many of its tasks are
+// done against how many there are, shows a short stack of the ones still open,
+// and offers "Lihat semua" for the full list. Search cuts across every category
+// at once: type a name and the board collapses to just the matches, still
+// grouped by the category each one belongs to.
 
-import { useState } from 'react'
-import { BottomSheet, Button, NavigationHeader, SelectableCard } from '@/design-system/components'
-import { Plus } from '@/design-system/icons'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Button, NavigationHeader } from '@/design-system/components'
+import { Check, Plus } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { EVENTS, type SosialisasiEvent } from '../lib/events'
 import {
-  ACTIVE_STATUSES,
-  AGING_BUCKETS,
-  STATUS_META,
-  STATUS_ORDER,
-  SURVEY_MODE_LABEL,
-  ageLabel,
-  agendaLine,
-  inAgingBucket,
-  sourceDetail,
-  type AgendaDay,
-  type LeadStatus,
-  type PipelineLead,
-} from '../lib/pipeline'
+  LeadTaskCard,
+  PoiTaskCard,
+  TASK_CATEGORY_LABEL,
+  buildTasks,
+  dueTasks,
+  setSelectedCategory,
+  tallyByCategory,
+  taskMatches,
+  type SalesTask,
+} from '../lib/tasks'
 import { pipelineStore, setAddLeadEntry, usePipeline } from '../lib/pipeline-store'
 import { store } from '../lib/store'
+import { SourceSheet } from '../lib/pipeline-ui'
 import { TabBar } from '../lib/tabs'
-import {
-  AppScreen,
-  EmptyState,
-  FilterBar,
-  FilterChip,
-  OptionSheet,
-  ResetLink,
-  SearchField,
-  VisitTitle,
-} from '../lib/ui'
+import { AppScreen, SearchField, VisitTitle } from '../lib/ui'
 
-type MenuId = 'jenis' | 'aging' | 'status' | 'schedule' | null
-
-/** What kind of work a card is. The "Jenis tugas" filter picks between them. */
-type Jenis = 'lead' | 'poi'
-
-const JENIS_OPTIONS: { label: string; value: Jenis | null }[] = [
-  { label: 'Semua tugas', value: null },
-  { label: 'Lead', value: 'lead' },
-  { label: 'Sosialisasi POI', value: 'poi' },
-]
-
-const AGING_OPTIONS: { label: string; value: string | null }[] = [
-  { label: 'Semua umur', value: null },
-  ...AGING_BUCKETS.map((b) => ({ label: b.label, value: b.value as string | null })),
-]
-
-const SCHEDULE_OPTIONS: { label: string; value: AgendaDay | 'none' | null }[] = [
-  { label: 'Semua jadwal', value: null },
-  { label: 'Hari ini', value: 'today' },
-  { label: 'Akan datang', value: 'upcoming' },
-  { label: 'Belum dijadwalkan', value: 'none' },
-]
-
-// Status is multi-select — an empty set means "all", so this list carries only
-// the real values (no "Semua" row; the Reset link clears them). The picker uses
-// the LONG names from the model ("Contacted: Interested"); the card uses the
-// short one, because a prefix repeated down ten rows is not information.
-const STATUS_OPTIONS: { label: string; value: LeadStatus }[] = STATUS_ORDER.map((s) => ({
-  label: STATUS_META[s].full,
-  value: s,
-}))
-
-/** The roster opens narrowed to the statuses a BP actively works. */
-const DEFAULT_STATUS: LeadStatus[] = ACTIVE_STATUSES
-
-/** Toggles a value in/out of a multi-select array. */
-function toggle<T>(arr: T[], v: T): T[] {
-  return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]
+function SectionHeading({ children }: { children: ReactNode }) {
+  return <span className="pt-4 text-16 font-bold text-default">{children}</span>
 }
 
-/** A multi-select filter sheet — checkboxes, toggled live; empty = all. */
-function MultiOptionSheet<T extends string>({
-  open,
-  title,
-  name,
-  options,
-  values,
-  onToggle,
-  onClose,
-}: {
-  open: boolean
-  title: string
-  name: string
-  options: { label: string; value: T }[]
-  values: T[]
-  onToggle: (v: T) => void
-  onClose: () => void
-}) {
-  return (
-    <BottomSheet open={open} onClose={onClose} title={title}>
-      <div className="flex flex-col gap-8">
-        {options.map((o) => (
-          <SelectableCard
-            key={o.value}
-            name={name}
-            inputType="checkbox"
-            title={o.label}
-            checked={values.includes(o.value)}
-            onChange={() => onToggle(o.value)}
-          />
-        ))}
-      </div>
-    </BottomSheet>
-  )
-}
-
-/** The shell both card kinds share: one tappable box, same padding, same edges. */
-function AgendaCard({ onOpen, children }: { onOpen: () => void; children: React.ReactNode }) {
+function SeeAllLink({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       type="button"
-      onClick={onOpen}
-      className="flex w-full flex-col gap-8 overflow-hidden rounded-12 border border-default bg-neutral-white p-12 text-left active:bg-neutral-50"
+      onClick={onClick}
+      className="self-center py-4 text-12 font-bold text-link underline"
     >
-      {children}
+      Lihat semua {label}
     </button>
   )
 }
 
-function LeadCard({ lead, onOpen }: { lead: PipelineLead; onOpen: () => void }) {
-  const meta = STATUS_META[lead.status]
-  // The survey mode rides UNDER the status rather than beside it: "Survey
-  // created (Assisted)" is one fact with a qualifier, and putting the qualifier
-  // on its own line keeps the status word itself scannable down a column.
-  const mode = lead.status === 'survey-created' && lead.surveyMode
-    ? `(${SURVEY_MODE_LABEL[lead.surveyMode]})`
-    : null
-
-  return (
-    <AgendaCard onOpen={onOpen}>
-      <div className="flex w-full items-start gap-8">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {/* The slot first, in caption grey: it is the reason this card is on
-              today's list, and it reads before the name the way a diary does. */}
-          <span className="truncate text-12 text-caption">
-            {lead.agenda ? agendaLine(lead.agenda) : 'Belum dijadwalkan'}
-          </span>
-          <span className="truncate text-16 font-bold text-default">{lead.name}</span>
-          <span className="truncate text-12 text-caption">{sourceDetail(lead)}</span>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-2 pl-8">
-          <span className={`text-right text-12 font-bold ${STATUS_TONE[meta.intent]}`}>
-            {meta.label}
-          </span>
-          {mode ? <span className="text-right text-12 text-caption">{mode}</span> : null}
-        </div>
-      </div>
-      {/* A real footer: pulled to the card's edges (negating the p-12) and
-          rounded only at the bottom so it seats flush against the corners. */}
-      <span className="-mx-12 -mb-12 border-t border-default px-12 py-8 text-12 text-caption">
-        leads age: {ageLabel(lead.ageDays)}
-      </span>
-    </AgendaCard>
-  )
-}
-
-function PoiCard({ event, onOpen }: { event: SosialisasiEvent; onOpen: () => void }) {
-  return (
-    <AgendaCard onOpen={onOpen}>
-      <div className="flex w-full min-w-0 flex-col gap-2">
-        <span className="truncate text-12 text-caption">
-          {event.agenda ? agendaLine(event.agenda) : 'Belum dijadwalkan'}
-        </span>
-        <span className="truncate text-16 font-bold text-default">{event.title}</span>
-        <span className="truncate text-12 text-caption">POI Type: {event.poiType}</span>
-      </div>
-    </AgendaCard>
-  )
-}
-
-/**
- * The status colour, as text rather than a badge. The wireframe puts the status
- * top-right as plain type, and it is right to: a badge on every row turns the
- * column into a strip of coloured pills that all shout equally, where plain
- * coloured text still reads as a word first.
- */
-const STATUS_TONE: Record<string, string> = {
-  blue: 'text-blue-500',
-  green: 'text-green-500',
-  orange: 'text-orange-500',
-  red: 'text-red-500',
-  yellow: 'text-orange-500',
-}
-
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return <span className="pt-4 text-16 font-bold text-default">{children}</span>
-}
-
 export function SalesScreen() {
   const flow = useFlow()
-  const { leads, order } = usePipeline()
+  const { leads, order, flash } = usePipeline()
   const [query, setQuery] = useState('')
-  const [jenis, setJenis] = useState<Jenis | null>(null)
-  const [aging, setAging] = useState<string | null>(null)
-  const [status, setStatus] = useState<LeadStatus[]>(DEFAULT_STATUS)
-  const [schedule, setSchedule] = useState<AgendaDay | 'none' | null>(null)
-  const [menu, setMenu] = useState<MenuId>(null)
+  // "Add lead" picks the source first, in a bottom sheet, then opens the form.
+  const [addSourceOpen, setAddSourceOpen] = useState(false)
 
-  const all = order.map((id) => leads[id])
-  const pois = EVENTS.filter((e) => e.agenda)
-  const q = query.trim().toLowerCase()
-  // The page opens with the active statuses pre-selected, so "the BP has cut by
-  // status" means she has moved OFF that default — not merely that a set exists.
-  const statusNarrowed =
-    status.length !== DEFAULT_STATUS.length || status.some((s) => !DEFAULT_STATUS.includes(s))
+  // A confirmation banner raised by a submit / add / drop, shown once.
+  useEffect(() => {
+    if (flash) {
+      const t = setTimeout(() => pipelineStore.clearFlash(), 4000)
+      return () => clearTimeout(t)
+    }
+  }, [flash])
 
-  const leadRows = all.filter((lead) => {
-    if (jenis === 'poi') return false
-    if (q && !lead.name.toLowerCase().includes(q) && !sourceDetail(lead).toLowerCase().includes(q))
-      return false
-    if (status.length > 0 && !status.includes(lead.status)) return false
-    if (aging && !inAgingBucket(lead.ageDays, aging)) return false
-    if (schedule === 'none' && lead.agenda) return false
-    if (schedule && schedule !== 'none' && lead.agenda?.day !== schedule) return false
-    return true
-  })
+  const tasks = buildTasks(order.map((id) => leads[id]))
+  // The board opens on what is due — today's tasks plus anything overdue; search
+  // and "Lihat semua" reach across every task whatever its date.
+  const due = dueTasks(tasks)
+  const tallies = tallyByCategory(due)
+  const totalByCategory = tallyByCategory(tasks)
 
-  // Status and aging are properties of a LEAD; a POI visit has neither. Rather
-  // than pretend a sosialisasi qualifies under "Interested", either filter takes
-  // the POI cards off the list — the BP has asked a question about leads.
-  const poiRows = pois.filter((e) => {
-    if (jenis === 'lead') return false
-    if (aging !== null) return false
-    if (statusNarrowed) return false
-    if (q && !e.title.toLowerCase().includes(q)) return false
-    if (schedule === 'none') return false
-    if (schedule && e.agenda?.day !== schedule) return false
-    return true
-  })
+  const q = query.trim()
+  const searching = q.length > 0
 
-  // One stream, sorted by slot, then split into the two days plus the unscheduled.
-  type Row = { key: string; day: AgendaDay | 'none'; order: number; node: React.ReactNode }
-  const rows: Row[] = [
-    ...poiRows.map((e) => ({
-      key: `poi-${e.id}`,
-      day: e.agenda?.day ?? ('none' as const),
-      order: e.agenda?.order ?? 99,
-      node: (
-        <PoiCard
-          event={e}
-          onOpen={() => {
-            store.openSosialisasi(e.id)
-            flow.go('sosialisasi')
-          }}
-        />
-      ),
-    })),
-    ...leadRows.map((lead) => ({
-      key: `lead-${lead.id}`,
-      day: lead.agenda?.day ?? ('none' as const),
-      order: lead.agenda?.order ?? 99,
-      node: (
-        <LeadCard
-          lead={lead}
-          onOpen={() => {
-            pipelineStore.open(lead.id)
-            flow.go('lead-detail')
-          }}
-        />
-      ),
-    })),
-  ].sort((a, b) => a.order - b.order)
+  // One tap-target per task — a lead opens her follow-up, a POI opens its brief.
+  function openTask(task: SalesTask) {
+    if (task.kind === 'lead') {
+      pipelineStore.open(task.id)
+      flow.go('follow-up')
+    } else {
+      store.openSosialisasi(task.id)
+      flow.go('sosialisasi')
+    }
+  }
 
-  const groups: { day: AgendaDay | 'none'; title: string }[] = [
-    { day: 'today', title: 'Hari ini' },
-    { day: 'upcoming', title: 'Akan datang' },
-    { day: 'none', title: 'Belum dijadwalkan' },
-  ]
+  function renderCard(task: SalesTask) {
+    if (task.kind === 'lead') {
+      return <LeadTaskCard key={task.id} lead={task.lead} onOpen={() => openTask(task)} />
+    }
+    return <PoiTaskCard key={task.id} event={task.event} onOpen={() => openTask(task)} />
+  }
 
-  const filtered =
-    Boolean(jenis) || Boolean(aging) || Boolean(schedule) || status.length !== DEFAULT_STATUS.length
+  const matches = searching ? tasks.filter((t) => taskMatches(t, q)) : []
 
   return (
     <AppScreen
-      topBar={
-        <NavigationHeader
-          hideBack
-          title={<VisitTitle title="Sales" when={`${all.length} leads & ${EVENTS.length} POI`} />}
-        />
-      }
+      topBar={<NavigationHeader hideBack title={<VisitTitle title="Sales" when={`${due.length} tugas hari ini`} />} />}
     >
+      {flash ? (
+        <div className="flex items-center gap-8 rounded-12 border border-green-500 bg-green-50 px-12 py-12">
+          <span className="shrink-0 text-green-500">
+            <Check size={20} />
+          </span>
+          <span className="text-12 font-bold text-green-600">{flash}</span>
+        </div>
+      ) : null}
+
       <SearchField
         value={query}
         onChange={setQuery}
-        placeholder="Cari tugas, leads"
-        label="Cari tugas atau lead"
+        placeholder="Cari nama lead atau POI"
+        label="Cari nama lead atau POI"
       />
 
-      <FilterBar>
-        <FilterChip
-          label="Jenis tugas"
-          active={Boolean(jenis)}
-          open={menu === 'jenis'}
-          onClick={() => setMenu('jenis')}
-        />
-        <FilterChip
-          label="Aging"
-          active={Boolean(aging)}
-          open={menu === 'aging'}
-          onClick={() => setMenu('aging')}
-        />
-        <FilterChip
-          label={status.length > 0 ? `Leads Status (${status.length})` : 'Leads Status'}
-          active={status.length > 0}
-          open={menu === 'status'}
-          onClick={() => setMenu('status')}
-        />
-        <FilterChip
-          label="Schedule"
-          active={Boolean(schedule)}
-          open={menu === 'schedule'}
-          onClick={() => setMenu('schedule')}
-        />
-        {filtered ? (
-          <ResetLink
-            onClick={() => {
-              setJenis(null)
-              setAging(null)
-              setStatus(DEFAULT_STATUS)
-              setSchedule(null)
-            }}
-          />
-        ) : null}
-      </FilterBar>
-
-      <div className="flex flex-col gap-8 pb-16">
-        {rows.length === 0 ? (
-          <EmptyState title="Tidak ada tugas" body="Coba ubah jenis tugas, status, umur lead, atau jadwal." />
-        ) : null}
-        {groups.map((g) => {
-          const inGroup = rows.filter((r) => r.day === g.day)
-          if (inGroup.length === 0) return null
-          return (
-            <div key={g.day} className="flex flex-col gap-8">
-              <SectionHeading>{g.title}</SectionHeading>
-              {inGroup.map((r) => (
-                <div key={r.key}>{r.node}</div>
-              ))}
+      {searching ? (
+        // --- Search results: matches, grouped by their category --------------
+        <div className="flex flex-col gap-8 pb-16">
+          <span className="text-12 text-caption">
+            {matches.length} hasil ditemukan
+          </span>
+          {matches.length === 0 ? (
+            <div className="flex flex-col items-center gap-4 rounded-12 bg-neutral-white p-24 text-center">
+              <span className="text-14 font-bold text-default">Tidak ada hasil</span>
+              <span className="text-12 text-caption">Coba nama lead atau POI yang lain.</span>
             </div>
-          )
-        })}
-      </div>
+          ) : null}
+          {tallies.map((cat) => {
+            const inCat = matches.filter((t) => t.category === cat.category)
+            if (inCat.length === 0) return null
+            return (
+              <div key={cat.category} className="flex flex-col gap-8">
+                <SectionHeading>{TASK_CATEGORY_LABEL[cat.category]}</SectionHeading>
+                {inCat.map(renderCard)}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        // --- The board: one section per category -----------------------------
+        <div className="flex flex-col gap-12 pb-16">
+          {tallies.map((cat) => {
+            const label = TASK_CATEGORY_LABEL[cat.category]
+            // The count on the board is today's; the see-all total is everything
+            // in the category, which is why the link so often reveals more.
+            const allInCat = totalByCategory.find((c) => c.category === cat.category)
+            return (
+              <div key={cat.category} className="flex flex-col gap-8">
+                <div className="flex items-baseline justify-between gap-8">
+                  <span className="text-16 font-bold text-default">{label}</span>
+                  <span className="shrink-0 text-12 text-caption">{cat.total} hari ini</span>
+                </div>
+                {cat.tasks.length === 0 ? (
+                  <div className="rounded-12 bg-neutral-white px-12 py-16 text-center text-12 text-caption">
+                    Tidak ada jadwal hari ini
+                  </div>
+                ) : (
+                  cat.tasks.map(renderCard)
+                )}
+                <SeeAllLink
+                  label={`${label}${allInCat && allInCat.total > 0 ? ` (${allInCat.total})` : ''}`}
+                  onClick={() => {
+                    setSelectedCategory(cat.category)
+                    flow.go('task-list')
+                  }}
+                />
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Add lead is a floating action, bottom-right, above the nav. */}
       <TabBar
         active="sales"
         action={
-          <Button
-            size="sm"
-            className="shadow-lg"
-            onClick={() => {
-              setAddLeadEntry({ mode: 'save', draft: null })
-              flow.go('lead-new')
-            }}
-          >
+          <Button size="sm" className="shadow-lg" onClick={() => setAddSourceOpen(true)}>
             <span className="flex items-center gap-4">
               <Plus size={16} />
               Add lead
@@ -386,50 +182,15 @@ export function SalesScreen() {
         }
       />
 
-      <OptionSheet
-        open={menu === 'jenis'}
-        title="Jenis tugas"
-        name="sales-jenis"
-        options={JENIS_OPTIONS}
-        value={jenis}
-        onPick={(v) => {
-          setJenis(v)
-          setMenu(null)
+      {/* Source is picked here, before the form. */}
+      <SourceSheet
+        open={addSourceOpen}
+        onClose={() => setAddSourceOpen(false)}
+        onDone={(data) => {
+          setAddSourceOpen(false)
+          setAddLeadEntry({ mode: 'save', source: data, returnTo: 'sales', draft: null })
+          flow.go('lead-new')
         }}
-        onClose={() => setMenu(null)}
-      />
-      <OptionSheet
-        open={menu === 'aging'}
-        title="Aging"
-        name="sales-aging"
-        options={AGING_OPTIONS}
-        value={aging}
-        onPick={(v) => {
-          setAging(v)
-          setMenu(null)
-        }}
-        onClose={() => setMenu(null)}
-      />
-      <MultiOptionSheet
-        open={menu === 'status'}
-        title="Leads Status"
-        name="sales-status"
-        options={STATUS_OPTIONS}
-        values={status}
-        onToggle={(v) => setStatus((prev) => toggle(prev, v))}
-        onClose={() => setMenu(null)}
-      />
-      <OptionSheet
-        open={menu === 'schedule'}
-        title="Schedule"
-        name="sales-schedule"
-        options={SCHEDULE_OPTIONS}
-        value={schedule}
-        onPick={(v) => {
-          setSchedule(v)
-          setMenu(null)
-        }}
-        onClose={() => setMenu(null)}
       />
     </AppScreen>
   )
