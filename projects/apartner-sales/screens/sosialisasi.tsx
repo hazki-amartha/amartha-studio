@@ -45,7 +45,8 @@ export function SosialisasiScreen() {
     .map((id) => leads[id])
     .filter((l) => l && l.source === 'poi' && l.poi === event.poi)
 
-  const when = poiScheduleLabel(event.agenda)
+  const completed = s.completedPois.includes(event.id)
+  const when = completed ? 'Belum ada jadwal' : poiScheduleLabel(event.agenda)
 
   function startAddLeads() {
     setAddLeadEntry({
@@ -59,7 +60,9 @@ export function SosialisasiScreen() {
   }
 
   function complete() {
+    store.completePoi(event.id)
     store.finishTask(taskId ?? undefined)
+    pipelineStore.markCategoryDone('poi-visit')
     pipelineStore.setFlash(`Sosialisasi ${event.title} selesai`)
     flow.go('sales')
   }

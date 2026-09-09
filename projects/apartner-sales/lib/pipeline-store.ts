@@ -23,6 +23,7 @@ import {
   type Product,
   type ReferrerKind,
 } from './pipeline'
+import { leadCategory } from './tasks'
 
 interface PipelineState {
   leads: Record<string, PipelineLead>
@@ -42,6 +43,12 @@ interface PipelineState {
   /** A one-shot confirmation banner for the Sales page — set on a submit/drop,
    *  cleared the next time Sales mounts. */
   flash: string | null
+  /**
+   * How many of today's tasks the BP has finished, per task category. A finished
+   * task leaves today's board (rescheduled forward, dropped, or submitted to
+   * Mitra), so its card is gone — but it still counts toward "X dari Y selesai".
+   */
+  completedToday: Record<string, number>
 }
 
 const seedLeads: Record<string, PipelineLead> = {}
@@ -56,6 +63,7 @@ let state: PipelineState = {
   followUpTaskId: null,
   followUpVariant: 'default',
   flash: null,
+  completedToday: {},
 }
 
 const listeners = new Set<() => void>()
@@ -71,6 +79,26 @@ function patchLead(id: string, make: (lead: PipelineLead) => Partial<PipelineLea
   const lead = state.leads[id]
   if (!lead) return
   state = { ...state, leads: { ...state.leads, [id]: { ...lead, ...make(lead) } } }
+  emit()
+}
+
+/**
+ * Like `patchLead`, but also tallies this task as finished for the day, under
+ * the category it had BEFORE the patch (a drop reclassifies her as reactivation,
+ * yet the task done was the follow-up she was in). One state update, one emit.
+ */
+function completeTask(id: string, make: (lead: PipelineLead) => Partial<PipelineLead>) {
+  const lead = state.leads[id]
+  if (!lead) return
+  const category = leadCategory(lead)
+  state = {
+    ...state,
+    leads: { ...state.leads, [id]: { ...lead, ...make(lead) } },
+    completedToday: {
+      ...state.completedToday,
+      [category]: (state.completedToday[category] ?? 0) + 1,
+    },
+  }
   emit()
 }
 
@@ -113,6 +141,16 @@ export const pipelineStore = {
     emit()
   },
 
+  /** Tally one finished task under a category — for non-lead completions like a
+   *  POI sosialisasi, which the lead-patching helpers don't cover. */
+  markCategoryDone(category: string) {
+    state = {
+      ...state,
+      completedToday: { ...state.completedToday, [category]: (state.completedToday[category] ?? 0) + 1 },
+    }
+    emit()
+  },
+
   /** Raise a one-shot confirmation banner for the Sales page. */
   setFlash(message: string) {
     state = { ...state, flash: message }
@@ -132,7 +170,7 @@ export const pipelineStore = {
    * the plain date the BP picked.
    */
   rescheduleFollowUp(id: string, dueInDays: number, whenLabel: string, note?: string) {
-    patchLead(id, (lead) => ({
+    completeTask(id, (lead) => ({
       agenda: {
         day: 'upcoming',
         kind: lead.agenda?.kind ?? 'Follow up',
@@ -153,7 +191,7 @@ export const pipelineStore = {
 
   /** Drops a lead as Not interested — she reopens later as a reactivation task. */
   dropLead(id: string, reason: string) {
-    patchLead(id, (lead) => ({
+    completeTask(id, (lead) => ({
       status: 'not-interested',
       lastResult: { kind: 'dropped', date: dateFromToday(0), reason: reason.trim() || undefined },
       // Off today's board; she comes back on her reactivation date.
@@ -174,7 +212,7 @@ export const pipelineStore = {
    * on her or take the application over. Pushes the follow-up out a few days.
    */
   startSelfService(id: string, dueInDays = 3, whenLabel = 'Follow up self-service') {
-    patchLead(id, (lead) => ({
+    completeTask(id, (lead) => ({
       selfServiceStarted: true,
       agenda: {
         day: 'upcoming',
@@ -198,7 +236,7 @@ export const pipelineStore = {
    * resume it from where she left off.
    */
   saveAssistedProgress(id: string, completed: string[], whenLabel: string, note?: string) {
-    patchLead(id, (lead) => ({
+    completeTask(id, (lead) => ({
       assistedStarted: true,
       assistedDone: completed,
       // Taking over supersedes any self-service state.
@@ -227,7 +265,7 @@ export const pipelineStore = {
    * the Sales list for Mitra.
    */
   submitApplication(id: string) {
-    patchLead(id, (lead) => ({
+    completeTask(id, (lead) => ({
       status: 'survey-submitted',
       assistedStarted: false,
       log: appendLog(lead, {
@@ -259,6 +297,8 @@ export const pipelineStore = {
     ktp: boolean
     product?: Product | null
     competitorLoan?: boolean
+    competitorLender?: string
+    competitorAmount?: string
   }): string {
     const id = `p${Date.now()}`
     // KTP captured up front makes her Qualified (a type), but her status opens
@@ -277,6 +317,8 @@ export const pipelineStore = {
       referredBy: referral ? data.referredBy.trim() : '',
       referrerKind: referral ? data.referrerKind : null,
       competitorLoan: data.competitorLoan,
+      competitorLender: data.competitorLoan ? data.competitorLender?.trim() || undefined : undefined,
+      competitorAmount: data.competitorLoan ? data.competitorAmount?.trim() || undefined : undefined,
       // Written down today and never contacted — that is exactly New.
       status: 'new',
       ageDays: 0,

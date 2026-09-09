@@ -26,7 +26,7 @@ import {
   type SalesTask,
 } from '../lib/tasks'
 import { pipelineStore, setAddLeadEntry, usePipeline } from '../lib/pipeline-store'
-import { store } from '../lib/store'
+import { store, useApp } from '../lib/store'
 import { SourceSheet } from '../lib/pipeline-ui'
 import { TabBar } from '../lib/tabs'
 import { AppScreen, SearchField, VisitTitle } from '../lib/ui'
@@ -49,10 +49,14 @@ function SeeAllLink({ label, onClick }: { label: string; onClick: () => void }) 
 
 export function SalesScreen() {
   const flow = useFlow()
-  const { leads, order, flash } = usePipeline()
+  const { leads, order, flash, completedToday } = usePipeline()
+  const { completedPois, salesVariant } = useApp()
+  const alt = salesVariant === 'alt'
   const [query, setQuery] = useState('')
   // "Add lead" picks the source first, in a bottom sheet, then opens the form.
   const [addSourceOpen, setAddSourceOpen] = useState(false)
+  // Alt only: which sections the BP has expanded past the first three.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   // A confirmation banner raised by a submit / add / drop, shown once.
   useEffect(() => {
@@ -62,7 +66,7 @@ export function SalesScreen() {
     }
   }, [flash])
 
-  const tasks = buildTasks(order.map((id) => leads[id]))
+  const tasks = buildTasks(order.map((id) => leads[id]), completedPois)
   // The board opens on what is due — today's tasks plus anything overdue; search
   // and "Lihat semua" reach across every task whatever its date.
   const due = dueTasks(tasks)
@@ -94,7 +98,14 @@ export function SalesScreen() {
 
   return (
     <AppScreen
-      topBar={<NavigationHeader hideBack title={<VisitTitle title="Sales" when={`${due.length} tugas hari ini`} />} />}
+      topBar={
+        <NavigationHeader
+          hideBack
+          title={<VisitTitle title={alt ? 'Sales hari ini' : 'Sales'} when={`${due.length} tugas hari ini`} />}
+          link={alt ? 'All task' : undefined}
+          onLinkClick={alt ? () => flow.go('all-tasks') : undefined}
+        />
+      }
     >
       {flash ? (
         <div className="flex items-center gap-8 rounded-12 border border-green-500 bg-green-50 px-12 py-12">
@@ -119,9 +130,16 @@ export function SalesScreen() {
             {matches.length} hasil ditemukan
           </span>
           {matches.length === 0 ? (
-            <div className="flex flex-col items-center gap-4 rounded-12 bg-neutral-white p-24 text-center">
-              <span className="text-14 font-bold text-default">Tidak ada hasil</span>
-              <span className="text-12 text-caption">Coba nama lead atau POI yang lain.</span>
+            <div className="flex flex-col items-center gap-12 rounded-12 bg-neutral-white p-24 text-center">
+              <div className="flex flex-col gap-4">
+                <span className="text-14 font-bold text-default">Tidak ada hasil</span>
+                <span className="text-12 text-caption">
+                  Lead ini mungkin sudah jadi mitra. Coba cari di daftar Mitra.
+                </span>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => {}}>
+                Search in Mitra list
+              </Button>
             </div>
           ) : null}
           {tallies.map((cat) => {
@@ -143,26 +161,54 @@ export function SalesScreen() {
             // The count on the board is today's; the see-all total is everything
             // in the category, which is why the link so often reveals more.
             const allInCat = totalByCategory.find((c) => c.category === cat.category)
+            // Done today (already off the board) + the ones still due.
+            const done = completedToday[cat.category] ?? 0
+            const dayTotal = done + cat.total
+            // Alt expands the rest inline; default caps at three and links out.
+            const isExpanded = expanded.has(cat.category)
+            const shown = alt && isExpanded ? cat.tasks : cat.tasks.slice(0, 3)
             return (
               <div key={cat.category} className="flex flex-col gap-8">
                 <div className="flex items-baseline justify-between gap-8">
                   <span className="text-16 font-bold text-default">{label}</span>
-                  <span className="shrink-0 text-12 text-caption">{cat.total} hari ini</span>
+                  <span className="shrink-0 text-12 text-caption">
+                    {done} dari {dayTotal} tugas selesai
+                  </span>
                 </div>
                 {cat.tasks.length === 0 ? (
                   <div className="rounded-12 bg-neutral-white px-12 py-16 text-center text-12 text-caption">
-                    Tidak ada jadwal hari ini
+                    {dayTotal > 0 ? 'Semua tugas hari ini selesai!' : 'Tidak ada jadwal hari ini'}
                   </div>
                 ) : (
-                  cat.tasks.map(renderCard)
+                  shown.map(renderCard)
                 )}
-                <SeeAllLink
-                  label={`${label}${allInCat && allInCat.total > 0 ? ` (${allInCat.total})` : ''}`}
-                  onClick={() => {
-                    setSelectedCategory(cat.category)
-                    flow.go('task-list')
-                  }}
-                />
+                {alt ? (
+                  // "See more" expands the rest of today's tasks inline (>3 only).
+                  cat.tasks.length > 3 ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpanded((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(cat.category)) next.delete(cat.category)
+                          else next.add(cat.category)
+                          return next
+                        })
+                      }
+                      className="self-center py-4 text-12 font-bold text-link underline"
+                    >
+                      {isExpanded ? 'See less' : `See more (${cat.tasks.length - 3})`}
+                    </button>
+                  ) : null
+                ) : (
+                  <SeeAllLink
+                    label={`${label}${allInCat && allInCat.total > 0 ? ` (${allInCat.total})` : ''}`}
+                    onClick={() => {
+                      setSelectedCategory(cat.category)
+                      flow.go('task-list')
+                    }}
+                  />
+                )}
               </div>
             )
           })}

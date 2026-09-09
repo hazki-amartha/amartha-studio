@@ -643,7 +643,7 @@ export function AddressSheet({
   const [picking, setPicking] = useState<'kecamatan' | 'desa' | null>(null)
   const desaOptions = draft.kecamatan ? WILAYAH[draft.kecamatan] ?? [] : []
   const pinned = Boolean(draft.mapsCoord)
-  const ready = addressComplete(draft) && draft.detail.trim() !== ''
+  const ready = addressComplete(draft)
 
   return (
     <>
@@ -676,16 +676,14 @@ export function AddressSheet({
           />
           <Input
             label="Detail alamat"
-            required
+            optionalText="opsional"
             value={draft.detail}
             onChange={(e) => setDraft({ ...draft, detail: e.target.value })}
             placeholder="Kampung / RT / RW"
           />
 
           <div className="flex flex-col gap-8">
-            <span className="text-12 font-bold text-default">
-              Titik lokasi <span className="text-red-500">*</span>
-            </span>
+            <span className="text-12 font-bold text-default">Titik lokasi</span>
             {pinned ? (
               <>
                 <div className="relative flex items-center justify-center rounded-8 bg-blue-50 py-32">

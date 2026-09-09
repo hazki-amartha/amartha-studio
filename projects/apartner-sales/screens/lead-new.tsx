@@ -13,7 +13,7 @@
 
 import { useRef, useState } from 'react'
 import { Button, Input } from '@/design-system/components'
-import { ArrowLeft } from '@/design-system/icons'
+import { ArrowLeft, Camera, FileCheck } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   getAddLeadEntry,
@@ -21,7 +21,7 @@ import {
   type AddLeadEntry,
   type AddLeadSource,
 } from '../lib/pipeline-store'
-import { AddressSheet, PhotoSheet, SelectField } from '../lib/pipeline-ui'
+import { AddressSheet, SelectField } from '../lib/pipeline-ui'
 import { AppScreen, Chip, StickyBar } from '../lib/ui'
 import {
   CURRENT_FO,
@@ -31,7 +31,7 @@ import {
   type LeadAddress,
 } from '../lib/pipeline'
 
-type SheetId = 'address' | 'photo' | null
+type SheetId = 'address' | null
 
 function sumberLabel(s: AddLeadSource | null): string {
   if (!s) return ''
@@ -53,15 +53,22 @@ export function LeadNewScreen() {
   const [phone, setPhone] = useState(draft?.phone ?? '')
   const [address, setAddress] = useState<LeadAddress>(EMPTY_ADDRESS)
   const [competitorLoan, setCompetitorLoan] = useState<boolean | null>(null)
+  const [competitorLender, setCompetitorLender] = useState('')
+  const [competitorAmount, setCompetitorAmount] = useState('')
   const [photo, setPhoto] = useState(false)
 
   const hasAddress = addressComplete(address)
+  // A "Ya" competitor loan must name the lender and the amount.
+  const competitorOk =
+    competitorLoan === false ||
+    (competitorLoan === true && competitorLender.trim() !== '' && competitorAmount.trim() !== '')
   const ready =
     name.trim() !== '' &&
     phone.trim() !== '' &&
     sumber !== null &&
     hasAddress &&
     competitorLoan !== null &&
+    competitorOk &&
     photo
 
   function goBack() {
@@ -85,6 +92,8 @@ export function LeadNewScreen() {
       nik: '',
       ktp: false,
       competitorLoan: competitorLoan ?? undefined,
+      competitorLender,
+      competitorAmount,
     })
     if (returnTo === 'sosialisasi') {
       flow.go('sosialisasi')
@@ -160,14 +169,57 @@ export function LeadNewScreen() {
               Tidak
             </Chip>
           </div>
+          {competitorLoan === true ? (
+            <div className="flex flex-col gap-12 pt-4">
+              <Input
+                label="Nama pemberi pinjaman"
+                required
+                value={competitorLender}
+                onChange={(e) => setCompetitorLender(e.target.value)}
+                placeholder="Mis. Mekaar, BRI, koperasi"
+              />
+              <Input
+                label="Nominal pinjaman"
+                required
+                inputMode="numeric"
+                value={competitorAmount}
+                onChange={(e) => setCompetitorAmount(e.target.value)}
+                placeholder="Rp"
+              />
+            </div>
+          ) : null}
         </div>
-        <SelectField
-          label="Foto bukti"
-          required
-          value={photo ? 'Foto terlampir' : undefined}
-          placeholder="Ambil foto calon mitra"
-          onClick={() => setSheet('photo')}
-        />
+
+        {/* Foto bukti — captured inline, not a dropdown. */}
+        <div className="flex flex-col gap-8">
+          <span className="text-12 text-default">
+            Foto bukti<span className="text-red-500"> *</span>
+          </span>
+          {photo ? (
+            <div className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12">
+              <span className="text-green-500">
+                <FileCheck size={20} />
+              </span>
+              <span className="flex-1 text-default">Foto terlampir</span>
+              <button
+                type="button"
+                onClick={() => setPhoto(false)}
+                className="shrink-0 text-12 font-bold text-link"
+              >
+                Ambil ulang
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPhoto(true)}
+              className="flex w-full flex-col items-center gap-4 rounded-8 border border-default bg-canvas-blue p-16 text-caption"
+            >
+              <Camera size={24} />
+              <span className="text-14 text-default">Ambil foto bersama calon mitra</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <StickyBar>
@@ -183,16 +235,6 @@ export function LeadNewScreen() {
         onClose={() => setSheet(null)}
         onSave={(a) => {
           setAddress(a)
-          setSheet(null)
-        }}
-      />
-      <PhotoSheet
-        key={sheet === 'photo' ? 'photo-open' : 'photo-closed'}
-        open={sheet === 'photo'}
-        photo={photo}
-        onClose={() => setSheet(null)}
-        onSave={(v) => {
-          setPhoto(v)
           setSheet(null)
         }}
       />

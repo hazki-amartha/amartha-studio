@@ -428,7 +428,9 @@ export function Chip({
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`rounded-full border px-12 py-8 text-12 font-bold ${classes}`}
+      // shrink-0 + nowrap: each chip hugs its text on one line, so a row of them
+      // keeps a single, even height instead of some wrapping taller.
+      className={`shrink-0 whitespace-nowrap rounded-full border px-12 py-8 text-12 font-bold ${classes}`}
     >
       {children}
     </button>
