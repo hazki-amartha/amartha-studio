@@ -53,6 +53,13 @@ export interface ProjectConfig {
   description: string
   device: DeviceKind
   status: ProjectStatus
+  /** Slug of a base project this one builds on. The runtime merges the base's
+   *  screens under this project's own: a screen here with the same id as a base
+   *  screen replaces it, every other base screen is inherited as-is, and
+   *  `useFlow().go(id)` resolves across both. One level only — a base may not
+   *  itself extend. Lets a project hold just the screens of one feature while
+   *  the prototype still behaves like the whole app. */
+  extends?: string
   /** ISO date, set at creation, never edited. */
   createdAt: string
   /** ISO date of the last meaningful change. Omit until the first edit;

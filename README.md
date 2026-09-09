@@ -83,6 +83,7 @@ which paths need a review.
 |------|-----------|
 | `projects/<slug>/` | Your project — the only place your agent writes |
 | `projects/_template/` | Copy this to start a new project |
+| `extends` in `project.config.ts` | Build one feature on top of another project's screens instead of rebuilding them |
 | `projects/registry.ts` | Append-only list of all projects |
 | `projects/configs.ts` | The same list, metadata only — kept in step by `check:flows` |
 | `design-system/` | Components, tokens, guidelines (owner-gated — read-only to agents) |

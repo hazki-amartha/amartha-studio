@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation'
 import type { ProjectModule } from '@/platform/types'
 import { usePublishHeaderStatus } from '@/platform/chrome'
 import { registry } from '@/projects/registry'
+import { resolveProject } from '@/platform/runtime/resolveProject'
 import { Edges } from './Edges'
 import { ScreenThumb } from './ScreenThumb'
 import { computeLayout } from './layout'
@@ -91,15 +92,18 @@ export function FlowCanvas({ slug }: { slug: string }) {
   //     server boundary; the registry loader runs here) --------------------
   useEffect(() => {
     let alive = true
-    const loader = registry[slug]
-    if (!loader) {
-      setState('missing')
-      return
-    }
-    loader()
+    // Only the project's own screens are drawn: a feature that extends a base
+    // would otherwise disappear among forty inherited nodes. Edges into the
+    // base are still valid navigation (check:flows resolves them against the
+    // merged list); the canvas simply has no node to draw them to.
+    resolveProject(registry, slug)
       .then((m) => {
         if (!alive) return
-        setMod(m)
+        if (!m) {
+          setState('missing')
+          return
+        }
+        setMod({ config: m.config, screens: m.own })
         setState('ready')
       })
       .catch(() => alive && setState('missing'))

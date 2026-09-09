@@ -768,7 +768,8 @@ export interface PrototypeViewProps {
   initialBare?: boolean
 }
 
-/** The project's screen list, loaded client-side from the registry.
+/** The project's screen list — its own plus any inherited from a base
+ *  (`extends`) — loaded client-side from the registry.
  *  Screen components are lazyScreen() handles and can't cross the server
  *  boundary, so the loader runs here — the same thing FlowCanvas does. */
 function useScreens(slug: string): ScreenDef[] | null {
@@ -780,8 +781,8 @@ function useScreens(slug: string): ScreenDef[] | null {
     // static import would put every project's index — and the demo/store libs
     // their states pull in — into this route's bundle, which is the cost we
     // just removed from the screens.
-    import('@/projects/registry')
-      .then(({ registry }) => registry[slug]?.())
+    Promise.all([import('@/projects/registry'), import('@/platform/runtime/resolveProject')])
+      .then(([{ registry }, { resolveProject }]) => resolveProject(registry, slug))
       .then((m) => {
         if (alive && m) setScreens(m.screens)
       })
