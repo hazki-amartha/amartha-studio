@@ -36,6 +36,26 @@ export const project: ProjectModule = {
       ],
     },
     {
+      id: 'sales-b',
+      title: 'Sales · Option B',
+      component: lazyScreen(() => import('./screens/sales-b'), 'SalesBScreen'),
+      flowsTo: [
+        { to: 'all-leads', label: 'Semua Leads' },
+        { to: 'follow-up', label: 'buka lead' },
+        { to: 'sosialisasi', label: 'buka POI' },
+        { to: 'lead-new', label: 'Add lead' },
+      ],
+    },
+    {
+      id: 'all-leads',
+      title: 'Semua Leads · Option B',
+      component: lazyScreen(() => import('./screens/all-leads'), 'AllLeadsScreen'),
+      flowsTo: [
+        { to: 'follow-up', label: 'buka lead' },
+        { to: 'sosialisasi', label: 'buka POI' },
+      ],
+    },
+    {
       id: 'task-list',
       title: 'Semua tugas',
       component: lazyScreen(() => import('./screens/task-list'), 'TaskListScreen'),

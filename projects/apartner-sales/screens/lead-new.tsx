@@ -99,7 +99,9 @@ export function LeadNewScreen() {
       flow.go('sosialisasi')
     } else {
       pipelineStore.setFlash(`${name.trim()} berhasil ditambahkan sebagai lead`)
-      flow.go('sales')
+      // Back to whichever Sales board she came from — the two options are shown
+      // side by side, so an add must not silently move her to the other one.
+      flow.go(returnTo)
     }
   }
 

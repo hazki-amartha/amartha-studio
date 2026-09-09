@@ -42,18 +42,31 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'profile', label: 'Profil', icon: <User /> },
 ]
 
-export function TabBar({ active, action }: { active: TabId; action?: ReactNode }) {
+export function TabBar({
+  active,
+  action,
+  actionAlign = 'end',
+}: {
+  active: TabId
+  action?: ReactNode
+  /** Where the floating action sits above the nav — trailing by default. */
+  actionAlign?: 'end' | 'center'
+}) {
   const flow = useFlow()
 
   return (
     // Pinned to the bottom of the scrollport, edge to edge — the Screen
     // primitive owns the 16px page padding, so the bar negates it.
     <div className="sticky bottom-0 -mx-16 mt-auto">
-      {/* A floating action rides just above the nav, right-aligned. The row
-          itself is click-through (pointer-events-none) so it never blocks the
-          content scrolling behind the gap; only the button inside catches taps. */}
+      {/* A floating action rides just above the nav. The row itself is
+          click-through (pointer-events-none) so it never blocks the content
+          scrolling behind the gap; only the button inside catches taps. */}
       {action ? (
-        <div className="pointer-events-none flex justify-end px-16 pb-12">
+        <div
+          className={`pointer-events-none flex px-16 pb-12 ${
+            actionAlign === 'center' ? 'justify-center' : 'justify-end'
+          }`}
+        >
           <span className="pointer-events-auto">{action}</span>
         </div>
       ) : null}
