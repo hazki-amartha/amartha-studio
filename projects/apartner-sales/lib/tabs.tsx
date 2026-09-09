@@ -1,6 +1,8 @@
 'use client'
 
 // The app's five destinations — the L0 surfaces this direction sits on top of.
+// Four of them are the Majelis View app itself: this project `extends` it, so
+// the tabs land on its real screens rather than on stubs.
 //
 //   Jadwal  — what to do now. The entry screen, and where a pelayanan starts.
 //   Majelis — every group the BP carries, reachable off-schedule. This is the
@@ -63,11 +65,11 @@ export function TabBar({ active, action }: { active: TabId; action?: ReactNode }
           label: tab.label,
           icon: tab.icon,
           active: tab.id === active,
-          // Only Sales is built in this prototype — it is the module under
-          // iteration, and the other four are here because the bar is what the
-          // BP actually sees under a Sales page, not because they lead anywhere.
+          // Sales is the module built here; the other four resolve to the
+          // Majelis View app this project extends (project.config `extends`),
+          // so every tab leads somewhere real.
           onClick: () => {
-            if (tab.id !== active && tab.id === 'sales') flow.go(tab.id)
+            if (tab.id !== active) flow.go(tab.id)
           },
         }))}
       />
