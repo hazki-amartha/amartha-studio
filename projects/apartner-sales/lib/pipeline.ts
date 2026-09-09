@@ -133,110 +133,6 @@ export interface PipelineLog {
   next?: string
 }
 
-// --- The five task types ---------------------------------------------------
-//
-// The Sales page groups by the KIND of work rather than listing leads flat,
-// because those five are five different jobs, done at different times of day,
-// often in different places. "Fifteen leads" is a number a BP cannot act on;
-// "five reactivations, one POI visit, nine calls" is her afternoon.
-//
-// A lead's group is DERIVED — from her status, her source, and how many times
-// she has actually been called — so it can never disagree with her record. It
-// is a reading of the lead, not a field somebody has to remember to set.
-
-export type SalesTask =
-  | 'reactivation'
-  | 'poi-visit'
-  | 'followup-2-referral'
-  | 'followup-1'
-  | 'new-leads'
-
-/** The groups in the order the page stacks them — most urgent work first. */
-export const TASK_ORDER: SalesTask[] = [
-  'reactivation',
-  'poi-visit',
-  'followup-2-referral',
-  'followup-1',
-  'new-leads',
-]
-
-/**
- * What each group is called, and the flow line under it — "Telepon → majelis →
- * submit". The arrow line is doing real work: it is the only place on the page
- * that says what finishing one of these tasks actually involves, which is the
- * difference between a card that counts work and a card that explains it.
- */
-export const TASK_META: Record<
-  SalesTask,
-  { label: string; flow: string; tint: 'primary' | 'blue' | 'green' | 'orange' | 'red' }
-> = {
-  reactivation: {
-    label: 'Reactivation',
-    flow: 'Masa tunggu habis → hubungi lagi',
-    tint: 'red',
-  },
-  'poi-visit': {
-    label: 'POI Visit',
-    flow: 'Kunjungi titik → input lead',
-    tint: 'primary',
-  },
-  'followup-2-referral': {
-    label: '2nd Follow Up Referral',
-    flow: 'Telepon → majelis → submit',
-    tint: 'green',
-  },
-  'followup-1': {
-    label: '1st Follow Up',
-    flow: 'Telepon → catat minat → jadwalkan',
-    tint: 'orange',
-  },
-  'new-leads': {
-    label: 'New Leads',
-    flow: 'Baru didata → hubungi pertama kali',
-    tint: 'blue',
-  },
-}
-
-/** How many times this lead has actually been called. */
-export const followUpCount = (lead: PipelineLead): number =>
-  lead.log.filter((e) => e.via === 'telepon' || e.via === 'wa').length
-
-/**
- * Which task group a lead belongs to, read off her own record.
- *
- * The order of the checks is the point. A cold lead is a reactivation whatever
- * else is true of her — the wait is the only thing that governs when she may be
- * touched — and past that it is simply how far she has been worked: never
- * called is a New Lead, called once needs her second call, and a REFERRAL on
- * her second call is separated out because a referral converts on a different
- * conversation (a mitra vouched for her) and is worth working before a cold POI
- * name of the same age.
- */
-export function taskOf(lead: PipelineLead): SalesTask {
-  // A cold lead is a reactivation whatever else is true of her: the wait is the
-  // only thing that governs when she may be touched at all.
-  if (COLD_STATUSES.includes(lead.status)) return 'reactivation'
-  // New means exactly that — written down, nobody has spoken to her yet. It is
-  // her STATUS that decides this and not her call count, because a lead who has
-  // had a survey raised is not a new lead however few times she was phoned.
-  if (lead.status === 'new') return 'new-leads'
-  // Everything else is in flight, and the job is the next conversation. A
-  // referral that has already been called once is split out because she
-  // converts on a different conversation — a mitra vouched for her — and is
-  // worth working before a cold POI name of the same age.
-  if (lead.source === 'referral' && followUpCount(lead) >= 1) return 'followup-2-referral'
-  return 'followup-1'
-}
-
-/** How many of each group a BP is expected to clear in a day. */
-export const TASK_TARGET: Record<SalesTask, number> = {
-  reactivation: 5,
-  'poi-visit': 2,
-  'followup-2-referral': 5,
-  'followup-1': 10,
-  'new-leads': 8,
-}
-
 /**
  * When a piece of Sales work is due. The Sales page is a schedule before it is a
  * directory: what a BP wants on opening it is what she is doing at 14.00, not an
@@ -255,6 +151,13 @@ export interface Agenda {
   when: string
   /** Sorts within a day. */
   order: number
+  /**
+   * When the follow-up is due, in days from today: 0 today, negative overdue
+   * (a follow-up missed N days ago), positive upcoming. Absent falls back to
+   * `day` — today → 0, upcoming → a few days out — so older seed rows still
+   * schedule sensibly. This, not `day`, is what the Sales card reads.
+   */
+  dueDays?: number
 }
 
 /** "Diproses - 14.00" — the schedule line at the top of a card. */
@@ -301,6 +204,38 @@ export interface PipelineLead {
   referredBy: string
   /** Referral only — what kind of person the referrer is. */
   referrerKind?: ReferrerKind | null
+
+  /** Whether she already carries a loan at a competitor — asked at capture (Y/N). */
+  competitorLoan?: boolean
+  /**
+   * She was sent a self-service AFIN application and has started it herself but
+   * not submitted. She stays on the Sales list for a follow-up, where the BP can
+   * take the application over (assisted) if she is stuck.
+   */
+  selfServiceStarted?: boolean
+  /**
+   * An FO-assisted application the BP began but did not submit ("Continue
+   * later"). `assistedDone` are the section ids already filled — reopening the
+   * application resumes from exactly there.
+   */
+  assistedStarted?: boolean
+  assistedDone?: string[]
+  /**
+   * The outcome of her most recent in-app follow-up meeting — what the
+   * "previous meeting" line reports. Absent means she was only just created
+   * ("Lead created"). `date` is when that meeting happened; `reason` carries the
+   * word the BP picked (reschedule reason, continue-later reason, drop reason).
+   */
+  lastResult?: {
+    kind: 'rescheduled' | 'assisted' | 'self-service' | 'dropped'
+    date: string
+    reason?: string
+  }
+  /**
+   * Reactivation only — an ex-mitra reopening. Her old ceiling and the one she
+   * could come back at, shown on the reactivation follow-up card.
+   */
+  reactivation?: { prevLimit: string; potentialLimit: string }
 
   /** Her single, flat status. Type (qualified/unqualified) is derived, not stored. */
   status: LeadStatus
@@ -467,13 +402,24 @@ export const SOURCE_LABEL: Record<LeadSource, string> = {
   poi: 'POI Visit',
 }
 
-/** The points of interest a POI Visit lead can be captured at. */
+/** The points of interest a POI Visit lead can be captured at. In the field this
+ *  list is long, so its picker is searchable. */
 export const POI_LIST = [
   'Pasar Ciseeng',
+  'Pasar Ikan Ciseeng',
+  'Pasar Parung',
   'Posyandu RW 04',
+  'Posyandu RW 07 Putat Nutug',
+  'Posyandu Melati Cibeuteung',
   'Balai Desa Ciseeng',
+  'Balai Desa Putat Nutug',
+  'Balai RW 02 Putat Nutug',
   'Warung Bu Ipah, Cibeuteung',
+  'Warung Bu Nani, Karihkil',
   'Majelis Taklim Al-Hidayah',
+  'Majelis Taklim An-Nur',
+  'PAUD Tunas Bangsa',
+  'Koperasi Pasar Ciseeng',
 ]
 
 /**
@@ -524,7 +470,8 @@ export const FIELD_OFFICERS = ['Nurhayati', 'Siti Aminah', 'Dewi Lestari', 'Rina
 /** Whoever is holding the phone. The default assignee on a new lead. */
 export const CURRENT_FO = FIELD_OFFICERS[0]
 
-/** A short roster of mitra, for the searchable referral picker. */
+/** The roster of mitra, for the searchable referral picker. In production this
+ *  spans every active mitra, so its picker is searchable. */
 export const MITRA_REFERRERS = [
   'Rina Marlina (Majelis Mawar)',
   'Yanti Suryani (Majelis Melati)',
@@ -532,6 +479,12 @@ export const MITRA_REFERRERS = [
   'Euis Rohaeti (Majelis Dahlia)',
   'Nining Suryani (Majelis Seruni)',
   'Kokom Komariah (Majelis Anggrek)',
+  'Titin Suryani (Majelis Mawar)',
+  'Wati Kusmiati (Majelis Melati)',
+  'Eneng Hasanah (Majelis Kenanga)',
+  'Siti Maryam (Majelis Teratai)',
+  'Lilis Nurlaela (Majelis Cempaka)',
+  'Ai Rohaeni (Majelis Flamboyan)',
 ]
 
 /** Amartha staff who can refer a prospect — the "Petugas Amartha" branch. */
@@ -541,6 +494,10 @@ export const PETUGAS_REFERRERS = [
   'Ani Suryani (BP-10603)',
   'Dewi Lestari (BP-10644)',
   'Nurhayati (BM-2041)',
+  'Ratih Purnama (BP-10711)',
+  'Yeni Marlina (BP-10758)',
+  'Iis Kartika (BP-10802)',
+  'Dedi Supriadi (BM-2109)',
 ]
 
 /** The non-mitra referrer kinds — the "Others" branch of the referral picker. */
@@ -766,7 +723,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
     address: { kecamatan: 'Ciseeng', desa: 'Cibeuteung Udik', detail: 'Kp. Cibeuteung RT 02/RW 05', mapsCoord: 'pinned' },
     status: 'interested',
     ageDays: 1,
-    agenda: { day: 'today', kind: 'Diproses', when: '13.00', order: 2 },
+    // Her follow-up slipped two days ago — overdue, so she rides today's board.
+    agenda: { day: 'today', kind: 'Diproses', when: '13.00', order: 2, dueDays: -2 },
     majelis: { kind: 'none', branch: 'BP Ciseeng' },
     nik: '',
     ktp: false,
@@ -815,6 +773,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     id: 'p2',
     name: 'Sri Mulyani',
     phone: '0858-7712-2043',
+    address: { kecamatan: 'Ciseeng', desa: 'Ciseeng', detail: 'Kp. Pasar RT 03/RW 01', mapsCoord: 'pinned' },
     source: 'poi',
     poi: 'Pasar Cibeuteung',
     referredBy: '',
@@ -822,7 +781,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
     photo: false,
     status: 'interested',
     ageDays: 12,
-    agenda: { day: 'today', kind: 'Follow up', when: '15.30', order: 3 },
+    // A longer slip — four days without the follow-up she was due.
+    agenda: { day: 'today', kind: 'Follow up', when: '15.30', order: 3, dueDays: -4 },
     majelis: { kind: 'none', branch: 'BP Ciseeng' },
     nik: '',
     ktp: false,
@@ -847,6 +807,10 @@ export const SEED_PIPELINE: PipelineLead[] = [
     address: { kecamatan: 'Ciseeng', desa: 'Putat Nutug', detail: 'Kp. Nutug RT 01/RW 02', mapsCoord: 'pinned' },
     status: 'not-interested',
     ageDays: 21,
+    // Her one-month cool-off has come due today — she reopens as a reactivation.
+    agenda: { day: 'today', kind: 'Reaktivasi', when: 'Hari ini', order: 5 },
+    // An ex-mitra: her old ceiling and the one she could reactivate at.
+    reactivation: { prevLimit: 'Rp5.000.000', potentialLimit: 'Rp7.000.000' },
     majelis: { kind: 'existing', id: 'kenanga' },
     nik: '',
     ktp: false,
@@ -862,6 +826,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     id: 'p4',
     name: 'Nia Kurniasih',
     phone: '0813-6612-4408',
+    address: { kecamatan: 'Ciseeng', desa: 'Karihkil', detail: 'Kp. Karihkil RT 02/RW 04', mapsCoord: 'pinned' },
     source: 'poi',
     poi: 'Pasar Ciseeng',
     referredBy: '',
@@ -892,7 +857,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     address: { kecamatan: 'Gunung Sindur', desa: 'Pengasinan', detail: 'Kp. Pengasinan RT 04/RW 01', mapsCoord: 'pinned' },
     status: 'interested',
     ageDays: 6,
-    agenda: { day: 'upcoming', kind: 'Follow up', when: 'Rabu, 10.00', order: 1 },
+    agenda: { day: 'today', kind: 'Follow up', when: 'Hari ini', order: 6 },
     majelis: { kind: 'new', name: 'Majelis Cibeuteung' },
     nik: '3201095203910022',
     ktp: true,
@@ -909,6 +874,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     id: 'p6',
     name: 'Euis Komariah',
     phone: '0813-9987-3320',
+    address: { kecamatan: 'Ciseeng', desa: 'Ciseeng', detail: 'Kp. Kaum RT 01/RW 03', mapsCoord: 'pinned' },
     source: 'poi',
     poi: 'Balai Desa Ciseeng',
     referredBy: '',
@@ -934,6 +900,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     id: 'p7',
     name: 'Rohaya',
     phone: '0857-2290-1188',
+    address: { kecamatan: 'Ciseeng', desa: 'Putat Nutug', detail: 'Kp. Nutug RT 03/RW 02', mapsCoord: 'pinned' },
     source: 'referral',
     referredBy: 'Ibu Rina Marlina (Majelis Mawar)',
     fo: 'Siti Aminah',
@@ -957,6 +924,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     id: 'p8',
     name: 'Siti Aisyah',
     phone: '0856-1123-8842',
+    address: { kecamatan: 'Ciseeng', desa: 'Cibeuteung Udik', detail: 'Kp. Cibeuteung RT 04/RW 03', mapsCoord: 'pinned' },
     source: 'referral',
     referredBy: 'Bu Yanti (Majelis Melati)',
     fo: 'Nurhayati',
@@ -981,6 +949,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     id: 'p9',
     name: 'Wati Ningsih',
     phone: '0819-2278-6605',
+    address: { kecamatan: 'Gunung Sindur', desa: 'Curug', detail: 'Kp. Curug RT 02/RW 05', mapsCoord: 'pinned' },
     source: 'poi',
     poi: 'Balai Desa Ciseeng',
     referredBy: '',
@@ -988,6 +957,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
     photo: true,
     status: 'rejected',
     ageDays: 30,
+    // Reactivation is scheduled ahead — her six-month cool-off reopens her then.
+    agenda: { day: 'upcoming', kind: 'Reaktivasi', when: 'Reaktivasi 21 Jan', order: 7, dueDays: 30 },
     majelis: { kind: 'existing', id: 'dahlia' },
     nik: '3201096003910004',
     ktp: true,
@@ -1005,6 +976,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     id: 'p10',
     name: 'Ratna Sari',
     phone: '0813-4471-9026',
+    address: { kecamatan: 'Parung', desa: 'Iwul', detail: 'Kp. Iwul RT 01/RW 06', mapsCoord: 'pinned' },
     source: 'referral',
     referredBy: 'Bu Sari (Majelis Melati)',
     fo: 'Nurhayati',

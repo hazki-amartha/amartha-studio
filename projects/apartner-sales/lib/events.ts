@@ -24,6 +24,10 @@ export interface SosialisasiEvent {
   address: string
   /** Who to ask for on arrival — empty when the POI is an open space. */
   contact: string
+  /** The contact's phone, shown beside a call affordance on the POI brief. */
+  contactPhone?: string
+  /** When the place is busiest — the window worth timing a visit to. */
+  busyHours?: string
   /** "Sosialisasi Kelompok" / "Open space selling" — the kind of POI. */
   type: string
   /** The BP's own briefing note for working this POI. */
@@ -48,6 +52,8 @@ export const EVENTS: SosialisasiEvent[] = [
     poi: 'Warung Bu Ipah, Cibeuteung',
     address: 'Jl. Batu Sangkar VII, No.15, Kabupaten Ciseeng, Jawa Barat',
     contact: 'Ibu Ipah',
+    contactPhone: '+62 812-9087-1122',
+    busyHours: '08.00 - 11.00',
     type: 'Sosialisasi Kelompok',
     guide: 'Bu Ipah (pemilik warung) memiliki 8 orang teman yang juga tertarik untuk mengambil pinjaman Amartha.',
     art: 'warung',
@@ -61,12 +67,14 @@ export const EVENTS: SosialisasiEvent[] = [
     target: 20,
     poi: 'Pasar Ikan Ciseeng',
     address: 'Jl. Burung Perkutut XI, No.41, Kabupaten Ciseeng, Jawa Barat',
-    contact: '',
+    contact: 'Wati (Tukang Udang)',
+    contactPhone: '+62 811-1456-5655',
+    busyHours: '09.00 - 14.00',
     type: 'Open space selling',
     guide: 'Pasar ikan ini lumayan ramai, ada lebih dari 50 pedagang ikan, mayoritas perempuan. Targetkan pedagang-pedagang yang ada di sana. Beberapa orang sudah punya pinjaman dari Mekaar, tawarkan kemungkinan limit lebih tinggi dari Amartha.',
     art: 'pasar-ikan',
     poiType: 'Pasar',
-    agenda: { day: 'upcoming', kind: 'Sosialisasi POI', when: 'Besok, 14.00', order: 0 },
+    agenda: { day: 'upcoming', kind: 'Sosialisasi POI', when: 'Besok, 14.00', order: 0, dueDays: 1 },
   },
   // Last week's, in Putat Nutug. Nothing opens it — it exists so the seeded
   // leads have somewhere to have come from, which is what makes today's

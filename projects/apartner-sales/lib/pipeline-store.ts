@@ -9,6 +9,7 @@ import { useSyncExternalStore } from 'react'
 import {
   CURRENT_FO,
   SEED_PIPELINE,
+  dateFromToday,
   followUpDateFor,
   type Channel,
   type Interest,
@@ -19,7 +20,6 @@ import {
   type MemberRole,
   type PipelineLead,
   type PipelineLog,
-  type SalesTask,
   type Product,
   type ReferrerKind,
 } from './pipeline'
@@ -39,8 +39,9 @@ interface PipelineState {
    *  Alt (a two-step flow). Set by the Alt presentation state; reset on any real
    *  navigation so a live follow-up always opens the default. */
   followUpVariant: 'default' | 'alt'
-  /** Which task group the group list is showing. */
-  openTask: SalesTask
+  /** A one-shot confirmation banner for the Sales page — set on a submit/drop,
+   *  cleared the next time Sales mounts. */
+  flash: string | null
 }
 
 const seedLeads: Record<string, PipelineLead> = {}
@@ -54,7 +55,7 @@ let state: PipelineState = {
   openId: SEED_PIPELINE[0].id,
   followUpTaskId: null,
   followUpVariant: 'default',
-  openTask: 'new-leads',
+  flash: null,
 }
 
 const listeners = new Set<() => void>()
@@ -88,12 +89,6 @@ export const pipelineStore = {
     return () => listeners.delete(listener)
   },
 
-  /** Opens one of the five task groups as its own list. */
-  openTaskGroup(task: SalesTask) {
-    state = { ...state, openTask: task }
-    emit()
-  },
-
   /** Opens a lead's record from the roster (not as a task). */
   open(id: string) {
     state = { ...state, openId: id, followUpTaskId: null, followUpVariant: 'default' }
@@ -118,6 +113,131 @@ export const pipelineStore = {
     emit()
   },
 
+  /** Raise a one-shot confirmation banner for the Sales page. */
+  setFlash(message: string) {
+    state = { ...state, flash: message }
+    emit()
+  },
+
+  /** Clear the banner — called by Sales once it has shown it. */
+  clearFlash() {
+    if (state.flash === null) return
+    state = { ...state, flash: null }
+    emit()
+  },
+
+  /**
+   * Reschedule the next follow-up to a later day. Moves her off today's board
+   * by pushing the agenda's due date out; the old `when` label is replaced with
+   * the plain date the BP picked.
+   */
+  rescheduleFollowUp(id: string, dueInDays: number, whenLabel: string, note?: string) {
+    patchLead(id, (lead) => ({
+      agenda: {
+        day: 'upcoming',
+        kind: lead.agenda?.kind ?? 'Follow up',
+        when: whenLabel,
+        order: lead.agenda?.order ?? 0,
+        dueDays: dueInDays,
+      },
+      nextFollowUp: whenLabel,
+      lastResult: { kind: 'rescheduled', date: dateFromToday(0), reason: note?.trim() || undefined },
+      log: appendLog(lead, {
+        via: 'manual',
+        status: lead.status,
+        system: 'Follow up dijadwalkan ulang',
+        note: note?.trim() || undefined,
+      }),
+    }))
+  },
+
+  /** Drops a lead as Not interested — she reopens later as a reactivation task. */
+  dropLead(id: string, reason: string) {
+    patchLead(id, (lead) => ({
+      status: 'not-interested',
+      lastResult: { kind: 'dropped', date: dateFromToday(0), reason: reason.trim() || undefined },
+      // Off today's board; she comes back on her reactivation date.
+      agenda: {
+        day: 'upcoming',
+        kind: 'Reaktivasi',
+        when: 'Reaktivasi',
+        order: lead.agenda?.order ?? 0,
+        dueDays: 30,
+      },
+      log: appendLog(lead, { via: 'manual', status: 'not-interested', note: reason.trim() || undefined }),
+    }))
+  },
+
+  /**
+   * Send her the self-service AFIN application. She stays on the Sales list —
+   * still `interested`, now flagged as started — so the next follow-up can check
+   * on her or take the application over. Pushes the follow-up out a few days.
+   */
+  startSelfService(id: string, dueInDays = 3, whenLabel = 'Follow up self-service') {
+    patchLead(id, (lead) => ({
+      selfServiceStarted: true,
+      agenda: {
+        day: 'upcoming',
+        kind: 'Follow up',
+        when: whenLabel,
+        order: lead.agenda?.order ?? 0,
+        dueDays: dueInDays,
+      },
+      lastResult: { kind: 'self-service', date: dateFromToday(0) },
+      log: appendLog(lead, {
+        via: 'manual',
+        status: lead.status,
+        system: 'Aplikasi self-service AFIN dikirim',
+      }),
+    }))
+  },
+
+  /**
+   * Save an FO-assisted application in progress ("Continue later"): remember the
+   * sections already done and push the next follow-up out one day, so the BP can
+   * resume it from where she left off.
+   */
+  saveAssistedProgress(id: string, completed: string[], whenLabel: string, note?: string) {
+    patchLead(id, (lead) => ({
+      assistedStarted: true,
+      assistedDone: completed,
+      // Taking over supersedes any self-service state.
+      selfServiceStarted: false,
+      agenda: {
+        day: 'upcoming',
+        kind: 'Follow up',
+        when: whenLabel,
+        order: lead.agenda?.order ?? 0,
+        dueDays: 1,
+      },
+      nextFollowUp: whenLabel,
+      lastResult: { kind: 'assisted', date: dateFromToday(0), reason: note?.trim() || undefined },
+      log: appendLog(lead, {
+        via: 'manual',
+        status: lead.status,
+        system: `Aplikasi assisted disimpan (${completed.length}/8 bagian)`,
+        note: note?.trim() || undefined,
+      }),
+    }))
+  },
+
+  /**
+   * Submit the pengajuan from a completed assisted application. She moves to
+   * survey-submitted — the system takes over (KYC → underwriting) and she leaves
+   * the Sales list for Mitra.
+   */
+  submitApplication(id: string) {
+    patchLead(id, (lead) => ({
+      status: 'survey-submitted',
+      assistedStarted: false,
+      log: appendLog(lead, {
+        via: 'manual',
+        status: 'survey-submitted',
+        system: 'Aplikasi dikirim — pindah ke daftar Mitra',
+      }),
+    }))
+  },
+
   /**
    * Captures a brand-new lead — Unqualified, Interested, since a lead the BP
    * just met has by definition never been worked and entered the funnel because
@@ -138,6 +258,7 @@ export const pipelineStore = {
     nik: string
     ktp: boolean
     product?: Product | null
+    competitorLoan?: boolean
   }): string {
     const id = `p${Date.now()}`
     // KTP captured up front makes her Qualified (a type), but her status opens
@@ -155,6 +276,7 @@ export const pipelineStore = {
       poi: referral ? '' : data.poi.trim(),
       referredBy: referral ? data.referredBy.trim() : '',
       referrerKind: referral ? data.referrerKind : null,
+      competitorLoan: data.competitorLoan,
       // Written down today and never contacted — that is exactly New.
       status: 'new',
       ageDays: 0,
@@ -341,20 +463,32 @@ export function usePipeline(): PipelineState {
 }
 
 // --- Add-Lead entry -------------------------------------------------------
-// How the Add Lead screen behaves on its next open: a plain save, or a direct
-// pengajuan ("Langsung Ajukan Pinjaman" from a sosialisasi), optionally with a
-// draft (name/phone/KTP/POI) carried over from the quick capture. It is a plain
-// module value — set right before navigating, consumed once on mount.
+// How the Add Lead form opens on its next mount. The SOURCE is chosen BEFORE the
+// form — from a bottom sheet on the Sales page, or fixed by a sosialisasi — so
+// it arrives already picked and read-only. `returnTo` says where Submit and Back
+// go. It is a plain module value, set right before navigating, read once on
+// mount.
+
+export interface AddLeadSource {
+  source: LeadSource
+  poi: string
+  referredBy: string
+  referrerKind: ReferrerKind | null
+}
 
 export interface AddLeadEntry {
   mode: 'save' | 'ajukan'
+  /** The preselected source — null only as a defensive default. */
+  source: AddLeadSource | null
+  /** Where Submit / Back return to. */
+  returnTo: 'sales' | 'sosialisasi'
   draft: { name: string; phone: string; nik: string; ktp: boolean; poi: string } | null
 }
 
-let addLeadEntry: AddLeadEntry = { mode: 'save', draft: null }
+let addLeadEntry: AddLeadEntry = { mode: 'save', source: null, returnTo: 'sales', draft: null }
 
 // Set right before navigating to Add Lead; NOT reset on read, so it survives a
-// StrictMode double-mount. Every entry point sets it explicitly (Sales → save).
+// StrictMode double-mount. Every entry point sets it explicitly.
 export function setAddLeadEntry(entry: AddLeadEntry) {
   addLeadEntry = entry
 }

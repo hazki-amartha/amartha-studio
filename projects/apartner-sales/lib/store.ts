@@ -20,6 +20,12 @@ import { findEvent, type SosialisasiEvent } from './events'
 export interface AppState {
   /** The sosialisasi the POI screen is about — an `EVENTS` id. */
   openEvent: string
+  /**
+   * Which face the POI screen shows: the brief (`detail`) or the running list
+   * of captured leads (`leads`). "Start add leads" flips it; opening a fresh POI
+   * resets it to the brief.
+   */
+  poiStage: 'detail' | 'leads'
   /** The rostered task a screen was opened from, if any. */
   activeTask: string | null
   /** taskId → how many times it has been moved, and why last. */
@@ -30,6 +36,7 @@ export interface AppState {
 
 const initial: AppState = {
   openEvent: 'e1',
+  poiStage: 'detail',
   activeTask: 't3',
   reschedules: {},
   rejects: {},
@@ -51,9 +58,13 @@ export const store = {
     state = initial
     emit()
   },
-  /** Opens a POI. Used by the demo states to switch which sosialisasi is shown. */
+  /** Opens a POI on its brief. Used from Sales and by the demo states. */
   openSosialisasi(eventId: string, taskId: string | null = 't3') {
-    store.set({ openEvent: eventId, activeTask: taskId })
+    store.set({ openEvent: eventId, activeTask: taskId, poiStage: 'detail' })
+  },
+  /** "Start add leads" — flip the POI screen to its running leads list. */
+  startPoiLeads() {
+    store.set({ poiStage: 'leads' })
   },
   /** Opens a follow-up from the schedule — the rostered call. */
   startFollowUp(taskId: string) {

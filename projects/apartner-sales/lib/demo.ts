@@ -21,7 +21,7 @@ const WALK_UPS = [
   { name: 'Ibu Lastri', phone: '0895-3312-8890' },
 ]
 
-/** Puts the BP at Warung Bu Ipah with `count` names already on the board. */
+/** Puts the BP at Warung Bu Ipah on its running leads list, `count` already in. */
 function sosialisasi(count: number) {
   pipelineStore.reset()
   store.openSosialisasi('e1')
@@ -30,6 +30,7 @@ function sosialisasi(count: number) {
     pipelineStore.addLead({
       name: w.name,
       phone: w.phone,
+      address: { kecamatan: 'Ciseeng', desa: 'Cibeuteung Udik', detail: 'Kp. Cibeuteung RT 02/RW 05', mapsCoord: 'pinned' },
       source: 'poi',
       poi,
       referredBy: '',
@@ -39,6 +40,8 @@ function sosialisasi(count: number) {
       ktp: false,
     }),
   )
+  // These states are about "names on the board", so open the leads list face.
+  store.startPoiLeads()
 }
 
 export const eventEmpty = () => sosialisasi(0)
@@ -51,19 +54,23 @@ export const eventFull = () => sosialisasi(WALK_UPS.length)
 // one rather than something the BP started off her own roster.
 
 const FOLLOW_UP_TASK = 't2c'
-const FOLLOW_UP_LEAD = 'p2'
 
-/** Default layout, on the connected lead, as her scheduled follow-up. */
-export const followUpDefault = () => {
+function openLead(id: string) {
   pipelineStore.reset()
   store.startFollowUp(FOLLOW_UP_TASK)
-  pipelineStore.openFollowUp(FOLLOW_UP_LEAD, FOLLOW_UP_TASK)
+  pipelineStore.openFollowUp(id, FOLLOW_UP_TASK)
 }
 
-/** Alt layout: the "Tawarkan pengajuan" flow, same lead and task. */
-export const followUpAlt = () => {
+/** A 1st follow-up on a POI lead — one that has slipped a couple of days. */
+export const followUpFirst = () => openLead('p1')
+
+/** The reactivation of an ex-mitra — loan limits instead of a previous meeting. */
+export const followUpReactivation = () => openLead('p3')
+
+/** A lead who was sent the self-service AFIN app — the "Takeover application" case. */
+export const followUpSelfService = () => {
   pipelineStore.reset()
+  pipelineStore.startSelfService('p5')
   store.startFollowUp(FOLLOW_UP_TASK)
-  pipelineStore.openFollowUp(FOLLOW_UP_LEAD, FOLLOW_UP_TASK)
-  pipelineStore.setFollowUpVariant('alt')
+  pipelineStore.openFollowUp('p5', FOLLOW_UP_TASK)
 }

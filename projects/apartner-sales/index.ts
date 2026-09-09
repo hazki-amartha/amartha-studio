@@ -14,31 +14,19 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/sales'), 'SalesScreen'),
       entry: true,
       flowsTo: [
-        { to: 'lead-detail', label: 'buka lead' },
-        { to: 'lead-new', label: 'Add lead' },
+        { to: 'follow-up', label: 'buka lead' },
+        { to: 'lead-new', label: 'Tambah lead' },
         { to: 'sosialisasi', label: 'buka POI' },
+        { to: 'task-list', label: 'Lihat semua kategori' },
       ],
     },
     {
-      // Option B — the same work grouped by task type instead of by when it is
-      // due. It sits beside the Sales page rather than replacing it: the two
-      // are here to be compared.
-      id: 'sales-b',
-      title: 'Sales · Option B',
-      component: lazyScreen(() => import('./screens/sales-b'), 'SalesBScreen'),
+      id: 'task-list',
+      title: 'Semua tugas',
+      component: lazyScreen(() => import('./screens/task-list'), 'TaskListScreen'),
       flowsTo: [
-        { to: 'task-group', label: 'buka grup tugas' },
-        { to: 'lead-new', label: 'Add lead' },
-      ],
-    },
-    {
-      id: 'task-group',
-      title: 'Grup Tugas · Option B',
-      component: lazyScreen(() => import('./screens/task-group'), 'TaskGroupScreen'),
-      flowsTo: [
-        { to: 'lead-detail', label: 'buka lead' },
+        { to: 'follow-up', label: 'buka lead' },
         { to: 'sosialisasi', label: 'buka POI' },
-        { to: 'sales-b', label: 'kembali' },
       ],
     },
     {
@@ -51,7 +39,10 @@ export const project: ProjectModule = {
       id: 'lead-new',
       title: 'Tambah Lead',
       component: lazyScreen(() => import('./screens/lead-new'), 'LeadNewScreen'),
-      flowsTo: [{ to: 'lead-detail', label: 'simpan → buka record' }],
+      flowsTo: [
+        { to: 'sales', label: 'Submit → Sales' },
+        { to: 'sosialisasi', label: 'POI Visit → POI page' },
+      ],
     },
     {
       id: 'follow-up',
@@ -59,20 +50,37 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/follow-up'), 'FollowUpScreen'),
       states: [
         {
-          id: 'default',
-          label: 'Default',
-          description: 'The default two-step follow-up on a connected lead',
-          apply: demo.followUpDefault,
+          id: 'first',
+          label: '1st Follow up',
+          description: 'A POI lead due for her first follow-up (a couple of days late)',
+          apply: demo.followUpFirst,
         },
         {
-          id: 'alt',
-          label: 'Alt · Tawarkan pengajuan',
-          description:
-            'Two steps — Hubungi, then Tawarkan pengajuan (Ajukan sekarang / Belum siap → catat minat & jadwal)',
-          apply: demo.followUpAlt,
+          id: 'reactivation',
+          label: 'Reactivation',
+          description: 'An ex-mitra reopening — previous & potential loan limits',
+          apply: demo.followUpReactivation,
+        },
+        {
+          id: 'self-service',
+          label: 'Self-service started',
+          description: 'She was sent the AFIN app — the "Takeover application" case',
+          apply: demo.followUpSelfService,
         },
       ],
-      flowsTo: [{ to: 'sales', label: 'Simpan & Selesai' }],
+      flowsTo: [
+        { to: 'application', label: 'Continue / Takeover application' },
+        { to: 'sales', label: 'Reschedule / Drop' },
+      ],
+    },
+    {
+      id: 'application',
+      title: 'Aplikasi (FO Assisted)',
+      component: lazyScreen(() => import('./screens/application'), 'ApplicationScreen'),
+      flowsTo: [
+        { to: 'sales', label: 'Submit → Mitra' },
+        { to: 'follow-up', label: 'kembali' },
+      ],
     },
     {
       id: 'sosialisasi',
@@ -99,9 +107,9 @@ export const project: ProjectModule = {
         },
       ],
       flowsTo: [
-        { to: 'lead-detail', label: 'ketuk prospek' },
-        { to: 'lead-new', label: 'Tambah Prospek → Ajukan' },
-        { to: 'sales', label: 'Selesaikan Sosialisasi' },
+        { to: 'follow-up', label: 'ketuk prospek' },
+        { to: 'lead-new', label: 'Start add leads' },
+        { to: 'sales', label: 'Complete Sosialisasi' },
       ],
     },
   ],
