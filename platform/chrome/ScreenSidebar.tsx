@@ -18,7 +18,7 @@ import {
   subscribeScreenBridge,
 } from '@/platform/runtime/bridge'
 import { ChevronLeftIcon } from './icons'
-import type { ProjectIndexEntry } from './loadProjectIndex'
+import type { ProjectIndexEntry, ScreenIndexEntry } from './loadProjectIndex'
 
 const ROW_ACTIVE =
   'truncate rounded-8 bg-primary-50 px-12 py-8 text-left text-14 font-bold text-link dark:border dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50'
@@ -46,32 +46,59 @@ export function ScreenSidebar({ project }: { project: ProjectIndexEntry }) {
 
       <p className="truncate px-12 text-16 font-bold text-default dark:text-neutral-50">{project.name}</p>
 
-      <nav aria-label="Screens" className="flex flex-col gap-2">
-        <p className="px-12 py-4 text-10 font-bold uppercase text-caption dark:text-neutral-400">Screens</p>
-        {project.screens.map((screen) => {
-          const isActive = screen.id === activeId
-          const className = isActive ? ROW_ACTIVE : ROW_IDLE
-          return live ? (
-            <button
-              key={screen.id}
-              type="button"
-              onClick={() => screenBridgeJump(screen.id)}
-              aria-current={isActive ? 'page' : undefined}
-              className={className}
-            >
-              {screen.title}
-            </button>
-          ) : (
-            <Link
-              key={screen.id}
-              href={`/p/${project.slug}?screen=${screen.id}`}
-              className={className}
-            >
-              {screen.title}
-            </Link>
-          )
-        })}
-      </nav>
+      <ScreenList label="Screens" screens={project.screens} slug={project.slug} activeId={activeId} live={live} />
+      {/* Inherited screens sit in their own group so the feature's own pages
+          stay readable at the top; they jump the device just the same. */}
+      {project.inherited && project.inherited.screens.length > 0 ? (
+        <ScreenList
+          label={`From ${project.inherited.from}`}
+          screens={project.inherited.screens}
+          slug={project.slug}
+          activeId={activeId}
+          live={live}
+        />
+      ) : null}
     </div>
+  )
+}
+
+function ScreenList({
+  label,
+  screens,
+  slug,
+  activeId,
+  live,
+}: {
+  label: string
+  screens: ScreenIndexEntry[]
+  slug: string
+  activeId: string | null
+  live: boolean
+}) {
+  return (
+    <nav aria-label={label} className="flex flex-col gap-2">
+      <p className="truncate px-12 py-4 text-10 font-bold uppercase text-caption dark:text-neutral-400">
+        {label}
+      </p>
+      {screens.map((screen) => {
+        const isActive = screen.id === activeId
+        const className = isActive ? ROW_ACTIVE : ROW_IDLE
+        return live ? (
+          <button
+            key={screen.id}
+            type="button"
+            onClick={() => screenBridgeJump(screen.id)}
+            aria-current={isActive ? 'page' : undefined}
+            className={className}
+          >
+            {screen.title}
+          </button>
+        ) : (
+          <Link key={screen.id} href={`/p/${slug}?screen=${screen.id}`} className={className}>
+            {screen.title}
+          </Link>
+        )
+      })}
+    </nav>
   )
 }

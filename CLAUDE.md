@@ -100,9 +100,13 @@ wallet is wrong even when every token in it is legal: the designer is judging a
 change *against the live product*, and a prototype that silently redraws the
 surrounding chrome hides the very thing they are trying to see.
 
-Reuse it by reading `projects/amarthafin-live/lib/ui.tsx` and copying the piece
-you need into your own project's `lib/` — do **not** import across projects
-(§1: never reach into another project's folder).
+To reuse its **screens** whole — start on the real homepage, return to it,
+tab across to it — don't rebuild them: set `extends: 'amarthafin-live'` in your
+`project.config.ts` and they are yours (§3 "Extending a base project"). To
+reuse a **piece** of one inside a screen you're redrawing, read
+`projects/amarthafin-live/lib/ui.tsx` and copy that piece into your own
+project's `lib/` — do **not** import across projects (§1: never reach into
+another project's folder).
 
 Some of these pieces are genuinely shared vocabulary — the Poket payment widget
 is the clearest case — and are **candidates for promotion into
@@ -210,6 +214,37 @@ prototype under load.
 
 A screen obtains navigation from `useFlow()` (`@/platform/runtime`): `go(id)`
 pushes, `back()` pops, `current` is the active id. Screens receive no props.
+
+### Extending a base project
+
+A prototype is usually one feature inside an app that already exists. Rather
+than rebuilding the app around the feature, a project can **extend** another:
+
+```ts
+// project.config.ts
+extends: 'apartner-majelis-view',
+```
+
+The runtime merges the base's screens under this project's own. A screen here
+with the **same id** as a base screen **replaces** it; every other base screen
+is inherited unchanged; `go(id)` resolves across both, in either direction. So a
+project holds only the screens of its feature, and the prototype still behaves
+like the whole app — the tab bar leads somewhere real, the base's own tab bar
+leads back into the feature's screens. Rules:
+
+- **One level.** A base may not itself extend. `check:flows` rejects chains.
+- **Same id means override — on purpose.** `check:flows` prints the override
+  list every run; read it. Reusing a generic id (`home`, `detail`) replaces the
+  base screen silently otherwise.
+- **The base's ids are a contract.** Renaming a screen in a base breaks every
+  project that extends it. Treat a base's `index.ts` ids as stable, and prefer
+  extending a `status: 'live'` project — that is what they are for.
+- **Inheritance is live.** When the base changes, so does every project
+  extending it. If a project needs a frozen copy of a base screen, override it.
+- **Your entry still wins.** The extending project needs exactly one `entry`;
+  the base's is ignored. Flow view draws only the project's own screens.
+- **Never edit the base to fix your feature** — §1 still holds. Override the
+  screen instead, or ask the base's owner.
 
 ### Cross-screen state
 
