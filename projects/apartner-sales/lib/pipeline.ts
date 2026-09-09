@@ -133,6 +133,110 @@ export interface PipelineLog {
   next?: string
 }
 
+// --- The five task types ---------------------------------------------------
+//
+// The Sales page groups by the KIND of work rather than listing leads flat,
+// because those five are five different jobs, done at different times of day,
+// often in different places. "Fifteen leads" is a number a BP cannot act on;
+// "five reactivations, one POI visit, nine calls" is her afternoon.
+//
+// A lead's group is DERIVED — from her status, her source, and how many times
+// she has actually been called — so it can never disagree with her record. It
+// is a reading of the lead, not a field somebody has to remember to set.
+
+export type SalesTask =
+  | 'reactivation'
+  | 'poi-visit'
+  | 'followup-2-referral'
+  | 'followup-1'
+  | 'new-leads'
+
+/** The groups in the order the page stacks them — most urgent work first. */
+export const TASK_ORDER: SalesTask[] = [
+  'reactivation',
+  'poi-visit',
+  'followup-2-referral',
+  'followup-1',
+  'new-leads',
+]
+
+/**
+ * What each group is called, and the flow line under it — "Telepon → majelis →
+ * submit". The arrow line is doing real work: it is the only place on the page
+ * that says what finishing one of these tasks actually involves, which is the
+ * difference between a card that counts work and a card that explains it.
+ */
+export const TASK_META: Record<
+  SalesTask,
+  { label: string; flow: string; tint: 'primary' | 'blue' | 'green' | 'orange' | 'red' }
+> = {
+  reactivation: {
+    label: 'Reactivation',
+    flow: 'Masa tunggu habis → hubungi lagi',
+    tint: 'red',
+  },
+  'poi-visit': {
+    label: 'POI Visit',
+    flow: 'Kunjungi titik → input lead',
+    tint: 'primary',
+  },
+  'followup-2-referral': {
+    label: '2nd Follow Up Referral',
+    flow: 'Telepon → majelis → submit',
+    tint: 'green',
+  },
+  'followup-1': {
+    label: '1st Follow Up',
+    flow: 'Telepon → catat minat → jadwalkan',
+    tint: 'orange',
+  },
+  'new-leads': {
+    label: 'New Leads',
+    flow: 'Baru didata → hubungi pertama kali',
+    tint: 'blue',
+  },
+}
+
+/** How many times this lead has actually been called. */
+export const followUpCount = (lead: PipelineLead): number =>
+  lead.log.filter((e) => e.via === 'telepon' || e.via === 'wa').length
+
+/**
+ * Which task group a lead belongs to, read off her own record.
+ *
+ * The order of the checks is the point. A cold lead is a reactivation whatever
+ * else is true of her — the wait is the only thing that governs when she may be
+ * touched — and past that it is simply how far she has been worked: never
+ * called is a New Lead, called once needs her second call, and a REFERRAL on
+ * her second call is separated out because a referral converts on a different
+ * conversation (a mitra vouched for her) and is worth working before a cold POI
+ * name of the same age.
+ */
+export function taskOf(lead: PipelineLead): SalesTask {
+  // A cold lead is a reactivation whatever else is true of her: the wait is the
+  // only thing that governs when she may be touched at all.
+  if (COLD_STATUSES.includes(lead.status)) return 'reactivation'
+  // New means exactly that — written down, nobody has spoken to her yet. It is
+  // her STATUS that decides this and not her call count, because a lead who has
+  // had a survey raised is not a new lead however few times she was phoned.
+  if (lead.status === 'new') return 'new-leads'
+  // Everything else is in flight, and the job is the next conversation. A
+  // referral that has already been called once is split out because she
+  // converts on a different conversation — a mitra vouched for her — and is
+  // worth working before a cold POI name of the same age.
+  if (lead.source === 'referral' && followUpCount(lead) >= 1) return 'followup-2-referral'
+  return 'followup-1'
+}
+
+/** How many of each group a BP is expected to clear in a day. */
+export const TASK_TARGET: Record<SalesTask, number> = {
+  reactivation: 5,
+  'poi-visit': 2,
+  'followup-2-referral': 5,
+  'followup-1': 10,
+  'new-leads': 8,
+}
+
 /**
  * When a piece of Sales work is due. The Sales page is a schedule before it is a
  * directory: what a BP wants on opening it is what she is doing at 14.00, not an

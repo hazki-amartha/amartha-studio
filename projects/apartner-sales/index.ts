@@ -15,7 +15,30 @@ export const project: ProjectModule = {
       entry: true,
       flowsTo: [
         { to: 'lead-detail', label: 'buka lead' },
-        { to: 'lead-new', label: 'Tambah lead' },
+        { to: 'lead-new', label: 'Add lead' },
+        { to: 'sosialisasi', label: 'buka POI' },
+      ],
+    },
+    {
+      // Option B — the same work grouped by task type instead of by when it is
+      // due. It sits beside the Sales page rather than replacing it: the two
+      // are here to be compared.
+      id: 'sales-b',
+      title: 'Sales · Option B',
+      component: lazyScreen(() => import('./screens/sales-b'), 'SalesBScreen'),
+      flowsTo: [
+        { to: 'task-group', label: 'buka grup tugas' },
+        { to: 'lead-new', label: 'Add lead' },
+      ],
+    },
+    {
+      id: 'task-group',
+      title: 'Grup Tugas · Option B',
+      component: lazyScreen(() => import('./screens/task-group'), 'TaskGroupScreen'),
+      flowsTo: [
+        { to: 'lead-detail', label: 'buka lead' },
+        { to: 'sosialisasi', label: 'buka POI' },
+        { to: 'sales-b', label: 'kembali' },
       ],
     },
     {
