@@ -523,7 +523,7 @@ export interface AddLeadEntry {
   /** The preselected source — null only as a defensive default. */
   source: AddLeadSource | null
   /** Where Submit / Back return to. */
-  returnTo: 'sales' | 'sosialisasi'
+  returnTo: 'sales' | 'sales-b' | 'sosialisasi'
   draft: { name: string; phone: string; nik: string; ktp: boolean; poi: string } | null
 }
 
