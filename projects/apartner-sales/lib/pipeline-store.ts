@@ -19,6 +19,7 @@ import {
   type MemberRole,
   type PipelineLead,
   type PipelineLog,
+  type SalesTask,
   type Product,
   type ReferrerKind,
 } from './pipeline'
@@ -38,6 +39,8 @@ interface PipelineState {
    *  Alt (a two-step flow). Set by the Alt presentation state; reset on any real
    *  navigation so a live follow-up always opens the default. */
   followUpVariant: 'default' | 'alt'
+  /** Which task group the group list is showing. */
+  openTask: SalesTask
 }
 
 const seedLeads: Record<string, PipelineLead> = {}
@@ -51,6 +54,7 @@ let state: PipelineState = {
   openId: SEED_PIPELINE[0].id,
   followUpTaskId: null,
   followUpVariant: 'default',
+  openTask: 'new-leads',
 }
 
 const listeners = new Set<() => void>()
@@ -82,6 +86,12 @@ export const pipelineStore = {
   subscribe(listener: () => void) {
     listeners.add(listener)
     return () => listeners.delete(listener)
+  },
+
+  /** Opens one of the five task groups as its own list. */
+  openTaskGroup(task: SalesTask) {
+    state = { ...state, openTask: task }
+    emit()
   },
 
   /** Opens a lead's record from the roster (not as a task). */
