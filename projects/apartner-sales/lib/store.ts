@@ -26,6 +26,12 @@ export interface AppState {
    * resets it to the brief.
    */
   poiStage: 'detail' | 'leads'
+  /** Which Sales layout to render: the default (per-section "Lihat semua"), or
+   *  the alt (inline "See more" + an "All task" page). Set by the demo states. */
+  salesVariant: 'default' | 'alt'
+  /** POIs whose sosialisasi has been completed — no auto next schedule, so their
+   *  card reads "Belum ada jadwal" and they leave today's board. */
+  completedPois: string[]
   /** The rostered task a screen was opened from, if any. */
   activeTask: string | null
   /** taskId → how many times it has been moved, and why last. */
@@ -37,6 +43,8 @@ export interface AppState {
 const initial: AppState = {
   openEvent: 'e1',
   poiStage: 'detail',
+  salesVariant: 'default',
+  completedPois: [],
   activeTask: 't3',
   reschedules: {},
   rejects: {},
@@ -65,6 +73,11 @@ export const store = {
   /** "Start add leads" — flip the POI screen to its running leads list. */
   startPoiLeads() {
     store.set({ poiStage: 'leads' })
+  },
+  /** Mark a POI's sosialisasi complete — it drops its schedule. */
+  completePoi(eventId: string) {
+    if (state.completedPois.includes(eventId)) return
+    store.set({ completedPois: [...state.completedPois, eventId] })
   },
   /** Opens a follow-up from the schedule — the rostered call. */
   startFollowUp(taskId: string) {

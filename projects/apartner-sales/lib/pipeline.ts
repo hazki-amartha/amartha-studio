@@ -207,6 +207,9 @@ export interface PipelineLead {
 
   /** Whether she already carries a loan at a competitor — asked at capture (Y/N). */
   competitorLoan?: boolean
+  /** If she does — who the lender is, and roughly how much. */
+  competitorLender?: string
+  competitorAmount?: string
   /**
    * She was sent a self-service AFIN application and has started it herself but
    * not submitted. She stays on the Sales list for a follow-up, where the BP can
@@ -450,9 +453,10 @@ export const WILAYAH: Record<string, string[]> = {
 
 export const KECAMATAN_LIST = Object.keys(WILAYAH)
 
-/** Everything filled in? The lead form requires the whole address. */
+/** Enough to file her under: kecamatan + desa. Detail text and the map pin are
+ *  optional — helpful, but not required to save a lead. */
 export const addressComplete = (a: LeadAddress): boolean =>
-  a.kecamatan !== '' && a.desa !== '' && a.mapsCoord !== ''
+  a.kecamatan !== '' && a.desa !== ''
 
 /** "Kp. Cibeuteung RT 02, Desa Putat Nutug, Kec. Ciseeng" — one readable line. */
 export function addressLine(a: LeadAddress | undefined): string {
@@ -783,6 +787,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     ageDays: 12,
     // A longer slip — four days without the follow-up she was due.
     agenda: { day: 'today', kind: 'Follow up', when: '15.30', order: 3, dueDays: -4 },
+    lastResult: { kind: 'rescheduled', date: '10 Jul 2026', reason: 'Lead perlu diskusi dengan keluarga' },
     majelis: { kind: 'none', branch: 'BP Ciseeng' },
     nik: '',
     ktp: false,
@@ -835,6 +840,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     status: 'new',
     ageDays: 2,
     agenda: { day: 'today', kind: 'Diproses', when: '16.00', order: 4 },
+    lastResult: { kind: 'rescheduled', date: '18 Jul 2026', reason: 'Tidak sempat kunjungi hari ini' },
     majelis: { kind: 'existing', id: 'melati' },
     nik: '3201094507900012',
     ktp: true,
@@ -858,6 +864,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     status: 'interested',
     ageDays: 6,
     agenda: { day: 'today', kind: 'Follow up', when: 'Hari ini', order: 6 },
+    lastResult: { kind: 'rescheduled', date: '19 Jul 2026', reason: 'Lead butuh waktu' },
     majelis: { kind: 'new', name: 'Majelis Cibeuteung' },
     nik: '3201095203910022',
     ktp: true,
@@ -995,6 +1002,61 @@ export const SEED_PIPELINE: PipelineLead[] = [
       { at: '17 Juli', via: 'telepon', status: 'interested', system: 'KTP dilengkapi' },
       { at: '19 Juli', via: 'manual', status: 'survey-created', system: 'Produk GL' },
       { at: '21 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+    ],
+  },
+  // 2nd Follow-up — a self-service application already sent, due for a check today.
+  {
+    id: 'p11',
+    name: 'Lina Marlina',
+    phone: '0812-5566-7788',
+    address: { kecamatan: 'Ciseeng', desa: 'Ciseeng', detail: 'Kp. Pasar RT 01/RW 02', mapsCoord: 'pinned' },
+    source: 'poi',
+    poi: 'Pasar Ciseeng',
+    referredBy: '',
+    fo: 'Nurhayati',
+    photo: true,
+    status: 'interested',
+    ageDays: 4,
+    agenda: { day: 'today', kind: 'Follow up', when: 'Hari ini', order: 8, dueDays: 0 },
+    selfServiceStarted: true,
+    lastResult: { kind: 'self-service', date: '17 Jul 2026' },
+    majelis: { kind: 'existing', id: 'melati' },
+    nik: '',
+    ktp: false,
+    product: 'Modal',
+    amount: '',
+    disburseDate: '',
+    log: [
+      { at: '13 Juli', via: 'poi', status: 'interested' },
+      { at: '17 Juli', via: 'manual', status: 'interested', system: 'Aplikasi self-service AFIN dikirim' },
+    ],
+  },
+  // 2nd Follow-up — an assisted application saved part-way, due to continue today.
+  {
+    id: 'p12',
+    name: 'Tuti Herawati',
+    phone: '0813-7788-9900',
+    address: { kecamatan: 'Ciseeng', desa: 'Karihkil', detail: 'Kp. Karihkil RT 03/RW 01', mapsCoord: 'pinned' },
+    source: 'referral',
+    referredBy: 'Rina Marlina (Majelis Mawar)',
+    referrerKind: 'mitra',
+    fo: 'Nurhayati',
+    photo: true,
+    status: 'interested',
+    ageDays: 6,
+    agenda: { day: 'today', kind: 'Follow up', when: 'Hari ini', order: 9, dueDays: 0 },
+    assistedStarted: true,
+    assistedDone: ['majelis', 'produk', 'pribadi'],
+    lastResult: { kind: 'assisted', date: '19 Jul 2026', reason: 'Perlu melengkapi dokumen' },
+    majelis: { kind: 'existing', id: 'mawar' },
+    nik: '',
+    ktp: false,
+    product: 'GL',
+    amount: '',
+    disburseDate: '',
+    log: [
+      { at: '13 Juli', via: 'manual', status: 'interested', system: 'Referral dari Rina Marlina (Majelis Mawar)' },
+      { at: '19 Juli', via: 'manual', status: 'interested', system: 'Aplikasi assisted disimpan (3/8 bagian)', note: 'Perlu melengkapi dokumen' },
     ],
   },
 ]

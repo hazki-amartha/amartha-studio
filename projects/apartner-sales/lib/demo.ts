@@ -48,6 +48,20 @@ export const eventEmpty = () => sosialisasi(0)
 export const eventHalf = () => sosialisasi(3)
 export const eventFull = () => sosialisasi(WALK_UPS.length)
 
+// --- Sales layout ----------------------------------------------------------
+
+/** The default board — each section links to its own "Lihat semua" page. */
+export const salesDefault = () => {
+  pipelineStore.reset()
+  store.set({ salesVariant: 'default', completedPois: [] })
+}
+
+/** The alt board — inline "See more" per section, and an "All task" page. */
+export const salesAlt = () => {
+  pipelineStore.reset()
+  store.set({ salesVariant: 'alt', completedPois: [] })
+}
+
 // --- Follow Up -------------------------------------------------------------
 //
 // `openFollowUp` carries the task id, so the screen knows the call is a booked

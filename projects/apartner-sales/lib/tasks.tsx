@@ -24,7 +24,7 @@
 
 import type { ReactNode } from 'react'
 import { EVENTS, type SosialisasiEvent } from './events'
-import { addressLine, sourceDetail, type Agenda, type PipelineLead } from './pipeline'
+import { addressLine, majelisLine, sourceDetail, type Agenda, type PipelineLead } from './pipeline'
 
 export type TaskCategory =
   | 'reactivation'
@@ -73,6 +73,9 @@ export function inSalesFunnel(lead: PipelineLead): boolean {
 /** Which category a lead sits in — one bucket each, by a fixed priority. */
 export function leadCategory(lead: PipelineLead): TaskCategory {
   if (lead.status === 'not-interested' || lead.status === 'rejected') return 'reactivation'
+  // An application under way — assisted saved, or self-service sent — is a repeat
+  // touch, so she sits with the 2nd follow-ups.
+  if (lead.assistedStarted || lead.selfServiceStarted) return 'second-follow-up'
   if (lead.source === 'referral') return 'referral'
   const calls = lead.log.filter((l) => l.via === 'telepon').length
   return calls >= 1 ? 'second-follow-up' : 'first-follow-up'
@@ -114,8 +117,9 @@ export type SalesTask =
       event: SosialisasiEvent
     }
 
-/** Every task the Sales page knows about — categorised leads plus scheduled POIs. */
-export function buildTasks(leads: PipelineLead[]): SalesTask[] {
+/** Every task the Sales page knows about — categorised leads plus scheduled POIs.
+ *  Completed POIs are dropped: a finished sosialisasi has no next schedule. */
+export function buildTasks(leads: PipelineLead[], completedPois: string[] = []): SalesTask[] {
   const leadTasks: SalesTask[] = leads
     // Leads whose application has started have left for the Mitra list.
     .filter(inSalesFunnel)
@@ -127,8 +131,11 @@ export function buildTasks(leads: PipelineLead[]): SalesTask[] {
       lead,
     }))
   // Only POIs actually on the calendar are tasks; the historical one (no agenda)
-  // exists so leads have somewhere to have come from, not as a visit to run.
-  const poiTasks: SalesTask[] = EVENTS.filter((e) => e.agenda).map((event) => ({
+  // exists so leads have somewhere to have come from, not as a visit to run — and
+  // a completed one has dropped its schedule, so it is no longer a task either.
+  const poiTasks: SalesTask[] = EVENTS.filter(
+    (e) => e.agenda && !completedPois.includes(e.id),
+  ).map((event) => ({
     kind: 'poi',
     id: event.id,
     category: 'poi-visit',
@@ -245,20 +252,27 @@ export function LeadTaskCard({ lead, onOpen }: { lead: PipelineLead; onOpen: () 
     <TaskCardShell onOpen={onOpen}>
       <div className="flex w-full items-start gap-8">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {/* The follow-up date leads in caption grey, the way a diary row does. */}
-          <span className="truncate text-12 text-caption">{leadScheduleLabel(lead.agenda)}</span>
+          {/* The follow-up date leads the card. It turns orange & bold when
+              overdue — the only lateness mark; no separate footer. */}
+          <span
+            className={
+              late > 0
+                ? 'truncate text-12 font-bold text-orange-500'
+                : 'truncate text-12 text-caption'
+            }
+          >
+            {leadScheduleLabel(lead.agenda)}
+          </span>
           <span className="truncate text-16 font-bold text-default">{lead.name}</span>
-          <span className="truncate text-12 text-caption">Source: {sourceDetail(lead)}</span>
+          <span className="truncate text-12 text-caption">
+            Source:{' '}
+            {lead.status === 'not-interested' || lead.status === 'rejected'
+              ? `Reaktivasi — eks ${majelisLine(lead)}`
+              : sourceDetail(lead)}
+          </span>
           {address ? <span className="truncate text-12 text-caption">{address}</span> : null}
         </div>
       </div>
-      {/* The footer only appears when a follow-up has slipped — how long she has
-          gone without one. On-time tasks carry no footer at all. */}
-      {late > 0 ? (
-        <span className="-mx-12 -mb-12 border-t border-default px-12 py-8 text-12 font-bold text-orange-500">
-          Belum di-follow up {late} hari
-        </span>
-      ) : null}
     </TaskCardShell>
   )
 }

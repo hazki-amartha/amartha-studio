@@ -17,13 +17,23 @@ import { useState } from 'react'
 import { Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { MapPin, Phone } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { dateFromToday, majelisLine, sourceDetail, type PipelineLead } from '../lib/pipeline'
+import {
+  dateFromToday,
+  majelisLine,
+  sourceDetail,
+  type MajelisAssignment,
+  type PipelineLead,
+  type Product,
+} from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
+import { assignmentLabel, MajelisPickerSheet, SelectField } from '../lib/pipeline-ui'
 import { leadScheduleLabel, overdueDays } from '../lib/tasks'
 import { AppScreen, ContactButton } from '../lib/ui'
 import { BottomSheet } from '@/design-system/components'
 
-type SheetId = 'continue' | 'reschedule-why' | 'drop' | null
+type SheetId = 'continue' | 'self-setup' | 'reschedule-why' | 'drop' | null
+
+const DEFAULT_MAJELIS: MajelisAssignment = { kind: 'none', branch: 'BP Ciseeng' }
 
 const RESCHEDULE_REASONS = [
   'Tidak sempat kunjungi hari ini',
@@ -56,6 +66,10 @@ export function FollowUpScreen() {
   const [sheet, setSheet] = useState<SheetId>(null)
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
+  // Self-service AFIN needs a majelis and a product picked before it is sent.
+  const [selfMajelis, setSelfMajelis] = useState<MajelisAssignment>(DEFAULT_MAJELIS)
+  const [selfProduct, setSelfProduct] = useState<Product | null>(null)
+  const [majelisOpen, setMajelisOpen] = useState(false)
 
   if (!lead) {
     return (
@@ -73,6 +87,21 @@ export function FollowUpScreen() {
   const withReason = (label: string, reason?: string) =>
     reason ? `${label} — "${reason}"` : label
   const result = lead.lastResult
+  // With no in-app result recorded, the previous meeting is still one of the
+  // defined outcomes — never a raw log note. A lead already followed up by phone
+  // got here because the last meeting was rescheduled; only a freshly captured
+  // lead, never contacted, reads "Lead created".
+  const calls = lead.log.filter((l) => l.via === 'telepon').length
+  const lastLog = lead.log[lead.log.length - 1]
+  const defaultLine = calls >= 1 ? 'Rescheduled' : 'Lead created'
+  const defaultDate =
+    calls >= 1
+      ? lastLog
+        ? `${lastLog.at} 2026`
+        : '-'
+      : firstLog
+        ? `${firstLog.at} 2026`
+        : '-'
   const previousLine =
     result?.kind === 'rescheduled'
       ? withReason('Rescheduled', result.reason)
@@ -82,9 +111,9 @@ export function FollowUpScreen() {
           ? 'Self service application started'
           : result?.kind === 'dropped'
             ? withReason('Dropped', result.reason)
-            : 'Lead created'
-  // That meeting's date — the recorded result date, or the creation date.
-  const previousDate = result?.date ?? (firstLog ? `${firstLog.at} 2026` : '-')
+            : defaultLine
+  // That meeting's date — the recorded result date, or the last contact's date.
+  const previousDate = result?.date ?? defaultDate
 
   // An application already begun (assisted saved, or self-service sent) resumes
   // straight in the checklist; a fresh lead first picks self-service vs assisted.
@@ -111,7 +140,10 @@ export function FollowUpScreen() {
     flow.go('sales')
   }
 
-  function startSelfService() {
+  function confirmSelfService() {
+    if (selfMajelis.kind === 'none' || !selfProduct) return
+    pipelineStore.assignMajelis(lead.id, selfMajelis)
+    pipelineStore.setProduct(lead.id, selfProduct)
     pipelineStore.startSelfService(lead.id)
     pipelineStore.setFlash(`Aplikasi self-service AFIN dikirim ke ${lead.name}`)
     flow.go('sales')
@@ -192,7 +224,7 @@ export function FollowUpScreen() {
       </div>
 
       {/* Follow up result — the heading sits with its buttons. */}
-      <div className="mt-auto flex flex-col gap-8 pt-8">
+      <div className="mt-auto flex flex-col gap-8 pb-24 pt-8">
         <span className="text-14 font-bold text-default">Follow up result?</span>
         <Button
           size="lg"
@@ -230,7 +262,11 @@ export function FollowUpScreen() {
         <div className="flex flex-col gap-8">
           <button
             type="button"
-            onClick={startSelfService}
+            onClick={() => {
+              setSelfMajelis(lead.majelis.kind === 'none' ? DEFAULT_MAJELIS : lead.majelis)
+              setSelfProduct(lead.product)
+              setSheet('self-setup')
+            }}
             className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left active:bg-neutral-50"
           >
             <span className="text-14 font-bold text-default">Self-service via AFIN</span>
@@ -251,6 +287,61 @@ export function FollowUpScreen() {
           </button>
         </div>
       </BottomSheet>
+
+      {/* Self-service setup — a majelis and a product before the AFIN app is sent. */}
+      <BottomSheet
+        open={sheet === 'self-setup' && !majelisOpen}
+        onClose={() => setSheet(null)}
+        title="Kirim aplikasi self-service"
+        description="Pilih majelis dan produk sebelum calon mitra mengisi di AFIN."
+        primaryAction={
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={selfMajelis.kind === 'none' || !selfProduct}
+            onClick={confirmSelfService}
+          >
+            Kirim aplikasi
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-12">
+          <SelectField
+            label="Majelis"
+            required
+            value={selfMajelis.kind === 'none' ? undefined : assignmentLabel(selfMajelis)}
+            placeholder="Pilih majelis"
+            onClick={() => setMajelisOpen(true)}
+          />
+          <div className="flex flex-col gap-4">
+            <span className="text-12 text-caption">
+              Produk<span className="text-red-500"> *</span>
+            </span>
+            <div className="flex flex-col gap-8">
+              {(['GL', 'Modal'] as Product[]).map((p) => (
+                <SelectableCard
+                  key={p}
+                  name="self-product"
+                  inputType="radio"
+                  title={p}
+                  checked={selfProduct === p}
+                  onChange={() => setSelfProduct(p)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </BottomSheet>
+
+      <MajelisPickerSheet
+        open={majelisOpen}
+        value={selfMajelis}
+        onClose={() => setMajelisOpen(false)}
+        onPick={(m) => {
+          setSelfMajelis(m)
+          setMajelisOpen(false)
+        }}
+      />
 
       {/* Reschedule — why; the next follow-up is set to one day later. */}
       <BottomSheet open={sheet === 'reschedule-why'} onClose={() => setSheet(null)} title="Kenapa dijadwalkan ulang?">

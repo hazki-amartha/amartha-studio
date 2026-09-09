@@ -13,17 +13,41 @@ export const project: ProjectModule = {
       title: 'Sales',
       component: lazyScreen(() => import('./screens/sales'), 'SalesScreen'),
       entry: true,
+      states: [
+        {
+          id: 'default',
+          label: 'Default',
+          description: 'Each section links to its own "Lihat semua" page',
+          apply: demo.salesDefault,
+        },
+        {
+          id: 'alt',
+          label: 'Alt · All task + See more',
+          description: 'Inline "See more" per section, and an "All task" page with search + type filter',
+          apply: demo.salesAlt,
+        },
+      ],
       flowsTo: [
         { to: 'follow-up', label: 'buka lead' },
         { to: 'lead-new', label: 'Tambah lead' },
         { to: 'sosialisasi', label: 'buka POI' },
         { to: 'task-list', label: 'Lihat semua kategori' },
+        { to: 'all-tasks', label: 'All task (alt)' },
       ],
     },
     {
       id: 'task-list',
       title: 'Semua tugas',
       component: lazyScreen(() => import('./screens/task-list'), 'TaskListScreen'),
+      flowsTo: [
+        { to: 'follow-up', label: 'buka lead' },
+        { to: 'sosialisasi', label: 'buka POI' },
+      ],
+    },
+    {
+      id: 'all-tasks',
+      title: 'All task',
+      component: lazyScreen(() => import('./screens/all-tasks'), 'AllTasksScreen'),
       flowsTo: [
         { to: 'follow-up', label: 'buka lead' },
         { to: 'sosialisasi', label: 'buka POI' },
