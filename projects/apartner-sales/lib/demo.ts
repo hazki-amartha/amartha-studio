@@ -5,6 +5,7 @@
 
 import { EVENTS } from './events'
 import { pipelineStore } from './pipeline-store'
+import { poiStore } from './poi-store'
 import { store } from './store'
 
 // --- Sosialisasi -----------------------------------------------------------
@@ -53,12 +54,14 @@ export const eventFull = () => sosialisasi(WALK_UPS.length)
 /** The default board — each section links to its own "Lihat semua" page. */
 export const salesDefault = () => {
   pipelineStore.reset()
+  poiStore.reset()
   store.set({ salesVariant: 'default', completedPois: [] })
 }
 
 /** The alt board — inline "See more" per section, and an "All task" page. */
 export const salesAlt = () => {
   pipelineStore.reset()
+  poiStore.reset()
   store.set({ salesVariant: 'alt', completedPois: [] })
 }
 

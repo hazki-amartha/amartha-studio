@@ -25,11 +25,14 @@ import {
   taskMatches,
   type SalesTask,
 } from '../lib/tasks'
+import { BottomSheet } from '@/design-system/components'
+import { CURRENT_FO } from '../lib/pipeline'
 import { pipelineStore, setAddLeadEntry, usePipeline } from '../lib/pipeline-store'
+import { usePois } from '../lib/poi-store'
 import { store, useApp } from '../lib/store'
 import { SourceSheet } from '../lib/pipeline-ui'
 import { TabBar } from '../lib/tabs'
-import { AppScreen, SearchField, VisitTitle } from '../lib/ui'
+import { AppScreen, Chip, FilterBar, SearchField, VisitTitle } from '../lib/ui'
 
 function SectionHeading({ children }: { children: ReactNode }) {
   return <span className="pt-4 text-16 font-bold text-default">{children}</span>
@@ -50,11 +53,17 @@ function SeeAllLink({ label, onClick }: { label: string; onClick: () => void }) 
 export function SalesScreen() {
   const flow = useFlow()
   const { leads, order, flash, completedToday } = usePipeline()
-  const { completedPois, salesVariant } = useApp()
+  const { completedPois, salesVariant, role } = useApp()
+  const pois = usePois()
   const alt = salesVariant === 'alt'
+  const isBM = role === 'BM'
   const [query, setQuery] = useState('')
   // "Add lead" picks the source first, in a bottom sheet, then opens the form.
   const [addSourceOpen, setAddSourceOpen] = useState(false)
+  // BM "Add" first asks Lead or POI.
+  const [addChoiceOpen, setAddChoiceOpen] = useState(false)
+  // BM scope filter: all petugas, or just my own tasks.
+  const [justMe, setJustMe] = useState(false)
   // Alt only: which sections the BP has expanded past the first three.
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -66,7 +75,10 @@ export function SalesScreen() {
     }
   }, [flash])
 
-  const tasks = buildTasks(order.map((id) => leads[id]), completedPois)
+  const allTasks = buildTasks(order.map((id) => leads[id]), pois)
+  // BM can narrow the board to just their own tasks; a BP always sees only theirs.
+  const isMine = (t: SalesTask) => (t.kind === 'lead' ? t.lead.fo : t.event.fo) === CURRENT_FO
+  const tasks = isBM && justMe ? allTasks.filter(isMine) : allTasks
   // The board opens on what is due — today's tasks plus anything overdue; search
   // and "Lihat semua" reach across every task whatever its date.
   const due = dueTasks(tasks)
@@ -89,9 +101,19 @@ export function SalesScreen() {
 
   function renderCard(task: SalesTask) {
     if (task.kind === 'lead') {
-      return <LeadTaskCard key={task.id} lead={task.lead} onOpen={() => openTask(task)} />
+      return (
+        <LeadTaskCard key={task.id} lead={task.lead} showPetugas={isBM} onOpen={() => openTask(task)} />
+      )
     }
-    return <PoiTaskCard key={task.id} event={task.event} onOpen={() => openTask(task)} />
+    return (
+      <PoiTaskCard
+        key={task.id}
+        event={task.event}
+        completed={completedPois.includes(task.id)}
+        showPetugas={isBM}
+        onOpen={() => openTask(task)}
+      />
+    )
   }
 
   const matches = searching ? tasks.filter((t) => taskMatches(t, q)) : []
@@ -114,6 +136,18 @@ export function SalesScreen() {
           </span>
           <span className="text-12 font-bold text-green-600">{flash}</span>
         </div>
+      ) : null}
+
+      {/* BM scopes the board to all petugas or just their own tasks. */}
+      {isBM ? (
+        <FilterBar>
+          <Chip selected={!justMe} onClick={() => setJustMe(false)}>
+            Semua tugas
+          </Chip>
+          <Chip selected={justMe} onClick={() => setJustMe(true)}>
+            Tugas saya
+          </Chip>
+        </FilterBar>
       ) : null}
 
       <SearchField
@@ -161,9 +195,15 @@ export function SalesScreen() {
             // The count on the board is today's; the see-all total is everything
             // in the category, which is why the link so often reveals more.
             const allInCat = totalByCategory.find((c) => c.category === cat.category)
-            // Done today (already off the board) + the ones still due.
-            const done = completedToday[cat.category] ?? 0
-            const dayTotal = done + cat.total
+            // POI-visit keeps its finished cards on the board (they read "Belum
+            // ada jadwal"), so its "done" is those completed POIs and its total
+            // is already the full set. Lead categories lose finished cards off
+            // the board, so their done is tallied and added back to the total.
+            const isPoi = cat.category === 'poi-visit'
+            const done = isPoi
+              ? cat.tasks.filter((t) => t.kind === 'poi' && completedPois.includes(t.id)).length
+              : completedToday[cat.category] ?? 0
+            const dayTotal = isPoi ? cat.total : done + cat.total
             // Alt expands the rest inline; default caps at three and links out.
             const isExpanded = expanded.has(cat.category)
             const shown = alt && isExpanded ? cat.tasks : cat.tasks.slice(0, 3)
@@ -215,18 +255,51 @@ export function SalesScreen() {
         </div>
       )}
 
-      {/* Add lead is a floating action, bottom-right, above the nav. */}
+      {/* A floating action, bottom-right, above the nav. BP adds a lead; BM
+          chooses lead or POI first. */}
       <TabBar
         active="sales"
         action={
-          <Button size="sm" className="shadow-lg" onClick={() => setAddSourceOpen(true)}>
+          <Button
+            size="sm"
+            className="shadow-lg"
+            onClick={() => (isBM ? setAddChoiceOpen(true) : setAddSourceOpen(true))}
+          >
             <span className="flex items-center gap-4">
               <Plus size={16} />
-              Add lead
+              {isBM ? 'Add' : 'Add lead'}
             </span>
           </Button>
         }
       />
+
+      {/* BM: add a lead or a POI. */}
+      <BottomSheet open={addChoiceOpen} onClose={() => setAddChoiceOpen(false)} title="Tambah">
+        <div className="flex flex-col gap-8">
+          <button
+            type="button"
+            onClick={() => {
+              setAddChoiceOpen(false)
+              setAddSourceOpen(true)
+            }}
+            className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left active:bg-neutral-50"
+          >
+            <span className="text-14 font-bold text-default">Add Lead</span>
+            <span className="text-12 text-caption">Catat calon mitra baru</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAddChoiceOpen(false)
+              flow.go('poi-new')
+            }}
+            className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left active:bg-neutral-50"
+          >
+            <span className="text-14 font-bold text-default">Add POI</span>
+            <span className="text-12 text-caption">Daftarkan titik sosialisasi baru</span>
+          </button>
+        </div>
+      </BottomSheet>
 
       {/* Source is picked here, before the form. */}
       <SourceSheet

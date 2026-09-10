@@ -81,7 +81,7 @@ export type LeadType = 'qualified' | 'unqualified'
 export type Product = 'GL' | 'Modal'
 
 /** Where the lead came from. */
-export type LeadSource = 'referral' | 'poi'
+export type LeadSource = 'referral' | 'poi' | 'canvassing'
 
 /** Who referred her — a mitra, or one of the non-mitra kinds. */
 export type ReferrerKind = 'mitra' | 'employee' | 'neighbor' | 'friend'
@@ -187,6 +187,13 @@ export function inAgingBucket(days: number, value: string): boolean {
   return days > 7
 }
 
+/** One node on the follow-up context stepper: a dated event and optional detail. */
+export interface ContextStep {
+  date: string
+  title: string
+  detail?: string
+}
+
 export interface PipelineLead {
   id: string
   name: string
@@ -224,16 +231,29 @@ export interface PipelineLead {
   assistedStarted?: boolean
   assistedDone?: string[]
   /**
+   * Continue-application → Modal outcome. `follow-up` (existing majelis): she
+   * stays on Sales in the "Follow up for Kumpulan" section, to be reminded to
+   * come to the kumpulan day. `sosialisasi` (new majelis): a sosialisasi task is
+   * scheduled and she leaves the Sales list.
+   */
+  kumpulanStage?: 'follow-up' | 'sosialisasi'
+  /**
    * The outcome of her most recent in-app follow-up meeting — what the
    * "previous meeting" line reports. Absent means she was only just created
    * ("Lead created"). `date` is when that meeting happened; `reason` carries the
    * word the BP picked (reschedule reason, continue-later reason, drop reason).
    */
   lastResult?: {
-    kind: 'rescheduled' | 'assisted' | 'self-service' | 'dropped'
+    kind: 'rescheduled' | 'assisted' | 'self-service' | 'dropped' | 'kumpulan'
     date: string
     reason?: string
   }
+  /**
+   * The lead's context history, oldest first — one step per meaningful event
+   * (created, rescheduled, …). Drives the follow-up stepper. When absent it is
+   * derived from creation + `lastResult`.
+   */
+  contextHistory?: ContextStep[]
   /**
    * Reactivation only — an ex-mitra reopening. Her old ceiling and the one she
    * could come back at, shown on the reactivation follow-up card.
@@ -270,6 +290,30 @@ export interface PipelineLead {
   nextFollowUp?: string
 
   log: PipelineLog[]
+}
+
+/** The title each in-app result reads as, on the context stepper. */
+export const RESULT_TITLE: Record<NonNullable<PipelineLead['lastResult']>['kind'], string> = {
+  rescheduled: 'Follow up rescheduled',
+  assisted: 'Assisted application started',
+  'self-service': 'Self service application started',
+  dropped: 'Dropped',
+  kumpulan: 'Aplikasi untuk majelis existing',
+}
+
+/**
+ * The past steps on the follow-up stepper, oldest first. Uses a stored
+ * `contextHistory` when present; otherwise derives creation + the last result.
+ */
+export function contextSteps(lead: PipelineLead): ContextStep[] {
+  if (lead.contextHistory) return lead.contextHistory
+  const created: ContextStep = {
+    date: lead.log[0] ? `${lead.log[0].at} 2026` : '',
+    title: 'Lead created',
+  }
+  const r = lead.lastResult
+  if (!r) return [created]
+  return [created, { date: r.date, title: RESULT_TITLE[r.kind], detail: r.reason }]
 }
 
 // --- Vocabulary ------------------------------------------------------------
@@ -403,6 +447,7 @@ export const CADENCE_DURATION: Record<Interest, string> = {
 export const SOURCE_LABEL: Record<LeadSource, string> = {
   referral: 'Referral',
   poi: 'POI Visit',
+  canvassing: 'Canvassing',
 }
 
 /** The points of interest a POI Visit lead can be captured at. In the field this
@@ -593,6 +638,8 @@ export function majelisLine(lead: PipelineLead): string {
 
 export function sourceDetail(lead: PipelineLead): string {
   if (lead.source === 'poi') return lead.poi ? `POI ${lead.poi}` : 'POI Visit'
+  // Canvassing reuses the `poi` field to hold its free-text location.
+  if (lead.source === 'canvassing') return lead.poi ? `Canvassing · ${lead.poi}` : 'Canvassing'
   return lead.referredBy ? `Referral · ${lead.referredBy}` : 'Referral'
 }
 
@@ -788,6 +835,13 @@ export const SEED_PIPELINE: PipelineLead[] = [
     // A longer slip — four days without the follow-up she was due.
     agenda: { day: 'today', kind: 'Follow up', when: '15.30', order: 3, dueDays: -4 },
     lastResult: { kind: 'rescheduled', date: '10 Jul 2026', reason: 'Lead perlu diskusi dengan keluarga' },
+    // A multi-step history, to show the "see N more" collapse on the stepper.
+    contextHistory: [
+      { date: '18 Jun 2026', title: 'Lead created' },
+      { date: '3 Jul 2026', title: 'Follow up rescheduled', detail: 'Menunggu pinjaman Mekaar selesai' },
+      { date: '7 Jul 2026', title: 'Follow up rescheduled', detail: 'Perlu diskusi dengan suami' },
+      { date: '10 Jul 2026', title: 'Follow up rescheduled', detail: 'Lead perlu diskusi dengan keluarga' },
+    ],
     majelis: { kind: 'none', branch: 'BP Ciseeng' },
     nik: '',
     ktp: false,
@@ -864,7 +918,6 @@ export const SEED_PIPELINE: PipelineLead[] = [
     status: 'interested',
     ageDays: 6,
     agenda: { day: 'today', kind: 'Follow up', when: 'Hari ini', order: 6 },
-    lastResult: { kind: 'rescheduled', date: '19 Jul 2026', reason: 'Lead butuh waktu' },
     majelis: { kind: 'new', name: 'Majelis Cibeuteung' },
     nik: '3201095203910022',
     ktp: true,

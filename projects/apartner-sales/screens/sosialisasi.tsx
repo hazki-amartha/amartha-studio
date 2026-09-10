@@ -10,32 +10,40 @@
 //   leads   the running list of prospects captured here this visit. Each capture
 //           is a real Sales lead sourced from THIS POI (the Add Lead form with
 //           its source fixed), so the list fills as she works the room, and
-//           "Complete Sosialisasi" closes the task.
+//           "Complete POI Visit" closes the task.
 
 import { useState, type ReactNode } from 'react'
 import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { MapPin, Phone } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { pipelineStore, setAddLeadEntry, usePipeline } from '../lib/pipeline-store'
-import { openEvent, rescheduleCount, store, useApp } from '../lib/store'
-import { LeadTaskCard, poiScheduleLabel } from '../lib/tasks'
-import {
-  AppScreen,
-  ContactButton,
-  RescheduleSheet,
-  SectionTitle,
-  StickyBar,
-  VisitTitle,
-} from '../lib/ui'
+import { rescheduleCount, store, useApp } from '../lib/store'
+import { poiStore, usePois } from '../lib/poi-store'
+import { CURRENT_FO, FIELD_OFFICERS, type Agenda } from '../lib/pipeline'
+import { PickSheet } from '../lib/pipeline-ui'
+import { LeadTaskCard, scheduleLine } from '../lib/tasks'
+import { AppScreen, ContactButton, RescheduleSheet, SectionTitle, StickyBar } from '../lib/ui'
+
+// When a BM schedules a POI that has none.
+const SCHEDULE_DATES: { label: string; days: number }[] = [
+  { label: 'Hari ini', days: 0 },
+  { label: 'Besok', days: 1 },
+  { label: 'Lusa', days: 2 },
+  { label: 'Minggu depan', days: 7 },
+]
 
 export function SosialisasiScreen() {
   const flow = useFlow()
   const s = useApp()
+  const pois = usePois()
   const { leads, order } = usePipeline()
-  const event = openEvent(s)
+  const event = pois.find((p) => p.id === s.openEvent) ?? pois[0]
   const stage = s.poiStage
+  const isBM = s.role === 'BM'
   const [rescheduling, setRescheduling] = useState(false)
   const [seeMore, setSeeMore] = useState(false)
+  const [foOpen, setFoOpen] = useState(false)
+  const [scheduleOpen, setScheduleOpen] = useState(false)
 
   const taskId = s.activeTask
 
@@ -46,7 +54,26 @@ export function SosialisasiScreen() {
     .filter((l) => l && l.source === 'poi' && l.poi === event.poi)
 
   const completed = s.completedPois.includes(event.id)
-  const when = completed ? 'Belum ada jadwal' : poiScheduleLabel(event.agenda)
+  const noSchedule = completed || !event.agenda
+  const when = noSchedule ? 'Belum ada jadwal' : scheduleLine(event.agenda, true)
+  // A BM can reassign/schedule any POI, but can only run a visit that is hers.
+  const canAct = !isBM || event.fo === CURRENT_FO
+
+  function scheduleSosialisasi(days: number) {
+    const opt = SCHEDULE_DATES.find((d) => d.days === days)
+    const agenda: Agenda = {
+      day: days === 0 ? 'today' : 'upcoming',
+      kind: 'Sosialisasi POI',
+      when: `${opt?.label ?? 'Hari ini'}, 14.00`,
+      order: 0,
+      dueDays: days,
+    }
+    poiStore.schedule(event.id, agenda)
+    store.uncompletePoi(event.id)
+    setScheduleOpen(false)
+    pipelineStore.setFlash(`POI Visit ${event.title} dijadwalkan`)
+    flow.go('sales')
+  }
 
   function startAddLeads() {
     setAddLeadEntry({
@@ -62,8 +89,7 @@ export function SosialisasiScreen() {
   function complete() {
     store.completePoi(event.id)
     store.finishTask(taskId ?? undefined)
-    pipelineStore.markCategoryDone('poi-visit')
-    pipelineStore.setFlash(`Sosialisasi ${event.title} selesai`)
+    pipelineStore.setFlash(`POI Visit ${event.title} selesai`)
     flow.go('sales')
   }
 
@@ -74,7 +100,7 @@ export function SosialisasiScreen() {
 
   const topBar = (
     <NavigationHeader
-      title={<VisitTitle title={event.title} when={when} />}
+      title="POI Visit"
       link={stage === 'leads' ? 'Lihat detail' : undefined}
       onLinkClick={stage === 'leads' ? () => store.set({ poiStage: 'detail' }) : undefined}
       onBack={() => flow.go('sales')}
@@ -141,29 +167,98 @@ export function SosialisasiScreen() {
                 </span>
               </BriefRow>
             ) : null}
+
+            <BriefRow
+              label="Petugas"
+              action={
+                isBM ? (
+                  <button
+                    type="button"
+                    onClick={() => setFoOpen(true)}
+                    className="text-12 font-bold text-link"
+                  >
+                    Ganti
+                  </button>
+                ) : undefined
+              }
+            >
+              {event.fo ?? '-'}
+            </BriefRow>
           </div>
         </Card>
 
         <StickyBar>
           <div className="flex flex-col gap-2">
-            <span className="text-12 text-caption">Jadwal Sosialisasi</span>
+            <span className="text-12 text-caption">Jadwal POI Visit</span>
             <span className="text-14 font-bold text-default">{when}</span>
           </div>
-          <Button size="lg" className="w-full" onClick={startAddLeads}>
-            Start add leads
-          </Button>
-          <Button size="lg" variant="outline" className="w-full" onClick={() => setRescheduling(true)}>
-            Reschedule
-          </Button>
+          {noSchedule ? (
+            // No schedule — a BM can set one; a BP just sees the status.
+            isBM ? (
+              <Button size="lg" className="w-full" onClick={() => setScheduleOpen(true)}>
+                Jadwalkan POI Visit
+              </Button>
+            ) : (
+              <span className="text-center text-12 text-caption">
+                Belum ada POI Visit terjadwal untuk POI ini.
+              </span>
+            )
+          ) : (
+            <>
+              {!canAct ? (
+                <span className="text-center text-12 text-caption">
+                  POI Visit ini milik {event.fo}. Tugaskan ke dirimu untuk mengerjakannya.
+                </span>
+              ) : null}
+              <Button size="lg" className="w-full" disabled={!canAct} onClick={startAddLeads}>
+                Start add leads
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full"
+                disabled={!canAct}
+                onClick={() => setRescheduling(true)}
+              >
+                Reschedule
+              </Button>
+            </>
+          )}
         </StickyBar>
 
         <RescheduleSheet
           open={rescheduling}
           onClose={() => setRescheduling(false)}
           subject={event.title}
-          subjectNoun="Sosialisasi"
+          subjectNoun="POI Visit"
           count={taskId ? rescheduleCount(s, taskId) : 0}
           onConfirm={reschedule}
+        />
+
+        {/* BM: reassign the POI's petugas. */}
+        <PickSheet
+          open={foOpen}
+          title="Ganti petugas"
+          options={FIELD_OFFICERS}
+          value={event.fo ?? ''}
+          onClose={() => setFoOpen(false)}
+          onPick={(f) => {
+            poiStore.reassign(event.id, f)
+            setFoOpen(false)
+          }}
+        />
+
+        {/* BM: set a schedule for a POI that has none. */}
+        <PickSheet
+          open={scheduleOpen}
+          title="Jadwalkan POI Visit"
+          options={SCHEDULE_DATES.map((d) => d.label)}
+          value=""
+          onClose={() => setScheduleOpen(false)}
+          onPick={(label) => {
+            const opt = SCHEDULE_DATES.find((d) => d.label === label)
+            if (opt) scheduleSosialisasi(opt.days)
+          }}
         />
       </AppScreen>
     )
@@ -201,13 +296,13 @@ export function SosialisasiScreen() {
         </Card>
       )}
 
-      <Button size="md" variant="outline" className="w-full" onClick={startAddLeads}>
+      <Button size="md" variant="outline" className="w-full" disabled={!canAct} onClick={startAddLeads}>
         Add new leads
       </Button>
 
       <StickyBar>
-        <Button size="lg" className="w-full" onClick={complete}>
-          Complete Sosialisasi
+        <Button size="lg" className="w-full" disabled={!canAct} onClick={complete}>
+          Complete POI Visit
         </Button>
       </StickyBar>
     </AppScreen>

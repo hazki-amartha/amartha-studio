@@ -29,6 +29,9 @@ export interface AppState {
   /** Which Sales layout to render: the default (per-section "Lihat semua"), or
    *  the alt (inline "See more" + an "All task" page). Set by the demo states. */
   salesVariant: 'default' | 'alt'
+  /** Who is signed in: a BP (own tasks) or a BM (every petugas' tasks, plus the
+   *  power to add/schedule/reassign). Toggled from the profile tab. */
+  role: 'BP' | 'BM'
   /** POIs whose sosialisasi has been completed — no auto next schedule, so their
    *  card reads "Belum ada jadwal" and they leave today's board. */
   completedPois: string[]
@@ -44,6 +47,7 @@ const initial: AppState = {
   openEvent: 'e1',
   poiStage: 'detail',
   salesVariant: 'default',
+  role: 'BP',
   completedPois: [],
   activeTask: 't3',
   reschedules: {},
@@ -78,6 +82,14 @@ export const store = {
   completePoi(eventId: string) {
     if (state.completedPois.includes(eventId)) return
     store.set({ completedPois: [...state.completedPois, eventId] })
+  },
+  /** Clear a POI's completed flag — used when the BM reschedules it. */
+  uncompletePoi(eventId: string) {
+    store.set({ completedPois: state.completedPois.filter((id) => id !== eventId) })
+  },
+  /** Flip between the BP and BM views. */
+  toggleRole() {
+    store.set({ role: state.role === 'BP' ? 'BM' : 'BP' })
   },
   /** Opens a follow-up from the schedule — the rostered call. */
   startFollowUp(taskId: string) {

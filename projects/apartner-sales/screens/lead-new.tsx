@@ -21,21 +21,25 @@ import {
   type AddLeadEntry,
   type AddLeadSource,
 } from '../lib/pipeline-store'
-import { AddressSheet, SelectField } from '../lib/pipeline-ui'
+import { AddressSheet, PickSheet, SelectField } from '../lib/pipeline-ui'
+import { poiStore } from '../lib/poi-store'
+import { store, useApp } from '../lib/store'
 import { AppScreen, Chip, StickyBar } from '../lib/ui'
 import {
   CURRENT_FO,
   EMPTY_ADDRESS,
+  FIELD_OFFICERS,
   addressComplete,
   addressLine,
   type LeadAddress,
 } from '../lib/pipeline'
 
-type SheetId = 'address' | null
+type SheetId = 'address' | 'fo' | null
 
 function sumberLabel(s: AddLeadSource | null): string {
   if (!s) return ''
   if (s.source === 'poi') return s.poi ? `POI Visit · ${s.poi}` : 'POI Visit'
+  if (s.source === 'canvassing') return s.poi ? `Canvassing · ${s.poi}` : 'Canvassing'
   return s.referredBy ? `Referral · ${s.referredBy}` : 'Referral'
 }
 
@@ -48,7 +52,11 @@ export function LeadNewScreen() {
   // Source is fixed before this screen opens — read-only here.
   const sumber = entry.current.source
 
+  const { role } = useApp()
+  const isBM = role === 'BM'
   const [sheet, setSheet] = useState<SheetId>(null)
+  // BM assigns the lead to a petugas; a BP always captures under their own name.
+  const [fo, setFo] = useState(CURRENT_FO)
   const [name, setName] = useState(draft?.name ?? '')
   const [phone, setPhone] = useState(draft?.phone ?? '')
   const [address, setAddress] = useState<LeadAddress>(EMPTY_ADDRESS)
@@ -82,7 +90,7 @@ export function LeadNewScreen() {
       name,
       phone,
       address,
-      fo: CURRENT_FO,
+      fo,
       photo,
       source: sumber.source,
       poi: sumber.poi,
@@ -96,12 +104,33 @@ export function LeadNewScreen() {
       competitorAmount,
     })
     if (returnTo === 'sosialisasi') {
+      // Already inside that POI's visit — back to its running leads list.
+      flow.go('sosialisasi')
+    } else if (sumber.source === 'poi') {
+      // POI-source capture from the Sales button: land on that POI's page so the
+      // BP can keep adding leads from the same visit. Find its POI record, or
+      // create one if this place is new.
+      const existing = poiStore.get().find((e) => e.poi === sumber.poi || e.title === sumber.poi)
+      const id =
+        existing?.id ??
+        poiStore.add({
+          title: sumber.poi,
+          poi: sumber.poi,
+          place: '',
+          address: '',
+          target: 10,
+          contact: '',
+          type: 'POI',
+          poiType: 'POI',
+          guide: '',
+          art: 'pasar-ikan',
+        })
+      store.openSosialisasi(id)
+      store.startPoiLeads()
       flow.go('sosialisasi')
     } else {
       pipelineStore.setFlash(`${name.trim()} berhasil ditambahkan sebagai lead`)
-      // Back to whichever Sales board she came from — the two options are shown
-      // side by side, so an add must not silently move her to the other one.
-      flow.go(returnTo)
+      flow.go('sales')
     }
   }
 
@@ -129,6 +158,9 @@ export function LeadNewScreen() {
           placeholder="Sumber"
           onClick={() => {}}
         />
+        {isBM ? (
+          <SelectField label="Petugas" required value={fo} placeholder="Pilih petugas" onClick={() => setSheet('fo')} />
+        ) : null}
         <Input
           label="Nama"
           required
@@ -237,6 +269,17 @@ export function LeadNewScreen() {
         onClose={() => setSheet(null)}
         onSave={(a) => {
           setAddress(a)
+          setSheet(null)
+        }}
+      />
+      <PickSheet
+        open={sheet === 'fo'}
+        title="Pilih petugas"
+        options={FIELD_OFFICERS}
+        value={fo}
+        onClose={() => setSheet(null)}
+        onPick={(v) => {
+          setFo(v)
           setSheet(null)
         }}
       />

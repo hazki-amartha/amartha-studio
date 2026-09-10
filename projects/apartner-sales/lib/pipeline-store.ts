@@ -9,6 +9,7 @@ import { useSyncExternalStore } from 'react'
 import {
   CURRENT_FO,
   SEED_PIPELINE,
+  contextSteps,
   dateFromToday,
   followUpDateFor,
   type Channel,
@@ -141,16 +142,6 @@ export const pipelineStore = {
     emit()
   },
 
-  /** Tally one finished task under a category — for non-lead completions like a
-   *  POI sosialisasi, which the lead-patching helpers don't cover. */
-  markCategoryDone(category: string) {
-    state = {
-      ...state,
-      completedToday: { ...state.completedToday, [category]: (state.completedToday[category] ?? 0) + 1 },
-    }
-    emit()
-  },
-
   /** Raise a one-shot confirmation banner for the Sales page. */
   setFlash(message: string) {
     state = { ...state, flash: message }
@@ -180,6 +171,10 @@ export const pipelineStore = {
       },
       nextFollowUp: whenLabel,
       lastResult: { kind: 'rescheduled', date: dateFromToday(0), reason: note?.trim() || undefined },
+      contextHistory: [
+        ...contextSteps(lead),
+        { date: dateFromToday(0), title: 'Follow up rescheduled', detail: note?.trim() || undefined },
+      ],
       log: appendLog(lead, {
         via: 'manual',
         status: lead.status,
@@ -194,6 +189,10 @@ export const pipelineStore = {
     completeTask(id, (lead) => ({
       status: 'not-interested',
       lastResult: { kind: 'dropped', date: dateFromToday(0), reason: reason.trim() || undefined },
+      contextHistory: [
+        ...contextSteps(lead),
+        { date: dateFromToday(0), title: 'Dropped', detail: reason.trim() || undefined },
+      ],
       // Off today's board; she comes back on her reactivation date.
       agenda: {
         day: 'upcoming',
@@ -222,6 +221,10 @@ export const pipelineStore = {
         dueDays: dueInDays,
       },
       lastResult: { kind: 'self-service', date: dateFromToday(0) },
+      contextHistory: [
+        ...contextSteps(lead),
+        { date: dateFromToday(0), title: 'Self service application started' },
+      ],
       log: appendLog(lead, {
         via: 'manual',
         status: lead.status,
@@ -250,11 +253,75 @@ export const pipelineStore = {
       },
       nextFollowUp: whenLabel,
       lastResult: { kind: 'assisted', date: dateFromToday(0), reason: note?.trim() || undefined },
+      contextHistory: [
+        ...contextSteps(lead),
+        { date: dateFromToday(0), title: 'Assisted application started', detail: note?.trim() || undefined },
+      ],
       log: appendLog(lead, {
         via: 'manual',
         status: lead.status,
         system: `Aplikasi assisted disimpan (${completed.length}/8 bagian)`,
         note: note?.trim() || undefined,
+      }),
+    }))
+  },
+
+  /**
+   * Continue application → Modal → Existing majelis. She joins that majelis and
+   * a "Follow up for Kumpulan" task is created — she stays on Sales, to be
+   * reminded to come to the kumpulan day. The follow-up she was in counts done.
+   */
+  createKumpulanFollowUp(id: string, majelis: MajelisAssignment) {
+    completeTask(id, (lead) => ({
+      product: 'Modal',
+      majelis,
+      kumpulanStage: 'follow-up',
+      agenda: {
+        day: 'today',
+        kind: 'Kumpulan',
+        when: 'Hari ini',
+        order: lead.agenda?.order ?? 0,
+        dueDays: 0,
+      },
+      lastResult: { kind: 'kumpulan', date: dateFromToday(0) },
+      contextHistory: [
+        ...contextSteps(lead),
+        { date: dateFromToday(0), title: 'Aplikasi untuk majelis existing' },
+      ],
+      log: appendLog(lead, {
+        via: 'manual',
+        status: lead.status,
+        system: 'Produk Modal — follow up kumpulan dibuat',
+      }),
+    }))
+  },
+
+  /**
+   * Continue application → Modal → New majelis. A sosialisasi is scheduled for
+   * the new majelis (it lands on the Task page); she leaves the Sales list.
+   */
+  createKumpulanSosialisasi(id: string, majelisName: string, when: string) {
+    completeTask(id, (lead) => ({
+      product: 'Modal',
+      majelis: { kind: 'new', name: majelisName },
+      kumpulanStage: 'sosialisasi',
+      log: appendLog(lead, {
+        via: 'manual',
+        status: lead.status,
+        system: `Sosialisasi ${majelisName} dijadwalkan — ${when}`,
+      }),
+    }))
+  },
+
+  /** "Lead sudah hadir" at the kumpulan — she moves on to the Mitra list. */
+  markKumpulanHadir(id: string) {
+    completeTask(id, (lead) => ({
+      status: 'survey-submitted',
+      kumpulanStage: undefined,
+      log: appendLog(lead, {
+        via: 'manual',
+        status: 'survey-submitted',
+        system: 'Lead hadir di kumpulan — pindah ke daftar Mitra',
       }),
     }))
   },
@@ -523,7 +590,7 @@ export interface AddLeadEntry {
   /** The preselected source — null only as a defensive default. */
   source: AddLeadSource | null
   /** Where Submit / Back return to. */
-  returnTo: 'sales' | 'sales-b' | 'sosialisasi'
+  returnTo: 'sales' | 'sosialisasi'
   draft: { name: string; phone: string; nik: string; ktp: boolean; poi: string } | null
 }
 

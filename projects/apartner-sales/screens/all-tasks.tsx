@@ -19,6 +19,7 @@ import {
   type TaskCategory,
 } from '../lib/tasks'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
+import { usePois } from '../lib/poi-store'
 import { store, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
 import { AppScreen, Chip, FilterBar, SearchField } from '../lib/ui'
@@ -26,11 +27,13 @@ import { AppScreen, Chip, FilterBar, SearchField } from '../lib/ui'
 export function AllTasksScreen() {
   const flow = useFlow()
   const { leads, order } = usePipeline()
-  const { completedPois } = useApp()
+  const { completedPois, role } = useApp()
+  const pois = usePois()
+  const isBM = role === 'BM'
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<TaskCategory | null>(null)
 
-  const tasks = buildTasks(order.map((id) => leads[id]), completedPois)
+  const tasks = buildTasks(order.map((id) => leads[id]), pois)
   const tallies = tallyByCategory(tasks)
   const q = query.trim()
 
@@ -46,9 +49,19 @@ export function AllTasksScreen() {
 
   function renderCard(task: SalesTask) {
     if (task.kind === 'lead') {
-      return <LeadTaskCard key={task.id} lead={task.lead} onOpen={() => openTask(task)} />
+      return (
+        <LeadTaskCard key={task.id} lead={task.lead} showPetugas={isBM} onOpen={() => openTask(task)} />
+      )
     }
-    return <PoiTaskCard key={task.id} event={task.event} onOpen={() => openTask(task)} />
+    return (
+      <PoiTaskCard
+        key={task.id}
+        event={task.event}
+        completed={completedPois.includes(task.id)}
+        showPetugas={isBM}
+        onOpen={() => openTask(task)}
+      />
+    )
   }
 
   // Each visible category, its tasks narrowed by the search box.

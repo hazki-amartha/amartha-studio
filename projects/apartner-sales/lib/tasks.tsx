@@ -23,34 +23,41 @@
 // its own screen.
 
 import type { ReactNode } from 'react'
-import { EVENTS, type SosialisasiEvent } from './events'
-import { addressLine, majelisLine, sourceDetail, type Agenda, type PipelineLead } from './pipeline'
+import { type SosialisasiEvent } from './events'
+import {
+  addressLine,
+  dateFromToday,
+  majelisLine,
+  sourceDetail,
+  type Agenda,
+  type PipelineLead,
+} from './pipeline'
 
 export type TaskCategory =
+  | 'kumpulan-follow-up'
   | 'reactivation'
   | 'poi-visit'
-  | 'second-follow-up'
+  | 'follow-up'
   | 'referral'
-  | 'first-follow-up'
 
 /**
  * The order the categories stack in. Per the wireframe note ("sorting of task
  * category will get adjusted"), this is the one place that order is decided.
  */
 export const TASK_CATEGORY_ORDER: TaskCategory[] = [
+  'kumpulan-follow-up',
   'reactivation',
   'poi-visit',
-  'second-follow-up',
+  'follow-up',
   'referral',
-  'first-follow-up',
 ]
 
 export const TASK_CATEGORY_LABEL: Record<TaskCategory, string> = {
+  'kumpulan-follow-up': 'Hadiri Kumpulan',
   reactivation: 'Reactivation',
   'poi-visit': 'POI Visit',
-  'second-follow-up': '2nd Follow-up',
+  'follow-up': 'Follow up',
   referral: 'Referral',
-  'first-follow-up': '1st Follow-up',
 }
 
 /**
@@ -62,6 +69,9 @@ export const TASK_CATEGORY_LABEL: Record<TaskCategory, string> = {
  * statuses), and every one of those always has a next follow-up scheduled.
  */
 export function inSalesFunnel(lead: PipelineLead): boolean {
+  // Continue-application → Modal → New majelis moves her to a sosialisasi task on
+  // the Task page; she leaves the Sales list.
+  if (lead.kumpulanStage === 'sosialisasi') return false
   return (
     lead.status === 'new' ||
     lead.status === 'interested' ||
@@ -72,13 +82,13 @@ export function inSalesFunnel(lead: PipelineLead): boolean {
 
 /** Which category a lead sits in — one bucket each, by a fixed priority. */
 export function leadCategory(lead: PipelineLead): TaskCategory {
+  if (lead.kumpulanStage === 'follow-up') return 'kumpulan-follow-up'
   if (lead.status === 'not-interested' || lead.status === 'rejected') return 'reactivation'
-  // An application under way — assisted saved, or self-service sent — is a repeat
-  // touch, so she sits with the 2nd follow-ups.
-  if (lead.assistedStarted || lead.selfServiceStarted) return 'second-follow-up'
-  if (lead.source === 'referral') return 'referral'
-  const calls = lead.log.filter((l) => l.via === 'telepon').length
-  return calls >= 1 ? 'second-follow-up' : 'first-follow-up'
+  // A referral sits in "Referral" only until it has been worked (one step, "Lead
+  // created"); after any follow-up result it joins the "Follow up" section.
+  const followedUp = Boolean(lead.lastResult) || (lead.contextHistory?.length ?? 0) > 1
+  if (lead.source === 'referral' && !followedUp) return 'referral'
+  return 'follow-up'
 }
 
 // --- The unified task list -------------------------------------------------
@@ -117,9 +127,10 @@ export type SalesTask =
       event: SosialisasiEvent
     }
 
-/** Every task the Sales page knows about — categorised leads plus scheduled POIs.
- *  Completed POIs are dropped: a finished sosialisasi has no next schedule. */
-export function buildTasks(leads: PipelineLead[], completedPois: string[] = []): SalesTask[] {
+/** Every task the Sales page knows about — categorised leads plus POIs. A POI
+ *  with no schedule (completed, or newly added) stays in the list reading
+ *  "Belum ada jadwal"; the historical placeholder is never a task. */
+export function buildTasks(leads: PipelineLead[], pois: SosialisasiEvent[]): SalesTask[] {
   const leadTasks: SalesTask[] = leads
     // Leads whose application has started have left for the Mitra list.
     .filter(inSalesFunnel)
@@ -130,18 +141,15 @@ export function buildTasks(leads: PipelineLead[], completedPois: string[] = []):
       dueDays: agendaDueDays(lead.agenda),
       lead,
     }))
-  // Only POIs actually on the calendar are tasks; the historical one (no agenda)
-  // exists so leads have somewhere to have come from, not as a visit to run — and
-  // a completed one has dropped its schedule, so it is no longer a task either.
-  const poiTasks: SalesTask[] = EVENTS.filter(
-    (e) => e.agenda && !completedPois.includes(e.id),
-  ).map((event) => ({
-    kind: 'poi',
-    id: event.id,
-    category: 'poi-visit',
-    dueDays: agendaDueDays(event.agenda),
-    event,
-  }))
+  const poiTasks: SalesTask[] = pois
+    .filter((e) => !e.historical)
+    .map((event) => ({
+      kind: 'poi',
+      id: event.id,
+      category: 'poi-visit',
+      dueDays: agendaDueDays(event.agenda),
+      event,
+    }))
   return [...leadTasks, ...poiTasks]
 }
 
@@ -214,6 +222,18 @@ export function poiScheduleLabel(agenda?: Agenda): string {
   return agenda.when
 }
 
+/**
+ * The card's / POI page's schedule line: "20 Jul 2026 - Hari ini" for a lead,
+ * and with the clock time appended for a POI ("… - Besok, 14.00").
+ */
+export function scheduleLine(agenda: Agenda | undefined, withTime: boolean): string {
+  const date = dateFromToday(agendaDueDays(agenda))
+  const rel = leadScheduleLabel(agenda)
+  if (!withTime) return `${date} - ${rel}`
+  const time = agenda?.when.match(/(\d{1,2}[.:]\d{2})/)?.[1]
+  return time ? `${date} - ${rel}, ${time}` : `${date} - ${rel}`
+}
+
 // --- Selected category (survives navigation to the see-all screen) ---------
 // A plain module value, like `addLeadEntry`: set right before navigating to the
 // task-list screen, read once on mount. State inside a screen is lost on nav.
@@ -245,7 +265,16 @@ function TaskCardShell({ onOpen, children }: { onOpen: () => void; children: Rea
   )
 }
 
-export function LeadTaskCard({ lead, onOpen }: { lead: PipelineLead; onOpen: () => void }) {
+export function LeadTaskCard({
+  lead,
+  showPetugas,
+  onOpen,
+}: {
+  lead: PipelineLead
+  /** BM view: name the petugas the task belongs to. */
+  showPetugas?: boolean
+  onOpen: () => void
+}) {
   const address = addressLine(lead.address)
   const late = overdueDays(lead.agenda)
   return (
@@ -261,9 +290,12 @@ export function LeadTaskCard({ lead, onOpen }: { lead: PipelineLead; onOpen: () 
                 : 'truncate text-12 text-caption'
             }
           >
-            {leadScheduleLabel(lead.agenda)}
+            {scheduleLine(lead.agenda, false)}
           </span>
           <span className="truncate text-16 font-bold text-default">{lead.name}</span>
+          {showPetugas ? (
+            <span className="truncate text-12 text-caption">Petugas: {lead.fo}</span>
+          ) : null}
           <span className="truncate text-12 text-caption">
             Source:{' '}
             {lead.status === 'not-interested' || lead.status === 'rejected'
@@ -279,16 +311,29 @@ export function LeadTaskCard({ lead, onOpen }: { lead: PipelineLead; onOpen: () 
 
 export function PoiTaskCard({
   event,
+  completed,
+  showPetugas,
   onOpen,
 }: {
   event: SosialisasiEvent
+  /** A finished sosialisasi keeps its card but drops its schedule. */
+  completed?: boolean
+  /** BM view: name the petugas the visit belongs to. */
+  showPetugas?: boolean
   onOpen: () => void
 }) {
+  // No schedule when finished, or when a POI was added without a date yet.
+  const noSchedule = completed || !event.agenda
   return (
     <TaskCardShell onOpen={onOpen}>
       <div className="flex w-full min-w-0 flex-col gap-2">
-        <span className="truncate text-12 text-caption">{poiScheduleLabel(event.agenda)}</span>
+        <span className="truncate text-12 text-caption">
+          {noSchedule ? 'Belum ada jadwal' : scheduleLine(event.agenda, true)}
+        </span>
         <span className="truncate text-16 font-bold text-default">{event.title}</span>
+        {showPetugas ? (
+          <span className="truncate text-12 text-caption">Petugas: {event.fo ?? '-'}</span>
+        ) : null}
         <span className="truncate text-12 text-caption">Lokasi: {event.place}</span>
       </div>
     </TaskCardShell>

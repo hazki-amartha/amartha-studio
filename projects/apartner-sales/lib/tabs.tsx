@@ -1,8 +1,6 @@
 'use client'
 
 // The app's five destinations — the L0 surfaces this direction sits on top of.
-// Four of them are the Majelis View app itself: this project `extends` it, so
-// the tabs land on its real screens rather than on stubs.
 //
 //   Jadwal  — what to do now. The entry screen, and where a pelayanan starts.
 //   Majelis — every group the BP carries, reachable off-schedule. This is the
@@ -30,45 +28,44 @@ import { NavigationBar } from '@/design-system/components'
 // exactly the trio that separates a list of borrowers, the Sales pipeline (a
 // stack of lead records the BP works through), and "me", and the local file has
 // none of them.
-import { Contact, File, User } from '@/design-system/icons'
+import { Contact, File } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { CalendarDots, Majelis } from '@/design-system/icons'
+import { store, useApp } from './store'
 
 export type TabId = 'today' | 'majelis-list' | 'mitra-list' | 'sales' | 'profile'
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: 'today', label: 'Tugas', icon: <CalendarDots /> },
-  { id: 'majelis-list', label: 'Majelis', icon: <Majelis /> },
-  { id: 'mitra-list', label: 'Mitra', icon: <Contact /> },
-  { id: 'sales', label: 'Sales', icon: <File /> },
-  { id: 'profile', label: 'Profil', icon: <User /> },
-]
+/** The BP/BM indicator that replaces the profile icon — tap the tab to switch. */
+function RoleBadge({ role }: { role: 'BP' | 'BM' }) {
+  return (
+    <span className="flex items-center justify-center rounded-8 border border-primary-500 px-8 py-2 text-12 font-bold text-primary-500">
+      {role}
+    </span>
+  )
+}
 
-export function TabBar({
-  active,
-  action,
-  actionAlign = 'end',
-}: {
-  active: TabId
-  action?: ReactNode
-  /** Where the floating action sits above the nav — trailing by default. */
-  actionAlign?: 'end' | 'center'
-}) {
+export function TabBar({ active, action }: { active: TabId; action?: ReactNode }) {
   const flow = useFlow()
+  const { role } = useApp()
+
+  const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+    { id: 'today', label: 'Tugas', icon: <CalendarDots /> },
+    { id: 'majelis-list', label: 'Majelis', icon: <Majelis /> },
+    { id: 'mitra-list', label: 'Mitra', icon: <Contact /> },
+    { id: 'sales', label: 'Sales', icon: <File /> },
+    // The profile tab carries the BP/BM indicator and switches the view on tap.
+    { id: 'profile', label: role === 'BM' ? 'BM' : 'BP', icon: <RoleBadge role={role} /> },
+  ]
 
   return (
     // Pinned to the bottom of the scrollport, edge to edge — the Screen
     // primitive owns the 16px page padding, so the bar negates it.
     <div className="sticky bottom-0 -mx-16 mt-auto">
-      {/* A floating action rides just above the nav. The row itself is
-          click-through (pointer-events-none) so it never blocks the content
-          scrolling behind the gap; only the button inside catches taps. */}
+      {/* A floating action rides just above the nav, right-aligned. The row
+          itself is click-through (pointer-events-none) so it never blocks the
+          content scrolling behind the gap; only the button inside catches taps. */}
       {action ? (
-        <div
-          className={`pointer-events-none flex px-16 pb-12 ${
-            actionAlign === 'center' ? 'justify-center' : 'justify-end'
-          }`}
-        >
+        <div className="pointer-events-none flex justify-end px-16 pb-12">
           <span className="pointer-events-auto">{action}</span>
         </div>
       ) : null}
@@ -78,11 +75,12 @@ export function TabBar({
           label: tab.label,
           icon: tab.icon,
           active: tab.id === active,
-          // Sales is the module built here; the other four resolve to the
-          // Majelis View app this project extends (project.config `extends`),
-          // so every tab leads somewhere real.
+          // Sales navigates; the profile tab switches BP ↔ BM in place; the
+          // other three are here because the bar is what the user sees under a
+          // Sales page, not because they lead anywhere.
           onClick: () => {
-            if (tab.id !== active) flow.go(tab.id)
+            if (tab.id === 'profile') store.toggleRole()
+            else if (tab.id !== active && tab.id === 'sales') flow.go(tab.id)
           },
         }))}
       />
