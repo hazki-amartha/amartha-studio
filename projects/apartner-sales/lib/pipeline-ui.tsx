@@ -339,16 +339,51 @@ export function SourceSheet({
   onClose: () => void
   onDone: (data: { source: LeadSource; poi: string; referredBy: string; referrerKind: ReferrerKind | null }) => void
 }) {
-  const [step, setStep] = useState<'type' | 'poi' | 'referral'>('type')
+  const [step, setStep] = useState<'type' | 'poi' | 'referral' | 'canvassing'>('type')
+  const [canvassing, setCanvassing] = useState('')
 
   // Always reopen at the type step, whoever closed it.
   useEffect(() => {
-    if (!open) setStep('type')
+    if (!open) {
+      setStep('type')
+      setCanvassing('')
+    }
   }, [open])
 
   function close() {
     setStep('type')
     onClose()
+  }
+
+  if (step === 'canvassing') {
+    return (
+      <BottomSheet
+        open={open}
+        onClose={close}
+        onBack={() => setStep('type')}
+        title="Canvassing"
+        primaryAction={
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={!canvassing.trim()}
+            onClick={() => {
+              setStep('type')
+              onDone({ source: 'canvassing', poi: canvassing.trim(), referredBy: '', referrerKind: null })
+            }}
+          >
+            Simpan
+          </Button>
+        }
+      >
+        <Input
+          label="Lokasi canvassing"
+          value={canvassing}
+          onChange={(e) => setCanvassing(e.target.value)}
+          placeholder="Isi lokasi canvassing"
+        />
+      </BottomSheet>
+    )
   }
 
   if (step === 'poi') {
@@ -396,6 +431,17 @@ export function SourceSheet({
           description="Dikenalkan oleh mitra atau warga"
           checked={false}
           onChange={() => setStep('referral')}
+        />
+        <SelectableCard
+          name="source-type"
+          inputType="radio"
+          title={SOURCE_LABEL.canvassing}
+          description="Ditemui saat canvassing lapangan"
+          checked={false}
+          onChange={() => {
+            setCanvassing('')
+            setStep('canvassing')
+          }}
         />
       </div>
     </BottomSheet>
@@ -683,7 +729,9 @@ export function AddressSheet({
           />
 
           <div className="flex flex-col gap-8">
-            <span className="text-12 font-bold text-default">Titik lokasi</span>
+            <span className="text-12 font-bold text-default">
+              Titik lokasi <span className="font-regular text-caption">(opsional)</span>
+            </span>
             {pinned ? (
               <>
                 <div className="relative flex items-center justify-center rounded-8 bg-blue-50 py-32">

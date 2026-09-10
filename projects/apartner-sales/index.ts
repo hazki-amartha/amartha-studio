@@ -33,27 +33,14 @@ export const project: ProjectModule = {
         { to: 'sosialisasi', label: 'buka POI' },
         { to: 'task-list', label: 'Lihat semua kategori' },
         { to: 'all-tasks', label: 'All task (alt)' },
+        { to: 'poi-new', label: 'Add POI (BM)' },
       ],
     },
     {
-      id: 'sales-b',
-      title: 'Sales · Option B',
-      component: lazyScreen(() => import('./screens/sales-b'), 'SalesBScreen'),
-      flowsTo: [
-        { to: 'all-leads', label: 'Semua Leads' },
-        { to: 'follow-up', label: 'buka lead' },
-        { to: 'sosialisasi', label: 'buka POI' },
-        { to: 'lead-new', label: 'Add lead' },
-      ],
-    },
-    {
-      id: 'all-leads',
-      title: 'Semua Leads · Option B',
-      component: lazyScreen(() => import('./screens/all-leads'), 'AllLeadsScreen'),
-      flowsTo: [
-        { to: 'follow-up', label: 'buka lead' },
-        { to: 'sosialisasi', label: 'buka POI' },
-      ],
+      id: 'poi-new',
+      title: 'Tambah POI',
+      component: lazyScreen(() => import('./screens/poi-new'), 'PoiNewScreen'),
+      flowsTo: [{ to: 'sales', label: 'Save POI' }],
     },
     {
       id: 'task-list',
@@ -95,8 +82,8 @@ export const project: ProjectModule = {
       states: [
         {
           id: 'first',
-          label: '1st Follow up',
-          description: 'A POI lead due for her first follow-up (a couple of days late)',
+          label: 'Follow up',
+          description: 'A POI lead due for a follow-up (a couple of days late)',
           apply: demo.followUpFirst,
         },
         {
@@ -113,9 +100,15 @@ export const project: ProjectModule = {
         },
       ],
       flowsTo: [
-        { to: 'application', label: 'Continue / Takeover application' },
-        { to: 'sales', label: 'Reschedule / Drop' },
+        { to: 'kumpulan-jadwal', label: 'Modal → Majelis baru' },
+        { to: 'sales', label: 'Reschedule / Drop / Kumpulan' },
       ],
+    },
+    {
+      id: 'kumpulan-jadwal',
+      title: 'Atur jadwal Sosialisasi',
+      component: lazyScreen(() => import('./screens/kumpulan-jadwal'), 'KumpulanJadwalScreen'),
+      flowsTo: [{ to: 'sales', label: 'Simpan jadwal' }],
     },
     {
       id: 'application',

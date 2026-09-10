@@ -32,12 +32,19 @@ export interface SosialisasiEvent {
   type: string
   /** The BP's own briefing note for working this POI. */
   guide: string
+  /** The petugas (FO) this POI's sosialisasi is assigned to. */
+  fo?: string
+  /** A Google Maps link, captured on the Add POI form. */
+  gmapsLink?: string
   /** Which illustrated scene stands in for a photo of the POI. */
   art: PoiArt
   /** The kind of place, as the Sales card names it: Warung, Pasar, Balai. */
   poiType: string
   /** When the sosialisasi is scheduled. Absent means it is not on the calendar. */
   agenda?: Agenda
+  /** A past placeholder POI (last week's) that leads point back to — never a task
+   *  on the board, so it is filtered out of the task list. */
+  historical?: boolean
 }
 
 /** The illustrated POI "photos" — one scene drawn per kind of place. */
@@ -58,6 +65,7 @@ export const EVENTS: SosialisasiEvent[] = [
     guide: 'Bu Ipah (pemilik warung) memiliki 8 orang teman yang juga tertarik untuk mengambil pinjaman Amartha.',
     art: 'warung',
     poiType: 'Warung',
+    fo: 'Siti Aminah',
     agenda: { day: 'today', kind: 'Sosialisasi POI', when: '14.00', order: 0 },
   },
   {
@@ -74,6 +82,7 @@ export const EVENTS: SosialisasiEvent[] = [
     guide: 'Pasar ikan ini lumayan ramai, ada lebih dari 50 pedagang ikan, mayoritas perempuan. Targetkan pedagang-pedagang yang ada di sana. Beberapa orang sudah punya pinjaman dari Mekaar, tawarkan kemungkinan limit lebih tinggi dari Amartha.',
     art: 'pasar-ikan',
     poiType: 'Pasar',
+    fo: 'Nurhayati',
     agenda: { day: 'upcoming', kind: 'Sosialisasi POI', when: 'Besok, 14.00', order: 0, dueDays: 1 },
   },
   // Last week's, in Putat Nutug. Nothing opens it — it exists so the seeded
@@ -91,6 +100,8 @@ export const EVENTS: SosialisasiEvent[] = [
     guide: '',
     art: 'balai',
     poiType: 'Balai',
+    fo: 'Dewi Lestari',
+    historical: true,
   },
 ]
 
