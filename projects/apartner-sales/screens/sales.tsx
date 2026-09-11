@@ -18,13 +18,14 @@ import {
   LeadTaskCard,
   PoiTaskCard,
   TASK_CATEGORY_LABEL,
+  TASK_CATEGORY_ORDER,
   buildTasks,
   dueTasks,
-  setSelectedCategory,
   tallyByCategory,
   taskDistanceKm,
   taskMatches,
   type SalesTask,
+  type TaskCategory,
 } from '../lib/tasks'
 import { BottomSheet, SelectableCard } from '@/design-system/components'
 import { CURRENT_FO, FIELD_OFFICERS } from '../lib/pipeline'
@@ -33,22 +34,10 @@ import { usePois } from '../lib/poi-store'
 import { store, useApp } from '../lib/store'
 import { SourceSheet } from '../lib/pipeline-ui'
 import { TabBar } from '../lib/tabs'
-import { AppScreen, FilterChip, SearchField, VisitTitle } from '../lib/ui'
+import { AppScreen, Chip, FilterBar, FilterChip, SearchField, VisitTitle } from '../lib/ui'
 
 function SectionHeading({ children }: { children: ReactNode }) {
   return <span className="pt-4 text-16 font-bold text-default">{children}</span>
-}
-
-function SeeAllLink({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="self-center py-4 text-12 font-bold text-link underline"
-    >
-      Lihat semua {label}
-    </button>
-  )
 }
 
 export function SalesScreen() {
@@ -69,9 +58,11 @@ export function SalesScreen() {
   // BM: filter the board to one petugas (null = all).
   const [assignee, setAssignee] = useState<string | null>(null)
   const [assigneeOpen, setAssigneeOpen] = useState(false)
-  // Alt only: which sections the BP has expanded past the first three.
+  // Narrow the board to one task category (null = all), like the All task page.
+  const [filter, setFilter] = useState<TaskCategory | null>(null)
+  // Alt only: which sections the BP has expanded past the first one.
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const byDistance = alt && grouping === 'distance'
+  const byDistance = grouping === 'distance'
 
   // A confirmation banner raised by a submit / add / drop, shown once.
   useEffect(() => {
@@ -86,10 +77,9 @@ export function SalesScreen() {
   // BM can narrow the board to one petugas; otherwise every task shows.
   const tasks = isBM && assignee ? allTasks.filter((t) => taskFo(t) === assignee) : allTasks
   // The board opens on what is due — today's tasks plus anything overdue; search
-  // and "Lihat semua" reach across every task whatever its date.
+  // reaches across every task whatever its date.
   const due = dueTasks(tasks)
   const tallies = tallyByCategory(due)
-  const totalByCategory = tallyByCategory(tasks)
 
   const q = query.trim()
   const searching = q.length > 0
@@ -130,16 +120,18 @@ export function SalesScreen() {
     )
   }
 
-  const matches = searching ? tasks.filter((t) => taskMatches(t, q)) : []
+  const matches = searching
+    ? tasks.filter((t) => taskMatches(t, q) && (filter === null || t.category === filter))
+    : []
 
   return (
     <AppScreen
       topBar={
         <NavigationHeader
           hideBack
-          title={<VisitTitle title={alt ? 'Sales hari ini' : 'Sales'} when={`${due.length} tugas hari ini`} />}
-          link={alt ? 'All task' : undefined}
-          onLinkClick={alt ? () => flow.go('all-tasks') : undefined}
+          title={<VisitTitle title="Sales hari ini" when={`${due.length} tugas hari ini`} />}
+          link="Lihat semua"
+          onLinkClick={() => flow.go('all-tasks')}
         />
       }
     >
@@ -152,7 +144,7 @@ export function SalesScreen() {
         </div>
       ) : null}
 
-      {/* Search, and (alt) a grouping toggle to its right. */}
+      {/* Search, and a sort toggle to its right. */}
       <div className="flex items-center gap-8">
         <div className="min-w-0 flex-1">
           <SearchField
@@ -162,7 +154,7 @@ export function SalesScreen() {
             label="Cari nama lead atau POI"
           />
         </div>
-        {alt ? (
+        {
           <button
             type="button"
             aria-label="Urutkan"
@@ -173,7 +165,7 @@ export function SalesScreen() {
           >
             <Sort size={20} />
           </button>
-        ) : null}
+        }
       </div>
 
       {/* BM: filter the board to one petugas. */}
@@ -187,6 +179,18 @@ export function SalesScreen() {
           />
         </div>
       ) : null}
+
+      {/* Narrow the board to one task category, like the All task page. */}
+      <FilterBar>
+        <Chip selected={filter === null} onClick={() => setFilter(null)}>
+          Semua
+        </Chip>
+        {TASK_CATEGORY_ORDER.map((c) => (
+          <Chip key={c} selected={filter === c} onClick={() => setFilter(c)}>
+            {TASK_CATEGORY_LABEL[c]}
+          </Chip>
+        ))}
+      </FilterBar>
 
       {searching ? (
         // --- Search results: matches, grouped by their category --------------
@@ -221,25 +225,27 @@ export function SalesScreen() {
       ) : byDistance ? (
         // --- The board, one flat list sorted by distance (nearest first) -----
         <div className="flex flex-col gap-8 pb-16">
-          {due.length === 0 ? (
-            <div className="rounded-12 bg-neutral-white px-12 py-16 text-center text-12 text-caption">
-              Tidak ada tugas hari ini
-            </div>
-          ) : (
-            due
+          {(() => {
+            const rows = due
+              .filter((t) => filter === null || t.category === filter)
               .slice()
               .sort((a, b) => taskDistanceKm(a) - taskDistanceKm(b))
-              .map(renderCard)
-          )}
+            return rows.length === 0 ? (
+              <div className="rounded-12 bg-neutral-white px-12 py-16 text-center text-12 text-caption">
+                Tidak ada tugas hari ini
+              </div>
+            ) : (
+              rows.map(renderCard)
+            )
+          })()}
         </div>
       ) : (
         // --- The board: one section per category -----------------------------
         <div className="flex flex-col gap-12 pb-16">
-          {tallies.map((cat) => {
+          {tallies
+            .filter((cat) => filter === null || cat.category === filter)
+            .map((cat) => {
             const label = TASK_CATEGORY_LABEL[cat.category]
-            // The count on the board is today's; the see-all total is everything
-            // in the category, which is why the link so often reveals more.
-            const allInCat = totalByCategory.find((c) => c.category === cat.category)
             // POI-visit keeps its finished cards on the board (they read "Belum
             // ada jadwal"), so its "done" is those completed POIs and its total
             // is already the full set. Lead categories lose finished cards off
@@ -249,14 +255,15 @@ export function SalesScreen() {
               ? cat.tasks.filter((t) => t.kind === 'poi' && completedPois.includes(t.id)).length
               : completedToday[cat.category] ?? 0
             const dayTotal = isPoi ? cat.total : done + cat.total
-            // Alt expands the rest inline; default caps at three and links out.
+            // Default shows every task in the section. Alt shows just one, with a
+            // "See more" that expands the rest inline.
             const isExpanded = expanded.has(cat.category)
-            const shown = alt && isExpanded ? cat.tasks : cat.tasks.slice(0, 3)
+            const shown = !alt || isExpanded ? cat.tasks : cat.tasks.slice(0, 1)
             return (
               <div key={cat.category} className="flex flex-col gap-8">
-                <div className="flex items-baseline justify-between gap-8">
+                <div className="flex flex-col gap-2">
                   <span className="text-16 font-bold text-default">{label}</span>
-                  <span className="shrink-0 text-12 text-caption">
+                  <span className="text-12 text-caption">
                     {done} dari {dayTotal} tugas selesai
                   </span>
                 </div>
@@ -267,33 +274,22 @@ export function SalesScreen() {
                 ) : (
                   shown.map(renderCard)
                 )}
-                {alt ? (
-                  // "See more" expands the rest of today's tasks inline (>3 only).
-                  cat.tasks.length > 3 ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setExpanded((prev) => {
-                          const next = new Set(prev)
-                          if (next.has(cat.category)) next.delete(cat.category)
-                          else next.add(cat.category)
-                          return next
-                        })
-                      }
-                      className="self-center py-4 text-12 font-bold text-link underline"
-                    >
-                      {isExpanded ? 'See less' : `See more (${cat.tasks.length - 3})`}
-                    </button>
-                  ) : null
-                ) : (
-                  <SeeAllLink
-                    label={`${label}${allInCat && allInCat.total > 0 ? ` (${allInCat.total})` : ''}`}
-                    onClick={() => {
-                      setSelectedCategory(cat.category)
-                      flow.go('task-list')
-                    }}
-                  />
-                )}
+                {alt && cat.tasks.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpanded((prev) => {
+                        const next = new Set(prev)
+                        if (next.has(cat.category)) next.delete(cat.category)
+                        else next.add(cat.category)
+                        return next
+                      })
+                    }
+                    className="self-center py-4 text-12 font-bold text-link underline"
+                  >
+                    {isExpanded ? 'See less' : `See more (${cat.tasks.length - 1})`}
+                  </button>
+                ) : null}
               </div>
             )
           })}

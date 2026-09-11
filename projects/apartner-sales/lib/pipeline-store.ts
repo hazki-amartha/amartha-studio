@@ -12,6 +12,7 @@ import {
   contextSteps,
   dateFromToday,
   followUpDateFor,
+  majelisLine,
   type Channel,
   type Interest,
   type LeadAddress,
@@ -315,6 +316,40 @@ export const pipelineStore = {
         system: `Sosialisasi ${majelisName} dijadwalkan — ${when}`,
       }),
     }))
+  },
+
+  /**
+   * "Batal gabung Majelis" — she leaves the Perkenalan majelis stage and returns
+   * to a plain follow-up (due today), so she reappears under "Follow up". Not a
+   * completed task, so it does not tally against the Perkenalan majelis count.
+   */
+  cancelKumpulanFollowUp(id: string) {
+    const lead = state.leads[id]
+    if (!lead) return
+    const majelis = majelisLine(lead)
+    const changes: Partial<PipelineLead> = {
+      kumpulanStage: undefined,
+      status: 'interested',
+      agenda: {
+        day: 'today',
+        kind: 'Follow up',
+        when: 'Hari ini',
+        order: lead.agenda?.order ?? 0,
+        dueDays: 0,
+      },
+      lastResult: undefined,
+      contextHistory: [
+        ...contextSteps(lead),
+        { date: dateFromToday(0), title: `Batal gabung ${majelis}` },
+      ],
+      log: appendLog(lead, {
+        via: 'manual',
+        status: 'interested',
+        system: `Batal gabung ${majelis} — kembali ke follow up`,
+      }),
+    }
+    state = { ...state, leads: { ...state.leads, [id]: { ...lead, ...changes } } }
+    emit()
   },
 
   /** "Lead sudah hadir" at the kumpulan — she moves on to the Mitra list. */
