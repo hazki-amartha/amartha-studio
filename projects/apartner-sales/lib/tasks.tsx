@@ -163,6 +163,28 @@ export function dueTasks(tasks: SalesTask[]): SalesTask[] {
   return tasks.filter((t) => t.dueDays <= 0)
 }
 
+// --- Distance (mocked, stable per task) ------------------------------------
+// The board can group by distance instead of task type. There is no real
+// geodata in the prototype, so each task gets a stable pseudo-distance from its
+// id — enough to demonstrate the grouping.
+
+function hashId(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return h
+}
+
+/** A stable distance (km) for a task, 0.3–5.8. */
+export function taskDistanceKm(task: SalesTask): number {
+  return Math.round(((hashId(task.id) % 55) / 10 + 0.3) * 10) / 10
+}
+
+export const DISTANCE_BUCKETS: { id: string; label: string; test: (d: number) => boolean }[] = [
+  { id: 'near', label: 'Kurang dari 1 km', test: (d) => d < 1 },
+  { id: 'mid', label: '1 – 3 km', test: (d) => d >= 1 && d < 3 },
+  { id: 'far', label: 'Lebih dari 3 km', test: (d) => d >= 3 },
+]
+
 export interface CategoryTally {
   category: TaskCategory
   tasks: SalesTask[]
@@ -268,11 +290,14 @@ function TaskCardShell({ onOpen, children }: { onOpen: () => void; children: Rea
 export function LeadTaskCard({
   lead,
   showPetugas,
+  distanceKm,
   onOpen,
 }: {
   lead: PipelineLead
   /** BM view: name the petugas the task belongs to. */
   showPetugas?: boolean
+  /** Distance-grouped board: show how far the task is. */
+  distanceKm?: number
   onOpen: () => void
 }) {
   const address = addressLine(lead.address)
@@ -303,6 +328,9 @@ export function LeadTaskCard({
               : sourceDetail(lead)}
           </span>
           {address ? <span className="truncate text-12 text-caption">{address}</span> : null}
+          {distanceKm !== undefined ? (
+            <span className="truncate text-12 font-bold text-caption">{distanceKm} km</span>
+          ) : null}
         </div>
       </div>
     </TaskCardShell>
@@ -313,6 +341,7 @@ export function PoiTaskCard({
   event,
   completed,
   showPetugas,
+  distanceKm,
   onOpen,
 }: {
   event: SosialisasiEvent
@@ -320,6 +349,8 @@ export function PoiTaskCard({
   completed?: boolean
   /** BM view: name the petugas the visit belongs to. */
   showPetugas?: boolean
+  /** Distance-grouped board: show how far the task is. */
+  distanceKm?: number
   onOpen: () => void
 }) {
   // No schedule when finished, or when a POI was added without a date yet.
@@ -335,6 +366,9 @@ export function PoiTaskCard({
           <span className="truncate text-12 text-caption">Petugas: {event.fo ?? '-'}</span>
         ) : null}
         <span className="truncate text-12 text-caption">Lokasi: {event.place}</span>
+        {distanceKm !== undefined ? (
+          <span className="truncate text-12 font-bold text-caption">{distanceKm} km</span>
+        ) : null}
       </div>
     </TaskCardShell>
   )
