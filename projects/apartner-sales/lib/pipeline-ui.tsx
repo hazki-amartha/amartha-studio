@@ -6,7 +6,7 @@
 
 import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, Card, Input, SelectableCard } from '@/design-system/components'
-import { Camera, ChevronDown, FileCheck, MapPin, NotePencil, Warning } from '@/design-system/icons'
+import { Camera, ChevronDown, ChevronRight, FileCheck, MapPin, NotePencil, Warning } from '@/design-system/icons'
 import { MAJELIS_DIRECTORY } from './schedule'
 import {
   INTEREST_META,
@@ -330,6 +330,11 @@ export function ReferralSheet({
  * The full source picker for the record's "Ubah Sumber": choose POI Visit or
  * Referral, then its detail. One `onDone` payload covers both branches.
  */
+/**
+ * The lead's source — one tap each. POI Visit resolves with an empty `poi`; the
+ * caller sends the BP to a dedicated page to pick which POI. Referral and
+ * Canvassing carry no follow-up question.
+ */
 export function SourceSheet({
   open,
   onClose,
@@ -339,112 +344,50 @@ export function SourceSheet({
   onClose: () => void
   onDone: (data: { source: LeadSource; poi: string; referredBy: string; referrerKind: ReferrerKind | null }) => void
 }) {
-  const [step, setStep] = useState<'type' | 'poi' | 'referral' | 'canvassing'>('type')
-  const [canvassing, setCanvassing] = useState('')
-
-  // Always reopen at the type step, whoever closed it.
-  useEffect(() => {
-    if (!open) {
-      setStep('type')
-      setCanvassing('')
-    }
-  }, [open])
-
-  function close() {
-    setStep('type')
-    onClose()
-  }
-
-  if (step === 'canvassing') {
-    return (
-      <BottomSheet
-        open={open}
-        onClose={close}
-        onBack={() => setStep('type')}
-        title="Canvassing"
-        primaryAction={
-          <Button
-            size="lg"
-            className="w-full"
-            disabled={!canvassing.trim()}
-            onClick={() => {
-              setStep('type')
-              onDone({ source: 'canvassing', poi: canvassing.trim(), referredBy: '', referrerKind: null })
-            }}
-          >
-            Simpan
-          </Button>
-        }
-      >
-        <Input
-          label="Lokasi canvassing"
-          value={canvassing}
-          onChange={(e) => setCanvassing(e.target.value)}
-          placeholder="Isi lokasi canvassing"
-        />
-      </BottomSheet>
-    )
-  }
-
-  if (step === 'poi') {
-    return (
-      <PoiSheet
-        open={open}
-        value=""
-        onClose={close}
-        onPick={(poi) => {
-          setStep('type')
-          onDone({ source: 'poi', poi, referredBy: '', referrerKind: null })
-        }}
-      />
-    )
-  }
-
-  if (step === 'referral') {
-    return (
-      <ReferralSheet
-        open={open}
-        onClose={close}
-        onPick={(name, kind) => {
-          setStep('type')
-          onDone({ source: 'referral', poi: '', referredBy: name, referrerKind: kind })
-        }}
-      />
-    )
-  }
-
+  const pick = (source: LeadSource) => onDone({ source, poi: '', referredBy: '', referrerKind: null })
   return (
-    <BottomSheet open={open} onClose={close} title="Sumber lead">
+    <BottomSheet open={open} onClose={onClose} title="Sumber lead">
       <div className="flex flex-col gap-8">
-        <SelectableCard
-          name="source-type"
-          inputType="radio"
-          title={SOURCE_LABEL.poi}
-          description="Ditemui saat POI Visit / Sosialisasi"
-          checked={false}
-          onChange={() => setStep('poi')}
-        />
-        <SelectableCard
-          name="source-type"
-          inputType="radio"
+        <ChevronRow title={SOURCE_LABEL.poi} description="Ditemui saat POI Visit" onClick={() => pick('poi')} />
+        <ChevronRow
           title={SOURCE_LABEL.referral}
           description="Dikenalkan oleh mitra atau warga"
-          checked={false}
-          onChange={() => setStep('referral')}
+          onClick={() => pick('referral')}
         />
-        <SelectableCard
-          name="source-type"
-          inputType="radio"
+        <ChevronRow
           title={SOURCE_LABEL.canvassing}
           description="Ditemui saat canvassing lapangan"
-          checked={false}
-          onChange={() => {
-            setCanvassing('')
-            setStep('canvassing')
-          }}
+          onClick={() => pick('canvassing')}
         />
       </div>
     </BottomSheet>
+  )
+}
+
+/** A tappable card that navigates — title (+ optional detail) and a right chevron. */
+export function ChevronRow({
+  title,
+  description,
+  onClick,
+}: {
+  title: string
+  description?: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-8 rounded-12 border border-default bg-neutral-white p-16 text-left active:bg-neutral-50"
+    >
+      <span className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="text-14 font-bold text-default">{title}</span>
+        {description ? <span className="text-12 text-caption">{description}</span> : null}
+      </span>
+      <span className="shrink-0 text-disabled">
+        <ChevronRight size={20} />
+      </span>
+    </button>
   )
 }
 
@@ -612,6 +555,7 @@ export function SelectField({
   value,
   placeholder,
   required,
+  optionalText,
   readOnly,
   description,
   boldLabel,
@@ -621,6 +565,8 @@ export function SelectField({
   value?: string
   placeholder: string
   required?: boolean
+  /** Marks the field optional next to the label — e.g. "opsional". */
+  optionalText?: string
   /** Render as a read-only row (label over value, no chevron) — for a locked field. */
   readOnly?: boolean
   /** A subtitle under the control — e.g. a map-pin status line. */
@@ -639,6 +585,7 @@ export function SelectField({
       <span className={`text-12 text-default ${boldLabel ? 'font-bold' : 'font-regular'}`}>
         {label}
         {required ? <span className="text-red-500"> *</span> : null}
+        {optionalText ? <span className="font-regular text-caption"> ({optionalText})</span> : null}
       </span>
       <button
         type="button"

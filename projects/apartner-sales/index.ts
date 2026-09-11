@@ -34,7 +34,14 @@ export const project: ProjectModule = {
         { to: 'task-list', label: 'Lihat semua kategori' },
         { to: 'all-tasks', label: 'All task (alt)' },
         { to: 'poi-new', label: 'Add POI (BM)' },
+        { to: 'poi-select', label: 'Sumber POI Visit' },
       ],
+    },
+    {
+      id: 'poi-select',
+      title: 'Pilih POI',
+      component: lazyScreen(() => import('./screens/poi-select'), 'PoiSelectScreen'),
+      flowsTo: [{ to: 'lead-new', label: 'Pilih POI → form' }],
     },
     {
       id: 'poi-new',
@@ -100,15 +107,22 @@ export const project: ProjectModule = {
         },
       ],
       flowsTo: [
-        { to: 'kumpulan-jadwal', label: 'Modal → Majelis baru' },
-        { to: 'sales', label: 'Reschedule / Drop / Kumpulan' },
+        { to: 'majelis-existing', label: 'Majelis existing' },
+        { to: 'kumpulan-jadwal', label: 'Majelis baru → sosialisasi' },
+        { to: 'sales', label: 'Reschedule / Drop' },
       ],
     },
     {
+      id: 'majelis-existing',
+      title: 'Pilih Majelis',
+      component: lazyScreen(() => import('./screens/majelis-existing'), 'MajelisExistingScreen'),
+      flowsTo: [{ to: 'sales', label: 'Pilih → Hadiri Kumpulan' }],
+    },
+    {
       id: 'kumpulan-jadwal',
-      title: 'Atur jadwal Sosialisasi',
+      title: 'Sosialisasi',
       component: lazyScreen(() => import('./screens/kumpulan-jadwal'), 'KumpulanJadwalScreen'),
-      flowsTo: [{ to: 'sales', label: 'Simpan jadwal' }],
+      flowsTo: [{ to: 'sales', label: 'Simpan' }],
     },
     {
       id: 'application',

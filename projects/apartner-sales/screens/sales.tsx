@@ -12,7 +12,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button, NavigationHeader } from '@/design-system/components'
-import { Check, Plus } from '@/design-system/icons'
+import { Check, Plus, Sort } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   LeadTaskCard,
@@ -22,17 +22,18 @@ import {
   dueTasks,
   setSelectedCategory,
   tallyByCategory,
+  taskDistanceKm,
   taskMatches,
   type SalesTask,
 } from '../lib/tasks'
-import { BottomSheet } from '@/design-system/components'
-import { CURRENT_FO } from '../lib/pipeline'
+import { BottomSheet, SelectableCard } from '@/design-system/components'
+import { CURRENT_FO, FIELD_OFFICERS } from '../lib/pipeline'
 import { pipelineStore, setAddLeadEntry, usePipeline } from '../lib/pipeline-store'
 import { usePois } from '../lib/poi-store'
 import { store, useApp } from '../lib/store'
 import { SourceSheet } from '../lib/pipeline-ui'
 import { TabBar } from '../lib/tabs'
-import { AppScreen, Chip, FilterBar, SearchField, VisitTitle } from '../lib/ui'
+import { AppScreen, FilterChip, SearchField, VisitTitle } from '../lib/ui'
 
 function SectionHeading({ children }: { children: ReactNode }) {
   return <span className="pt-4 text-16 font-bold text-default">{children}</span>
@@ -62,10 +63,15 @@ export function SalesScreen() {
   const [addSourceOpen, setAddSourceOpen] = useState(false)
   // BM "Add" first asks Lead or POI.
   const [addChoiceOpen, setAddChoiceOpen] = useState(false)
-  // BM scope filter: all petugas, or just my own tasks.
-  const [justMe, setJustMe] = useState(false)
+  // Alt: group the board by task type or by distance.
+  const [grouping, setGrouping] = useState<'type' | 'distance'>('type')
+  const [groupOpen, setGroupOpen] = useState(false)
+  // BM: filter the board to one petugas (null = all).
+  const [assignee, setAssignee] = useState<string | null>(null)
+  const [assigneeOpen, setAssigneeOpen] = useState(false)
   // Alt only: which sections the BP has expanded past the first three.
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const byDistance = alt && grouping === 'distance'
 
   // A confirmation banner raised by a submit / add / drop, shown once.
   useEffect(() => {
@@ -76,9 +82,9 @@ export function SalesScreen() {
   }, [flash])
 
   const allTasks = buildTasks(order.map((id) => leads[id]), pois)
-  // BM can narrow the board to just their own tasks; a BP always sees only theirs.
-  const isMine = (t: SalesTask) => (t.kind === 'lead' ? t.lead.fo : t.event.fo) === CURRENT_FO
-  const tasks = isBM && justMe ? allTasks.filter(isMine) : allTasks
+  const taskFo = (t: SalesTask) => (t.kind === 'lead' ? t.lead.fo : t.event.fo)
+  // BM can narrow the board to one petugas; otherwise every task shows.
+  const tasks = isBM && assignee ? allTasks.filter((t) => taskFo(t) === assignee) : allTasks
   // The board opens on what is due — today's tasks plus anything overdue; search
   // and "Lihat semua" reach across every task whatever its date.
   const due = dueTasks(tasks)
@@ -100,9 +106,16 @@ export function SalesScreen() {
   }
 
   function renderCard(task: SalesTask) {
+    const distanceKm = byDistance ? taskDistanceKm(task) : undefined
     if (task.kind === 'lead') {
       return (
-        <LeadTaskCard key={task.id} lead={task.lead} showPetugas={isBM} onOpen={() => openTask(task)} />
+        <LeadTaskCard
+          key={task.id}
+          lead={task.lead}
+          showPetugas={isBM}
+          distanceKm={distanceKm}
+          onOpen={() => openTask(task)}
+        />
       )
     }
     return (
@@ -111,6 +124,7 @@ export function SalesScreen() {
         event={task.event}
         completed={completedPois.includes(task.id)}
         showPetugas={isBM}
+        distanceKm={distanceKm}
         onOpen={() => openTask(task)}
       />
     )
@@ -138,24 +152,41 @@ export function SalesScreen() {
         </div>
       ) : null}
 
-      {/* BM scopes the board to all petugas or just their own tasks. */}
-      {isBM ? (
-        <FilterBar>
-          <Chip selected={!justMe} onClick={() => setJustMe(false)}>
-            Semua tugas
-          </Chip>
-          <Chip selected={justMe} onClick={() => setJustMe(true)}>
-            Tugas saya
-          </Chip>
-        </FilterBar>
-      ) : null}
+      {/* Search, and (alt) a grouping toggle to its right. */}
+      <div className="flex items-center gap-8">
+        <div className="min-w-0 flex-1">
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            placeholder="Cari nama lead atau POI"
+            label="Cari nama lead atau POI"
+          />
+        </div>
+        {alt ? (
+          <button
+            type="button"
+            aria-label="Urutkan"
+            onClick={() => setGroupOpen(true)}
+            className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-8 border ${
+              byDistance ? 'border-primary-500 text-primary-500' : 'border-default text-default'
+            }`}
+          >
+            <Sort size={20} />
+          </button>
+        ) : null}
+      </div>
 
-      <SearchField
-        value={query}
-        onChange={setQuery}
-        placeholder="Cari nama lead atau POI"
-        label="Cari nama lead atau POI"
-      />
+      {/* BM: filter the board to one petugas. */}
+      {isBM ? (
+        <div className="flex">
+          <FilterChip
+            label={assignee ? `Petugas: ${assignee}` : 'Semua petugas'}
+            active={Boolean(assignee)}
+            open={assigneeOpen}
+            onClick={() => setAssigneeOpen(true)}
+          />
+        </div>
+      ) : null}
 
       {searching ? (
         // --- Search results: matches, grouped by their category --------------
@@ -186,6 +217,20 @@ export function SalesScreen() {
               </div>
             )
           })}
+        </div>
+      ) : byDistance ? (
+        // --- The board, one flat list sorted by distance (nearest first) -----
+        <div className="flex flex-col gap-8 pb-16">
+          {due.length === 0 ? (
+            <div className="rounded-12 bg-neutral-white px-12 py-16 text-center text-12 text-caption">
+              Tidak ada tugas hari ini
+            </div>
+          ) : (
+            due
+              .slice()
+              .sort((a, b) => taskDistanceKm(a) - taskDistanceKm(b))
+              .map(renderCard)
+          )}
         </div>
       ) : (
         // --- The board: one section per category -----------------------------
@@ -301,14 +346,74 @@ export function SalesScreen() {
         </div>
       </BottomSheet>
 
-      {/* Source is picked here, before the form. */}
+      {/* Alt: sort the board by group (task type) or by distance (flat list). */}
+      <BottomSheet open={groupOpen} onClose={() => setGroupOpen(false)} title="Urutkan berdasarkan">
+        <div className="flex flex-col gap-8">
+          <SelectableCard
+            name="grouping"
+            inputType="radio"
+            title="Grup"
+            description="Dikelompokkan per tipe tugas"
+            checked={grouping === 'type'}
+            onChange={() => {
+              setGrouping('type')
+              setExpanded(new Set())
+              setGroupOpen(false)
+            }}
+          />
+          <SelectableCard
+            name="grouping"
+            inputType="radio"
+            title="Jarak"
+            description="Satu daftar, terdekat lebih dulu"
+            checked={grouping === 'distance'}
+            onChange={() => {
+              setGrouping('distance')
+              setExpanded(new Set())
+              setGroupOpen(false)
+            }}
+          />
+        </div>
+      </BottomSheet>
+
+      {/* BM: pick which petugas to filter the board by. */}
+      <BottomSheet open={assigneeOpen} onClose={() => setAssigneeOpen(false)} title="Pilih petugas">
+        <div className="flex flex-col gap-8">
+          <SelectableCard
+            name="assignee"
+            inputType="radio"
+            title="Semua petugas"
+            checked={assignee === null}
+            onChange={() => {
+              setAssignee(null)
+              setAssigneeOpen(false)
+            }}
+          />
+          {FIELD_OFFICERS.map((f) => (
+            <SelectableCard
+              key={f}
+              name="assignee"
+              inputType="radio"
+              title={f === CURRENT_FO ? `${f} (saya)` : f}
+              checked={assignee === f}
+              onChange={() => {
+                setAssignee(f)
+                setAssigneeOpen(false)
+              }}
+            />
+          ))}
+        </div>
+      </BottomSheet>
+
+      {/* Source is picked here, before the form. POI Visit sends the BP to a
+          dedicated page to choose which POI; the others go straight to the form. */}
       <SourceSheet
         open={addSourceOpen}
         onClose={() => setAddSourceOpen(false)}
         onDone={(data) => {
           setAddSourceOpen(false)
           setAddLeadEntry({ mode: 'save', source: data, returnTo: 'sales', draft: null })
-          flow.go('lead-new')
+          flow.go(data.source === 'poi' ? 'poi-select' : 'lead-new')
         }}
       />
     </AppScreen>

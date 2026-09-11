@@ -13,7 +13,6 @@ import {
   KECAMATAN_LIST,
   WILAYAH,
   FIELD_OFFICERS,
-  CURRENT_FO,
   type Agenda,
 } from '../lib/pipeline'
 import { PickSheet, SelectField } from '../lib/pipeline-ui'
@@ -48,20 +47,30 @@ export function PoiNewScreen() {
   const [kecamatan, setKecamatan] = useState('')
   const [desa, setDesa] = useState('')
   const [pinned, setPinned] = useState(false)
+  const [detail, setDetail] = useState('')
   const [contact, setContact] = useState('')
   const [phone, setPhone] = useState('')
   const [catatan, setCatatan] = useState('')
   const [scheduleLabel, setScheduleLabel] = useState('Belum dijadwalkan')
   const [scheduleDays, setScheduleDays] = useState<number | null>(null)
   const [time, setTime] = useState('')
-  const [fo, setFo] = useState(CURRENT_FO)
+  const [fo, setFo] = useState('')
 
   const desaOptions = kecamatan ? WILAYAH[kecamatan] ?? [] : []
-  const ready = name.trim() !== '' && poiType.trim() !== '' && kecamatan !== '' && desa !== '' && fo !== ''
+  const ready = name.trim() !== '' && poiType.trim() !== '' && kecamatan !== '' && desa !== ''
+
+  // Marking the pin stands in for a reverse-geocode — it fills the detail line
+  // if it is still empty.
+  function markPin() {
+    setPinned(true)
+    setDetail((d) => (d.trim() === '' ? (desa ? `Kp. ${desa} RT 02/RW 05` : 'Kp. sekitar lokasi RT 02/RW 05') : d))
+  }
 
   function save() {
     if (!ready) return
-    const address = `Desa ${desa}, Kec. ${kecamatan}`
+    const address = detail.trim()
+      ? `${detail.trim()}, Desa ${desa}, Kec. ${kecamatan}`
+      : `Desa ${desa}, Kec. ${kecamatan}`
     const busyHours = jamStart && jamEnd ? `${jamStart} - ${jamEnd}` : undefined
     const agenda: Agenda | undefined =
       scheduleDays === null
@@ -106,9 +115,14 @@ export function PoiNewScreen() {
           onChange={(e) => setPoiType(e.target.value)}
           placeholder="mis. Pasar, Posyandu"
         />
-        <div className="flex gap-8">
-          <Input label="Jam ramai (mulai)" optionalText="opsional" value={jamStart} onChange={(e) => setJamStart(e.target.value)} placeholder="08.00" />
-          <Input label="Jam ramai (selesai)" optionalText="opsional" value={jamEnd} onChange={(e) => setJamEnd(e.target.value)} placeholder="11.00" />
+        <div className="flex flex-col gap-8">
+          <span className="text-12 font-bold text-default">
+            Jam ramai <span className="font-regular text-caption">(opsional)</span>
+          </span>
+          <div className="flex gap-8">
+            <Input label="Mulai" value={jamStart} onChange={(e) => setJamStart(e.target.value)} placeholder="08.00" />
+            <Input label="Selesai" value={jamEnd} onChange={(e) => setJamEnd(e.target.value)} placeholder="11.00" />
+          </div>
         </div>
 
         <Heading>Address &amp; Contact</Heading>
@@ -145,7 +159,7 @@ export function PoiNewScreen() {
           ) : (
             <button
               type="button"
-              onClick={() => setPinned(true)}
+              onClick={markPin}
               className="flex items-center justify-center gap-8 rounded-8 border border-dashed border-default py-16 text-14 font-bold text-primary-500"
             >
               <MapPin size={20} />
@@ -153,6 +167,13 @@ export function PoiNewScreen() {
             </button>
           )}
         </div>
+        <Input
+          label="Detail alamat"
+          optionalText="opsional"
+          value={detail}
+          onChange={(e) => setDetail(e.target.value)}
+          placeholder="Kampung / RT / RW / patokan"
+        />
         <Input label="Nama kontak" optionalText="opsional" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Nama kontak POI" />
         <Input
           label="No. HP kontak"
@@ -176,7 +197,7 @@ export function PoiNewScreen() {
         {scheduleDays !== null ? (
           <Input label="Jam" optionalText="opsional" value={time} onChange={(e) => setTime(e.target.value)} placeholder="14.00" />
         ) : null}
-        <SelectField label="Assigned FO" required value={fo} placeholder="Pilih petugas" onClick={() => setSheet('fo')} />
+        <SelectField label="Assigned FO" optionalText="opsional" value={fo || undefined} placeholder="Pilih petugas" onClick={() => setSheet('fo')} />
       </div>
 
       <StickyBar>

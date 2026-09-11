@@ -184,24 +184,28 @@ export const pipelineStore = {
     }))
   },
 
-  /** Drops a lead as Not interested — she reopens later as a reactivation task. */
+  /**
+   * Drops a lead — deferred 90 days, not reactivated. Her status (and so her
+   * category) is left as-is; she simply falls off today's board and reopens in
+   * 90 days where she was.
+   */
   dropLead(id: string, reason: string) {
     completeTask(id, (lead) => ({
-      status: 'not-interested',
       lastResult: { kind: 'dropped', date: dateFromToday(0), reason: reason.trim() || undefined },
       contextHistory: [
         ...contextSteps(lead),
         { date: dateFromToday(0), title: 'Dropped', detail: reason.trim() || undefined },
       ],
-      // Off today's board; she comes back on her reactivation date.
+      // Off today's board; she comes back in 90 days.
       agenda: {
         day: 'upcoming',
-        kind: 'Reaktivasi',
-        when: 'Reaktivasi',
+        kind: lead.agenda?.kind ?? 'Follow up',
+        when: dateFromToday(90),
         order: lead.agenda?.order ?? 0,
-        dueDays: 30,
+        dueDays: 90,
       },
-      log: appendLog(lead, { via: 'manual', status: 'not-interested', note: reason.trim() || undefined }),
+      nextFollowUp: dateFromToday(90),
+      log: appendLog(lead, { via: 'manual', status: lead.status, system: 'Lead di-drop — dijadwalkan 90 hari', note: reason.trim() || undefined }),
     }))
   },
 

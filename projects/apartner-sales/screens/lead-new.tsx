@@ -1,9 +1,9 @@
 'use client'
 
-// Tambah Lead — one short form, every field required.
+// Tambah Lead — one short form.
 //
-//   Source (preselected) · Nama · No. HP · Alamat Rumah · Pinjaman di kompetitor?
-//   · Foto bukti
+//   Source (preselected) · Nama · No. HP · Alamat Rumah (fields inline) ·
+//   Pinjaman di kompetitor? · Foto bukti
 //
 // The SOURCE is chosen BEFORE this screen — a bottom sheet on the Sales page, or
 // fixed by a sosialisasi — so here it is read-only. A pengajuan's questions (KTP,
@@ -13,7 +13,7 @@
 
 import { useRef, useState } from 'react'
 import { Button, Input } from '@/design-system/components'
-import { ArrowLeft, Camera, FileCheck } from '@/design-system/icons'
+import { ArrowLeft, Camera, FileCheck, MapPin } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   getAddLeadEntry,
@@ -21,7 +21,7 @@ import {
   type AddLeadEntry,
   type AddLeadSource,
 } from '../lib/pipeline-store'
-import { AddressSheet, PickSheet, SelectField } from '../lib/pipeline-ui'
+import { PickSheet, SelectField } from '../lib/pipeline-ui'
 import { poiStore } from '../lib/poi-store'
 import { store, useApp } from '../lib/store'
 import { AppScreen, Chip, StickyBar } from '../lib/ui'
@@ -29,12 +29,15 @@ import {
   CURRENT_FO,
   EMPTY_ADDRESS,
   FIELD_OFFICERS,
+  KECAMATAN_LIST,
+  WILAYAH,
   addressComplete,
-  addressLine,
   type LeadAddress,
 } from '../lib/pipeline'
 
-type SheetId = 'address' | 'fo' | null
+type SheetId = 'kecamatan' | 'desa' | 'fo' | 'lender' | null
+
+const LENDER_OPTIONS = ['Mekaar', 'BRI', 'Lainnya']
 
 function sumberLabel(s: AddLeadSource | null): string {
   if (!s) return ''
@@ -61,23 +64,32 @@ export function LeadNewScreen() {
   const [phone, setPhone] = useState(draft?.phone ?? '')
   const [address, setAddress] = useState<LeadAddress>(EMPTY_ADDRESS)
   const [competitorLoan, setCompetitorLoan] = useState<boolean | null>(null)
-  const [competitorLender, setCompetitorLender] = useState('')
+  const [lenderChoice, setLenderChoice] = useState('')
+  const [lenderOther, setLenderOther] = useState('')
   const [competitorAmount, setCompetitorAmount] = useState('')
   const [photo, setPhoto] = useState(false)
 
+  const desaOptions = address.kecamatan ? WILAYAH[address.kecamatan] ?? [] : []
+  const pinned = Boolean(address.mapsCoord)
   const hasAddress = addressComplete(address)
-  // A "Ya" competitor loan must name the lender and the amount.
-  const competitorOk =
-    competitorLoan === false ||
-    (competitorLoan === true && competitorLender.trim() !== '' && competitorAmount.trim() !== '')
+  // Lender & amount are optional now — a "Ya" answer alone is enough.
+  const competitorLender = lenderChoice === 'Lainnya' ? lenderOther.trim() : lenderChoice
   const ready =
     name.trim() !== '' &&
     phone.trim() !== '' &&
     sumber !== null &&
     hasAddress &&
     competitorLoan !== null &&
-    competitorOk &&
     photo
+
+  // Marking the pin stands in for a reverse-geocode: it fills the detail line if
+  // it is still empty, so a marked location arrives with a readable address.
+  function markPin() {
+    setAddress((a) => {
+      const guessed = a.desa ? `Kp. ${a.desa} RT 02/RW 05` : 'Kp. sekitar lokasi RT 02/RW 05'
+      return { ...a, mapsCoord: 'pinned', detail: a.detail.trim() === '' ? guessed : a.detail }
+    })
+  }
 
   function goBack() {
     if (returnTo === 'sosialisasi') flow.go('sosialisasi')
@@ -177,20 +189,67 @@ export function LeadNewScreen() {
           placeholder="08xx-xxxx-xxxx"
           helperText="Nomor dicek otomatis — sudah terdaftar / mitra aktif akan ditandai"
         />
-        <SelectField
-          label="Alamat Rumah"
-          required
-          value={hasAddress ? addressLine(address) : undefined}
-          placeholder="Kecamatan, desa, titik lokasi"
-          onClick={() => setSheet('address')}
-          description={
-            hasAddress ? (
-              <span className="text-green-600">Lokasi sudah ditandai di peta</span>
+
+        {/* Alamat Rumah — fields exposed inline. */}
+        <div className="flex flex-col gap-12">
+          <SelectField
+            label="Kecamatan"
+            required
+            value={address.kecamatan || undefined}
+            placeholder="Pilih kecamatan"
+            onClick={() => setSheet('kecamatan')}
+          />
+          <SelectField
+            label="Desa"
+            required
+            value={address.desa || undefined}
+            placeholder={address.kecamatan ? 'Pilih desa' : 'Pilih kecamatan dulu'}
+            onClick={() => {
+              if (address.kecamatan) setSheet('desa')
+            }}
+          />
+          <div className="flex flex-col gap-8">
+            <span className="text-12 font-regular text-default">
+              Titik lokasi <span className="text-caption">(opsional)</span>
+            </span>
+            {pinned ? (
+              <>
+                <div className="relative flex items-center justify-center rounded-8 bg-blue-50 py-32">
+                  <span className="text-primary-500">
+                    <MapPin size={24} />
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-12 text-green-600">Lokasi sudah ditandai</span>
+                  <button
+                    type="button"
+                    onClick={() => setAddress({ ...address, mapsCoord: '' })}
+                    className="text-12 font-bold text-link"
+                  >
+                    Ubah pin
+                  </button>
+                </div>
+              </>
             ) : (
-              <span className="text-caption">Hanya kecamatan &amp; desa dalam wilayahmu</span>
-            )
-          }
-        />
+              <button
+                type="button"
+                onClick={markPin}
+                className="flex items-center justify-center gap-8 rounded-8 border border-dashed border-default py-16 text-14 font-bold text-primary-500"
+              >
+                <MapPin size={20} />
+                Tandai lokasi di peta
+              </button>
+            )}
+          </div>
+          <Input
+            label="Detail alamat"
+            optionalText="opsional"
+            value={address.detail}
+            onChange={(e) => setAddress({ ...address, detail: e.target.value })}
+            placeholder="Kampung / RT / RW"
+          />
+        </div>
+
         <div className="flex flex-col gap-8">
           <span className="text-12 text-default">
             Punya pinjaman di kompetitor?<span className="text-red-500"> *</span>
@@ -205,16 +264,24 @@ export function LeadNewScreen() {
           </div>
           {competitorLoan === true ? (
             <div className="flex flex-col gap-12 pt-4">
-              <Input
+              <SelectField
                 label="Nama pemberi pinjaman"
-                required
-                value={competitorLender}
-                onChange={(e) => setCompetitorLender(e.target.value)}
-                placeholder="Mis. Mekaar, BRI, koperasi"
+                optionalText="opsional"
+                value={lenderChoice || undefined}
+                placeholder="Pilih pemberi pinjaman"
+                onClick={() => setSheet('lender')}
               />
+              {lenderChoice === 'Lainnya' ? (
+                <Input
+                  label="Nama pemberi pinjaman lainnya"
+                  value={lenderOther}
+                  onChange={(e) => setLenderOther(e.target.value)}
+                  placeholder="Tulis nama pemberi pinjaman"
+                />
+              ) : null}
               <Input
                 label="Nominal pinjaman"
-                required
+                optionalText="opsional"
                 inputMode="numeric"
                 value={competitorAmount}
                 onChange={(e) => setCompetitorAmount(e.target.value)}
@@ -262,13 +329,38 @@ export function LeadNewScreen() {
         </Button>
       </StickyBar>
 
-      <AddressSheet
-        key={sheet === 'address' ? 'addr-open' : 'addr-closed'}
-        open={sheet === 'address'}
-        value={address}
+      <PickSheet
+        open={sheet === 'kecamatan'}
+        title="Kecamatan"
+        options={KECAMATAN_LIST}
+        value={address.kecamatan}
         onClose={() => setSheet(null)}
-        onSave={(a) => {
-          setAddress(a)
+        onPick={(k) => {
+          // A new kecamatan drops the desa under it — the old one belongs elsewhere.
+          setAddress({ ...address, kecamatan: k, desa: k === address.kecamatan ? address.desa : '' })
+          setSheet(null)
+        }}
+      />
+      <PickSheet
+        open={sheet === 'desa'}
+        title="Desa"
+        options={desaOptions}
+        value={address.desa}
+        onClose={() => setSheet(null)}
+        onPick={(d) => {
+          setAddress({ ...address, desa: d })
+          setSheet(null)
+        }}
+      />
+      <PickSheet
+        open={sheet === 'lender'}
+        title="Nama pemberi pinjaman"
+        options={LENDER_OPTIONS}
+        value={lenderChoice}
+        onClose={() => setSheet(null)}
+        onPick={(v) => {
+          setLenderChoice(v)
+          if (v !== 'Lainnya') setLenderOther('')
           setSheet(null)
         }}
       />

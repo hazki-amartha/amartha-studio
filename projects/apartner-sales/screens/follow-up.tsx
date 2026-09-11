@@ -27,14 +27,13 @@ import {
   type ContextStep,
   type PipelineLead,
 } from '../lib/pipeline'
-import { MAJELIS_DIRECTORY } from '../lib/schedule'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { PickSheet } from '../lib/pipeline-ui'
+import { ChevronRow, PickSheet } from '../lib/pipeline-ui'
 import { useApp } from '../lib/store'
 import { agendaDueDays, leadScheduleLabel, overdueDays } from '../lib/tasks'
-import { AppScreen, ContactButton, SearchField } from '../lib/ui'
+import { AppScreen, ContactButton } from '../lib/ui'
 
-type SheetId = 'product' | 'majelis-kind' | 'existing-majelis' | 'reschedule-why' | 'drop' | null
+type SheetId = 'reschedule-why' | 'drop' | 'majelis' | null
 
 const RESCHEDULE_REASONS = [
   'Tidak sempat kunjungi hari ini',
@@ -188,7 +187,6 @@ export function FollowUpScreen() {
   const [foOpen, setFoOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
-  const [majelisQuery, setMajelisQuery] = useState('')
 
   if (!lead) {
     return (
@@ -216,15 +214,9 @@ export function FollowUpScreen() {
   // hers — the action buttons are disabled on another petugas' lead.
   const canAct = !isBM || lead.fo === CURRENT_FO
 
-  function pickExistingMajelis(id: string) {
-    pipelineStore.createKumpulanFollowUp(lead.id, { kind: 'existing', id })
-    pipelineStore.setFlash('Task to Follow up for Kumpulan Day has been created')
-    flow.go('sales')
-  }
-
   function dropLead() {
     pipelineStore.dropLead(lead.id, reason || 'Lead di-drop')
-    pipelineStore.setFlash(`${lead.name} dipindahkan ke reaktivasi`)
+    pipelineStore.setFlash(`${lead.name} di-drop — dijadwalkan ulang 90 hari`)
     flow.go('sales')
   }
 
@@ -352,6 +344,15 @@ export function FollowUpScreen() {
             </Button>
             <Button
               size="lg"
+              variant="outline"
+              className="w-full"
+              disabled={!canAct}
+              onClick={() => setSheet('majelis')}
+            >
+              Change majelis
+            </Button>
+            <Button
+              size="lg"
               variant="ghost"
               className="w-full"
               disabled={!canAct}
@@ -369,7 +370,7 @@ export function FollowUpScreen() {
               size="lg"
               className="w-full"
               disabled={!canAct}
-              onClick={() => setSheet('product')}
+              onClick={() => setSheet('majelis')}
             >
               Continue application
             </Button>
@@ -403,77 +404,27 @@ export function FollowUpScreen() {
         )}
       </div>
 
-      {/* Continue application → which product. */}
-      <BottomSheet open={sheet === 'product'} onClose={() => setSheet(null)} title="Pilih produk">
-        <div className="flex flex-col gap-8">
-          <button
-            type="button"
-            onClick={() => setSheet(null)}
-            className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left active:bg-neutral-50"
-          >
-            <span className="text-14 font-bold text-default">GL</span>
-            <span className="text-12 text-caption">Group Loan</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setSheet('majelis-kind')}
-            className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left active:bg-neutral-50"
-          >
-            <span className="text-14 font-bold text-default">Modal</span>
-            <span className="text-12 text-caption">Modal Usaha</span>
-          </button>
-        </div>
-      </BottomSheet>
 
-      {/* Modal → existing or new majelis. */}
-      <BottomSheet open={sheet === 'majelis-kind'} onClose={() => setSheet(null)} title="Majelis">
+      {/* Continue application / Change majelis — pick existing or new; each card
+          taps straight through to its own page. */}
+      <BottomSheet open={sheet === 'majelis'} onClose={() => setSheet(null)} title="Pilih Majelis">
         <div className="flex flex-col gap-8">
-          <button
-            type="button"
+          <ChevronRow
+            title="Majelis existing"
+            description="Gabung ke majelis yang sudah ada"
             onClick={() => {
-              setMajelisQuery('')
-              setSheet('existing-majelis')
+              setSheet(null)
+              flow.go('majelis-existing')
             }}
-            className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left active:bg-neutral-50"
-          >
-            <span className="text-14 font-bold text-default">Majelis existing</span>
-            <span className="text-12 text-caption">Gabung ke majelis yang sudah ada</span>
-          </button>
-          <button
-            type="button"
+          />
+          <ChevronRow
+            title="Majelis baru"
+            description="Atur jadwal sosialisasi majelis baru"
             onClick={() => {
               setSheet(null)
               flow.go('kumpulan-jadwal')
             }}
-            className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left active:bg-neutral-50"
-          >
-            <span className="text-14 font-bold text-default">Majelis baru</span>
-            <span className="text-12 text-caption">Atur jadwal sosialisasi</span>
-          </button>
-        </div>
-      </BottomSheet>
-
-      {/* Existing majelis — searchable; picking one creates the kumpulan follow-up. */}
-      <BottomSheet open={sheet === 'existing-majelis'} onClose={() => setSheet(null)} title="Pilih majelis">
-        <div className="flex flex-col gap-8">
-          <SearchField
-            value={majelisQuery}
-            onChange={setMajelisQuery}
-            placeholder="Cari majelis"
-            label="Cari majelis"
           />
-          {MAJELIS_DIRECTORY.filter(
-            (g) => g.status === 'aktif' && g.name.toLowerCase().includes(majelisQuery.trim().toLowerCase()),
-          ).map((g) => (
-            <SelectableCard
-              key={g.id}
-              name="kumpulan-majelis"
-              inputType="radio"
-              title={g.name}
-              checked={false}
-              onChange={() => pickExistingMajelis(g.id)}
-            />
-          ))}
         </div>
       </BottomSheet>
 
