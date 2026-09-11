@@ -38,7 +38,6 @@ export type TaskCategory =
   | 'reactivation'
   | 'poi-visit'
   | 'follow-up'
-  | 'referral'
 
 /**
  * The order the categories stack in. Per the wireframe note ("sorting of task
@@ -49,15 +48,13 @@ export const TASK_CATEGORY_ORDER: TaskCategory[] = [
   'reactivation',
   'poi-visit',
   'follow-up',
-  'referral',
 ]
 
 export const TASK_CATEGORY_LABEL: Record<TaskCategory, string> = {
-  'kumpulan-follow-up': 'Hadiri Kumpulan',
+  'kumpulan-follow-up': 'Perkenalan majelis',
   reactivation: 'Reactivation',
   'poi-visit': 'POI Visit',
   'follow-up': 'Follow up',
-  referral: 'Referral',
 }
 
 /**
@@ -80,14 +77,11 @@ export function inSalesFunnel(lead: PipelineLead): boolean {
   )
 }
 
-/** Which category a lead sits in — one bucket each, by a fixed priority. */
+/** Which category a lead sits in — one bucket each, by a fixed priority.
+ *  Referrals no longer have their own section; they sit under "Follow up". */
 export function leadCategory(lead: PipelineLead): TaskCategory {
   if (lead.kumpulanStage === 'follow-up') return 'kumpulan-follow-up'
   if (lead.status === 'not-interested' || lead.status === 'rejected') return 'reactivation'
-  // A referral sits in "Referral" only until it has been worked (one step, "Lead
-  // created"); after any follow-up result it joins the "Follow up" section.
-  const followedUp = Boolean(lead.lastResult) || (lead.contextHistory?.length ?? 0) > 1
-  if (lead.source === 'referral' && !followedUp) return 'referral'
   return 'follow-up'
 }
 

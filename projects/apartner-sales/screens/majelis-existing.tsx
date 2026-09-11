@@ -2,7 +2,7 @@
 
 // Pilih Majelis Existing — reached from the Continue application / Change majelis
 // sheet when the BP picks "Majelis existing". She searches the active majelis and
-// taps one; that creates the "Hadiri Kumpulan" follow-up task and returns to the
+// taps one; that creates the "Perkenalan" follow-up task and returns to the
 // Sales board with a confirmation snackbar.
 
 import { useState } from 'react'

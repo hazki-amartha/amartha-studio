@@ -6,11 +6,11 @@
 // upcoming follow-up), and one question: "Follow up result?"
 //
 //   Continue application → pick product (GL / Modal); Modal → existing majelis
-//     (a "Hadiri Kumpulan" task) or new majelis (schedule a sosialisasi)
+//     (a "Perkenalan" task) or new majelis (schedule a sosialisasi)
 //   Reschedule follow up → why, then one day later
 //   Drop lead            → why she is not interested
 //
-// A "Hadiri Kumpulan" lead swaps the result buttons for "Lead sudah hadir" +
+// A "Perkenalan" lead swaps the result buttons for "Lead sudah hadir" +
 // "Reschedule"; a reactivation shows loan limits above the stepper.
 
 import { useState, type ReactNode } from 'react'
@@ -36,7 +36,6 @@ import { AppScreen, ContactButton } from '../lib/ui'
 type SheetId = 'reschedule-why' | 'drop' | 'majelis' | null
 
 const RESCHEDULE_REASONS = [
-  'Tidak sempat kunjungi hari ini',
   'Lead butuh waktu',
   'Lead perlu diskusi dengan keluarga',
   'Belum bisa dihubungi',
@@ -54,7 +53,7 @@ const DROP_REASONS = [
 
 /** How this follow-up reads: kumpulan, reactivation, or a plain follow-up. */
 function followUpTitle(lead: PipelineLead): string {
-  if (lead.kumpulanStage === 'follow-up') return 'Lead: Hadiri Kumpulan'
+  if (lead.kumpulanStage === 'follow-up') return 'Lead: Perkenalan majelis'
   if (lead.status === 'not-interested' || lead.status === 'rejected') return 'Lead Reactivation'
   return 'Lead: Follow up'
 }
@@ -126,7 +125,7 @@ function ContextStepper({
   const hidden = past.length - 2
 
   return (
-    <div className="flex flex-col rounded-12 border border-default bg-neutral-white p-16">
+    <div className="flex flex-col">
       {past.length > 0 ? (
         <StepRow dot={<StepDot />} lineBelow>
           <PastStep step={past[0]} />
@@ -206,7 +205,7 @@ export function FollowUpScreen() {
   const nextSuffix =
     late > 0 ? `Telat ${late} hari` : dueDays === 0 ? 'Hari ini' : leadScheduleLabel(lead.agenda)
 
-  // A lead in the "Hadiri Kumpulan" stage is worked differently: she is reminded
+  // A lead in the "Perkenalan" stage is worked differently: she is reminded
   // to attend the kumpulan, not asked to continue an application.
   const isKumpulan = lead.kumpulanStage === 'follow-up'
 
@@ -287,21 +286,8 @@ export function FollowUpScreen() {
         </div>
       </Card>
 
-      {/* Reactivation limits ride above the stepper. */}
-      {isReactivation && lead.reactivation ? (
-        <div className="flex flex-col gap-2 rounded-12 border border-blue-200 bg-blue-50 px-12 py-8 text-12">
-          <span className="text-caption">
-            Previous loan limit: <span className="text-default">{lead.reactivation.prevLimit}</span>
-          </span>
-          <span className="text-caption">
-            Potential loan limit:{' '}
-            <span className="font-bold text-green-600">{lead.reactivation.potentialLimit}</span>
-          </span>
-        </div>
-      ) : null}
-
-      {/* The context history stepper. A kumpulan lead shows the attend reminder
-          under the follow-up date. */}
+      {/* The context history stepper. A kumpulan lead shows the attend reminder,
+          a reactivation shows the loan limits — both under the follow-up date. */}
       <ContextStepper
         past={past}
         nextDate={nextDate}
@@ -309,19 +295,25 @@ export function FollowUpScreen() {
         nextLate={late > 0}
         nextExtra={
           isKumpulan ? (
-            <span className="text-12 text-default">
-              Ingatkan Lead untuk hadir ke kumpulan {majelisLine(lead)}
+            <span className="text-14 text-default">
+              Ingatkan Lead untuk hadir ke kumpulan {majelisLine(lead)}. Perkenalkan dengan
+              anggota Majelis, pastikan seluruh anggota Majelis setuju untuk menambahkan{' '}
+              {lead.name} sebagai anggota baru Majelis
+            </span>
+          ) : isReactivation && lead.reactivation ? (
+            <span className="text-14 text-default">
+              {lead.name} sebelumnya punya limit {lead.reactivation.prevLimit}, dan bisa
+              diaktifkan kembali dengan potensi limit sampai{' '}
+              <span className="font-bold text-green-600">{lead.reactivation.potentialLimit}</span>.
             </span>
           ) : undefined
         }
       />
 
-      {/* Follow up result — the heading sits with its buttons (hidden for a
-          kumpulan lead, which has no "result" to record). */}
-      <div className="mt-auto flex flex-col gap-8 pb-24 pt-8">
-        {!isKumpulan ? (
-          <span className="text-14 font-bold text-default">Follow up result?</span>
-        ) : null}
+      {/* Follow up result — the heading sits with its buttons in a full-bleed
+          background bar at the bottom of the page (not sticky). */}
+      <div className="-mx-16 mt-auto flex flex-col gap-12 border-t border-default bg-neutral-white p-16">
+        <span className="text-14 font-bold text-default">Follow up result?</span>
         {!canAct ? (
           <span className="text-12 text-caption">
             Tugas ini milik {lead.fo}. Tugaskan ke dirimu untuk mengerjakannya.
@@ -347,9 +339,13 @@ export function FollowUpScreen() {
               variant="outline"
               className="w-full"
               disabled={!canAct}
-              onClick={() => setSheet('majelis')}
+              onClick={() => {
+                pipelineStore.cancelKumpulanFollowUp(lead.id)
+                pipelineStore.setFlash(`${lead.name} batal gabung ${majelisLine(lead)} — kembali ke follow up`)
+                flow.go('sales')
+              }}
             >
-              Change majelis
+              Batal gabung {majelisLine(lead)}
             </Button>
             <Button
               size="lg"
@@ -372,7 +368,7 @@ export function FollowUpScreen() {
               disabled={!canAct}
               onClick={() => setSheet('majelis')}
             >
-              Continue application
+              Mulai pendaftaran
             </Button>
             <Button
               size="lg"
@@ -385,7 +381,7 @@ export function FollowUpScreen() {
                 setSheet('reschedule-why')
               }}
             >
-              Reschedule follow up
+              Butuh waktu lebih
             </Button>
             <button
               type="button"
@@ -429,7 +425,7 @@ export function FollowUpScreen() {
       </BottomSheet>
 
       {/* Reschedule — why; the next follow-up is set to one day later. */}
-      <BottomSheet open={sheet === 'reschedule-why'} onClose={() => setSheet(null)} title="Kenapa dijadwalkan ulang?">
+      <BottomSheet open={sheet === 'reschedule-why'} onClose={() => setSheet(null)} title="Alasan">
         <div className="flex flex-col gap-8">
           {RESCHEDULE_REASONS.map((r) => (
             <SelectableCard
@@ -445,11 +441,8 @@ export function FollowUpScreen() {
             <span className="text-12 text-caption">Catatan (opsional)</span>
             <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Tambahkan catatan…" />
           </label>
-          <span className="text-12 text-caption">
-            Follow up berikutnya: <span className="font-bold text-default">{dateFromToday(1)}</span> (besok)
-          </span>
           <Button size="lg" className="w-full" disabled={!reason} onClick={reschedule}>
-            Reschedule follow up
+            Submit
           </Button>
         </div>
       </BottomSheet>

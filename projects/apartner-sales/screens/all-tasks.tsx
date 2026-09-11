@@ -73,7 +73,7 @@ export function AllTasksScreen() {
   const total = sections.reduce((n, s) => n + s.rows.length, 0)
 
   return (
-    <AppScreen topBar={<NavigationHeader title="All task" onBack={() => flow.back()} />}>
+    <AppScreen topBar={<NavigationHeader title="Semua Sales" onBack={() => flow.back()} />}>
       <SearchField
         value={query}
         onChange={setQuery}

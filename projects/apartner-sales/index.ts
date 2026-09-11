@@ -17,13 +17,13 @@ export const project: ProjectModule = {
         {
           id: 'default',
           label: 'Default',
-          description: 'Each section links to its own "Lihat semua" page',
+          description: 'Every task in each section — no "See more"',
           apply: demo.salesDefault,
         },
         {
           id: 'alt',
-          label: 'Alt · All task + See more',
-          description: 'Inline "See more" per section, and an "All task" page with search + type filter',
+          label: 'Alt · One per section + See more',
+          description: 'One task per section, with a "See more" that expands the rest',
           apply: demo.salesAlt,
         },
       ],
@@ -116,7 +116,7 @@ export const project: ProjectModule = {
       id: 'majelis-existing',
       title: 'Pilih Majelis',
       component: lazyScreen(() => import('./screens/majelis-existing'), 'MajelisExistingScreen'),
-      flowsTo: [{ to: 'sales', label: 'Pilih → Hadiri Kumpulan' }],
+      flowsTo: [{ to: 'sales', label: 'Pilih → Perkenalan' }],
     },
     {
       id: 'kumpulan-jadwal',

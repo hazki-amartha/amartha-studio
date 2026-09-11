@@ -168,10 +168,11 @@ export function SosialisasiScreen() {
               </BriefRow>
             ) : null}
 
-            <BriefRow
-              label="Petugas"
-              action={
-                isBM ? (
+            {/* Petugas is a BM concern — a BP is looking at her own visit. */}
+            {isBM ? (
+              <BriefRow
+                label="Petugas"
+                action={
                   <button
                     type="button"
                     onClick={() => setFoOpen(true)}
@@ -179,11 +180,11 @@ export function SosialisasiScreen() {
                   >
                     Ganti
                   </button>
-                ) : undefined
-              }
-            >
-              {event.fo ?? '-'}
-            </BriefRow>
+                }
+              >
+                {event.fo ?? '-'}
+              </BriefRow>
+            ) : null}
           </div>
         </Card>
 
