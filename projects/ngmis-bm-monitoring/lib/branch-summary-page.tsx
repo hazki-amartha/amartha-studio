@@ -20,6 +20,7 @@ import { CashTable } from './cash-table'
 import { DailyDashboard } from './daily-dashboard'
 import { DisbursementTable } from './disbursement-table'
 import { DisbursementTableLeads } from './disbursement-table-leads'
+import { DisbursementTableLeadsB } from './disbursement-table-leads-b'
 import { BmShell } from './shell'
 import { useApp } from './store'
 import { PageHeading, Select, Tabs } from './ui'
@@ -96,6 +97,8 @@ export function BranchSummaryPage({ pembayaran }: { pembayaran: ReactNode }) {
       {tab === 'disbursement' ? (
         pencairanVariant === 'leads' ? (
           <DisbursementTableLeads />
+        ) : pencairanVariant === 'leadsB' ? (
+          <DisbursementTableLeadsB />
         ) : (
           <DisbursementTable />
         )

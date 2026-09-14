@@ -27,6 +27,10 @@ export const showEndState = () => {
  *  headline cards, Unqualified/Qualified/UK/Disetujui broken out underneath. */
 export const showPencairanLeads = () => store.setPencairanVariant('leads')
 
+/** Leads cut, Option B: a Lead column whose label opens the five stages, and
+ *  a Total cabang row pinned at the top instead of the branch panel. */
+export const showPencairanLeadsB = () => store.setPencairanVariant('leadsB')
+
 /** Back to the plain Pencairan cut — counts and rate, no funnel. */
 export const showPencairanDefault = () => store.setPencairanVariant('default')
 
