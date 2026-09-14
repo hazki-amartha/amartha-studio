@@ -13,6 +13,9 @@ const base: AppState = {
   week: 19,
   done: range(1, 18),
   paid: false,
+  channel: 'sendiri',
+  titip: false,
+  viaKetua: [],
   attended: false,
   groupBroken: [],
   groupShort: 0,
@@ -132,6 +135,33 @@ export const recovered = seed({
 export const windowEve = seed({
   week: 24,
   done: range(1, 23),
+})
+
+// --- Paying through the Ketua Majelis ---------------------------------------
+// The cash channel, which is most of a cash-income majelis most weeks. Neither
+// state can be tapped to: settlement is the KETUA's action, not hers, and the
+// whole point of the pair is what the app says about her week while somebody
+// else is holding the money.
+
+/**
+ * Cash handed over at kumpulan, the Ketua has not cashed in yet. The week is in
+ * transit — not paid, and explicitly not late. This is the state the app used
+ * to draw as "belum bayar", which is what made a paying mitra look delinquent.
+ */
+export const kolektifTitip = seed({
+  channel: 'ketua',
+  titip: true,
+})
+
+/**
+ * The Ketua settled for the whole group and the week posted AGAINST HER — her
+ * name on the receipt, her twelve-week stretch, not the Ketua's. One pooled
+ * payment, fifteen individual records.
+ */
+export const kolektifLunas = seed({
+  channel: 'ketua',
+  paid: true,
+  viaKetua: [19],
 })
 
 // --- Her majelis -----------------------------------------------------------

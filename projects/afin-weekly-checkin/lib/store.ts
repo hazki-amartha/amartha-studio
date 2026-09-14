@@ -6,7 +6,7 @@
 // seed it from outside any screen.
 
 import { useSyncExternalStore } from 'react'
-import { outcomeOf, range, windowOf, type WindowOutcome } from './data'
+import { outcomeOf, range, windowOf, type PayChannel, type WindowOutcome } from './data'
 
 export interface AppState {
   /** The week now in progress, 1–48. */
@@ -15,6 +15,29 @@ export interface AppState {
   done: number[]
   /** Has this week's instalment posted? */
   paid: boolean
+  /**
+   * How her money reaches Amartha. A cash-income mitra pays the Ketua Majelis,
+   * who cashes in ONCE for the whole group and settles it as one payment —
+   * because the cash-in fee is a third-party charge of ~Rp5–6rb on a Rp112rb
+   * instalment, so fifteen separate top-ups is a 5–6% tax on the majelis for
+   * doing individually what it can do once.
+   *
+   * The channel changes NOTHING about her record. It only changes who carries
+   * the cash, and how long the week waits before it posts.
+   */
+  channel: PayChannel
+  /**
+   * Cash handed to the Ketua Majelis this week, not yet settled to Amartha.
+   * The week is not paid yet and it is not late either — it is in transit, and
+   * that is a third thing the check-in has to be able to say.
+   */
+  titip: boolean
+  /**
+   * Weeks that reached Amartha through the Ketua Majelis's pooled payment.
+   * They are ordinary paid weeks — this list only remembers the route, so the
+   * receipt can name it.
+   */
+  viaKetua: number[]
   /** Has this week's attendance posted? */
   attended: boolean
   /** Weeks the majelis did NOT finish complete. Five of these are affordable. */
@@ -61,6 +84,9 @@ const initial: AppState = {
   week: 15,
   done: range(1, 14),
   paid: false,
+  channel: 'sendiri',
+  titip: false,
+  viaKetua: [],
   attended: false,
   groupBroken: [],
   groupShort: 0,
@@ -97,6 +123,19 @@ export const store = {
   /** The instalment posts. Nothing stamps until the majelis lands too. */
   pay() {
     store.set({ paid: true })
+  },
+  /**
+   * The Ketua Majelis settles the group's pooled cash, and the week posts
+   * against HER — her name, her receipt, her twelve-week stretch. This is the
+   * whole point of the channel: the cash rail aggregates at the group, the
+   * record never does.
+   */
+  settleViaKetua() {
+    store.set({
+      paid: true,
+      titip: false,
+      viaKetua: [...state.viaKetua, state.week],
+    })
   },
   /** Attendance posts. */
   attend() {

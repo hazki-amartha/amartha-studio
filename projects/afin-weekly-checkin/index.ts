@@ -8,6 +8,8 @@ import {
   groupGood,
   groupLost,
   groupWatch,
+  kolektifLunas,
+  kolektifTitip,
   lateCaught,
   neverWithdrew,
   newMitra,
@@ -71,6 +73,20 @@ const journeyStates: ScreenState[] = [
     apply: recovered,
   },
   {
+    id: 'kolektif-titip',
+    label: 'Dititipkan ke Ketua Majelis',
+    description:
+      'Uang sudah diserahkan, Ketua belum menyetor. Minggu ini diproses — bukan telat, bukan belum bayar.',
+    apply: kolektifTitip,
+  },
+  {
+    id: 'kolektif-lunas',
+    label: 'Disetor Ketua Majelis',
+    description:
+      'Satu setoran untuk satu kelompok, tetap tercatat atas nama Ibu sendiri — lengkap dengan bukti bayar.',
+    apply: kolektifLunas,
+  },
+  {
     id: 'group-good',
     label: 'Kelompok baik',
     description: 'Semua anggota lancar. Status tanpa angka sama sekali.',
@@ -104,6 +120,12 @@ export const project: ProjectModule = {
       id: 'majelis',
       title: 'Kelompok Melati',
       component: lazyScreen(() => import('./screens/majelis'), 'MajelisScreen'),
+      states: journeyStates,
+    },
+    {
+      id: 'bukti-bayar',
+      title: 'Bukti bayar Ibu',
+      component: lazyScreen(() => import('./screens/bukti-bayar'), 'BuktiBayarScreen'),
       states: journeyStates,
     },
     {

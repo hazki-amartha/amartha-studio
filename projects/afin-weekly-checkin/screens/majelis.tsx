@@ -4,46 +4,51 @@
 // inspection, so this is where the real figures live — the 43-of-48 threshold,
 // the weekly lane, the exact bonus, and who has paid this week.
 //
-// The roster names who is short (designer's call, 2026-08-03, reversing the
-// earlier no-names rule) and it is drawn the way afin-milestone-journey draws
-// its majelis: her own row pulled out under "Anda", the rest under "Anggota",
-// a status pill on every line. The pill is the SAME pill the group itself wears
-// at the top of the page — one status language for both scales, so a member who
-// has not paid and a group that needs watching read as the same fact rather
-// than as two different alarms.
+// The roster is a COUNT again, not a list of names. It named who was short for
+// three weeks; the field research is against it. AFin already ships per-member
+// repayment visibility, and what the BPs report back is that it reads the wrong
+// way round — "the others are not paying, so I will not either" — on top of
+// jealousy inside a group that sees each other every Thursday, and the loss of
+// the BP's leverage to collect at all. The standing recommendation is to
+// restrict it. So the page keeps every group-scale figure (they are the thing
+// she is asked to protect) and drops the fifteen verdicts on fifteen neighbours
+// that she cannot act on and that give her a reason not to pay.
+//
+// Her OWN row stays, with the same pill the group wears — one status language
+// at both scales — because that row is the one she can move.
 //
 // The one thing this page still does not do: grade the group. When the 90% goes
 // out of reach the block stays visible and says so as a fact, without a
 // bad-sounding label attached to fifteen people for the rest of the tenor.
 
 import { NavigationHeader } from '@/design-system/components'
-import { Majelis, Medal, User } from '@/design-system/icons'
+import { CoinTwoHands, Majelis, Medal, User } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import {
   GROUP_BONUS,
   GROUP_SIZE,
   GROUP_THRESHOLD_WEEKS,
+  INSTALMENT,
+  KETUA_NAME,
+  MITRA_NAME,
   TOTAL_WEEKS,
-  UNNAMED_MEMBERS,
   groupGoodWeeks,
   groupStatus,
-  members,
   paidThisWeek,
+  rupiah,
   short,
-  type Member,
+  weekProgress,
 } from '../lib/data'
 import { useApp } from '../lib/store'
-import { GroupBadge, Meter, PaymentPill } from '../lib/ui'
+import { GroupBadge, Meter, PaymentPill, StatusPill } from '../lib/ui'
 
 export function MajelisScreen() {
   const flow = useFlow()
   const s = useApp()
   const status = groupStatus(s)
   const good = groupGoodWeeks(s)
-  const roster = members(s)
-  const you = roster[0]
-  const others = roster.slice(1)
+  const progress = weekProgress(s)
 
   return (
     <Screen topBar={<NavigationHeader title="Kelompok Melati" onBack={flow.back} />}>
@@ -135,51 +140,69 @@ export function MajelisScreen() {
         </div>
       </div>
 
-      {/* Members, each with this week's payment status. Her own row sits apart
-          at the top — it is the one row she can do something about, and it
-          moves the moment she pays on home. */}
+      {/* The week, as a count. Her own row first, because it is the only line
+          on this page she can do something about — and then the group as ONE
+          number. Fifteen names with fifteen verdicts is the part the research
+          argues against; the number is the part she was actually asked to
+          protect. */}
       <div className="rounded-12 border border-default bg-neutral-white p-16">
         <div className="flex items-baseline gap-8">
           <span className="min-w-0 flex-1 text-14 font-bold text-default">Angsuran minggu ini</span>
           <span className="shrink-0 text-12 text-caption">{GROUP_SIZE} orang</span>
         </div>
 
-        <p className="mt-12 text-10 font-bold uppercase text-caption">Anda</p>
-        <MemberRow member={you} />
-
-        <p className="mt-8 text-10 font-bold uppercase text-caption">Anggota</p>
-        {others.map((m, i) => (
-          <MemberRow key={m.name} member={m} divider={i > 0} />
-        ))}
+        <div className="mt-12 flex items-center gap-12">
+          <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-500">
+            <User size={16} />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-14 text-default">
+            {MITRA_NAME} (Anda)
+          </span>
+          {progress === 'titip' ? (
+            <StatusPill tone="muted">Diproses</StatusPill>
+          ) : (
+            <PaymentPill bayar={s.paid} />
+          )}
+        </div>
 
         <p className="mt-12 border-t border-default pt-12 text-12 text-caption">
-          dan {UNNAMED_MEMBERS} anggota lainnya sudah bayar
+          {paidThisWeek(s)} dari {GROUP_SIZE} anggota sudah bayar minggu ini.
+          {s.groupShort > 0 ? ' BP kelompok yang menindaklanjuti sisanya.' : ''}
         </p>
       </div>
 
+      {/* The collection itself, for a majelis that pays through its Ketua. It
+          is on this page rather than on home because it is a GROUP mechanism —
+          and it is on screen at all because the alternative is fifteen mitra
+          wondering why a payment they made in cash on Thursday is not on their
+          own record. */}
+      {s.channel === 'ketua' ? (
+        <div className="rounded-12 border border-default bg-neutral-white p-16">
+          <div className="flex items-center gap-12">
+            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-500">
+              <CoinTwoHands size={24} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-14 font-bold text-default">Setoran lewat Ketua Majelis</p>
+              <p className="mt-2 text-12 text-caption">{KETUA_NAME}, setiap hari Kamis</p>
+            </div>
+          </div>
+          <p className="mt-12 text-12 text-caption">
+            Kelompok menyetor sekali untuk semua anggota, jadi biaya isi saldo ditanggung bersama
+            satu kali. Angsuran {rupiah(INSTALMENT)} tetap tercatat atas nama masing-masing
+            anggota.
+          </p>
+          <button
+            type="button"
+            onClick={() => flow.go('bukti-bayar')}
+            className="mt-12 w-full rounded-full border border-primary-500 py-8 text-14 font-bold text-primary-500"
+          >
+            Lihat bukti bayar Ibu
+          </button>
+        </div>
+      ) : null}
+
       <div className="pb-16" />
     </Screen>
-  )
-}
-
-/** One mitra's week: who she is, and the same pill the group wears. */
-function MemberRow({ member, divider }: { member: Member; divider?: boolean }) {
-  return (
-    <div
-      className={`flex items-center gap-12 py-12 ${divider ? 'border-t border-default' : ''}`}
-    >
-      <span
-        className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-full ${
-          member.you ? 'bg-primary-50 text-primary-500' : 'bg-neutral-50 text-neutral-600'
-        }`}
-      >
-        <User size={16} />
-      </span>
-      <span className="min-w-0 flex-1 truncate text-14 text-default">
-        {member.name}
-        {member.you ? ' (Anda)' : ''}
-      </span>
-      <PaymentPill bayar={member.bayar} />
-    </div>
   )
 }
