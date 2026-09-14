@@ -7,7 +7,8 @@ Project-local components (design system has no equivalent):
 - `GroupBadge` (`lib/ui.tsx`) — the majelis's qualitative status chip.
 - `WeekLegend` (`lib/ui.tsx`) — key for the three repayment verdicts, lives next to the tile styles it explains.
 - `StatusPill` (`lib/ui.tsx`) — the one status pill, three tones. `GroupBadge` and `PaymentPill` are both it, so the group and a member inside it read in the same language.
-- `MemberRow` (`screens/majelis.tsx`) — one mitra's week: name, and this week's payment pill.
+- `KetuaHabit` (`screens/home-b.tsx`) — the payment row for a mitra who pays through her Ketua Majelis: no button, a position, and a door to her receipt.
+- `Row` (`screens/bukti-bayar.tsx`) — one line of the receipt record.
 - `DisburseCard` (`screens/home-b.tsx`) — the first draw, on home, for a mitra who has never taken the financing. Off the page for everyone else.
 - `Milestone` / `Quote` / `Habit` (`screens/home-b.tsx`) — the four-stop 12/24/36/48 track, the next-addition quote box, and the two-habit rows.
 - `CriterionRow` / `WindowBlock` (`screens/progress-tier.tsx`) — the criteria rows, and one graded 12-week stretch as a collapsible block.

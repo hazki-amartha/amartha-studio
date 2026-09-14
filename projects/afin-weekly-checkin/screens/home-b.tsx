@@ -27,6 +27,8 @@ import {
   ABSENCE_BUDGET,
   CURRENT_LIMIT,
   GROUP_SIZE,
+  INSTALMENT,
+  KETUA_NAME,
   STATUS_NAME,
   TOTAL_WEEKS,
   WINDOW_LENGTH,
@@ -42,6 +44,7 @@ import {
   outcomeOf,
   rupiah,
   weekDate,
+  weekProgress,
   weeksLeftInWindow,
   windowQuote,
   windowRows,
@@ -55,8 +58,10 @@ import {
   Check,
   ChevronRight,
   Coins,
+  CoinTwoHands,
   CreditCard,
   LogoModal,
+  Hourglass,
   Majelis,
   Minus,
   TrendUp,
@@ -140,12 +145,16 @@ export function HomeBScreen() {
               <p className="mt-20 text-14 text-caption">{askLine(grade)}</p>
 
               <div className="mt-16 flex flex-col gap-16">
-                <Habit
-                  icon={<CreditCard size={20} />}
-                  label={`Bayar angsuran ${rupiah(112_000)}`}
-                  done={s.paid}
-                  trailing={<PayAction />}
-                />
+                {s.channel === 'ketua' ? (
+                  <KetuaHabit />
+                ) : (
+                  <Habit
+                    icon={<CreditCard size={20} />}
+                    label={`Bayar angsuran ${rupiah(INSTALMENT)}`}
+                    done={s.paid}
+                    trailing={<PayAction />}
+                  />
+                )}
                 <Habit
                   icon={<Users size={20} />}
                   label="Datang kumpulan hari Kamis"
@@ -476,6 +485,67 @@ function MajelisHabit() {
         )}
       </span>
       <ChevronRight size={20} className="shrink-0 text-neutral-500" />
+    </button>
+  )
+}
+
+/**
+ * The payment row for a mitra who pays through her Ketua Majelis — which is
+ * most of a cash-income majelis, most weeks.
+ *
+ * She has no button, because there is nothing for her to tap: she handed over
+ * cash at kumpulan and the Ketua cashes in for the whole group. What the row
+ * owes her is therefore not an action but a POSITION — the money is with the
+ * Ketua, the week is not late, and here is the receipt the moment it lands.
+ * Before this row existed the same week simply read "belum bayar", which is the
+ * app calling fifteen paying mitra delinquent once a week.
+ *
+ * It is drawn as a Habit and tapped like MajelisHabit, because the receipt is
+ * the whole point: her own record, in her own name, that she can open.
+ */
+function KetuaHabit() {
+  const flow = useFlow()
+  const s = useApp()
+  const progress = weekProgress(s)
+
+  return (
+    <button
+      type="button"
+      onClick={() => flow.go('bukti-bayar')}
+      className="flex w-full items-center gap-16 text-left"
+    >
+      <span
+        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-12 ${
+          progress === 'lunas' ? 'bg-green-50 text-green-500' : 'bg-primary-50 text-primary-500'
+        }`}
+      >
+        <CoinTwoHands size={20} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-16 text-default">
+          {progress === 'lunas'
+            ? `Angsuran ${rupiah(INSTALMENT)} sudah tercatat`
+            : `Angsuran ${rupiah(INSTALMENT)} lewat Ketua Majelis`}
+        </span>
+        <span className="mt-2 block text-12 text-caption">
+          {progress === 'lunas'
+            ? `Disetor ${KETUA_NAME}, tercatat atas nama Ibu`
+            : progress === 'titip'
+              ? `Sudah dititipkan ke ${KETUA_NAME}, menunggu setoran`
+              : `Titipkan ke ${KETUA_NAME} di kumpulan hari Kamis`}
+        </span>
+      </span>
+      {progress === 'lunas' ? (
+        <span className="flex shrink-0 items-center gap-4 text-12 font-bold text-green-500">
+          <Check size={16} /> Selesai
+        </span>
+      ) : progress === 'titip' ? (
+        <span className="flex shrink-0 items-center gap-4 text-12 text-caption">
+          <Hourglass size={16} /> Diproses
+        </span>
+      ) : (
+        <ChevronRight size={20} className="shrink-0 text-neutral-500" />
+      )}
     </button>
   )
 }

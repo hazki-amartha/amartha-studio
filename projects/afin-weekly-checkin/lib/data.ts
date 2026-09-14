@@ -11,6 +11,9 @@ export const TOTAL_WEEKS = 48
 export const FINAL_LIMIT = 7_000_000
 export const CURRENT_LIMIT = 5_000_000
 
+/** The weekly instalment. Home asks for it and the receipt confirms it. */
+export const INSTALMENT = 112_000
+
 // --- The status ------------------------------------------------------------
 // It is a GRADE on the financing rather than a membership she joins: the thing
 // moves down mid-tenor and recovers, which is a reading of how the loan is
@@ -457,49 +460,69 @@ export function groupGoodWeeks(s: AppState): number {
   return s.week - 1 - s.groupBroken.length
 }
 
-// --- The roster ------------------------------------------------------------
-// Who has paid this week, name by name. This page USED to withhold it — a count
-// and no names, on the argument that a majelis meets face to face and a
-// screenshot-able list of who is behind adds a permanent record to a room that
-// has none. Overruled by the designer 2026-08-03: the group's standing is a
-// shared obligation she is asked to protect, and a bare count is something she
-// cannot act on. Same shape as the majelis page in afin-milestone-journey.
+// --- How the money reaches Amartha ------------------------------------------
+// Two routes, one record.
+//
+// A cash-income mitra does not top up her own Poket. To pay in-app she first
+// has to cash in at a third-party agent (Alfamart, BRILink), which charges
+// ~Rp5–6rb — 5–6% of a Rp112rb instalment. So the majelis hands its cash to the
+// Ketua Majelis, who cashes in ONCE and settles the whole group in one payment.
+// That is arithmetic, not apathy: fifteen separate top-ups would cost the group
+// ~Rp75–120rb a week to move money it has already collected.
+//
+// What the app does with that today is the bug this section exists to fix.
+// One pooled payment arrives, so fifteen mitra have no week of their own: her
+// tile reads BELUM BAYAR while her money is sitting in Amartha's account, and
+// the only person the app credits is the Ketua — who then looks like the one
+// digital repayer in a majelis of fifteen.
+//
+// So: the cash rail aggregates at the group, and the RECORD never does. Every
+// mitra gets her own week, her own name on it, and her own receipt — which is
+// also the first free, weekly, trustworthy reason a cash-channel mitra has to
+// open AFin at all.
 
-export interface Member {
-  name: string
-  /** Has this week's instalment posted? */
-  bayar: boolean
-  /** Her own row, pulled out of the list under "Anda". */
-  you?: boolean
+export type PayChannel = 'sendiri' | 'ketua'
+
+/** Her Ketua Majelis. Named because a receipt with no counterparty is a claim. */
+export const KETUA_NAME = 'Ibu Ratna'
+
+/** Her own name, for the one place a record has to say whose it is. */
+export const MITRA_NAME = 'Ibu Siti'
+
+/** The route a week took, or null if it has not been paid at all. */
+export function paidVia(s: AppState, week: number): PayChannel | null {
+  if (s.viaKetua.includes(week)) return 'ketua'
+  const status = paymentStatus(s, week)
+  return status === 'done' || status === 'late' ? 'sendiri' : null
 }
 
-/**
- * The five members the page names, besides her. Fifteen rows is a scroll for no
- * gain — the ones worth reading are the ones still owing, so `groupShort` lands
- * on the top of this list and the rest of the majelis stays a count.
- */
-const ROSTER = ['Ibu Ratna', 'Ibu Yuni', 'Ibu Dewi', 'Ibu Marni', 'Ibu Wati']
+/** This week, in one word: settled, in transit, or still owed. */
+export type WeekProgress = 'lunas' | 'titip' | 'belum'
 
-export function members(s: AppState): Member[] {
-  // The short ones sort to the top, so the list and the count on the card can
-  // never disagree with each other on screen.
-  const short = Math.min(s.groupShort, ROSTER.length)
-  return [
-    { name: 'Ibu Siti', bayar: s.paid, you: true },
-    ...ROSTER.map((name, i) => ({ name, bayar: i >= short })),
-  ]
+export function weekProgress(s: AppState): WeekProgress {
+  if (s.paid) return 'lunas'
+  return s.titip ? 'titip' : 'belum'
 }
 
-/** Members the page does not name. All current — anyone owing is named above. */
-export const UNNAMED_MEMBERS = GROUP_SIZE - 1 - ROSTER.length
+// --- The roster -------------------------------------------------------------
+// How many of the majelis have paid this week — a COUNT, and never names.
+//
+// This page named them for three weeks (designer's call, 2026-08-03). The
+// research says not to: AFin already ships per-member repayment visibility, and
+// the field finding on it is that it reads the wrong way round — "others are
+// not paying, so I will not either" — while also causing jealousy inside a
+// group that meets face to face, and removing the BP's leverage to collect. The
+// standing recommendation is to restrict it. A count keeps the one thing she
+// can act on (is my group on track this week?) and drops the part that licenses
+// her own non-payment.
 
 /**
- * How many of the majelis have paid this week. Counted off the roster rather
- * than off `groupShort`, so the sentence on home and the rows on the majelis
- * page can never disagree — her own unpaid week counts here too.
+ * How many of the majelis have paid this week, her own week included. Derived
+ * rather than counted off a list, so the number on home and the number on the
+ * majelis page can never disagree.
  */
 export function paidThisWeek(s: AppState): number {
-  return GROUP_SIZE - members(s).filter((m) => !m.bayar).length
+  return GROUP_SIZE - s.groupShort - (s.paid ? 0 : 1)
 }
 
 // --- The calendar -----------------------------------------------------------

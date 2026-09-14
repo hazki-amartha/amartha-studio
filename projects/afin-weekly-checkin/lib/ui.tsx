@@ -28,11 +28,15 @@ import { rupiah, type GroupStatus, type WeekCell } from './data'
 import { useApp } from './store'
 
 // --- One status pill -------------------------------------------------------
-// The majelis and the mitra inside it are read in the same glance, so they are
-// drawn the same way: one pill, three tones, whatever the subject. A group that
-// needs watching and a member who has not paid are the same colour on purpose —
-// they are the same fact at two scales, and giving the member her own red would
-// say the person is the problem rather than the week.
+// The majelis and her own week inside it are read in the same glance, so they
+// are drawn the same way: one pill, three tones, whatever the subject. A group
+// that needs watching and a week she has not paid are the same colour on
+// purpose — they are the same fact at two scales, and giving the week its own
+// red would say the person is the problem rather than the week.
+//
+// The pill is only ever worn by the GROUP or by HER. It used to sit on all
+// fifteen members; see the note at the top of screens/majelis.tsx for why the
+// other fourteen no longer have one.
 
 export type PillTone = 'good' | 'warn' | 'muted'
 
@@ -54,7 +58,8 @@ export function StatusPill({ tone, children }: { tone: PillTone; children: React
 
 // --- The majelis -----------------------------------------------------------
 // The group has a different owner and a different cadence from her own weeks,
-// so it never carries a grade of its own — just the same pill her members wear.
+// so it never carries a grade of its own — just the same pill her own week
+// wears.
 
 const GROUP_COPY: Record<GroupStatus, { label: string; tone: PillTone }> = {
   baik: { label: 'Baik', tone: 'good' },
@@ -66,7 +71,7 @@ export function GroupBadge({ status }: { status: GroupStatus }) {
   return <StatusPill tone={GROUP_COPY[status].tone}>{GROUP_COPY[status].label}</StatusPill>
 }
 
-/** The same pill, on one mitra's week. */
+/** The same pill, on her own week. */
 export function PaymentPill({ bayar }: { bayar: boolean }) {
   return <StatusPill tone={bayar ? 'good' : 'warn'}>{bayar ? 'Sudah bayar' : 'Belum bayar'}</StatusPill>
 }
