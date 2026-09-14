@@ -295,10 +295,15 @@ export function FollowUpScreen() {
         nextLate={late > 0}
         nextExtra={
           isKumpulan ? (
-            <span className="text-14 text-default">
-              Ingatkan Lead untuk hadir ke kumpulan {majelisLine(lead)}. Perkenalkan dengan
-              anggota Majelis, pastikan seluruh anggota Majelis setuju untuk menambahkan{' '}
-              {lead.name} sebagai anggota baru Majelis
+            <span className="flex flex-col gap-8">
+              <span className="text-14 text-default">
+                Ingatkan Lead untuk hadir ke kumpulan {majelisLine(lead)}. Perkenalkan dengan
+                anggota Majelis, pastikan seluruh anggota Majelis setuju untuk menambahkan{' '}
+                {lead.name} sebagai anggota baru Majelis
+              </span>
+              <span className="rounded-12 border border-blue-200 bg-blue-50 px-12 py-8 text-12 text-blue-600">
+                Lead akan hilang dari list Sales, dan masuk ke list Mitra saat survey dimulai
+              </span>
             </span>
           ) : isReactivation && lead.reactivation ? (
             <span className="text-14 text-default">
@@ -313,7 +318,9 @@ export function FollowUpScreen() {
       {/* Follow up result — the heading sits with its buttons in a full-bleed
           background bar at the bottom of the page (not sticky). */}
       <div className="-mx-16 mt-auto flex flex-col gap-12 border-t border-default bg-neutral-white p-16">
-        <span className="text-14 font-bold text-default">Follow up result?</span>
+        <span className="text-14 font-bold text-default">
+          {isKumpulan ? 'Follow up tidak lancar?' : 'Follow up result?'}
+        </span>
         {!canAct ? (
           <span className="text-12 text-caption">
             Tugas ini milik {lead.fo}. Tugaskan ke dirimu untuk mengerjakannya.
