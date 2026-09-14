@@ -147,7 +147,11 @@ export function KumpulanJadwalScreen() {
       ? [hari, jamKumpulan].filter(Boolean).join(', ')
       : [tgl, jamKomlap].filter(Boolean).join(', ')
     pipelineStore.createKumpulanSosialisasi(lead.id, name, when || 'Belum dijadwalkan')
-    pipelineStore.setFlash('Tugas sosialisasi berhasil ditambahkan')
+    pipelineStore.setFlash(
+      modal
+        ? `Majelis ${name} created. ${lead.name} is now starting Survey process and can be found on Mitra list`
+        : 'Tugas sosialisasi berhasil ditambahkan',
+    )
     flow.go('sales')
   }
 

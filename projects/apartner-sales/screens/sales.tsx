@@ -10,9 +10,9 @@
 // at once: type a name and the board collapses to just the matches, still
 // grouped by the category each one belongs to.
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button, NavigationHeader } from '@/design-system/components'
-import { Check, Plus, Sort } from '@/design-system/icons'
+import { Check, Cross, Plus, Sort } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   LeadTaskCard,
@@ -63,14 +63,6 @@ export function SalesScreen() {
   // Alt only: which sections the BP has expanded past the first one.
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const byDistance = grouping === 'distance'
-
-  // A confirmation banner raised by a submit / add / drop, shown once.
-  useEffect(() => {
-    if (flash) {
-      const t = setTimeout(() => pipelineStore.clearFlash(), 4000)
-      return () => clearTimeout(t)
-    }
-  }, [flash])
 
   const allTasks = buildTasks(order.map((id) => leads[id]), pois)
   const taskFo = (t: SalesTask) => (t.kind === 'lead' ? t.lead.fo : t.event.fo)
@@ -136,11 +128,19 @@ export function SalesScreen() {
       }
     >
       {flash ? (
-        <div className="flex items-center gap-8 rounded-12 border border-green-500 bg-green-50 px-12 py-12">
+        <div className="flex items-start gap-8 rounded-12 border border-green-500 bg-green-50 px-12 py-12">
           <span className="shrink-0 text-green-500">
             <Check size={20} />
           </span>
-          <span className="text-12 font-bold text-green-600">{flash}</span>
+          <span className="min-w-0 flex-1 text-12 font-bold text-green-600">{flash}</span>
+          <button
+            type="button"
+            aria-label="Tutup"
+            onClick={() => pipelineStore.clearFlash()}
+            className="shrink-0 text-green-600"
+          >
+            <Cross size={20} />
+          </button>
         </div>
       ) : null}
 
