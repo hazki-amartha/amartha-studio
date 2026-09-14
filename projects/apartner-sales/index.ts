@@ -107,16 +107,18 @@ export const project: ProjectModule = {
         },
       ],
       flowsTo: [
-        { to: 'majelis-existing', label: 'Majelis existing' },
-        { to: 'kumpulan-jadwal', label: 'Majelis baru → sosialisasi' },
+        { to: 'pendaftaran', label: 'Mulai pendaftaran' },
         { to: 'sales', label: 'Reschedule / Drop' },
       ],
     },
     {
-      id: 'majelis-existing',
-      title: 'Pilih Majelis',
-      component: lazyScreen(() => import('./screens/majelis-existing'), 'MajelisExistingScreen'),
-      flowsTo: [{ to: 'sales', label: 'Pilih → Perkenalan' }],
+      id: 'pendaftaran',
+      title: 'Mulai Pendaftaran',
+      component: lazyScreen(() => import('./screens/pendaftaran'), 'PendaftaranScreen'),
+      flowsTo: [
+        { to: 'kumpulan-jadwal', label: 'Majelis baru → sosialisasi' },
+        { to: 'sales', label: 'Majelis existing → Perkenalan' },
+      ],
     },
     {
       id: 'kumpulan-jadwal',

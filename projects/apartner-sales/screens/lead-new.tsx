@@ -210,7 +210,7 @@ export function LeadNewScreen() {
           />
           <div className="flex flex-col gap-8">
             <span className="text-12 font-regular text-default">
-              Titik lokasi <span className="text-caption">(opsional)</span>
+              Titik alamat <span className="text-caption">(opsional)</span>
             </span>
             {pinned ? (
               <>
