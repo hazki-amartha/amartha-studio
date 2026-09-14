@@ -8,6 +8,7 @@ import {
   scheduleMorning,
   showPencairanDefault,
   showPencairanLeads,
+  showPencairanLeadsB,
 } from './lib/demo'
 
 export const project: ProjectModule = {
@@ -49,6 +50,13 @@ export const project: ProjectModule = {
           description:
             'Pencairan: kartu tanpa % dan target, plus panel Potential mitra (Unqualified, Qualified, UK, Disetujui) di bawah Mitra baru.',
           apply: showPencairanLeads,
+        },
+        {
+          id: 'pencairan-leads-b',
+          label: 'With Leads monitoring: Option B',
+          description:
+            'Pencairan: kolom Lead permanen — labelnya membuka lima tahapan — dan baris Total cabang di atas tabel, tanpa panel di bawah Mitra baru.',
+          apply: showPencairanLeadsB,
         },
         {
           id: 'pencairan-default',

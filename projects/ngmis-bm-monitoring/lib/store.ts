@@ -14,9 +14,10 @@ import { useSyncExternalStore } from 'react'
 
 export type Variant = 'mvp' | 'end'
 
-/** Which cut of Pencairan is on screen — plain counts, or the same table with
- *  Mitra baru's lead funnel opened up ("With Leads monitoring"). */
-export type PencairanVariant = 'default' | 'leads'
+/** Which cut of Pencairan is on screen — plain counts, the same table with
+ *  Mitra baru's lead funnel opened up ("With Leads monitoring"), or that cut's
+ *  Option B (lib/disbursement-table-leads-b.tsx). */
+export type PencairanVariant = 'default' | 'leads' | 'leadsB'
 
 interface State {
   variant: Variant
