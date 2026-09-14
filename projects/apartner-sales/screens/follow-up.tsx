@@ -28,12 +28,12 @@ import {
   type PipelineLead,
 } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { ChevronRow, PickSheet } from '../lib/pipeline-ui'
+import { PickSheet } from '../lib/pipeline-ui'
 import { useApp } from '../lib/store'
 import { agendaDueDays, leadScheduleLabel, overdueDays } from '../lib/tasks'
 import { AppScreen, ContactButton } from '../lib/ui'
 
-type SheetId = 'reschedule-why' | 'drop' | 'majelis' | null
+type SheetId = 'reschedule-why' | 'drop' | null
 
 const RESCHEDULE_REASONS = [
   'Lead butuh waktu',
@@ -373,7 +373,7 @@ export function FollowUpScreen() {
               size="lg"
               className="w-full"
               disabled={!canAct}
-              onClick={() => setSheet('majelis')}
+              onClick={() => flow.go('pendaftaran')}
             >
               Mulai pendaftaran
             </Button>
@@ -408,28 +408,6 @@ export function FollowUpScreen() {
       </div>
 
 
-      {/* Continue application / Change majelis — pick existing or new; each card
-          taps straight through to its own page. */}
-      <BottomSheet open={sheet === 'majelis'} onClose={() => setSheet(null)} title="Pilih Majelis">
-        <div className="flex flex-col gap-8">
-          <ChevronRow
-            title="Majelis existing"
-            description="Gabung ke majelis yang sudah ada"
-            onClick={() => {
-              setSheet(null)
-              flow.go('majelis-existing')
-            }}
-          />
-          <ChevronRow
-            title="Majelis baru"
-            description="Atur jadwal sosialisasi majelis baru"
-            onClick={() => {
-              setSheet(null)
-              flow.go('kumpulan-jadwal')
-            }}
-          />
-        </div>
-      </BottomSheet>
 
       {/* Reschedule — why; the next follow-up is set to one day later. */}
       <BottomSheet open={sheet === 'reschedule-why'} onClose={() => setSheet(null)} title="Alasan">

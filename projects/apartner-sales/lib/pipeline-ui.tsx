@@ -677,7 +677,7 @@ export function AddressSheet({
 
           <div className="flex flex-col gap-8">
             <span className="text-12 font-bold text-default">
-              Titik lokasi <span className="font-regular text-caption">(opsional)</span>
+              Titik alamat <span className="font-regular text-caption">(opsional)</span>
             </span>
             {pinned ? (
               <>

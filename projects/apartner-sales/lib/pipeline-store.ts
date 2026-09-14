@@ -352,6 +352,15 @@ export const pipelineStore = {
     emit()
   },
 
+  /** Save the KTP + address captured on the registration page, before the
+   *  majelis logic runs. A plain merge — it does not complete any task. */
+  saveRegistrationDetails(id: string, nik: string, ktp: boolean, address: LeadAddress) {
+    const lead = state.leads[id]
+    if (!lead) return
+    state = { ...state, leads: { ...state.leads, [id]: { ...lead, nik, ktp, address } } }
+    emit()
+  },
+
   /** "Lead sudah hadir" at the kumpulan — she moves on to the Mitra list. */
   markKumpulanHadir(id: string) {
     completeTask(id, (lead) => ({

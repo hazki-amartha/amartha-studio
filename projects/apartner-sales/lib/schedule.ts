@@ -146,3 +146,11 @@ const TASKS: Task[] = [
 
 export const findTask = (id: string | null): Task | undefined =>
   TASKS.find((t) => t.id === id)
+
+/** A stable mock distance (km) for a majelis from the lead's location, 0.4–6.2.
+ *  There is no real geodata in the prototype — the id seeds a fixed value. */
+export function majelisDistanceKm(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return Math.round(((h % 59) / 10 + 0.4) * 10) / 10
+}
