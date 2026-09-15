@@ -142,7 +142,7 @@ export function LeadNewScreen() {
       flow.go('sosialisasi')
     } else {
       pipelineStore.setFlash(`${name.trim()} berhasil ditambahkan sebagai lead`)
-      flow.go('sales')
+      flow.go(returnTo === 'sales-b' ? 'sales-b' : 'sales')
     }
   }
 
