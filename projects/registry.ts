@@ -28,5 +28,6 @@ export const registry: Registry = {
   'ngmis-cash-outstanding': () => import('./ngmis-cash-outstanding').then((m) => m.project),
   'afin-weekly-checkin-ut': () => import('./afin-weekly-checkin-ut').then((m) => m.project),
   'apartner-sales': () => import('./apartner-sales').then((m) => m.project),
+  'afin-linear': () => import('./afin-linear').then((m) => m.project),
   // <append new projects above this line — one line per project>
 }
