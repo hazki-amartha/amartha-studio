@@ -216,6 +216,11 @@ export function setOnFlushed(cb: (() => void) | null) {
   onFlushed = cb
 }
 
+/** The repo-relative file an address points into. */
+export function fileOf(src: Src): string {
+  return src.split(':').slice(0, -2).join(':')
+}
+
 /** The utility family a class edits — `gap-12` and `gap-16` share a knob. */
 function familyOf(cls: string): string {
   const i = cls.lastIndexOf('-')
@@ -374,17 +379,24 @@ export function changeListText(): string {
   const slug = rows[0].slug
   const lines = [`Amartha Studio · project \`${slug}\` · ${rows.length} change(s) to apply`, '']
 
-  // Grouped by screen, screens in the order they were first touched — a
-  // reviewer who goes back to an earlier screen should not split its section.
-  const screens: string[] = []
-  for (const row of rows) if (!screens.includes(row.screenId)) screens.push(row.screenId)
+  // Grouped by file, in the order each was first touched — a reviewer who goes
+  // back to an earlier screen should not split its section. By file rather
+  // than by screen because an element can live in the project's `lib/`, and
+  // the address below is only meaningful against the file it came from.
+  const files: string[] = []
+  for (const row of rows) {
+    const file = fileOf(row.edit.src)
+    if (!files.includes(file)) files.push(file)
+  }
 
   let n = 0
-  for (const screen of screens) {
-    lines.push(`Screen \`${screen}\` — projects/${slug}/screens/${screen}.tsx`)
+  for (const file of files) {
+    const inFile = rows.filter((r) => fileOf(r.edit.src) === file)
+    const screensHere = Array.from(new Set(inFile.map((r) => r.screenId)))
+    lines.push(`\`${file}\` — seen on screen ${screensHere.map((s) => `\`${s}\``).join(', ')}`)
     // `line:col` below is into this file.
 
-    for (const row of rows.filter((r) => r.screenId === screen)) {
+    for (const row of inFile) {
       n += 1
       // The address, not a description of the element. v1 had to say "the
       // element showing X" because that was all it knew; `src` is the exact
@@ -441,9 +453,11 @@ function inverseOf(edit: Edit): Edit {
  * for — the panel would show three changes saved and a fourth refused, with the
  * file somewhere in between.
  *
- * Edits are grouped by screen because a batch must name one file. In practice a
- * pending list is almost always one screen; grouping just means the rare
- * cross-screen list still behaves.
+ * Edits are grouped by FILE because a batch must name one file. That is not the
+ * same as grouping by screen: a screen's rows often come from a component in
+ * the project's `lib/`, whose elements are stamped with the lib file's path.
+ * Grouping by screen sent those in one batch with the screen's own edits, and
+ * the route refused the lot for spanning two files.
  *
  * Never reachable in record mode — there is no server to write through.
  */
@@ -455,7 +469,7 @@ export async function applyPending(): Promise<void> {
 
   const groups = new Map<string, PendingEntry[]>()
   for (const entry of batch) {
-    const key = `${entry.slug}|${entry.screenId}`
+    const key = `${entry.slug}|${fileOf(entry.edit.src)}`
     const group = groups.get(key)
     if (group) group.push(entry)
     else groups.set(key, [entry])

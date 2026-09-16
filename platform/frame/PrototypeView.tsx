@@ -111,12 +111,14 @@ function BridgePublisher({ slug, screens }: { slug: string; screens: ScreenDef[]
 function AppViewport({
   device = 'mobile',
   inspect,
+  design,
   pinned,
   onPin,
   preview,
 }: {
   device?: DeviceKind
   inspect?: boolean
+  design?: boolean
   pinned?: Element | null
   onPin?: (el: Element | null) => void
   preview?: Element | null
@@ -129,7 +131,12 @@ function AppViewport({
     >
       <ScreenStage />
       {inspect && onPin ? (
-        <InspectLayer pinned={pinned ?? null} onPin={onPin} preview={preview} />
+        <InspectLayer
+          pinned={pinned ?? null}
+          onPin={onPin}
+          preview={preview}
+          pick={design ? 'authored' : 'component'}
+        />
       ) : null}
     </div>
   )
@@ -592,6 +599,7 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
           <DeviceFrame>
             <AppViewport
               inspect={picking}
+              design={design}
               pinned={pinned}
               onPin={setPinned}
               preview={preview}
@@ -653,6 +661,7 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
             <AppViewport
               device="desktop"
               inspect={picking}
+              design={design}
               pinned={pinned}
               onPin={setPinned}
               preview={preview}

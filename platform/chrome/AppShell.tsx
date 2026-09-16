@@ -122,7 +122,7 @@ function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
     setDesignMode(false)
     setInspectMode(true)
   }
-  const enterEdit = () => {
+  const enterDesign = () => {
     setInspectMode(false)
     setDesignMode(true)
   }
@@ -142,24 +142,24 @@ function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
         <DeviceIcon className="size-16" />
         Prototype
       </Link>
-      {/* Edit exists everywhere, but means different things: on the dev server
+      {/* Design exists everywhere, but means different things: on the dev server
           it writes into the prototype, and on a deployment — which has no
           source behind it — it collects the changes to copy and send on. The
           panel owns that distinction; the segment is just the way in. */}
       {isFlow ? (
-        <Link href={`/p/${slug}`} onClick={enterEdit} className={off}>
+        <Link href={`/p/${slug}`} onClick={enterDesign} className={off}>
           <EditIcon className="size-16" />
-          Edit
+          Design
         </Link>
       ) : (
         <button
           type="button"
-          onClick={enterEdit}
+          onClick={enterDesign}
           aria-current={showingDesign ? 'page' : undefined}
           className={showingDesign ? on : off}
         >
           <EditIcon className="size-16" />
-          Edit
+          Design
         </button>
       )}
       {isFlow ? (

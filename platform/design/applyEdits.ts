@@ -20,11 +20,17 @@ import { parse, print, types } from 'recast'
 //   • The `.js` is required, not stylistic. recast ships no `exports` map, so
 //     Node's ESM resolver will not add the extension, and an extensionless
 //     specifier fails at runtime even though webpack resolves it happily.
+//   • A namespace import, not a default one. The module is compiled CommonJS
+//     with `__esModule` set and no `default` export: Node's ESM loader hands
+//     back `module.exports` as the default anyway, so the tests passed, but
+//     webpack honours `__esModule` and resolved the default to `undefined`.
+//     recast then fell back to its JavaScript parser, and every Apply on the
+//     dev server refused with "that screen could not be parsed".
 //   • recast 0.24's parsers are built against **@babel/parser 7**. On 8 this
 //     parser throws `"pipelineOperator" requires "proposal" option` on the
 //     first file it sees. package.json pins ^7 for that reason — bumping it to
 //     8 breaks every edit in design mode, loudly but confusingly.
-import tsParser from 'recast/parsers/babel-ts.js'
+import * as tsParser from 'recast/parsers/babel-ts.js'
 import type { ApplyResult, ClassEdit, Edit, PropEdit, Refusal, Src, TextEdit } from './protocol'
 
 const n = types.namedTypes

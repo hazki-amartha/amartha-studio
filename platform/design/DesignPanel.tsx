@@ -1,7 +1,7 @@
 'use client'
 
 // =============================================================================
-// Edit · the tweaking panel.
+// Design · the tweaking panel.
 //
 // Takes the same column the inspector uses, and the same pick layer — edit is
 // inspect that can write. Every control enumerates the design system's own
@@ -56,6 +56,7 @@ import {
   applyPending,
   clearDesignError,
   copyChangeList,
+  fileOf,
   getDesignStoreServerSnapshot,
   getDesignStoreState,
   restoreChanges,
@@ -166,6 +167,69 @@ function classify(cls: string): EditableRow | null {
   return null
 }
 
+// --- can this element be written at all? -------------------------------------
+
+/**
+ * Why a selected element has no controls, or null when it can be edited.
+ *
+ * Selection and editing have different reach on purpose. Hold ⌥ and the pick
+ * layer reaches inside a component, which Inspect needs; but only elements the
+ * build stamped have an address, and `design-system/` is never stamped. Showing
+ * controls for an unaddressed element made every click on them do nothing,
+ * silently — which reads as the panel being broken. Saying why teaches the rule
+ * instead.
+ */
+type Lock =
+  | { kind: 'component'; owner: Element | null }
+  | { kind: 'inherited'; project: string }
+  | { kind: 'unstamped' }
+
+function lockOf(el: Element, slug: string): Lock | null {
+  const src = srcOf(el)
+  if (!src) {
+    const boundary = el.closest('[data-fds]')
+    if (!boundary) return { kind: 'unstamped' }
+    // The component itself is addressable when the project wrote it — the
+    // stamp rides its forwarded props onto its root.
+    return { kind: 'component', owner: srcOf(boundary) ? boundary : null }
+  }
+  // A screen inherited through `extends` is stamped with its base project's
+  // path. The write route refuses it anyway; saying so up front is kinder.
+  const file = src.split(':').slice(0, -2).join(':')
+  if (!file.startsWith(`projects/${slug}/`)) {
+    return { kind: 'inherited', project: file.split('/')[1] ?? 'another project' }
+  }
+  return null
+}
+
+function LockNotice({ lock, onPin }: { lock: Lock; onPin: (el: Element | null) => void }) {
+  if (lock.kind === 'component') {
+    return (
+      <div className="flex flex-col gap-8 rounded-12 bg-neutral-50 p-8 dark:bg-ink-800">
+        <span className="text-12 text-default dark:text-neutral-50">
+          This is inside a component — change it with the component’s props instead.
+        </span>
+        {lock.owner ? (
+          <button
+            type="button"
+            onClick={() => onPin(lock.owner)}
+            className="self-start rounded-full border border-default bg-neutral-white px-12 py-4 text-12 font-bold text-default hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800"
+          >
+            Select {labelOf(lock.owner)}
+          </button>
+        ) : null}
+      </div>
+    )
+  }
+  return (
+    <p className="rounded-12 bg-neutral-50 p-8 text-12 text-default dark:bg-ink-800 dark:text-neutral-50">
+      {lock.kind === 'inherited'
+        ? `This comes from ${lock.project}, which this prototype builds on — it can’t be changed from here.`
+        : 'This belongs to the studio, not the prototype, so there is nothing here to change.'}
+    </p>
+  )
+}
+
 // --- small UI atoms ----------------------------------------------------------
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -226,7 +290,7 @@ export function DesignPanel({
   className,
   onMinimize,
 }: DesignPanelProps) {
-  const shell = { title: 'Edit', onMinimize, className }
+  const shell = { title: 'Design', onMinimize, className }
   const store = useSyncExternalStore(
     subscribeDesignStore,
     getDesignStoreState,
@@ -263,6 +327,9 @@ export function DesignPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pinned, version],
   )
+
+  const pinnedSrc = pinned ? srcOf(pinned) : null
+  const pinnedFile = pinnedSrc ? fileOf(pinnedSrc) : null
 
   // --- re-pin across fast refresh -------------------------------------------
   const pinnedRef = useRef<Element | null>(pinned)
@@ -386,7 +453,7 @@ export function DesignPanel({
     if (!store.error) return
     const lines = [
       `Amartha Studio · project \`${slug}\` · screen \`${screenId}\``,
-      `File: projects/${slug}/screens/${screenId}.tsx (or a helper it imports from lib/)`,
+      `File: ${pinnedFile ?? `projects/${slug}/screens/${screenId}.tsx`}`,
       target
         ? `Element: ${target.component ? `FunDS <${target.component}>` : `<${target.tag}>`}${
             target.text ? ` — text: "${target.text}"` : ''
@@ -398,7 +465,7 @@ export function DesignPanel({
     void navigator.clipboard.writeText(lines.join('\n'))
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1500)
-  }, [store.error, target, slug, screenId])
+  }, [store.error, target, slug, screenId, pinnedFile])
 
   // --- render ----------------------------------------------------------------
 
@@ -422,6 +489,19 @@ export function DesignPanel({
           Hover the prototype to highlight an element, click to pin it, then tweak it here. Hold ⌥
           to reach the raw element inside a component.
         </p>
+        {footer}
+      </PanelShell>
+    )
+  }
+
+  const lock = lockOf(target.el, slug)
+  if (lock) {
+    return (
+      <PanelShell {...shell}>
+        <h2 className="text-16 font-bold text-default dark:text-neutral-50">
+          {target.component ?? `<${target.tag}>`}
+        </h2>
+        <LockNotice lock={lock} onPin={onPin} />
         {footer}
       </PanelShell>
     )
@@ -470,8 +550,11 @@ export function DesignPanel({
         <h2 className="text-16 font-bold text-default dark:text-neutral-50">
           {target.component ?? `<${target.tag}>`}
         </h2>
+        {/* The file the address names — not always the screen's: a row drawn
+            by a component in the project's lib/ lives there, and so does any
+            change made to it. */}
         <span className="break-all text-10 text-placeholder dark:text-neutral-600">
-          projects/{slug}/screens/{screenId}.tsx
+          {pinnedFile ?? `projects/${slug}/screens/${screenId}.tsx`}
         </span>
         {peerCount > 1 ? (
           <span className="text-12 text-caption dark:text-neutral-400">

@@ -104,7 +104,21 @@ if (fresh) {
 
 const child = spawn(
   'npx',
-  ['next', 'dev', '--turbo', '-p', String(PORT), ...passthrough],
+  // NOT `--turbo`. Design mode's source-mapping loader (platform/design/stamp.cjs)
+  // is a webpack loader, and Turbopack does not run webpack loaders — so on
+  // Turbopack the `data-src` stamps exist in `next build` and are absent from
+  // the dev server, which is the ONLY place design mode runs. Every build-time
+  // check passed while the feature was dead where it is actually used.
+  //
+  // `experimental.turbo.rules` was tried and is not a way out: a rule keyed on
+  // `*.tsx` replaces Turbopack's own handling of those files rather than adding
+  // to it, so TSX stops being parsed as TSX ("Parsing ecmascript source code
+  // failed" on app/layout.tsx). Getting this back needs an SWC plugin, not a
+  // loader.
+  //
+  // The cost is dev compile speed. Revisit if Turbopack grows a pre-transform
+  // hook, or if the stamping moves to SWC.
+  ['next', 'dev', '-p', String(PORT), ...passthrough],
   { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' },
 )
 

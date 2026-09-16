@@ -1,5 +1,5 @@
 // =============================================================================
-// Edit · FunDS component prop vocabulary.
+// Design · FunDS component prop vocabulary.
 //
 // Hand-maintained from the component sources (the unions in
 // design-system/components/*.tsx are the truth; this map is their menu form).
