@@ -54,6 +54,12 @@ export const project: ProjectModule = {
       states: journeyStates,
     },
     {
+      id: 'home-b',
+      title: 'Beranda B — Satu garis waktu',
+      component: lazyScreen(() => import('./screens/home-b'), 'HomeBScreen'),
+      states: journeyStates,
+    },
+    {
       id: 'riwayat',
       title: 'Riwayat angsuran',
       component: lazyScreen(() => import('./screens/riwayat'), 'RiwayatScreen'),
