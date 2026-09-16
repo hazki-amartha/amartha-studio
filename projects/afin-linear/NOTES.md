@@ -5,6 +5,7 @@ Project-local components (design system has no equivalent):
 - `HomeShell` (`lib/ui.tsx`) — the real AFin home around the cards, copied from `afin-weekly-checkin` / `amarthafin-live`. Unwired.
 - `Stat` (`lib/ui.tsx`) — stat tile on the riwayat summary.
 - `RewardCard` / `Checklist` / `CheckRow` (`screens/home.tsx`) — purple gradient frame with progress and amounts, and the white "Pertahankan kelancaran" checklist panel of the two home cards.
+- `LaneLabel` / `Prize` / `RewardDetail` / `Row` (`screens/home-b.tsx`) — the two-lane 48-week axis of Beranda B, its per-milestone prize tile, and the hue-coded detail card under it.
 - `MemberRow` (`screens/majelis.tsx`) — one mitra in the majelis roster, with payment pill; after `afin-milestone-journey`.
 - `WeekTile` (`screens/riwayat.tsx`) — one week of repayment history, with an absence dot.
 
