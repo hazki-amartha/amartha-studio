@@ -187,6 +187,13 @@ export type StructuralEdit =
   | InsertEdit
   | WrapEdit
   | UnwrapEdit
+/** A structural edit as the overlay draws it: with the file version its
+ *  addresses were read under, so it is never drawn against a newer file. */
+export interface Staged {
+  edit: StructuralEdit
+  version?: string
+}
+
 export type ValueEdit = ClassEdit | TextEdit | PropEdit | StackEdit
 export type Edit = ValueEdit | StructuralEdit
 

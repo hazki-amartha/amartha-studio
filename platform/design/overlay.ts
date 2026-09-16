@@ -25,7 +25,7 @@
 // =============================================================================
 
 import { ensurePreview, previewOf } from './preview'
-import { isNewRef, NEW_PREFIX, type Place, type Src, type StructuralEdit } from './protocol'
+import { isNewRef, NEW_PREFIX, type Place, type Src, type Staged } from './protocol'
 
 export const HIDDEN_ATTR = 'data-design-hidden'
 export const GHOST_ATTR = 'data-design-ghost'
@@ -162,6 +162,23 @@ function place(node: Element, to: Place): boolean {
   return true
 }
 
+/** Whether every real address `op` names is on screen at `version`. */
+function current(r: Element, op: Staged['edit'], version: string): boolean {
+  const srcs =
+    op.kind === 'move'
+      ? [op.src, 'before' in op.to ? op.to.before : 'after' in op.to ? op.to.after : op.to.inside]
+      : op.kind === 'insert'
+        ? ['before' in op.to ? op.to.before : 'after' in op.to ? op.to.after : op.to.inside]
+        : op.kind === 'wrap'
+          ? op.srcs
+          : [op.src]
+  return srcs.every((src) => {
+    if (isNewRef(src)) return true
+    const el = r.querySelector(q(src))
+    return !el || el.getAttribute('data-src-v') === version
+  })
+}
+
 /** A drawing of something the list creates, marked with the id it chose. */
 function fresh(html: string | undefined, id: string): Element {
   const t = document.createElement('template')
@@ -178,12 +195,17 @@ function fresh(html: string | undefined, id: string): Element {
  * `onPreview` is called when an insert's markup, not yet rendered, becomes
  * available — the caller redraws then.
  */
-export function renderOverlay(ops: readonly StructuralEdit[], onPreview: () => void = () => {}): void {
+export function renderOverlay(staged: readonly Staged[], onPreview: () => void = () => {}): void {
   const r = root()
   if (!r) return
   clear(r)
 
-  for (const op of ops) {
+  for (const { edit: op, version } of staged) {
+    // Positions are only meaningful in the file version they were read from.
+    // An op from an older version — the file has been written since — is left
+    // undrawn rather than applied to whatever now sits at its line.
+    if (version && !current(r, op, version)) continue
+
     if (op.kind === 'insert') {
       const html = previewOf(op)
       if (html === undefined) ensurePreview(op, onPreview)
@@ -250,7 +272,7 @@ export function renderOverlay(ops: readonly StructuralEdit[], onPreview: () => v
  * who made a change, but it can tell a clone being added from a real node.
  */
 export function watchOverlay(
-  getOps: () => readonly StructuralEdit[],
+  getOps: () => readonly Staged[],
   onRedraw: () => void,
   /** Whether anything is staged at all — value edits need repainting too. */
   active: () => boolean = () => getOps().length > 0,

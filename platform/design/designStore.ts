@@ -63,6 +63,7 @@ import {
   type InsertEdit,
   type Place,
   type Src,
+  type Staged,
   type StructuralEdit,
   type WrapEdit,
 } from './protocol'
@@ -91,8 +92,8 @@ export interface PendingRow {
 export interface DesignStoreState {
   /** Staged edits, in staging order — on `github`, applied ones too. */
   pending: PendingRow[]
-  /** Staged structural edits, in the order they apply — what the overlay draws. */
-  structure: StructuralEdit[]
+  /** Structural edits in the order they apply — what the overlay draws. */
+  structure: Staged[]
   /** Writes in flight. */
   busy: boolean
   /** Last refusal/failure, cleared by the next successful write. */
@@ -188,6 +189,18 @@ let onFlushed: (() => void) | null = null
 
 const ordered = () => Array.from(pending.entries()).sort((a, b) => a[1].seq - b[1].seq)
 
+/**
+ * `fs`: structure just written, still drawn until the screen reloads.
+ *
+ * Between a write and the fast refresh that shows it, the page still has the
+ * old markup; without these the moved card would jump back for that beat and
+ * read as the write having failed. They carry the OLD version, so the moment
+ * the reload restamps the file the overlay stops drawing them by itself —
+ * the time limit only tidies the list.
+ */
+let settling: (Staged & { until: number })[] = []
+const SETTLE_MS = 10_000
+
 function emit(next: Partial<DesignStoreState>) {
   const rows = ordered()
   state = {
@@ -199,7 +212,10 @@ function emit(next: Partial<DesignStoreState>) {
       screenId: p.screenId,
       applied: Boolean(p.applied),
     })),
-    structure: rows.flatMap(([, p]) => (isStructural(p.edit) ? [p.edit] : [])),
+    structure: [
+      ...settling.filter((x) => x.until > Date.now()),
+      ...rows.flatMap(([, p]) => (isStructural(p.edit) ? [{ edit: p.edit, version: p.version }] : [])),
+    ],
   }
   listeners.forEach((l) => l())
   persist()
@@ -843,9 +859,14 @@ export async function applyPending(): Promise<void> {
       error = outcome
       continue
     }
+    const now = Date.now()
+    settling = settling.filter((x) => x.until > now)
     for (const [key, p] of group) {
       if (state.backend === 'github') pending.set(key, { ...p, applied: true })
-      else pending.delete(key)
+      else {
+        pending.delete(key)
+        if (isStructural(p.edit)) settling.push({ edit: p.edit, version: p.version, until: now + SETTLE_MS })
+      }
     }
     if (outcome.undo) undo.push(outcome.undo)
   }
@@ -917,6 +938,9 @@ export async function undoLast(): Promise<void> {
   if (!entry) return
   emit({ busy: true, undo: state.undo.slice(0, -1) })
   const res = await sink({ slug: entry.slug, undo: entry.token })
+  // The file goes back to the version the settling moves were read under;
+  // drawn again, they would show a move that was just taken back.
+  if (res.ok) settling = []
   emit({
     busy: false,
     error: res.ok ? null : { label: `undo ${entry.label}`, reason: res.reason },
