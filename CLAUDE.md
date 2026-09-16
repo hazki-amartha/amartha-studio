@@ -468,12 +468,13 @@ studio.
 clean them up yourself. You may use a git worktree internally for parallel work,
 but a designer never sees or manages one — it is never part of their vocabulary.
 
-### Edit-mode tweaks — files can change without you
+### Design-mode tweaks — files can change without you
 
-The studio shell's **Edit mode** lets a designer tweak token values, text, and
+The studio shell's **Design mode** lets a designer tweak token values, text, and
 component props themselves; pressing **Apply** writes those tweaks straight
-into `projects/<slug>/` on the dev server. Treat them as the designer's own
-work, with three rules:
+into `projects/<slug>/` on the dev server. (It was called Edit mode until
+2026-09-16; the rules below are unchanged, the engine underneath is not.) Treat
+them as the designer's own work, with three rules:
 
 - **They ride commit and push silently.** "Commit it" includes whatever panel
   tweaks are in the working tree — don't quiz the designer about edits they
