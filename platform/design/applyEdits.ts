@@ -172,6 +172,8 @@ function applyProp(el: JSXElement, edit: PropEdit): Refusal | null {
     if (edit.old !== null) {
       return { edit, reason: `it has no ${edit.prop} to change` }
     }
+    // Absent, and asked to remove: already how it should be.
+    if (edit.next === null) return null
     open.attributes = open.attributes ?? []
     open.attributes.push(
       types.builders.jsxAttribute(
@@ -187,6 +189,13 @@ function applyProp(el: JSXElement, edit: PropEdit): Refusal | null {
   }
 
   const current = literalValue(attr)
+  if (edit.next === null) {
+    if (current !== null && current !== edit.old) {
+      return { edit, reason: `its ${edit.prop} is now "${current}", not "${edit.old}"` }
+    }
+    open.attributes = (open.attributes ?? []).filter((a) => a !== attr)
+    return null
+  }
   if (current === null) {
     return { edit, reason: `its ${edit.prop} is computed, so there is no single value to edit` }
   }

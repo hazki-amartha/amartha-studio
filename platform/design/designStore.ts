@@ -1,5 +1,5 @@
 // =============================================================================
-// Edit · the pending-edit store.
+// Design · the pending-edit store.
 //
 // NOTHING writes on its own. Every tweak — class, text, prop — stages into a
 // pending list, the optimistic DOM patch shows it live, and the file writes
@@ -32,7 +32,7 @@
 // written, so undo is purely unstaging.
 // =============================================================================
 
-import type { Edit, EditRequest, EditResponse } from './protocol'
+import type { DesignRequest, DesignResponse, Edit, Src } from './protocol'
 
 export interface UndoEntry {
   slug: string
@@ -46,7 +46,7 @@ export interface UndoEntry {
 /** Where Apply sends the list. See the header. */
 export type SinkMode = 'write' | 'record'
 
-export interface EditStoreState {
+export interface DesignStoreState {
   /** Staged edits not yet spent, in staging order. */
   pending: { key: string; label: string; screenId: string }[]
   /** Writes in flight. */
@@ -61,6 +61,10 @@ interface PendingEntry {
   slug: string
   screenId: string
   edit: Edit
+  /** For a prop edit: the FunDS component's name. Not part of the wire shape —
+   *  `src` already identifies the node — but `applyDom` needs it to repaint the
+   *  component optimistically, and the label reads better with it. */
+  component?: string
   label: string
   /** Monotonic touch order — "undo" on pending removes the last-touched knob. */
   seq: number
@@ -75,16 +79,16 @@ interface PendingEntry {
 
 let seq = 0
 
-type Sink = (req: EditRequest) => Promise<EditResponse>
+type Sink = (req: DesignRequest) => Promise<DesignResponse>
 
 const devSink: Sink = async (req) => {
   try {
-    const res = await fetch('/api/edit', {
+    const res = await fetch('/api/design', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(req),
     })
-    return (await res.json()) as EditResponse
+    return (await res.json()) as DesignResponse
   } catch {
     return { ok: false, reason: 'The studio server did not answer.' }
   }
@@ -93,7 +97,7 @@ const devSink: Sink = async (req) => {
 /** A built deployment has no source behind it, so it can only ever record. */
 const CAN_WRITE = process.env.NODE_ENV === 'development'
 
-let state: EditStoreState = {
+let state: DesignStoreState = {
   pending: [],
   busy: false,
   error: null,
@@ -105,7 +109,7 @@ const listeners = new Set<() => void>()
 /** Fires after every settled write batch — the panel uses it to re-pin. */
 let onFlushed: (() => void) | null = null
 
-function emit(next: Partial<EditStoreState>) {
+function emit(next: Partial<DesignStoreState>) {
   state = {
     ...state,
     ...next,
@@ -117,23 +121,23 @@ function emit(next: Partial<EditStoreState>) {
   persist()
 }
 
-export function subscribeEditStore(cb: () => void): () => void {
+export function subscribeDesignStore(cb: () => void): () => void {
   listeners.add(cb)
   return () => listeners.delete(cb)
 }
 
-export function getEditStoreState(): EditStoreState {
+export function getDesignStoreState(): DesignStoreState {
   return state
 }
 
-const serverSnapshot: EditStoreState = {
+const serverSnapshot: DesignStoreState = {
   pending: [],
   busy: false,
   error: null,
   undo: [],
   mode: 'record',
 }
-export function getEditStoreServerSnapshot(): EditStoreState {
+export function getDesignStoreServerSnapshot(): DesignStoreState {
   return serverSnapshot
 }
 
@@ -221,18 +225,20 @@ function familyOf(cls: string): string {
 // --- staging -----------------------------------------------------------------
 
 /**
- * Stage a class swap. `find` must be the FILE's class list for the element —
- * the caller reverses any still-pending optimistic swaps before passing it.
+ * Stage a class swap on the node at `src`.
+ *
+ * One knob per node per family: stepping `gap-12 → 16 → 20` updates the NEW
+ * value and keeps the ORIGINAL old one, because the file still holds the
+ * original until Apply. Stepping back to the original drops the entry.
  */
 export function stageClassEdit(
   slug: string,
   screenId: string,
-  find: string[],
+  src: Src,
   oldClass: string,
   newClass: string,
-  text: string,
 ) {
-  const key = `class|${find.join(' ')}|${familyOf(oldClass)}`
+  const key = `class|${src}|${familyOf(oldClass)}`
   const existing = pending.get(key)
   const originalOld =
     existing && existing.edit.kind === 'class' ? existing.edit.oldClass : oldClass
@@ -243,7 +249,7 @@ export function stageClassEdit(
     pending.set(key, {
       slug,
       screenId,
-      edit: { kind: 'class', find, oldClass: originalOld, newClass, text },
+      edit: { kind: 'class', src, oldClass: originalOld, newClass },
       label: `${originalOld} → ${newClass}`,
       seq: ++seq,
       patched: true,
@@ -252,18 +258,19 @@ export function stageClassEdit(
   emit({})
 }
 
-/** Stage a text replacement. `old` is the text as currently RENDERED — if a
- *  pending edit already produced it, the merge keeps that edit's original. */
-export function stageTextEdit(slug: string, screenId: string, old: string, next: string) {
-  let key = `text|${old}`
-  let originalOld = old
-  for (const [k, p] of pending) {
-    if (p.edit.kind === 'text' && p.edit.next === old) {
-      key = k
-      originalOld = p.edit.old
-      break
-    }
-  }
+/** Stage a text replacement on the node at `src`. `old` is the text as
+ *  currently RENDERED — if a pending edit already produced it, the merge keeps
+ *  that edit's original, so the file's value is what finally gets verified. */
+export function stageTextEdit(
+  slug: string,
+  screenId: string,
+  src: Src,
+  old: string,
+  next: string,
+) {
+  const key = `text|${src}`
+  const existing = pending.get(key)
+  const originalOld = existing && existing.edit.kind === 'text' ? existing.edit.old : old
 
   if (next === originalOld) {
     pending.delete(key)
@@ -271,7 +278,7 @@ export function stageTextEdit(slug: string, screenId: string, old: string, next:
     pending.set(key, {
       slug,
       screenId,
-      edit: { kind: 'text', old: originalOld, next },
+      edit: { kind: 'text', src, old: originalOld, next },
       label: `"${originalOld}" → "${next}"`,
       seq: ++seq,
       patched: true,
@@ -280,17 +287,18 @@ export function stageTextEdit(slug: string, screenId: string, old: string, next:
   emit({})
 }
 
-/** Stage a component prop change. `old` is the value currently rendered. */
+/** Stage a component prop change on the node at `src`. `old` is the value
+ *  currently rendered. */
 export function stagePropEdit(
   slug: string,
   screenId: string,
+  src: Src,
   component: string,
   prop: string,
   old: string,
   next: string,
-  text: string,
 ) {
-  const key = `prop|${component}|${prop}|${text}`
+  const key = `prop|${src}|${prop}`
   const existing = pending.get(key)
   const originalOld = existing && existing.edit.kind === 'prop' ? existing.edit.old : old
 
@@ -300,7 +308,8 @@ export function stagePropEdit(
     pending.set(key, {
       slug,
       screenId,
-      edit: { kind: 'prop', component, prop, old: originalOld, next, text },
+      edit: { kind: 'prop', src, prop, old: originalOld, next },
+      component,
       label: `${component} ${prop} ${originalOld} → ${next}`,
       seq: ++seq,
       patched: true,
@@ -311,17 +320,23 @@ export function stagePropEdit(
 
 /** Remove one staged edit by key, returning it so the caller can revert the
  *  optimistic DOM patch. */
-export function unstage(key: string): Edit | null {
+export interface Unstaged {
+  edit: Edit
+  /** Present for prop edits — `applyDom` needs it to repaint. */
+  component?: string
+}
+
+export function unstage(key: string): Unstaged | null {
   const entry = pending.get(key)
   if (!entry) return null
   pending.delete(key)
   emit({})
-  return entry.edit
+  return { edit: entry.edit, component: entry.component }
 }
 
 /** Remove the most recently touched staged edit — "undo" before anything has
  *  been written. */
-export function unstageLast(): Edit | null {
+export function unstageLast(): Unstaged | null {
   let last: { key: string; seq: number } | null = null
   for (const [key, p] of pending) {
     if (!last || p.seq > last.seq) last = { key, seq: p.seq }
@@ -367,20 +382,17 @@ export function changeListText(): string {
   let n = 0
   for (const screen of screens) {
     lines.push(`Screen \`${screen}\` — projects/${slug}/screens/${screen}.tsx`)
+    // `line:col` below is into this file.
 
     for (const row of rows.filter((r) => r.screenId === screen)) {
       n += 1
-      const where =
-        row.edit.kind === 'class'
-          ? row.edit.text
-            ? ` — on the element showing "${row.edit.text}"`
-            : ` — on the element with classes: ${row.edit.find.join(' ')}`
-          : row.edit.kind === 'prop'
-            ? row.edit.text
-              ? ` — the ${row.edit.component} showing "${row.edit.text}"`
-              : ` — the ${row.edit.component}`
-            : ''
-      lines.push(`  ${n}. ${row.label}${where}`)
+      // The address, not a description of the element. v1 had to say "the
+      // element showing X" because that was all it knew; `src` is the exact
+      // line and column, which is both shorter and unambiguous to whoever — or
+      // whatever — applies it on the other end.
+      const at = row.edit.src.split(':').slice(-2).join(':')
+      const what = row.component ? ` (${row.component})` : ''
+      lines.push(`  ${n}. line ${at} — ${row.label}${what}`)
     }
     lines.push('')
   }
@@ -405,61 +417,94 @@ export async function copyChangeList(): Promise<boolean> {
 
 // --- applying ----------------------------------------------------------------
 
+/** The edit that puts the file back. `src` is unchanged — the node did not
+ *  move, only its value did. */
 function inverseOf(edit: Edit): Edit {
-  if (edit.kind === 'text') return { kind: 'text', old: edit.next, next: edit.old }
-  if (edit.kind === 'prop') return { ...edit, old: edit.next, next: edit.old }
-  return {
-    kind: 'class',
-    find: edit.find.map((c) => (c === edit.oldClass ? edit.newClass : c)),
-    oldClass: edit.newClass,
-    newClass: edit.oldClass,
-    text: edit.text,
+  if (edit.kind === 'class') {
+    return { ...edit, oldClass: edit.newClass, newClass: edit.oldClass }
   }
+  if (edit.kind === 'text') {
+    return { ...edit, old: edit.next, next: edit.old }
+  }
+  // A prop edit is the only one whose inverse can change shape: the inverse of
+  // ADDING a prop (old: null) is REMOVING it (next: null).
+  return { ...edit, old: edit.next, next: edit.old }
 }
 
-async function runEdit(req: EditRequest, label: string): Promise<boolean> {
-  const res = await devSink(req)
-  if (res.ok) {
-    emit({
-      error: null,
-      undo: [
-        ...state.undo,
-        { slug: req.slug, screenId: req.screenId, inverse: inverseOf(req.edit), label },
-      ],
-    })
-    return true
-  }
-  emit({ error: { label, reason: res.reason } })
-  return false
-}
-
-/** Write every pending edit, in staging order. One press, one refresh.
- *  Never reachable in record mode — there is no server to write through. */
+/**
+ * Write every pending edit. One press, one batch, one fast refresh.
+ *
+ * The batch goes to the route as a single request and is applied ATOMICALLY:
+ * `applyEdits` verifies each edit's old value against the syntax tree and
+ * refuses the whole list on the first mismatch. The v1 route took one edit at a
+ * time, so a batch could half-apply and leave the file in a state nobody asked
+ * for — the panel would show three changes saved and a fourth refused, with the
+ * file somewhere in between.
+ *
+ * Edits are grouped by screen because a batch must name one file. In practice a
+ * pending list is almost always one screen; grouping just means the rare
+ * cross-screen list still behaves.
+ *
+ * Never reachable in record mode — there is no server to write through.
+ */
 export async function applyPending(): Promise<void> {
   if (pending.size === 0 || state.busy || state.mode !== 'write') return
-  const batch = Array.from(pending.values())
+  const batch = Array.from(pending.values()).sort((a, b) => a.seq - b.seq)
   pending.clear()
   emit({ busy: true })
 
-  for (const p of batch) {
-    await runEdit({ slug: p.slug, screenId: p.screenId, edit: p.edit }, p.label)
+  const groups = new Map<string, PendingEntry[]>()
+  for (const entry of batch) {
+    const key = `${entry.slug}|${entry.screenId}`
+    const group = groups.get(key)
+    if (group) group.push(entry)
+    else groups.set(key, [entry])
+  }
+
+  for (const group of groups.values()) {
+    const { slug, screenId } = group[0]
+    const label = group.length === 1 ? group[0].label : `${group.length} changes`
+    const res = await devSink({ slug, screenId, edits: group.map((g) => g.edit) })
+
+    if (res.ok) {
+      // One undo entry per applied edit, newest last, so Undo walks back one
+      // change at a time rather than unwinding a whole press.
+      emit({
+        error: null,
+        undo: [
+          ...state.undo,
+          ...group.map((g) => ({
+            slug: g.slug,
+            screenId: g.screenId,
+            inverse: inverseOf(g.edit),
+            label: g.label,
+          })),
+        ],
+      })
+    } else {
+      emit({ error: { label, reason: res.reason } })
+    }
   }
 
   emit({ busy: false })
   onFlushed?.()
 }
 
-/** Pop the newest applied edit and post its inverse. */
+/** Pop the newest applied edit and post its inverse — a batch of one. */
 export async function undoLast(): Promise<void> {
   const entry = state.undo[state.undo.length - 1]
   if (!entry || state.busy) return
   emit({ busy: true, undo: state.undo.slice(0, -1) })
-  const res = await devSink({ slug: entry.slug, screenId: entry.screenId, edit: entry.inverse })
+  const res = await devSink({
+    slug: entry.slug,
+    screenId: entry.screenId,
+    edits: [entry.inverse],
+  })
   if (!res.ok) emit({ error: { label: `undo ${entry.label}`, reason: res.reason } })
   emit({ busy: false })
   onFlushed?.()
 }
 
-export function clearEditError() {
+export function clearDesignError() {
   emit({ error: null })
 }

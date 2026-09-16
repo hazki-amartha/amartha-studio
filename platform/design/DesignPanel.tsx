@@ -45,34 +45,33 @@ import {
 import {
   applyClassSwap,
   applyPropPreview,
-  classPeers,
-  findRepin,
-  repinOf,
+  applyTextSwap,
+  findBySrc,
+  peersOf,
   revertStagedPatch,
-  type Repin,
+  srcOf,
 } from './applyDom'
 import { COMPONENT_PROPS } from './componentProps'
 import {
   applyPending,
-  clearEditError,
+  clearDesignError,
   copyChangeList,
-  fileClassesOf,
-  getEditStoreServerSnapshot,
-  getEditStoreState,
+  getDesignStoreServerSnapshot,
+  getDesignStoreState,
   restoreChanges,
   setOnFlushed,
   setSinkMode,
   stageClassEdit,
   stagePropEdit,
   stageTextEdit,
-  subscribeEditStore,
+  subscribeDesignStore,
   undoLast,
   unstage,
   unstageLast,
-} from './editStore'
+} from './designStore'
 import type { Edit } from './protocol'
 
-export interface EditPanelProps {
+export interface DesignPanelProps {
   pinned: Element | null
   onPin: (el: Element | null) => void
   slug: string
@@ -219,19 +218,19 @@ function Stepper({
 
 // --- the panel ---------------------------------------------------------------
 
-export function EditPanel({
+export function DesignPanel({
   pinned,
   onPin,
   slug,
   screenId,
   className,
   onMinimize,
-}: EditPanelProps) {
+}: DesignPanelProps) {
   const shell = { title: 'Edit', onMinimize, className }
   const store = useSyncExternalStore(
-    subscribeEditStore,
-    getEditStoreState,
-    getEditStoreServerSnapshot,
+    subscribeDesignStore,
+    getDesignStoreState,
+    getDesignStoreServerSnapshot,
   )
 
   // Optimistic swaps mutate the DOM outside React's sight; bumping this after
@@ -254,8 +253,13 @@ export function EditPanel({
     return ancestorChain(pinned, root)
   }, [pinned])
 
+  // How many elements one write really changes: N for a `.map()`, 1 otherwise.
+  // Exact now that it counts by address rather than by identical className.
   const peerCount = useMemo(
-    () => (pinned ? classPeers(pinned).length : 0),
+    () => {
+      const src = pinned ? srcOf(pinned) : null
+      return src ? peersOf(src).length : 0
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pinned, version],
   )
@@ -263,7 +267,9 @@ export function EditPanel({
   // --- re-pin across fast refresh -------------------------------------------
   const pinnedRef = useRef<Element | null>(pinned)
   pinnedRef.current = pinned
-  const repinRef = useRef<Repin | null>(null)
+  /** The address of the pinned element, so it can be re-found after a write
+   *  remounts the screen. Survives fast refresh; the DOM node does not. */
+  const repinRef = useRef<string | null>(null)
 
   useEffect(() => {
     setOnFlushed(() => {
@@ -279,7 +285,7 @@ export function EditPanel({
           bump()
           return
         }
-        const found = findRepin(wanted)
+        const found = findBySrc(wanted)
         if (found) {
           clearInterval(iv)
           onPin(found)
@@ -297,12 +303,13 @@ export function EditPanel({
     (oldRendered: string, newClass: string) => {
       const el = pinnedRef.current
       if (!el || oldRendered === newClass) return
-      const rendered = Array.from(el.classList).filter((c) => !c.startsWith('ds-'))
-      const find = fileClassesOf(rendered)
-      const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)
-      stageClassEdit(slug, screenId, find, oldRendered, newClass, text)
-      applyClassSwap(el, oldRendered, newClass)
-      repinRef.current = repinOf(el)
+      // No address means the element came from design-system/ or platform/,
+      // which are never stamped. Unaddressable is unselectable (§ Vocabulary).
+      const src = srcOf(el)
+      if (!src) return
+      stageClassEdit(slug, screenId, src, oldRendered, newClass)
+      applyClassSwap(src, oldRendered, newClass)
+      repinRef.current = src
       bump()
     },
     [slug, screenId],
@@ -322,9 +329,11 @@ export function EditPanel({
     const next = draftText
     if (!el || next === oldText || next.trim().length === 0) return
     if (/[<>{}]/.test(next)) return
-    stageTextEdit(slug, screenId, oldText, next)
-    el.textContent = next
-    repinRef.current = repinOf(el)
+    const src = srcOf(el)
+    if (!src) return
+    stageTextEdit(slug, screenId, src, oldText, next)
+    applyTextSwap(src, next)
+    repinRef.current = src
     bump()
   }, [draftText, fullText, slug, screenId])
 
@@ -335,12 +344,13 @@ export function EditPanel({
     (component: string, prop: string, attr: string, next: string) => {
       const el = pinnedRef.current
       if (!el) return
+      const src = srcOf(el)
+      if (!src) return
       const old = el.getAttribute(`data-fds-${attr}`) ?? ''
       if (old === next) return
-      const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)
-      stagePropEdit(slug, screenId, component, prop, old, next, text)
-      applyPropPreview(el, component, prop, old, next)
-      repinRef.current = repinOf(el)
+      stagePropEdit(slug, screenId, src, component, prop, old, next)
+      for (const peer of peersOf(src)) applyPropPreview(peer, component, prop, old, next)
+      repinRef.current = src
       bump()
     },
     [slug, screenId],
@@ -348,12 +358,8 @@ export function EditPanel({
 
   // --- unstaging (pre-apply undo) --------------------------------------------
 
-  const revertEdit = useCallback((edit: Edit) => {
-    const attr =
-      edit.kind === 'prop'
-        ? (COMPONENT_PROPS[edit.component]?.find((p) => p.prop === edit.prop)?.attr ?? edit.prop)
-        : undefined
-    revertStagedPatch(edit, attr)
+  const revertEdit = useCallback((unstaged: { edit: Edit; component?: string }) => {
+    revertStagedPatch(unstaged.edit, unstaged.component)
     bump()
   }, [])
 
@@ -736,7 +742,7 @@ function ActionsFooter({
   store,
   onUndo,
 }: {
-  store: ReturnType<typeof getEditStoreState>
+  store: ReturnType<typeof getDesignStoreState>
   onUndo: () => void
 }) {
   const [copied, setCopied] = useState(false)
@@ -878,7 +884,7 @@ function StatusFooter({
         </button>
         <button
           type="button"
-          onClick={clearEditError}
+          onClick={clearDesignError}
           className="rounded-full px-12 py-4 text-12 text-red-700"
         >
           Dismiss

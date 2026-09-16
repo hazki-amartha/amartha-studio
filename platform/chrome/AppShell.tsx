@@ -17,11 +17,11 @@ import {
   subscribeInspectMode,
 } from '@/platform/runtime/inspectBridge'
 import {
-  getEditMode,
-  getEditServerSnapshot,
-  setEditMode,
-  subscribeEditMode,
-} from '@/platform/runtime/editBridge'
+  getDesignMode,
+  getDesignServerSnapshot,
+  setDesignMode,
+  subscribeDesignMode,
+} from '@/platform/runtime/designBridge'
 import {
   getBareMode,
   getBareServerSnapshot,
@@ -107,28 +107,28 @@ function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
     getInspectMode,
     getInspectServerSnapshot,
   )
-  const edit = useSyncExternalStore(subscribeEditMode, getEditMode, getEditServerSnapshot)
+  const design = useSyncExternalStore(subscribeDesignMode, getDesignMode, getDesignServerSnapshot)
 
   const base =
     'flex items-center gap-4 rounded-full px-12 py-4 text-12 transition-colors'
   const on = `${base} bg-neutral-white font-bold text-link shadow-sm dark:border dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50 dark:shadow-none`
   const off = `${base} text-caption hover:text-default dark:border dark:border-transparent dark:text-neutral-400 dark:hover:text-neutral-50`
 
-  const showingPrototype = !isFlow && !inspect && !edit
-  const showingInspect = !isFlow && inspect && !edit
-  const showingEdit = !isFlow && edit
+  const showingPrototype = !isFlow && !inspect && !design
+  const showingInspect = !isFlow && inspect && !design
+  const showingDesign = !isFlow && design
 
   const enterInspect = () => {
-    setEditMode(false)
+    setDesignMode(false)
     setInspectMode(true)
   }
   const enterEdit = () => {
     setInspectMode(false)
-    setEditMode(true)
+    setDesignMode(true)
   }
   const leaveModes = () => {
     setInspectMode(false)
-    setEditMode(false)
+    setDesignMode(false)
   }
 
   return (
@@ -155,8 +155,8 @@ function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
         <button
           type="button"
           onClick={enterEdit}
-          aria-current={showingEdit ? 'page' : undefined}
-          className={showingEdit ? on : off}
+          aria-current={showingDesign ? 'page' : undefined}
+          className={showingDesign ? on : off}
         >
           <EditIcon className="size-16" />
           Edit

@@ -1,7 +1,7 @@
 // =============================================================================
 // Design · edit protocol v2 — addressed by node, applied on the syntax tree.
 //
-// The difference from `platform/edit/protocol.ts`, which this will replace:
+// The difference from the v1 protocol this replaces:
 // that protocol found a JSX element by what it LOOKS LIKE (its class list, tie-
 // broken on rendered text) and refused whenever that matched more than one
 // place. Sound for swapping `gap-12` → `gap-16`; useless for "move this node",
@@ -46,17 +46,19 @@ export interface TextEdit {
 }
 
 /**
- * Change (or introduce) a prop on the addressed node.
+ * Change, introduce, or remove a prop on the addressed node.
  *
  * `old` is `null` when the prop is expected to be absent — which is how adding
- * one stays verifiable rather than becoming a blind write.
+ * one stays verifiable rather than becoming a blind write. `next` is `null` to
+ * remove it, which is what makes the inverse of an add expressible: without it,
+ * adding a prop would be the one edit in the protocol that could not be undone.
  */
 export interface PropEdit {
   kind: 'prop'
   src: Src
   prop: string
   old: string | null
-  next: string
+  next: string | null
 }
 
 export type Edit = ClassEdit | TextEdit | PropEdit
@@ -77,3 +79,18 @@ export interface Refusal {
  * reasons about.
  */
 export type ApplyResult = { ok: true; source: string } | { ok: false; refused: Refusal }
+
+// --- the wire shape between the panel and a backend ---------------------------
+
+/**
+ * One screen's worth of edits. Every edit's `src` must name the same file —
+ * `applyEdits` works on one source string, and a batch spanning two files could
+ * half-succeed, which is what atomicity exists to rule out.
+ */
+export interface DesignRequest {
+  slug: string
+  screenId: string
+  edits: Edit[]
+}
+
+export type DesignResponse = { ok: true; file: string } | { ok: false; reason: string }
