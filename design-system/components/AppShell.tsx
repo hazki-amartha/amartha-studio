@@ -151,6 +151,11 @@ export function SideNav({ items, activeId, collapsed, onSelect, footer }: SideNa
 }
 
 export type AppShellProps = {
+  /** Anything else lands on the outermost element. This is what carries design
+   *  mode's `data-src` through to the DOM; without it the shell renders but is
+   *  unaddressable, so it cannot be selected. */
+  [key: `data-${string}`]: unknown
+
   /**
    * The sidebar, as a function of the collapsed flag — the header hamburger
    * owns that state, so the nav has to be told rather than ask.
@@ -187,12 +192,13 @@ export function AppShell({
   canvas = 'tinted',
   contentClassName = 'px-24 pb-24 pt-16',
   children,
+  ...props
 }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false)
   const crumbs = breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null
 
   return (
-    <div className="ds-appshell" data-fds="AppShell">
+    <div className="ds-appshell" data-fds="AppShell" {...props}>
       <AppHeader onToggleSidebar={() => setCollapsed((c) => !c)} user={user} />
       <div className="ds-appshell-body">
         {sidebar(collapsed)}
