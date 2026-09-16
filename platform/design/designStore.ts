@@ -256,13 +256,23 @@ export function canWrite(s: DesignStoreState = state): boolean {
 export function setSinkMode(mode: SinkMode) {
   if (mode === 'write' && !canWrite()) return
   if (state.mode === mode) return
-  // Each mode has its own list; switching puts the current one away first.
-  // The mode changes WITHOUT an emit, because every emit persists — an emit
-  // here would save the emptied list over the one about to be read back.
-  persist()
-  pending.clear()
+  if (state.backend === 'github') {
+    // On the link the two lists mean different things — one is saved to a
+    // branch, one is a note to send on — so each is put away and read back
+    // whole. The mode changes WITHOUT an emit, because every emit persists:
+    // an emit here would save the emptied list over the one about to load.
+    persist()
+    pending.clear()
+    state = { ...state, mode, error: null }
+    loadFromStorage()
+    return
+  }
+  // On the dev server the list carries across, as it always has: a staged
+  // tweak can be collected instead of written, and a collected one applied.
+  // Switching INTO collecting also picks up whatever was collected before.
   state = { ...state, mode, error: null }
-  loadFromStorage()
+  if (mode === 'record') loadFromStorage()
+  else emit({})
 }
 
 /** Remember who is editing, on this browser. */
@@ -390,6 +400,8 @@ function loadFromStorage() {
       const rows = Array.isArray(parsed) ? parsed : parsed.rows
       pushed = !Array.isArray(parsed) && parsed.pushed
       for (const { key: k, ...row } of rows) {
+        // What is already staged here is newer, and already painted.
+        if (pending.has(k)) continue
         // Restored entries are listed but NOT on the DOM — the screen they
         // belong to may not even be mounted.
         pending.set(k, { ...row, patched: false })
