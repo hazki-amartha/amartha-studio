@@ -7,15 +7,53 @@
 // refuse anyway, and stages it — the overlay draws the result from there.
 // =============================================================================
 
-import { srcOf, peersOf } from './applyDom'
-import { fileOf, stageStructuralEdit, type StageContext } from './designStore'
-import { GHOST_ATTR, isHidden } from './overlay'
-import type { Place, Src } from './protocol'
-import { CONTAINER_COMPONENTS, LEAF_COMPONENTS, VOID_TAGS } from './vocabulary'
+import { applyLayoutPatch, srcOf, peersOf } from './applyDom'
+import { catalogItem } from './catalog'
+import {
+  fileOf,
+  fileOfEdit,
+  newEdit,
+  newId,
+  removeNew,
+  stageStackEdit,
+  stageStructuralEdit,
+  updateNew,
+  type StageContext,
+} from './designStore'
+import { layoutOf, withLayout, type Layout } from './layout'
+import { GHOST_ATTR, isHidden, NEW_ATTR } from './overlay'
+import { NEW_PREFIX, type InsertEdit, type Place, type Src, type WrapEdit } from './protocol'
+import { pinAfterRedraw } from './selection'
+import { BOX_TAGS, CONTAINER_COMPONENTS, LEAF_COMPONENTS } from './vocabulary'
+
+/** What an element is called in an edit: its address, or `new:<id>` for one
+ *  the list creates. */
+export function addressOf(el: Element): Src | null {
+  const src = srcOf(el)
+  if (src) return src
+  const id = el.getAttribute(NEW_ATTR)
+  return id ? `${NEW_PREFIX}${id}` : null
+}
+
+/** The file an element's edits land in. */
+export function fileOfElement(el: Element): string | null {
+  const src = srcOf(el)
+  if (src) return fileOf(src)
+  const id = el.getAttribute(NEW_ATTR)
+  const maker = id ? newEdit(id) : undefined
+  return maker ? fileOfEdit(maker) : null
+}
+
+/** The file version to send with an edit made from `el`: its own, or, for a
+ *  new element, the version of the nearest addressed element around it. */
+function versionOf(el: Element): string | undefined {
+  const v = el.getAttribute('data-src-v') ?? el.closest('[data-src-v]')?.getAttribute('data-src-v')
+  return v ?? undefined
+}
 
 /** What the panel needs to stage: project, screen, and the file version. */
 export function stageContext(el: Element, slug: string, screenId: string): StageContext {
-  return { slug, screenId, version: el.getAttribute('data-src-v') ?? undefined }
+  return { slug, screenId, version: versionOf(el) }
 }
 
 /**
@@ -49,10 +87,9 @@ export function describe(el: Element): string {
   return `${name} “${text.length > 18 ? `${text.slice(0, 17)}…` : text}”`
 }
 
-const usable = (el: Element, file: string): boolean => {
-  const src = srcOf(el)
-  return Boolean(src && fileOf(src) === file && !isHidden(el) && el.getAttribute(GHOST_ATTR) !== 'copy')
-}
+const usable = (el: Element, file: string): boolean =>
+  fileOfElement(el) === file && !isHidden(el) && el.getAttribute(GHOST_ATTR) !== 'copy'
+
 
 /**
  * The neighbour a one-step move goes past, as a place — or null at either end.
@@ -62,15 +99,14 @@ const usable = (el: Element, file: string): boolean => {
  * stepped over rather than treated as a place the write could name.
  */
 export function stepPlace(el: Element, dir: -1 | 1): { to: Place; past: Element } | null {
-  const src = srcOf(el)
-  if (!src) return null
-  const file = fileOf(src)
+  const file = fileOfElement(el)
+  if (!file) return null
   let sib = dir < 0 ? el.previousElementSibling : el.nextElementSibling
   while (sib && !usable(sib, file)) {
     sib = dir < 0 ? sib.previousElementSibling : sib.nextElementSibling
   }
   if (!sib) return null
-  const at = srcOf(sib) as Src
+  const at = addressOf(sib) as Src
   return { to: dir < 0 ? { before: at } : { after: at }, past: sib }
 }
 
@@ -105,6 +141,7 @@ export function moveTo(
 }
 
 export function removeElement(el: Element, slug: string, screenId: string): boolean {
+  if (el.hasAttribute(NEW_ATTR)) return removeNewElement(el)
   const src = srcOf(el)
   if (!src || structuralBlock(el, slug)) return false
   stageStructuralEdit(stageContext(el, slug, screenId), { kind: 'delete', src }, `Delete ${describe(el)}`)
@@ -123,14 +160,14 @@ export function duplicateElement(el: Element, slug: string, screenId: string): b
 }
 
 /**
- * Whether a drop INTO `el` would be accepted — the client twin of `canHold` in
- * structure.ts, judged from the DOM. A component is judged by its name, an
- * HTML element by its tag.
+ * Whether the panel offers a drop INTO `el` — the client twin of `canHold` in
+ * structure.ts, judged from the DOM, and a little stricter (see BOX_TAGS). A
+ * component is judged by its name, an HTML element by its tag.
  */
 export function canHoldDom(el: Element): boolean {
   const fds = el.getAttribute('data-fds')
   if (fds) return CONTAINER_COMPONENTS.includes(fds) || !LEAF_COMPONENTS.includes(fds)
-  return !VOID_TAGS.includes(el.tagName.toLowerCase())
+  return BOX_TAGS.includes(el.tagName.toLowerCase())
 }
 
 /**
@@ -144,18 +181,205 @@ export function layersDrag(slug: string, screenId: string) {
     canDrag: (el: Element) => structuralBlock(el, slug) === null,
     accepts: (dragged: Element, target: Element, where: Where) => {
       const from = srcOf(dragged)
-      const to = srcOf(target)
-      if (!from || !to || fileOf(from) !== fileOf(to)) return false
+      const to = addressOf(target)
+      if (!from || !to || fileOf(from) !== fileOfElement(target)) return false
       if (target.getAttribute(GHOST_ATTR) === 'copy' || isHidden(target)) return false
       if (where === 'inside') return canHoldDom(target)
       return target.getAttribute('data-fds') !== 'Screen'
     },
     onDrop: (dragged: Element, target: Element, where: Where) => {
-      const to = srcOf(target)
+      const to = addressOf(target)
       if (!to) return
       const place: Place =
         where === 'inside' ? { inside: to } : where === 'before' ? { before: to } : { after: to }
       moveTo(dragged, place, target, slug, screenId)
     },
   }
+}
+
+// --- D3: insert, wrap, unwrap ---------------------------------------------------
+
+/**
+ * Where an Insert-panel click puts things: inside the selection when it can
+ * hold children, right after it otherwise, and at the end of the screen when
+ * nothing is selected.
+ */
+export function insertPlace(pinned: Element | null, slug: string): { to: Place; near: Element; how: string } | null {
+  const inProject = (el: Element) => (fileOfElement(el) ?? '').startsWith(`projects/${slug}/`)
+  if (pinned && inProject(pinned) && !isHidden(pinned) && pinned.getAttribute(GHOST_ATTR) !== 'copy') {
+    const at = addressOf(pinned)
+    if (at) {
+      if (canHoldDom(pinned)) return { to: { inside: at }, near: pinned, how: 'inside' }
+      if (pinned.getAttribute('data-fds') !== 'Screen') return { to: { after: at }, near: pinned, how: 'below' }
+    }
+  }
+  const screen = Array.from(document.querySelectorAll('[data-inspect] [data-fds="Screen"][data-src]')).find(
+    (el) => inProject(el) && !isHidden(el),
+  )
+  const at = screen ? addressOf(screen) : null
+  return screen && at ? { to: { inside: at }, near: screen, how: 'at the end of' } : null
+}
+
+export function insertItem(
+  key: string,
+  to: Place,
+  near: Element,
+  slug: string,
+  screenId: string,
+  icon?: string,
+): string | null {
+  const item = catalogItem(key)
+  if (!item) return null
+  const id = newId()
+  stageStructuralEdit(
+    stageContext(near, slug, screenId),
+    { kind: 'insert', id, to, item: key, icon, props: { ...item.props } },
+    `Add ${icon ?? item.label} ${'inside' in to ? 'into' : 'before' in to ? 'above' : 'below'} ${describe(near)}`,
+  )
+  pinAfterRedraw(`${NEW_PREFIX}${id}`)
+  return id
+}
+
+/** Whether children of `el` flow left-to-right. */
+export function isRow(el: Element | null): boolean {
+  if (!el) return false
+  const s = getComputedStyle(el)
+  return s.display.includes('flex') && s.flexDirection.startsWith('row')
+}
+
+/**
+ * The selection in document order, if it can be wrapped: all in one parent,
+ * side by side, from one file. Otherwise the reason it can't.
+ */
+export function wrappable(els: Element[], slug: string): Element[] | string {
+  if (els.length === 0) return 'Select something first.'
+  for (const el of els) {
+    const blocked = el.hasAttribute(NEW_ATTR) ? null : structuralBlock(el, slug)
+    if (blocked) return blocked
+  }
+  const sorted = [...els].sort((a, b) =>
+    a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+  )
+  const parent = sorted[0].parentElement
+  const file = fileOfElement(sorted[0])
+  if (sorted.some((e) => e.parentElement !== parent || fileOfElement(e) !== file)) {
+    return 'Only elements side by side in the same container can be wrapped together.'
+  }
+  // Nothing addressable between them that isn't selected.
+  let at: Element | null = sorted[0]
+  const last = sorted[sorted.length - 1]
+  while (at && at !== last) {
+    at = at.nextElementSibling
+    if (at && file && usable(at, file) && !sorted.includes(at)) {
+      return 'Only elements side by side can be wrapped together — something else sits between them.'
+    }
+  }
+  return sorted
+}
+
+export function wrapElements(els: Element[], slug: string, screenId: string): string | null {
+  const sorted = wrappable(els, slug)
+  if (typeof sorted === 'string') return null
+  const srcs = sorted.map(addressOf).filter((s): s is Src => s !== null)
+  if (srcs.length !== sorted.length) return null
+  const id = newId()
+  const className = isRow(sorted[0].parentElement) ? 'flex items-center gap-8' : 'flex flex-col gap-12'
+  stageStructuralEdit(
+    stageContext(sorted[0], slug, screenId),
+    { kind: 'wrap', id, srcs, className },
+    sorted.length === 1 ? `Wrap ${describe(sorted[0])} in a stack` : `Wrap ${sorted.length} elements in a stack`,
+  )
+  pinAfterRedraw(`${NEW_PREFIX}${id}`)
+  return id
+}
+
+/** Whether `el` is a plain wrapper that unwrap would accept. */
+export function unwrappable(el: Element, slug: string): boolean {
+  if (structuralBlock(el, slug) || el.hasAttribute(NEW_ATTR)) return false
+  if (el.tagName !== 'DIV' || el.hasAttribute('data-fds')) return false
+  return Array.from(el.children).some((k) => !isHidden(k))
+}
+
+export function unwrapElement(el: Element, slug: string, screenId: string): boolean {
+  const src = srcOf(el)
+  if (!src || !unwrappable(el, slug)) return false
+  stageStructuralEdit(stageContext(el, slug, screenId), { kind: 'unwrap', src }, `Unwrap ${describe(el)}`)
+  return true
+}
+
+/** Delete, for a new element: take it — and whatever depends on it — off the list. */
+export function removeNewElement(el: Element): boolean {
+  const id = el.getAttribute(NEW_ATTR)
+  if (!id) return false
+  removeNew(id)
+  return true
+}
+
+// --- D3: stack layout ------------------------------------------------------------
+
+/**
+ * Change an element's auto layout — the one path for the panel's knobs and
+ * the canvas gap handles. A written element stages a `stack` edit and repaints
+ * now; a new one has the class list in its staged definition rewritten.
+ */
+export function setLayout(el: Element, patch: Partial<Layout>, slug: string, screenId: string): void {
+  const current = layoutOf(Array.from(el.classList))
+  const next = { ...current, ...patch }
+  if (next.direction === null) {
+    next.gap = null
+    next.align = null
+    next.justify = null
+  }
+  const id = el.getAttribute(NEW_ATTR)
+  if (id) {
+    updateNew(id, (e) => withClassName(e, (classes) => withLayout(classes, next)))
+    return
+  }
+  const src = srcOf(el)
+  if (!src) return
+  stageStackEdit(stageContext(el, slug, screenId), src, current, next, `${describe(el)} layout`)
+  applyLayoutPatch(src, next)
+}
+
+function withClassName(
+  e: InsertEdit | WrapEdit,
+  change: (classes: string[]) => string[],
+): InsertEdit | WrapEdit {
+  const split = (s: string | undefined) => (s ?? '').split(/\s+/).filter(Boolean)
+  if (e.kind === 'wrap') return { ...e, className: change(split(e.className)).join(' ') }
+  const className = change(split(e.props.className)).join(' ')
+  const props = { ...e.props }
+  if (className) props.className = className
+  else delete props.className
+  return { ...e, props }
+}
+
+/**
+ * The gaps between a stack's children, in page coordinates — what the canvas
+ * handles are drawn over. Empty unless `el` is a stack with two or more
+ * visible children.
+ */
+export function gapsOf(el: Element): { rect: DOMRect; row: boolean }[] {
+  const layout = layoutOf(Array.from(el.classList))
+  if (!layout.direction) return []
+  const row = layout.direction === 'row'
+  const kids = Array.from(el.children).filter((k) => {
+    if (isHidden(k)) return false
+    const r = k.getBoundingClientRect()
+    return r.width > 0 && r.height > 0
+  })
+  const box = el.getBoundingClientRect()
+  const out: { rect: DOMRect; row: boolean }[] = []
+  for (let i = 1; i < kids.length; i++) {
+    const a = kids[i - 1].getBoundingClientRect()
+    const b = kids[i].getBoundingClientRect()
+    if (row) {
+      const w = Math.max(b.left - a.right, 4)
+      out.push({ rect: new DOMRect(b.left - w, box.top, w, box.height), row })
+    } else {
+      const h = Math.max(b.top - a.bottom, 4)
+      out.push({ rect: new DOMRect(box.left, b.top - h, box.width, h), row })
+    }
+  }
+  return out
 }

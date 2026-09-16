@@ -24,7 +24,7 @@ const b = types.builders
 
 export type JSXElement = types.namedTypes.JSXElement
 export type JSXParent = types.namedTypes.JSXElement | types.namedTypes.JSXFragment
-type JSXChild = NonNullable<JSXParent['children']>[number]
+export type JSXChild = NonNullable<JSXParent['children']>[number]
 
 export function tagName(el: JSXElement): string | null {
   const name = el.openingElement.name
@@ -59,12 +59,27 @@ export function isLayoutText(c: JSXChild): boolean {
   return n.JSXText.check(c) && /^\s*$/.test(c.value) && c.value.includes('\n')
 }
 
-function isElementish(c: JSXChild): boolean {
+export function isElementish(c: JSXChild): boolean {
   return !isLayoutText(c)
 }
 
+/**
+ * Where indentation comes from.
+ *
+ * `lines` is the original file; `placed` records the indentation every node
+ * was given when this batch attached it somewhere. A node the batch created
+ * has no line of its own, and a node the batch moved still carries its OLD
+ * line — in both cases what it was given is the truth.
+ */
+export interface Indent {
+  lines: string[]
+  placed: WeakMap<object, string>
+}
+
 /** The indentation a child of `parent` should carry, from its siblings. */
-function childIndent(parent: JSXParent, lines: string[]): string {
+function childIndent(parent: JSXParent, ind: Indent): string {
+  const given = ind.placed.get(parent)
+  if (given !== undefined) return `${given}  `
   const kids = parent.children ?? []
   for (let i = 1; i < kids.length; i++) {
     const ws = kids[i - 1]
@@ -73,16 +88,21 @@ function childIndent(parent: JSXParent, lines: string[]): string {
       if (m) return m[1]
     }
   }
-  return `${lineIndent(parent, lines)}  `
+  return `${lineIndent(parent, ind)}  `
 }
 
 /** The indentation of the line `node` starts on. */
-function lineIndent(node: types.ASTNode & { loc?: types.namedTypes.SourceLocation | null }, lines: string[]): string {
-  const line = node.loc ? lines[node.loc.start.line - 1] : undefined
+export function lineIndent(
+  node: types.ASTNode & { loc?: types.namedTypes.SourceLocation | null },
+  ind: Indent,
+): string {
+  const given = ind.placed.get(node)
+  if (given !== undefined) return given
+  const line = node.loc ? ind.lines[node.loc.start.line - 1] : undefined
   return line ? (/^[ \t]*/.exec(line)?.[0] ?? '') : ''
 }
 
-const ws = (indent: string) => b.jsxText(`\n${indent}`)
+export const ws = (indent: string) => b.jsxText(`\n${indent}`)
 
 /**
  * Take `el` out of `parent`, with the one line-break text that belongs to it.
@@ -104,17 +124,21 @@ export function detach(parent: JSXParent, el: JSXElement): void {
 }
 
 /** Put `el` into `parent` immediately before `anchor`. */
-export function attachBefore(parent: JSXParent, anchor: JSXChild, el: JSXElement, lines: string[]) {
+export function attachBefore(parent: JSXParent, anchor: JSXChild, el: JSXChild, ind: Indent) {
   const kids = parent.children ?? []
   const i = kids.indexOf(anchor)
-  kids.splice(i, 0, el, ws(childIndent(parent, lines)))
+  const indent = childIndent(parent, ind)
+  ind.placed.set(el, indent)
+  kids.splice(i, 0, el, ws(indent))
 }
 
 /** Put `el` into `parent` immediately after `anchor`. */
-export function attachAfter(parent: JSXParent, anchor: JSXChild, el: JSXElement, lines: string[]) {
+export function attachAfter(parent: JSXParent, anchor: JSXChild, el: JSXChild, ind: Indent) {
   const kids = parent.children ?? []
   const i = kids.indexOf(anchor)
-  kids.splice(i + 1, 0, ws(childIndent(parent, lines)), el)
+  const indent = childIndent(parent, ind)
+  ind.placed.set(el, indent)
+  kids.splice(i + 1, 0, ws(indent), el)
 }
 
 /**
@@ -125,7 +149,7 @@ export function attachAfter(parent: JSXParent, anchor: JSXChild, el: JSXElement,
  * so `<div className="h-8" />` becomes a three-line element rather than
  * `<div className="h-8"><p>…</p></div>` on one line.
  */
-export function append(container: JSXElement, el: JSXElement, lines: string[]) {
+export function append(container: JSXElement, el: JSXChild, ind: Indent) {
   const open = container.openingElement
   if (open.selfClosing || !container.closingElement) {
     open.selfClosing = false
@@ -133,7 +157,8 @@ export function append(container: JSXElement, el: JSXElement, lines: string[]) {
   }
   container.children = container.children ?? []
   const kids = container.children
-  const indent = childIndent(container, lines)
+  const indent = childIndent(container, ind)
+  ind.placed.set(el, indent)
 
   let last = -1
   kids.forEach((c, i) => {
@@ -141,7 +166,7 @@ export function append(container: JSXElement, el: JSXElement, lines: string[]) {
   })
 
   if (last === -1) {
-    container.children = [ws(indent), el, ws(lineIndent(container, lines))]
+    container.children = [ws(indent), el, ws(lineIndent(container, ind))]
     return
   }
   kids.splice(last + 1, 0, ws(indent), el)
@@ -173,3 +198,43 @@ export function contains(root: types.ASTNode, target: types.ASTNode): boolean {
   })
   return found
 }
+
+/** The JSX element or fragment whose children hold `node` directly, or null. */
+export function parentOf(root: types.ASTNode, node: types.ASTNode): JSXParent | null {
+  let found: JSXParent | null = null
+  const check = (owner: JSXParent) => {
+    if ((owner.children ?? []).includes(node as JSXChild)) found = owner
+  }
+  types.visit(root, {
+    visitJSXElement(path) {
+      check(path.node)
+      if (found) return false
+      this.traverse(path)
+    },
+    visitJSXFragment(path) {
+      check(path.node)
+      if (found) return false
+      this.traverse(path)
+    },
+  })
+  return found
+}
+
+/** A JSX element built from scratch: `<tag a="b">text</tag>` or `<tag a="b" />`. */
+export function buildElement(
+  tag: string,
+  props: Record<string, string>,
+  children: JSXChild[] | null,
+): JSXElement {
+  const attrs = Object.entries(props).map(([k, v]) =>
+    b.jsxAttribute(b.jsxIdentifier(k), b.stringLiteral(v)),
+  )
+  const selfClosing = children === null
+  return b.jsxElement(
+    b.jsxOpeningElement(b.jsxIdentifier(tag), attrs, selfClosing),
+    selfClosing ? null : b.jsxClosingElement(b.jsxIdentifier(tag)),
+    children ?? [],
+  )
+}
+
+export const text = (value: string) => b.jsxText(value)

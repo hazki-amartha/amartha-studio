@@ -30,7 +30,14 @@
 // A single app instance is rendered in either mode (no duplicate screen state).
 // =============================================================================
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react'
 import type { DeviceKind, ProjectConfig, ScreenDef } from '@/platform/types'
 import {
   PrototypeProvider,
@@ -61,6 +68,8 @@ import {
 import { InspectLayer, InspectorPanel, LayersPanel } from '@/platform/inspect'
 import { DesignLayer, DesignPanel } from '@/platform/design'
 import { layersDrag } from '@/platform/design/actions'
+import { toggleSelected } from '@/platform/design/selection'
+import { refind } from '@/platform/design/overlay'
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '@/platform/chrome/icons'
 import { PanelPill, PanelShell } from '@/platform/chrome/SidePanel'
 import { DeviceFrame } from './DeviceFrame'
@@ -116,6 +125,7 @@ function AppViewport({
   design,
   pinned,
   onPin,
+  onRepin,
   preview,
 }: {
   device?: DeviceKind
@@ -124,6 +134,7 @@ function AppViewport({
   design?: boolean
   pinned?: Element | null
   onPin?: (el: Element | null) => void
+  onRepin?: (stale: Element) => void
   preview?: Element | null
 } = {}) {
   const { current } = useFlow()
@@ -140,10 +151,18 @@ function AppViewport({
           onPin={onPin}
           preview={preview}
           pick={design ? 'authored' : 'component'}
+          onShiftPick={design ? (el) => (pinned ? toggleSelected(el) : onPin(el)) : undefined}
+          onRepin={onRepin}
         />
       ) : null}
       {inspect && design && onPin && slug ? (
-        <DesignLayer slug={slug} screenId={current} pinned={pinned ?? null} onPin={onPin} />
+        <DesignLayer
+          slug={slug}
+          screenId={current}
+          pinned={pinned ?? null}
+          onPin={onPin}
+          onRepin={onRepin}
+        />
       ) : null}
     </div>
   )
@@ -410,6 +429,12 @@ function useInspectState() {
   )
   const design = useSyncExternalStore(subscribeDesignMode, getDesignMode, getDesignServerSnapshot)
   const [pinned, setPinned] = useState<Element | null>(null)
+  // Re-find a pin that left the screen — only while it is still the pin. See
+  // InspectLayer's `onRepin` for the race this closes.
+  const repin = useCallback(
+    (stale: Element) => setPinned((current) => (current === stale ? refind(stale) : current)),
+    [],
+  )
   // The layers outline's hovered row, highlighted in the device.
   const [preview, setPreview] = useState<Element | null>(null)
   const { current } = useFlow()
@@ -425,7 +450,7 @@ function useInspectState() {
     }
   }, [inspect, design])
 
-  return { inspect, design, pinned, setPinned, preview, setPreview, current }
+  return { inspect, design, pinned, setPinned, repin, preview, setPreview, current }
 }
 
 // --- the panel slots ---------------------------------------------------------
@@ -570,7 +595,7 @@ function panelSlots(a: SlotProps) {
  * in it rather than collapsing the grid.
  */
 function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
-  const { inspect, design, pinned, setPinned, preview, setPreview, current } = useInspectState()
+  const { inspect, design, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
   const picking = inspect || design
 
   const active = screens.find((s) => s.id === current)
@@ -611,6 +636,7 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
               design={design}
               pinned={pinned}
               onPin={setPinned}
+              onRepin={repin}
               preview={preview}
             />
           </DeviceFrame>
@@ -635,7 +661,7 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
  * they open from. Same panels, same controls — only the placement differs.
  */
 function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
-  const { inspect, design, pinned, setPinned, preview, setPreview, current } = useInspectState()
+  const { inspect, design, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
   const picking = inspect || design
 
   const active = screens.find((s) => s.id === current)
@@ -674,6 +700,7 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
               design={design}
               pinned={pinned}
               onPin={setPinned}
+              onRepin={repin}
               preview={preview}
             />
           </DeviceFrame>

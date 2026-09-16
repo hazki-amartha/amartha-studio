@@ -35,6 +35,8 @@ await build({
       `export { applyEdits } from './platform/design/applyEdits'`,
       `export { versionOf } from './platform/design/version'`,
       `export { tidyImports, restoreSemicolons } from './platform/design/tidy'`,
+      `export { layoutOf, withLayout, SPACING } from './platform/design/layout'`,
+      `export { spacingNames } from './platform/inspect/tokenMap'`,
     ].join('\n'),
     resolveDir: root,
     loader: 'ts',
@@ -46,7 +48,9 @@ await build({
   packages: 'external',
   logLevel: 'silent',
 })
-const { applyEdits, versionOf, tidyImports } = await import(pathToFileURL(outFile).href)
+const { applyEdits, versionOf, tidyImports, layoutOf, withLayout, SPACING, spacingNames } = await import(
+  pathToFileURL(outFile).href
+)
 process.on('exit', () => {
   rm(outFile, { force: true }).catch(() => {})
 })
@@ -574,6 +578,305 @@ test('structural edits leave every real screen parseable', async () => {
   assert.deepEqual(failures, [])
 })
 
+// ------------------------------------------------------------ stacks & insert (D3)
+
+const ICONS = new Set(['Coins', 'ArrowDown'])
+const withIcons = (source, edits) => applyEdits(source, edits, { icons: ICONS })
+
+test('layout: the spacing scale matches the inspector’s', () => {
+  assert.deepEqual(SPACING, spacingNames)
+})
+
+test('layout: reads and rewrites the four stack families in place', () => {
+  const classes = ['flex', 'flex-col', 'gap-12', 'px-16']
+  assert.deepEqual(layoutOf(classes), { direction: 'col', gap: '12', align: null, justify: null })
+  assert.deepEqual(
+    withLayout(classes, { direction: 'row', gap: '8', align: 'center', justify: 'between' }),
+    ['flex', 'items-center', 'justify-between', 'gap-8', 'px-16'],
+  )
+  assert.deepEqual(withLayout(['p-12'], { direction: 'col', gap: null, align: null, justify: null }), [
+    'flex',
+    'flex-col',
+    'p-12',
+  ])
+  // Added in Tailwind's order, so the lint rule has nothing to say.
+  assert.deepEqual(
+    withLayout(['mt-4', 'w-full', 'rounded-12', 'bg-neutral-white'], {
+      direction: 'row',
+      gap: '12',
+      align: 'center',
+      justify: null,
+    }),
+    ['mt-4', 'flex', 'w-full', 'items-center', 'gap-12', 'rounded-12', 'bg-neutral-white'],
+  )
+  assert.deepEqual(withLayout(['flex', 'gap-4'], { direction: null, gap: null, align: null, justify: null }), [])
+  // gap-x is not the uniform gap, and is left alone.
+  assert.equal(layoutOf(['flex', 'gap-x-4']).gap, null)
+})
+
+test('stack: sets direction, gap and alignment on the addressed element', () => {
+  const at = addresses(HOME)
+  const out = ok(
+    applyEdits(HOME, [
+      {
+        kind: 'stack',
+        src: at('Card', 0),
+        old: { direction: 'col', gap: '12', align: null, justify: null },
+        next: { direction: 'row', gap: '8', align: 'center', justify: null },
+      },
+    ]),
+  )
+  assert.match(out, /<Card className="flex items-center gap-8">/)
+  assert.equal(hunks(HOME, out), 1)
+})
+
+test('stack: refuses a stale layout and a computed className', () => {
+  const at = addresses(HOME)
+  const stale = applyEdits(HOME, [
+    {
+      kind: 'stack',
+      src: at('Card', 0),
+      old: { direction: 'row', gap: '12', align: null, justify: null },
+      next: { direction: 'col', gap: '12', align: null, justify: null },
+    },
+  ])
+  assert.equal(stale.ok, false)
+  assert.match(stale.refused.reason, /layout has changed/)
+})
+
+test('stack: an element with no className gets one', () => {
+  const at = addresses(HOME)
+  const out = ok(
+    applyEdits(HOME, [
+      {
+        kind: 'stack',
+        src: at('ul'),
+        old: { direction: null, gap: null, align: null, justify: null },
+        next: { direction: 'col', gap: '8', align: null, justify: null },
+      },
+    ]),
+  )
+  assert.match(out, /<ul className="flex flex-col gap-8">/)
+})
+
+test('insert: a Button after a card, on its own line, with its import', () => {
+  const at = addresses(HOME)
+  const out = ok(
+    withIcons(HOME, [
+      { kind: 'insert', id: 'a1', item: 'button', to: { after: at('Card', 1) }, props: { variant: 'primary', size: 'md' } },
+    ]),
+  )
+  assert.match(out, /      <\/Card>\n      <Button variant="primary" size="md">Tombol<\/Button>\n      \{show/)
+  // Button was already imported; nothing else changes.
+  assert.equal(hunks(HOME, out), 1)
+})
+
+test('insert: adds the import it needs, to the right module', () => {
+  const at = addresses(HOME)
+  const out = ok(
+    withIcons(HOME, [
+      { kind: 'insert', id: 'a1', item: 'list-row', to: { inside: at('Card', 0) }, props: { title: 'Saldo', description: 'Hari ini' } },
+      { kind: 'insert', id: 'a2', item: 'icon', icon: 'Coins', to: { before: at('Badge') }, props: { className: 'text-primary-500' } },
+    ]),
+  )
+  assert.match(out, /import \{ Badge, Button, Card, ListRow \} from '@\/design-system\/components'/)
+  assert.match(out, /import \{ Screen \} from '@\/platform\/primitives'\nimport \{ Coins \} from '@\/design-system\/icons'\n/)
+  assert.match(out, /        <span className="text-14">Two<\/span>\n        <ListRow title="Saldo" description="Hari ini" \/>\n      <\/Card>/)
+  assert.match(out, /      <Coins className="text-primary-500" \/>\n      <Badge/)
+})
+
+test('insert: builds a row and fills it in one batch', () => {
+  const at = addresses(HOME)
+  const out = ok(
+    withIcons(HOME, [
+      { kind: 'insert', id: 'row', item: 'row', to: { before: at('Card', 0) }, props: { className: 'flex items-center gap-8' } },
+      { kind: 'insert', id: 'b', item: 'button', to: { inside: 'new:row' }, props: { variant: 'secondary' }, text: 'Bayar' },
+      { kind: 'insert', id: 'i', item: 'icon', icon: 'Coins', to: { before: 'new:b' }, props: {} },
+      { kind: 'insert', id: 'c', item: 'text', to: { after: 'new:b' }, props: { className: 'text-12 text-caption' }, text: 'Lunas' },
+    ]),
+  )
+  assert.ok(
+    out.includes(`    <Screen>
+      <div className="flex items-center gap-8">
+        <Coins />
+        <Button variant="secondary">Bayar</Button>
+        <p className="text-12 text-caption">Lunas</p>
+      </div>
+      <Card className="flex flex-col gap-12">`),
+    out,
+  )
+})
+
+test('insert: a Card arrives holding a line of text, framed', () => {
+  const at = addresses(HOME)
+  const out = ok(withIcons(HOME, [{ kind: 'insert', id: 'k', item: 'card', to: { after: at('Badge') }, props: { className: 'flex flex-col gap-8' } }]))
+  assert.ok(
+    out.includes(`      <Card className="flex flex-col gap-8">
+        <p className="text-14 text-default">Isi kartu</p>
+      </Card>
+      <div className="h-8" />`),
+    out,
+  )
+})
+
+test('insert: refuses anything the panel could not have produced', () => {
+  const at = addresses(HOME)
+  const place = { after: at('Badge') }
+  const cases = [
+    { kind: 'insert', id: 'x', item: 'marquee', to: place, props: {} },
+    { kind: 'insert', id: 'x', item: 'button', to: place, props: { onClick: 'alert(1)' } },
+    { kind: 'insert', id: 'x', item: 'button', to: place, props: { variant: 'huge' } },
+    { kind: 'insert', id: 'x', item: 'stack', to: place, props: { className: 'p-[13px]' } },
+    { kind: 'insert', id: 'x', item: 'text', to: place, props: {}, text: '{secret}' },
+    { kind: 'insert', id: 'x', item: 'list-row', to: place, props: { title: 'a" onClick="x' } },
+    { kind: 'insert', id: 'x', item: 'icon', icon: 'NotAnIcon', to: place, props: {} },
+    { kind: 'insert', id: 'X!', item: 'text', to: place, props: {} },
+    { kind: 'insert', id: 'x', item: 'text', to: { inside: at('Button') }, props: {} },
+    { kind: 'insert', id: 'x', item: 'text', to: { inside: 'new:nope' }, props: {} },
+  ]
+  for (const edit of cases) {
+    const r = withIcons(HOME, [edit])
+    assert.equal(r.ok, false, JSON.stringify(edit))
+  }
+})
+
+test('wrap: consecutive siblings go into a stack, re-indented', () => {
+  const at = addresses(HOME)
+  const out = ok(
+    applyEdits(HOME, [{ kind: 'wrap', id: 'w', srcs: [at('Card', 0), at('Card', 1)], className: 'flex flex-col gap-12' }]),
+  )
+  assert.ok(
+    out.includes(`    <Screen>
+      <div className="flex flex-col gap-12">
+        <Card className="flex flex-col gap-12">
+          <span className="text-14">One</span>
+          <span className="text-14">Two</span>
+        </Card>
+        <Card className="gap-8">
+          <Button variant="primary" onClick={() => go('x')}>
+            Three
+          </Button>
+        </Card>
+      </div>
+      {show &&`),
+    out,
+  )
+})
+
+test('wrap: a single element, then something inserted into the new stack', () => {
+  const at = addresses(HOME)
+  const out = ok(
+    withIcons(HOME, [
+      { kind: 'wrap', id: 'w', srcs: [at('Badge')], className: 'flex items-center gap-8' },
+      { kind: 'insert', id: 't', item: 'text', to: { inside: 'new:w' }, props: {}, text: 'Baru' },
+    ]),
+  )
+  assert.ok(
+    out.includes(`      <div className="flex items-center gap-8">
+        <Badge intent="green">New</Badge>
+        <p>Baru</p>
+      </div>`),
+    out,
+  )
+})
+
+test('wrap: refuses elements that are not side by side', () => {
+  const at = addresses(HOME)
+  for (const srcs of [
+    [at('Card', 0), at('Badge')],
+    [at('Card', 1), at('Card', 0)],
+    [at('Card', 0), at('span', 0)],
+    [at('li')],
+  ]) {
+    const r = applyEdits(HOME, [{ kind: 'wrap', id: 'w', srcs, className: 'flex' }])
+    assert.equal(r.ok, false, srcs.join(' '))
+  }
+})
+
+test('unwrap: a plain stack gives its children to its parent', () => {
+  const src = `export function A() {
+  return (
+    <main>
+      <div className="flex flex-col gap-8">
+        <p>One</p>
+        <p>Two</p>
+      </div>
+      <p>Three</p>
+    </main>
+  )
+}
+`
+  const out = ok(applyEdits(src, [{ kind: 'unwrap', src: addresses(src)('div') }]))
+  assert.equal(
+    out,
+    `export function A() {
+  return (
+    <main>
+      <p>One</p>
+      <p>Two</p>
+      <p>Three</p>
+    </main>
+  )
+}
+`,
+  )
+})
+
+test('unwrap: refuses anything that is more than a layout wrapper', () => {
+  const at = addresses(HOME)
+  assert.equal(applyEdits(HOME, [{ kind: 'unwrap', src: at('Card', 0) }]).ok, false)
+  const clicky = `export function A() {
+  return (
+    <main>
+      <div className="flex" onClick={go}>
+        <p>One</p>
+      </div>
+    </main>
+  )
+}
+`
+  assert.equal(applyEdits(clicky, [{ kind: 'unwrap', src: addresses(clicky)('div') }]).ok, false)
+})
+
+test('wrap and unwrap round-trip to the original file', () => {
+  const at = addresses(HOME)
+  const wrapped = ok(applyEdits(HOME, [{ kind: 'wrap', id: 'w', srcs: [at('Card', 0), at('Card', 1)], className: 'flex' }]))
+  const back = ok(applyEdits(wrapped, [{ kind: 'unwrap', src: addresses(wrapped)('div', 0) }]))
+  assert.equal(back, HOME)
+})
+
+test('stack edits and inserts leave every real screen parseable', async () => {
+  const { glob } = await import('node:fs/promises')
+  const { parse } = require('@babel/parser')
+  const failures = []
+  let tried = 0
+  for await (const rel of glob('projects/**/*.tsx', { cwd: root })) {
+    if (!shouldStamp(join(root, rel), root)) continue
+    const source = await readFile(join(root, rel), 'utf8')
+    const stamped = stampSource(source, rel)
+    if (!stamped) continue
+    const srcs = [...stamped.code.matchAll(/data-src="([^"]+)"/g)].map((m) => m[1])
+    for (const src of srcs.slice(1, 4)) {
+      for (const edits of [
+        [{ kind: 'wrap', id: 'w', srcs: [src], className: 'flex flex-col gap-8' }],
+        [{ kind: 'insert', id: 'n', item: 'button', to: { after: src }, props: {} }],
+        [{ kind: 'insert', id: 'n', item: 'icon', icon: 'Coins', to: { before: src }, props: {} }],
+      ]) {
+        const r = withIcons(source, edits)
+        if (!r.ok) continue
+        tried++
+        try {
+          parse(r.source, { sourceType: 'module', plugins: ['typescript', 'jsx'] })
+        } catch (e) {
+          failures.push(`${edits[0].kind} ${src}: ${e.message}`)
+        }
+      }
+    }
+  }
+  assert.ok(tried > 200, `only ${tried} edits were applicable`)
+  assert.deepEqual(failures, [])
+})
+
 // ------------------------------------------------------- the fs backend (D2)
 //
 // The route itself, bundled and called in-process against a throwaway project
@@ -604,6 +907,9 @@ test('the dev route writes, refuses stale versions, and undoes', async () => {
   const rel = 'projects/demo/screens/home.tsx'
   await mkdir(join(dir, 'projects/demo/screens'), { recursive: true })
   await writeFile(join(dir, rel), HOME)
+  // The route reads icon names from the icon module's source.
+  await mkdir(join(dir, 'design-system/icons'), { recursive: true })
+  await writeFile(join(dir, 'design-system/icons/index.tsx'), 'export function Coins(p) {}\nexport function Bell(p) {}\n')
 
   const cwd = process.cwd()
   process.chdir(dir)
@@ -652,6 +958,40 @@ test('the dev route writes, refuses stale versions, and undoes', async () => {
 
     const wrongProject = await call({ slug: 'other', undo: second.undo })
     assert.equal(wrongProject.ok, false)
+
+    // D3 through the route: a new row, filled, anchored only by `new:` after
+    // the first edit — and an icon the module really exports, not one it doesn't.
+    await writeFile(join(dir, rel), HOME)
+    const built = await call({
+      slug: 'demo',
+      screenId: 'home',
+      version,
+      edits: [
+        { kind: 'insert', id: 'r', item: 'row', to: { after: at('Badge') }, props: { className: 'flex items-center gap-8' } },
+        { kind: 'insert', id: 'i', item: 'icon', icon: 'Bell', to: { inside: 'new:r' }, props: {} },
+        { kind: 'insert', id: 't', item: 'text', to: { inside: 'new:r' }, props: {}, text: 'Pengingat' },
+      ],
+    })
+    assert.equal(built.ok, true, built.reason)
+    const row = await readFile(join(dir, rel), 'utf8')
+    assert.match(row, /import \{ Bell \} from '@\/design-system\/icons'/)
+    assert.match(row, /<div className="flex items-center gap-8">\n        <Bell \/>\n        <p>Pengingat<\/p>\n      <\/div>/)
+
+    const fake = await call({
+      slug: 'demo',
+      screenId: 'home',
+      version: versionOf(row),
+      edits: [{ kind: 'insert', id: 'x', item: 'icon', icon: 'Skull', to: { after: 'projects/demo/screens/home.tsx:1:0' }, props: {} }],
+    })
+    assert.equal(fake.ok, false)
+
+    const orphan = await call({
+      slug: 'demo',
+      screenId: 'home',
+      version: versionOf(row),
+      edits: [{ kind: 'insert', id: 'x', item: 'text', to: { inside: 'new:r' }, props: {} }],
+    })
+    assert.equal(orphan.ok, false, 'a new: reference alone names no file')
   } finally {
     process.chdir(cwd)
     await rm(routeFile, { force: true })

@@ -1,9 +1,9 @@
 // =============================================================================
 // Design · the pending-edit store.
 //
-// NOTHING writes on its own. Every tweak — class, text, prop, and from D2 every
-// move, delete and duplicate — stages into a pending list, the optimistic
-// layer shows it live, and the file writes happen only when the designer
+// NOTHING writes on its own. Every tweak — class, text, prop, stack layout, and
+// every move, delete, duplicate, insert, wrap and unwrap — stages into a
+// pending list, the optimistic layer shows it live, and the file writes happen only when the designer
 // presses "Apply N changes". One press, one batch, one fast refresh: writing
 // per nudge reloaded the screen on every step of a stepper, which read as the
 // page breaking mid-thought.
@@ -38,14 +38,22 @@
 // Apply, undo just unstages the last-touched change.
 // =============================================================================
 
+import type { Layout } from './layout'
 import {
+  addressesOf,
+  isNewRef,
   isStructural,
+  NEW_PREFIX,
+  primaryAddress,
   type DesignRequest,
   type DesignResponse,
   type DesignUndoRequest,
   type Edit,
+  type InsertEdit,
+  type Place,
   type Src,
   type StructuralEdit,
+  type WrapEdit,
 } from './protocol'
 
 export interface UndoEntry {
@@ -241,6 +249,29 @@ export function fileOf(src: Src): string {
   return src.split(':').slice(0, -2).join(':')
 }
 
+/**
+ * The file an edit lands in. An edit that only names elements created in the
+ * same list (`new:<id>`) lands wherever the element that created them does.
+ */
+export function fileOfEdit(edit: Edit, seen = new Set<string>()): string {
+  for (const src of addressesOf(edit)) {
+    if (!isNewRef(src)) return fileOf(src)
+    const id = src.slice(NEW_PREFIX.length)
+    if (seen.has(id)) continue
+    seen.add(id)
+    const maker = creatorOf(id)
+    if (maker) return fileOfEdit(maker, seen)
+  }
+  return ''
+}
+
+function creatorOf(id: string): InsertEdit | WrapEdit | undefined {
+  for (const p of pending.values()) {
+    if ((p.edit.kind === 'insert' || p.edit.kind === 'wrap') && p.edit.id === id) return p.edit
+  }
+  return undefined
+}
+
 /** The utility family a class edits — `gap-12` and `gap-16` share a knob. */
 function familyOf(cls: string): string {
   const i = cls.lastIndexOf('-')
@@ -349,9 +380,92 @@ export function stageStructuralEdit(ctx: StageContext, edit: StructuralEdit, lab
       ? `move|${edit.src}`
       : edit.kind === 'delete'
         ? `delete|${edit.src}`
-        : `duplicate|${edit.src}|${seq + 1}`
+        : edit.kind === 'duplicate'
+          ? `duplicate|${edit.src}|${seq + 1}`
+          : edit.kind === 'unwrap'
+            ? `unwrap|${edit.src}`
+            : `${edit.kind}|${edit.id}`
   pending.delete(key)
   pending.set(key, { ...ctx, edit, label, seq: ++seq, patched: true })
+  emit({})
+}
+
+/** A fresh id for an element this list creates — short, and unique here. */
+export function newId(): string {
+  return `n${(++seq).toString(36)}${Math.random().toString(36).slice(2, 6)}`
+}
+
+/**
+ * Change a staged insert or wrap in place — how a new element is edited, since
+ * it has no address of its own to aim a value edit at. Keeps its place in the
+ * order, so what was put inside it stays inside it.
+ */
+export function updateNew(id: string, patch: (edit: InsertEdit | WrapEdit) => InsertEdit | WrapEdit) {
+  for (const [key, p] of pending) {
+    if ((p.edit.kind === 'insert' || p.edit.kind === 'wrap') && p.edit.id === id) {
+      pending.set(key, { ...p, edit: patch(p.edit) })
+      emit({})
+      return
+    }
+  }
+}
+
+/** The staged insert or wrap that creates `id`. */
+export function newEdit(id: string): InsertEdit | WrapEdit | undefined {
+  return creatorOf(id)
+}
+
+/**
+ * Remove a new element, and everything staged that depends on it — whatever
+ * was inserted into it, moved beside it, or wrapped with it. Returns what was
+ * removed, so value patches can be reverted.
+ */
+export function removeNew(id: string): Unstaged[] {
+  const gone = new Set([id])
+  const removed: Unstaged[] = []
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const [key, p] of ordered()) {
+      const e = p.edit
+      const makes = (e.kind === 'insert' || e.kind === 'wrap') && gone.has(e.id)
+      const uses = addressesOf(e).some((src) => isNewRef(src) && gone.has(src.slice(NEW_PREFIX.length)))
+      if (makes || uses) {
+        pending.delete(key)
+        removed.push({ edit: e, component: p.component })
+        if (e.kind === 'insert' || e.kind === 'wrap') gone.add(e.id)
+        changed = true
+      }
+    }
+  }
+  emit({})
+  return removed
+}
+
+/**
+ * Stage a stack's layout. One entry per element: stepping the gap twice keeps
+ * the layout the file really has as `old`, and stepping back to it drops the
+ * entry.
+ */
+export function stageStackEdit(ctx: StageContext, src: Src, old: Layout, next: Layout, label: string) {
+  const key = `stack|${src}`
+  const existing = pending.get(key)
+  const original = existing && existing.edit.kind === 'stack' ? existing.edit.old : old
+  const same =
+    original.direction === next.direction &&
+    original.gap === next.gap &&
+    original.align === next.align &&
+    original.justify === next.justify
+  if (same) pending.delete(key)
+  else {
+    pending.set(key, {
+      ...ctx,
+      edit: { kind: 'stack', src, old: original, next },
+      label,
+      seq: existing?.seq ?? ++seq,
+      patched: true,
+    })
+  }
   emit({})
 }
 
@@ -387,7 +501,7 @@ export function unstageLast(): Unstaged | null {
 /** Drop everything staged. Used when a staged list can no longer be applied
  *  (the screen changed under it) and the designer chooses to start over. */
 export function discardPending(): Unstaged[] {
-  const out = ordered().map(([, p]) => ({ edit: p.edit, component: p.component }))
+  const out: Unstaged[] = ordered().map(([, p]) => ({ edit: p.edit, component: p.component }))
   pending.clear()
   emit({ error: null })
   return out
@@ -429,13 +543,13 @@ export function changeListText(): string {
   // the address below is only meaningful against the file it came from.
   const files: string[] = []
   for (const row of rows) {
-    const file = fileOf(row.edit.src)
+    const file = fileOfEdit(row.edit)
     if (!files.includes(file)) files.push(file)
   }
 
   let n = 0
   for (const file of files) {
-    const inFile = rows.filter((r) => fileOf(r.edit.src) === file)
+    const inFile = rows.filter((r) => fileOfEdit(r.edit) === file)
     const screensHere = Array.from(new Set(inFile.map((r) => r.screenId)))
     const version = inFile.find((r) => r.version)?.version
     lines.push(
@@ -451,9 +565,8 @@ export function changeListText(): string {
       // element showing X" because that was all it knew; `src` is the exact
       // line and column, which is both shorter and unambiguous to whoever — or
       // whatever — applies it on the other end.
-      const at = row.edit.src.split(':').slice(-2).join(':')
       const what = row.component ? ` (${row.component})` : ''
-      lines.push(`  ${n}. line ${at} — ${row.label}${what}${whereTo(row.edit)}`)
+      lines.push(`  ${n}. ${where(primaryAddress(row.edit))} — ${row.label}${what}${whereTo(row.edit)}`)
     }
     lines.push('')
   }
@@ -465,12 +578,36 @@ export function changeListText(): string {
   return lines.join('\n')
 }
 
+/** A position as a reader wants it: `line 12:6`, or the new element's name. */
+function where(src: Src): string {
+  if (isNewRef(src)) return `new element ${src.slice(NEW_PREFIX.length)}`
+  return `line ${src.split(':').slice(-2).join(':')}`
+}
+
 function whereTo(edit: Edit): string {
+  if (edit.kind === 'insert') {
+    const props = Object.entries(edit.props)
+      .map(([k, v]) => `${k}="${v}"`)
+      .join(' ')
+    const what = `${edit.icon ?? edit.item}${props ? ` ${props}` : ''}${edit.text ? ` “${edit.text}”` : ''}`
+    return ` (${what}; ${placeText(edit.to)}; call it ${edit.id})`
+  }
+  if (edit.kind === 'wrap') {
+    return ` (${edit.srcs.map(where).join(', ')} into a div className="${edit.className}"; call it ${edit.id})`
+  }
+  if (edit.kind === 'stack') {
+    const show = (l: Layout) =>
+      `${l.direction ?? 'not flex'}, gap ${l.gap ?? 'none'}, align ${l.align ?? '—'}, justify ${l.justify ?? '—'}`
+    return ` (${show(edit.old)} → ${show(edit.next)})`
+  }
   if (edit.kind !== 'move') return ''
-  const to = edit.to
-  const [how, src] =
-    'before' in to ? ['before', to.before] : 'after' in to ? ['after', to.after] : ['as the last child of', to.inside]
-  return ` (${how} the element at line ${src.split(':').slice(-2).join(':')})`
+  return ` (${placeText(edit.to)})`
+}
+
+function placeText(to: Place): string {
+  if ('before' in to) return `before the element at ${where(to.before)}`
+  if ('after' in to) return `after the element at ${where(to.after)}`
+  return `as the last child of the element at ${where(to.inside)}`
 }
 
 /** Copy the list out. Non-destructive: the list stays, so a reviewer can keep
@@ -511,7 +648,7 @@ export async function applyPending(): Promise<void> {
 
   const groups = new Map<string, [string, PendingEntry][]>()
   for (const row of batch) {
-    const key = `${row[1].slug}|${fileOf(row[1].edit.src)}`
+    const key = `${row[1].slug}|${fileOfEdit(row[1].edit)}`
     groups.set(key, [...(groups.get(key) ?? []), row])
   }
 

@@ -27,3 +27,14 @@ export const VOID_TAGS: readonly string[] = [
   'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta',
   'source', 'track', 'wbr', 'textarea', 'select', 'option', 'svg', 'path',
 ]
+
+/**
+ * HTML elements the panel offers to drop things INTO. Narrower than "not
+ * void" on purpose: a Button dropped inside a heading is valid JSX and never
+ * what anyone meant. The write side accepts any non-void tag, so an agent's
+ * markup is never refused; the panel just doesn't suggest the odd ones.
+ */
+export const BOX_TAGS: readonly string[] = [
+  'div', 'section', 'article', 'header', 'footer', 'main', 'nav', 'aside',
+  'ul', 'ol', 'li', 'form', 'label', 'fieldset',
+]

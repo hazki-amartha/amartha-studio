@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { boundaryOf, labelOf } from './resolve'
-import { isHidden } from '@/platform/design/overlay'
+import { isHidden, refind } from '@/platform/design/overlay'
 import styles from './inspect.module.css'
 
 export interface InspectLayerProps {
@@ -42,6 +42,18 @@ export interface InspectLayerProps {
    * because its stamp rides onto its root.
    */
   pick?: 'component' | 'authored'
+  /** Shift-click, when the mode has a use for it (design's multi-select). */
+  onShiftPick?: (el: Element) => void
+  /**
+   * Replace a pin that left the screen, but only if it is still the pin.
+   *
+   * This loop runs with the pin it was rendered with, which can be a frame
+   * behind: design mode may already have pinned something new (the element it
+   * just inserted) when this loop sees the old pin vanish, and re-finding the
+   * old one here would undo that. The owner of the state compares against
+   * the CURRENT pin before replacing it.
+   */
+  onRepin?: (stale: Element) => void
 }
 
 interface Box {
@@ -84,6 +96,8 @@ export function InspectLayer({
   onPin,
   preview,
   pick: rule = 'component',
+  onShiftPick,
+  onRepin,
 }: InspectLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null)
   const hoverBoxRef = useRef<HTMLDivElement>(null)
@@ -108,7 +122,9 @@ export function InspectLayer({
     const pick = (target: EventTarget | null): Element | null => {
       if (!(target instanceof Element)) return null
       if (altRef.current) return target
-      if (rule === 'authored') return target.closest('[data-src]') ?? boundaryOf(target) ?? target
+      if (rule === 'authored') {
+        return target.closest('[data-src], [data-design-new]') ?? boundaryOf(target) ?? target
+      }
       return boundaryOf(target) ?? target
     }
 
@@ -132,7 +148,9 @@ export function InspectLayer({
     const onClick = (e: Event) => {
       e.preventDefault()
       e.stopPropagation()
-      onPin(pick(e.target))
+      const el = pick(e.target)
+      if (onShiftPick && el && e instanceof MouseEvent && e.shiftKey) onShiftPick(el)
+      else onPin(el)
     }
 
     viewport.addEventListener('mouseover', onMouseOver, true)
@@ -150,7 +168,7 @@ export function InspectLayer({
       viewport.removeEventListener('mouseup', swallow, true)
       viewport.removeEventListener('click', onClick, true)
     }
-  }, [onPin, rule])
+  }, [onPin, rule, onShiftPick])
 
   // --- modifier + escape ----------------------------------------------------
   useEffect(() => {
@@ -191,13 +209,8 @@ export function InspectLayer({
           // element is re-found by its address — the same node after a fast
           // refresh remounted it, or its copy after the overlay redrew — so
           // the selection survives both. Anything else is let go.
-          const src = pinned.getAttribute('data-src')
-          const again = src
-            ? Array.from(
-                layer.parentElement?.querySelectorAll(`[data-src="${CSS.escape(src)}"]`) ?? [],
-              ).find((el) => !isHidden(el))
-            : undefined
-          onPin(again ?? null)
+          if (onRepin) onRepin(pinned)
+          else onPin(refind(pinned))
         } else {
           const pinBox = pinned ? measure(layer, pinned) : null
           place(pinBoxRef.current, pinBox)
@@ -223,7 +236,7 @@ export function InspectLayer({
 
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [hover, preview, pinned, onPin])
+  }, [hover, preview, pinned, onPin, onRepin])
 
   return (
     <div ref={layerRef} data-inspect-layer className={styles.layer}>

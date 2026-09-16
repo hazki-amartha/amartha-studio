@@ -43,6 +43,7 @@ import {
   valueForClass,
 } from '@/platform/inspect/tokenMap'
 import {
+  canHoldDom,
   describe,
   duplicateElement,
   moveStep,
@@ -50,7 +51,20 @@ import {
   stageContext,
   stepPlace,
   structuralBlock,
+  unwrapElement,
+  unwrappable,
+  wrapElements,
 } from './actions'
+import {
+  InsertSection,
+  LayoutSection,
+  NewElementSection,
+  SelectionSection,
+} from './DesignSections'
+import { catalogItem } from './catalog'
+import { layoutOf } from './layout'
+import { NEW_ATTR } from './overlay'
+import { getSelection, getSelectionServerSnapshot, subscribeSelection } from './selection'
 import {
   applyClassSwap,
   applyPropPreview,
@@ -62,12 +76,14 @@ import {
   srcOf,
 } from './applyDom'
 import { COMPONENT_PROPS } from './componentProps'
+import { Section } from './DesignSections'
 import {
   applyPending,
   clearDesignError,
   copyChangeList,
   discardPending,
   fileOf,
+  newEdit,
   getDesignStoreServerSnapshot,
   getDesignStoreState,
   restoreChanges,
@@ -243,17 +259,6 @@ function LockNotice({ lock, onPin }: { lock: Lock; onPin: (el: Element | null) =
 
 // --- small UI atoms ----------------------------------------------------------
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-8 border-t border-default pt-12 first:border-0 first:pt-0 dark:border-ink-700">
-      <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">
-        {title}
-      </span>
-      {children}
-    </div>
-  )
-}
-
 function RowLabel({ children }: { children: React.ReactNode }) {
   return <span className="truncate text-12 text-caption dark:text-neutral-400">{children}</span>
 }
@@ -307,6 +312,8 @@ export function DesignPanel({
     getDesignStoreState,
     getDesignStoreServerSnapshot,
   )
+
+  const extra = useSyncExternalStore(subscribeSelection, getSelection, getSelectionServerSnapshot)
 
   // Optimistic swaps mutate the DOM outside React's sight; bumping this after
   // each one re-runs resolveTarget so the panel shows what's now on screen.
@@ -513,13 +520,38 @@ export function DesignPanel({
     </>
   )
 
+  const insert = <InsertSection pinned={pinned} slug={slug} screenId={screenId} onChanged={bump} />
+
   if (!target) {
     return (
       <PanelShell {...shell}>
         <p className="text-14 text-caption dark:text-neutral-400">
           Hover the prototype to highlight an element, click to pin it, then tweak it here. Hold ⌥
-          to reach the raw element inside a component.
+          to reach the raw element inside a component, and ⇧ to select more than one.
         </p>
+        {insert}
+        {footer}
+      </PanelShell>
+    )
+  }
+
+  // A new element — staged, not yet written — is edited through its staged
+  // definition, since it has no address to aim a value edit at.
+  const newId = target.el.getAttribute(NEW_ATTR)
+  if (newId) {
+    const made = newEdit(newId)
+    const item = made?.kind === 'insert' ? catalogItem(made.item) : undefined
+    return (
+      <PanelShell {...shell}>
+        <h2 className="text-16 font-bold text-default dark:text-neutral-50">
+          New · {made?.kind === 'wrap' ? 'Stack' : (made?.kind === 'insert' && made.icon) || item?.label || 'element'}
+        </h2>
+        {extra.length > 0 ? (
+          <SelectionSection els={[target.el, ...extra]} slug={slug} screenId={screenId} onChanged={bump} />
+        ) : null}
+        <NewElementSection el={target.el} onChanged={bump} />
+        <LayoutSection el={target.el} slug={slug} screenId={screenId} onChanged={bump} />
+        {insert}
         {footer}
       </PanelShell>
     )
@@ -542,7 +574,10 @@ export function DesignPanel({
     .map((a) => classify(a.cls))
     .filter((r): r is EditableRow => r !== null)
 
-  const layoutRows = rows.filter((r) => r.type === 'spacing')
+  // A stack's own gap is Auto layout's, not a free-standing spacing knob: two
+  // controls staging two edits against one class would refuse each other.
+  const stacked = canHoldDom(target.el) && layoutOf(Array.from(target.el.classList)).direction !== null
+  const layoutRows = rows.filter((r) => r.type === 'spacing' && !(stacked && r.prefix === 'gap'))
   const shapeRows = rows.filter((r) => r.type === 'radius')
   const sizeRow = rows.find((r) => r.type === 'fontSize')
   const weightRow = rows.find((r) => r.type === 'weight')
@@ -612,7 +647,13 @@ export function DesignPanel({
         ) : null}
       </div>
 
+      {extra.length > 0 ? (
+        <SelectionSection els={[target.el, ...extra]} slug={slug} screenId={screenId} onChanged={bump} />
+      ) : null}
+
       <ArrangeSection el={target.el} slug={slug} screenId={screenId} structure={store.structure.length} />
+
+      <LayoutSection el={target.el} slug={slug} screenId={screenId} onChanged={bump} />
 
       {editableProps.length > 0 ? (
         <Section title="Component">
@@ -751,6 +792,8 @@ export function DesignPanel({
         </p>
       ) : null}
 
+      {insert}
+
       {footer}
 
       <button
@@ -830,6 +873,26 @@ function ArrangeSection({
             onClick={() => removeElement(el, slug, screenId)}
           >
             Delete
+          </button>
+        </div>
+        <div className="flex gap-4">
+          <button
+            type="button"
+            className={ARRANGE_BTN}
+            disabled={Boolean(blocked)}
+            title="Wrap in a stack (⌥⌘G)"
+            onClick={() => wrapElements([el], slug, screenId)}
+          >
+            Wrap
+          </button>
+          <button
+            type="button"
+            className={ARRANGE_BTN}
+            disabled={!unwrappable(el, slug)}
+            title="Replace this stack with what it holds (⇧⌘G)"
+            onClick={() => unwrapElement(el, slug, screenId)}
+          >
+            Unwrap
           </button>
         </div>
         <span className="text-10 text-caption dark:text-neutral-400">
