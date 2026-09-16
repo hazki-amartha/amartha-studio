@@ -256,6 +256,41 @@ export interface DesignRequest {
    */
   version?: string
   edits: Edit[]
+  /**
+   * `github` backend only. Who is editing — the name the panel asked for,
+   * checked against the project's owners and used in the branch name.
+   */
+  name?: string
+  /**
+   * `github` backend only. The file to rebuild when `edits` is empty — the
+   * last change to it was taken back, so it returns to the deployed copy.
+   */
+  file?: string
+}
+
+/** `github` backend only: open the change and let it land itself. */
+export interface DesignPushRequest {
+  slug: string
+  push: true
+  name: string
+}
+
+/**
+ * What the panel needs to know before it offers to write, from
+ * `GET /api/design?slug=`.
+ *
+ * - `fs` — the dev server: Apply writes files; undo is by snapshot.
+ * - `github` — a deployment with the studio's GitHub App: Apply commits to a
+ *   branch for this deployment, Push opens it. `sha` keys the change list.
+ * - `record` — a deployment without it: Collect only.
+ */
+export interface DesignStatus {
+  backend: 'fs' | 'github' | 'record'
+  sha?: string
+  /** The project's owners — the names the panel offers to edit as. */
+  owners: string[]
+  /** Set when the project can't be written from the link at all. */
+  locked?: string
 }
 
 /**
@@ -284,4 +319,5 @@ export type DesignResponse =
       /** Hands back the pre-write file on request; absent when nothing changed. */
       undo?: string
     }
+  | { ok: true; pushed: true }
   | { ok: false; reason: string }

@@ -79,11 +79,15 @@ import { COMPONENT_PROPS } from './componentProps'
 import { Section } from './DesignSections'
 import {
   applyPending,
+  canWrite,
   clearDesignError,
   copyChangeList,
   discardPending,
   fileOf,
   newEdit,
+  pushChanges,
+  setDesignerName,
+  type PendingRow,
   getDesignStoreServerSnapshot,
   getDesignStoreState,
   restoreChanges,
@@ -504,10 +508,12 @@ export function DesignPanel({
 
   const footer = (
     <>
+      <NamePrompt store={store} />
       <ChangesSection
         pending={store.pending}
         screenId={screenId}
         onRemove={removePending}
+        locked={store.pushed}
       />
       <StatusFooter
         storeError={store.error}
@@ -516,7 +522,7 @@ export function DesignPanel({
         onDiscard={store.pending.length > 0 ? discardAll : undefined}
       />
       <ActionsFooter store={store} onUndo={onUndo} />
-      <ModeSwitch mode={store.mode} />
+      <ModeSwitch store={store} />
     </>
   )
 
@@ -959,11 +965,14 @@ function ChangesSection({
   pending,
   screenId,
   onRemove,
+  locked,
 }: {
-  pending: { key: string; label: string; screenId: string }[]
+  pending: PendingRow[]
   /** The screen on show, so changes made elsewhere can say where they were. */
   screenId: string
   onRemove: (key: string) => void
+  /** Pushed: the list is a record now, not something to edit. */
+  locked: boolean
 }) {
   if (pending.length === 0) return null
   return (
@@ -976,22 +985,35 @@ function ChangesSection({
               {p.screenId !== screenId ? (
                 <span className="text-placeholder dark:text-neutral-600"> · {p.screenId}</span>
               ) : null}
+              {p.applied ? (
+                <span className="text-placeholder dark:text-neutral-600"> · saved</span>
+              ) : null}
             </span>
-            <button
-              type="button"
-              onClick={() => onRemove(p.key)}
-              aria-label={`Remove ${p.label}`}
-              title="Remove this change"
-              className="flex size-16 flex-none items-center justify-center rounded-4 text-12 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
-            >
-              ×
-            </button>
+            {locked ? null : (
+              <button
+                type="button"
+                onClick={() => onRemove(p.key)}
+                aria-label={`Remove ${p.label}`}
+                title="Remove this change"
+                className="flex size-16 flex-none items-center justify-center rounded-4 text-12 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+              >
+                ×
+              </button>
+            )}
           </li>
         ))}
       </ul>
     </Section>
   )
 }
+
+const PRIMARY =
+  'rounded-full bg-primary-500 px-16 py-8 text-12 font-bold text-neutral-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-placeholder dark:disabled:bg-ink-800 dark:disabled:text-neutral-600'
+const SECONDARY =
+  'rounded-full border border-default bg-neutral-white px-16 py-8 text-12 font-bold text-default hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800 dark:disabled:text-neutral-600'
+const NOTE = 'text-12 text-caption dark:text-neutral-400'
+
+const plural = (n: number) => `${n} change${n === 1 ? '' : 's'}`
 
 function ActionsFooter({
   store,
@@ -1002,7 +1024,9 @@ function ActionsFooter({
 }) {
   const [copied, setCopied] = useState(false)
   const n = store.pending.length
+  const unsaved = store.pending.filter((p) => !p.applied).length
   const recording = store.mode === 'record'
+  const linked = !recording && store.backend === 'github'
   const lastPending = n > 0 ? store.pending[n - 1] : null
   const lastApplied = store.undo.length > 0 ? store.undo[store.undo.length - 1] : null
   const undoLabel = lastPending
@@ -1019,45 +1043,64 @@ function ActionsFooter({
     })
   }, [])
 
+  // What happens next differs by where the changes go, and each is worth
+  // saying at the moment the designer would wonder — not in a doc.
+  let note: React.ReactNode = null
+  if (recording) {
+    note =
+      n > 0
+        ? 'These changes aren’t saved anywhere. Copy them and send them over to be applied.'
+        : 'Tweaks here are for describing a change, not saving one.'
+  } else if (linked && store.pushed) {
+    note = 'Pushed. It goes live on its own in a few minutes — these stay on screen until it does.'
+  } else if (linked && n > 0 && unsaved === 0) {
+    note = (
+      <>
+        Saved — not live yet. <span className="font-bold">Push</span> when you’re ready.
+      </>
+    )
+  } else if (!linked && n === 0 && !store.busy && lastApplied) {
+    note = (
+      <>
+        Saved to your working copy — not live yet. Say <span className="font-bold">commit</span> or{' '}
+        <span className="font-bold">push</span> when you’re ready.
+      </>
+    )
+  }
+
+  const primary = recording ? (
+    <button type="button" onClick={copy} disabled={n === 0 || store.busy} className={PRIMARY}>
+      {n === 0 ? 'No changes yet' : copied ? 'Copied' : `Copy ${plural(n)}`}
+    </button>
+  ) : linked && unsaved === 0 && n > 0 ? (
+    <button
+      type="button"
+      onClick={() => void pushChanges()}
+      disabled={store.busy || store.pushed}
+      className={PRIMARY}
+    >
+      {store.busy ? 'Pushing…' : store.pushed ? 'Pushed' : `Push ${plural(n)}`}
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={() => void applyPending()}
+      disabled={unsaved === 0 || store.busy || store.pushed}
+      className={PRIMARY}
+    >
+      {store.busy ? 'Saving…' : unsaved === 0 ? 'No changes yet' : `Apply ${plural(unsaved)}`}
+    </button>
+  )
+
   return (
     <div className="flex flex-col gap-4">
-      {/* What happens next differs by mode, and both are worth saying at the
-          moment the designer would wonder rather than in a doc nobody opens. */}
-      {recording ? (
-        <p className="text-12 text-caption dark:text-neutral-400">
-          {n > 0
-            ? 'These changes aren’t saved anywhere. Copy them and send them over to be applied.'
-            : 'Tweaks here are for describing a change, not saving one.'}
-        </p>
-      ) : n === 0 && !store.busy && lastApplied ? (
-        <p className="text-12 text-caption dark:text-neutral-400">
-          Saved to your working copy — not live yet. Say{' '}
-          <span className="font-bold">commit</span> or <span className="font-bold">push</span>{' '}
-          when you’re ready.
-        </p>
-      ) : null}
-
-      <button
-        type="button"
-        onClick={recording ? copy : () => void applyPending()}
-        disabled={n === 0 || store.busy}
-        className="rounded-full bg-primary-500 px-16 py-8 text-12 font-bold text-neutral-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-placeholder dark:disabled:bg-ink-800 dark:disabled:text-neutral-600"
-      >
-        {store.busy
-          ? 'Saving…'
-          : n === 0
-            ? 'No changes yet'
-            : recording
-              ? copied
-                ? 'Copied'
-                : `Copy ${n} change${n > 1 ? 's' : ''}`
-              : `Apply ${n} change${n > 1 ? 's' : ''}`}
-      </button>
+      {note ? <p className={NOTE}>{note}</p> : null}
+      {primary}
       <button
         type="button"
         onClick={onUndo}
-        disabled={(!lastPending && !lastApplied) || store.busy}
-        className="rounded-full border border-default bg-neutral-white px-16 py-8 text-12 font-bold text-default hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800 dark:disabled:text-neutral-600"
+        disabled={(!lastPending && !lastApplied) || store.busy || store.pushed}
+        className={SECONDARY}
       >
         {undoLabel}
       </button>
@@ -1065,27 +1108,74 @@ function ActionsFooter({
   )
 }
 
+// --- who is editing (github) ---------------------------------------------------
+
+/**
+ * On the deployed link, Apply commits in someone's name, so the panel asks
+ * whose — once per browser. Only the project's owners are offered: anyone
+ * else can still collect changes and send them on, which is what the last
+ * option says.
+ */
+function NamePrompt({ store }: { store: ReturnType<typeof getDesignStoreState> }) {
+  if (store.backend !== 'github' || store.locked) return null
+  const owner = canWrite(store)
+  if (owner) {
+    return (
+      <p className="text-10 text-placeholder dark:text-neutral-600">
+        Saving as {store.name}.{' '}
+        <button type="button" className="underline" onClick={() => setDesignerName(null)}>
+          Not you?
+        </button>
+      </p>
+    )
+  }
+  return (
+    <Section title="Who’s editing?">
+      <div className="flex flex-col gap-4">
+        {store.owners.map((o) => (
+          <button key={o} type="button" className={SECONDARY} onClick={() => setDesignerName(o)}>
+            I’m {o}
+          </button>
+        ))}
+        <span className={NOTE}>
+          {store.name
+            ? `${store.name} isn’t an owner of this project, so changes here are collected to send on.`
+            : 'Owners can save changes from here. Anyone else can collect them and send them on.'}
+        </span>
+      </div>
+    </Section>
+  )
+}
+
 // --- write / record switch ---------------------------------------------------
 
 /**
- * Only rendered where there is a choice. On a deployment there is no source to
- * write, so the mode is a fact rather than a setting and showing a switch would
- * imply otherwise; there, this explains the situation in one line instead.
+ * Only rendered where there is a choice. With nowhere to write, the mode is a
+ * fact rather than a setting and showing a switch would imply otherwise;
+ * there, this explains the situation in one line instead.
  *
- * Recording on the dev server is the genuinely useful case: someone can go
- * through a running prototype, gather a list of changes, and hand it over
- * without touching the working copy it is running from.
+ * Collecting where saving is possible is still useful: someone can go through
+ * a running prototype, gather a list of changes, and hand it over without
+ * touching the prototype at all.
  */
-function ModeSwitch({ mode }: { mode: 'write' | 'record' }) {
-  const canWrite = process.env.NODE_ENV === 'development'
-
-  if (!canWrite) {
+function ModeSwitch({ store }: { store: ReturnType<typeof getDesignStoreState> }) {
+  const mode = store.mode
+  if (store.backend === 'record') {
     return (
       <p className="text-10 text-placeholder dark:text-neutral-600">
         This is a shared link, so changes here are collected to send on, not saved.
       </p>
     )
   }
+  if (store.locked) {
+    return <p className="text-10 text-placeholder dark:text-neutral-600">{store.locked}</p>
+  }
+  if (!canWrite(store)) return null
+
+  const saveTitle =
+    store.backend === 'github'
+      ? 'Apply saves the changes, ready to push'
+      : 'Apply writes the changes into this prototype'
 
   const opt = (value: 'write' | 'record', label: string, title: string) => (
     <button
@@ -1106,7 +1196,7 @@ function ModeSwitch({ mode }: { mode: 'write' | 'record' }) {
     <div className="flex items-center justify-between gap-8">
       <span className="text-10 uppercase text-placeholder dark:text-neutral-600">Changes</span>
       <div className="flex overflow-hidden rounded-8 border border-default dark:border-ink-700">
-        {opt('write', 'Save', 'Apply writes the changes into this prototype')}
+        {opt('write', 'Save', saveTitle)}
         {opt('record', 'Collect', 'Collect the changes to copy and send on, saving nothing')}
       </div>
     </div>

@@ -32,15 +32,26 @@
 // through someone else's running prototype and come away with a list without
 // touching their working copy.
 //
-// Undo, once applied, is one step per Apply press: the backend kept the file
-// as it was before that write and restores it — only while the file is still
-// exactly what the write produced (protocol.ts, DesignUndoRequest). Before
-// Apply, undo just unstages the last-touched change.
+// Where WRITE goes depends on where the studio is running (GET /api/design):
+//
+//   • `fs` — the dev server writes the working copy. Written edits leave the
+//     list; undo is one step per Apply press, by a snapshot the backend kept
+//     and restores only while the file is still what that write produced.
+//   • `github` — a deployment with the studio's GitHub App (D4). The deployed
+//     screen never changes, so written edits STAY on the list, marked
+//     applied, and the overlay keeps drawing them. Every Apply re-sends a
+//     file's whole list, which the backend rebuilds from the deployed copy;
+//     undo is "drop the entry and apply again". Push opens the change. The
+//     list is kept per deployment (by build SHA) and survives a reload.
+//
+// Before Apply, undo just unstages the last-touched change.
 // =============================================================================
 
 import type { Layout } from './layout'
 import {
   addressesOf,
+  type DesignPushRequest,
+  type DesignStatus,
   isNewRef,
   isStructural,
   NEW_PREFIX,
@@ -67,9 +78,19 @@ export interface UndoEntry {
 /** Where Apply sends the list. See the header. */
 export type SinkMode = 'write' | 'record'
 
+export type Backend = DesignStatus['backend']
+
+export interface PendingRow {
+  key: string
+  label: string
+  screenId: string
+  /** `github` only: written to the change branch already. */
+  applied: boolean
+}
+
 export interface DesignStoreState {
-  /** Staged edits not yet spent, in staging order. */
-  pending: { key: string; label: string; screenId: string }[]
+  /** Staged edits, in staging order — on `github`, applied ones too. */
+  pending: PendingRow[]
   /** Staged structural edits, in the order they apply — what the overlay draws. */
   structure: StructuralEdit[]
   /** Writes in flight. */
@@ -78,6 +99,18 @@ export interface DesignStoreState {
   error: { label: string; reason: string } | null
   undo: UndoEntry[]
   mode: SinkMode
+  /** Where WRITE goes, once the route has said. */
+  backend: Backend
+  /** `github`: the deployment's build commit. */
+  sha?: string
+  /** The project's owners, for the name prompt. */
+  owners: string[]
+  /** Why this project can't be written from here at all. */
+  locked?: string
+  /** Who is editing, as the designer told the panel (`github`). */
+  name: string | null
+  /** `github`: this deployment's changes have been pushed. */
+  pushed: boolean
 }
 
 interface PendingEntry {
@@ -94,6 +127,8 @@ interface PendingEntry {
   /** Monotonic touch order — "undo" on pending removes the last-touched knob,
    *  and structural edits apply in this order. */
   seq: number
+  /** `github`: written to the change branch. */
+  applied?: boolean
   /**
    * Whether this edit's optimistic patch is on the live DOM. False for entries
    * restored from a previous session: the list survived, the patch didn't, and
@@ -106,9 +141,9 @@ interface PendingEntry {
 
 let seq = 0
 
-type Sink = (req: DesignRequest | DesignUndoRequest) => Promise<DesignResponse>
+type Sink = (req: DesignRequest | DesignUndoRequest | DesignPushRequest) => Promise<DesignResponse>
 
-const devSink: Sink = async (req) => {
+const sink: Sink = async (req) => {
   try {
     const res = await fetch('/api/design', {
       method: 'POST',
@@ -121,8 +156,18 @@ const devSink: Sink = async (req) => {
   }
 }
 
-/** A built deployment has no source behind it, so it can only ever record. */
-const CAN_WRITE = process.env.NODE_ENV === 'development'
+/** The dev server can write before the route has even answered; a
+ *  deployment waits to hear whether it has a backend. */
+const DEV = process.env.NODE_ENV === 'development'
+
+const NAME_KEY = 'db.design.name'
+function storedName(): string | null {
+  try {
+    return typeof window === 'undefined' ? null : window.localStorage.getItem(NAME_KEY)
+  } catch {
+    return null
+  }
+}
 
 let state: DesignStoreState = {
   pending: [],
@@ -130,7 +175,11 @@ let state: DesignStoreState = {
   busy: false,
   error: null,
   undo: [],
-  mode: CAN_WRITE ? 'write' : 'record',
+  mode: DEV ? 'write' : 'record',
+  backend: DEV ? 'fs' : 'record',
+  owners: [],
+  name: null,
+  pushed: false,
 }
 const pending = new Map<string, PendingEntry>()
 const listeners = new Set<() => void>()
@@ -144,7 +193,12 @@ function emit(next: Partial<DesignStoreState>) {
   state = {
     ...state,
     ...next,
-    pending: rows.map(([key, p]) => ({ key, label: p.label, screenId: p.screenId })),
+    pending: rows.map(([key, p]) => ({
+      key,
+      label: p.label,
+      screenId: p.screenId,
+      applied: Boolean(p.applied),
+    })),
     structure: rows.flatMap(([, p]) => (isStructural(p.edit) ? [p.edit] : [])),
   }
   listeners.forEach((l) => l())
@@ -167,18 +221,78 @@ const serverSnapshot: DesignStoreState = {
   error: null,
   undo: [],
   mode: 'record',
+  backend: 'record',
+  owners: [],
+  name: null,
+  pushed: false,
 }
 export function getDesignStoreServerSnapshot(): DesignStoreState {
   return serverSnapshot
 }
 
+/** Whether this person may write here, given what the route said. */
+export function canWrite(s: DesignStoreState = state): boolean {
+  if (s.backend === 'record' || s.locked) return false
+  if (s.backend === 'fs') return true
+  return Boolean(s.name && s.owners.some((o) => o.toLocaleLowerCase() === s.name!.toLocaleLowerCase()))
+}
+
 export function setSinkMode(mode: SinkMode) {
-  if (!CAN_WRITE && mode === 'write') return
+  if (mode === 'write' && !canWrite()) return
   if (state.mode === mode) return
-  emit({ mode })
-  // Switching INTO collecting picks up whatever was collected before, which is
-  // the whole reason the list is persisted.
-  if (mode === 'record') loadFromStorage()
+  // Each mode has its own list; switching puts the current one away first.
+  // The mode changes WITHOUT an emit, because every emit persists — an emit
+  // here would save the emptied list over the one about to be read back.
+  persist()
+  pending.clear()
+  state = { ...state, mode, error: null }
+  loadFromStorage()
+}
+
+/** Remember who is editing, on this browser. */
+export function setDesignerName(name: string | null) {
+  try {
+    if (name) window.localStorage.setItem(NAME_KEY, name)
+    else window.localStorage.removeItem(NAME_KEY)
+  } catch {
+    // Not remembered; still used for this session.
+  }
+  state = { ...state, name }
+  const mode: SinkMode = canWrite() ? 'write' : 'record'
+  if (state.backend === 'github' && mode !== state.mode) setSinkMode(mode)
+  else emit({})
+}
+
+/**
+ * Ask the route where WRITE goes for this project, and settle the mode.
+ * Called once per project by the panel.
+ */
+async function probe(slug: string) {
+  let status: DesignStatus | null = null
+  try {
+    const res = await fetch(`/api/design?slug=${encodeURIComponent(slug)}`, { cache: 'no-store' })
+    if (res.ok) status = (await res.json()) as DesignStatus
+  } catch {
+    // No answer: stay as we are.
+  }
+  if (!status || storageSlug !== slug) return
+  const settle = () => {
+    const mode: SinkMode = canWrite() ? 'write' : 'record'
+    if (mode !== state.mode) setSinkMode(mode)
+    else emit({})
+  }
+  const next: DesignStoreState = {
+    ...state,
+    backend: status.backend,
+    sha: status.sha,
+    owners: status.owners,
+    locked: status.locked,
+    name: storedName(),
+  }
+  // Settled without an emit for the same reason as setSinkMode: the list's
+  // storage key depends on these.
+  state = next
+  settle()
 }
 
 // --- surviving a refresh -----------------------------------------------------
@@ -189,15 +303,29 @@ export function setSinkMode(mode: SinkMode) {
 // reload. Keyed per project so a whole pass across screens copies as one list.
 
 const STORAGE_PREFIX = 'db.edit.changes.'
-let storageKey: string | null = null
+const GITHUB_PREFIX = 'db.design.github.'
+let storageSlug: string | null = null
 
 type StoredRow = Omit<PendingEntry, 'patched'> & { key: string }
+interface GithubList {
+  rows: StoredRow[]
+  pushed: boolean
+}
+
+/** Where the current list lives, or null when it lives nowhere (fs writes). */
+function storageKey(): string | null {
+  if (!storageSlug) return null
+  if (state.mode === 'record') return `${STORAGE_PREFIX}${storageSlug}`
+  if (state.backend === 'github' && state.sha) return `${GITHUB_PREFIX}${storageSlug}.${state.sha}`
+  return null
+}
 
 function persist() {
-  if (state.mode !== 'record' || !storageKey) return
+  const key = storageKey()
+  if (!key) return
   try {
-    const rows: StoredRow[] = ordered().map(([key, p]) => ({
-      key,
+    const rows: StoredRow[] = ordered().map(([k, p]) => ({
+      key: k,
       slug: p.slug,
       screenId: p.screenId,
       edit: p.edit,
@@ -205,38 +333,74 @@ function persist() {
       label: p.label,
       version: p.version,
       seq: p.seq,
+      applied: p.applied,
     }))
-    if (rows.length === 0) window.localStorage.removeItem(storageKey)
-    else window.localStorage.setItem(storageKey, JSON.stringify(rows))
+    if (state.mode === 'record') {
+      if (rows.length === 0) window.localStorage.removeItem(key)
+      else window.localStorage.setItem(key, JSON.stringify(rows))
+    } else if (rows.length === 0 && !state.pushed) {
+      window.localStorage.removeItem(key)
+    } else {
+      window.localStorage.setItem(key, JSON.stringify({ rows, pushed: state.pushed } satisfies GithubList))
+    }
   } catch {
     // A full or disabled localStorage costs persistence, not the session.
   }
 }
 
-/** Point the store at a project's collected list, reading back what is there.
- *  Called by the panel once it knows which project is on screen. */
+/** Point the store at a project, reading back what is there and asking the
+ *  route where WRITE goes. Called by the panel once it knows the project. */
 export function restoreChanges(slug: string) {
-  const key = `${STORAGE_PREFIX}${slug}`
-  if (storageKey === key) return
-  storageKey = key
-  if (state.mode === 'record') loadFromStorage()
+  if (storageSlug === slug) return
+  storageSlug = slug
+  pending.clear()
+  state = { ...state, pushed: false, undo: [] }
+  loadFromStorage()
+  void probe(slug)
 }
 
+/** Read the current list back from where it lives. Always emits. */
 function loadFromStorage() {
-  if (!storageKey) return
+  const key = storageKey()
+  if (!key) {
+    emit({ pushed: false })
+    return
+  }
   try {
-    const raw = window.localStorage.getItem(storageKey)
-    if (!raw) return
-    const rows = JSON.parse(raw) as StoredRow[]
-    for (const { key, ...row } of rows) {
-      // Restored entries are listed but NOT on the DOM — the screen they
-      // belong to may not even be mounted.
-      pending.set(key, { ...row, patched: false })
-      seq = Math.max(seq, row.seq)
+    const raw = window.localStorage.getItem(key)
+    let pushed = false
+    if (raw) {
+      const parsed = JSON.parse(raw) as StoredRow[] | GithubList
+      const rows = Array.isArray(parsed) ? parsed : parsed.rows
+      pushed = !Array.isArray(parsed) && parsed.pushed
+      for (const { key: k, ...row } of rows) {
+        // Restored entries are listed but NOT on the DOM — the screen they
+        // belong to may not even be mounted.
+        pending.set(k, { ...row, patched: false })
+        seq = Math.max(seq, row.seq)
+      }
     }
-    emit({})
+    if (state.backend === 'github') forgetOtherDeployments()
+    emit({ pushed })
   } catch {
     // Unreadable storage is treated as no storage.
+    emit({ pushed: false })
+  }
+}
+
+/** A list from an earlier deployment is spent: either it landed, or it was
+ *  never pushed and its positions no longer match anything. */
+function forgetOtherDeployments() {
+  if (!storageSlug || !state.sha) return
+  const prefix = `${GITHUB_PREFIX}${storageSlug}.`
+  const keep = `${prefix}${state.sha}`
+  try {
+    for (let i = window.localStorage.length - 1; i >= 0; i--) {
+      const k = window.localStorage.key(i)
+      if (k && k.startsWith(prefix) && k !== keep) window.localStorage.removeItem(k)
+    }
+  } catch {
+    // Harmless to leave.
   }
 }
 
@@ -295,6 +459,7 @@ export interface StageContext {
  * original until Apply. Stepping back to the original drops the entry.
  */
 export function stageClassEdit(ctx: StageContext, src: Src, oldClass: string, newClass: string) {
+  if (state.pushed) return
   const key = `class|${src}|${familyOf(oldClass)}`
   const existing = pending.get(key)
   const originalOld =
@@ -318,6 +483,7 @@ export function stageClassEdit(ctx: StageContext, src: Src, oldClass: string, ne
  *  currently RENDERED — if a pending edit already produced it, the merge keeps
  *  that edit's original, so the file's value is what finally gets verified. */
 export function stageTextEdit(ctx: StageContext, src: Src, old: string, next: string) {
+  if (state.pushed) return
   const key = `text|${src}`
   const existing = pending.get(key)
   const originalOld = existing && existing.edit.kind === 'text' ? existing.edit.old : old
@@ -346,6 +512,7 @@ export function stagePropEdit(
   old: string,
   next: string,
 ) {
+  if (state.pushed) return
   const key = `prop|${src}|${prop}`
   const existing = pending.get(key)
   const originalOld = existing && existing.edit.kind === 'prop' ? existing.edit.old : old
@@ -374,6 +541,7 @@ export function stagePropEdit(
  * Duplicates never merge: pressing it twice means two copies.
  */
 export function stageStructuralEdit(ctx: StageContext, edit: StructuralEdit, label: string) {
+  if (state.pushed) return
   if (edit.kind === 'delete') pending.delete(`move|${edit.src}`)
   const key =
     edit.kind === 'move'
@@ -423,6 +591,7 @@ export function newEdit(id: string): InsertEdit | WrapEdit | undefined {
 export function removeNew(id: string): Unstaged[] {
   const gone = new Set([id])
   const removed: Unstaged[] = []
+  const touched = new Set<string>()
   let changed = true
   while (changed) {
     changed = false
@@ -431,6 +600,7 @@ export function removeNew(id: string): Unstaged[] {
       const makes = (e.kind === 'insert' || e.kind === 'wrap') && gone.has(e.id)
       const uses = addressesOf(e).some((src) => isNewRef(src) && gone.has(src.slice(NEW_PREFIX.length)))
       if (makes || uses) {
+        if (p.applied) touched.add(fileOfEdit(p.edit))
         pending.delete(key)
         removed.push({ edit: e, component: p.component })
         if (e.kind === 'insert' || e.kind === 'wrap') gone.add(e.id)
@@ -439,6 +609,7 @@ export function removeNew(id: string): Unstaged[] {
     }
   }
   emit({})
+  for (const file of touched) void rewrite(file)
   return removed
 }
 
@@ -448,6 +619,7 @@ export function removeNew(id: string): Unstaged[] {
  * entry.
  */
 export function stageStackEdit(ctx: StageContext, src: Src, old: Layout, next: Layout, label: string) {
+  if (state.pushed) return
   const key = `stack|${src}`
   const existing = pending.get(key)
   const original = existing && existing.edit.kind === 'stack' ? existing.edit.old : old
@@ -484,9 +656,11 @@ export interface Unstaged {
 
 export function unstage(key: string): Unstaged | null {
   const entry = pending.get(key)
-  if (!entry) return null
+  if (!entry || state.pushed) return null
   pending.delete(key)
   emit({})
+  // Taken back after it was written: the branch has to be rebuilt without it.
+  if (entry.applied) void rewrite(fileOfEdit(entry.edit), entry)
   return { edit: entry.edit, component: entry.component }
 }
 
@@ -627,7 +801,7 @@ export async function copyChangeList(): Promise<boolean> {
 // --- applying ----------------------------------------------------------------
 
 /**
- * Write every pending edit. One press, one batch per file, one fast refresh.
+ * Write every pending edit. One press, one batch per file.
  *
  * Each batch is applied ATOMICALLY: the backend checks the file's version,
  * verifies each edit against the syntax tree, and refuses the whole list on
@@ -639,67 +813,138 @@ export async function copyChangeList(): Promise<boolean> {
  * same as grouping by screen: a screen's rows often come from a component in
  * the project's `lib/`, whose elements are stamped with the lib file's path.
  *
- * Never reachable in record mode — there is no server to write through.
+ * On `fs` a batch is the file's pending edits, and written ones leave the
+ * list. On `github` it is EVERY edit for the file, applied or not — the
+ * backend rebuilds the file from the deployed copy — and they stay, marked.
+ *
+ * Never reachable in record mode — there is nowhere to write.
  */
 export async function applyPending(): Promise<void> {
-  if (pending.size === 0 || state.busy || state.mode !== 'write') return
-  const batch = ordered()
+  if (state.busy || state.mode !== 'write' || state.pushed) return
+  const rows = ordered().filter(([, p]) => !p.applied)
+  if (rows.length === 0) return
   emit({ busy: true })
 
-  const groups = new Map<string, [string, PendingEntry][]>()
-  for (const row of batch) {
-    const key = `${row[1].slug}|${fileOfEdit(row[1].edit)}`
-    groups.set(key, [...(groups.get(key) ?? []), row])
+  const files: string[] = []
+  for (const [, p] of rows) {
+    const f = fileOfEdit(p.edit)
+    if (!files.includes(f)) files.push(f)
   }
 
   let error: DesignStoreState['error'] = null
   const undo: UndoEntry[] = []
 
-  for (const group of groups.values()) {
-    const entries = group.map(([, p]) => p)
-    const { slug, screenId } = entries[0]
-    const label = entries.length === 1 ? entries[0].label : `${entries.length} changes`
-
-    const versions = new Set(entries.map((e) => e.version).filter(Boolean))
-    if (versions.size > 1) {
-      error = {
-        label,
-        reason:
-          'Some of these were made before the screen last reloaded, so their positions are out of date. Remove them and make them again.',
-      }
+  for (const file of files) {
+    const group = ordered().filter(
+      ([, p]) => fileOfEdit(p.edit) === file && (state.backend === 'github' || !p.applied),
+    )
+    const outcome = await send(file, group)
+    if ('reason' in outcome) {
+      error = outcome
       continue
     }
-
-    const res = await devSink({
-      slug,
-      screenId,
-      version: [...versions][0],
-      edits: entries.map((e) => e.edit),
-    })
-
-    if (res.ok) {
-      for (const [key] of group) pending.delete(key)
-      if (res.undo) undo.push({ slug, token: res.undo, label })
-    } else {
-      error = { label, reason: res.reason }
+    for (const [key, p] of group) {
+      if (state.backend === 'github') pending.set(key, { ...p, applied: true })
+      else pending.delete(key)
     }
+    if (outcome.undo) undo.push(outcome.undo)
   }
 
   emit({ busy: false, error, undo: [...state.undo, ...undo] })
   onFlushed?.()
 }
 
-/** Put the file back as it was before the newest Apply. */
+type Outcome = { undo?: UndoEntry } | { label: string; reason: string }
+
+async function send(file: string, group: [string, PendingEntry][], taken?: PendingEntry): Promise<Outcome> {
+  const entries = group.map(([, p]) => p)
+  const first = entries[0] ?? taken
+  if (!first) return {}
+  const { slug, screenId } = first
+  const label = taken
+    ? `undo ${taken.label}`
+    : entries.length === 1
+      ? entries[0].label
+      : `${entries.length} changes`
+
+  const versions = new Set([...entries, ...(taken ? [taken] : [])].map((e) => e.version).filter(Boolean))
+  if (versions.size > 1) {
+    return {
+      label,
+      reason:
+        'Some of these were made before the screen last reloaded, so their positions are out of date. Remove them and make them again.',
+    }
+  }
+
+  const res = await sink({
+    slug,
+    screenId,
+    version: [...versions][0],
+    edits: entries.map((e) => e.edit),
+    file,
+    name: state.backend === 'github' ? (state.name ?? undefined) : undefined,
+  })
+  if (!res.ok) return { label, reason: res.reason }
+  return 'undo' in res && res.undo ? { undo: { slug, token: res.undo, label } } : {}
+}
+
+/**
+ * `github`: rebuild one file on the branch from what is left of its list,
+ * after an applied entry was taken back. An empty list puts the deployed copy
+ * back.
+ */
+async function rewrite(file: string, taken?: PendingEntry) {
+  if (state.backend !== 'github' || state.mode !== 'write') return
+  emit({ busy: true })
+  const group = ordered().filter(([, p]) => p.applied && fileOfEdit(p.edit) === file)
+  const outcome = await send(file, group, taken)
+  emit({ busy: false, error: 'reason' in outcome ? outcome : null })
+}
+
+/**
+ * Take back the newest change.
+ *
+ * `fs`: put the file back as it was before the newest Apply. `github`: drop the
+ * newest entry, applied or not, and rebuild its file if it had been written.
+ */
 export async function undoLast(): Promise<void> {
+  if (state.busy) return
+  if (state.backend === 'github') {
+    unstageLast()
+    return
+  }
   const entry = state.undo[state.undo.length - 1]
-  if (!entry || state.busy) return
+  if (!entry) return
   emit({ busy: true, undo: state.undo.slice(0, -1) })
-  const res = await devSink({ slug: entry.slug, undo: entry.token })
+  const res = await sink({ slug: entry.slug, undo: entry.token })
   emit({
     busy: false,
     error: res.ok ? null : { label: `undo ${entry.label}`, reason: res.reason },
   })
   onFlushed?.()
+}
+
+/**
+ * `github`: open this deployment's change and let it land itself. Everything
+ * must be applied first. Afterwards the list is kept, and kept on screen,
+ * until the next deployment brings the change in for real.
+ */
+export async function pushChanges(): Promise<void> {
+  if (state.busy || state.backend !== 'github' || state.pushed || !state.name || !storageSlug) return
+  const rows = ordered()
+  if (rows.length === 0 || rows.some(([, p]) => !p.applied)) return
+  emit({ busy: true })
+  const res = await sink({ slug: storageSlug, push: true, name: state.name })
+  emit({
+    busy: false,
+    pushed: res.ok,
+    error: res.ok ? null : { label: 'the push', reason: res.reason },
+  })
+}
+
+/** Every staged value edit, for re-painting a screen that re-rendered. */
+export function valueEdits(): { edit: Edit; component?: string }[] {
+  return ordered().flatMap(([, p]) => (isStructural(p.edit) ? [] : [{ edit: p.edit, component: p.component }]))
 }
 
 export function clearDesignError() {

@@ -252,6 +252,8 @@ export function renderOverlay(ops: readonly StructuralEdit[], onPreview: () => v
 export function watchOverlay(
   getOps: () => readonly StructuralEdit[],
   onRedraw: () => void,
+  /** Whether anything is staged at all — value edits need repainting too. */
+  active: () => boolean = () => getOps().length > 0,
 ): { stop: () => void; redraw: () => void } {
   const r = root()
   if (!r) return { stop: () => {}, redraw: () => {} }
@@ -265,15 +267,17 @@ export function watchOverlay(
     renderOverlay(ops, () => {
       if (!frame) frame = requestAnimationFrame(redraw)
     })
-    observe()
+    // Before observing again: the callback repaints, and its writes must not
+    // read as the screen changing.
     onRedraw()
+    observe()
   }
 
   const ours = (node: Node) =>
     node instanceof Element && (node.hasAttribute(GHOST_ATTR) || node.closest?.('[data-inspect-layer]') !== null)
 
   const mo = new MutationObserver((records) => {
-    if (getOps().length === 0) return
+    if (!active()) return
     const real = records.some((rec) => {
       if (rec.type === 'attributes') {
         const t = rec.target as Element
