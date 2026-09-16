@@ -367,6 +367,40 @@ pure function with no I/O. Backends call it; tests cover it directly.
 > a misleading "could not be parsed". `package.json` pins `^7`; bumping it breaks
 > every edit in design mode.
 
+> **Built — D2, 2026-09-16.** `move`, `delete` and `duplicate`, with 35 tests
+> in `npm run test:design`. Changes from the table above, and why:
+>
+> - **`reorder` and `move` are one edit, anchored to a neighbour** —
+>   `{ src, to: { before | after | inside: src } }` instead of indices. An
+>   index counts JSX children, which include whitespace text and `{cond && …}`
+>   the client cannot see; a neighbour's address is something it has.
+> - **Every batch carries the file's version.** The loader stamps
+>   `data-src-v` (a short content hash) beside every `data-src`, and the
+>   backend refuses a batch whose version is not the file's. Structural edits
+>   shift line numbers, so an address from before any change to the file —
+>   the agent's included — can name a different node after it.
+> - **Values apply before structure.** A duplicate then carries its original's
+>   restyle, which is what the overlay shows, and "restyle, then delete" is
+>   not a refusal.
+> - **Undo is a guarded snapshot, per Apply.** The D1 inverse edits cannot
+>   express "move it back" — the node's new address is unknown until the
+>   screen reloads. The backend keeps the pre-write file and restores it only
+>   while the file is exactly what that write produced.
+> - **Diffs measured.** A reorder is two hunks; a delete is one (two when it
+>   leaves an import unused — the import is removed as text); a duplicate is
+>   one, a byte copy of the original. recast's added `;` on a reprinted
+>   `return (…)` is now put back, so a class edit is one line from the first
+>   edit, not two.
+> - **Refused:** a `.map()` row, anything behind a condition, the screen
+>   root, a drop into itself, and a drop into anything that doesn't take
+>   children (`vocabulary.ts` lists FunDS containers and leaves). Moves stay
+>   within one file.
+>
+> The overlay (A3) hides the original and draws a clone, rather than moving
+> React's nodes — moving them breaks the next re-render. It replays the
+> staged list in order on every change and every React re-render, so it
+> survives state changes and navigation back.
+
 **Batches are atomic.** The client stages edits (as Edit mode does today) and
 sends the whole list. Targets are resolved against the source first, then edits
 are applied in order on the live AST — recast's node objects stay valid as the
