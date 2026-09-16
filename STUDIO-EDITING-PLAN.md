@@ -93,23 +93,29 @@ requests, because most of them are layout and copy.
 
 ## Decisions
 
+Decisions are **P**-numbered. **D** and **C** belong to the phase table
+(§ Phases) and mean nothing here. The two series collided in the first draft of
+this merge — "C3" was both *edit existing projects only* and *Chat push*, three
+hundred lines apart — so a cross-reference landed a reader on the wrong thing.
+Keep them apart.
+
 | # | Decision | Why |
 |---|----------|-----|
-| D1 | **Source stays the truth.** No parallel JSON document | Design mode reads the rendered screen and writes TSX. What the agent wrote and what the designer moved are the same file |
-| D2 | **Preview and persistence are independent** | Every edit renders as a DOM overlay on the client, instantly, with no compiler. Where the write goes — local disk, GitHub, nowhere — is a backend choice the panel never sees. This is the single decision that makes deployed design mode possible |
-| D3 | **Closed vocabulary, closed outcomes** | The panel can only produce token classes, FunDS components with declared props, and stack operations. It is physically incapable of an off-system screen, so nothing it writes needs a review beyond CI |
-| D4 | **Refuse, don't guess** | An edit the server cannot apply to exactly one place is refused with a reason and handed to the agent as text. A wrong-line write is worse than no write |
-| D5 | **Layout is the designer's; behaviour is the agent's** | Anything outside the vocabulary becomes a "copy for agent" request from the same panel |
-| C1 | **One team API key**, not a subscription per designer | The whole point of the chat half: one billed key replaces N seats, nobody installs or authenticates anything, and per-use cost is visible and cappable |
-| C2 | **Agent SDK in a Vercel Sandbox** | Claude Code's own harness, so `CLAUDE.md` applies unchanged; Vercel is already the host, so no new vendor |
-| C3 | **Edit existing projects only** | Chat lives on a project page; new projects still start locally |
-| C4 | **Two verbs, unchanged** | Every chat turn is a commit on a session branch; "push" opens the change and lets it land. Vocabulary stays commit/push/live — identical to design mode's Apply/Push |
-| C5 | **The branch is the durable state; the sandbox is a cache** | Sandboxes expire; a session must survive that without losing work |
-| C6 | **Per-project monthly spend cap**, hard stop | A chat open to the team with no ceiling is an open bill |
-| M1 | **One GitHub App** serves both halves | Resolved conflict — see below |
-| M2 | **Identity arrives in two stages** | Resolved conflict — see below |
+| P1 | **Source stays the truth.** No parallel JSON document | Design mode reads the rendered screen and writes TSX. What the agent wrote and what the designer moved are the same file |
+| P2 | **Preview and persistence are independent** | Every edit renders as a DOM overlay on the client, instantly, with no compiler. Where the write goes — local disk, GitHub, nowhere — is a backend choice the panel never sees. This is the single decision that makes deployed design mode possible |
+| P3 | **Closed vocabulary, closed outcomes** | The panel can only produce token classes, FunDS components with declared props, and stack operations. It is physically incapable of an off-system screen, so nothing it writes needs a review beyond CI |
+| P4 | **Refuse, don't guess** | An edit the server cannot apply to exactly one place is refused with a reason and handed to the agent as text. A wrong-line write is worse than no write |
+| P5 | **Layout is the designer's; behaviour is the agent's** | Anything outside the vocabulary becomes a "copy for agent" request from the same panel |
+| P6 | **One team API key**, not a subscription per designer | The whole point of the chat half: one billed key replaces N seats, nobody installs or authenticates anything, and per-use cost is visible and cappable |
+| P7 | **Agent SDK in a Vercel Sandbox** | Claude Code's own harness, so `CLAUDE.md` applies unchanged; Vercel is already the host, so no new vendor |
+| P8 | **Edit existing projects only** | Chat lives on a project page; new projects still start locally |
+| P9 | **Two verbs, unchanged** | Every chat turn is a commit on a session branch; "push" opens the change and lets it land. Vocabulary stays commit/push/live — identical to design mode's Apply/Push |
+| P10 | **The branch is the durable state; the sandbox is a cache** | Sandboxes expire; a session must survive that without losing work |
+| P11 | **Per-project monthly spend cap**, hard stop | A chat open to the team with no ceiling is an open bill |
+| P12 | **One GitHub App** serves both halves | Resolved conflict — see below |
+| P13 | **Identity arrives in two stages** | Resolved conflict — see below |
 
-### Resolved conflict — identity (M2)
+### Resolved conflict — identity (P13)
 
 The two source documents disagreed:
 
@@ -149,13 +155,19 @@ check is `[owner].flat().includes(name)`. Then:
 Two designers on the same project is already off-contract, so a conflicting
 branch is surfaced as "needs the agent", not resolved by the studio.
 
-**Name audit — a prerequisite for both stages.** Display names must match what
-projects already carry. The six distinct owner values today are `Hazki`,
-`Chandra`, `Chandraditya Kusuma`, `Patricia`, `Nugraha`, `Yori` — `Chandra` and
-`Chandraditya Kusuma` must become one spelling before any ownership check is
-enforced.
+**Name audit — DONE (Spike B, 2026-09-16).** Display names must match what
+projects already carry, and `owner` was free text, so nothing stopped one person
+being spelled two ways — which is exactly what had happened. `ngmis-cash-
+outstanding` and `ngmis-bm-monitoring-v2` moved from `Chandraditya Kusuma` to
+`Chandra` (Hazki chose the spelling), and `scripts/check-flows.mjs` now
+validates every project's `owner` against a canonical `OWNERS` list, so a third
+spelling fails CI instead of silently locking someone out of their own project.
 
-### Resolved conflict — the GitHub App (M1)
+This was harmless while ownership was a convention read by humans. It stops
+being harmless the moment anything reads the field automatically — which is
+B2's `display_name` check, the first thing that ever will.
+
+### Resolved conflict — the GitHub App (P12)
 
 Both documents specified an App and named its env vars differently
 (`STUDIO_GH_APP_*` vs `GITHUB_APP_*`). **One App, `STUDIO_GH_APP_*`**, since
@@ -169,7 +181,10 @@ long-lived token in env.
 ## Measured — Spike A, 2026-09-16
 
 Run by a parallel session on 2026-09-16, before any code was written. It settles
-questions in **both** halves, so it sits ahead of both parts.
+questions in **both** halves, so it sits ahead of both parts. Three runs: two
+trivial prompts, then a real design request (the `afin-linear` alternative
+homepage now in the tree as `screens/home-b.tsx` — that file is Spike A run 3,
+not a separate spike).
 
 A throwaway script (not in this repo) booted a real Vercel Sandbox against this
 checkout and ran the Agent SDK inside it. Everything below is measured, not
@@ -180,7 +195,7 @@ estimated, and is folded into the sections that follow.
 | Does `settingSources: ['project']` really load CLAUDE.md? | **Yes.** With all tools disabled the agent answered `#853291` — it could only know that from the contract being in its system prompt |
 | Cold start (boot + clone + `npm ci` + SDK install) | **13–19s** |
 | One turn: first text / full 6-step turn | **2.2s / 25s** |
-| One turn's cost (Opus, four file reads) | **$0.27** |
+| One *trivial* turn's cost (Opus, four file reads) | **$0.27** — see the correction below; do not plan with this number |
 | Fixed cost to boot a session's context | **$0.16** (~26k tokens written to cache, paid again by every new sandbox) |
 | `next build` | **36–51s** |
 | Dev server in the sandbox: boot + first route compile | **12.6–17.1s**, returns a working `*.vercel.run` URL |
@@ -188,6 +203,33 @@ estimated, and is folded into the sections that follow.
 The agent also behaved well unprompted: asked to change a button that does not
 exist on the entry screen, it read four files and said it would be guessing,
 rather than inventing one.
+
+**Correction — a real design request costs roughly 5× a trivial one.** A third
+run gave the agent an actual design prompt (an alternative `afin-linear`
+homepage contrasting individual and group rewards):
+
+| Run | Cost | Turns | Wall clock |
+|---|---|---|---|
+| Real request, with a dev-server detour | **$1.71** | 34 | 10.0 min |
+| Real request, instruction reworded, no detour | **$1.39** | 23 | 4.4 min |
+
+So `CHAT_CAP_USD=50` is about **36 real requests per project per month**, not
+the 150–180 the $0.27 figure implies. That is a different instrument: a
+designer can spend a third of a month's budget in one afternoon, which is worth
+deciding about deliberately (§ Open questions).
+
+Quality on that run was good and is the reason this is a cost question rather
+than a viability one: it read `CHEATSHEET.md` before building, produced no
+arbitrary values, used only `font-bold`, wrote a correct `lazyScreen`
+registration, kept exactly one entry screen, reused the project's own
+`HomeShell` instead of reinventing chrome, and ran lint, `check:flows` and
+`tsc --noEmit` without being asked.
+
+**Read the two recompile numbers carefully.** The sub-second figure (0.98s) is
+edit-to-visible on an **already-compiled** route — that, and only that, is the
+chat iteration loop and the basis for A4's `sandbox` backend. The 10.3s figure
+is the **first** compile of a brand-new route. Both are real; quoting the
+second as the iteration cost, or the first as the cold cost, would be wrong.
 
 Two findings about credentials:
 
@@ -198,7 +240,7 @@ Two findings about credentials:
 - The **AI Gateway does not accept the OIDC token** — it wants its own
   `AI_GATEWAY_API_KEY`. Routing model spend through Vercel is still possible
   (one vendor, one invoice, no Anthropic account) but it is not free-by-identity
-  the way it first appeared. C1 stands either way; the choice is one env var.
+  the way it first appeared. P6 stands either way; the choice is one env var.
 
 The Vercel scope is **Hobby** (`"plan": "hobby"` in the OIDC claims) and Sandbox
 is available on it: 45-minute max session, 4 vCPUs, 10 concurrent. Hobby's terms
@@ -263,6 +305,18 @@ builds alike**; the deployed studio needs it as much as the dev server does.
 `platform/inspect/resolve.ts` and `tree.ts` start reading `data-src`. Layers
 becomes an exact outline of the JSX rather than a heuristic one.
 
+> **Built and measured — D1a, 2026-09-16.** `platform/design/stamp.cjs`, with
+> 13 tests in `scripts/test-design.mjs` (`npm run test:design`). It stamps all
+> 220 project `.tsx` files without a parse failure, is idempotent, and returns
+> the source untouched on TSX it cannot read.
+>
+> One correction to the spec above: the address is the position of the
+> **opening element** — the `<` — not of the tag name one column right of it.
+> Stamping the name put every address off by one and resolved nothing, silently.
+> A round-trip test (stamp a file, read an address back out, resolve it against
+> the original source) is what caught it and is the single test worth keeping if
+> only one could be.
+
 > **Rejected alternative.** React 18's `_debugSource` (present on the fiber via
 > `jsx-dev-runtime`, and confirmed present in this repo on react 18.3.1 / next
 > 14.2.35) would give element positions with no loader at all. It is rejected
@@ -296,6 +350,22 @@ it reprints, and every tweak would become a noisy diff.
 
 `applyEdits(source, edits): { source } | { refused: { edit, reason } }` is a
 pure function with no I/O. Backends call it; tests cover it directly.
+
+> **Built and measured — D1a, 2026-09-16.** `platform/design/applyEdits.ts`,
+> implementing `class`, `text` and `prop`. Two findings:
+>
+> **The one-line diff is almost true.** Measured on a real screen: the *first*
+> edit to a file costs **2 lines** — the change, plus one semicolon added to the
+> `return (…)` that this repo's style omits, because recast reprints the
+> ReturnStatement when JSX inside its parentheses changes. Every edit after that
+> is a clean **1 line**. It is a one-off normalisation per file, not per-edit
+> noise, and the test asserts all three cases. Re-measure at D2: a reorder is
+> specified as two hunks and that has not been checked.
+>
+> **recast 0.24 requires `@babel/parser` 7.** On 8 its `babel-ts` parser throws
+> `"pipelineOperator" requires "proposal" option` on the first file, surfacing as
+> a misleading "could not be parsed". `package.json` pins `^7`; bumping it breaks
+> every edit in design mode.
 
 **Batches are atomic.** The client stages edits (as Edit mode does today) and
 sends the whole list. Targets are resolved against the source first, then edits
@@ -335,7 +405,7 @@ One interface, three implementations, chosen by environment:
 | `github` | deployed, App configured | commits to a branch via the GitHub API | Push opens the PR with auto-merge, from the panel |
 | `record` | deployed, no App configured | nothing; list persists in localStorage | copy the list for an agent (today's behaviour) |
 
-**The GitHub backend.** The App from M1; a server route (`app/api/design/`) runs
+**The GitHub backend.** The App from P12; a server route (`app/api/design/`) runs
 on the Node runtime with the same `applyEdits`.
 
 The deployed build knows the commit it was built from (`VERCEL_GIT_COMMIT_SHA`),
@@ -505,7 +575,7 @@ beside Vocus's `role`; each tool's Users page edits its own column.
 | `admin` | studio owner | any project; reset a cap; manage users |
 
 `user_roles` also gains `display_name` — the value matched against
-`project.config.owner`, replacing design mode's localStorage prompt (M2).
+`project.config.owner`, replacing design mode's localStorage prompt (P13).
 
 > **Open — carried from CHAT-PLAN.** Sharing Vocus's Supabase project couples
 > two tools' auth at the database level to save provisioning a second project.
@@ -537,6 +607,18 @@ Node runtime, streaming SSE. Per request:
    `projects/<slug>/` is reset and reported ("the agent tried to change a shared
    file; not saved"). Then `git add projects/<slug>`, commit `[<slug>] <first
    line of the message>`, `git push -u origin`.
+
+   > **The flat reset is safe because of P8, not because confinement is proven
+   > in general.** Measured once, on a real design request that added a screen
+   > to `afin-linear`: the agent touched `index.ts`, `NOTES.md` and the new
+   > screen file, all inside `projects/afin-linear/`, and never went near
+   > `registry.ts` or `configs.ts`. That is evidence for the *edit* case only.
+   > **Creating a project** must append one line each to `projects/registry.ts`
+   > and `projects/configs.ts` — both outside the folder — and a flat reset
+   > would strip them and leave a project that does not load. P8 ("edit existing
+   > projects only") is what keeps that case from arising; design mode does not
+   > create projects either. **Creating a project stays a local Claude Code
+   > job.** If P8 is ever relaxed, this reset must be revisited first.
 6. **Preview** — the sandbox is already serving it. `next dev` starts once per
    session on an exposed port; `sandbox.domain(port)` is the link, and every
    later turn hot-reloads into the page the designer already has open.
@@ -567,11 +649,30 @@ query({
     settingSources: ['project'],        // ← without this CLAUDE.md is NOT loaded
     permissionMode: 'acceptEdits',
     allowedTools: ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash'],
+    // ↑ SEE THE WARNING BELOW BEFORE COPYING THIS LINE.
     maxTurns: 40,
     systemPrompt: { type: 'preset', preset: 'claude_code', append: STUDIO_APPEND },
   },
 })
 ```
+
+> **A bare tool name in `allowedTools` silently disables `canUseTool`.** Spike A
+> wired a permission callback to hard-block the agent from starting a dev
+> server, and the SDK warned:
+>
+> ```
+> CLAUDE_SDK_CAN_USE_TOOL_SHADOWED: canUseTool will not be invoked for: Read,
+> Edit, Write, Glob, Grep, Bash. Bare allowedTools entries auto-approve the whole
+> tool before the callback is consulted. To gate every tool call, use a PreToolUse
+> hook; or remove the bare names from allowedTools so they fall through.
+> ```
+>
+> The denial count was 0 and nothing failed — the run only behaved because the
+> *instruction* had also been reworded. Anyone implementing the config above
+> would wire a callback, never see it fire, and not notice. Use a **PreToolUse
+> hook** returning `permissionDecision: 'deny'` instead. That hook is written but
+> **not yet proven by a run**; it is the recommended mechanism, not a verified
+> one.
 
 `STUDIO_APPEND` is the only contract text the studio adds, and it exists to stop
 the agent running CLAUDE.md §5 itself:
@@ -586,6 +687,13 @@ the agent running CLAUDE.md §5 itself:
 Everything else — FunDS-only vocabulary, no arbitrary values, click-through
 default, no `notes` unless asked — comes from `CLAUDE.md` exactly as it does
 locally. A change to the contract changes the chat agent on its next session.
+
+**`STUDIO_APPEND` is advisory, not a control.** Measured: it lost outright to
+`CLAUDE.md` on the dev-server instruction — §7 tells the agent to start a dev
+server, the append told it not to, and the append lost, burning ~6 minutes and
+~$1. An appended instruction does not outrank a loaded contract. Anything the
+studio actually *requires* has to be enforced in code (a PreToolUse hook, or the
+post-turn reset in B3 step 5), not asked for in prose.
 
 Output is the SDK's stream-json: assistant text goes to the panel as it arrives,
 tool events become a status line ("editing home.tsx", "running lint"), the
@@ -625,18 +733,19 @@ sandbox.
 
 Cold start is 13–19s, so an expired sandbox is barely an event — no prebuilt
 image or snapshot is needed. The real cost of a fresh one is **$0.16 of context
-re-cached**, not time. Cheap enough that C5 holds, but it is the reason to
+re-cached**, not time. Cheap enough that P10 holds, but it is the reason to
 prefer resuming a session over discarding it.
 
 Two turns must never run on one sandbox at once. Turns are slow enough that a
 designer will send a second message while the first is working, and two agents
 editing one checkout race each other's commits. One lock per session.
 
-**Spend — measured: $0.27 for one Opus turn** (six steps, four file reads), plus
-a one-off **$0.16** per session to cache the contract and repo context. So
-`CHAT_CAP_USD=50` buys roughly **150–180 turns per project per month** — no
-longer a guess. Sonnet would cut that several-fold and is plausibly right for
-label-and-copy tweaks; the model belongs in config, not in a constant.
+**Spend — measured: $1.39–$1.71 for one real design request** (23–34 turns),
+plus a one-off **$0.16** per session to cache the contract and repo context. A
+trivial turn is $0.27, which is the number to quote for a label tweak and the
+wrong one to budget with. So `CHAT_CAP_USD=50` buys roughly **36 real requests
+per project per month**. Sonnet would cut that several-fold and is plausibly
+right for label-and-copy work; the model belongs in config, not in a constant.
 
 A monthly per-project cap is a billing guardrail, not a runaway guard — runaway
 happens inside one session, so add a per-session ceiling beside it. And a
@@ -795,7 +904,9 @@ in favour of our own loader, which must run in production builds.
 | Deployed edits to another designer's project | Name check + owner refusal + `live` read-only; and the change is still gated by CI and visible in the repo |
 | Designers trust the overlay before push lands | The panel says "saved, not live" until the new deploy's SHA arrives — same wording as chat |
 | ~~Agent ignores the contract in the sandbox~~ | **Closed by Spike A** — verified end to end with tools disabled. Keep the runner's startup check on `CLAUDE.md` as a regression guard |
-| Agent edits outside the project | post-turn `git status` reset + report; the PR still goes through CI and CODEOWNERS for shared paths |
+| Agent edits outside the project | post-turn `git status` reset + report; the PR still goes through CI and CODEOWNERS for shared paths. Measured once for the edit case (B3 step 5); **unproven for project creation**, which C3 keeps out of scope |
+| A permission callback that never fires | bare names in `allowedTools` shadow `canUseTool` silently (B4). Use a PreToolUse hook — and assert in the runner's startup check that the gate actually fires, since the failure mode is silence |
+| Treating `STUDIO_APPEND` as enforcement | it is advisory and lost to `CLAUDE.md` in a measured run; anything required is enforced in code |
 | ~~Cold sandbox per turn~~ | **Measured at 13–19s** — a non-issue. One sandbox per session, KV-tracked; re-clone on expiry costs seconds plus $0.16 of re-cached context |
 | Two turns racing on one sandbox | per-session lock; the panel shows "still working" rather than accepting a second message |
 | A bad credential reads as a hang | pre-flight check in the gate — the SDK itself takes three minutes to report one |
@@ -812,7 +923,12 @@ in favour of our own loader, which must run in production builds.
 
 **Answered by Spike A**
 
-- ~~Cap default~~ — $0.27/turn, so $50 ≈ 150–180 turns. Keep 50 and watch it.
+- ~~Cap default~~ — but the answer changed the question. A real design request
+  is **$1.39–$1.71**, so $50 is ~36 requests per project per month, not 150–180.
+  Still open: **is a per-project monthly cap the right instrument at all?** One
+  designer can spend a third of a month in an afternoon, and seven projects here
+  have three owners each. A per-session ceiling is needed beside it regardless.
+- ~~Name audit~~ — done, Spike B. See § Resolved conflict — identity.
 - ~~Does a gesture need a faster write path than a commit loop?~~ — largely
   settled: a sandbox dev server hot-reloads in ~a second, so the write path
   *can* be the sandbox (see A4's fourth backend). What remains is whether a drag
@@ -822,7 +938,7 @@ in favour of our own loader, which must run in production builds.
 **Open**
 
 - **Supabase coupling (B2)** — second project vs sharing Vocus's. Decide before C1.
-- **Which model?** Opus was measured at $0.27/turn. Sonnet is several times
+- **Which model?** Opus was measured at $1.39–$1.71 per real request. Sonnet is several times
   cheaper and probably enough for the tweaks this feature exists for. Make it
   configurable and try both on a real request.
 - **Where does model spend get billed** — Anthropic directly, or through the
