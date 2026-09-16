@@ -79,7 +79,13 @@ all, and for the FunDS→Storybook translation it shows exact composition.
 - Complexity: **very low.**
 - Tier: Tier 2 (player chrome).
 
-## Phase 4 — Direct manipulation (evaluate, then maybe build)
+## Phase 4 — Direct manipulation — SUPERSEDED
+
+> Superseded 2026-09-16 by **[STUDIO-EDITING-PLAN.md](STUDIO-EDITING-PLAN.md)**
+> Part A, which plans this in full. Onlook was evaluated (twice) and rejected
+> there; do not evaluate it a third time. The section below is kept for context.
+
+### Original text
 
 True live edit: select an element, nudge padding with a stepper that only
 offers 4px-grid values, reorder siblings; a small dev-server endpoint writes
