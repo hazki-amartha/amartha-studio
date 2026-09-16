@@ -5,7 +5,7 @@ export const config: ProjectConfig = {
   name: 'NGMIS Cash Outstanding & Settlement',
   businessUnit: 'Lending',
   platform: 'NGMIS',
-  owner: 'Chandraditya Kusuma',
+  owner: 'Chandra',
   description:
     'The branch FO Report, opened on the Cash Outstanding & Settlement tab.',
   device: 'desktop',
