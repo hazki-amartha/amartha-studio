@@ -428,6 +428,28 @@ pure function with no I/O. Backends call it; tests cover it directly.
 > (`react-dom/server`, loaded on first use), not a React portal: a second
 > root inside the one that owns the screen fought it on every re-render.
 
+> **Built — D4, 2026-09-16, switched off until the App exists** (§ Setting up
+> D4). What differs from A4 above:
+>
+> - **The branch carries the build SHA**:
+>   `<slug>/design-<name>-<sha7>`, not `-<yyyymmdd>`. A same-day branch cut
+>   from an earlier deployment would, once a file is rewritten on it, carry
+>   every other file as it was then and quietly revert what landed since.
+> - **Production deployments of `main` only**, and only behind the password
+>   gate. A preview is refused by configuration, not by convention.
+> - **Undo is "drop and re-apply"** as planned; a file whose list becomes
+>   empty is put back to the deployed copy.
+> - **After Push the list is kept and locked** until the next deployment
+>   (new SHA) brings the change in, so the screen never flickers back to the
+>   old state and a second Apply can't reopen a merged branch.
+> - **The name prompt offers the project's owners** and nothing else; anyone
+>   else collects. The name is a courtesy check, as P13 says.
+> - **Tested** against an in-memory GitHub (unit) and a local fake GitHub
+>   behind a gated production build (browser). Not yet against real GitHub.
+> - **Known gap:** if a pushed change fails CI, the panel still says it is on
+>   its way. The change is visible in the repo; the agent picks it up from
+>   there.
+
 **Batches are atomic.** The client stages edits (as Edit mode does today) and
 sends the whole list. Targets are resolved against the source first, then edits
 are applied in order on the live AST — recast's node objects stay valid as the
@@ -889,11 +911,43 @@ C2.
 - `platform/types.ts` is untouched — `owner` keeps its shape.
 - `README.md` deploy section: Google OAuth env vars replace `SITE_PASSWORD` (C1).
 
+## Setting up D4 — the GitHub App
+
+D4 is built and switched off until these exist. In order:
+
+1. **Create the App** (GitHub → Settings → Developer settings → GitHub Apps →
+   New). No webhook. Repository permissions: **Contents: read & write**,
+   **Pull requests: read & write**, Metadata: read. Nothing else.
+2. **Generate a private key** on the App's page, and note its **App ID**.
+3. **Install it** on `amartha-studio` only. The installation's URL ends in its
+   **installation ID**.
+4. **Repo settings**: "Allow auto-merge" on (it already is — `gh pr merge
+   --auto` relies on it). The App's changes touch only `projects/<slug>/`, so
+   CODEOWNERS asks for no review and CI is the only gate, as for an agent's.
+5. **Vercel → Environment Variables, Production only**: `STUDIO_GH_APP_ID`,
+   `STUDIO_GH_APP_PRIVATE_KEY` (the PEM; pasting it on one line with `\n` is
+   fine), `STUDIO_GH_APP_INSTALLATION_ID`. Keep "Automatically expose System
+   Environment Variables" on. Redeploy.
+6. **Check**: open a project you own on the production link, turn on Design,
+   pick your name, make one change, Apply, Push. A change from the App should
+   appear and land itself once CI is green.
+
+Why production only: a preview's build commit may not be on `main`, and a
+change branch cut from it would carry that preview's other files into the
+change. `githubConfig()` refuses previews and any deployment not built from
+the base branch, whatever is configured.
+
 ## Env vars
 
 ```
-# D4
+# D4 — Production only. All three, or design mode on the link stays Collect.
 STUDIO_GH_APP_ID / STUDIO_GH_APP_PRIVATE_KEY / STUDIO_GH_APP_INSTALLATION_ID
+# Read from Vercel's system variables; set these only to override them.
+#   STUDIO_GH_REPO_OWNER / STUDIO_GH_REPO_SLUG   (VERCEL_GIT_REPO_OWNER / _SLUG)
+#   STUDIO_GH_BUILD_SHA                          (VERCEL_GIT_COMMIT_SHA)
+#   STUDIO_GH_BASE_BRANCH=main
+#   STUDIO_GH_API_URL                            (GitHub Enterprise, tests)
+# Also required: SITE_PASSWORD. No gate, no backend.
 
 # C1
 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY
