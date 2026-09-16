@@ -41,6 +41,19 @@ const KIND_ICON: Record<NodeIcon, (props: { className?: string }) => React.React
   list: ListIcon,
 }
 
+export type DropWhere = 'before' | 'after' | 'inside'
+
+/**
+ * Rearranging from the list — only in design mode, where the caller passes it.
+ * The panel knows rows and pointer positions; what a drop MEANS (and whether
+ * it is allowed) is the caller's.
+ */
+export interface LayersDrag {
+  canDrag: (el: Element) => boolean
+  accepts: (dragged: Element, target: Element, where: DropWhere) => boolean
+  onDrop: (dragged: Element, target: Element, where: DropWhere) => void
+}
+
 export interface LayersPanelProps {
   pinned: Element | null
   onPin: (el: Element | null) => void
@@ -48,6 +61,12 @@ export interface LayersPanelProps {
   onHover: (el: Element | null) => void
   className?: string
   onMinimize?: () => void
+  drag?: LayersDrag
+}
+
+interface DragState {
+  dragged: Element | null
+  over: { el: Element; where: DropWhere } | null
 }
 
 const REBUILD_DELAY = 150
@@ -117,6 +136,9 @@ function Row({
   onToggle,
   onPin,
   onHover,
+  drag,
+  dragState,
+  setDragState,
 }: {
   node: OutlineNode
   depth: number
@@ -125,12 +147,30 @@ function Row({
   onToggle: (el: Element) => void
   onPin: (el: Element) => void
   onHover: (el: Element | null) => void
+  drag?: LayersDrag
+  dragState: DragState
+  setDragState: (next: DragState) => void
 }) {
   const rowRef = useRef<HTMLDivElement>(null)
   const isPinned = node.el === pinned
   const hasChildren = node.children.length > 0
   const open = hasChildren && !collapsed.has(node.el)
   const Glyph = KIND_ICON[node.icon]
+  const draggable = Boolean(drag?.canDrag(node.el))
+  const over = dragState.over?.el === node.el ? dragState.over.where : null
+
+  // Top and bottom thirds drop beside the row; the middle drops into it, when
+  // it can take children. Dropping onto yourself or your own contents is not a
+  // place at all.
+  const whereAt = (e: React.DragEvent<HTMLDivElement>): DropWhere | null => {
+    const dragged = dragState.dragged
+    if (!drag || !dragged || dragged === node.el || dragged.contains(node.el)) return null
+    const r = e.currentTarget.getBoundingClientRect()
+    const f = (e.clientY - r.top) / r.height
+    if (f > 0.3 && f < 0.7 && drag.accepts(dragged, node.el, 'inside')) return 'inside'
+    const beside: DropWhere = f < 0.5 ? 'before' : 'after'
+    return drag.accepts(dragged, node.el, beside) ? beside : null
+  }
 
   // Bring the selection into view when it was made in the device, not here.
   useEffect(() => {
@@ -141,11 +181,37 @@ function Row({
     <>
       <div
         ref={rowRef}
+        draggable={draggable}
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'move'
+          // Firefox will not start a drag without data.
+          e.dataTransfer.setData('text/plain', node.label)
+          setDragState({ dragged: node.el, over: null })
+        }}
+        onDragOver={(e) => {
+          const where = whereAt(e)
+          if (!where) return
+          e.preventDefault()
+          if (over !== where) setDragState({ ...dragState, over: { el: node.el, where } })
+        }}
+        onDrop={(e) => {
+          const where = whereAt(e)
+          const dragged = dragState.dragged
+          setDragState({ dragged: null, over: null })
+          if (!where || !dragged || !drag) return
+          e.preventDefault()
+          drag.onDrop(dragged, node.el, where)
+        }}
+        onDragEnd={() => setDragState({ dragged: null, over: null })}
         className={`flex items-center gap-2 rounded-4 pr-4 ${
-          isPinned
-            ? 'bg-primary-50 dark:bg-ink-800'
-            : 'hover:bg-neutral-50 dark:hover:bg-ink-800'
-        }`}
+          over === 'inside'
+            ? 'outline outline-2 outline-primary-500'
+            : isPinned
+              ? 'bg-primary-50 dark:bg-ink-800'
+              : 'hover:bg-neutral-50 dark:hover:bg-ink-800'
+        } ${over === 'before' ? 'border-t-2 border-primary-500' : ''} ${
+          over === 'after' ? 'border-b-2 border-primary-500' : ''
+        } ${dragState.dragged === node.el ? 'opacity-50' : ''}`}
         style={{ paddingLeft: depth * 12 }}
         onMouseEnter={() => onHover(node.el)}
         onMouseLeave={() => onHover(null)}
@@ -208,6 +274,9 @@ function Row({
               onToggle={onToggle}
               onPin={onPin}
               onHover={onHover}
+              drag={drag}
+              dragState={dragState}
+              setDragState={setDragState}
             />
           ))
         : null}
@@ -221,9 +290,11 @@ export function LayersPanel({
   onHover,
   className,
   onMinimize,
+  drag,
 }: LayersPanelProps) {
   const nodes = useOutline()
   const [collapsed, setCollapsed] = useState<Set<Element>>(new Set())
+  const [dragState, setDragState] = useState<DragState>({ dragged: null, over: null })
 
   const toggle = useCallback((el: Element) => {
     setCollapsed((prev) => {
@@ -269,6 +340,9 @@ export function LayersPanel({
               onToggle={toggle}
               onPin={onPin}
               onHover={onHover}
+              drag={drag}
+              dragState={dragState}
+              setDragState={setDragState}
             />
           ))}
         </div>

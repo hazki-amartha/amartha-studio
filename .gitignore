@@ -27,6 +27,7 @@ next-env.d.ts
 # scratch output
 /scripts/.check-flows-bundle.mjs
 /scripts/.test-design-bundle.mjs
+/scripts/.test-design-route.mjs
 /scripts/.check-flows-bundle.css
 
 # Figma-exported component specs — /ingest reads them from here, but they are

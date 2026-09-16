@@ -20,7 +20,8 @@
 // =============================================================================
 
 import { COMPONENT_BASE, COMPONENT_PROPS } from './componentProps'
-import type { Edit, Src } from './protocol'
+import { isHidden, visibleBySrc } from './overlay'
+import { isStructural, type Edit, type Src } from './protocol'
 
 /** The address of the element, or null when it has none. `design-system/` and
  *  `platform/` are never stamped, so their internals are unaddressable — which
@@ -37,10 +38,17 @@ export function peersOf(src: Src): Element[] {
   return Array.from(root.querySelectorAll(`[data-src="${CSS.escape(src)}"]`))
 }
 
-/** Re-find an element after fast refresh remounted the screen. The address
- *  survives the remount, so this is a lookup rather than the v1 guess. */
+/** How many elements on screen one write to `src` really changes — the
+ *  peers, minus originals the overlay has hidden behind their moved copy. */
+export function countPeers(src: Src): number {
+  return peersOf(src).filter((p) => !isHidden(p)).length
+}
+
+/** Re-find an element after fast refresh remounted the screen, or after the
+ *  overlay redrew a moved copy. The address survives both, so this is a
+ *  lookup rather than the v1 guess. */
 export function findBySrc(src: Src): Element | null {
-  return peersOf(src)[0] ?? null
+  return visibleBySrc(src)
 }
 
 /**
@@ -112,6 +120,8 @@ export function applyTextSwap(src: Src, next: string) {
  * patched by searching for the value it had written. The address is enough.
  */
 export function revertStagedPatch(edit: Edit, component?: string) {
+  // Structure has no patch to reverse: the overlay redraws from the list.
+  if (isStructural(edit)) return
   if (edit.kind === 'class') {
     applyClassSwap(edit.src, edit.newClass, edit.oldClass)
     return

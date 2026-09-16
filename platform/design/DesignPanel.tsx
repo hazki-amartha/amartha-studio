@@ -43,9 +43,19 @@ import {
   valueForClass,
 } from '@/platform/inspect/tokenMap'
 import {
+  describe,
+  duplicateElement,
+  moveStep,
+  removeElement,
+  stageContext,
+  stepPlace,
+  structuralBlock,
+} from './actions'
+import {
   applyClassSwap,
   applyPropPreview,
   applyTextSwap,
+  countPeers,
   findBySrc,
   peersOf,
   revertStagedPatch,
@@ -56,6 +66,7 @@ import {
   applyPending,
   clearDesignError,
   copyChangeList,
+  discardPending,
   fileOf,
   getDesignStoreServerSnapshot,
   getDesignStoreState,
@@ -322,7 +333,7 @@ export function DesignPanel({
   const peerCount = useMemo(
     () => {
       const src = pinned ? srcOf(pinned) : null
-      return src ? peersOf(src).length : 0
+      return src ? countPeers(src) : 0
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pinned, version],
@@ -374,7 +385,7 @@ export function DesignPanel({
       // which are never stamped. Unaddressable is unselectable (§ Vocabulary).
       const src = srcOf(el)
       if (!src) return
-      stageClassEdit(slug, screenId, src, oldRendered, newClass)
+      stageClassEdit(stageContext(el, slug, screenId), src, oldRendered, newClass)
       applyClassSwap(src, oldRendered, newClass)
       repinRef.current = src
       bump()
@@ -398,7 +409,7 @@ export function DesignPanel({
     if (/[<>{}]/.test(next)) return
     const src = srcOf(el)
     if (!src) return
-    stageTextEdit(slug, screenId, src, oldText, next)
+    stageTextEdit(stageContext(el, slug, screenId), src, oldText, next)
     applyTextSwap(src, next)
     repinRef.current = src
     bump()
@@ -415,7 +426,7 @@ export function DesignPanel({
       if (!src) return
       const old = el.getAttribute(`data-fds-${attr}`) ?? ''
       if (old === next) return
-      stagePropEdit(slug, screenId, src, component, prop, old, next)
+      stagePropEdit(stageContext(el, slug, screenId), src, component, prop, old, next)
       for (const peer of peersOf(src)) applyPropPreview(peer, component, prop, old, next)
       repinRef.current = src
       bump()
@@ -451,6 +462,16 @@ export function DesignPanel({
   const [copied, setCopied] = useState(false)
   const copyFallback = useCallback(() => {
     if (!store.error) return
+    // Refused changes stay staged, so the whole list is the useful thing to
+    // hand on — every line carries its own address.
+    if (store.pending.length > 0) {
+      void copyChangeList().then((ok) => {
+        if (!ok) return
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 1500)
+      })
+      return
+    }
     const lines = [
       `Amartha Studio · project \`${slug}\` · screen \`${screenId}\``,
       `File: ${pinnedFile ?? `projects/${slug}/screens/${screenId}.tsx`}`,
@@ -465,7 +486,12 @@ export function DesignPanel({
     void navigator.clipboard.writeText(lines.join('\n'))
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1500)
-  }, [store.error, target, slug, screenId, pinnedFile])
+  }, [store.error, store.pending.length, target, slug, screenId, pinnedFile])
+
+  const discardAll = useCallback(() => {
+    for (const unstaged of discardPending()) revertStagedPatch(unstaged.edit, unstaged.component)
+    bump()
+  }, [])
 
   // --- render ----------------------------------------------------------------
 
@@ -476,7 +502,12 @@ export function DesignPanel({
         screenId={screenId}
         onRemove={removePending}
       />
-      <StatusFooter storeError={store.error} onCopy={copyFallback} copied={copied} />
+      <StatusFooter
+        storeError={store.error}
+        onCopy={copyFallback}
+        copied={copied}
+        onDiscard={store.pending.length > 0 ? discardAll : undefined}
+      />
       <ActionsFooter store={store} onUndo={onUndo} />
       <ModeSwitch mode={store.mode} />
     </>
@@ -580,6 +611,8 @@ export function DesignPanel({
           </div>
         ) : null}
       </div>
+
+      <ArrangeSection el={target.el} slug={slug} screenId={screenId} structure={store.structure.length} />
 
       {editableProps.length > 0 ? (
         <Section title="Component">
@@ -728,6 +761,82 @@ export function DesignPanel({
         Clear selection
       </button>
     </PanelShell>
+  )
+}
+
+// --- arrange (D2) ------------------------------------------------------------
+
+const ARRANGE_BTN =
+  'flex-1 rounded-full border border-default bg-neutral-white px-8 py-4 text-12 font-bold text-default hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800 dark:disabled:text-neutral-600'
+
+/**
+ * Move, duplicate, delete — the same actions as the keyboard and a drag, as
+ * buttons, so they can be found. `structure` is only there to re-render when
+ * the staged list changes: whether there is a neighbour to move past depends
+ * on the overlay, which React doesn't see.
+ */
+function ArrangeSection({
+  el,
+  slug,
+  screenId,
+}: {
+  el: Element
+  slug: string
+  screenId: string
+  structure: number
+}) {
+  const blocked = structuralBlock(el, slug)
+  const up = blocked ? null : stepPlace(el, -1)
+  const down = blocked ? null : stepPlace(el, 1)
+
+  return (
+    <Section title="Arrange">
+      <div className="flex flex-col gap-8">
+        <div className="flex gap-4">
+          <button
+            type="button"
+            className={ARRANGE_BTN}
+            disabled={!up}
+            title={up ? `Move above ${describe(up.past)} (⌥↑)` : 'Already first'}
+            onClick={() => moveStep(el, -1, slug, screenId)}
+          >
+            ↑ Up
+          </button>
+          <button
+            type="button"
+            className={ARRANGE_BTN}
+            disabled={!down}
+            title={down ? `Move below ${describe(down.past)} (⌥↓)` : 'Already last'}
+            onClick={() => moveStep(el, 1, slug, screenId)}
+          >
+            ↓ Down
+          </button>
+        </div>
+        <div className="flex gap-4">
+          <button
+            type="button"
+            className={ARRANGE_BTN}
+            disabled={Boolean(blocked)}
+            title="Duplicate (⌘D)"
+            onClick={() => duplicateElement(el, slug, screenId)}
+          >
+            Duplicate
+          </button>
+          <button
+            type="button"
+            className={ARRANGE_BTN}
+            disabled={Boolean(blocked)}
+            title="Delete (⌫)"
+            onClick={() => removeElement(el, slug, screenId)}
+          >
+            Delete
+          </button>
+        </div>
+        <span className="text-10 text-caption dark:text-neutral-400">
+          {blocked ?? 'Or drag it on the screen or in Layers. ⌥↑ ⌥↓ move · ⌘D duplicate · ⌫ delete'}
+        </span>
+      </div>
+    </Section>
   )
 }
 
@@ -947,10 +1056,13 @@ function StatusFooter({
   storeError,
   onCopy,
   copied,
+  onDiscard,
 }: {
   storeError: { label: string; reason: string } | null
   onCopy: () => void
   copied: boolean
+  /** Present while refused changes are still staged. */
+  onDiscard?: () => void
 }) {
   if (!storeError) return null
   return (
@@ -965,6 +1077,15 @@ function StatusFooter({
         >
           {copied ? 'Copied' : 'Copy for agent'}
         </button>
+        {onDiscard ? (
+          <button
+            type="button"
+            onClick={onDiscard}
+            className="rounded-full px-12 py-4 text-12 font-bold text-red-700"
+          >
+            Discard changes
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={clearDesignError}

@@ -59,7 +59,8 @@ import {
   subscribeBareMode,
 } from '@/platform/runtime/presentBridge'
 import { InspectLayer, InspectorPanel, LayersPanel } from '@/platform/inspect'
-import { DesignPanel } from '@/platform/design'
+import { DesignLayer, DesignPanel } from '@/platform/design'
+import { layersDrag } from '@/platform/design/actions'
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '@/platform/chrome/icons'
 import { PanelPill, PanelShell } from '@/platform/chrome/SidePanel'
 import { DeviceFrame } from './DeviceFrame'
@@ -110,6 +111,7 @@ function BridgePublisher({ slug, screens }: { slug: string; screens: ScreenDef[]
  *  never mounts there. */
 function AppViewport({
   device = 'mobile',
+  slug,
   inspect,
   design,
   pinned,
@@ -117,12 +119,14 @@ function AppViewport({
   preview,
 }: {
   device?: DeviceKind
+  slug?: string
   inspect?: boolean
   design?: boolean
   pinned?: Element | null
   onPin?: (el: Element | null) => void
   preview?: Element | null
 } = {}) {
+  const { current } = useFlow()
   return (
     <div
       className={styles.viewport}
@@ -137,6 +141,9 @@ function AppViewport({
           preview={preview}
           pick={design ? 'authored' : 'component'}
         />
+      ) : null}
+      {inspect && design && onPin && slug ? (
+        <DesignLayer slug={slug} screenId={current} pinned={pinned ?? null} onPin={onPin} />
       ) : null}
     </div>
   )
@@ -496,6 +503,7 @@ function panelSlots(a: SlotProps) {
         pinned={a.pinned}
         onPin={a.setPinned}
         onHover={a.setPreview}
+        drag={a.design ? layersDrag(a.config.slug, a.current) : undefined}
       />
     ) : (
       <StatesPanel
@@ -598,6 +606,7 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
         <ScaledDevice>
           <DeviceFrame>
             <AppViewport
+              slug={config.slug}
               inspect={picking}
               design={design}
               pinned={pinned}
@@ -660,6 +669,7 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
           <DeviceFrame device="desktop">
             <AppViewport
               device="desktop"
+              slug={config.slug}
               inspect={picking}
               design={design}
               pinned={pinned}

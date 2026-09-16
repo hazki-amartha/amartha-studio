@@ -18,6 +18,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { boundaryOf, labelOf } from './resolve'
+import { isHidden } from '@/platform/design/overlay'
 import styles from './inspect.module.css'
 
 export interface InspectLayerProps {
@@ -185,8 +186,18 @@ export function InspectLayer({
     const tick = () => {
       const layer = layerRef.current
       if (layer) {
-        if (pinned && !pinned.isConnected) {
-          onPin(null)
+        if (pinned && (!pinned.isConnected || isHidden(pinned))) {
+          // Gone, or hidden behind design mode's moved copy. An addressed
+          // element is re-found by its address — the same node after a fast
+          // refresh remounted it, or its copy after the overlay redrew — so
+          // the selection survives both. Anything else is let go.
+          const src = pinned.getAttribute('data-src')
+          const again = src
+            ? Array.from(
+                layer.parentElement?.querySelectorAll(`[data-src="${CSS.escape(src)}"]`) ?? [],
+              ).find((el) => !isHidden(el))
+            : undefined
+          onPin(again ?? null)
         } else {
           const pinBox = pinned ? measure(layer, pinned) : null
           place(pinBoxRef.current, pinBox)

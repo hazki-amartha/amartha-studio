@@ -29,6 +29,23 @@ const { parse } = require('@babel/parser')
 const MagicStringModule = require('magic-string')
 const MagicString = MagicStringModule.default || MagicStringModule
 const path = require('path')
+const { createHash } = require('crypto')
+
+/**
+ * The file's version: a short hash of exactly the text the build read.
+ *
+ * Stamped as `data-src-v` beside every `data-src`, and recomputed by whichever
+ * backend writes the file, over the file it is about to change. When the two
+ * differ, the file moved on after the screen was built and every address read
+ * from that screen is suspect — structural edits shift line numbers, so an
+ * address from before an edit can name a different node after it.
+ *
+ * `platform/design/version.ts` is the TypeScript twin; the test suite asserts
+ * they agree.
+ */
+function versionOf(source) {
+  return createHash('sha1').update(source).digest('hex').slice(0, 10)
+}
 
 /** Repo-relative, POSIX-separated, so an address means the same thing on a
  *  laptop and in a Linux build container. */
@@ -61,6 +78,7 @@ function stampSource(source, file) {
   }
 
   const out = new MagicString(source)
+  const version = versionOf(source)
   let count = 0
 
   walk(ast, (node) => {
@@ -83,7 +101,7 @@ function stampSource(source, file) {
     // Babel lines are 1-based and columns 0-based. `protocol.ts` documents the
     // same convention on the other side; they must not drift apart.
     const address = `${file}:${loc.start.line}:${loc.start.column}`
-    out.appendLeft(node.name.end, ` data-src="${address}"`)
+    out.appendLeft(node.name.end, ` data-src="${address}" data-src-v="${version}"`)
     count += 1
   })
 
@@ -151,3 +169,4 @@ module.exports = loader
 module.exports.stampSource = stampSource
 module.exports.shouldStamp = shouldStamp
 module.exports.repoRelative = repoRelative
+module.exports.versionOf = versionOf
