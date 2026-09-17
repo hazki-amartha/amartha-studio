@@ -47,7 +47,7 @@
 // Before Apply, undo just unstages the last-touched change.
 // =============================================================================
 
-import type { Layout } from './layout'
+import { sameLayout, type Layout } from './layout'
 import {
   addressesOf,
   type DesignPushRequest,
@@ -651,12 +651,7 @@ export function stageStackEdit(ctx: StageContext, src: Src, old: Layout, next: L
   const key = `stack|${src}`
   const existing = pending.get(key)
   const original = existing && existing.edit.kind === 'stack' ? existing.edit.old : old
-  const same =
-    original.direction === next.direction &&
-    original.gap === next.gap &&
-    original.align === next.align &&
-    original.justify === next.justify
-  if (same) pending.delete(key)
+  if (sameLayout(original, next)) pending.delete(key)
   else {
     pending.set(key, {
       ...ctx,
@@ -799,7 +794,11 @@ function whereTo(edit: Edit): string {
   }
   if (edit.kind === 'stack') {
     const show = (l: Layout) =>
-      `${l.direction ?? 'not flex'}, gap ${l.gap ?? 'none'}, align ${l.align ?? '—'}, justify ${l.justify ?? '—'}`
+      `${l.direction ?? 'not flex'}, gap ${l.gap ?? 'none'}, align ${l.align ?? '—'}, justify ${l.justify ?? '—'}${
+        l.padX !== undefined || l.padY !== undefined ? `, padding ${l.padX ?? '0'}/${l.padY ?? '0'}` : ''
+      }${l.clip !== undefined ? `, ${l.clip ? 'clipped' : 'not clipped'}` : ''}${
+        l.sizing !== undefined ? `, size ${l.sizing.join(' ') || 'default'}` : ''
+      }`
     return ` (${show(edit.old)} → ${show(edit.next)})`
   }
   if (edit.kind !== 'move') return ''
@@ -885,6 +884,8 @@ export async function applyPending(): Promise<void> {
 
   emit({ busy: false, error, undo: [...state.undo, ...undo] })
   onFlushed?.()
+  // Drop the settled structure from the published list once it has expired.
+  if (settling.length > 0) setTimeout(() => emit({}), SETTLE_MS + 50)
 }
 
 type Outcome = { undo?: UndoEntry } | { label: string; reason: string }

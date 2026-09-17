@@ -153,6 +153,7 @@ function AppViewport({
           pick={design ? 'authored' : 'component'}
           onShiftPick={design ? (el) => (pinned ? toggleSelected(el) : onPin(el)) : undefined}
           onRepin={onRepin}
+          tone={design ? 'design' : 'inspect'}
         />
       ) : null}
       {inspect && design && onPin && slug ? (

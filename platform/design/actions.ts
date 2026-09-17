@@ -307,6 +307,31 @@ export function unwrapElement(el: Element, slug: string, screenId: string): bool
   return true
 }
 
+/**
+ * What Unwrap acts on for a selection: the element itself when it is a plain
+ * stack, otherwise the stack it sits in — so a child can take its own stack
+ * away, as the stack itself can. A stack that is still only staged is taken
+ * off the list instead of being unwrapped.
+ */
+export function unwrapTarget(el: Element, slug: string): Element | null {
+  const own = el.getAttribute(NEW_ATTR)
+  if (own) return newEdit(own)?.kind === 'wrap' ? el : null
+  if (unwrappable(el, slug)) return el
+  const parent = el.parentElement?.closest('[data-src], [data-design-new]') ?? null
+  if (!parent) return null
+  const staged = parent.getAttribute(NEW_ATTR)
+  if (staged) return newEdit(staged)?.kind === 'wrap' ? parent : null
+  return unwrappable(parent, slug) ? parent : null
+}
+
+/** Unwrap the selection's stack (see unwrapTarget). */
+export function unwrapAt(el: Element, slug: string, screenId: string): boolean {
+  const target = unwrapTarget(el, slug)
+  if (!target) return false
+  if (target.hasAttribute(NEW_ATTR)) return removeNewElement(target)
+  return unwrapElement(target, slug, screenId)
+}
+
 /** Delete, for a new element: take it — and whatever depends on it — off the list. */
 export function removeNewElement(el: Element): boolean {
   const id = el.getAttribute(NEW_ATTR)

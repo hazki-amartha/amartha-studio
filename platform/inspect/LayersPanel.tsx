@@ -167,7 +167,10 @@ function Row({
     if (!drag || !dragged || dragged === node.el || dragged.contains(node.el)) return null
     const r = e.currentTarget.getBoundingClientRect()
     const f = (e.clientY - r.top) / r.height
-    if (f > 0.3 && f < 0.7 && drag.accepts(dragged, node.el, 'inside')) return 'inside'
+    // An open container's next row is its own first child, so below its middle
+    // reads as "into it", not "after all of it".
+    const intoBand = open ? f > 0.3 : f > 0.25 && f < 0.75
+    if (intoBand && drag.accepts(dragged, node.el, 'inside')) return 'inside'
     const beside: DropWhere = f < 0.5 ? 'before' : 'after'
     return drag.accepts(dragged, node.el, beside) ? beside : null
   }
@@ -203,19 +206,27 @@ function Row({
           drag.onDrop(dragged, node.el, where)
         }}
         onDragEnd={() => setDragState({ dragged: null, over: null })}
-        className={`flex items-center gap-2 rounded-4 pr-4 ${
+        className={`relative flex items-center gap-2 rounded-4 pr-4 ${
           over === 'inside'
             ? 'outline outline-2 outline-primary-500'
             : isPinned
               ? 'bg-primary-50 dark:bg-ink-800'
               : 'hover:bg-neutral-50 dark:hover:bg-ink-800'
-        } ${over === 'before' ? 'border-t-2 border-primary-500' : ''} ${
-          over === 'after' ? 'border-b-2 border-primary-500' : ''
         } ${dragState.dragged === node.el ? 'opacity-50' : ''}`}
         style={{ paddingLeft: depth * 12 }}
         onMouseEnter={() => onHover(node.el)}
         onMouseLeave={() => onHover(null)}
       >
+        {/* Drawn over the row, not as a border: a border moves the row under
+            the pointer, which flips the drop target back and forth. */}
+        {over === 'before' || over === 'after' ? (
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute inset-x-0 h-2 bg-primary-500 ${
+              over === 'before' ? 'top-0' : 'bottom-0'
+            }`}
+          />
+        ) : null}
         {hasChildren ? (
           <button
             type="button"

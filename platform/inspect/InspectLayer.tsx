@@ -54,6 +54,8 @@ export interface InspectLayerProps {
    * the CURRENT pin before replacing it.
    */
   onRepin?: (stale: Element) => void
+  /** `design` draws the selection blue, with corner squares and no size. */
+  tone?: 'inspect' | 'design'
 }
 
 interface Box {
@@ -98,6 +100,7 @@ export function InspectLayer({
   pick: rule = 'component',
   onShiftPick,
   onRepin,
+  tone = 'inspect',
 }: InspectLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null)
   const hoverBoxRef = useRef<HTMLDivElement>(null)
@@ -239,7 +242,11 @@ export function InspectLayer({
   }, [hover, preview, pinned, onPin, onRepin])
 
   return (
-    <div ref={layerRef} data-inspect-layer className={styles.layer}>
+    <div
+      ref={layerRef}
+      data-inspect-layer
+      className={`${styles.layer} ${tone === 'design' ? styles.design : ''}`}
+    >
       <div ref={hoverBoxRef} className={styles.hover} style={{ display: 'none' }} />
       <div ref={pinBoxRef} className={styles.pin} style={{ display: 'none' }}>
         {pinned ? (
@@ -248,6 +255,11 @@ export function InspectLayer({
             <span ref={sizeRef} className={styles.size} />
           </span>
         ) : null}
+        {pinned && tone === 'design'
+          ? [styles.cornerTl, styles.cornerTr, styles.cornerBl, styles.cornerBr].map((c) => (
+              <span key={c} aria-hidden className={`${styles.corner} ${c}`} />
+            ))
+          : null}
       </div>
     </div>
   )

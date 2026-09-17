@@ -170,7 +170,8 @@ export interface UnwrapEdit {
 }
 
 /**
- * Set a stack's direction, gap, alignment and justification (layout.ts).
+ * Set a stack's direction, gap, alignment, justification, padding and clipping
+ * (layout.ts).
  * A value edit: verifies the element's literal className reads as `old`.
  */
 export interface StackEdit {

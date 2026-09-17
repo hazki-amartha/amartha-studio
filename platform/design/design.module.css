@@ -19,7 +19,7 @@
 .line {
   position: absolute;
   pointer-events: none;
-  background: var(--primary-500);
+  background: var(--blue-500);
   border-radius: 2px;
 }
 
@@ -27,7 +27,7 @@
 .box {
   position: absolute;
   pointer-events: none;
-  outline: 2px dashed var(--primary-500);
+  outline: 2px dashed var(--blue-500);
   border-radius: 4px;
 }
 
@@ -35,17 +35,17 @@
 .also {
   position: absolute;
   pointer-events: none;
-  outline: 2px solid var(--primary-300);
+  outline: 2px solid var(--blue-400);
   border-radius: 2px;
 }
 
 /* A selected stack's gap, between two children — drag it to change the gap.
-   The tint is --primary-500 at 12%, written out for the same reason as the
+   The tint is --blue-500 at 12%, written out for the same reason as the
    hover tint in inspect.module.css. */
 .gap {
   position: absolute;
   pointer-events: none;
-  background: rgba(133, 50, 145, 0.12);
+  background: rgba(5, 109, 206, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,7 +54,7 @@
 .gapTag {
   padding: 0 4px;
   border-radius: 4px;
-  background: var(--primary-500);
+  background: var(--blue-500);
   color: var(--neutral-white);
   font-family: var(--font);
   font-size: 9px;
