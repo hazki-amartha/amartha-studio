@@ -24,10 +24,13 @@
 // Duplicates lose theirs: a copy has no address until the file is written.
 // =============================================================================
 
-import type { Place, Src, StructuralEdit } from './protocol'
+import { ensurePreview, previewOf } from './preview'
+import { isNewRef, NEW_PREFIX, type Place, type Src, type StructuralEdit } from './protocol'
 
 export const HIDDEN_ATTR = 'data-design-hidden'
 export const GHOST_ATTR = 'data-design-ghost'
+/** On an element the list creates: the id its insert or wrap chose. */
+export const NEW_ATTR = 'data-design-new'
 
 const q = (src: Src) => `[data-src="${CSS.escape(src)}"]`
 
@@ -43,6 +46,9 @@ function root(): Element | null {
 export function visibleBySrc(src: Src): Element | null {
   const r = root()
   if (!r) return null
+  if (isNewRef(src)) {
+    return r.querySelector(`[${NEW_ATTR}="${CSS.escape(src.slice(NEW_PREFIX.length))}"]`)
+  }
   for (const el of Array.from(r.querySelectorAll(q(src)))) {
     if (!isHidden(el)) return el
   }
@@ -117,14 +123,21 @@ function lift(el: Element) {
  * The DOM node a container's children render into.
  *
  * Usually the element itself. A component can render its children one level
- * down (a card body inside a card frame); when the container already has
- * addressed children, their parent is the right answer.
+ * down (a card body inside a card frame), and can render OTHER props as
+ * elements too — `Screen` draws its `topBar` before its children, in a
+ * different box. So the body is the parent of the LAST addressed element the
+ * container holds directly: children come after props in every component
+ * here. With nothing addressed inside, a component's last box is the best
+ * guess at its body.
  */
 function bodyOf(container: Element): Element {
-  const own = Array.from(container.querySelectorAll('[data-src]')).find(
-    (d) => d.parentElement?.closest('[data-src]') === container && !isHidden(d),
+  const own = Array.from(container.querySelectorAll('[data-src], [data-design-new]')).filter(
+    (d) => d.parentElement?.closest('[data-src], [data-design-new]') === container && !isHidden(d),
   )
-  return own?.parentElement ?? container
+  const last = own[own.length - 1]
+  if (last?.parentElement) return last.parentElement
+  if (container.hasAttribute('data-fds') && container.lastElementChild) return container.lastElementChild
+  return container
 }
 
 function place(node: Element, to: Place): boolean {
@@ -134,7 +147,9 @@ function place(node: Element, to: Place): boolean {
     const body = bodyOf(container)
     // After the last addressed child, so text or chrome a component draws
     // after its children stays after them.
-    const kids = Array.from(body.children).filter((k) => k.hasAttribute('data-src') && !isHidden(k))
+    const kids = Array.from(body.children).filter(
+      (k) => (k.hasAttribute('data-src') || k.hasAttribute(NEW_ATTR)) && !isHidden(k),
+    )
     const last = kids[kids.length - 1]
     if (last) last.after(node)
     else body.appendChild(node)
@@ -147,13 +162,49 @@ function place(node: Element, to: Place): boolean {
   return true
 }
 
-/** Replay the staged structure onto the live screen. */
-export function renderOverlay(ops: readonly StructuralEdit[]): void {
+/** A drawing of something the list creates, marked with the id it chose. */
+function fresh(html: string | undefined, id: string): Element {
+  const t = document.createElement('template')
+  t.innerHTML = html ?? ''
+  const el = t.content.firstElementChild ?? document.createElement('div')
+  el.setAttribute(GHOST_ATTR, 'new')
+  el.setAttribute(NEW_ATTR, id)
+  return el
+}
+
+/**
+ * Replay the staged structure onto the live screen.
+ *
+ * `onPreview` is called when an insert's markup, not yet rendered, becomes
+ * available — the caller redraws then.
+ */
+export function renderOverlay(ops: readonly StructuralEdit[], onPreview: () => void = () => {}): void {
   const r = root()
   if (!r) return
   clear(r)
 
   for (const op of ops) {
+    if (op.kind === 'insert') {
+      const html = previewOf(op)
+      if (html === undefined) ensurePreview(op, onPreview)
+      place(fresh(html, op.id), op.to)
+      continue
+    }
+
+    if (op.kind === 'wrap') {
+      const els = op.srcs.map(visibleBySrc)
+      if (els.some((e) => !e)) continue
+      const wrapper = fresh(undefined, op.id)
+      wrapper.setAttribute('class', op.className)
+      els[0]!.before(wrapper)
+      for (const e of els) {
+        const moved = cloneOf(e!, 'move')
+        lift(e!)
+        wrapper.appendChild(moved)
+      }
+      continue
+    }
+
     const el = visibleBySrc(op.src)
     // Not on this screen — a change staged on another screen, or one whose
     // element has not rendered. Nothing to draw; the list still has it.
@@ -163,6 +214,11 @@ export function renderOverlay(ops: readonly StructuralEdit[]): void {
       lift(el)
     } else if (op.kind === 'duplicate') {
       el.after(cloneOf(el, 'copy'))
+    } else if (op.kind === 'unwrap') {
+      const kids = Array.from(bodyOf(el).children).filter((k) => !isHidden(k))
+      for (const k of kids) el.before(k.hasAttribute(GHOST_ATTR) ? k : cloneOf(k, 'move'))
+      for (const k of kids) if (!k.hasAttribute(GHOST_ATTR)) lift(k)
+      lift(el)
     } else {
       const moved = cloneOf(el, 'move')
       lift(el)
@@ -172,6 +228,17 @@ export function renderOverlay(ops: readonly StructuralEdit[]): void {
         if (el.isConnected) reveal(el)
       }
     }
+  }
+
+  // A new stack with nothing in it yet has no height: nothing to see, nothing
+  // to drop onto. Give it a visible slot until something lands in it. Only on
+  // our own drawings, so it can never leak into the written screen.
+  for (const g of Array.from(r.querySelectorAll(`[${GHOST_ATTR}="new"]`))) {
+    if (!(g instanceof HTMLElement) || g.tagName !== 'DIV' || g.childElementCount > 0) continue
+    g.style.setProperty('min-height', '32px')
+    g.style.setProperty('outline', '1px dashed var(--primary-400)')
+    g.style.setProperty('outline-offset', '-1px')
+    g.style.setProperty('border-radius', '4px')
   }
 }
 
@@ -195,7 +262,9 @@ export function watchOverlay(
     const ops = getOps()
     // Stop observing while we write, or the redraw would trigger itself.
     mo.disconnect()
-    renderOverlay(ops)
+    renderOverlay(ops, () => {
+      if (!frame) frame = requestAnimationFrame(redraw)
+    })
     observe()
     onRedraw()
   }
@@ -236,4 +305,17 @@ export function watchOverlay(
       clear(r)
     },
   }
+}
+
+/**
+ * The element that now shows `el` — itself if it is still on screen, else
+ * whatever carries its address (or its new-element id) and is visible.
+ */
+export function refind(el: Element): Element | null {
+  if (el.isConnected && !isHidden(el)) return el
+  const src = el.getAttribute('data-src')
+  if (src) return visibleBySrc(src)
+  const id = el.getAttribute(NEW_ATTR)
+  if (id) return visibleBySrc(`${NEW_PREFIX}${id}`)
+  return null
 }

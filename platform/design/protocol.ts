@@ -24,6 +24,8 @@
 // underneath it.
 // =============================================================================
 
+import type { Layout } from './layout'
+
 /**
  * Where a node is in its source file: `<file>:<line>:<col>`.
  *
@@ -112,18 +114,108 @@ export interface DuplicateEdit {
   src: Src
 }
 
-export type StructuralEdit = MoveEdit | DeleteEdit | DuplicateEdit
-export type Edit = ClassEdit | TextEdit | PropEdit | StructuralEdit
+// --- D3: stacks and insert ----------------------------------------------------
+//
+// An element added in this batch has no position in the file yet, so it is
+// named `new:<id>` — the id its insert or wrap edit chose. Anywhere a `Place`
+// takes an address it also takes one of these, which is what lets a designer
+// build a row and fill it before anything is written.
 
-export function isStructural(edit: Edit): edit is StructuralEdit {
-  return edit.kind === 'move' || edit.kind === 'delete' || edit.kind === 'duplicate'
+/** `new:<id>` — an element created earlier in the same batch. */
+export const NEW_PREFIX = 'new:'
+export const isNewRef = (src: string) => src.startsWith(NEW_PREFIX)
+
+/**
+ * Add an element from the Insert catalog (catalog.ts).
+ *
+ * Verifies: the item exists, every prop is one the item declares (or
+ * `className`) with a value the panel could have produced, and the place can
+ * take it. The backend adds the import the element needs.
+ */
+export interface InsertEdit {
+  kind: 'insert'
+  id: string
+  to: Place
+  /** Catalog key, e.g. `button`. */
+  item: string
+  /** For the `icon` item: which icon. */
+  icon?: string
+  props: Record<string, string>
+  text?: string
 }
 
-/** Every address an edit depends on — its own and any anchor's. */
+/**
+ * Wrap consecutive siblings in a new stack — a `div` carrying `className`.
+ *
+ * A plain `div` rather than a Stack primitive: it adds no import, reads like
+ * the markup the agent writes, and the stack knobs edit it like any other.
+ * Verifies: every node sits directly in the same parent, in this order, with
+ * nothing but line breaks between them.
+ */
+export interface WrapEdit {
+  kind: 'wrap'
+  id: string
+  srcs: Src[]
+  className: string
+}
+
+/**
+ * Replace a wrapper with its children. Verifies: a plain `div` whose only
+ * attribute is a literal `className` — anything else carries meaning that
+ * would be lost with it.
+ */
+export interface UnwrapEdit {
+  kind: 'unwrap'
+  src: Src
+}
+
+/**
+ * Set a stack's direction, gap, alignment and justification (layout.ts).
+ * A value edit: verifies the element's literal className reads as `old`.
+ */
+export interface StackEdit {
+  kind: 'stack'
+  src: Src
+  old: Layout
+  next: Layout
+}
+
+export type StructuralEdit =
+  | MoveEdit
+  | DeleteEdit
+  | DuplicateEdit
+  | InsertEdit
+  | WrapEdit
+  | UnwrapEdit
+export type ValueEdit = ClassEdit | TextEdit | PropEdit | StackEdit
+export type Edit = ValueEdit | StructuralEdit
+
+const STRUCTURAL = new Set(['move', 'delete', 'duplicate', 'insert', 'wrap', 'unwrap'])
+
+export function isStructural(edit: Edit): edit is StructuralEdit {
+  return STRUCTURAL.has(edit.kind)
+}
+
+const placeSrc = (to: Place) => ('before' in to ? to.before : 'after' in to ? to.after : to.inside)
+
+/** Every address an edit depends on — its own and any anchor's — including
+ *  `new:` references, which the caller filters as it needs. */
 export function addressesOf(edit: Edit): Src[] {
-  if (edit.kind !== 'move') return [edit.src]
-  const to = edit.to
-  return [edit.src, 'before' in to ? to.before : 'after' in to ? to.after : to.inside]
+  switch (edit.kind) {
+    case 'move':
+      return [edit.src, placeSrc(edit.to)]
+    case 'insert':
+      return [placeSrc(edit.to)]
+    case 'wrap':
+      return edit.srcs
+    default:
+      return [edit.src]
+  }
+}
+
+/** The address a change list line is about. */
+export function primaryAddress(edit: Edit): Src {
+  return addressesOf(edit)[0] ?? ''
 }
 
 /** Why an edit could not be applied. The panel shows this and falls back to

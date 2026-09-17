@@ -401,6 +401,33 @@ pure function with no I/O. Backends call it; tests cover it directly.
 > staged list in order on every change and every React re-render, so it
 > survives state changes and navigation back.
 
+> **Built — D3, 2026-09-16.** `insert`, `wrap`, `unwrap` and `stack`; 52 tests
+> in all. Changes from the table above:
+>
+> - **New elements are addressable within a batch** as `new:<id>`, the id
+>   their insert or wrap chose. That is what lets a designer build a row and
+>   fill it before anything is written — including on the deployed link,
+>   where nothing is ever written from the panel. A new element is edited by
+>   rewriting its staged definition, not by value edits against it.
+> - **`wrap` takes a className**, not a direction: the panel's knobs edit a
+>   new wrapper's classes in place, and the write side only checks they are
+>   named utilities.
+> - **`stack` carries whole layouts** (`old` → `next`), verified against the
+>   literal className and rewritten family by family, new classes placed in
+>   Tailwind's order so the lint rule stays quiet.
+> - **Insert defaults are hand-maintained** in `platform/design/catalog.ts`
+>   (the open question below): what a designer wants when a Button lands is
+>   not what the component defaults to.
+> - **Wrap emits a plain `div`** (the other open question): no new import,
+>   and it reads like the markup the agent writes.
+> - **Gate met.** A shortcut row — Row, four Stacks, an icon and a label in
+>   each — was built in the panel with nothing written, its recorded list
+>   applied to `hello-world`, and the result passed `tsc` and lint.
+>
+> The overlay draws an insert as static markup of the real component
+> (`react-dom/server`, loaded on first use), not a React portal: a second
+> root inside the one that owns the screen fought it on every re-render.
+
 **Batches are atomic.** The client stages edits (as Edit mode does today) and
 sends the whole list. Targets are resolved against the source first, then edits
 are applied in order on the live AST — recast's node objects stay valid as the
@@ -980,11 +1007,9 @@ in favour of our own loader, which must run in production builds.
   one fewer key to create.
 - **Hobby's non-commercial terms** — fine for a prototype, a question before the
   team relies on it. Applies to A4's `sandbox` backend as much as to C2.
-- Insert defaults: per component, hand-maintained in `componentProps.ts` or
-  derived from each component's `defaultProps`?
-- Should `wrap` emit a bare `div` with token classes or a `Stack` primitive in
-  `@/platform/primitives`? A primitive is cleaner to write and to read back, but
-  adding it is its own Tier 2 change.
+- ~~Insert defaults~~ — hand-maintained, in `platform/design/catalog.ts` (D3).
+- ~~`wrap`: bare `div` or a `Stack` primitive~~ — a bare `div` with token
+  classes (D3). A primitive stays possible later; nothing depends on it.
 - Board (D6): edit every screen in place, or select a screen to open it in the
   device frame? The former is Figma; the latter is much simpler.
 - Should admins chat on *any* project, or only unlock caps? Full access is

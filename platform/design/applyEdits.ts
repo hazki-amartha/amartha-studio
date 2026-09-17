@@ -31,31 +31,48 @@ import { parse, print, types } from 'recast'
 //     first file it sees. package.json pins ^7 for that reason — bumping it to
 //     8 breaks every edit in design mode, loudly but confusingly.
 import * as tsParser from 'recast/parsers/babel-ts.js'
-import { isStructural } from './protocol'
 import type {
   ApplyResult,
   ClassEdit,
   DeleteEdit,
   DuplicateEdit,
   Edit,
+  InsertEdit,
   MoveEdit,
+  Place,
   PropEdit,
   Refusal,
   Src,
+  StackEdit,
   TextEdit,
+  UnwrapEdit,
+  WrapEdit,
 } from './protocol'
+import { isNewRef, isStructural, NEW_PREFIX } from './protocol'
+import { catalogItem, isPlainText, isTokenClassList } from './catalog'
+import { COMPONENT_PROPS } from './componentProps'
+import { layoutOf, sameLayout, withLayout } from './layout'
 import {
   append,
   attachAfter,
   attachBefore,
+  buildElement,
   canHold,
   contains,
   detach,
+  isElementish,
+  isLayoutText,
+  lineIndent,
+  parentOf,
   tagName,
+  text as jsxText,
+  ws,
+  type Indent,
+  type JSXChild,
   type JSXElement,
   type JSXParent,
 } from './structure'
-import { restoreSemicolons, tidyImports } from './tidy'
+import { restoreSemicolons, tidyImports, type ImportNeed } from './tidy'
 
 const n = types.namedTypes
 type JSXOpeningElement = types.namedTypes.JSXOpeningElement
@@ -262,7 +279,34 @@ function applyProp(el: JSXElement, edit: PropEdit): Refusal | null {
   return null
 }
 
-// --- structure (D2) -------------------------------------------------------------
+// --- values (D3): stack layout -------------------------------------------------
+
+function applyStack(el: JSXElement, edit: StackEdit): Refusal | null {
+  const attr = attributeNamed(el.openingElement, 'className')
+  const current = attr ? literalValue(attr) : ''
+  if (current === null) {
+    return { edit, reason: 'its className is computed, so its layout can’t be set here' }
+  }
+  const classes = current.split(/\s+/).filter(Boolean)
+  if (!sameLayout(layoutOf(classes), edit.old)) {
+    return { edit, reason: 'its layout has changed since you selected it' }
+  }
+  const next = withLayout(classes, edit.next).join(' ')
+  if (attr) {
+    setLiteralValue(attr, next)
+  } else if (next) {
+    el.openingElement.attributes = [
+      ...(el.openingElement.attributes ?? []),
+      types.builders.jsxAttribute(
+        types.builders.jsxIdentifier('className'),
+        types.builders.stringLiteral(next),
+      ),
+    ]
+  }
+  return null
+}
+
+// --- structure (D2, D3) -------------------------------------------------------
 
 /** Why a located node cannot be picked up, or null when it can. */
 function movable(at: Located, edit: Edit): Refusal | null {
@@ -274,15 +318,24 @@ function movable(at: Located, edit: Edit): Refusal | null {
   }
 }
 
-interface Ctx {
+interface Ctx extends Indent {
   ast: types.ASTNode
   fresh: WeakSet<object>
-  lines: string[]
   /** Printed copies waiting for their placeholders, by placeholder name. */
   copies: Map<string, string>
+  /** Elements this batch created, by the id their edit chose. */
+  news: Map<string, JSXElement>
+  /** Imports the created elements need. */
+  needs: ImportNeed[]
+  icons?: ReadonlySet<string>
 }
 
 function find(ctx: Ctx, edit: Edit, src: Src, role: string): Located | Refusal {
+  if (isNewRef(src)) {
+    const el = ctx.news.get(src.slice(NEW_PREFIX.length))
+    if (!el) return { edit, reason: `${role} was not created earlier in this batch` }
+    return { el, parent: parentOf(ctx.ast, el) }
+  }
   const at = locate(ctx.ast, src, ctx.fresh)
   if (at === null) {
     return { edit, reason: `${role} is no longer where it was — the screen has changed since it loaded` }
@@ -293,39 +346,56 @@ function find(ctx: Ctx, edit: Edit, src: Src, role: string): Located | Refusal {
 
 const isRefusal = (x: Located | Refusal): x is Refusal => 'reason' in x
 
+const placeSrc = (to: Place) => ('before' in to ? to.before : 'after' in to ? to.after : to.inside)
+
+/** Put `node` at `to`, which has already been checked not to be inside it. */
+function put(ctx: Ctx, edit: Edit, node: JSXChild, to: Place, role: string): Refusal | null {
+  const anchor = find(ctx, edit, placeSrc(to), role)
+  if (isRefusal(anchor)) return anchor
+  if ('inside' in to) {
+    if (!canHold(anchor.el)) {
+      return { edit, reason: `a ${tagName(anchor.el) ?? 'that element'} can’t hold other elements` }
+    }
+    append(anchor.el, node, ctx)
+    return null
+  }
+  if (!anchor.parent) {
+    return {
+      edit,
+      reason: `${role} isn’t directly in the layout, so there is nothing to put it beside`,
+    }
+  }
+  if ('before' in to) attachBefore(anchor.parent, anchor.el, node, ctx)
+  else attachAfter(anchor.parent, anchor.el, node, ctx)
+  return null
+}
+
 function applyMove(ctx: Ctx, edit: MoveEdit): Refusal | null {
   const node = find(ctx, edit, edit.src, 'that element')
   if (isRefusal(node)) return node
   const blocked = movable(node, edit)
   if (blocked) return blocked
 
-  const to = edit.to
-  const anchorSrc = 'before' in to ? to.before : 'after' in to ? to.after : to.inside
-  const anchor = find(ctx, edit, anchorSrc, 'the place you dropped it')
+  const anchor = find(ctx, edit, placeSrc(edit.to), 'the place you dropped it')
   if (isRefusal(anchor)) return anchor
   if (contains(node.el, anchor.el)) {
     return { edit, reason: 'an element can’t be moved into itself' }
   }
-
-  if ('inside' in to) {
-    if (!canHold(anchor.el)) {
-      return { edit, reason: `a ${tagName(anchor.el) ?? 'that element'} can’t hold other elements` }
-    }
-    detach(node.parent!, node.el)
-    append(anchor.el, node.el, ctx.lines)
-    return null
+  // Checked before detaching, so a refusal leaves the tree as it was — the
+  // batch is abandoned anyway, but a half-moved tree is not worth reasoning
+  // about.
+  if ('inside' in edit.to && !canHold(anchor.el)) {
+    return { edit, reason: `a ${tagName(anchor.el) ?? 'that element'} can’t hold other elements` }
   }
-
-  if (!anchor.parent) {
+  if (!('inside' in edit.to) && !anchor.parent) {
     return {
       edit,
       reason: 'the place you dropped it isn’t directly in the layout, so there is nothing to put it beside',
     }
   }
+
   detach(node.parent!, node.el)
-  if ('before' in to) attachBefore(anchor.parent, anchor.el, node.el, ctx.lines)
-  else attachAfter(anchor.parent, anchor.el, node.el, ctx.lines)
-  return null
+  return put(ctx, edit, node.el, edit.to, 'the place you dropped it')
 }
 
 function applyDelete(ctx: Ctx, edit: DeleteEdit): Refusal | null {
@@ -351,6 +421,9 @@ function applyDuplicate(ctx: Ctx, edit: DuplicateEdit): Refusal | null {
   if (isRefusal(node)) return node
   const blocked = movable(node, edit)
   if (blocked) return blocked
+  if (isNewRef(edit.src)) {
+    return { edit, reason: 'a new element can be duplicated once it has been applied' }
+  }
 
   // A multi-line template literal would have its CONTENT re-indented below,
   // silently changing a string. Rare in markup, and not worth a guess.
@@ -369,8 +442,7 @@ function applyDuplicate(ctx: Ctx, edit: DuplicateEdit): Refusal | null {
 
   // recast prints a lone node from column 0; the copy sits beside its
   // original, so every line after the first gets the original's indentation.
-  const line = node.el.loc ? ctx.lines[node.el.loc.start.line - 1] : ''
-  const indent = /^[ \t]*/.exec(line ?? '')?.[0] ?? ''
+  const indent = lineIndent(node.el, ctx)
   const text = raw
     .split('\n')
     .map((l, i) => (i === 0 || l === '' ? l : indent + l))
@@ -379,7 +451,7 @@ function applyDuplicate(ctx: Ctx, edit: DuplicateEdit): Refusal | null {
   ctx.copies.set(name, text)
   const placeholder = types.builders.jsxExpressionContainer(types.builders.identifier(name))
   ctx.fresh.add(placeholder)
-  attachAfter(node.parent!, node.el, placeholder as unknown as JSXElement, ctx.lines)
+  attachAfter(node.parent!, node.el, placeholder, ctx)
   return null
 }
 
@@ -387,6 +459,170 @@ function fillCopies(printed: string, copies: Map<string, string>): string {
   let out = printed
   for (const [name, text] of copies) out = out.replace(`{${name}}`, () => text)
   return out
+}
+
+const ID = /^[a-z0-9]{1,24}$/
+
+/**
+ * Build an insert's element from the catalog, refusing anything the panel
+ * could not have produced: an unknown item or icon, an undeclared prop, a
+ * value off the component's own list, a class that isn't a named utility, or
+ * text that could break out of JSX.
+ */
+function buildInsert(ctx: Ctx, edit: InsertEdit): JSXElement | Refusal {
+  const item = catalogItem(edit.item)
+  if (!item) return { edit, reason: `there is no “${edit.item}” to insert` }
+  if (!ID.test(edit.id) || ctx.news.has(edit.id)) {
+    return { edit, reason: 'that new element’s id is not usable' }
+  }
+
+  let tag = item.tag
+  if (item.key === 'icon') {
+    if (!edit.icon || !/^[A-Z][A-Za-z0-9]*$/.test(edit.icon) || !ctx.icons?.has(edit.icon)) {
+      return { edit, reason: `there is no icon called “${edit.icon ?? ''}”` }
+    }
+    tag = edit.icon
+  }
+
+  const enums = COMPONENT_PROPS[item.tag] ?? []
+  const props: Record<string, string> = {}
+  for (const [key, value] of Object.entries(edit.props)) {
+    if (key !== 'className' && !(key in item.props)) {
+      return { edit, reason: `a ${item.label} has no “${key}” to set here` }
+    }
+    const menu = enums.find((p) => p.prop === key)
+    const ok =
+      key === 'className'
+        ? isTokenClassList(value)
+        : menu
+          ? menu.values.includes(value)
+          : isPlainText(value)
+    if (!ok) return { edit, reason: `“${value}” isn’t a value a ${item.label}’s ${key} can take` }
+    if (value !== '') props[key] = value
+  }
+
+  if (edit.text !== undefined && (item.text === undefined || !isPlainText(edit.text))) {
+    return { edit, reason: 'that text can’t be written as it is' }
+  }
+
+  // Children are laid out one indentation step in; the element's own line is
+  // given its indentation by whoever attaches it, so the frame is filled in
+  // afterwards, once that is known.
+  const kids = item.children?.map((c) =>
+    buildElement(c.tag, c.props, c.text === undefined ? null : [jsxText(c.text)]),
+  )
+  const body: JSXChild[] | null =
+    kids && kids.length > 0 ? kids : item.text !== undefined ? [jsxText(edit.text ?? item.text)] : null
+
+  if (item.from) ctx.needs.push({ name: tag, from: item.from })
+  return buildElement(tag, props, body)
+}
+
+/** Lay element children out on their own lines, one step in from `el`. */
+function frameChildren(ctx: Ctx, el: JSXElement) {
+  const kids = (el.children ?? []).filter((k) => !isLayoutText(k))
+  if (!kids.some((k) => types.namedTypes.JSXElement.check(k))) return
+  const outer = lineIndent(el, ctx)
+  const inner = `${outer}  `
+  const framed: JSXChild[] = []
+  for (const k of kids) {
+    framed.push(ws(inner), k)
+    ctx.placed.set(k, inner)
+  }
+  framed.push(ws(outer))
+  el.children = framed
+}
+
+function applyInsert(ctx: Ctx, edit: InsertEdit): Refusal | null {
+  const el = buildInsert(ctx, edit)
+  if ('reason' in el) return el
+  const refused = put(ctx, edit, el, edit.to, 'the place you chose')
+  if (refused) return refused
+  frameChildren(ctx, el)
+  ctx.fresh.add(el)
+  ctx.news.set(edit.id, el)
+  return null
+}
+
+function applyWrap(ctx: Ctx, edit: WrapEdit): Refusal | null {
+  if (!ID.test(edit.id) || ctx.news.has(edit.id)) {
+    return { edit, reason: 'that new stack’s id is not usable' }
+  }
+  if (!isTokenClassList(edit.className)) {
+    return { edit, reason: 'that stack’s classes aren’t named utilities' }
+  }
+  if (edit.srcs.length === 0) return { edit, reason: 'there is nothing to wrap' }
+
+  const nodes: JSXElement[] = []
+  let parent: JSXParent | null = null
+  for (const src of edit.srcs) {
+    const at = find(ctx, edit, src, 'one of those elements')
+    if (isRefusal(at)) return at
+    const blocked = movable(at, edit)
+    if (blocked) return blocked
+    if (parent && at.parent !== parent) {
+      return { edit, reason: 'only elements side by side in the same container can be wrapped together' }
+    }
+    parent = at.parent
+    nodes.push(at.el)
+  }
+
+  // Consecutive, in this order, with nothing but line breaks between them.
+  const kids = parent!.children ?? []
+  const first = kids.indexOf(nodes[0])
+  const last = kids.indexOf(nodes[nodes.length - 1])
+  const span = kids.slice(first, last + 1)
+  const between = span.filter((k) => !isLayoutText(k))
+  if (first === -1 || last < first || between.length !== nodes.length || between.some((k, i) => k !== nodes[i])) {
+    return { edit, reason: 'only elements side by side in the same container can be wrapped together' }
+  }
+
+  const indent = lineIndent(nodes[0], ctx)
+  const wrapper = buildElement('div', { className: edit.className }, [])
+  ctx.placed.set(wrapper, indent)
+  wrapper.children = nodes.map((node) => node as JSXChild)
+  kids.splice(first, last - first + 1, wrapper)
+  frameChildren(ctx, wrapper)
+
+  ctx.fresh.add(wrapper)
+  ctx.news.set(edit.id, wrapper)
+  return null
+}
+
+function applyUnwrap(ctx: Ctx, edit: UnwrapEdit): Refusal | null {
+  const at = find(ctx, edit, edit.src, 'that element')
+  if (isRefusal(at)) return at
+  const blocked = movable(at, edit)
+  if (blocked) return blocked
+
+  const open = at.el.openingElement
+  const onlyClass = (open.attributes ?? []).every(
+    (a) =>
+      types.namedTypes.JSXAttribute.check(a) &&
+      types.namedTypes.JSXIdentifier.check(a.name) &&
+      a.name.name === 'className' &&
+      literalValue(a) !== null,
+  )
+  if (tagName(at.el) !== 'div' || !onlyClass) {
+    return {
+      edit,
+      reason: 'only a plain stack can be unwrapped — this one carries more than its layout',
+    }
+  }
+
+  const parent = at.parent!
+  const kids = parent.children ?? []
+  const i = kids.indexOf(at.el)
+  const indent = lineIndent(at.el, ctx)
+  const inner = (at.el.children ?? []).filter(isElementish)
+  const lifted: JSXChild[] = []
+  inner.forEach((k, n) => {
+    if (n > 0) lifted.push(ws(indent))
+    lifted.push(k)
+    ctx.placed.set(k, indent)
+  })
+  kids.splice(i, 1, ...lifted)
+  return null
 }
 
 /**
@@ -400,9 +636,17 @@ function fillCopies(printed: string, copies: Map<string, string>): string {
  *
  * Every address is resolved against the ORIGINAL positions, because that is
  * the file the designer was looking at: a moved node keeps its `loc`, so it is
- * still found by the address it was stamped with.
+ * still found by the address it was stamped with. Elements the batch creates
+ * are named `new:<id>`.
+ *
+ * `icons` is the set of icon names an `icon` insert may use; the backend reads
+ * it from the icon module.
  */
-export function applyEdits(source: string, edits: readonly Edit[]): ApplyResult {
+export function applyEdits(
+  source: string,
+  edits: readonly Edit[],
+  options: { icons?: ReadonlySet<string> } = {},
+): ApplyResult {
   if (edits.length === 0) return { ok: true, source }
 
   let ast: types.ASTNode
@@ -412,18 +656,27 @@ export function applyEdits(source: string, edits: readonly Edit[]): ApplyResult 
     return refuse(edits[0], 'that screen could not be parsed')
   }
 
-  const ctx: Ctx = { ast, fresh: new WeakSet(), lines: source.split('\n'), copies: new Map() }
+  const ctx: Ctx = {
+    ast,
+    fresh: new WeakSet(),
+    lines: source.split('\n'),
+    placed: new WeakMap(),
+    copies: new Map(),
+    news: new Map(),
+    needs: [],
+    icons: options.icons,
+  }
 
   // Values first, then structure. A value edit's address never depends on
   // structure (addresses resolve against original positions), and applying
   // values first makes a duplicate carry every value edit to its original —
   // which is what the overlay shows, since it patches the live element before
   // cloning it. It also lets "restyle it, then delete it" apply as staged.
-  const values = edits.filter((e) => !isStructural(e))
-  const structure = edits.filter(isStructural)
-
-  for (const edit of values) {
+  for (const edit of edits) {
     if (isStructural(edit)) continue
+    if (isNewRef(edit.src)) {
+      return refuse(edit, 'a new element is changed through its insert, not on its own')
+    }
     const at = find(ctx, edit, edit.src, 'that element')
     if (isRefusal(at)) return { ok: false, refused: at }
     const refusal =
@@ -431,22 +684,32 @@ export function applyEdits(source: string, edits: readonly Edit[]): ApplyResult 
         ? applyClass(at.el, edit)
         : edit.kind === 'text'
           ? applyText(at.el, edit)
-          : applyProp(at.el, edit)
+          : edit.kind === 'prop'
+            ? applyProp(at.el, edit)
+            : applyStack(at.el, edit)
     if (refusal) return { ok: false, refused: refusal }
   }
 
-  for (const edit of structure) {
+  let structural = false
+  for (const edit of edits) {
+    if (!isStructural(edit)) continue
+    structural = true
     const refusal =
       edit.kind === 'move'
         ? applyMove(ctx, edit)
         : edit.kind === 'delete'
           ? applyDelete(ctx, edit)
-          : applyDuplicate(ctx, edit)
+          : edit.kind === 'duplicate'
+            ? applyDuplicate(ctx, edit)
+            : edit.kind === 'insert'
+              ? applyInsert(ctx, edit)
+              : edit.kind === 'wrap'
+                ? applyWrap(ctx, edit)
+                : applyUnwrap(ctx, edit)
     if (refusal) return { ok: false, refused: refusal }
   }
 
-  const structural = structure.length > 0
   let out = restoreSemicolons(source, fillCopies(print(ast).code, ctx.copies))
-  if (structural) out = tidyImports(source, out)
+  if (structural) out = tidyImports(source, out, ctx.needs)
   return { ok: true, source: out }
 }

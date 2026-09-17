@@ -30,3 +30,34 @@
   outline: 2px dashed var(--primary-500);
   border-radius: 4px;
 }
+
+/* The rest of a multi-selection — lighter than the pinned element's outline. */
+.also {
+  position: absolute;
+  pointer-events: none;
+  outline: 2px solid var(--primary-300);
+  border-radius: 2px;
+}
+
+/* A selected stack's gap, between two children — drag it to change the gap.
+   The tint is --primary-500 at 12%, written out for the same reason as the
+   hover tint in inspect.module.css. */
+.gap {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(133, 50, 145, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gapTag {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--primary-500);
+  color: var(--neutral-white);
+  font-family: var(--font);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.4;
+}

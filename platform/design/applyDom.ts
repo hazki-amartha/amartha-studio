@@ -20,6 +20,7 @@
 // =============================================================================
 
 import { COMPONENT_BASE, COMPONENT_PROPS } from './componentProps'
+import { withLayout, type Layout } from './layout'
 import { isHidden, visibleBySrc } from './overlay'
 import { isStructural, type Edit, type Src } from './protocol'
 
@@ -106,6 +107,14 @@ export function applyClassSwap(src: Src, oldClass: string, newClass: string) {
   }
 }
 
+/** Give every element rendered from this JSX node a stack layout. Only the
+ *  four layout families change; every other class stays where it is. */
+export function applyLayoutPatch(src: Src, to: Layout) {
+  for (const peer of peersOf(src)) {
+    peer.setAttribute('class', withLayout(Array.from(peer.classList), to).join(' '))
+  }
+}
+
 /** Set text on every element rendered from this JSX node. */
 export function applyTextSwap(src: Src, next: string) {
   for (const peer of peersOf(src)) peer.textContent = next
@@ -128,6 +137,10 @@ export function revertStagedPatch(edit: Edit, component?: string) {
   }
   if (edit.kind === 'text') {
     applyTextSwap(edit.src, edit.old)
+    return
+  }
+  if (edit.kind === 'stack') {
+    applyLayoutPatch(edit.src, edit.old)
     return
   }
   if (!component) return

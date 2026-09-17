@@ -30,7 +30,7 @@ import os from 'os'
 import path from 'path'
 import { NextResponse } from 'next/server'
 import { applyEdits } from '@/platform/design/applyEdits'
-import { addressesOf } from '@/platform/design/protocol'
+import { addressesOf, isNewRef } from '@/platform/design/protocol'
 import type {
   DesignRequest,
   DesignResponse,
@@ -39,6 +39,20 @@ import type {
 import { versionOf } from '@/platform/design/version'
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/
+
+/**
+ * The icon names an insert may use, read from the icon module's source. Read,
+ * not imported: the module is a client component, and all this needs is the
+ * list of names it exports.
+ */
+let icons: Promise<Set<string>> | null = null
+function iconNames(): Promise<Set<string>> {
+  icons ??= fs
+    .readFile(path.join(process.cwd(), 'design-system/icons/index.tsx'), 'utf8')
+    .then((src) => new Set(Array.from(src.matchAll(/^export function ([A-Z]\w*)\(/gm), (m) => m[1])))
+    .catch(() => new Set<string>())
+  return icons
+}
 const UNDO_DIR = path.join(os.tmpdir(), 'amartha-studio-design-undo')
 const TOKEN = /^[0-9a-f-]{36}$/
 
@@ -143,15 +157,19 @@ export async function POST(request: Request): Promise<NextResponse> {
   // point into the same file: `applyEdits` works on one source string, and a
   // batch spanning two files could half-succeed, which is exactly what
   // atomicity is supposed to rule out.
+  // `new:` addresses name elements the batch itself creates; they have no
+  // file of their own and ride on the file of whatever they were put beside.
   const files = new Set<string>()
   for (const edit of edits) {
     for (const src of addressesOf(edit)) {
+      if (isNewRef(src)) continue
       const file = fileOf(src, slug)
       if (!file) return refuse('That change points outside the project, so it was not saved.')
       files.add(file)
     }
   }
   if (files.size > 1) return refuse('Elements can only be moved within the file they are written in.')
+  if (files.size === 0) return refuse('There is nowhere on the screen for that to go.')
 
   const file = [...files][0]
   let source: string
@@ -165,7 +183,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return refuse('That screen has changed since it loaded. Refresh the page, then make the change again.')
   }
 
-  const result = applyEdits(source, edits)
+  const result = applyEdits(source, edits, { icons: await iconNames() })
   if (!result.ok) return refuse(result.refused.reason)
 
   // Nothing changed is a success with no write: rewriting identical bytes would
