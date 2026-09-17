@@ -1,0 +1,32 @@
+/* =============================================================================
+   Design · drag feedback on the device.
+   A CSS module for the same reason as inspect.module.css: literal class names
+   would fail `tailwindcss/no-custom-classname`. Colours are the design
+   system's own CSS variables.
+   ============================================================================= */
+
+/* Shares the pick layer's box and stacking, one step above it so the drop
+   line is never hidden under a highlight. */
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1002;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Where a dragged element will land: a line between two siblings… */
+.line {
+  position: absolute;
+  pointer-events: none;
+  background: var(--primary-500);
+  border-radius: 2px;
+}
+
+/* …or a box around the container it will be appended to. */
+.box {
+  position: absolute;
+  pointer-events: none;
+  outline: 2px dashed var(--primary-500);
+  border-radius: 4px;
+}

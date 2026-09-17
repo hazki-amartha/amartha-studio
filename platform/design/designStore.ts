@@ -1,16 +1,23 @@
 // =============================================================================
 // Design · the pending-edit store.
 //
-// NOTHING writes on its own. Every tweak — class, text, prop — stages into a
-// pending list, the optimistic DOM patch shows it live, and the file writes
-// happen only when the designer presses "Apply N changes". One press, one
-// batch, one fast refresh: writing per nudge reloaded the screen on every
-// step of a stepper, which read as the page breaking mid-thought.
+// NOTHING writes on its own. Every tweak — class, text, prop, and from D2 every
+// move, delete and duplicate — stages into a pending list, the optimistic
+// layer shows it live, and the file writes happen only when the designer
+// presses "Apply N changes". One press, one batch, one fast refresh: writing
+// per nudge reloaded the screen on every step of a stepper, which read as the
+// page breaking mid-thought.
 //
-// Staging merges by knob: a second step on the same knob updates the NEW
+// Value edits merge by knob: a second step on the same knob updates the NEW
 // value but keeps the ORIGINAL old one, because the file still holds the
 // original until apply. Stepping back to the original cancels the pending
 // entry entirely, so the list only ever holds real diffs.
+//
+// Structural edits are an ORDERED list, not a set: "move A below B, then move
+// C below A" means something different in the other order. The overlay
+// (overlay.ts) replays them in exactly this order, and the backend applies
+// them in exactly this order, which is what keeps the preview honest. Moving
+// the same element twice keeps only the latest move, re-queued at the end.
 //
 // There are two things the list can be spent on, and the pending list is
 // identical either way:
@@ -25,21 +32,27 @@
 // through someone else's running prototype and come away with a list without
 // touching their working copy.
 //
-// Undo is a stack of inverse edits over APPLIED changes, so it only exists in
-// write mode. Undoing never restores snapshots — it POSTs the reverse swap
-// through the same route, so the file history stays a sequence of verified
-// small edits whichever direction it moves. In record mode nothing was
-// written, so undo is purely unstaging.
+// Undo, once applied, is one step per Apply press: the backend kept the file
+// as it was before that write and restores it — only while the file is still
+// exactly what the write produced (protocol.ts, DesignUndoRequest). Before
+// Apply, undo just unstages the last-touched change.
 // =============================================================================
 
-import type { DesignRequest, DesignResponse, Edit, Src } from './protocol'
+import {
+  isStructural,
+  type DesignRequest,
+  type DesignResponse,
+  type DesignUndoRequest,
+  type Edit,
+  type Src,
+  type StructuralEdit,
+} from './protocol'
 
 export interface UndoEntry {
   slug: string
-  screenId: string
-  /** The edit that would put the file back how it was. */
-  inverse: Edit
-  /** Human line for the panel, phrased forward: "gap-12 → gap-16". */
+  /** Backend handle for the pre-write file. */
+  token: string
+  /** Human line for the panel, phrased forward. */
   label: string
 }
 
@@ -49,6 +62,8 @@ export type SinkMode = 'write' | 'record'
 export interface DesignStoreState {
   /** Staged edits not yet spent, in staging order. */
   pending: { key: string; label: string; screenId: string }[]
+  /** Staged structural edits, in the order they apply — what the overlay draws. */
+  structure: StructuralEdit[]
   /** Writes in flight. */
   busy: boolean
   /** Last refusal/failure, cleared by the next successful write. */
@@ -66,20 +81,24 @@ interface PendingEntry {
    *  component optimistically, and the label reads better with it. */
   component?: string
   label: string
-  /** Monotonic touch order — "undo" on pending removes the last-touched knob. */
+  /** The `data-src-v` the address was read under. See DesignRequest. */
+  version?: string
+  /** Monotonic touch order — "undo" on pending removes the last-touched knob,
+   *  and structural edits apply in this order. */
   seq: number
   /**
    * Whether this edit's optimistic patch is on the live DOM. False for entries
    * restored from a previous session: the list survived, the patch didn't, and
    * treating them as applied would make the next edit on the same element
-   * compute the file's classes wrongly.
+   * compute the file's classes wrongly. (Structural edits have no patch to
+   * lose — the overlay redraws them from this list.)
    */
   patched: boolean
 }
 
 let seq = 0
 
-type Sink = (req: DesignRequest) => Promise<DesignResponse>
+type Sink = (req: DesignRequest | DesignUndoRequest) => Promise<DesignResponse>
 
 const devSink: Sink = async (req) => {
   try {
@@ -99,6 +118,7 @@ const CAN_WRITE = process.env.NODE_ENV === 'development'
 
 let state: DesignStoreState = {
   pending: [],
+  structure: [],
   busy: false,
   error: null,
   undo: [],
@@ -109,13 +129,15 @@ const listeners = new Set<() => void>()
 /** Fires after every settled write batch — the panel uses it to re-pin. */
 let onFlushed: (() => void) | null = null
 
+const ordered = () => Array.from(pending.entries()).sort((a, b) => a[1].seq - b[1].seq)
+
 function emit(next: Partial<DesignStoreState>) {
+  const rows = ordered()
   state = {
     ...state,
     ...next,
-    pending: Array.from(pending.entries())
-      .sort((a, b) => a[1].seq - b[1].seq)
-      .map(([key, p]) => ({ key, label: p.label, screenId: p.screenId })),
+    pending: rows.map(([key, p]) => ({ key, label: p.label, screenId: p.screenId })),
+    structure: rows.flatMap(([, p]) => (isStructural(p.edit) ? [p.edit] : [])),
   }
   listeners.forEach((l) => l())
   persist()
@@ -132,6 +154,7 @@ export function getDesignStoreState(): DesignStoreState {
 
 const serverSnapshot: DesignStoreState = {
   pending: [],
+  structure: [],
   busy: false,
   error: null,
   undo: [],
@@ -160,15 +183,19 @@ export function setSinkMode(mode: SinkMode) {
 const STORAGE_PREFIX = 'db.edit.changes.'
 let storageKey: string | null = null
 
+type StoredRow = Omit<PendingEntry, 'patched'> & { key: string }
+
 function persist() {
   if (state.mode !== 'record' || !storageKey) return
   try {
-    const rows = Array.from(pending.entries()).map(([key, p]) => ({
+    const rows: StoredRow[] = ordered().map(([key, p]) => ({
       key,
       slug: p.slug,
       screenId: p.screenId,
       edit: p.edit,
+      component: p.component,
       label: p.label,
+      version: p.version,
       seq: p.seq,
     }))
     if (rows.length === 0) window.localStorage.removeItem(storageKey)
@@ -192,18 +219,11 @@ function loadFromStorage() {
   try {
     const raw = window.localStorage.getItem(storageKey)
     if (!raw) return
-    const rows = JSON.parse(raw) as {
-      key: string
-      slug: string
-      screenId: string
-      edit: Edit
-      label: string
-      seq: number
-    }[]
-    for (const row of rows) {
+    const rows = JSON.parse(raw) as StoredRow[]
+    for (const { key, ...row } of rows) {
       // Restored entries are listed but NOT on the DOM — the screen they
       // belong to may not even be mounted.
-      pending.set(row.key, { ...row, patched: false })
+      pending.set(key, { ...row, patched: false })
       seq = Math.max(seq, row.seq)
     }
     emit({})
@@ -229,6 +249,13 @@ function familyOf(cls: string): string {
 
 // --- staging -----------------------------------------------------------------
 
+/** Who the edit is for, and which file version its address was read under. */
+export interface StageContext {
+  slug: string
+  screenId: string
+  version?: string
+}
+
 /**
  * Stage a class swap on the node at `src`.
  *
@@ -236,13 +263,7 @@ function familyOf(cls: string): string {
  * value and keeps the ORIGINAL old one, because the file still holds the
  * original until Apply. Stepping back to the original drops the entry.
  */
-export function stageClassEdit(
-  slug: string,
-  screenId: string,
-  src: Src,
-  oldClass: string,
-  newClass: string,
-) {
+export function stageClassEdit(ctx: StageContext, src: Src, oldClass: string, newClass: string) {
   const key = `class|${src}|${familyOf(oldClass)}`
   const existing = pending.get(key)
   const originalOld =
@@ -252,8 +273,7 @@ export function stageClassEdit(
     pending.delete(key)
   } else {
     pending.set(key, {
-      slug,
-      screenId,
+      ...ctx,
       edit: { kind: 'class', src, oldClass: originalOld, newClass },
       label: `${originalOld} → ${newClass}`,
       seq: ++seq,
@@ -266,13 +286,7 @@ export function stageClassEdit(
 /** Stage a text replacement on the node at `src`. `old` is the text as
  *  currently RENDERED — if a pending edit already produced it, the merge keeps
  *  that edit's original, so the file's value is what finally gets verified. */
-export function stageTextEdit(
-  slug: string,
-  screenId: string,
-  src: Src,
-  old: string,
-  next: string,
-) {
+export function stageTextEdit(ctx: StageContext, src: Src, old: string, next: string) {
   const key = `text|${src}`
   const existing = pending.get(key)
   const originalOld = existing && existing.edit.kind === 'text' ? existing.edit.old : old
@@ -281,8 +295,7 @@ export function stageTextEdit(
     pending.delete(key)
   } else {
     pending.set(key, {
-      slug,
-      screenId,
+      ...ctx,
       edit: { kind: 'text', src, old: originalOld, next },
       label: `"${originalOld}" → "${next}"`,
       seq: ++seq,
@@ -295,8 +308,7 @@ export function stageTextEdit(
 /** Stage a component prop change on the node at `src`. `old` is the value
  *  currently rendered. */
 export function stagePropEdit(
-  slug: string,
-  screenId: string,
+  ctx: StageContext,
   src: Src,
   component: string,
   prop: string,
@@ -311,8 +323,7 @@ export function stagePropEdit(
     pending.delete(key)
   } else {
     pending.set(key, {
-      slug,
-      screenId,
+      ...ctx,
       edit: { kind: 'prop', src, prop, old: originalOld, next },
       component,
       label: `${component} ${prop} ${originalOld} → ${next}`,
@@ -321,6 +332,32 @@ export function stagePropEdit(
     })
   }
   emit({})
+}
+
+/**
+ * Stage a move, delete or duplicate.
+ *
+ * A second move of the same element replaces the first and goes to the end of
+ * the queue — the designer means "put it HERE", not "move it twice". Deleting
+ * an element drops any pending move of it, which could only confuse the list.
+ * Duplicates never merge: pressing it twice means two copies.
+ */
+export function stageStructuralEdit(ctx: StageContext, edit: StructuralEdit, label: string) {
+  if (edit.kind === 'delete') pending.delete(`move|${edit.src}`)
+  const key =
+    edit.kind === 'move'
+      ? `move|${edit.src}`
+      : edit.kind === 'delete'
+        ? `delete|${edit.src}`
+        : `duplicate|${edit.src}|${seq + 1}`
+  pending.delete(key)
+  pending.set(key, { ...ctx, edit, label, seq: ++seq, patched: true })
+  emit({})
+}
+
+/** Whether a structural edit is already staged for this element. */
+export function isDeleted(src: Src): boolean {
+  return pending.has(`delete|${src}`)
 }
 
 /** Remove one staged edit by key, returning it so the caller can revert the
@@ -342,11 +379,18 @@ export function unstage(key: string): Unstaged | null {
 /** Remove the most recently touched staged edit — "undo" before anything has
  *  been written. */
 export function unstageLast(): Unstaged | null {
-  let last: { key: string; seq: number } | null = null
-  for (const [key, p] of pending) {
-    if (!last || p.seq > last.seq) last = { key, seq: p.seq }
-  }
-  return last ? unstage(last.key) : null
+  const rows = ordered()
+  const last = rows[rows.length - 1]
+  return last ? unstage(last[0]) : null
+}
+
+/** Drop everything staged. Used when a staged list can no longer be applied
+ *  (the screen changed under it) and the designer chooses to start over. */
+export function discardPending(): Unstaged[] {
+  const out = ordered().map(([, p]) => ({ edit: p.edit, component: p.component }))
+  pending.clear()
+  emit({ error: null })
+  return out
 }
 
 /** The file's class list for an element: its rendered classes with any pending
@@ -367,13 +411,13 @@ export function fileClassesOf(rendered: string[]): string[] {
 /**
  * The change list as a paste-ready block.
  *
- * Every line carries the element, the old value and the new one, so applying it
- * on the other end is the same verified replacement the write path makes —
- * and a stale line (the old value no longer being there) is detectable rather
- * than silently forced.
+ * Every line carries the element's address and the change, so applying it on
+ * the other end is the same verified edit the write path makes — and a stale
+ * line is detectable rather than silently forced. Structural lines are
+ * numbered in the order they must be applied.
  */
 export function changeListText(): string {
-  const rows = Array.from(pending.values()).sort((a, b) => a.seq - b.seq)
+  const rows = ordered().map(([, p]) => p)
   if (rows.length === 0) return ''
 
   const slug = rows[0].slug
@@ -393,8 +437,13 @@ export function changeListText(): string {
   for (const file of files) {
     const inFile = rows.filter((r) => fileOf(r.edit.src) === file)
     const screensHere = Array.from(new Set(inFile.map((r) => r.screenId)))
-    lines.push(`\`${file}\` — seen on screen ${screensHere.map((s) => `\`${s}\``).join(', ')}`)
-    // `line:col` below is into this file.
+    const version = inFile.find((r) => r.version)?.version
+    lines.push(
+      `\`${file}\`${version ? ` (version ${version})` : ''} — seen on screen ${screensHere
+        .map((s) => `\`${s}\``)
+        .join(', ')}`,
+    )
+    // `line:col` below is into this file, as it was when the list was made.
 
     for (const row of inFile) {
       n += 1
@@ -404,13 +453,24 @@ export function changeListText(): string {
       // whatever — applies it on the other end.
       const at = row.edit.src.split(':').slice(-2).join(':')
       const what = row.component ? ` (${row.component})` : ''
-      lines.push(`  ${n}. line ${at} — ${row.label}${what}`)
+      lines.push(`  ${n}. line ${at} — ${row.label}${what}${whereTo(row.edit)}`)
     }
     lines.push('')
   }
 
+  if (rows.some((r) => isStructural(r.edit))) {
+    lines.push('Apply them in this order; every line:col is a position in the file before any of them.')
+  }
   lines.push('Please apply these, keeping to the design system (CLAUDE.md §2).')
   return lines.join('\n')
+}
+
+function whereTo(edit: Edit): string {
+  if (edit.kind !== 'move') return ''
+  const to = edit.to
+  const [how, src] =
+    'before' in to ? ['before', to.before] : 'after' in to ? ['after', to.after] : ['as the last child of', to.inside]
+  return ` (${how} the element at line ${src.split(':').slice(-2).join(':')})`
 }
 
 /** Copy the list out. Non-destructive: the list stays, so a reviewer can keep
@@ -429,93 +489,79 @@ export async function copyChangeList(): Promise<boolean> {
 
 // --- applying ----------------------------------------------------------------
 
-/** The edit that puts the file back. `src` is unchanged — the node did not
- *  move, only its value did. */
-function inverseOf(edit: Edit): Edit {
-  if (edit.kind === 'class') {
-    return { ...edit, oldClass: edit.newClass, newClass: edit.oldClass }
-  }
-  if (edit.kind === 'text') {
-    return { ...edit, old: edit.next, next: edit.old }
-  }
-  // A prop edit is the only one whose inverse can change shape: the inverse of
-  // ADDING a prop (old: null) is REMOVING it (next: null).
-  return { ...edit, old: edit.next, next: edit.old }
-}
-
 /**
- * Write every pending edit. One press, one batch, one fast refresh.
+ * Write every pending edit. One press, one batch per file, one fast refresh.
  *
- * The batch goes to the route as a single request and is applied ATOMICALLY:
- * `applyEdits` verifies each edit's old value against the syntax tree and
- * refuses the whole list on the first mismatch. The v1 route took one edit at a
- * time, so a batch could half-apply and leave the file in a state nobody asked
- * for — the panel would show three changes saved and a fourth refused, with the
- * file somewhere in between.
+ * Each batch is applied ATOMICALLY: the backend checks the file's version,
+ * verifies each edit against the syntax tree, and refuses the whole list on
+ * the first mismatch. Refused batches stay staged — the overlay keeps showing
+ * them and the designer can remove the offending line and try again, rather
+ * than losing the rest of their work to one bad edit.
  *
  * Edits are grouped by FILE because a batch must name one file. That is not the
  * same as grouping by screen: a screen's rows often come from a component in
  * the project's `lib/`, whose elements are stamped with the lib file's path.
- * Grouping by screen sent those in one batch with the screen's own edits, and
- * the route refused the lot for spanning two files.
  *
  * Never reachable in record mode — there is no server to write through.
  */
 export async function applyPending(): Promise<void> {
   if (pending.size === 0 || state.busy || state.mode !== 'write') return
-  const batch = Array.from(pending.values()).sort((a, b) => a.seq - b.seq)
-  pending.clear()
+  const batch = ordered()
   emit({ busy: true })
 
-  const groups = new Map<string, PendingEntry[]>()
-  for (const entry of batch) {
-    const key = `${entry.slug}|${fileOf(entry.edit.src)}`
-    const group = groups.get(key)
-    if (group) group.push(entry)
-    else groups.set(key, [entry])
+  const groups = new Map<string, [string, PendingEntry][]>()
+  for (const row of batch) {
+    const key = `${row[1].slug}|${fileOf(row[1].edit.src)}`
+    groups.set(key, [...(groups.get(key) ?? []), row])
   }
 
+  let error: DesignStoreState['error'] = null
+  const undo: UndoEntry[] = []
+
   for (const group of groups.values()) {
-    const { slug, screenId } = group[0]
-    const label = group.length === 1 ? group[0].label : `${group.length} changes`
-    const res = await devSink({ slug, screenId, edits: group.map((g) => g.edit) })
+    const entries = group.map(([, p]) => p)
+    const { slug, screenId } = entries[0]
+    const label = entries.length === 1 ? entries[0].label : `${entries.length} changes`
+
+    const versions = new Set(entries.map((e) => e.version).filter(Boolean))
+    if (versions.size > 1) {
+      error = {
+        label,
+        reason:
+          'Some of these were made before the screen last reloaded, so their positions are out of date. Remove them and make them again.',
+      }
+      continue
+    }
+
+    const res = await devSink({
+      slug,
+      screenId,
+      version: [...versions][0],
+      edits: entries.map((e) => e.edit),
+    })
 
     if (res.ok) {
-      // One undo entry per applied edit, newest last, so Undo walks back one
-      // change at a time rather than unwinding a whole press.
-      emit({
-        error: null,
-        undo: [
-          ...state.undo,
-          ...group.map((g) => ({
-            slug: g.slug,
-            screenId: g.screenId,
-            inverse: inverseOf(g.edit),
-            label: g.label,
-          })),
-        ],
-      })
+      for (const [key] of group) pending.delete(key)
+      if (res.undo) undo.push({ slug, token: res.undo, label })
     } else {
-      emit({ error: { label, reason: res.reason } })
+      error = { label, reason: res.reason }
     }
   }
 
-  emit({ busy: false })
+  emit({ busy: false, error, undo: [...state.undo, ...undo] })
   onFlushed?.()
 }
 
-/** Pop the newest applied edit and post its inverse — a batch of one. */
+/** Put the file back as it was before the newest Apply. */
 export async function undoLast(): Promise<void> {
   const entry = state.undo[state.undo.length - 1]
   if (!entry || state.busy) return
   emit({ busy: true, undo: state.undo.slice(0, -1) })
-  const res = await devSink({
-    slug: entry.slug,
-    screenId: entry.screenId,
-    edits: [entry.inverse],
+  const res = await devSink({ slug: entry.slug, undo: entry.token })
+  emit({
+    busy: false,
+    error: res.ok ? null : { label: `undo ${entry.label}`, reason: res.reason },
   })
-  if (!res.ok) emit({ error: { label: `undo ${entry.label}`, reason: res.reason } })
-  emit({ busy: false })
   onFlushed?.()
 }
 
