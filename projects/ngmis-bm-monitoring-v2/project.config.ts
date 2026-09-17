@@ -5,7 +5,7 @@ export const config: ProjectConfig = {
   name: 'NGMIS Daily Monitoring',
   businessUnit: 'Lending',
   platform: 'NGMIS',
-  owner: 'Chandraditya Kusuma',
+  owner: 'Chandra',
   description:
     'A daily per-BP scorecard, with both briefings run on the same numbers.',
   device: 'desktop',

@@ -6,6 +6,7 @@
 //   - exactly one screen has entry: true
 //   - every flowsTo.to targets an existing screen id (own or inherited)
 //   - `extends` names a registered project that does not itself extend
+//   - every `owner` is a known designer, spelled one agreed way
 // Bundles the registry with esbuild (CSS stubbed) so it runs in plain Node.
 
 import { build } from 'esbuild'
@@ -14,6 +15,15 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+
+// `owner` is how CLAUDE.md §1 enforces "never edit another designer's project",
+// and it is a free-text display name — so nothing stopped the same person being
+// spelled two ways, which is how `Chandra` and `Chandraditya Kusuma` both ended
+// up owning projects. That was harmless while ownership was a convention read by
+// humans. It stops being harmless the moment anything checks it automatically:
+// one stray spelling reads as a different person and locks the real owner out of
+// their own project. Add a name here when a designer joins.
+const OWNERS = ['Hazki', 'Chandra', 'Patricia', 'Nugraha', 'Yori']
 
 const cssStub = {
   name: 'css-stub',
@@ -86,6 +96,20 @@ export { mergeProject } from './platform/runtime/resolveProject'`,
     const { config, screens } = project
     if (config.slug !== slug) {
       errors.push(`${slug}: registry key does not match config.slug ("${config.slug}")`)
+    }
+
+    // `_template` ships the placeholder on purpose — it is copied, never listed.
+    const owners = [config.owner].flat().filter(Boolean)
+    if (owners.length === 0) {
+      errors.push(`${slug}: project.config.ts has no owner`)
+    }
+    for (const owner of owners) {
+      if (!OWNERS.includes(owner)) {
+        errors.push(
+          `${slug}: owner "${owner}" is not a known designer — ` +
+            `use one of ${OWNERS.join(', ')}, or add them to OWNERS in scripts/check-flows.mjs`,
+        )
+      }
     }
 
     const ids = new Set()
