@@ -47,11 +47,11 @@ import {
   subscribeInspectMode,
 } from '@/platform/runtime/inspectBridge'
 import {
-  getEditMode,
-  getEditServerSnapshot,
-  setEditMode,
-  subscribeEditMode,
-} from '@/platform/runtime/editBridge'
+  getDesignMode,
+  getDesignServerSnapshot,
+  setDesignMode,
+  subscribeDesignMode,
+} from '@/platform/runtime/designBridge'
 import {
   getBareMode,
   getBareServerSnapshot,
@@ -59,7 +59,7 @@ import {
   subscribeBareMode,
 } from '@/platform/runtime/presentBridge'
 import { InspectLayer, InspectorPanel, LayersPanel } from '@/platform/inspect'
-import { EditPanel } from '@/platform/edit'
+import { DesignPanel } from '@/platform/design'
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '@/platform/chrome/icons'
 import { PanelPill, PanelShell } from '@/platform/chrome/SidePanel'
 import { DeviceFrame } from './DeviceFrame'
@@ -111,12 +111,14 @@ function BridgePublisher({ slug, screens }: { slug: string; screens: ScreenDef[]
 function AppViewport({
   device = 'mobile',
   inspect,
+  design,
   pinned,
   onPin,
   preview,
 }: {
   device?: DeviceKind
   inspect?: boolean
+  design?: boolean
   pinned?: Element | null
   onPin?: (el: Element | null) => void
   preview?: Element | null
@@ -129,7 +131,12 @@ function AppViewport({
     >
       <ScreenStage />
       {inspect && onPin ? (
-        <InspectLayer pinned={pinned ?? null} onPin={onPin} preview={preview} />
+        <InspectLayer
+          pinned={pinned ?? null}
+          onPin={onPin}
+          preview={preview}
+          pick={design ? 'authored' : 'component'}
+        />
       ) : null}
     </div>
   )
@@ -385,7 +392,7 @@ function DeviceStepper({ children }: { children: ReactNode }) {
   )
 }
 
-/** Pick-mode plumbing shared by both framed layouts: the inspect and edit
+/** Pick-mode plumbing shared by both framed layouts: the inspect and design
  *  flags (both ride the same pick layer), and the pinned element that must be
  *  dropped whenever the screen under it remounts. */
 function useInspectState() {
@@ -394,7 +401,7 @@ function useInspectState() {
     getInspectMode,
     getInspectServerSnapshot,
   )
-  const edit = useSyncExternalStore(subscribeEditMode, getEditMode, getEditServerSnapshot)
+  const design = useSyncExternalStore(subscribeDesignMode, getDesignMode, getDesignServerSnapshot)
   const [pinned, setPinned] = useState<Element | null>(null)
   // The layers outline's hovered row, highlighted in the device.
   const [preview, setPreview] = useState<Element | null>(null)
@@ -405,19 +412,19 @@ function useInspectState() {
   useEffect(() => setPinned(null), [current])
   useEffect(() => setPreview(null), [current])
   useEffect(() => {
-    if (!inspect && !edit) {
+    if (!inspect && !design) {
       setPinned(null)
       setPreview(null)
     }
-  }, [inspect, edit])
+  }, [inspect, design])
 
-  return { inspect, edit, pinned, setPinned, preview, setPreview, current }
+  return { inspect, design, pinned, setPinned, preview, setPreview, current }
 }
 
 // --- the panel slots ---------------------------------------------------------
 //
 // Both layouts show the same three panels in the same two places: States or
-// Layers on the left, and on the right either the picking tool (inspect/edit)
+// Layers on the left, and on the right either the picking tool (inspect/design)
 // or Notes. What differs is only where a slot is drawn — a column beside a
 // phone, a drawer over a 1440 canvas — so everything about WHICH panel is
 // showing lives here, once.
@@ -457,7 +464,7 @@ interface SlotProps {
   screens: ScreenDef[]
   current: string
   picking: boolean
-  edit: boolean
+  design: boolean
   hasStates: boolean
   hasNotes: boolean
   pinned: Element | null
@@ -477,7 +484,7 @@ function panelSlots(a: SlotProps) {
   const { slots } = a
   const leftExists = a.picking || a.hasStates
   const leftTitle = a.picking ? 'Layers' : 'States'
-  const toolTitle = a.edit ? 'Edit' : 'Inspect'
+  const toolTitle = a.design ? 'Design' : 'Inspect'
 
   const hideLeft = () => slots.setLeftOpen(false)
 
@@ -505,8 +512,8 @@ function panelSlots(a: SlotProps) {
 
   const showingTool = slots.right === 'tool' && a.picking
   const right = showingTool ? (
-    a.edit ? (
-      <EditPanel
+    a.design ? (
+      <DesignPanel
         className={a.panelClassName}
         onMinimize={() => slots.setRight(null)}
         pinned={a.pinned}
@@ -555,8 +562,8 @@ function panelSlots(a: SlotProps) {
  * in it rather than collapsing the grid.
  */
 function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
-  const { inspect, edit, pinned, setPinned, preview, setPreview, current } = useInspectState()
-  const picking = inspect || edit
+  const { inspect, design, pinned, setPinned, preview, setPreview, current } = useInspectState()
+  const picking = inspect || design
 
   const active = screens.find((s) => s.id === current)
   const hasStates = (active?.states?.length ?? 0) > 0
@@ -568,7 +575,7 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
     screens,
     current,
     picking,
-    edit,
+    design,
     hasStates,
     hasNotes,
     pinned,
@@ -592,6 +599,7 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
           <DeviceFrame>
             <AppViewport
               inspect={picking}
+              design={design}
               pinned={pinned}
               onPin={setPinned}
               preview={preview}
@@ -618,8 +626,8 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
  * they open from. Same panels, same controls — only the placement differs.
  */
 function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
-  const { inspect, edit, pinned, setPinned, preview, setPreview, current } = useInspectState()
-  const picking = inspect || edit
+  const { inspect, design, pinned, setPinned, preview, setPreview, current } = useInspectState()
+  const picking = inspect || design
 
   const active = screens.find((s) => s.id === current)
   const hasStates = (active?.states?.length ?? 0) > 0
@@ -631,7 +639,7 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
     screens,
     current,
     picking,
-    edit,
+    design,
     hasStates,
     hasNotes,
     pinned,
@@ -653,6 +661,7 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
             <AppViewport
               device="desktop"
               inspect={picking}
+              design={design}
               pinned={pinned}
               onPin={setPinned}
               preview={preview}
@@ -809,7 +818,7 @@ export function PrototypeView({ config, initialScreenId, initialBare }: Prototyp
   useEffect(
     () => () => {
       setInspectMode(false)
-      setEditMode(false)
+      setDesignMode(false)
       setBareMode(false)
     },
     [],

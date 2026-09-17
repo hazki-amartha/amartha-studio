@@ -17,11 +17,11 @@ import {
   subscribeInspectMode,
 } from '@/platform/runtime/inspectBridge'
 import {
-  getEditMode,
-  getEditServerSnapshot,
-  setEditMode,
-  subscribeEditMode,
-} from '@/platform/runtime/editBridge'
+  getDesignMode,
+  getDesignServerSnapshot,
+  setDesignMode,
+  subscribeDesignMode,
+} from '@/platform/runtime/designBridge'
 import {
   getBareMode,
   getBareServerSnapshot,
@@ -107,28 +107,28 @@ function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
     getInspectMode,
     getInspectServerSnapshot,
   )
-  const edit = useSyncExternalStore(subscribeEditMode, getEditMode, getEditServerSnapshot)
+  const design = useSyncExternalStore(subscribeDesignMode, getDesignMode, getDesignServerSnapshot)
 
   const base =
     'flex items-center gap-4 rounded-full px-12 py-4 text-12 transition-colors'
   const on = `${base} bg-neutral-white font-bold text-link shadow-sm dark:border dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50 dark:shadow-none`
   const off = `${base} text-caption hover:text-default dark:border dark:border-transparent dark:text-neutral-400 dark:hover:text-neutral-50`
 
-  const showingPrototype = !isFlow && !inspect && !edit
-  const showingInspect = !isFlow && inspect && !edit
-  const showingEdit = !isFlow && edit
+  const showingPrototype = !isFlow && !inspect && !design
+  const showingInspect = !isFlow && inspect && !design
+  const showingDesign = !isFlow && design
 
   const enterInspect = () => {
-    setEditMode(false)
+    setDesignMode(false)
     setInspectMode(true)
   }
-  const enterEdit = () => {
+  const enterDesign = () => {
     setInspectMode(false)
-    setEditMode(true)
+    setDesignMode(true)
   }
   const leaveModes = () => {
     setInspectMode(false)
-    setEditMode(false)
+    setDesignMode(false)
   }
 
   return (
@@ -142,24 +142,24 @@ function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
         <DeviceIcon className="size-16" />
         Prototype
       </Link>
-      {/* Edit exists everywhere, but means different things: on the dev server
+      {/* Design exists everywhere, but means different things: on the dev server
           it writes into the prototype, and on a deployment — which has no
           source behind it — it collects the changes to copy and send on. The
           panel owns that distinction; the segment is just the way in. */}
       {isFlow ? (
-        <Link href={`/p/${slug}`} onClick={enterEdit} className={off}>
+        <Link href={`/p/${slug}`} onClick={enterDesign} className={off}>
           <EditIcon className="size-16" />
-          Edit
+          Design
         </Link>
       ) : (
         <button
           type="button"
-          onClick={enterEdit}
-          aria-current={showingEdit ? 'page' : undefined}
-          className={showingEdit ? on : off}
+          onClick={enterDesign}
+          aria-current={showingDesign ? 'page' : undefined}
+          className={showingDesign ? on : off}
         >
           <EditIcon className="size-16" />
-          Edit
+          Design
         </button>
       )}
       {isFlow ? (

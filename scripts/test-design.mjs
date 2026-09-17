@@ -201,6 +201,36 @@ test('changes a prop, and adds one that was absent', () => {
   assert.equal(dup.ok, false)
 })
 
+test('removes a prop, which is what makes undoing an added one possible', () => {
+  // next:null is the inverse of old:null. Without it, adding a prop would be
+  // the one edit in the protocol that could not be undone.
+  const stamped = stampSource(SCREEN, 'f.tsx').code
+  const card = srcOf(stamped, 'Card')
+
+  const removed = applyEdits(SCREEN, [
+    { kind: 'prop', src: card, prop: 'radius', old: '16', next: null },
+  ])
+  assert.ok(removed.ok, removed.ok ? '' : removed.refused.reason)
+  assert.doesNotMatch(removed.source, /radius=/)
+
+  // Still verified: removing a prop whose value has moved on is refused.
+  const stale = applyEdits(SCREEN, [
+    { kind: 'prop', src: card, prop: 'radius', old: '99', next: null },
+  ])
+  assert.equal(stale.ok, false)
+
+  // Add then remove is a round trip back to the original source.
+  const added = applyEdits(SCREEN, [
+    { kind: 'prop', src: card, prop: 'tone', old: null, next: 'muted' },
+  ])
+  assert.ok(added.ok)
+  const back = applyEdits(added.source, [
+    { kind: 'prop', src: srcOf(stampSource(added.source, 'f.tsx').code, 'Card'), prop: 'tone', old: 'muted', next: null },
+  ])
+  assert.ok(back.ok, back.ok ? '' : back.refused.reason)
+  assert.doesNotMatch(back.source, /tone=/)
+})
+
 test('a batch is atomic — one refusal leaves the source untouched', () => {
   const stamped = stampSource(SCREEN, 'f.tsx').code
   const result = applyEdits(SCREEN, [

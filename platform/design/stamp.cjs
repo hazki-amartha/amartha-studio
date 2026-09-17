@@ -129,16 +129,22 @@ function shouldStamp(resourcePath, root) {
   return rel.startsWith('projects/') && !rel.startsWith('projects/_template/')
 }
 
-/** The webpack loader itself. */
+/**
+ * The loader. webpack only — `next build`, and `next dev` WITHOUT `--turbo`,
+ * which is why scripts/dev.mjs no longer passes it: Turbopack does not run
+ * webpack loaders, so under it the dev server (the one place design mode can
+ * write) rendered no `data-src` at all.
+ *
+ * Returns the string rather than calling `this.callback(code, map)`. The map
+ * buys nothing: a stamp only inserts an attribute inside an opening tag, so
+ * every line keeps its number and only columns inside that tag shift.
+ */
 function loader(source) {
   const root = (this.getOptions && this.getOptions().root) || this.rootContext
-  if (!shouldStamp(this.resourcePath, root)) return source
+  if (!root || !shouldStamp(this.resourcePath, root)) return source
 
   const result = stampSource(source, repoRelative(this.resourcePath, root))
-  if (!result) return source
-
-  this.callback(null, result.code, result.map)
-  return undefined
+  return result ? result.code : source
 }
 
 module.exports = loader

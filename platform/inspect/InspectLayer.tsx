@@ -27,6 +27,20 @@ export interface InspectLayerProps {
    *  a row. Takes precedence over the cursor's own hover, which by definition
    *  isn't over the device while the list is being used. */
   preview?: Element | null
+  /**
+   * What a plain click selects.
+   *
+   * `component` (Inspect) — the nearest FunDS boundary, so a click names the
+   * vocabulary the screen was written in.
+   *
+   * `authored` (Design) — the nearest element the project's own source wrote,
+   * i.e. the nearest `data-src`. The component rule is wrong for editing: the
+   * `Screen` primitive is itself a boundary wrapping every screen, so every
+   * plain element selected the whole Screen and nothing on it could be picked
+   * up. A component the project placed still wins over its own insides,
+   * because its stamp rides onto its root.
+   */
+  pick?: 'component' | 'authored'
 }
 
 interface Box {
@@ -64,7 +78,12 @@ function place(node: HTMLElement | null, box: Box | null) {
   node.style.height = `${box.height}px`
 }
 
-export function InspectLayer({ pinned, onPin, preview }: InspectLayerProps) {
+export function InspectLayer({
+  pinned,
+  onPin,
+  preview,
+  pick: rule = 'component',
+}: InspectLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null)
   const hoverBoxRef = useRef<HTMLDivElement>(null)
   const pinBoxRef = useRef<HTMLDivElement>(null)
@@ -87,7 +106,9 @@ export function InspectLayer({ pinned, onPin, preview }: InspectLayerProps) {
 
     const pick = (target: EventTarget | null): Element | null => {
       if (!(target instanceof Element)) return null
-      return altRef.current ? target : (boundaryOf(target) ?? target)
+      if (altRef.current) return target
+      if (rule === 'authored') return target.closest('[data-src]') ?? boundaryOf(target) ?? target
+      return boundaryOf(target) ?? target
     }
 
     const onMouseOver = (e: Event) => setHover(pick(e.target))
@@ -128,7 +149,7 @@ export function InspectLayer({ pinned, onPin, preview }: InspectLayerProps) {
       viewport.removeEventListener('mouseup', swallow, true)
       viewport.removeEventListener('click', onClick, true)
     }
-  }, [onPin])
+  }, [onPin, rule])
 
   // --- modifier + escape ----------------------------------------------------
   useEffect(() => {

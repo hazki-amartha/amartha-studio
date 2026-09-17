@@ -31,6 +31,11 @@ export type OfferCardProps = {
   title: string
   description?: string
   onClick?: () => void
+  /** Anything else lands on the underlying Card. This is what carries design
+   *  mode's `data-src` through to the DOM; without it the card is rendered but
+   *  unaddressable, so it cannot be selected. Every other FunDS component
+   *  already forwards. */
+  [key: `data-${string}`]: unknown
 }
 
 /**
@@ -38,9 +43,15 @@ export type OfferCardProps = {
  * supporting copy, and the product's full LOCKUP — mark plus name as artwork —
  * along the foot, because the copy above never says which product it sells.
  */
-export function OfferCard({ product, title, description, onClick }: OfferCardProps) {
+export function OfferCard({
+  product,
+  title,
+  description,
+  onClick,
+  ...props
+}: OfferCardProps) {
   return (
-    <Card onClick={onClick}>
+    <Card onClick={onClick} {...props}>
       <div className="flex items-start justify-between gap-8">
         <div className="min-w-0">
           <p className={`text-16 font-bold ${OFFER_TONE[product]}`}>{title}</p>
