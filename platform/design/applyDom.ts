@@ -117,7 +117,7 @@ export function applyLayoutPatch(src: Src, to: Layout) {
 
 /** Set text on every element rendered from this JSX node. */
 export function applyTextSwap(src: Src, next: string) {
-  for (const peer of peersOf(src)) peer.textContent = next
+  for (const peer of peersOf(src)) if (peer.textContent !== next) peer.textContent = next
 }
 
 /**
@@ -154,4 +154,26 @@ export function revertStagedPatch(edit: Edit, component?: string) {
   for (const peer of peersOf(edit.src)) {
     applyPropPreview(peer, component, edit.prop, edit.next, edit.old)
   }
+}
+
+/**
+ * Paint a staged value edit again — after React re-rendered its element, or
+ * on a screen reopened with a restored list. Each patch is idempotent: a swap
+ * whose old class is already gone just makes sure the new one is there.
+ */
+export function repaint(edit: Edit, component?: string) {
+  if (edit.kind === 'class') applyClassSwap(edit.src, edit.oldClass, edit.newClass)
+  else if (edit.kind === 'text') applyTextSwap(edit.src, edit.next)
+  else if (edit.kind === 'stack') applyLayoutPatch(edit.src, edit.next)
+  else if (edit.kind === 'prop' && component && edit.old !== null && edit.next !== null) {
+    for (const peer of peersOf(edit.src)) {
+      if (peer.getAttribute(`data-fds-${attrOf(component, edit.prop)}`) !== edit.next) {
+        applyPropPreview(peer, component, edit.prop, edit.old, edit.next)
+      }
+    }
+  }
+}
+
+function attrOf(component: string, prop: string): string {
+  return COMPONENT_PROPS[component]?.find((p) => p.prop === prop)?.attr ?? prop
 }

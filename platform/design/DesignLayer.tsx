@@ -37,7 +37,7 @@ import {
   unwrapElement,
   wrapElements,
 } from './actions'
-import { revertStagedPatch } from './applyDom'
+import { repaint, revertStagedPatch } from './applyDom'
 import { insertBeingDragged } from './DesignSections'
 import {
   getDesignStoreServerSnapshot,
@@ -45,6 +45,7 @@ import {
   subscribeDesignStore,
   undoLast,
   unstageLast,
+  valueEdits,
 } from './designStore'
 import { GHOST_ATTR, isHidden, refind, visibleBySrc, watchOverlay } from './overlay'
 import { layoutOf, SPACING } from './layout'
@@ -192,6 +193,9 @@ export function DesignLayer({ slug, screenId, pinned, onPin, onRepin }: DesignLa
     const watch = watchOverlay(
       () => getDesignStoreState().structure,
       () => {
+        // Staged value edits live only on the elements they were painted on;
+        // a re-render (or a reopened screen) drops them, so paint them again.
+        for (const { edit, component } of valueEdits()) repaint(edit, component)
         pruneSelection(refind)
         // Something just created asked to be selected once it is drawn.
         const wanted = takePinAfterRedraw()
@@ -208,6 +212,7 @@ export function DesignLayer({ slug, screenId, pinned, onPin, onRepin }: DesignLa
         if (repin) repin(pin)
         else pin1(refind(pin))
       },
+      () => getDesignStoreState().pending.length > 0,
     )
     overlayRef.current = watch
     return () => {

@@ -1,209 +1,72 @@
 // =============================================================================
-// Design · the dev-only write-back route (the `fs` backend).
+// Design · the write-back route. Chooses a backend and hands the request on.
 //
-// Receives a BATCH of edits for one file (platform/design/protocol.ts) and
-// applies them to source, or refuses the lot. What keeps this safe to expose to
-// a panel:
+//   dev server                        → `fs`: write the working copy
+//   deployment + GitHub App + gate    → `github`: commit to a branch, push
+//   any other deployment              → `record`: nothing is written here
 //
-//   • Dev server only. Production 404s unconditionally — a deployed studio has
-//     no files to edit and must never pretend otherwise. The deployed path is
-//     the `record` backend, and later the `github` one.
-//   • Writes are confined to `projects/<slug>/` by construction: every edit
-//     names its own file, and a file outside the project's folder is refused
-//     before anything is read. `resolve()` + prefix check, so `..` cannot walk
-//     out.
-//   • Never guess. The batch's `version` must match the file on disk, and
-//     `applyEdits` verifies each edit against the tree and refuses the batch on
-//     the first mismatch. A wrong-line write is strictly worse than no write.
-//   • Atomic. One refusal means nothing is written at all.
-//
-// Undo is a snapshot of the file before each write, kept in the OS temp folder
-// (so a hot reload of this route does not lose it) and restored only while the
-// file is still exactly what that write produced. The client holds an opaque
-// token; the content never travels, so undo cannot be used to write arbitrary
-// text into a project.
+// The `github` backend is only offered behind the password gate. The gate is
+// what stands between the public internet and a commit to this repo; with no
+// gate there is no backend, whatever else is configured. (The name the panel
+// asks for is a courtesy check on top — see platform/design/server/common.ts.)
 // =============================================================================
 
-import { randomUUID } from 'crypto'
-import { promises as fs } from 'fs'
-import os from 'os'
-import path from 'path'
 import { NextResponse } from 'next/server'
-import { applyEdits } from '@/platform/design/applyEdits'
-import { addressesOf, isNewRef } from '@/platform/design/protocol'
+import { isGateConfigured } from '@/app/unlock/auth'
+import { githubConfig } from '@/platform/design/github'
 import type {
+  DesignPushRequest,
   DesignRequest,
-  DesignResponse,
+  DesignStatus,
   DesignUndoRequest,
 } from '@/platform/design/protocol'
-import { versionOf } from '@/platform/design/version'
+import { KEBAB, projectFacts, refuse, whyNot } from '@/platform/design/server/common'
+import { fsApply, fsUndo } from '@/platform/design/server/fsBackend'
+import { githubApply, githubPush } from '@/platform/design/server/githubBackend'
 
-const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/
-
-/**
- * The icon names an insert may use, read from the icon module's source. Read,
- * not imported: the module is a client component, and all this needs is the
- * list of names it exports.
- */
-let icons: Promise<Set<string>> | null = null
-function iconNames(): Promise<Set<string>> {
-  icons ??= fs
-    .readFile(path.join(process.cwd(), 'design-system/icons/index.tsx'), 'utf8')
-    .then((src) => new Set(Array.from(src.matchAll(/^export function ([A-Z]\w*)\(/gm), (m) => m[1])))
-    .catch(() => new Set<string>())
-  return icons
-}
-const UNDO_DIR = path.join(os.tmpdir(), 'amartha-studio-design-undo')
-const TOKEN = /^[0-9a-f-]{36}$/
-
-function refuse(reason: string): NextResponse {
-  return NextResponse.json({ ok: false, reason } satisfies DesignResponse)
+function backend(): 'fs' | 'github' | 'record' {
+  if (process.env.NODE_ENV === 'development') return 'fs'
+  return githubConfig() && isGateConfigured() ? 'github' : 'record'
 }
 
-/**
- * The absolute path an address names, or null if it escapes the project.
- *
- * `src` is `<file>:<line>:<col>` and `file` is repo-relative POSIX. The check
- * is done on the RESOLVED path, not the string, so neither `..` nor a symlink-
- * shaped name can reach outside `projects/<slug>/`.
- */
-function fileOf(src: string, slug: string): string | null {
-  const rel = src.split(':').slice(0, -2).join(':')
-  if (!rel || !rel.endsWith('.tsx')) return null
-  return insideProject(path.resolve(process.cwd(), rel), slug)
-}
-
-function insideProject(abs: string, slug: string): string | null {
-  const projectDir = path.join(process.cwd(), 'projects', slug)
-  if (abs !== projectDir && !abs.startsWith(projectDir + path.sep)) return null
-  return abs
-}
-
-const relative = (abs: string) => path.relative(process.cwd(), abs).split(path.sep).join('/')
-
-interface Snapshot {
-  file: string
-  before: string
-  /** The version the write produced — the only state this snapshot undoes. */
-  after: string
-}
-
-async function saveSnapshot(snap: Snapshot): Promise<string | undefined> {
-  try {
-    await fs.mkdir(UNDO_DIR, { recursive: true })
-    const token = randomUUID()
-    await fs.writeFile(path.join(UNDO_DIR, `${token}.json`), JSON.stringify(snap), 'utf8')
-    return token
-  } catch {
-    // No temp folder costs undo, not the write.
-    return undefined
+export async function GET(request: Request): Promise<NextResponse> {
+  const slug = new URL(request.url).searchParams.get('slug') ?? ''
+  const facts = KEBAB.test(slug) ? await projectFacts(slug) : null
+  const kind = backend()
+  const status: DesignStatus = {
+    backend: kind,
+    sha: kind === 'github' ? githubConfig()?.sha : undefined,
+    owners: facts?.owners ?? [],
+    locked:
+      kind === 'github' && facts
+        ? (whyNot(facts, facts.owners[0] ?? 'x') ?? undefined)
+        : undefined,
   }
-}
-
-async function undo(body: DesignUndoRequest): Promise<NextResponse> {
-  if (!TOKEN.test(body.undo)) return refuse('That undo could not be found.')
-  let snap: Snapshot
-  try {
-    snap = JSON.parse(await fs.readFile(path.join(UNDO_DIR, `${body.undo}.json`), 'utf8'))
-  } catch {
-    return refuse('That change can no longer be undone here — the studio server restarted.')
-  }
-
-  const file = insideProject(snap.file, body.slug)
-  if (!file) return refuse('That undo belongs to another project.')
-
-  let current: string
-  try {
-    current = await fs.readFile(file, 'utf8')
-  } catch {
-    return refuse('That screen file could not be read.')
-  }
-  if (versionOf(current) !== snap.after) {
-    return refuse('That screen has changed since, so undoing would overwrite newer work.')
-  }
-
-  try {
-    await fs.writeFile(file, snap.before, 'utf8')
-  } catch {
-    return refuse('That screen file could not be written.')
-  }
-  await fs.rm(path.join(UNDO_DIR, `${body.undo}.json`), { force: true })
-  return NextResponse.json({
-    ok: true,
-    file: relative(file),
-    version: versionOf(snap.before),
-  } satisfies DesignResponse)
+  return NextResponse.json(status, { headers: { 'cache-control': 'no-store' } })
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  if (process.env.NODE_ENV !== 'development') {
-    return new NextResponse(null, { status: 404 })
-  }
+  const kind = backend()
+  if (kind === 'record') return new NextResponse(null, { status: 404 })
 
-  let body: DesignRequest | DesignUndoRequest
+  let body: DesignRequest | DesignUndoRequest | DesignPushRequest
   try {
-    body = (await request.json()) as DesignRequest | DesignUndoRequest
+    body = (await request.json()) as DesignRequest | DesignUndoRequest | DesignPushRequest
   } catch {
     return refuse('That request could not be read.')
   }
-
   if (!body.slug || !KEBAB.test(body.slug)) return refuse('That is not a project I recognise.')
-  if ('undo' in body) return undo(body)
 
-  const { slug, edits, version } = body
-  if (!Array.isArray(edits) || edits.length === 0) return refuse('There was nothing to apply.')
-
-  // Every address in a batch — each edit's own and any anchor it names — must
-  // point into the same file: `applyEdits` works on one source string, and a
-  // batch spanning two files could half-succeed, which is exactly what
-  // atomicity is supposed to rule out.
-  // `new:` addresses name elements the batch itself creates; they have no
-  // file of their own and ride on the file of whatever they were put beside.
-  const files = new Set<string>()
-  for (const edit of edits) {
-    for (const src of addressesOf(edit)) {
-      if (isNewRef(src)) continue
-      const file = fileOf(src, slug)
-      if (!file) return refuse('That change points outside the project, so it was not saved.')
-      files.add(file)
-    }
-  }
-  if (files.size > 1) return refuse('Elements can only be moved within the file they are written in.')
-  if (files.size === 0) return refuse('There is nowhere on the screen for that to go.')
-
-  const file = [...files][0]
-  let source: string
-  try {
-    source = await fs.readFile(file, 'utf8')
-  } catch {
-    return refuse('That screen file could not be read.')
+  if (kind === 'fs') {
+    if ('undo' in body) return fsUndo(body)
+    if ('push' in body) return refuse('On your own machine, ask your agent to push.')
+    return fsApply(body)
   }
 
-  if (version && versionOf(source) !== version) {
-    return refuse('That screen has changed since it loaded. Refresh the page, then make the change again.')
-  }
-
-  const result = applyEdits(source, edits, { icons: await iconNames() })
-  if (!result.ok) return refuse(result.refused.reason)
-
-  // Nothing changed is a success with no write: rewriting identical bytes would
-  // still trigger a fast refresh and flash the screen for no reason.
-  if (result.source === source) {
-    return NextResponse.json({ ok: true, file: relative(file), version: versionOf(source) })
-  }
-
-  try {
-    await fs.writeFile(file, result.source, 'utf8')
-  } catch {
-    return refuse('That screen file could not be written.')
-  }
-
-  const after = versionOf(result.source)
-  const token = await saveSnapshot({ file, before: source, after })
-  return NextResponse.json({
-    ok: true,
-    file: relative(file),
-    version: after,
-    undo: token,
-  } satisfies DesignResponse)
+  const config = githubConfig()!
+  if ('push' in body) return githubPush(body, config)
+  // Undo on the link is "drop the entry and apply again" — there is no
+  // snapshot to restore.
+  if ('undo' in body) return refuse('That undo belongs to the dev server.')
+  return githubApply(body, config)
 }

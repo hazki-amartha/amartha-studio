@@ -998,3 +998,272 @@ test('the dev route writes, refuses stale versions, and undoes', async () => {
     await rm(dir, { recursive: true, force: true })
   }
 })
+
+// ---------------------------------------------------- the github backend (D4)
+//
+// No App exists to test against, so this is GitHub as the backend uses it,
+// in memory: installation tokens (checked against the App's public key),
+// contents, refs, pulls and the auto-merge mutation.
+
+const github = await (async () => {
+  const file = join(root, 'scripts', '.test-design-github.mjs')
+  await build({
+    absWorkingDir: root,
+    stdin: {
+      contents: [
+        `export { appJwt, branchFor, githubConfig, kebab, GitHub } from './platform/design/github'`,
+        `export { githubApply, githubPush } from './platform/design/server/githubBackend'`,
+        `export { GET, POST } from './app/api/design/route'`,
+      ].join('\n'),
+      resolveDir: root,
+      loader: 'ts',
+    },
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    outfile: file,
+    packages: 'external',
+    logLevel: 'silent',
+    alias: { 'next/server': 'next/server.js' },
+  })
+  const mod = await import(pathToFileURL(file).href)
+  process.on('exit', () => rm(file, { force: true }).catch(() => {}))
+  return mod
+})()
+
+const { generateKeyPairSync, createVerify, createHash } = await import('node:crypto')
+const keys = generateKeyPairSync('rsa', { modulusLength: 2048 })
+const PEM = keys.privateKey.export({ type: 'pkcs1', format: 'pem' })
+const BUILD = 'abc1234def5678abc1234def5678abc1234def56'
+
+function fakeGitHub(files) {
+  const blob = (text) => createHash('sha1').update(text).digest('hex')
+  const refs = new Map([[BUILD, new Map(Object.entries(files))]])
+  const pulls = []
+  const calls = []
+  const merged = []
+  const json = (status, body) => new Response(body === undefined ? '' : JSON.stringify(body), { status })
+
+  const fetchImpl = async (url, init = {}) => {
+    const u = new URL(url)
+    const method = init.method ?? 'GET'
+    const body = init.body ? JSON.parse(init.body) : undefined
+    calls.push(`${method} ${u.pathname}`)
+
+    if (u.pathname === '/app/installations/42/access_tokens') {
+      const jwt = init.headers.authorization.replace('Bearer ', '')
+      const [h, p, sig] = jwt.split('.')
+      const ok = createVerify('RSA-SHA256').update(`${h}.${p}`).verify(keys.publicKey, Buffer.from(sig, 'base64url'))
+      return ok ? json(201, { token: 'inst-token' }) : json(401, {})
+    }
+    if (init.headers.authorization !== 'Bearer inst-token') return json(401, {})
+
+    const repo = '/repos/acme/studio'
+    if (u.pathname.startsWith(`${repo}/contents/`)) {
+      const path = decodeURIComponent(u.pathname.slice(`${repo}/contents/`.length))
+      if (method === 'GET') {
+        const tree = refs.get(u.searchParams.get('ref'))
+        const text = tree?.get(path)
+        if (text === undefined) return json(404, {})
+        return json(200, { content: Buffer.from(text).toString('base64'), encoding: 'base64', sha: blob(text) })
+      }
+      if (method === 'PUT') {
+        const tree = refs.get(body.branch)
+        if (!tree) return json(404, {})
+        if (blob(tree.get(path)) !== body.sha) return json(409, {})
+        tree.set(path, Buffer.from(body.content, 'base64').toString('utf8'))
+        return json(200, {})
+      }
+    }
+    if (u.pathname.startsWith(`${repo}/git/ref/heads/`)) {
+      const branch = decodeURIComponent(u.pathname.slice(`${repo}/git/ref/heads/`.length))
+      return refs.has(branch) ? json(200, {}) : json(404, {})
+    }
+    if (u.pathname === `${repo}/git/refs` && method === 'POST') {
+      const branch = body.ref.replace('refs/heads/', '')
+      refs.set(branch, new Map(refs.get(body.sha)))
+      return json(201, {})
+    }
+    if (u.pathname === `${repo}/pulls` && method === 'GET') {
+      const head = u.searchParams.get('head')
+      return json(200, pulls.filter((p) => `acme:${p.head}` === head).map((p) => ({ number: p.number, node_id: p.nodeId })))
+    }
+    if (u.pathname === `${repo}/pulls` && method === 'POST') {
+      const pr = { number: pulls.length + 1, nodeId: `PR_${pulls.length + 1}`, ...body }
+      pulls.push(pr)
+      return json(201, { number: pr.number, node_id: pr.nodeId })
+    }
+    if (u.pathname === '/graphql') {
+      merged.push(body.variables.id)
+      return json(200, { data: {} })
+    }
+    return json(404, {})
+  }
+  return { fetchImpl, refs, pulls, calls, merged }
+}
+
+const CONFIG = {
+  appId: '1',
+  privateKey: PEM,
+  installationId: '42',
+  owner: 'acme',
+  repo: 'studio',
+  sha: BUILD,
+  base: 'main',
+}
+
+test('github: the App JWT is RS256 over the App id, short-lived', () => {
+  const jwt = github.appJwt('123', PEM, 1_700_000_000_000)
+  const [h, p, sig] = jwt.split('.')
+  assert.deepEqual(JSON.parse(Buffer.from(h, 'base64url')), { alg: 'RS256', typ: 'JWT' })
+  const claims = JSON.parse(Buffer.from(p, 'base64url'))
+  assert.equal(claims.iss, '123')
+  assert.ok(claims.exp - claims.iat <= 600)
+  assert.ok(createVerify('RSA-SHA256').update(`${h}.${p}`).verify(keys.publicKey, Buffer.from(sig, 'base64url')))
+})
+
+test('github: configuration comes from env, or not at all', () => {
+  const env = {
+    STUDIO_GH_APP_ID: '1',
+    STUDIO_GH_APP_PRIVATE_KEY: '-----BEGIN KEY-----\\nabc\\n-----END KEY-----',
+    STUDIO_GH_APP_INSTALLATION_ID: '42',
+    VERCEL_GIT_REPO_OWNER: 'acme',
+    VERCEL_GIT_REPO_SLUG: 'studio',
+    VERCEL_GIT_COMMIT_SHA: BUILD,
+  }
+  const c = github.githubConfig(env)
+  assert.equal(c.privateKey, '-----BEGIN KEY-----\nabc\n-----END KEY-----')
+  assert.equal(c.base, 'main')
+  assert.equal(github.githubConfig({ ...env, STUDIO_GH_APP_ID: undefined }), null)
+  // Only a deployment of the base branch: never a preview of a feature branch.
+  assert.ok(github.githubConfig({ ...env, VERCEL_ENV: 'production', VERCEL_GIT_COMMIT_REF: 'main' }))
+  assert.equal(github.githubConfig({ ...env, VERCEL_ENV: 'preview' }), null)
+  assert.equal(github.githubConfig({ ...env, VERCEL_GIT_COMMIT_REF: 'afin-linear/home' }), null)
+  assert.equal(github.githubConfig({ ...env, VERCEL_GIT_COMMIT_SHA: undefined }), null)
+})
+
+test('github: the branch is a function of project, name and build', () => {
+  assert.equal(github.branchFor('afin-linear', 'Hazki Hariowibowo', BUILD), 'afin-linear/design-hazki-hariowibowo-abc1234')
+  assert.equal(github.kebab('  Rébecca / O’Neil '), 'rebecca-o-neil')
+  assert.equal(github.kebab('***'), 'designer')
+})
+
+const call = async (handler, ...args) => (await handler(...args)).json()
+
+test('github: apply rebuilds from the build, commits to the branch, and undoes by re-applying', async () => {
+  const rel = 'projects/afin-linear/screens/home.tsx'
+  const source = await readFile(join(root, rel), 'utf8')
+  const icons = await readFile(join(root, 'design-system/icons/index.tsx'), 'utf8')
+  const gh = fakeGitHub({
+    [rel]: source,
+    'design-system/icons/index.tsx': icons,
+    'projects/afin-linear/project.config.ts': 'x',
+  })
+  const stamped = stampSource(source, rel).code
+  const srcs = [...stamped.matchAll(/<([A-Za-z]+) data-src="([^"]+)"/g)]
+  const shell = srcs.find((m) => m[1] === 'HomeShell')[2]
+  const limit = srcs.find((m) => m[1] === 'LimitCard')[2]
+  const version = versionOf(source)
+  const branch = 'afin-linear/design-hazki-abc1234'
+  const req = (edits, extra = {}) => ({ slug: 'afin-linear', screenId: 'home', version, name: 'Hazki', edits, ...extra })
+
+  // Not an owner, and not a live project.
+  const stranger = await call(github.githubApply, req([{ kind: 'delete', src: limit }], { name: 'Someone' }), CONFIG, gh.fetchImpl)
+  assert.equal(stranger.ok, false)
+  assert.match(stranger.reason, /Hazki/)
+  const live = await call(
+    github.githubApply,
+    { slug: 'amarthafin-live', screenId: 'home', name: 'Hazki', edits: [] , file: 'projects/amarthafin-live/screens/home.tsx' },
+    CONFIG,
+    gh.fetchImpl,
+  )
+  assert.equal(live.ok, false)
+  assert.match(live.reason, /production/)
+  assert.equal(gh.refs.has(branch), false, 'nothing refused may create a branch')
+
+  // A stale screen is refused.
+  const stale = await call(github.githubApply, req([{ kind: 'delete', src: limit }], { version: 'nope' }), CONFIG, gh.fetchImpl)
+  assert.equal(stale.ok, false)
+  assert.match(stale.reason, /newer version/)
+
+  // First apply: branch cut from the build, file rewritten.
+  const one = [{ kind: 'insert', id: 'b', item: 'icon', icon: 'Coins', to: { before: limit }, props: {} }]
+  const first = await call(github.githubApply, req(one), CONFIG, gh.fetchImpl)
+  assert.equal(first.ok, true, first.reason)
+  const afterOne = gh.refs.get(branch).get(rel)
+  assert.equal(afterOne, applyEdits(source, one, { icons: new Set(['Coins']) }).source)
+  assert.equal(first.version, versionOf(afterOne))
+
+  // Second apply re-sends the whole list; the file is rebuilt from the BUILD,
+  // not stacked on the branch — no edit is applied twice.
+  const two = [...one, { kind: 'move', src: limit, to: { inside: shell } }]
+  const second = await call(github.githubApply, req(two), CONFIG, gh.fetchImpl)
+  assert.equal(second.ok, true, second.reason)
+  assert.equal(gh.refs.get(branch).get(rel), applyEdits(source, two, { icons: new Set(['Coins']) }).source)
+  assert.equal(gh.refs.get(branch).get(rel).match(/<Coins/g).length, 1)
+
+  // Undo everything: an empty list for the file puts the deployed copy back.
+  const reset = await call(github.githubApply, req([], { file: rel }), CONFIG, gh.fetchImpl)
+  assert.equal(reset.ok, true, reset.reason)
+  assert.equal(gh.refs.get(branch).get(rel), source)
+
+  // A refused edit writes nothing.
+  const before = gh.refs.get(branch).get(rel)
+  const bad = await call(github.githubApply, req([{ kind: 'delete', src: `${rel}:999:0` }]), CONFIG, gh.fetchImpl)
+  assert.equal(bad.ok, false)
+  assert.equal(gh.refs.get(branch).get(rel), before)
+
+  // Push opens one change from the branch and sets it to land itself.
+  await call(github.githubApply, req(one), CONFIG, gh.fetchImpl)
+  const pushed = await call(github.githubPush, { slug: 'afin-linear', push: true, name: 'Hazki' }, CONFIG, gh.fetchImpl)
+  assert.equal(pushed.ok, true, pushed.reason)
+  assert.equal(gh.pulls.length, 1)
+  assert.equal(gh.pulls[0].head, branch)
+  assert.equal(gh.pulls[0].base, 'main')
+  assert.match(gh.pulls[0].title, /^\[afin-linear\] /)
+  assert.deepEqual(gh.merged, ['PR_1'])
+  const again = await call(github.githubPush, { slug: 'afin-linear', push: true, name: 'Hazki' }, CONFIG, gh.fetchImpl)
+  assert.equal(again.ok, true)
+  assert.equal(gh.pulls.length, 1, 'pushing twice reuses the open change')
+
+  // Nothing applied under this name: nothing to push.
+  const empty = fakeGitHub({ 'projects/afin-linear/project.config.ts': 'x' })
+  const nothing = await call(github.githubPush, { slug: 'afin-linear', push: true, name: 'Hazki' }, CONFIG, empty.fetchImpl)
+  assert.equal(nothing.ok, false)
+})
+
+test('github: the route only offers the backend behind the password gate', async () => {
+  const saved = { ...process.env }
+  const status = async () => (await github.GET(new Request('http://x/api/design?slug=afin-linear'))).json()
+  try {
+    Object.assign(process.env, {
+      NODE_ENV: 'production',
+      STUDIO_GH_APP_ID: '1',
+      STUDIO_GH_APP_PRIVATE_KEY: PEM,
+      STUDIO_GH_APP_INSTALLATION_ID: '42',
+      VERCEL_GIT_REPO_OWNER: 'acme',
+      VERCEL_GIT_REPO_SLUG: 'studio',
+      VERCEL_GIT_COMMIT_SHA: BUILD,
+    })
+    delete process.env.SITE_PASSWORD
+    const open = await status()
+    assert.equal(open.backend, 'record', 'no gate, no writes')
+    assert.deepEqual(open.owners, ['Hazki'])
+    const refused = await github.POST(new Request('http://x/api/design', { method: 'POST', body: '{}' }))
+    assert.equal(refused.status, 404)
+
+    process.env.SITE_PASSWORD = 'secret'
+    const gated = await status()
+    assert.equal(gated.backend, 'github')
+    assert.equal(gated.sha, BUILD)
+
+    const live = await (await github.GET(new Request('http://x/api/design?slug=amarthafin-live'))).json()
+    assert.match(live.locked, /production/)
+
+    delete process.env.STUDIO_GH_APP_ID
+    assert.equal((await status()).backend, 'record')
+  } finally {
+    for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k]
+    Object.assign(process.env, saved)
+  }
+})

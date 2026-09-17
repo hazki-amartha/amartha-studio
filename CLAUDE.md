@@ -475,7 +475,7 @@ component props, and move, duplicate, delete, wrap or insert elements,
 themselves; pressing **Apply** writes those changes straight into
 `projects/<slug>/` on the dev server. (It was called Edit mode until
 2026-09-16; the rules below are unchanged, the engine underneath is not.) Treat
-them as the designer's own work, with three rules:
+them as the designer's own work, with these rules:
 
 - **They ride commit and push silently.** "Commit it" includes whatever panel
   tweaks are in the working tree — don't quiz the designer about edits they
@@ -486,7 +486,13 @@ them as the designer's own work, with three rules:
   documentation, §2), is almost always a stray test — surface it and ask
   instead of shipping it. Everything in the designer's own project ships
   without comment.
-- **"Apply" is not a third verb.** It saves to the working copy, nothing more.
+- **On the deployed link, owners can push without you.** Once the studio's
+  GitHub App is set up, Design mode there saves to a branch and its **Push**
+  opens the change itself; it lands as `[<slug>] Design changes from the
+  studio (<name>)`. That is the designer's own work arriving on `main`: pull
+  before you start, as always, and treat it like any other commit of theirs.
+- **"Apply" is not a third verb.** It saves — to the working copy, or on the
+  link to a branch — nothing more.
   The panel already says so; if a designer still thinks Apply made something
   live, say plainly that applied tweaks are saved but not live until they say
   push — and don't expand the vocabulary beyond commit and push.
