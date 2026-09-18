@@ -1026,6 +1026,8 @@ function ActionsFooter({
       n > 0
         ? 'These changes aren’t saved anywhere. Copy them and send them over to be applied.'
         : 'Tweaks here are for describing a change, not saving one.'
+  } else if (linked && store.landed) {
+    note = 'It’s landed. The link picks it up in a couple of minutes — refresh then.'
   } else if (linked && store.pushed) {
     note = 'Pushed. It goes live on its own in a few minutes — these stay on screen until it does.'
   } else if (linked && n > 0 && unsaved === 0) {
@@ -1186,7 +1188,7 @@ function StatusFooter({
   copied,
   onDiscard,
 }: {
-  storeError: { label: string; reason: string } | null
+  storeError: { label: string; reason: string; title?: string } | null
   onCopy: () => void
   copied: boolean
   /** Present while refused changes are still staged. */
@@ -1195,7 +1197,9 @@ function StatusFooter({
   if (!storeError) return null
   return (
     <div className="flex flex-col gap-4 rounded-12 border border-red-200 bg-red-50 p-8">
-      <span className="text-12 font-bold text-red-700">Couldn’t apply {storeError.label}</span>
+      <span className="text-12 font-bold text-red-700">
+        {storeError.title ?? `Couldn’t apply ${storeError.label}`}
+      </span>
       <span className="text-12 text-red-700">{storeError.reason}</span>
       <div className="flex gap-8">
         <button

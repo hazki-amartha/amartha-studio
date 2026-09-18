@@ -6,7 +6,7 @@
 import { NextResponse } from 'next/server'
 import { applyEdits } from '../applyEdits'
 import { branchFor, GitHub, GitHubError, type GitHubConfig } from '../github'
-import type { DesignPushRequest, DesignRequest, DesignResponse } from '../protocol'
+import type { DesignCheckRequest, DesignPushRequest, DesignRequest, DesignResponse } from '../protocol'
 import { versionOf } from '../version'
 import { batchFile, iconNamesIn, projectFacts, refuse, whyNot } from './common'
 
@@ -113,6 +113,29 @@ export async function githubPush(
     )
     await gh.autoMerge(pull)
     return NextResponse.json({ ok: true, pushed: true } satisfies DesignResponse)
+  } catch (err) {
+    return failed(err)
+  }
+}
+
+/**
+ * Where this deployment's pushed change has got to. A read, so it only needs
+ * the project to be one the name could have pushed — the same check as Push.
+ */
+export async function githubCheck(
+  body: DesignCheckRequest,
+  config: GitHubConfig,
+  fetchImpl?: Fetch,
+): Promise<NextResponse> {
+  const facts = await projectFacts(body.slug)
+  if (!facts) return refuse('That is not a project I recognise.')
+  const blocked = whyNot(facts, body.name)
+  if (blocked) return refuse(blocked)
+
+  const gh = new GitHub(config, fetchImpl)
+  try {
+    const change = await gh.changeState(branchFor(body.slug, body.name, config.sha))
+    return NextResponse.json({ ok: true, change } satisfies DesignResponse)
   } catch (err) {
     return failed(err)
   }

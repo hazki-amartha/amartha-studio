@@ -120,6 +120,12 @@ export class GitHubError extends Error {
 
 type Fetch = typeof fetch
 
+/** See `GitHub.changeState`. */
+export type ChangeState = 'none' | 'waiting' | 'failed' | 'landed' | 'closed'
+
+/** Check conclusions that stop a change landing. `neutral` and `skipped` don't. */
+const FAILED = new Set(['failure', 'timed_out', 'cancelled', 'action_required', 'startup_failure', 'stale'])
+
 export class GitHub {
   private token: string | null = null
   private readonly api: string
@@ -229,6 +235,39 @@ export class GitHub {
     })
     if (status !== 201 || !data) throw new GitHubError('The change could not be opened.', status)
     return { number: data.number, nodeId: data.node_id }
+  }
+
+  /**
+   * Where the change from `branch` has got to since Push — what the panel asks
+   * while it says "on its way", so a change that fails CI doesn't sit there
+   * claiming to be on its way for ever.
+   *
+   * The newest change from the branch decides: merged → `landed`, closed
+   * unmerged → `closed`, open with a finished check that didn't pass →
+   * `failed`, otherwise `waiting`. Checks need the App's "Checks: read"; an App
+   * without it reads as `waiting`, which is what the panel said before this
+   * existed, rather than as an error.
+   */
+  async changeState(branch: string): Promise<ChangeState> {
+    const pulls = await this.call<{ state: string; merged_at: string | null; head: { sha: string } }[]>(
+      'GET',
+      this.repoPath(`/pulls?state=all&head=${encodeURIComponent(`${this.config.owner}:${branch}`)}`),
+    )
+    if (pulls.status !== 200 || !pulls.data) throw new GitHubError('The studio could not check on your push.', pulls.status)
+    const pull = pulls.data[0]
+    if (!pull) return 'none'
+    if (pull.merged_at) return 'landed'
+    if (pull.state !== 'open') return 'closed'
+
+    const checks = await this.call<{ check_runs: { status: string; conclusion: string | null }[] }>(
+      'GET',
+      this.repoPath(`/commits/${pull.head.sha}/check-runs?per_page=100`),
+    )
+    if (checks.status !== 200 || !checks.data) return 'waiting'
+    const failed = checks.data.check_runs.some(
+      (run) => run.status === 'completed' && FAILED.has(run.conclusion ?? ''),
+    )
+    return failed ? 'failed' : 'waiting'
   }
 
   /**

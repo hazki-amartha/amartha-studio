@@ -1117,7 +1117,7 @@ const github = await (async () => {
     stdin: {
       contents: [
         `export { appJwt, branchFor, githubConfig, kebab, GitHub } from './platform/design/github'`,
-        `export { githubApply, githubPush } from './platform/design/server/githubBackend'`,
+        `export { githubApply, githubCheck, githubPush } from './platform/design/server/githubBackend'`,
         `export { GET, POST } from './app/api/design/route'`,
       ].join('\n'),
       resolveDir: root,
@@ -1147,6 +1147,8 @@ function fakeGitHub(files) {
   const pulls = []
   const calls = []
   const merged = []
+  /** Check runs by commit, as the fake CI reports them. */
+  const checks = new Map()
   const json = (status, body) => new Response(body === undefined ? '' : JSON.stringify(body), { status })
 
   const fetchImpl = async (url, init = {}) => {
@@ -1191,12 +1193,30 @@ function fakeGitHub(files) {
     }
     if (u.pathname === `${repo}/pulls` && method === 'GET') {
       const head = u.searchParams.get('head')
-      return json(200, pulls.filter((p) => `acme:${p.head}` === head).map((p) => ({ number: p.number, node_id: p.nodeId })))
+      const state = u.searchParams.get('state') ?? 'open'
+      return json(
+        200,
+        pulls
+          .filter((p) => `acme:${p.head}` === head && (state === 'all' || p.state === state))
+          .reverse()
+          .map((p) => ({
+            number: p.number,
+            node_id: p.nodeId,
+            state: p.state,
+            merged_at: p.mergedAt,
+            head: { sha: `tip-of-${p.head.replaceAll('/', '_')}` },
+          })),
+      )
     }
     if (u.pathname === `${repo}/pulls` && method === 'POST') {
-      const pr = { number: pulls.length + 1, nodeId: `PR_${pulls.length + 1}`, ...body }
+      const pr = { number: pulls.length + 1, nodeId: `PR_${pulls.length + 1}`, state: 'open', mergedAt: null, ...body }
       pulls.push(pr)
       return json(201, { number: pr.number, node_id: pr.nodeId })
+    }
+    const runs = u.pathname.match(/^\/repos\/acme\/studio\/commits\/([^/]+)\/check-runs$/)
+    if (runs) {
+      const list = checks.get(runs[1])
+      return list === 'forbidden' ? json(403, {}) : json(200, { total_count: (list ?? []).length, check_runs: list ?? [] })
     }
     if (u.pathname === '/graphql') {
       merged.push(body.variables.id)
@@ -1204,7 +1224,7 @@ function fakeGitHub(files) {
     }
     return json(404, {})
   }
-  return { fetchImpl, refs, pulls, calls, merged }
+  return { fetchImpl, refs, pulls, calls, merged, checks }
 }
 
 const CONFIG = {
@@ -1335,6 +1355,46 @@ test('github: apply rebuilds from the build, commits to the branch, and undoes b
   const empty = fakeGitHub({ 'projects/afin-linear/project.config.ts': 'x' })
   const nothing = await call(github.githubPush, { slug: 'afin-linear', push: true, name: 'Hazki' }, CONFIG, empty.fetchImpl)
   assert.equal(nothing.ok, false)
+})
+
+test('github: after a push, the panel can tell landed from failed', async () => {
+  const gh = fakeGitHub({ 'projects/afin-linear/project.config.ts': 'x' })
+  const check = async () => {
+    const res = await call(github.githubCheck, { slug: 'afin-linear', check: true, name: 'Hazki' }, CONFIG, gh.fetchImpl)
+    assert.equal(res.ok, true, res.reason)
+    return res.change
+  }
+  const tip = `tip-of-${github.branchFor('afin-linear', 'Hazki', BUILD).replaceAll('/', '_')}`
+
+  assert.equal(await check(), 'none', 'nothing pushed yet')
+  gh.pulls.push({ number: 1, nodeId: 'PR_1', head: github.branchFor('afin-linear', 'Hazki', BUILD), state: 'open', mergedAt: null })
+
+  assert.equal(await check(), 'waiting', 'no checks reported yet')
+  gh.checks.set(tip, [
+    { status: 'in_progress', conclusion: null },
+    { status: 'completed', conclusion: 'skipped' },
+  ])
+  assert.equal(await check(), 'waiting', 'still running, and a skipped check is not a failure')
+  gh.checks.set(tip, [
+    { status: 'completed', conclusion: 'success' },
+    { status: 'completed', conclusion: 'failure' },
+  ])
+  assert.equal(await check(), 'failed')
+  gh.checks.set(tip, 'forbidden')
+  assert.equal(await check(), 'waiting', 'an App without Checks: read degrades to the old behaviour')
+
+  gh.pulls[0].state = 'closed'
+  assert.equal(await check(), 'closed')
+  gh.pulls[0].mergedAt = '2026-09-18T00:00:00Z'
+  assert.equal(await check(), 'landed')
+
+  // A newer change from the same branch is the one that counts.
+  gh.pulls.push({ number: 2, nodeId: 'PR_2', head: gh.pulls[0].head, state: 'open', mergedAt: null })
+  gh.checks.set(tip, [])
+  assert.equal(await check(), 'waiting')
+
+  const stranger = await call(github.githubCheck, { slug: 'afin-linear', check: true, name: 'Someone' }, CONFIG, gh.fetchImpl)
+  assert.equal(stranger.ok, false)
 })
 
 test('github: the route only offers the backend behind the password gate', async () => {

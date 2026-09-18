@@ -15,6 +15,7 @@ import { NextResponse } from 'next/server'
 import { isGateConfigured } from '@/app/unlock/auth'
 import { githubConfig } from '@/platform/design/github'
 import type {
+  DesignCheckRequest,
   DesignPushRequest,
   DesignRequest,
   DesignStatus,
@@ -22,7 +23,7 @@ import type {
 } from '@/platform/design/protocol'
 import { KEBAB, projectFacts, refuse, whyNot } from '@/platform/design/server/common'
 import { fsApply, fsUndo } from '@/platform/design/server/fsBackend'
-import { githubApply, githubPush } from '@/platform/design/server/githubBackend'
+import { githubApply, githubCheck, githubPush } from '@/platform/design/server/githubBackend'
 
 function backend(): 'fs' | 'github' | 'record' {
   if (process.env.NODE_ENV === 'development') return 'fs'
@@ -49,9 +50,9 @@ export async function POST(request: Request): Promise<NextResponse> {
   const kind = backend()
   if (kind === 'record') return new NextResponse(null, { status: 404 })
 
-  let body: DesignRequest | DesignUndoRequest | DesignPushRequest
+  let body: DesignRequest | DesignUndoRequest | DesignPushRequest | DesignCheckRequest
   try {
-    body = (await request.json()) as DesignRequest | DesignUndoRequest | DesignPushRequest
+    body = (await request.json()) as DesignRequest | DesignUndoRequest | DesignPushRequest | DesignCheckRequest
   } catch {
     return refuse('That request could not be read.')
   }
@@ -59,12 +60,13 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   if (kind === 'fs') {
     if ('undo' in body) return fsUndo(body)
-    if ('push' in body) return refuse('On your own machine, ask your agent to push.')
+    if ('push' in body || 'check' in body) return refuse('On your own machine, ask your agent to push.')
     return fsApply(body)
   }
 
   const config = githubConfig()!
   if ('push' in body) return githubPush(body, config)
+  if ('check' in body) return githubCheck(body, config)
   // Undo on the link is "drop the entry and apply again" — there is no
   // snapshot to restore.
   if ('undo' in body) return refuse('That undo belongs to the dev server.')

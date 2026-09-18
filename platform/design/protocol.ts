@@ -284,6 +284,16 @@ export interface DesignPushRequest {
 }
 
 /**
+ * `github` backend only: where a pushed change has got to — see
+ * `GitHub.changeState`. The panel asks while it says the change is on its way.
+ */
+export interface DesignCheckRequest {
+  slug: string
+  check: true
+  name: string
+}
+
+/**
  * What the panel needs to know before it offers to write, from
  * `GET /api/design?slug=`.
  *
@@ -328,4 +338,5 @@ export type DesignResponse =
       undo?: string
     }
   | { ok: true; pushed: true }
+  | { ok: true; change: 'none' | 'waiting' | 'failed' | 'landed' | 'closed' }
   | { ok: false; reason: string }
