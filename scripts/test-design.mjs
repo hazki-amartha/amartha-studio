@@ -589,7 +589,16 @@ test('layout: the spacing scale matches the inspector’s', () => {
 
 test('layout: reads and rewrites the four stack families in place', () => {
   const classes = ['flex', 'flex-col', 'gap-12', 'px-16']
-  assert.deepEqual(layoutOf(classes), { direction: 'col', gap: '12', align: null, justify: null })
+  assert.deepEqual(layoutOf(classes), {
+    direction: 'col',
+    gap: '12',
+    align: null,
+    justify: null,
+    padX: '16',
+    padY: null,
+    clip: false,
+    sizing: [],
+  })
   assert.deepEqual(
     withLayout(classes, { direction: 'row', gap: '8', align: 'center', justify: 'between' }),
     ['flex', 'items-center', 'justify-between', 'gap-8', 'px-16'],
@@ -612,6 +621,102 @@ test('layout: reads and rewrites the four stack families in place', () => {
   assert.deepEqual(withLayout(['flex', 'gap-4'], { direction: null, gap: null, align: null, justify: null }), [])
   // gap-x is not the uniform gap, and is left alone.
   assert.equal(layoutOf(['flex', 'gap-x-4']).gap, null)
+})
+
+test('layout: padding is one p- when the axes agree, px-/py- when they don’t', () => {
+  const none = { direction: 'col', gap: null, align: null, justify: null }
+  assert.deepEqual(layoutOf(['p-12']).padX, '12')
+  assert.deepEqual(layoutOf(['p-12', 'py-4']).padY, '4')
+  assert.deepEqual(withLayout(['flex', 'flex-col', 'p-12'], { ...none, padX: '16' }), [
+    'flex',
+    'flex-col',
+    'px-16',
+    'py-12',
+  ])
+  assert.deepEqual(withLayout(['flex', 'flex-col', 'px-16', 'py-8'], { ...none, padY: '16' }), [
+    'flex',
+    'flex-col',
+    'p-16',
+  ])
+  assert.deepEqual(withLayout(['flex', 'flex-col', 'p-12'], { ...none, padX: null, padY: null }), [
+    'flex',
+    'flex-col',
+  ])
+  // A side-specific class is someone's choice and is left alone.
+  assert.deepEqual(withLayout(['flex', 'flex-col', 'pt-4'], { ...none, padX: '8' }), [
+    'flex',
+    'flex-col',
+    'px-8',
+    'pt-4',
+  ])
+  // Undefined leaves padding as it is — how an older staged edit reads.
+  assert.deepEqual(withLayout(['flex', 'p-12'], { ...none, direction: 'row' }), ['flex', 'p-12'])
+})
+
+test('layout: clip content is overflow-hidden', () => {
+  const none = { direction: null, gap: null, align: null, justify: null }
+  assert.equal(layoutOf(['overflow-hidden']).clip, true)
+  assert.deepEqual(withLayout(['rounded-12', 'bg-neutral-white'], { ...none, clip: true }), [
+    'overflow-hidden',
+    'rounded-12',
+    'bg-neutral-white',
+  ])
+  assert.deepEqual(withLayout(['overflow-hidden', 'p-4'], { ...none, clip: false }), ['p-4'])
+})
+
+test('stack: writes padding and clip, and still accepts an edit that names neither', () => {
+  const at = addresses(HOME)
+  const out = ok(
+    applyEdits(HOME, [
+      {
+        kind: 'stack',
+        src: at('Card', 0),
+        old: { direction: 'col', gap: '12', align: null, justify: null, padX: null, padY: null, clip: false },
+        next: { direction: 'col', gap: '12', align: null, justify: null, padX: '16', padY: '16', clip: true },
+      },
+    ]),
+  )
+  assert.match(out, /<Card className="flex flex-col gap-12 overflow-hidden p-16">/)
+})
+
+test('layout: sizing classes are swapped as a set, in Tailwind order', () => {
+  const none = { direction: null, gap: null, align: null, justify: null }
+  assert.deepEqual(layoutOf(['flex-1', 'w-200', 'p-4', 'self-start', 'min-w-0']).sizing, [
+    'flex-1',
+    'w-200',
+    'self-start',
+  ])
+  assert.deepEqual(withLayout(['flex', 'w-full', 'p-12'], { ...none, direction: 'row', sizing: ['h-120', 'w-320'] }), [
+    'flex',
+    'h-120',
+    'w-320',
+    'p-12',
+  ])
+  assert.deepEqual(withLayout(['flex-1', 'rounded-12'], { ...none, sizing: ['size-48'] }), ['size-48', 'rounded-12'])
+  assert.deepEqual(withLayout(['size-48', 'rounded-12'], { ...none, sizing: [] }), ['rounded-12'])
+  // The same classes in another order are not a change.
+  assert.deepEqual(withLayout(['w-40', 'h-24'], { ...none, sizing: ['h-24', 'w-40'] }), ['w-40', 'h-24'])
+})
+
+test('stack: writes sizing, and refuses when the file’s sizing moved on', () => {
+  const at = addresses(HOME)
+  const base = { direction: 'col', gap: '12', align: null, justify: null }
+  const out = ok(
+    applyEdits(HOME, [{ kind: 'stack', src: at('Card', 0), old: { ...base, sizing: [] }, next: { ...base, sizing: ['w-full'] } }]),
+  )
+  assert.match(out, /<Card className="flex w-full flex-col gap-12">/)
+  const stale = applyEdits(HOME, [
+    { kind: 'stack', src: at('Card', 0), old: { ...base, sizing: ['w-200'] }, next: { ...base, sizing: [] } },
+  ])
+  assert.equal(stale.ok, false)
+})
+
+test('size scale: 4px from 52 to SIZE_MAX, and the panel agrees on the top', async () => {
+  const src = await readFile(join(root, 'tailwind.config.ts'), 'utf8')
+  const panel = await readFile(join(root, 'platform/design/sizing.ts'), 'utf8')
+  const max = Number(/const SIZE_MAX = (\d+)/.exec(src)?.[1])
+  assert.equal(max, Number(/export const SIZE_MAX = (\d+)/.exec(panel)?.[1]))
+  assert.equal((max - 52) % 4, 0)
 })
 
 test('stack: sets direction, gap and alignment on the addressed element', () => {

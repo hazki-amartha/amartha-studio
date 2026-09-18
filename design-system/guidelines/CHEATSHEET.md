@@ -18,6 +18,7 @@ components from `@/design-system/components`, layout from `@/platform/primitives
 | Primary | `primary-500` = `#853291` — the ONLY primary action color |
 | Font | Inter, weights **500 / 700** only → `font-regular` / `font-bold` |
 | Spacing | 4px grid: `0 2 4 8 12 16 20 24 32 40 48` only |
+| Sizes | `w-` `h-` `size-` `min-/max-w/h-`: the spacing steps plus every 4px from 52 to 1200 (`w-200`, `h-120`), and `full`/`fit` — padding, gap and margin stay on spacing |
 | Button radius | `rounded-full` (pill) — never rectangular |
 | Card radius | `rounded-16` default, 12px padding — `<Card radius="8|12|16|20|24">` |
 | Input radius | `rounded-8` |

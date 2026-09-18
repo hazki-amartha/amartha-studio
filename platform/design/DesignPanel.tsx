@@ -31,6 +31,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { PanelShell } from '@/platform/chrome/SidePanel'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Trash } from '@/design-system/icons'
 import { ancestorChain, labelOf, resolveTarget } from '@/platform/inspect/resolve'
 import {
   colorEntries,
@@ -46,20 +47,24 @@ import {
   canHoldDom,
   describe,
   duplicateElement,
+  isRow,
   moveStep,
   removeElement,
   stageContext,
   stepPlace,
   structuralBlock,
-  unwrapElement,
-  unwrappable,
+  unwrapAt,
+  unwrapTarget,
   wrapElements,
 } from './actions'
 import {
   InsertSection,
   LayoutSection,
   NewElementSection,
+  RowLabel,
   SelectionSection,
+  TokenField,
+  sentenceCase,
 } from './DesignSections'
 import { catalogItem } from './catalog'
 import { layoutOf } from './layout'
@@ -263,43 +268,6 @@ function LockNotice({ lock, onPin }: { lock: Lock; onPin: (el: Element | null) =
 
 // --- small UI atoms ----------------------------------------------------------
 
-function RowLabel({ children }: { children: React.ReactNode }) {
-  return <span className="truncate text-12 text-caption dark:text-neutral-400">{children}</span>
-}
-
-function Stepper({
-  value,
-  hint,
-  onStep,
-  canDown,
-  canUp,
-}: {
-  value: string
-  hint?: string
-  onStep: (dir: -1 | 1) => void
-  canDown: boolean
-  canUp: boolean
-}) {
-  const btn =
-    'flex h-24 w-24 flex-none items-center justify-center text-14 font-bold text-caption hover:bg-neutral-50 hover:text-default disabled:cursor-not-allowed disabled:text-placeholder dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50 dark:disabled:text-neutral-600'
-  return (
-    <div
-      className="flex flex-none items-center overflow-hidden rounded-8 border border-default dark:border-ink-700"
-      title={hint}
-    >
-      <button type="button" onClick={() => onStep(-1)} disabled={!canDown} aria-label="Decrease" className={btn}>
-        −
-      </button>
-      <span className="w-32 border-x border-default text-center text-12 font-bold text-default dark:border-ink-700 dark:text-neutral-50">
-        {value}
-      </span>
-      <button type="button" onClick={() => onStep(1)} disabled={!canUp} aria-label="Increase" className={btn}>
-        +
-      </button>
-    </div>
-  )
-}
-
 // --- the panel ---------------------------------------------------------------
 
 export function DesignPanel({
@@ -410,6 +378,7 @@ export function DesignPanel({
   const fullText = pinned && pinned.children.length === 0 ? (pinned.textContent ?? '') : ''
   const textEditable = fullText.trim().length >= 2 && fullText.length <= 200
   const [draftText, setDraftText] = useState('')
+  const [insertOpen, setInsertOpen] = useState(false)
   useEffect(() => setDraftText(fullText), [fullText, pinned])
 
   const commitText = useCallback(() => {
@@ -521,22 +490,32 @@ export function DesignPanel({
         copied={copied}
         onDiscard={store.pending.length > 0 ? discardAll : undefined}
       />
+      <div className="border-t border-default dark:border-ink-700" />
       <ActionsFooter store={store} onUndo={onUndo} />
       <ModeSwitch store={store} />
     </>
   )
 
-  const insert = <InsertSection pinned={pinned} slug={slug} screenId={screenId} onChanged={bump} />
+  const insert = (
+    <InsertSection
+      pinned={pinned}
+      slug={slug}
+      screenId={screenId}
+      onChanged={bump}
+      open={insertOpen}
+      onOpen={setInsertOpen}
+    />
+  )
 
   if (!target) {
     return (
       <PanelShell {...shell}>
-        <p className="text-14 text-caption dark:text-neutral-400">
+        {insert}
+        {footer}
+        <p className="text-10 text-caption dark:text-neutral-400">
           Hover the prototype to highlight an element, click to pin it, then tweak it here. Hold ⌥
           to reach the raw element inside a component, and ⇧ to select more than one.
         </p>
-        {insert}
-        {footer}
       </PanelShell>
     )
   }
@@ -580,10 +559,12 @@ export function DesignPanel({
     .map((a) => classify(a.cls))
     .filter((r): r is EditableRow => r !== null)
 
-  // A stack's own gap is Auto layout's, not a free-standing spacing knob: two
-  // controls staging two edits against one class would refuse each other.
+  // A stack's own gap and padding are Auto layout's, not free-standing spacing
+  // knobs: two controls staging two edits against one class would refuse each
+  // other.
   const stacked = canHoldDom(target.el) && layoutOf(Array.from(target.el.classList)).direction !== null
-  const layoutRows = rows.filter((r) => r.type === 'spacing' && !(stacked && r.prefix === 'gap'))
+  const ownedByStack = ['gap', 'p', 'px', 'py']
+  const layoutRows = rows.filter((r) => r.type === 'spacing' && !(stacked && ownedByStack.includes(r.prefix)))
   const shapeRows = rows.filter((r) => r.type === 'radius')
   const sizeRow = rows.find((r) => r.type === 'fontSize')
   const weightRow = rows.find((r) => r.type === 'weight')
@@ -592,19 +573,20 @@ export function DesignPanel({
 
   const hasTextSection = Boolean(sizeRow || weightRow || textColorRow || textEditable)
 
-  const stepperRow = (r: EditableRow, scale: string[]) => {
-    const i = scale.indexOf(r.suffix)
+  // Same field as Auto layout's: the label above, the value in a box, the
+  // scale in a menu.
+  const tokenRow = (r: EditableRow, scale: string[]) => {
+    const name = KNOB_LABELS[r.prefix] ?? (r.type === 'fontSize' ? 'Size' : r.prefix)
     return (
-      <div key={r.cls} className="flex items-center justify-between gap-8">
-        <RowLabel>{KNOB_LABELS[r.prefix] ?? r.prefix}</RowLabel>
-        <Stepper
+      <div key={r.cls} className="flex min-w-0 flex-col gap-4" title={valueForClass(r.cls) ?? undefined}>
+        <RowLabel>{name}</RowLabel>
+        <TokenField
+          label={name}
           value={r.suffix}
-          hint={valueForClass(r.cls) ?? undefined}
-          canDown={i > 0}
-          canUp={i >= 0 && i < scale.length - 1}
-          onStep={(dir) => {
-            const next = scale[i + dir]
-            if (next != null) swapClass(r.cls, `${r.prefix}-${next}`)
+          options={scale.map((v) => ({ value: v, label: v }))}
+          chevron
+          onPick={(v) => {
+            if (v !== r.suffix) swapClass(r.cls, `${r.prefix}-${v}`)
           }}
         />
       </div>
@@ -663,27 +645,19 @@ export function DesignPanel({
 
       {editableProps.length > 0 ? (
         <Section title="Component">
-          <div className="flex flex-col gap-8">
+          <div className="grid grid-cols-2 gap-8">
             {editableProps.map((p) => {
               const current = pinned?.getAttribute(`data-fds-${p.attr}`) ?? p.values[0]
               return (
-                <div key={p.prop} className="flex flex-col gap-2">
-                  <label className="flex items-center justify-between gap-8">
-                    <RowLabel>{p.prop}</RowLabel>
-                    <select
-                      value={current}
-                      onChange={(e) =>
-                        changeProp(target.component ?? '', p.prop, p.attr, e.target.value)
-                      }
-                      className="rounded-8 border border-default bg-neutral-white px-8 py-4 text-12 text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
-                    >
-                      {p.values.map((v) => (
-                        <option key={v} value={v}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                <div key={p.prop} className="flex min-w-0 flex-col gap-4">
+                  <RowLabel>{p.prop}</RowLabel>
+                  <TokenField
+                    label={sentenceCase(p.prop)}
+                    value={current}
+                    options={p.values.map((v) => ({ value: v, label: v }))}
+                    chevron
+                    onPick={(v) => changeProp(target.component ?? '', p.prop, p.attr, v)}
+                  />
                   {/* Honesty over silence: these change something the preview
                       can't fake, so say when it will actually show up. */}
                   {!p.classes ? (
@@ -699,17 +673,17 @@ export function DesignPanel({
       ) : null}
 
       {layoutRows.length > 0 ? (
-        <Section title="Layout">
-          <div className="flex flex-col gap-8">
-            {layoutRows.map((r) => stepperRow(r, spacingNames))}
+        <Section title="Spacing">
+          <div className="grid grid-cols-2 gap-8">
+            {layoutRows.map((r) => tokenRow(r, spacingNames))}
           </div>
         </Section>
       ) : null}
 
       {shapeRows.length > 0 ? (
         <Section title="Shape">
-          <div className="flex flex-col gap-8">
-            {shapeRows.map((r) => stepperRow(r, radiusNames))}
+          <div className="grid grid-cols-2 gap-8">
+            {shapeRows.map((r) => tokenRow(r, radiusNames))}
           </div>
         </Section>
       ) : null}
@@ -717,32 +691,24 @@ export function DesignPanel({
       {hasTextSection ? (
         <Section title="Text">
           <div className="flex flex-col gap-8">
-            {sizeRow ? stepperRow(sizeRow, fontSizeNames) : null}
-            {weightRow ? (
-              <div className="flex items-center justify-between gap-8">
-                <RowLabel>Weight</RowLabel>
-                <div className="flex overflow-hidden rounded-8 border border-default dark:border-ink-700">
-                  {fontWeightNames.map((w) => {
-                    const on = weightRow.suffix === w
-                    return (
-                      <button
-                        key={w}
-                        type="button"
-                        onClick={() => swapClass(weightRow.cls, `font-${w}`)}
-                        className={`px-8 py-4 text-12 ${
-                          on
-                            ? 'bg-neutral-50 font-bold text-link dark:bg-ink-800 dark:text-neutral-50'
-                            : 'text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50'
-                        }`}
-                      >
-                        {w}
-                      </button>
-                    )
-                  })}
+            <div className="grid grid-cols-2 gap-8">
+              {sizeRow ? tokenRow(sizeRow, fontSizeNames) : null}
+              {weightRow ? (
+                <div className="flex min-w-0 flex-col gap-4">
+                  <RowLabel>Weight</RowLabel>
+                  <TokenField
+                    label="Weight"
+                    value={weightRow.suffix}
+                    options={fontWeightNames.map((w) => ({ value: w, label: sentenceCase(w) }))}
+                    chevron
+                    onPick={(w) => {
+                      if (w !== weightRow.suffix) swapClass(weightRow.cls, `font-${w}`)
+                    }}
+                  />
                 </div>
-              </div>
-            ) : null}
-            {textColorRow ? <ColorRow row={textColorRow} label="Color" onSwap={swapClass} /> : null}
+              ) : null}
+              {textColorRow ? <ColorRow row={textColorRow} label="Color" onSwap={swapClass} /> : null}
+            </div>
             {textEditable ? (
               <div className="flex flex-col gap-4">
                 <RowLabel>Content</RowLabel>
@@ -776,7 +742,7 @@ export function DesignPanel({
 
       {fillRows.length > 0 ? (
         <Section title="Fill & border">
-          <div className="flex flex-col gap-8">
+          <div className="grid grid-cols-2 gap-8">
             {fillRows.map((r) => (
               <ColorRow
                 key={r.cls}
@@ -837,49 +803,56 @@ function ArrangeSection({
   const blocked = structuralBlock(el, slug)
   const up = blocked ? null : stepPlace(el, -1)
   const down = blocked ? null : stepPlace(el, 1)
+  const unwrapFrom = unwrapTarget(el, slug)
+  // Steps follow the stack's own axis, as the arrow keys do.
+  const row = isRow(el.parentElement)
 
   return (
     <Section title="Arrange">
       <div className="flex flex-col gap-8">
         <div className="flex gap-4">
-          <button
-            type="button"
-            className={ARRANGE_BTN}
-            disabled={!up}
-            title={up ? `Move above ${describe(up.past)} (⌥↑)` : 'Already first'}
-            onClick={() => moveStep(el, -1, slug, screenId)}
-          >
-            ↑ Up
-          </button>
-          <button
-            type="button"
-            className={ARRANGE_BTN}
-            disabled={!down}
-            title={down ? `Move below ${describe(down.past)} (⌥↓)` : 'Already last'}
-            onClick={() => moveStep(el, 1, slug, screenId)}
-          >
-            ↓ Down
-          </button>
-        </div>
-        <div className="flex gap-4">
-          <button
-            type="button"
-            className={ARRANGE_BTN}
-            disabled={Boolean(blocked)}
-            title="Duplicate (⌘D)"
-            onClick={() => duplicateElement(el, slug, screenId)}
-          >
-            Duplicate
-          </button>
-          <button
-            type="button"
-            className={ARRANGE_BTN}
-            disabled={Boolean(blocked)}
-            title="Delete (⌫)"
-            onClick={() => removeElement(el, slug, screenId)}
-          >
-            Delete
-          </button>
+          {[
+            {
+              label: row ? 'Move left' : 'Move up',
+              hint: up ? `${row ? 'Before' : 'Above'} ${describe(up.past)} (${row ? '←' : '↑'})` : 'Already first',
+              Glyph: row ? ArrowLeft : ArrowUp,
+              disabled: !up,
+              run: () => moveStep(el, -1, slug, screenId),
+            },
+            {
+              label: row ? 'Move right' : 'Move down',
+              hint: down ? `${row ? 'After' : 'Below'} ${describe(down.past)} (${row ? '→' : '↓'})` : 'Already last',
+              Glyph: row ? ArrowRight : ArrowDown,
+              disabled: !down,
+              run: () => moveStep(el, 1, slug, screenId),
+            },
+            {
+              label: 'Duplicate',
+              hint: 'Duplicate (⌘D)',
+              Glyph: Copy,
+              disabled: Boolean(blocked),
+              run: () => duplicateElement(el, slug, screenId),
+            },
+            {
+              label: 'Delete',
+              hint: 'Delete (⌫)',
+              Glyph: Trash,
+              disabled: Boolean(blocked),
+              run: () => removeElement(el, slug, screenId),
+            },
+          ].map(({ label, hint, Glyph, disabled, run }) => (
+            <button
+              key={label}
+              type="button"
+              aria-label={label}
+              title={hint}
+              disabled={disabled}
+              onClick={run}
+              className={`${ARRANGE_BTN} flex items-center justify-center`}
+            >
+              <Glyph size={16} />
+            </button>
+          ))}
         </div>
         <div className="flex gap-4">
           <button
@@ -894,16 +867,20 @@ function ArrangeSection({
           <button
             type="button"
             className={ARRANGE_BTN}
-            disabled={!unwrappable(el, slug)}
-            title="Replace this stack with what it holds (⇧⌘G)"
-            onClick={() => unwrapElement(el, slug, screenId)}
+            disabled={!unwrapFrom}
+            title={
+              unwrapFrom === el
+                ? 'Replace this stack with what it holds (⇧⌘G)'
+                : unwrapFrom
+                  ? `Replace the ${describe(unwrapFrom)} this sits in with what it holds (⇧⌘G)`
+                  : 'Not a plain stack, and not inside one'
+            }
+            onClick={() => unwrapAt(el, slug, screenId)}
           >
-            Unwrap
+            {unwrapFrom && unwrapFrom !== el ? 'Unwrap parent' : 'Unwrap'}
           </button>
         </div>
-        <span className="text-10 text-caption dark:text-neutral-400">
-          {blocked ?? 'Or drag it on the screen or in Layers. ⌥↑ ⌥↓ move · ⌘D duplicate · ⌫ delete'}
-        </span>
+        {blocked ? <span className="text-10 text-caption dark:text-neutral-400">{blocked}</span> : null}
       </div>
     </Section>
   )
@@ -933,29 +910,27 @@ function ColorRow({
   const current = options.find((o) => o.name === row.suffix)
 
   return (
-    <label className="flex items-center justify-between gap-8">
-      <span className="flex min-w-0 items-center gap-4">
-        <span
-          aria-hidden
-          className="inline-block size-12 flex-none rounded-4 border border-default dark:border-ink-700"
-          style={{
-            backgroundColor: current?.hex ?? tokenForColor(row.suffix, 'text') ?? undefined,
-          }}
-        />
-        <RowLabel>{label}</RowLabel>
-      </span>
-      <select
+    <div className="flex min-w-0 flex-col gap-4">
+      <RowLabel>{label}</RowLabel>
+      <TokenField
+        label={label}
+        glyph={
+          <span
+            aria-hidden
+            className="inline-block size-16 flex-none rounded-4 border border-default dark:border-ink-700"
+            style={{
+              backgroundColor: current?.hex ?? tokenForColor(row.suffix, 'text') ?? undefined,
+            }}
+          />
+        }
         value={row.suffix}
-        onChange={(e) => onSwap(row.cls, `${row.prefix}-${e.target.value}`)}
-        className="min-w-0 rounded-8 border border-default bg-neutral-white px-8 py-4 text-12 text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
-      >
-        {options.map((o) => (
-          <option key={o.name} value={o.name}>
-            {o.name}
-          </option>
-        ))}
-      </select>
-    </label>
+        options={options.map((o) => ({ value: o.name, label: o.name }))}
+        chevron
+        onPick={(v) => {
+          if (v !== row.suffix) onSwap(row.cls, `${row.prefix}-${v}`)
+        }}
+      />
+    </div>
   )
 }
 

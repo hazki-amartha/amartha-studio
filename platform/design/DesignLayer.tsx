@@ -13,7 +13,7 @@
 //     dropping a component dragged out of the Insert panel;
 //   • the rest of a multi-selection (shift-click), outlined;
 //   • gap handles on a selected stack — drag the band between two children;
-//   • the keyboard — ⌫ delete, ⌘D duplicate, ⌥↑/⌥↓ move, ⌥⌘G wrap,
+//   • the keyboard — ⌫ delete, ⌘D duplicate, arrows (or ⌥arrows) move, ⌥⌘G wrap,
 //     ⇧⌘G unwrap, ⌘Z undo.
 //
 // Geometry follows InspectLayer: this layer sits inside the scaled screen, so
@@ -34,7 +34,7 @@ import {
   removeElement,
   setLayout,
   structuralBlock,
-  unwrapElement,
+  unwrapAt,
   wrapElements,
 } from './actions'
 import { repaint, revertStagedPatch } from './applyDom'
@@ -212,7 +212,12 @@ export function DesignLayer({ slug, screenId, pinned, onPin, onRepin }: DesignLa
         if (repin) repin(pin)
         else pin1(refind(pin))
       },
-      () => getDesignStoreState().pending.length > 0,
+      // Written structure is still drawn until the screen reloads, with nothing
+      // pending: that reload is exactly the change that must clear it.
+      () => {
+        const s = getDesignStoreState()
+        return s.pending.length > 0 || s.structure.length > 0
+      },
     )
     overlayRef.current = watch
     return () => {
@@ -515,7 +520,7 @@ export function DesignLayer({ slug, screenId, pinned, onPin, onRepin }: DesignLa
         clearSelection()
       } else if (mod && e.shiftKey && e.code === 'KeyG') {
         e.preventDefault()
-        unwrapElement(pin, s, id)
+        unwrapAt(pin, s, id)
       } else if ((e.key === 'Backspace' || e.key === 'Delete') && !mod) {
         e.preventDefault()
         removeElement(pin, s, id)
@@ -528,6 +533,17 @@ export function DesignLayer({ slug, screenId, pinned, onPin, onRepin }: DesignLa
       } else if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
         e.preventDefault()
         moveStep(pin, 1, s, id)
+      } else if (!mod && !e.shiftKey && e.key.startsWith('Arrow')) {
+        // Auto layout, as in Figma: plain arrows reorder along the stack's own
+        // axis — ←/→ in a row, ↑/↓ in a column. The other axis does nothing.
+        const parent = pin.parentElement
+        const row = isRow(parent)
+        const dir =
+          e.key === (row ? 'ArrowLeft' : 'ArrowUp') ? -1 : e.key === (row ? 'ArrowRight' : 'ArrowDown') ? 1 : 0
+        if (!dir) return
+        e.preventDefault()
+        const reversed = parent ? getComputedStyle(parent).flexDirection.endsWith('reverse') : false
+        moveStep(pin, (reversed ? -dir : dir) as -1 | 1, s, id)
       }
     }
     window.addEventListener('keydown', onKey)

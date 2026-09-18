@@ -9,12 +9,35 @@
 
 import type { Config } from 'tailwindcss'
 
+/**
+ * Sizes for width and height: the 4px grid from 52px up to 1200px, on top of
+ * the spacing scale (0–48), which `w-`/`h-`/`size-` already inherit. A card's
+ * height or a button's width is not a spacing decision, so it gets the grid
+ * without the spacing scale's short list. Padding, gap and margin stay on
+ * `spacing` only.
+ */
+const SIZE_MAX = 1200
+const SIZES: Record<string, string> = Object.fromEntries(
+  Array.from({ length: (SIZE_MAX - 52) / 4 + 1 }, (_, i) => {
+    const px = 52 + i * 4
+    return [String(px), `${px / 16}rem`]
+  }),
+)
+
 const config: Config = {
   content: [
     './app/**/*.{ts,tsx}',
     './platform/**/*.{ts,tsx}',
     './design-system/**/*.{ts,tsx}',
     './projects/**/*.{ts,tsx}',
+  ],
+  // Design mode previews a size before any file names its class, and Tailwind
+  // only generates classes it finds in a file — so a freshly typed `w-200`
+  // would change nothing on screen. Every size, and the few classes Fill and
+  // Hug write, are generated up front.
+  safelist: [
+    { pattern: /^(w|h|size)-\d+$/ },
+    'w-full', 'h-full', 'w-fit', 'flex-1', 'self-start', 'self-stretch',
   ],
   // Dark mode is opt-in per subtree via [data-theme="dark"] on <html>. Only the
   // studio chrome uses `dark:` variants — prototype device content and FunDS
@@ -162,6 +185,14 @@ const config: Config = {
     },
 
     extend: {
+      width: SIZES,
+      height: SIZES,
+      size: SIZES,
+      minWidth: SIZES,
+      maxWidth: SIZES,
+      minHeight: SIZES,
+      maxHeight: SIZES,
+
       // Semantic aliases — use these in components over raw color classes
       textColor: {
         'default':     '#111928', // neutral-900

@@ -71,7 +71,7 @@
    The overlay itself is pointer-events:none, so the cursor has to be set on the
    content underneath it. */
 .viewport[data-inspect='on'] * {
-  cursor: crosshair;
+  cursor: default;
 }
 
 /* Phones don't show scrollbar tracks, so neither does the prototype. This covers

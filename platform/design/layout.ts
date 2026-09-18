@@ -1,8 +1,8 @@
 // =============================================================================
 // Design · a stack's layout, read from and written to a class list (D3).
 //
-// The auto-layout knobs — direction, gap, alignment, justification — are four
-// families of Tailwind classes. Reading them the same way on both sides is the
+// The auto-layout knobs — direction, gap, alignment, justification, padding
+// and clipping — are families of Tailwind classes. Reading them the same way on both sides is the
 // whole point of this module: the panel reads the rendered class list, the
 // backend reads the authored one, and a `stack` edit is only applied when the
 // two agree on what the element is now.
@@ -19,7 +19,27 @@ export interface Layout {
   gap: string | null
   align: string | null
   justify: string | null
+  /** Padding along each axis, as spacing token names. Optional so a stack
+   *  edit staged before these existed still reads the same; undefined on a
+   *  target means "leave the padding alone". */
+  padX?: string | null
+  padY?: string | null
+  /** `overflow-hidden` — Figma's "Clip content". */
+  clip?: boolean
+  /**
+   * The element's own sizing classes (`w-*`, `h-*`, `size-*`, `flex-1`,
+   * `self-start`, `self-stretch`), in the order written. What they MEAN —
+   * fill, hug or fixed — depends on the parent's direction, which the backend
+   * can't see, so the panel works that out (sizing.ts) and the edit carries
+   * plain classes.
+   */
+  sizing?: string[]
 }
+
+const SIZING = /^(w|h|size)-[^\s[]+$|^flex-1$|^self-(start|stretch)$/
+export const isSizingClass = (c: string) => SIZING.test(c)
+const sameSet = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((c) => b.includes(c))
 
 /** The 4px grid, as `tailwind.config.ts` spells it. The tests assert this
  *  matches the inspector's own list, so a new token can't drift past here. */
@@ -43,11 +63,28 @@ export function layoutOf(classes: readonly string[]): Layout {
     gap: suffix(classes, 'gap-', SPACING),
     align: suffix(classes, 'items-', ALIGNS),
     justify: suffix(classes, 'justify-', JUSTIFIES),
+    padX: suffix(classes, 'px-', SPACING) ?? suffix(classes, 'p-', SPACING),
+    padY: suffix(classes, 'py-', SPACING) ?? suffix(classes, 'p-', SPACING),
+    clip: classes.includes('overflow-hidden'),
+    sizing: classes.filter(isSizingClass),
   }
 }
 
+/** Compares only what both sides name: an edit staged before padding and clip
+ *  were part of a layout says nothing about them. */
 export function sameLayout(a: Layout, b: Layout): boolean {
-  return a.direction === b.direction && a.gap === b.gap && a.align === b.align && a.justify === b.justify
+  const same = <K extends keyof Layout>(k: K) =>
+    a[k] === undefined || b[k] === undefined || (a[k] ?? null) === (b[k] ?? null)
+  return (
+    a.direction === b.direction &&
+    a.gap === b.gap &&
+    a.align === b.align &&
+    a.justify === b.justify &&
+    same('padX') &&
+    same('padY') &&
+    same('clip') &&
+    (a.sizing === undefined || b.sizing === undefined || sameSet(a.sizing, b.sizing))
+  )
 }
 
 /**
@@ -60,7 +97,9 @@ const RANKS: [RegExp, number][] = [
   [/^(static|fixed|absolute|relative|sticky)$|^(inset|top|right|bottom|left|z)-/, 0],
   [/^-?m[xytrbl]?-/, 1],
   [/^(block|inline-block|inline|flex|inline-flex|grid|inline-grid|hidden|contents)$/, 2],
-  [/^(size|h|min-h|max-h|w|min-w|max-w)-/, 3],
+  [/^size-/, 3],
+  [/^(h|min-h|max-h)-/, 3.1],
+  [/^(w|min-w|max-w)-/, 3.2],
   [/^(flex-1|flex-auto|flex-initial|flex-none|shrink|shrink-0|grow|grow-0)$|^basis-/, 4],
   [/^flex-(row|col)(-reverse)?$/, 6],
   [/^flex-(wrap|nowrap)/, 7],
@@ -73,7 +112,9 @@ const RANKS: [RegExp, number][] = [
   [/^rounded/, 14],
   [/^border/, 15],
   [/^bg-/, 16],
-  [/^p[xytrbl]?-/, 17],
+  [/^p-/, 17],
+  [/^p[xy]-/, 17.1],
+  [/^p[trbl]-/, 17.2],
   [/^text-(left|center|right|justify)$/, 18],
   [/^text-/, 19],
   [/^font-/, 20],
@@ -135,5 +176,30 @@ export function withLayout(classes: readonly string[], to: Layout): string[] {
   if (from.gap !== to.gap) swap(out, 'gap-', SPACING, to.gap)
   if (from.align !== to.align) swap(out, 'items-', ALIGNS, to.align)
   if (from.justify !== to.justify) swap(out, 'justify-', JUSTIFIES, to.justify)
+
+  // Padding is written as one `p-` when both axes agree, `px-`/`py-` when they
+  // don't. Side-specific classes (`pt-4`) are someone's deliberate choice and
+  // stay as they are.
+  const padX = to.padX === undefined ? from.padX : to.padX
+  const padY = to.padY === undefined ? from.padY : to.padY
+  if (padX !== from.padX || padY !== from.padY) {
+    for (const prefix of ['p-', 'px-', 'py-']) swap(out, prefix, SPACING, null)
+    if (padX !== null && padX === padY) {
+      insertOrdered(out, `p-${padX}`)
+    } else {
+      if (padX) insertOrdered(out, `px-${padX}`)
+      if (padY) insertOrdered(out, `py-${padY}`)
+    }
+  }
+
+  if (to.clip !== undefined && to.clip !== from.clip) {
+    if (to.clip) insertOrdered(out, 'overflow-hidden')
+    else out.splice(out.indexOf('overflow-hidden'), 1)
+  }
+
+  if (to.sizing !== undefined && !sameSet(to.sizing, from.sizing ?? [])) {
+    for (const c of from.sizing ?? []) out.splice(out.indexOf(c), 1)
+    for (const c of to.sizing) insertOrdered(out, c)
+  }
   return out
 }
