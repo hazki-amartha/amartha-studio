@@ -92,6 +92,7 @@ import {
   newEdit,
   pushChanges,
   setDesignerName,
+  unlockEditing,
   type PendingRow,
   getDesignStoreServerSnapshot,
   getDesignStoreState,
@@ -1026,6 +1027,8 @@ function ActionsFooter({
       n > 0
         ? 'These changes aren’t saved anywhere. Copy them and send them over to be applied.'
         : 'Tweaks here are for describing a change, not saving one.'
+  } else if (linked && store.landed) {
+    note = 'It’s landed. The link picks it up in a couple of minutes — refresh then.'
   } else if (linked && store.pushed) {
     note = 'Pushed. It goes live on its own in a few minutes — these stay on screen until it does.'
   } else if (linked && n > 0 && unsaved === 0) {
@@ -1093,6 +1096,7 @@ function ActionsFooter({
  */
 function NamePrompt({ store }: { store: ReturnType<typeof getDesignStoreState> }) {
   if (store.backend !== 'github' || store.locked) return null
+  if (store.needsPassword) return <PasswordPrompt />
   const owner = canWrite(store)
   if (owner) {
     return (
@@ -1118,6 +1122,45 @@ function NamePrompt({ store }: { store: ReturnType<typeof getDesignStoreState> }
             : 'Owners can save changes from here. Anyone else can collect them and send them on.'}
         </span>
       </div>
+    </Section>
+  )
+}
+
+/**
+ * The studio is open to view; saving from it needs the editing password
+ * (STUDIO_EDIT_PASSWORD). Asked once per browser, before the name.
+ */
+function PasswordPrompt() {
+  const [value, setValue] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!value || busy) return
+    setBusy(true)
+    const reason = await unlockEditing(value)
+    setBusy(false)
+    setError(reason)
+    if (!reason) setValue('')
+  }
+  return (
+    <Section title="Editing password">
+      <form className="flex flex-col gap-4" onSubmit={(e) => void submit(e)}>
+        <input
+          type="password"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          autoComplete="current-password"
+          aria-label="Editing password"
+          className="rounded-8 border border-neutral-200 bg-neutral-white px-8 py-4 text-12 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-white"
+        />
+        <button type="submit" className={SECONDARY} disabled={!value || busy}>
+          {busy ? 'Checking…' : 'Unlock saving'}
+        </button>
+        <span className={error ? 'text-12 text-red-700' : NOTE}>
+          {error ?? 'Anyone can look around. Saving from this link needs the editing password.'}
+        </span>
+      </form>
     </Section>
   )
 }
@@ -1186,7 +1229,7 @@ function StatusFooter({
   copied,
   onDiscard,
 }: {
-  storeError: { label: string; reason: string } | null
+  storeError: { label: string; reason: string; title?: string } | null
   onCopy: () => void
   copied: boolean
   /** Present while refused changes are still staged. */
@@ -1195,7 +1238,9 @@ function StatusFooter({
   if (!storeError) return null
   return (
     <div className="flex flex-col gap-4 rounded-12 border border-red-200 bg-red-50 p-8">
-      <span className="text-12 font-bold text-red-700">Couldn’t apply {storeError.label}</span>
+      <span className="text-12 font-bold text-red-700">
+        {storeError.title ?? `Couldn’t apply ${storeError.label}`}
+      </span>
       <span className="text-12 text-red-700">{storeError.reason}</span>
       <div className="flex gap-8">
         <button

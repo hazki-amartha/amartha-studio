@@ -50,6 +50,7 @@
 import { sameLayout, type Layout } from './layout'
 import {
   addressesOf,
+  type DesignCheckRequest,
   type DesignPushRequest,
   type DesignStatus,
   isNewRef,
@@ -59,6 +60,7 @@ import {
   type DesignRequest,
   type DesignResponse,
   type DesignUndoRequest,
+  type DesignUnlockRequest,
   type Edit,
   type InsertEdit,
   type Place,
@@ -96,8 +98,9 @@ export interface DesignStoreState {
   structure: Staged[]
   /** Writes in flight. */
   busy: boolean
-  /** Last refusal/failure, cleared by the next successful write. */
-  error: { label: string; reason: string } | null
+  /** Last refusal/failure, cleared by the next successful write. `title`
+   *  replaces the footer's "Couldn't apply …" when that isn't what happened. */
+  error: { label: string; reason: string; title?: string } | null
   undo: UndoEntry[]
   mode: SinkMode
   /** Where WRITE goes, once the route has said. */
@@ -108,10 +111,15 @@ export interface DesignStoreState {
   owners: string[]
   /** Why this project can't be written from here at all. */
   locked?: string
+  /** `github`: this browser hasn't entered the editing password yet. */
+  needsPassword?: boolean
   /** Who is editing, as the designer told the panel (`github`). */
   name: string | null
   /** `github`: this deployment's changes have been pushed. */
   pushed: boolean
+  /** `github`: the pushed change has landed on main; the next deployment
+   *  brings it in. */
+  landed: boolean
 }
 
 interface PendingEntry {
@@ -142,7 +150,9 @@ interface PendingEntry {
 
 let seq = 0
 
-type Sink = (req: DesignRequest | DesignUndoRequest | DesignPushRequest) => Promise<DesignResponse>
+type Sink = (
+  req: DesignRequest | DesignUndoRequest | DesignPushRequest | DesignCheckRequest | DesignUnlockRequest,
+) => Promise<DesignResponse>
 
 const sink: Sink = async (req) => {
   try {
@@ -181,6 +191,7 @@ let state: DesignStoreState = {
   owners: [],
   name: null,
   pushed: false,
+  landed: false,
 }
 const pending = new Map<string, PendingEntry>()
 const listeners = new Set<() => void>()
@@ -219,6 +230,7 @@ function emit(next: Partial<DesignStoreState>) {
   }
   listeners.forEach((l) => l())
   persist()
+  watchPush()
 }
 
 export function subscribeDesignStore(cb: () => void): () => void {
@@ -241,6 +253,7 @@ const serverSnapshot: DesignStoreState = {
   owners: [],
   name: null,
   pushed: false,
+  landed: false,
 }
 export function getDesignStoreServerSnapshot(): DesignStoreState {
   return serverSnapshot
@@ -248,7 +261,7 @@ export function getDesignStoreServerSnapshot(): DesignStoreState {
 
 /** Whether this person may write here, given what the route said. */
 export function canWrite(s: DesignStoreState = state): boolean {
-  if (s.backend === 'record' || s.locked) return false
+  if (s.backend === 'record' || s.locked || s.needsPassword) return false
   if (s.backend === 'fs') return true
   return Boolean(s.name && s.owners.some((o) => o.toLocaleLowerCase() === s.name!.toLocaleLowerCase()))
 }
@@ -290,6 +303,21 @@ export function setDesignerName(name: string | null) {
 }
 
 /**
+ * Enter the editing password. Returns why it failed, or null once this
+ * browser may save — the route has set a cookie that lasts 30 days.
+ */
+export async function unlockEditing(password: string): Promise<string | null> {
+  if (!storageSlug) return 'Open a project first.'
+  const res = await sink({ slug: storageSlug, unlock: password })
+  if (!res.ok) return res.reason
+  state = { ...state, needsPassword: false }
+  const mode: SinkMode = canWrite() ? 'write' : 'record'
+  if (mode !== state.mode) setSinkMode(mode)
+  else emit({})
+  return null
+}
+
+/**
  * Ask the route where WRITE goes for this project, and settle the mode.
  * Called once per project by the panel.
  */
@@ -313,6 +341,7 @@ async function probe(slug: string) {
     sha: status.sha,
     owners: status.owners,
     locked: status.locked,
+    needsPassword: status.needsPassword,
     name: storedName(),
   }
   // Settled without an emit for the same reason as setSinkMode: the list's
@@ -380,7 +409,7 @@ export function restoreChanges(slug: string) {
   if (storageSlug === slug) return
   storageSlug = slug
   pending.clear()
-  state = { ...state, pushed: false, undo: [] }
+  state = { ...state, pushed: false, landed: false, undo: [] }
   loadFromStorage()
   void probe(slug)
 }
@@ -977,6 +1006,64 @@ export async function pushChanges(): Promise<void> {
     pushed: res.ok,
     error: res.ok ? null : { label: 'the push', reason: res.reason },
   })
+}
+
+// --- after Push ----------------------------------------------------------------
+//
+// A pushed change lands only once CI is green. Until it has, the panel asks
+// where it has got to: a change that fails a check hands the list back with
+// the reason, instead of saying "on its way" until someone wonders why it
+// never arrived.
+
+const WATCH_MS = 30_000
+let watching: ReturnType<typeof setTimeout> | null = null
+let lastCheck = 0
+
+const didntGoLive = (reason: string) => ({ label: 'the push', title: 'Your push didn’t go live', reason })
+
+/** Keep exactly one check scheduled while a push is on its way. Runs after
+ *  every emit, so it follows the state rather than being called at each
+ *  place that changes it. */
+function watchPush() {
+  const due = state.backend === 'github' && state.pushed && !state.landed && Boolean(state.name && storageSlug)
+  if (!due) {
+    if (watching) clearTimeout(watching)
+    watching = null
+    return
+  }
+  if (watching) return
+  // The first check after a reload runs at once: a push that failed an hour
+  // ago should say so now, not in thirty seconds.
+  watching = setTimeout(() => void checkPush(), Math.max(0, lastCheck + WATCH_MS - Date.now()))
+}
+
+async function checkPush() {
+  const slug = storageSlug
+  const name = state.name
+  if (!slug || !name) return
+  const res = await sink({ slug, check: true, name })
+  lastCheck = Date.now()
+  watching = null
+  // The project or the push changed while asking: this answer is about
+  // something else. emit() schedules the next check if one is due.
+  if (slug !== storageSlug || !state.pushed || !res.ok || !('change' in res)) {
+    emit({})
+    return
+  }
+  if (res.change === 'landed') emit({ landed: true })
+  else if (res.change === 'failed')
+    emit({
+      pushed: false,
+      error: didntGoLive(
+        'One of the studio’s checks failed on it, so it stopped before going live. Your changes are still saved here — adjust them and push again, or copy them for your agent.',
+      ),
+    })
+  else if (res.change === 'closed' || res.change === 'none')
+    emit({
+      pushed: false,
+      error: didntGoLive('It was stopped before it went live. Your changes are still saved here — push again when you’re ready.'),
+    })
+  else emit({})
 }
 
 /** Every staged value edit, for re-painting a screen that re-rendered. */

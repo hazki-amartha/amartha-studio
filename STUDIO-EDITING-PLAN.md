@@ -172,7 +172,7 @@ B2's `display_name` check, the first thing that ever will.
 Both documents specified an App and named its env vars differently
 (`STUDIO_GH_APP_*` vs `GITHUB_APP_*`). **One App, `STUDIO_GH_APP_*`**, since
 design mode ships first and installs it. Scope: `contents:write` +
-`pull_requests:write` on this repository only, never exposed to the client.
+`pull_requests:write` + `checks:read` on this repository only, never exposed to the client.
 Installation tokens expire hourly and are minted per operation — never a
 long-lived token in env.
 
@@ -446,9 +446,12 @@ pure function with no I/O. Backends call it; tests cover it directly.
 >   else collects. The name is a courtesy check, as P13 says.
 > - **Tested** against an in-memory GitHub (unit) and a local fake GitHub
 >   behind a gated production build (browser). Not yet against real GitHub.
-> - **Known gap:** if a pushed change fails CI, the panel still says it is on
->   its way. The change is visible in the repo; the agent picks it up from
->   there.
+> - **After Push the panel keeps asking** (every 30s, and at once after a
+>   reload) where the change has got to. Merged → "it's landed"; a finished
+>   check that failed, or the change closed unmerged → "Your push didn't go
+>   live", the list unlocks, and Push is offered again. Reading checks needs
+>   the App's **Checks: read**; without it the panel says "on its way" as
+>   before, rather than erroring.
 
 **Batches are atomic.** The client stages edits (as Edit mode does today) and
 sends the whole list. Targets are resolved against the source first, then edits
@@ -917,7 +920,8 @@ D4 is built and switched off until these exist. In order:
 
 1. **Create the App** (GitHub → Settings → Developer settings → GitHub Apps →
    New). No webhook. Repository permissions: **Contents: read & write**,
-   **Pull requests: read & write**, Metadata: read. Nothing else.
+   **Pull requests: read & write**, **Checks: read** (so the panel can tell a
+   push that failed CI), Metadata: read. Nothing else.
 2. **Generate a private key** on the App's page, and note its **App ID**.
 3. **Install it** on `amartha-studio` only. The installation's URL ends in its
    **installation ID**.
@@ -926,10 +930,12 @@ D4 is built and switched off until these exist. In order:
    CODEOWNERS asks for no review and CI is the only gate, as for an agent's.
 5. **Vercel → Environment Variables, Production only**: `STUDIO_GH_APP_ID`,
    `STUDIO_GH_APP_PRIVATE_KEY` (the PEM; pasting it on one line with `\n` is
-   fine), `STUDIO_GH_APP_INSTALLATION_ID`. Keep "Automatically expose System
-   Environment Variables" on. Redeploy.
+   fine), `STUDIO_GH_APP_INSTALLATION_ID`, and a gate — **`STUDIO_EDIT_PASSWORD`**
+   (anyone may view; saving asks for it once per browser) or `SITE_PASSWORD`
+   (the whole studio is gated). Keep "Automatically expose System Environment
+   Variables" on. Redeploy.
 6. **Check**: open a project you own on the production link, turn on Design,
-   pick your name, make one change, Apply, Push. A change from the App should
+   enter the editing password, pick your name, make one change, Apply, Push. A change from the App should
    appear and land itself once CI is green.
 
 Why production only: a preview's build commit may not be on `main`, and a
@@ -947,7 +953,12 @@ STUDIO_GH_APP_ID / STUDIO_GH_APP_PRIVATE_KEY / STUDIO_GH_APP_INSTALLATION_ID
 #   STUDIO_GH_BUILD_SHA                          (VERCEL_GIT_COMMIT_SHA)
 #   STUDIO_GH_BASE_BRANCH=main
 #   STUDIO_GH_API_URL                            (GitHub Enterprise, tests)
-# Also required: SITE_PASSWORD. No gate, no backend.
+# Also required, one of: STUDIO_EDIT_PASSWORD (saving only — the studio stays
+# open to view) or SITE_PASSWORD (the whole studio). No gate, no backend.
+# As of 2026-09-18 production has NO SITE_PASSWORD: several teams read the
+# link and it stays open, so D4 runs on STUDIO_EDIT_PASSWORD. Note that the
+# chat sandbox's preview gating (§ Sandbox previews are public by default)
+# assumes SITE_PASSWORD — revisit before C2.
 
 # C1
 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY
@@ -1015,7 +1026,7 @@ in favour of our own loader, which must run in production builds.
 | Turbopack (if ever enabled) skips webpack loaders | Loader is webpack-only; `npm run dev` stays on webpack until Turbopack has an equivalent hook |
 | recast reformats a file it reprints | Only touched nodes are reprinted; CI diff size is the check — a D1 acceptance test asserts one-line diffs for class edits |
 | Overlay drifts from what the write would produce | Every overlay op is a preview of a specific edit; a D2 test renders source-after-edit and diffs the DOM against the overlay for each op |
-| GitHub App credentials in env | `contents:write` + `pull_requests:write` on this one repo; never exposed to the client; tokens minted per operation |
+| GitHub App credentials in env | `contents:write` + `pull_requests:write` + `checks:read` on this one repo; never exposed to the client; tokens minted per operation |
 | Deployed edits to another designer's project | Name check + owner refusal + `live` read-only; and the change is still gated by CI and visible in the repo |
 | Designers trust the overlay before push lands | The panel says "saved, not live" until the new deploy's SHA arrives — same wording as chat |
 | ~~Agent ignores the contract in the sandbox~~ | **Closed by Spike A** — verified end to end with tools disabled. Keep the runner's startup check on `CLAUDE.md` as a regression guard |
