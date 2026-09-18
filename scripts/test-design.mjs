@@ -1432,3 +1432,57 @@ test('github: the route only offers the backend behind the password gate', async
     Object.assign(process.env, saved)
   }
 })
+
+test('github: an editing password gates saving without gating the studio', async () => {
+  const saved = { ...process.env }
+  const get = async (cookie) =>
+    (await github.GET(new Request('http://x/api/design?slug=afin-linear', { headers: cookie ? { cookie } : {} }))).json()
+  const post = (body, cookie) =>
+    github.POST(
+      new Request('http://x/api/design', { method: 'POST', body: JSON.stringify(body), headers: cookie ? { cookie } : {} }),
+    )
+  try {
+    Object.assign(process.env, {
+      NODE_ENV: 'production',
+      STUDIO_GH_APP_ID: '1',
+      STUDIO_GH_APP_PRIVATE_KEY: PEM,
+      STUDIO_GH_APP_INSTALLATION_ID: '42',
+      VERCEL_GIT_REPO_OWNER: 'acme',
+      VERCEL_GIT_REPO_SLUG: 'studio',
+      VERCEL_GIT_COMMIT_SHA: BUILD,
+      STUDIO_EDIT_PASSWORD: 'let-me-edit',
+    })
+    delete process.env.SITE_PASSWORD
+
+    const locked = await get()
+    assert.equal(locked.backend, 'github', 'the editing password alone is a gate')
+    assert.equal(locked.needsPassword, true)
+
+    const push = { slug: 'afin-linear', push: true, name: 'Hazki' }
+    const refused = await (await post(push)).json()
+    assert.equal(refused.ok, false)
+    assert.match(refused.reason, /editing password/)
+
+    const wrong = await post({ slug: 'afin-linear', unlock: 'guess' })
+    assert.equal((await wrong.json()).ok, false)
+    assert.equal(wrong.headers.get('set-cookie'), null)
+
+    const right = await post({ slug: 'afin-linear', unlock: 'let-me-edit' })
+    assert.equal((await right.json()).ok, true)
+    const cookie = right.headers.get('set-cookie').split(';')[0]
+    assert.match(right.headers.get('set-cookie'), /HttpOnly/i)
+    assert.equal((await get(cookie)).needsPassword, undefined, 'the cookie unlocks this browser')
+
+    const forged = `db_design_edit=${Date.now() + 1e9}.${'0'.repeat(64)}`
+    assert.equal((await get(forged)).needsPassword, true, 'a forged cookie does not')
+
+    process.env.STUDIO_EDIT_PASSWORD = 'changed'
+    assert.equal((await get(cookie)).needsPassword, true, 'changing the password signs everyone out')
+
+    process.env.SITE_PASSWORD = 'site'
+    assert.equal((await get()).needsPassword, undefined, 'behind the site gate, getting in is enough')
+  } finally {
+    for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k]
+    Object.assign(process.env, saved)
+  }
+})

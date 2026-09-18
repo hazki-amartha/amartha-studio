@@ -294,6 +294,15 @@ export interface DesignCheckRequest {
 }
 
 /**
+ * `github` backend only: the editing password (STUDIO_EDIT_PASSWORD). A match
+ * sets a cookie that lets this browser save for 30 days.
+ */
+export interface DesignUnlockRequest {
+  slug: string
+  unlock: string
+}
+
+/**
  * What the panel needs to know before it offers to write, from
  * `GET /api/design?slug=`.
  *
@@ -309,6 +318,8 @@ export interface DesignStatus {
   owners: string[]
   /** Set when the project can't be written from the link at all. */
   locked?: string
+  /** `github`: this browser must enter the editing password before saving. */
+  needsPassword?: boolean
 }
 
 /**
@@ -338,5 +349,6 @@ export type DesignResponse =
       undo?: string
     }
   | { ok: true; pushed: true }
+  | { ok: true; unlocked: true }
   | { ok: true; change: 'none' | 'waiting' | 'failed' | 'landed' | 'closed' }
   | { ok: false; reason: string }

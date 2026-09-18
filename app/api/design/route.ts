@@ -5,10 +5,16 @@
 //   deployment + GitHub App + gate    → `github`: commit to a branch, push
 //   any other deployment              → `record`: nothing is written here
 //
-// The `github` backend is only offered behind the password gate. The gate is
+// The `github` backend is only offered behind a password. The password is
 // what stands between the public internet and a commit to this repo; with no
-// gate there is no backend, whatever else is configured. (The name the panel
-// asks for is a courtesy check on top — see platform/design/server/common.ts.)
+// password there is no backend, whatever else is configured. Either one will
+// do (platform/design/server/editGate.ts):
+//
+//   SITE_PASSWORD         the whole studio is gated; everyone inside may save
+//   STUDIO_EDIT_PASSWORD  the studio is open to view; saving needs this one
+//
+// (The name the panel asks for is a courtesy check on top — see
+// platform/design/server/common.ts.)
 // =============================================================================
 
 import { NextResponse } from 'next/server'
@@ -18,16 +24,33 @@ import type {
   DesignCheckRequest,
   DesignPushRequest,
   DesignRequest,
+  DesignResponse,
   DesignStatus,
   DesignUndoRequest,
+  DesignUnlockRequest,
 } from '@/platform/design/protocol'
 import { KEBAB, projectFacts, refuse, whyNot } from '@/platform/design/server/common'
+import {
+  createEditToken,
+  EDIT_COOKIE,
+  EDIT_MAX_AGE,
+  editCookie,
+  isEditGateConfigured,
+  passwordMatches,
+  verifyEditToken,
+} from '@/platform/design/server/editGate'
 import { fsApply, fsUndo } from '@/platform/design/server/fsBackend'
 import { githubApply, githubCheck, githubPush } from '@/platform/design/server/githubBackend'
 
 function backend(): 'fs' | 'github' | 'record' {
   if (process.env.NODE_ENV === 'development') return 'fs'
-  return githubConfig() && isGateConfigured() ? 'github' : 'record'
+  return githubConfig() && (isGateConfigured() || isEditGateConfigured()) ? 'github' : 'record'
+}
+
+/** Whether this request may save. Behind the site gate, getting in was enough. */
+function mayEdit(request: Request): boolean {
+  if (isGateConfigured()) return true
+  return verifyEditToken(editCookie(request))
 }
 
 export async function GET(request: Request): Promise<NextResponse> {
@@ -42,6 +65,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       kind === 'github' && facts
         ? (whyNot(facts, facts.owners[0] ?? 'x') ?? undefined)
         : undefined,
+    needsPassword: kind === 'github' && !mayEdit(request) ? true : undefined,
   }
   return NextResponse.json(status, { headers: { 'cache-control': 'no-store' } })
 }
@@ -50,19 +74,23 @@ export async function POST(request: Request): Promise<NextResponse> {
   const kind = backend()
   if (kind === 'record') return new NextResponse(null, { status: 404 })
 
-  let body: DesignRequest | DesignUndoRequest | DesignPushRequest | DesignCheckRequest
+  let body: DesignRequest | DesignUndoRequest | DesignPushRequest | DesignCheckRequest | DesignUnlockRequest
   try {
-    body = (await request.json()) as DesignRequest | DesignUndoRequest | DesignPushRequest | DesignCheckRequest
+    body = (await request.json()) as typeof body
   } catch {
     return refuse('That request could not be read.')
   }
   if (!body.slug || !KEBAB.test(body.slug)) return refuse('That is not a project I recognise.')
 
   if (kind === 'fs') {
+    if ('unlock' in body) return refuse('Nothing to unlock on your own machine.')
     if ('undo' in body) return fsUndo(body)
     if ('push' in body || 'check' in body) return refuse('On your own machine, ask your agent to push.')
     return fsApply(body)
   }
+
+  if ('unlock' in body) return unlock(body)
+  if (!mayEdit(request)) return refuse('Enter the editing password first.')
 
   const config = githubConfig()!
   if ('push' in body) return githubPush(body, config)
@@ -71,4 +99,22 @@ export async function POST(request: Request): Promise<NextResponse> {
   // snapshot to restore.
   if ('undo' in body) return refuse('That undo belongs to the dev server.')
   return githubApply(body, config)
+}
+
+async function unlock(body: DesignUnlockRequest): Promise<NextResponse> {
+  if (!isEditGateConfigured()) return refuse('This link has no editing password.')
+  if (!passwordMatches(body.unlock)) {
+    // Slows guessing to a crawl without making a typo feel broken.
+    await new Promise((r) => setTimeout(r, 750))
+    return refuse('That isn’t the editing password.')
+  }
+  const res = NextResponse.json({ ok: true, unlocked: true } satisfies DesignResponse)
+  res.cookies.set(EDIT_COOKIE, createEditToken(), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: EDIT_MAX_AGE,
+  })
+  return res
 }

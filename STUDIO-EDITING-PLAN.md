@@ -930,10 +930,12 @@ D4 is built and switched off until these exist. In order:
    CODEOWNERS asks for no review and CI is the only gate, as for an agent's.
 5. **Vercel → Environment Variables, Production only**: `STUDIO_GH_APP_ID`,
    `STUDIO_GH_APP_PRIVATE_KEY` (the PEM; pasting it on one line with `\n` is
-   fine), `STUDIO_GH_APP_INSTALLATION_ID`. Keep "Automatically expose System
-   Environment Variables" on. Redeploy.
+   fine), `STUDIO_GH_APP_INSTALLATION_ID`, and a gate — **`STUDIO_EDIT_PASSWORD`**
+   (anyone may view; saving asks for it once per browser) or `SITE_PASSWORD`
+   (the whole studio is gated). Keep "Automatically expose System Environment
+   Variables" on. Redeploy.
 6. **Check**: open a project you own on the production link, turn on Design,
-   pick your name, make one change, Apply, Push. A change from the App should
+   enter the editing password, pick your name, make one change, Apply, Push. A change from the App should
    appear and land itself once CI is green.
 
 Why production only: a preview's build commit may not be on `main`, and a
@@ -951,7 +953,12 @@ STUDIO_GH_APP_ID / STUDIO_GH_APP_PRIVATE_KEY / STUDIO_GH_APP_INSTALLATION_ID
 #   STUDIO_GH_BUILD_SHA                          (VERCEL_GIT_COMMIT_SHA)
 #   STUDIO_GH_BASE_BRANCH=main
 #   STUDIO_GH_API_URL                            (GitHub Enterprise, tests)
-# Also required: SITE_PASSWORD. No gate, no backend.
+# Also required, one of: STUDIO_EDIT_PASSWORD (saving only — the studio stays
+# open to view) or SITE_PASSWORD (the whole studio). No gate, no backend.
+# As of 2026-09-18 production has NO SITE_PASSWORD: several teams read the
+# link and it stays open, so D4 runs on STUDIO_EDIT_PASSWORD. Note that the
+# chat sandbox's preview gating (§ Sandbox previews are public by default)
+# assumes SITE_PASSWORD — revisit before C2.
 
 # C1
 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY

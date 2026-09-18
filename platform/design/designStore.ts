@@ -60,6 +60,7 @@ import {
   type DesignRequest,
   type DesignResponse,
   type DesignUndoRequest,
+  type DesignUnlockRequest,
   type Edit,
   type InsertEdit,
   type Place,
@@ -110,6 +111,8 @@ export interface DesignStoreState {
   owners: string[]
   /** Why this project can't be written from here at all. */
   locked?: string
+  /** `github`: this browser hasn't entered the editing password yet. */
+  needsPassword?: boolean
   /** Who is editing, as the designer told the panel (`github`). */
   name: string | null
   /** `github`: this deployment's changes have been pushed. */
@@ -148,7 +151,7 @@ interface PendingEntry {
 let seq = 0
 
 type Sink = (
-  req: DesignRequest | DesignUndoRequest | DesignPushRequest | DesignCheckRequest,
+  req: DesignRequest | DesignUndoRequest | DesignPushRequest | DesignCheckRequest | DesignUnlockRequest,
 ) => Promise<DesignResponse>
 
 const sink: Sink = async (req) => {
@@ -258,7 +261,7 @@ export function getDesignStoreServerSnapshot(): DesignStoreState {
 
 /** Whether this person may write here, given what the route said. */
 export function canWrite(s: DesignStoreState = state): boolean {
-  if (s.backend === 'record' || s.locked) return false
+  if (s.backend === 'record' || s.locked || s.needsPassword) return false
   if (s.backend === 'fs') return true
   return Boolean(s.name && s.owners.some((o) => o.toLocaleLowerCase() === s.name!.toLocaleLowerCase()))
 }
@@ -300,6 +303,21 @@ export function setDesignerName(name: string | null) {
 }
 
 /**
+ * Enter the editing password. Returns why it failed, or null once this
+ * browser may save — the route has set a cookie that lasts 30 days.
+ */
+export async function unlockEditing(password: string): Promise<string | null> {
+  if (!storageSlug) return 'Open a project first.'
+  const res = await sink({ slug: storageSlug, unlock: password })
+  if (!res.ok) return res.reason
+  state = { ...state, needsPassword: false }
+  const mode: SinkMode = canWrite() ? 'write' : 'record'
+  if (mode !== state.mode) setSinkMode(mode)
+  else emit({})
+  return null
+}
+
+/**
  * Ask the route where WRITE goes for this project, and settle the mode.
  * Called once per project by the panel.
  */
@@ -323,6 +341,7 @@ async function probe(slug: string) {
     sha: status.sha,
     owners: status.owners,
     locked: status.locked,
+    needsPassword: status.needsPassword,
     name: storedName(),
   }
   // Settled without an emit for the same reason as setSinkMode: the list's
