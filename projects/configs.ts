@@ -42,5 +42,7 @@ export const configs: ConfigRegistry = {
     import('./afin-weekly-checkin-ut/project.config').then((m) => m.config),
   'apartner-sales': () => import('./apartner-sales/project.config').then((m) => m.config),
   'afin-linear': () => import('./afin-linear/project.config').then((m) => m.config),
+  'apartner-sales-assisted-onboarding': () =>
+    import('./apartner-sales-assisted-onboarding/project.config').then((m) => m.config),
   // <append new projects above this line — one line per project>
 }
