@@ -10,10 +10,11 @@
 //   against a target — the scoring lives in the other cut.
 // - A new "Potential mitra" section, above the table and as its own column
 //   group inside it, opens up the recruitment pipeline that ends at Mitra
-//   baru's NoA: Leads tanpa KTP, Leads dengan KTP, UK (menjalani uji
-//   kelayakan) and Disetujui — so a BM can tell a cold BP (few leads
-//   recruited) from a slow one (leads stuck mid-funnel) rather than reading
-//   one flat NoA. The KTP split is named for what it is rather than a
+//   baru's NoA: New mitra (Dengan KTP / Tanpa KTP), Follow up (Interested /
+//   Tidak interested), UK (Draft / Submitted, menjalani uji kelayakan) and
+//   Disetujui — so a BM can tell a KTP problem from an interest problem from
+//   a paperwork problem, rather than one flat count that could be any of the
+//   three. The KTP split is named for what it is rather than a
 //   "qualified/unqualified" label that made a BM go look up what qualifies a
 //   lead.
 //
@@ -71,6 +72,8 @@ import {
   DISBURSEMENT_BPS,
   DISBURSEMENT_TARGETS,
   branchDisbursement,
+  leadsFollowUp,
+  leadsUk,
   meetsRenewal,
   nilaiShortfall,
   nilaiTotal,
@@ -110,13 +113,37 @@ const LANJUTAN_GROUP = {
 } as const
 
 /** Hidden until `potentialOpen` — see the gutter toggle between Total and
- *  Mitra baru in `DisbursementTableLeads`. */
-const POTENTIAL_GROUP = {
+ *  Mitra baru in `DisbursementTableLeads`. "With Leads monitoring" uses the
+ *  flat version (5 cols, one count per stage); "Pencairan: NTB detail" swaps
+ *  in the detailed one (7 cols) — New mitra by KTP status, Follow up by
+ *  interest, UK by draft/submitted — so a BM can tell a KTP problem from an
+ *  interest problem from a paperwork problem, rather than one flat count
+ *  that could be any of the three. Picked by `potentialGroup(detailed)`. */
+const POTENTIAL_GROUP_FLAT = {
   id: 'potential',
   header: 'Potential mitra',
   target: 'Menuju Mitra baru',
   cols: ['Tanpa KTP', 'Dengan KTP', 'Follow up', 'UK', 'Disetujui'],
 } as const
+
+const POTENTIAL_GROUP_DETAIL = {
+  id: 'potential',
+  header: 'Potential mitra',
+  target: 'Menuju Mitra baru',
+  cols: ['Dengan KTP', 'Tanpa KTP', 'Interested', 'Tidak interested', 'Draft', 'Submitted', 'Disetujui'],
+} as const
+
+/** The detailed cut's middle header tier — New mitra / Follow up / UK, each
+ *  spanning the pair of leaf columns underneath it. Disetujui isn't listed
+ *  here: it has no breakdown, so it's rendered directly with `rowSpan={2}`
+ *  instead of getting a sub-group of its own. */
+const POTENTIAL_SUBGROUPS = [
+  { id: 'newMitra', label: 'New mitra', cols: ['Dengan KTP', 'Tanpa KTP'] },
+  { id: 'followUp', label: 'Follow up', cols: ['Interested', 'Tidak interested'] },
+  { id: 'uk', label: 'UK', cols: ['Draft', 'Submitted'] },
+] as const
+
+const potentialGroup = (detailed: boolean) => (detailed ? POTENTIAL_GROUP_DETAIL : POTENTIAL_GROUP_FLAT)
 
 const GUTTER_COL_WIDTH = 48
 
@@ -130,17 +157,22 @@ const COL_WIDTH: Record<string, number> = {
   // facts stacked, not one.
   NoA: 96,
   Pencairan: 116,
-  'Tanpa KTP': 96,
-  'Dengan KTP': 96,
+  'Tanpa KTP': 88,
+  'Dengan KTP': 88,
   'Follow up': 84,
   UK: 72,
+  Interested: 84,
+  'Tidak interested': 100,
+  Draft: 72,
+  Submitted: 84,
   Disetujui: 88,
   '%NoA': 72,
 }
 
 const SHORT_CELL = 'px-4 pb-16 pt-4 text-center text-10 text-caption whitespace-nowrap'
 
-const FUNNEL_STAGES = [
+/** The flat cut's five stages, one count each — "With Leads monitoring". */
+const FUNNEL_STAGES_FLAT = [
   { id: 'unqualified', label: 'Tanpa KTP', hint: undefined },
   { id: 'qualified', label: 'Dengan KTP', hint: undefined },
   { id: 'followUp', label: 'Follow up', hint: undefined },
@@ -148,17 +180,70 @@ const FUNNEL_STAGES = [
   { id: 'disetujui', label: 'Disetujui', hint: undefined },
 ] as const
 
+/** `potentialMitraFunnel()` only stores the detailed halves (KTP status,
+ *  interest, draft/submitted) — this collapses Follow up and UK back into
+ *  one count each for the flat cut, so the two cuts share one source of
+ *  truth rather than the flat one carrying its own separately-summed
+ *  numbers that could drift from the detailed halves. */
+function flatFunnelValues(funnel: ReturnType<typeof potentialMitraFunnel>) {
+  return {
+    unqualified: funnel.unqualified,
+    qualified: funnel.qualified,
+    followUp: funnel.followUpInterested + funnel.followUpNotInterested,
+    uk: funnel.ukDraft + funnel.ukSubmitted,
+    disetujui: funnel.disetujui,
+  }
+}
+
+/** The detailed cut's three breakdown stages — New mitra, Follow up, UK —
+ *  each a total plus the two counts it's made of. Disetujui and Dicairkan
+ *  stay flat single-value boxes either way, rendered separately below. */
+const FUNNEL_GROUPS = [
+  {
+    id: 'newMitra',
+    label: 'New mitra',
+    hint: undefined,
+    parts: [
+      { id: 'qualified', label: 'Dengan KTP' },
+      { id: 'unqualified', label: 'Tanpa KTP' },
+    ],
+  },
+  {
+    id: 'followUp',
+    label: 'Follow up',
+    hint: undefined,
+    parts: [
+      { id: 'followUpInterested', label: 'Interested' },
+      { id: 'followUpNotInterested', label: 'Tidak interested' },
+    ],
+  },
+  {
+    id: 'uk',
+    label: 'UK',
+    hint: 'Uji kelayakan',
+    parts: [
+      { id: 'ukDraft', label: 'Draft' },
+      { id: 'ukSubmitted', label: 'Submitted' },
+    ],
+  },
+] as const
+
 function FunnelBox({
   label,
   value,
   hint,
   highlight,
+  parts,
 }: {
   label: string
   value: number
   hint?: string
   /** Marks the funnel's actual target — the disbursed NoA it all leads to. */
   highlight?: boolean
+  /** The stage's own breakdown, printed under the total rather than beside
+   *  it — New mitra's 62 means nothing on its own until it's split into how
+   *  many have KTP and how many don't. */
+  parts?: { label: string; value: number }[]
 }) {
   return (
     <div
@@ -175,6 +260,16 @@ function FunnelBox({
         {value}
       </span>
       {hint ? <span className="text-10 text-caption">{hint}</span> : null}
+      {parts ? (
+        <div className="flex flex-col gap-1 pt-2">
+          {parts.map((p) => (
+            <span key={p.label} className="flex items-center justify-between gap-8 text-10 text-caption">
+              <span>{p.label}</span>
+              <span className="font-bold text-default">{p.value}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -183,8 +278,9 @@ function FunnelBox({
  * The branch headline: same three buckets as the plain cut, minus the rate
  * badge and the "Target: …" corner label — this cut reads as counts and
  * rupiah on their own. Underneath, the recruitment pipeline that feeds Mitra
- * baru: four lead stages ending at Disetujui, then an arrow into Disbursed —
- * the NoA count that is the actual target, not just another funnel stage.
+ * baru: New mitra, Follow up and UK each open onto their own breakdown, then
+ * Disetujui, then an arrow into Dicairkan — the NoA count that is the actual
+ * target, not just another funnel stage.
  *
  * Mitra baru's card and the panel are bridged by an accent line, not a
  * matching accent OUTLINE: a full border around Mitra baru's card, sitting
@@ -195,21 +291,27 @@ function FunnelBox({
  * connector bar between them, so the colour reads as a pipe running from one
  * to the other rather than a highlight singling Mitra baru out from its
  * siblings. It's plain `neutral-400`, not the brand purple the funnel's
- * Disbursed box uses — a connector is structural, not a highlight, so it
+ * Dicairkan box uses — a connector is structural, not a highlight, so it
  * carries no colour meaning at all rather than a toned-down version of one.
  */
 export function DisbursementMetricsLeads({
   open,
   onToggle,
+  detailed = false,
 }: {
   /** Shared with the table's own toggle gutter — one control, read in two
    *  places, rather than the panel and the table drifting out of sync. */
   open: boolean
   onToggle: (open: boolean) => void
+  /** Swaps in the New mitra/Follow up/UK breakdown ("Pencairan: NTB
+   *  detail") in place of the flat five-stage funnel ("With Leads
+   *  monitoring"). */
+  detailed?: boolean
 }) {
   const branch = branchDisbursement()
   const nilai = DISBURSEMENT_BPS.reduce((n, bp) => n + nilaiTotal(bp), 0)
   const funnel = potentialMitraFunnel()
+  const flat = flatFunnelValues(funnel)
 
   return (
     <div className="flex flex-col pb-16">
@@ -245,13 +347,34 @@ export function DisbursementMetricsLeads({
               </span>
               <span className="text-12 text-caption">Alur rekrutmen menuju Mitra baru.</span>
               <div className="flex items-stretch gap-8">
-                {FUNNEL_STAGES.map((stage) => (
-                  <FunnelBox key={stage.id} label={stage.label} value={funnel[stage.id]} hint={stage.hint} />
-                ))}
-                <span className="flex items-center text-disabled">
-                  <ChevronRight size={16} />
-                </span>
-                <FunnelBox label="Disbursed" value={branch.baru} highlight />
+                {detailed ? (
+                  <>
+                    {FUNNEL_GROUPS.map((group) => (
+                      <FunnelBox
+                        key={group.id}
+                        label={group.label}
+                        hint={group.hint}
+                        value={group.parts.reduce((n, p) => n + funnel[p.id], 0)}
+                        parts={group.parts.map((p) => ({ label: p.label, value: funnel[p.id] }))}
+                      />
+                    ))}
+                    <FunnelBox label="Disetujui" value={funnel.disetujui} />
+                    <span className="flex items-center text-disabled">
+                      <ChevronRight size={16} />
+                    </span>
+                    <FunnelBox label="Dicairkan" value={branch.baru} highlight />
+                  </>
+                ) : (
+                  <>
+                    {FUNNEL_STAGES_FLAT.map((stage) => (
+                      <FunnelBox key={stage.id} label={stage.label} value={flat[stage.id]} hint={stage.hint} />
+                    ))}
+                    <span className="flex items-center text-disabled">
+                      <ChevronRight size={16} />
+                    </span>
+                    <FunnelBox label="Disbursed" value={branch.baru} highlight />
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -277,7 +400,7 @@ export function DisbursementHeadingLeads() {
   )
 }
 
-export function DisbursementTableLeads() {
+export function DisbursementTableLeads({ detailed = false }: { detailed?: boolean }) {
   // Closed by default — a BM checks Total, Mitra baru and Mitra lanjutan
   // first, and reaches for Potential mitra as a second question rather than
   // reading it every time. One state drives both the summary panel above and
@@ -287,14 +410,21 @@ export function DisbursementTableLeads() {
   // expands into — on both the header and the body, so `restGroups`
   // (everything after Total) is what actually renders around it in each.
   const restGroups = potentialOpen
-    ? [POTENTIAL_GROUP, BARU_GROUP, LANJUTAN_GROUP]
+    ? [potentialGroup(detailed), BARU_GROUP, LANJUTAN_GROUP]
     : [BARU_GROUP, LANJUTAN_GROUP]
+  // The detailed cut's Potential mitra group gets a third header tier — New
+  // mitra / Follow up / UK, each spanning its own pair of leaf columns —
+  // rather than presenting all seven leaf columns flat, the way the panel
+  // above already groups them into boxes. Every other group's header cells
+  // grow a `rowSpan` to span past this extra row instead of repeating
+  // themselves in it.
+  const showSubgroups = detailed && potentialOpen
   const groups = [TOTAL_GROUP, ...restGroups]
   const colspan = 2 + groups.reduce((n, g) => n + g.cols.length, 0)
 
   return (
     <>
-      <DisbursementMetricsLeads open={potentialOpen} onToggle={setPotentialOpen} />
+      <DisbursementMetricsLeads open={potentialOpen} onToggle={setPotentialOpen} detailed={detailed} />
       <DisbursementHeadingLeads />
 
       <Panel className="p-0">
@@ -322,7 +452,7 @@ export function DisbursementTableLeads() {
             <thead>
               <tr className="bg-neutral-200">
                 <th
-                  rowSpan={2}
+                  rowSpan={showSubgroups ? 3 : 2}
                   className="px-16 pb-12 pt-16 text-12 font-bold text-default"
                   style={{ width: 150 }}
                 >
@@ -346,7 +476,7 @@ export function DisbursementTableLeads() {
                     pill straddling the seam with both directions in it, a
                     hairline divider down the middle, rather than a single
                     bare chevron with nothing to say "grab me". */}
-                <th rowSpan={2} className="p-0">
+                <th rowSpan={showSubgroups ? 3 : 2} className="p-0">
                   {/* Grey and white, not the brand purple — this is a
                       structural control, not a highlight, same reasoning as
                       the connector line below it. Positioned absolutely so
@@ -403,6 +533,7 @@ export function DisbursementTableLeads() {
                 {TOTAL_GROUP.cols.map((label, i) => (
                   <th
                     key={label}
+                    rowSpan={showSubgroups ? 2 : 1}
                     className={`px-12 pb-12 text-center text-12 font-regular text-caption ${
                       i === 0 ? 'border-l border-default' : ''
                     }`}
@@ -410,21 +541,66 @@ export function DisbursementTableLeads() {
                     {label}
                   </th>
                 ))}
-                {restGroups.map((group) => (
-                  <Fragment key={group.id}>
-                    {group.cols.map((label, i) => (
+                {restGroups.map((group) => {
+                  // Only Potential mitra's detailed cut gets a middle tier —
+                  // New mitra / Follow up / UK, each spanning its own pair of
+                  // leaf columns below, plus Disetujui rowSpanning straight
+                  // through since it has no breakdown to group. Every other
+                  // group's leaf labels move here too, with rowSpan={2}, so
+                  // they don't have to repeat themselves in the row below.
+                  if (showSubgroups && group.id === 'potential') {
+                    return (
+                      <Fragment key={group.id}>
+                        {POTENTIAL_SUBGROUPS.map((sub, i) => (
+                          <th
+                            key={sub.id}
+                            colSpan={sub.cols.length}
+                            className={`px-12 pb-8 text-center text-12 font-bold text-default ${
+                              i === 0 ? 'border-l border-default' : ''
+                            }`}
+                          >
+                            {sub.label}
+                          </th>
+                        ))}
+                        <th rowSpan={2} className="px-12 pb-12 text-center text-12 font-regular text-caption">
+                          Disetujui
+                        </th>
+                      </Fragment>
+                    )
+                  }
+                  return (
+                    <Fragment key={group.id}>
+                      {group.cols.map((label, i) => (
+                        <th
+                          key={label}
+                          rowSpan={showSubgroups ? 2 : 1}
+                          className={`px-12 pb-12 text-center text-12 font-regular text-caption ${
+                            i === 0 ? 'border-l border-default' : ''
+                          }`}
+                        >
+                          {label}
+                        </th>
+                      ))}
+                    </Fragment>
+                  )
+                })}
+              </tr>
+              {showSubgroups ? (
+                <tr className="bg-neutral-200">
+                  {POTENTIAL_SUBGROUPS.flatMap((sub, si) =>
+                    sub.cols.map((label, i) => (
                       <th
                         key={label}
                         className={`px-12 pb-12 text-center text-12 font-regular text-caption ${
-                          i === 0 ? 'border-l border-default' : ''
+                          si === 0 && i === 0 ? 'border-l border-default' : ''
                         }`}
                       >
                         {label}
                       </th>
-                    ))}
-                  </Fragment>
-                ))}
-              </tr>
+                    )),
+                  )}
+                </tr>
+              ) : null}
             </thead>
             <tbody>
               {DISBURSEMENT_BPS.length === 0 ? (
@@ -435,7 +611,13 @@ export function DisbursementTableLeads() {
                 </tr>
               ) : null}
               {DISBURSEMENT_BPS.map((bp, i) => (
-                <BpRow key={bp.id} bp={bp} zebra={i % 2 === 1} potentialOpen={potentialOpen} />
+                <BpRow
+                  key={bp.id}
+                  bp={bp}
+                  zebra={i % 2 === 1}
+                  potentialOpen={potentialOpen}
+                  detailed={detailed}
+                />
               ))}
             </tbody>
           </table>
@@ -449,10 +631,12 @@ function BpRow({
   bp,
   zebra,
   potentialOpen,
+  detailed,
 }: {
   bp: DisbursementBp
   zebra: boolean
   potentialOpen: boolean
+  detailed: boolean
 }) {
   const stripe = zebra ? 'bg-neutral-50' : 'bg-neutral-white'
   const noaShort = noaBaruShortfall(bp)
@@ -481,15 +665,33 @@ function BpRow({
             lead is not yet a mitra. Hidden until the gutter's toggle opens
             it, same as the panel above the table. */}
         {potentialOpen ? (
-          <>
-            <td className="border-l border-default px-12 pt-16 text-center text-14 text-default">
-              {bp.leadsUnqualified}
-            </td>
-            <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsQualified}</td>
-            <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsFollowUp}</td>
-            <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsUk}</td>
-            <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsDisetujui}</td>
-          </>
+          detailed ? (
+            <>
+              <td className="border-l border-default px-12 pt-16 text-center text-14 text-default">
+                {bp.leadsQualified}
+              </td>
+              <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsUnqualified}</td>
+              <td className="px-12 pt-16 text-center text-14 text-default">
+                {bp.leadsFollowUpInterested}
+              </td>
+              <td className="px-12 pt-16 text-center text-14 text-default">
+                {bp.leadsFollowUpNotInterested}
+              </td>
+              <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsUkDraft}</td>
+              <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsUkSubmitted}</td>
+              <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsDisetujui}</td>
+            </>
+          ) : (
+            <>
+              <td className="border-l border-default px-12 pt-16 text-center text-14 text-default">
+                {bp.leadsUnqualified}
+              </td>
+              <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsQualified}</td>
+              <td className="px-12 pt-16 text-center text-14 text-default">{leadsFollowUp(bp)}</td>
+              <td className="px-12 pt-16 text-center text-14 text-default">{leadsUk(bp)}</td>
+              <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsDisetujui}</td>
+            </>
+          )
         ) : null}
 
         {/* Mitra baru: plain NoA/Pencairan, the same as the default cut — the
@@ -515,16 +717,17 @@ function BpRow({
         <td />
 
         {/* Potential mitra carries no shortfall of its own — it's a leading
-            indicator, not something with a monthly pass/fail line. */}
-        {potentialOpen ? (
-          <>
-            <td className="border-l border-default px-12 pb-16 pt-4" />
-            <td className="px-12 pb-16 pt-4" />
-            <td className="px-12 pb-16 pt-4" />
-            <td className="px-12 pb-16 pt-4" />
-            <td className="px-12 pb-16 pt-4" />
-          </>
-        ) : null}
+            indicator, not something with a monthly pass/fail line. One blank
+            cell per column in `potentialGroup(detailed).cols` — five for the
+            flat cut, seven for the detailed one. */}
+        {potentialOpen
+          ? potentialGroup(detailed).cols.map((label, i) => (
+              <td
+                key={label}
+                className={`px-12 pb-16 pt-4 ${i === 0 ? 'border-l border-default' : ''}`}
+              />
+            ))
+          : null}
 
         {/* The shortfall is about clearing the month's mitra baru NoA target,
             so it sits under Mitra baru's own NoA. */}
