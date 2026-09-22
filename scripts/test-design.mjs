@@ -1147,7 +1147,7 @@ const github = await (async () => {
     absWorkingDir: root,
     stdin: {
       contents: [
-        `export { appJwt, branchFor, githubConfig, kebab, GitHub } from './platform/design/github'`,
+        `export { appJwt, branchFor, githubConfig, githubLocalConfig, kebab, GitHub } from './platform/design/github'`,
         `export { githubApply, githubCheck, githubPush } from './platform/design/server/githubBackend'`,
         `export { GET, POST } from './app/api/design/route'`,
       ].join('\n'),
@@ -1520,4 +1520,67 @@ test('github: an editing password gates saving without gating the studio', async
     for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k]
     Object.assign(process.env, saved)
   }
+})
+
+// --- Push from a laptop (platform/push) ----------------------------------------
+
+test('github: local config needs the App, and reads the repo from origin', () => {
+  const env = { STUDIO_GH_APP_ID: '1', STUDIO_GH_APP_PRIVATE_KEY: 'k', STUDIO_GH_APP_INSTALLATION_ID: '42' }
+  const c = github.githubLocalConfig('https://github.com/acme/studio.git', env)
+  assert.equal(c.owner, 'acme')
+  assert.equal(c.repo, 'studio')
+  assert.equal(c.base, 'main')
+  assert.equal(github.githubLocalConfig('git@github.com:acme/studio.git', env).repo, 'studio')
+  assert.equal(github.githubLocalConfig('https://github.com/acme/studio.git', { ...env, STUDIO_GH_APP_ID: undefined }), null)
+  assert.equal(github.githubLocalConfig(null, env), null)
+})
+
+test('github: commitFiles lands every file as ONE commit on top of the parent', async () => {
+  const calls = []
+  const made = { blobs: [], tree: null, commit: null, ref: null }
+  const json = (status, body) => new Response(JSON.stringify(body ?? {}), { status })
+  const fetchImpl = async (url, init = {}) => {
+    const u = new URL(url)
+    const method = init.method ?? 'GET'
+    const body = init.body ? JSON.parse(init.body) : undefined
+    calls.push(`${method} ${u.pathname}`)
+    if (u.pathname.endsWith('/access_tokens')) return json(201, { token: 'inst-token' })
+    const repo = '/repos/acme/studio'
+    if (u.pathname === `${repo}/git/commits/main-tip` && method === 'GET') return json(200, { tree: { sha: 'main-tree' } })
+    if (u.pathname === `${repo}/git/blobs`) {
+      made.blobs.push(Buffer.from(body.content, 'base64').toString('utf8'))
+      return json(201, { sha: `blob-${made.blobs.length}` })
+    }
+    if (u.pathname === `${repo}/git/trees`) return (made.tree = body), json(201, { sha: 'new-tree' })
+    if (u.pathname === `${repo}/git/commits` && method === 'POST') return (made.commit = body), json(201, { sha: 'new-commit' })
+    if (u.pathname === `${repo}/git/refs`) return (made.ref = body), json(201, {})
+    return json(404, {})
+  }
+  const gh = new github.GitHub({ ...CONFIG, sha: '' }, fetchImpl)
+  const blobs = await gh.commitFiles(
+    'afin-linear/studio-hazki-x',
+    'main-tip',
+    [
+      { path: 'projects/afin-linear/a.tsx', content: Buffer.from('A') },
+      { path: 'projects/afin-linear/b.tsx', content: Buffer.from('B'), mode: '100755' },
+      { path: 'projects/afin-linear/gone.tsx', content: null },
+    ],
+    '[afin-linear] Changes from the studio (Hazki)',
+  )
+  assert.deepEqual(made.blobs, ['A', 'B'])
+  assert.equal(made.tree.base_tree, 'main-tree')
+  assert.deepEqual(made.tree.tree, [
+    { path: 'projects/afin-linear/a.tsx', mode: '100644', type: 'blob', sha: 'blob-1' },
+    { path: 'projects/afin-linear/b.tsx', mode: '100755', type: 'blob', sha: 'blob-2' },
+    // A deletion is a null SHA in the tree, not a blob.
+    { path: 'projects/afin-linear/gone.tsx', mode: '100644', type: 'blob', sha: null },
+  ])
+  assert.deepEqual(made.commit, { message: '[afin-linear] Changes from the studio (Hazki)', tree: 'new-tree', parents: ['main-tip'] })
+  assert.deepEqual(made.ref, { ref: 'refs/heads/afin-linear/studio-hazki-x', sha: 'new-commit' })
+  assert.deepEqual(blobs, {
+    'projects/afin-linear/a.tsx': 'blob-1',
+    'projects/afin-linear/b.tsx': 'blob-2',
+    'projects/afin-linear/gone.tsx': null,
+  })
+  assert.equal(calls.filter((c) => c === 'POST /repos/acme/studio/git/commits').length, 1)
 })

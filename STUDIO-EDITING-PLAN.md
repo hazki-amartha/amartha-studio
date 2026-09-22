@@ -879,6 +879,54 @@ prototype from a phone.
 
 ---
 
+## Part E — One shell: selection, tabs, and Push (decided 2026-09-22)
+
+After living with chat beside Design and Inspect, and a second look at Airship
+(github.com/0xnyn/airship), the owner decided:
+
+- **Design and Inspect merge into one mode.** Selecting is the mode; what you
+  do with the selection is a tab. Top bar: **Prototype · Edit · Flow**. The
+  right panel's tabs: **Chat · Edit · CSS** (CSS is today's Inspect panel;
+  Layers stays on the left). On the link, where nothing saves, it opens on CSS.
+  They already share one picker and one pinned element (`useInspectState`), so
+  this is mostly joining the two panels — and deleting the copied crumbs,
+  empty state, `resolveTarget` calls and `measure` geometry.
+- **Chat becomes the panel's first tab**, not a separate dock. It uses the
+  shared selection as a removable chip (Airship) instead of its own Pick layer.
+  In Prototype, with nothing selected, the panel shows only Chat.
+- **One Push, in the top bar**, beside Chat. Pushing is the project's, not a
+  mode's or a selection's: whatever made the change — chat, Design edits, the
+  designer's own agent — it goes live from there.
+- **Keep our pick rule** (nearest authored element) and token-locked edits.
+  Don't copy Airship's free resize handles or its per-turn Commit/Push buttons.
+
+### E1. Push from the dev server — `platform/push/`, `app/api/push`
+
+Through the studio's GitHub App, like the link — so it needs the three
+`STUDIO_GH_APP_*` values in the laptop's `.env.local` too. It never switches
+branch or commits in the checkout (several sessions share it); it reads the
+working copy and builds one commit on GitHub from main's tip.
+
+- **What counts:** files in `projects/<slug>/` whose working copy differs from
+  main, committed locally or not. A landed push drops out by itself.
+- **Refused:** a file main changed since this laptop last updated (merge-base ≠
+  main), unless main holds what this laptop itself pushed; ESLint errors in the
+  files going out. Build and flows are CI's, and a red CI shows as "Push failed".
+- **Afterwards:** once landed, and only on `main`, the pushed files — if still
+  exactly as pushed — are staged and main is fast-forwarded. Anything in the
+  way and the index is put back untouched.
+- Behind the editing password; the name is checked against the project's
+  owners (`whyNot`), same as the link. Unsaved Design edits are saved first.
+- The link keeps its Push in the Design panel until E2 rebuilds that panel.
+
+### Order
+
+E1 Push → E2 merge modes (Chat · Edit · CSS tabs) → E3 chat uses the shared
+selection → E4 hand edits as chips in the composer, Apply = Send → E5 transcript
+(tool rows with results, per-file diffs), per-turn undo from the chat guard's
+PreToolUse hook, New chat → E6 picking polish (50ms ascend delay, parent and
+sibling outlines, marquee, shortcut sheet). Each is its own reviewed change.
+
 ## Phases
 
 Each phase is one reviewed Tier 2 change and leaves the studio working.
@@ -895,6 +943,9 @@ Each phase is one reviewed Tier 2 change and leaves the studio working.
 | C3 | **Chat push** | full gate in sandbox, PR + auto-merge via App, conflict and revert flows | a chat-made change lands on `main` without anyone opening a terminal | C2 |
 | C4 | **Chat polish** | tool-status lines, in-panel preview frame, session resume after sandbox expiry, spend on the gallery | — | C3 |
 | D6 | **Board** | pan/zoom board of all screens, editable in place; built on `platform/flow` | — | D3 |
+| E1 | **Push from the laptop** | top-bar Push on the dev server through the GitHub App (§ E1) | a chat edit goes live from the studio without a terminal | D4 |
+| E2 | **One Edit mode** | Design + Inspect merged; Chat · Edit · CSS tabs; link Push moves to the top bar | every Design and Inspect action works from the one mode | E1 |
+| E3–E6 | **Chat on the selection** | § Part E order | — | E2 |
 
 **Everything through D4 is unblocked and startable today.** The first thing that
 needs a signature is the Anthropic key at C2 — Vercel Sandbox is not behind that
@@ -961,7 +1012,8 @@ the base branch, whatever is configured.
 ## Env vars
 
 ```
-# D4 — Production only. All three, or design mode on the link stays Collect.
+# D4 — Production: all three, or design mode on the link stays Collect.
+# E1 — also in a laptop's .env.local for the top bar's Push (repo from origin).
 STUDIO_GH_APP_ID / STUDIO_GH_APP_PRIVATE_KEY / STUDIO_GH_APP_INSTALLATION_ID
 # Read from Vercel's system variables; set these only to override them.
 #   STUDIO_GH_REPO_OWNER / STUDIO_GH_REPO_SLUG   (VERCEL_GIT_REPO_OWNER / _SLUG)

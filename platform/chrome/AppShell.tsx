@@ -29,6 +29,7 @@ import {
   subscribeBareMode,
 } from '@/platform/runtime/presentBridge'
 import { ChatButton, ChatDock } from '@/platform/chat/ChatDock'
+import { PushButton } from '@/platform/push/PushButton'
 import styles from './chrome.module.css'
 import { HeaderStatusProvider, useHeaderStatus } from './headerStatus'
 import {
@@ -398,6 +399,9 @@ function AppShellInner({
             {/* Beside the modes, not among them: chat stays open across all of
                 them. It renders nothing where chat can't run. */}
             {currentSlug ? <ChatButton /> : null}
+            {/* The project's, not a mode's: whatever made the change, it goes
+                live from here. Renders nothing off the dev server. */}
+            {currentSlug ? <PushButton slug={currentSlug} /> : null}
           </div>
         </header>
 
