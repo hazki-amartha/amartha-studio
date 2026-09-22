@@ -202,13 +202,6 @@ export function PoiCreateScreen() {
               <SectionTitle>Detail Sosialisasi</SectionTitle>
               <div className="grid grid-cols-2 gap-16">
                 <Select
-                  label="Jadwal Sosialisasi"
-                  placeholder="Isi jadwal POI"
-                  value={draft.jadwal}
-                  onChange={(v) => setDraftField('jadwal', v)}
-                  options={JADWAL_OPTIONS}
-                />
-                <Select
                   label="Assigned FO"
                   optional
                   placeholder="Pilih FO / BP"

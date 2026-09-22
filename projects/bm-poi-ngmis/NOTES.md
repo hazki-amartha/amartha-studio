@@ -40,9 +40,11 @@ directly — `beginView`/`useViewingId` are the same pattern as `editingId` but
 kept separate, since viewing never touches the draft. Its own "Edit" button
 is what calls `beginEdit` and goes to `poi-create`.
 
-Jadwal Sosialisasi dropped its required mark and its spot in `canSubmit` —
-the availability grid is now the primary way it gets filled (a free-cell
-click sets it), so gating Submit on it fought the flow the grid is for.
+Jadwal Sosialisasi is no longer its own field — first its required mark and
+`canSubmit` spot came off, then the standalone select itself: the
+availability grid right below is the only way it gets set now (a free-cell
+click sets `jadwal`), so keeping a second control for the same value was
+redundant once the grid could do it alone.
 
 **Jadwal padat (demo)** (`packSchedule`) seeds `demoBookings` — extra
 bookings shown on the availability grid ONLY when Assigned FO is Sari
