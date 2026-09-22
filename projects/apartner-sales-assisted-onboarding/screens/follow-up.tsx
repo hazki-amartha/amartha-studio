@@ -363,18 +363,6 @@ export function FollowUpScreen() {
                 >
                   Lanjutkan onboarding
                 </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full"
-                  disabled={!canAct}
-                  onClick={() => {
-                    pipelineStore.takeoverAssisted(lead.id)
-                    flow.go('application')
-                  }}
-                >
-                  Ambil alih jadi assisted
-                </Button>
                 <span className="text-center text-12 text-caption">
                   Calon mitra mengisi survey uji kelayakan sendiri via AFin.
                 </span>
