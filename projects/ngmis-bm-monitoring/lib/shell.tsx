@@ -31,6 +31,7 @@ const NAV: NavItem[] = [
     label: 'Branches',
     icon: <Bank size={20} />,
     children: [
+      { id: 'poi-creation', label: 'POI creation' },
       { id: 'fo-monitoring', label: 'FO monitoring' },
       { id: 'overview', label: 'Overview' },
       { id: 'activity', label: 'Activity' },
