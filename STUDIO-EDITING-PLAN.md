@@ -919,6 +919,20 @@ working copy and builds one commit on GitHub from main's tip.
   owners (`whyNot`), same as the link. Unsaved Design edits are saved first.
 - The link keeps its Push in the Design panel until E2 rebuilds that panel.
 
+### E2–E3. One Edit mode, Chat as its first tab (built 2026-09-22)
+
+Top bar Prototype · Edit · Flow. The prototype view's right panel is Chat ·
+Edit · CSS in Edit mode, and Chat alone in Prototype (only while the top bar's
+Chat button asks for it). Chat is about Edit mode's pinned element — a chip
+with an ✕ that deselects — so its own Pick layer and the attachment state are
+gone. The conversation lives in a module store (`useLiveChat`), so it and a
+running turn survive mode switches, tab flips, minimizing and full screen; New
+chat starts over. The separate right-hand dock from #369 is gone.
+
+Chat sits in the same 264px column as every other panel, which is narrower
+than the old 360px dock — widening the columns pushes the phone off-centre or
+off small laptops. Revisit if it reads cramped.
+
 ### Order
 
 E1 Push → E2 merge modes (Chat · Edit · CSS tabs) → E3 chat uses the shared
@@ -944,8 +958,9 @@ Each phase is one reviewed Tier 2 change and leaves the studio working.
 | C4 | **Chat polish** | tool-status lines, in-panel preview frame, session resume after sandbox expiry, spend on the gallery | — | C3 |
 | D6 | **Board** | pan/zoom board of all screens, editable in place; built on `platform/flow` | — | D3 |
 | E1 | **Push from the laptop** | top-bar Push on the dev server through the GitHub App (§ E1) | a chat edit goes live from the studio without a terminal | D4 |
-| E2 | **One Edit mode** | Design + Inspect merged; Chat · Edit · CSS tabs; link Push moves to the top bar | every Design and Inspect action works from the one mode | E1 |
-| E3–E6 | **Chat on the selection** | § Part E order | — | E2 |
+| E2 | **One Edit mode** | Design + Inspect merged; Chat · Edit · CSS tabs | every Design and Inspect action works from the one mode | E1 |
+| E3 | **Chat on the selection** | Chat tab uses the pinned element; conversation store; New chat | ask about an element without a separate pick | E2 |
+| E4–E6 | **Chat polish** | § Part E order; the link's Push moves to the top bar | — | E3 |
 
 **Everything through D4 is unblocked and startable today.** The first thing that
 needs a signature is the Anthropic key at C2 — Vercel Sandbox is not behind that

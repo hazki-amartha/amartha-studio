@@ -17,13 +17,8 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import { PanelShell } from '@/platform/chrome/SidePanel'
 import { ancestorChain, labelOf, resolveTarget } from './resolve'
 import { copyForAgent } from './copyForAgent'
-import { attachmentFor } from '@/platform/chat/attach'
-import {
-  attachToChat,
-  getChat,
-  getChatServerSnapshot,
-  subscribeChat,
-} from '@/platform/runtime/chatBridge'
+import { getChat, getChatServerSnapshot, subscribeChat } from '@/platform/runtime/chatBridge'
+import { setEditTab } from '@/platform/runtime/designBridge'
 import { copySpec } from './copySpec'
 
 export interface InspectorPanelProps {
@@ -221,13 +216,13 @@ export function InspectorPanel({
         >
           {copied === 'agent' ? 'Copied' : 'Copy for agent'}
         </button>
-        {/* Where chat runs, the same handoff goes straight into it — the
-            composer shows the element as a chip, and the ask is the blank. */}
+        {/* Where chat runs, the same handoff is one tab away: Chat is about
+            the selection, so this element is already its chip. */}
         {chatAvailable ? (
           <button
             type="button"
-            onClick={() => attachToChat(attachmentFor(target, slug, screenId))}
-            title="Attach this element to the chat and say what should change"
+            onClick={() => setEditTab('chat')}
+            title="Open Chat about this element and say what should change"
             className="rounded-full bg-primary-500 px-16 py-8 text-12 font-bold text-neutral-white hover:bg-primary-600"
           >
             Ask chat about this

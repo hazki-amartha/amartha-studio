@@ -66,11 +66,11 @@ import {
 } from '@/platform/runtime/presentBridge'
 import { InspectLayer, InspectorPanel, LayersPanel } from '@/platform/inspect'
 import { DesignLayer, DesignPanel } from '@/platform/design'
-import { attachElement } from '@/platform/chat/attach'
+import { LiveChatPanel } from '@/platform/chat/ChatPanel'
 import {
   getChat,
   getChatServerSnapshot,
-  setChatPicking,
+  setChatOpen,
   subscribeChat,
 } from '@/platform/runtime/chatBridge'
 import { layersDrag } from '@/platform/design/actions'
@@ -142,37 +142,15 @@ function AppViewport({
   preview?: Element | null
 } = {}) {
   const { current } = useFlow()
-  const chatPicking = useSyncExternalStore(
-    subscribeChat,
-    () => getChat().picking,
-    () => getChatServerSnapshot().picking,
-  )
-  // The chat's pick button borrows the layer for one click, over whatever mode
-  // is on — the mode's own layers step aside until the pick lands or is cancelled.
-  const pickingForChat = chatPicking && Boolean(slug)
   return (
-    <div
-      className={styles.viewport}
-      data-device={device}
-      data-inspect={editing || pickingForChat ? 'on' : undefined}
-    >
+    <div className={styles.viewport} data-device={device} data-inspect={editing ? 'on' : undefined}>
       <ScreenStage />
-      {pickingForChat ? (
-        <InspectLayer
-          pinned={null}
-          onPin={(el) => {
-            if (el) attachElement(el, slug!, current)
-            else setChatPicking(false)
-          }}
-          pick="authored"
-        />
-      ) : null}
       {/* Picks the nearest element the project's source wrote. Picking the
           nearest FunDS boundary was tried and dropped: `Screen` is one, so
           plain content kept selecting the whole screen. A placed component
           still wins over its own insides. Whichever tab is showing, the canvas
           behaves the same — the tab is what you do with the pick. */}
-      {editing && onPin && !pickingForChat ? (
+      {editing && onPin ? (
         <InspectLayer
           pinned={pinned ?? null}
           onPin={onPin}
@@ -183,7 +161,7 @@ function AppViewport({
           tone="design"
         />
       ) : null}
-      {editing && onPin && slug && !pickingForChat ? (
+      {editing && onPin && slug ? (
         <DesignLayer
           slug={slug}
           screenId={current}
@@ -244,7 +222,7 @@ function AnnotationPanel({
  * highlight never survives a navigation.
  *
  * Whether it is on screen at all is the layout's business now (see
- * usePanelSlots), so that every panel is dismissed the same way.
+ * usePanelState), so that every panel is dismissed the same way.
  */
 function StatesPanel({
   screens,
@@ -475,25 +453,32 @@ function useInspectState() {
   return { editing, pinned, setPinned, repin, preview, setPreview, current }
 }
 
-// --- the Edit panel ----------------------------------------------------------
+// --- the tool panel: Chat · Edit · CSS ----------------------------------------
 //
-// One selection, two things to do with it (STUDIO-EDITING-PLAN Part E): Edit
-// changes it, CSS reads it. Where nothing can be saved — a shared link with no
-// backend — it opens on CSS, since Edit could only collect; the designer's own
-// choice wins from then on.
+// One selection, three things to do with it (STUDIO-EDITING-PLAN Part E): Chat
+// asks for a change to it, Edit changes it, CSS reads it. In Prototype mode
+// nothing can be selected, so the panel is Chat alone, and only when the top
+// bar's Chat button asked for it. Where nothing can be saved — a shared link
+// with no backend — Edit mode opens on CSS, since Edit could only collect; the
+// designer's own choice of tab wins from then on.
 //
-// The Edit panel stays MOUNTED behind the CSS tab: it is what restores the
+// The Edit panel stays MOUNTED behind the other tabs: it is what restores the
 // unsaved list and asks where saves go, and its staged edits must survive a
-// look at the CSS. The CSS panel is mounted only while showing — it reads
-// computed styles once per pin, so a fresh mount is what makes it show the
-// element as it is after an edit.
+// look elsewhere. CSS mounts fresh each time — it reads computed styles once
+// per pin, so a fresh mount shows the element as it is after an edit. Chat
+// mounts freely too: its conversation lives in useLiveChat's store.
 
-const EDIT_TABS: { id: EditTab; label: string }[] = [
-  { id: 'edit', label: 'Edit' },
-  { id: 'css', label: 'CSS' },
-]
+const TAB_LABELS: Record<EditTab, string> = { chat: 'Chat', edit: 'Edit', css: 'CSS' }
 
-function EditPanel(props: {
+function ToolPanel({
+  editing,
+  tab,
+  tabs,
+  ...props
+}: {
+  editing: boolean
+  tab: EditTab
+  tabs: EditTab[]
   className?: string
   onMinimize: () => void
   pinned: Element | null
@@ -501,32 +486,42 @@ function EditPanel(props: {
   slug: string
   screenId: string
 }) {
-  const chosen = useSyncExternalStore(subscribeDesignMode, getEditTab, getEditTabServerSnapshot)
-  const backend = useSyncExternalStore(
-    subscribeDesignStore,
-    () => getDesignStoreState().backend,
-    () => getDesignStoreServerSnapshot().backend,
-  )
-  const tab: EditTab = chosen ?? (backend === 'record' ? 'css' : 'edit')
-  const tabs = <PanelTabs tabs={EDIT_TABS} active={tab} onChange={setEditTab} />
+  const header =
+    tabs.length > 1 ? (
+      <PanelTabs tabs={tabs.map((id) => ({ id, label: TAB_LABELS[id] }))} active={tab} onChange={setEditTab} />
+    ) : undefined
 
   return (
     <>
-      <div className={tab === 'edit' ? 'contents' : 'hidden'}>
-        <DesignPanel {...props} tabs={tabs} />
-      </div>
-      {tab === 'css' ? <InspectorPanel {...props} tabs={tabs} /> : null}
+      {editing ? (
+        <div className={tab === 'edit' ? 'contents' : 'hidden'}>
+          <DesignPanel {...props} tabs={header} />
+        </div>
+      ) : null}
+      {editing && tab === 'css' ? <InspectorPanel {...props} tabs={header} /> : null}
+      {tab === 'chat' ? (
+        <LiveChatPanel
+          slug={props.slug}
+          screenId={props.screenId}
+          pinned={props.pinned}
+          onDeselect={() => props.onPin(null)}
+          editing={editing}
+          tabs={header}
+          onMinimize={props.onMinimize}
+          className={props.className}
+        />
+      ) : null}
     </>
   )
 }
 
 // --- the panel slots ---------------------------------------------------------
 //
-// Both layouts show the same three panels in the same two places: States or
-// Layers on the left, and on the right either the Edit panel (its Edit and CSS
-// tabs) or Notes. What differs is only where a slot is drawn — a column beside a
-// phone, a drawer over a 1440 canvas — so everything about WHICH panel is
-// showing lives here, once.
+// Both layouts show the same panels in the same two places: States or Layers on
+// the left, and on the right either the tool panel (Chat · Edit · CSS) or
+// Notes. What differs is only where a slot is drawn — a column beside a phone,
+// a drawer over a 1440 canvas — so everything about WHICH panel is showing
+// lives here, once.
 
 /**
  * The surface a panel sits on — the same in both layouts, so a prototype's
@@ -540,22 +535,74 @@ const PANEL_CARD =
 /** The right slot holds one of two things, or nothing. */
 type RightSlot = 'tool' | 'notes' | null
 
-function usePanelSlots(picking: boolean, hasNotes: boolean, openByDefault: boolean) {
+/**
+ * Which panels are showing, and the tool panel's tab — shared by both layouts.
+ *
+ * The top bar's Chat button and this panel both say whether Chat is showing,
+ * so they are kept in step both ways: pressing the button opens the panel on
+ * Chat (or puts it away), and Chat leaving the screen any other way — another
+ * tab, the minimize control, Edit mode ending — releases the button.
+ */
+function usePanelState(editing: boolean, hasNotes: boolean, openByDefault: boolean) {
   const [leftOpen, setLeftOpen] = useState(openByDefault)
-  const [right, setRight] = useState<RightSlot>(openByDefault && hasNotes ? 'notes' : null)
+  const rest: RightSlot = openByDefault && hasNotes ? 'notes' : null
+  // A layout can mount mid-session — back from full screen, or arriving from
+  // Flow already in Edit — and must open on what's already asked for then.
+  const [right, setRight] = useState<RightSlot>(() => (editing || getChat().open ? 'tool' : rest))
 
-  // Entering a picking mode IS the request to see its panel, and leaving one
-  // hands the slot back. Deliberately acts only on that transition: re-running
-  // whenever a screen's notes appear or vanish would reopen a panel the viewer
-  // had just put away.
-  const wasPicking = useRef(picking)
+  const chat = useSyncExternalStore(subscribeChat, getChat, getChatServerSnapshot)
+  const chatAvailable = chat.available === true
+  const chosen = useSyncExternalStore(subscribeDesignMode, getEditTab, getEditTabServerSnapshot)
+  const backend = useSyncExternalStore(
+    subscribeDesignStore,
+    () => getDesignStoreState().backend,
+    () => getDesignStoreServerSnapshot().backend,
+  )
+
+  const fallback: EditTab = backend === 'record' ? 'css' : 'edit'
+  const tabs: EditTab[] = editing ? (chatAvailable ? ['chat', 'edit', 'css'] : ['edit', 'css']) : ['chat']
+  const tab: EditTab = !editing ? 'chat' : chosen && tabs.includes(chosen) ? chosen : fallback
+  // In Prototype the tool panel is Chat, and exists only while asked for.
+  const toolExists = editing || (chatAvailable && chat.open)
+  const showingChat = right === 'tool' && toolExists && tab === 'chat'
+
+  // Entering Edit IS the request to see its panel; leaving hands the slot back
+  // — unless Chat is what's showing, which Prototype mode can show too. Acts
+  // only on that transition: re-running whenever a screen's notes appear or
+  // vanish would reopen a panel the viewer had just put away.
+  const wasEditing = useRef(editing)
   useEffect(() => {
-    if (wasPicking.current === picking) return
-    wasPicking.current = picking
-    setRight(picking ? 'tool' : openByDefault && hasNotes ? 'notes' : null)
-  }, [picking, hasNotes, openByDefault])
+    if (wasEditing.current === editing) return
+    wasEditing.current = editing
+    if (editing) setRight('tool')
+    else if (!getChat().open) setRight(rest)
+  }, [editing, rest])
 
-  return { leftOpen, setLeftOpen, right, setRight }
+  // The button, pressed: show Chat, or put it away.
+  const wasOpen = useRef(chat.open)
+  useEffect(() => {
+    if (wasOpen.current === chat.open) return
+    wasOpen.current = chat.open
+    if (chat.open) {
+      setEditTab('chat')
+      setRight('tool')
+    } else if (getEditTab() === 'chat') {
+      if (editing) setEditTab(null)
+      else setRight((r) => (r === 'tool' ? rest : r))
+    }
+  }, [chat.open, editing, rest])
+
+  // Chat left the screen some other way: release the button. Only on the
+  // showing → not-showing edge — on the render where the button was just
+  // pressed, Chat isn't showing YET, and that must not read as it leaving.
+  const wasShowing = useRef(showingChat)
+  useEffect(() => {
+    const was = wasShowing.current
+    wasShowing.current = showingChat
+    if (was && !showingChat && getChat().open) setChatOpen(false)
+  }, [showingChat])
+
+  return { leftOpen, setLeftOpen, right, setRight, tab, tabs, toolExists, showingChat }
 }
 
 interface SlotProps {
@@ -568,7 +615,7 @@ interface SlotProps {
   pinned: Element | null
   setPinned: (el: Element | null) => void
   setPreview: (el: Element | null) => void
-  slots: ReturnType<typeof usePanelSlots>
+  slots: ReturnType<typeof usePanelState>
   /** Geometry for an open panel: a fixed column, or `w-full` inside a drawer. */
   panelClassName?: string
 }
@@ -608,9 +655,12 @@ function panelSlots(a: SlotProps) {
       <PanelPill label={leftTitle} onClick={() => slots.setLeftOpen(true)} />
     ) : null
 
-  const showingTool = slots.right === 'tool' && a.picking
+  const showingTool = slots.right === 'tool' && slots.toolExists
   const right = showingTool ? (
-    <EditPanel
+    <ToolPanel
+      editing={a.picking}
+      tab={slots.tab}
+      tabs={slots.tabs}
       className={a.panelClassName}
       onMinimize={() => slots.setRight(null)}
       pinned={a.pinned}
@@ -638,7 +688,9 @@ function panelSlots(a: SlotProps) {
     ) : null,
   ].filter(Boolean)
 
-  return { left, leftPill, right, rightPills }
+  // Chat's transcript scrolls inside a full-height card, so its composer stays
+  // on screen; every other panel is as tall as its content.
+  return { left, leftPill, right, rightPills, rightFull: showingTool && slots.showingChat }
 }
 
 /**
@@ -655,8 +707,8 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
   const hasStates = (active?.states?.length ?? 0) > 0
   const hasNotes = (active?.notes?.length ?? 0) > 0 || (config.notes?.length ?? 0) > 0
 
-  const slots = usePanelSlots(picking, hasNotes, true)
-  const { left, leftPill, right, rightPills } = panelSlots({
+  const slots = usePanelState(picking, hasNotes, true)
+  const { left, leftPill, right, rightPills, rightFull } = panelSlots({
     config,
     screens,
     current,
@@ -695,7 +747,7 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
       </DeviceStepper>
 
       {right ? (
-        <div className={`${styles.annotations} ${PANEL_CARD}`}>{right}</div>
+        <div className={`${styles.annotations} ${PANEL_CARD} ${rightFull ? 'h-full' : ''}`}>{right}</div>
       ) : (
         <div className={`${styles.annotations} flex flex-col items-end gap-4 pt-8`}>
           {rightPills}
@@ -718,8 +770,8 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
   const hasStates = (active?.states?.length ?? 0) > 0
   const hasNotes = (active?.notes?.length ?? 0) > 0 || (config.notes?.length ?? 0) > 0
 
-  const slots = usePanelSlots(picking, hasNotes, false)
-  const { left, leftPill, right, rightPills } = panelSlots({
+  const slots = usePanelState(picking, hasNotes, false)
+  const { left, leftPill, right, rightPills, rightFull } = panelSlots({
     config,
     screens,
     current,

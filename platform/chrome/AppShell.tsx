@@ -22,7 +22,7 @@ import {
   setBareMode,
   subscribeBareMode,
 } from '@/platform/runtime/presentBridge'
-import { ChatButton, ChatDock } from '@/platform/chat/ChatDock'
+import { ChatButton } from '@/platform/chat/ChatDock'
 import { PushButton } from '@/platform/push/PushButton'
 import styles from './chrome.module.css'
 import { HeaderStatusProvider, useHeaderStatus } from './headerStatus'
@@ -351,9 +351,10 @@ function AppShellInner({
             <HeaderStatusView />
             {currentSlug ? <ViewToggle slug={currentSlug} isFlow={isFlow} /> : null}
             {currentSlug && !isFlow ? <FullScreenButton /> : null}
-            {/* Beside the modes, not among them: chat stays open across all of
-                them. It renders nothing where chat can't run. */}
-            {currentSlug ? <ChatButton /> : null}
+            {/* Beside the modes, not among them: Chat is a tab of the prototype's
+                panel, reachable from Prototype and Edit alike. Not on Flow,
+                which has no panel. Renders nothing where chat can't run. */}
+            {currentSlug && !isFlow ? <ChatButton /> : null}
             {/* The project's, not a mode's: whatever made the change, it goes
                 live from here. Renders nothing off the dev server. */}
             {currentSlug ? <PushButton slug={currentSlug} /> : null}
@@ -368,8 +369,6 @@ function AppShellInner({
           ) : (
             <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{children}</div>
           )}
-          {/* Hidden rather than unmounted in full screen, so the chat survives it. */}
-          {currentSlug ? <ChatDock slug={currentSlug} suppressed={bareProto} /> : null}
         </div>
       </div>
     </div>

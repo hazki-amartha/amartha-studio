@@ -61,28 +61,45 @@ export function PanelShell({
     >
       {/* Sticky so the way out stays reachable however far the body scrolls —
           a long layers tree used to bury its own minimize button. */}
-      <div
-        className={`sticky top-0 z-10 flex items-center justify-between gap-8 pb-8 pt-8 ${SURFACE_BG}`}
-      >
-        {tabs ?? (
-          <span className="truncate text-10 font-bold uppercase text-caption dark:text-neutral-400">
-            {title}
-          </span>
-        )}
-        {onMinimize ? (
-          <button
-            type="button"
-            onClick={onMinimize}
-            aria-label={`Hide ${title}`}
-            title={`Hide ${title}`}
-            className="flex size-20 flex-none items-center justify-center rounded-4 text-caption hover:bg-neutral-white hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
-          >
-            <CloseIcon className="size-16" />
-          </button>
-        ) : null}
-      </div>
+      <PanelHeader title={title} tabs={tabs} onMinimize={onMinimize} className="sticky top-0 z-10" />
       <div className="flex flex-col gap-12 pb-8">{children}</div>
     </aside>
+  )
+}
+
+/** A panel's header: its title or tabs, and the way to minimize it. Exported
+ *  for a panel that lays out its own body — Chat, whose transcript scrolls
+ *  while its composer stays put. */
+export function PanelHeader({
+  title,
+  tabs,
+  onMinimize,
+  className,
+}: {
+  title: string
+  tabs?: ReactNode
+  onMinimize?: () => void
+  className?: string
+}) {
+  return (
+    <div className={`flex items-center justify-between gap-8 pb-8 pt-8 ${SURFACE_BG} ${className ?? ''}`}>
+      {tabs ?? (
+        <span className="truncate text-10 font-bold uppercase text-caption dark:text-neutral-400">
+          {title}
+        </span>
+      )}
+      {onMinimize ? (
+        <button
+          type="button"
+          onClick={onMinimize}
+          aria-label={`Hide ${title}`}
+          title={`Hide ${title}`}
+          className="flex size-20 flex-none items-center justify-center rounded-4 text-caption hover:bg-neutral-white hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+        >
+          <CloseIcon className="size-16" />
+        </button>
+      ) : null}
+    </div>
   )
 }
 

@@ -1,33 +1,22 @@
 // =============================================================================
-// Chat bridge — the chat panel's state, shared between the shell's top-bar
-// button, the docked panel, and the inspector that can hand it an element.
+// Chat bridge — whether chat is showing, and whether it can run here. Shared
+// between the shell's top-bar Chat button and the prototype view's panel,
+// which are far apart in the tree (the same reason as designBridge).
 //
-// Same shape as designBridge, for the same reason: the three are far apart in
-// the tree, and a context would re-render the whole shell on every change.
-//
-// Chat is NOT a mode. It sits beside Prototype · Design · Inspect · Flow rather
-// than among them, so it can stay open while the designer switches modes —
-// pick an element in Inspect, ask for the change, watch the prototype move.
+// Chat is the first tab of the prototype view's panel (STUDIO-EDITING-PLAN
+// Part E). It is about the current selection — Edit mode's pinned element —
+// so there is no attachment or pick state here any more: the selection IS the
+// attachment. `open` is the top-bar button's side of it: pressing it asks the
+// panel to show Chat, and the panel reports back when Chat stops showing.
 // =============================================================================
-
-export interface ChatAttachment {
-  /** What the chip in the composer says: "Button", "<div>". */
-  label: string
-  /** The copyForAgent text for the element, sent ahead of the message. */
-  context: string
-}
 
 interface ChatBridgeState {
   open: boolean
   /** null until the server has answered; false on a deployment. */
   available: boolean | null
-  attachment: ChatAttachment | null
-  /** The chat's pick button is armed: the next click on the prototype attaches
-   *  that element instead of doing what the prototype would do. */
-  picking: boolean
 }
 
-let state: ChatBridgeState = { open: false, available: null, attachment: null, picking: false }
+let state: ChatBridgeState = { open: false, available: null }
 const listeners = new Set<() => void>()
 
 function set(patch: Partial<ChatBridgeState>) {
@@ -44,28 +33,18 @@ export function getChat(): ChatBridgeState {
   return state
 }
 
-const SERVER: ChatBridgeState = { open: false, available: null, attachment: null, picking: false }
+const SERVER: ChatBridgeState = { open: false, available: null }
 /** Chat is a client-only affordance; the server always renders it closed. */
 export function getChatServerSnapshot(): ChatBridgeState {
   return SERVER
 }
 
 export function setChatOpen(open: boolean) {
-  // A closed panel can't show what was picked, so closing also disarms.
-  if (state.open !== open) set({ open, picking: open ? state.picking : false })
-}
-
-export function setChatPicking(picking: boolean) {
-  if (state.picking !== picking) set({ picking })
+  if (state.open !== open) set({ open })
 }
 
 export function setChatAvailable(available: boolean) {
   if (state.available !== available) set({ available })
-}
-
-/** Attach an element to the next message, and open the panel to show it. */
-export function attachToChat(attachment: ChatAttachment | null) {
-  set({ attachment, open: attachment ? true : state.open, picking: false })
 }
 
 let probed = false

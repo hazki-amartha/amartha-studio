@@ -3,7 +3,8 @@
 //
 // Edit mode is what Design and Inspect were before they merged (2026-09-22,
 // STUDIO-EDITING-PLAN Part E): selecting is the mode, and what you do with the
-// selection is a tab — Edit changes it, CSS reads it. The names below still
+// selection is a tab — Chat asks for a change to it, Edit changes it, CSS
+// reads it. The names below still
 // say "design" because that is what the rest of platform/design calls it.
 //
 // A module-level store rather than context: the shell's toggle and the running
@@ -12,7 +13,7 @@
 // state in the prototype view, where everything that needs it is a sibling.
 // =============================================================================
 
-export type EditTab = 'edit' | 'css'
+export type EditTab = 'chat' | 'edit' | 'css'
 
 let designing = false
 /** null until the designer picks one; the panel then chooses by backend. */
@@ -40,7 +41,8 @@ export function getDesignServerSnapshot(): boolean {
   return false
 }
 
-export function setEditTab(next: EditTab) {
+/** null goes back to the default for this backend. */
+export function setEditTab(next: EditTab | null) {
   if (tab === next) return
   tab = next
   emit()
