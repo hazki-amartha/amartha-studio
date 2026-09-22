@@ -98,6 +98,10 @@ let draft: PoiDraft = { ...EMPTY_DRAFT }
  *  list row's "edit" action, read by the form to switch its title/submit
  *  between "POI Baru" and "Edit POI". */
 let editingId: string | null = null
+/** The id shown on the read-only detail screen — set by a list row before
+ *  `flow.go('poi-detail')`. Separate from `editingId`: viewing never touches
+ *  the draft, only the detail screen's own "Edit" button does. */
+let viewingId: string | null = null
 
 const listeners = new Set<() => void>()
 
@@ -146,6 +150,23 @@ export function beginEdit(poi: PoiRecord) {
   draft = { ...fields }
   editingId = id
   notify()
+}
+
+/** A list row's default landing — the read-only detail screen, not the form. */
+export function beginView(poi: PoiRecord) {
+  viewingId = poi.id
+  notify()
+}
+
+export function useViewingId() {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l)
+      return () => listeners.delete(l)
+    },
+    () => viewingId,
+    () => viewingId,
+  )
 }
 
 /** The "Auto-filled" state (index.ts) — a representative POI, filled end to

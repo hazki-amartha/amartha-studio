@@ -79,6 +79,19 @@ export function HelperText({ children }: { children: ReactNode }) {
   return <span className="text-12 text-caption">{children}</span>
 }
 
+/** A field on the read-only detail screen — same label style as the form's
+ *  own fields, so the two read as one continuous layout rather than the
+ *  preview looking like a different screen. An empty value reads as a plain
+ *  dash rather than blank, so it's clear the field was skipped, not lost. */
+export function ReadField({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="flex flex-col gap-8">
+      <FieldLabel>{label}</FieldLabel>
+      <span className="text-14 text-default">{value || <span className="text-placeholder">—</span>}</span>
+    </div>
+  )
+}
+
 export interface TableColumn {
   id: string
   header: string

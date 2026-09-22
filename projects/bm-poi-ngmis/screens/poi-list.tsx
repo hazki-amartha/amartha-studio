@@ -9,7 +9,7 @@ import { Plus } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { BmShell } from '../lib/shell'
 import { EmptyState, PageHeading, Panel, SimpleTable, type TableRow } from '../lib/ui'
-import { beginCreate, beginEdit, usePois } from '../lib/store'
+import { beginCreate, beginView, usePois } from '../lib/store'
 
 const COLUMNS = [
   { id: 'name', header: 'Nama tempat' },
@@ -26,8 +26,8 @@ export function PoiListScreen() {
   const rows: TableRow[] = pois.map((poi) => ({
     id: poi.id,
     onClick: () => {
-      beginEdit(poi)
-      flow.go('poi-create')
+      beginView(poi)
+      flow.go('poi-detail')
     },
     cells: {
       name: poi.name,
