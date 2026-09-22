@@ -9,8 +9,13 @@ import { ChevronDown } from '@/design-system/icons'
 
 const CONTROL_H = 40
 
-export function PageHeading({ title }: { title: string }) {
-  return <h1 className="text-24 font-bold text-default">{title}</h1>
+export function PageHeading({ title, actions }: { title: string; actions?: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-16">
+      <h1 className="text-24 font-bold text-default">{title}</h1>
+      {actions}
+    </div>
+  )
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
@@ -41,6 +46,57 @@ export function FieldLabel({
 
 export function HelperText({ children }: { children: ReactNode }) {
   return <span className="text-12 text-caption">{children}</span>
+}
+
+export interface TableColumn {
+  id: string
+  header: string
+}
+
+export interface TableRow {
+  id: string
+  cells: Record<string, ReactNode>
+}
+
+export function SimpleTable({ columns, rows }: { columns: TableColumn[]; rows: TableRow[] }) {
+  return (
+    <div className="min-w-0 overflow-x-auto">
+      <table className="w-full border-collapse text-left">
+        <thead>
+          <tr>
+            {columns.map((c) => (
+              <th
+                key={c.id}
+                className="border-b border-default bg-neutral-50 px-12 py-8 text-12 font-bold text-default"
+              >
+                {c.header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id} className="border-b border-default align-middle">
+              {columns.map((c) => (
+                <td key={c.id} className="px-12 py-12 text-14 text-default">
+                  {row.cells[c.id]}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+export function EmptyState({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="flex flex-col items-center gap-4 py-40 text-center">
+      <span className="text-14 font-bold text-default">{title}</span>
+      <span className="text-12 text-caption">{body}</span>
+    </div>
+  )
 }
 
 export function Select({
