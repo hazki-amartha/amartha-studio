@@ -1,7 +1,7 @@
 import type { ProjectModule } from '@/platform/types'
 import { lazyScreen } from '@/platform/lazyScreen'
 import { config } from './project.config'
-import { fillSampleDraft } from './lib/store'
+import { fillSampleDraft, packSchedule } from './lib/store'
 
 export const project: ProjectModule = {
   config,
@@ -36,6 +36,12 @@ export const project: ProjectModule = {
           label: 'Auto-filled',
           description: 'Every field filled with a representative POI, ready to review or submit.',
           apply: fillSampleDraft,
+        },
+        {
+          id: 'jadwal-padat',
+          label: 'Jadwal padat (demo)',
+          description: "Sari Handayani's week filled with visits, for a presentation.",
+          apply: packSchedule,
         },
       ],
     },
