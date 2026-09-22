@@ -81,7 +81,14 @@ export function PoiDetailScreen() {
             <div className="flex flex-col gap-16">
               <SectionTitle>Detail Sosialisasi</SectionTitle>
               <div className="grid grid-cols-2 gap-16">
-                <ReadField label="Jadwal Sosialisasi" value={poi.jadwal} />
+                <ReadField
+                  label="Jadwal Sosialisasi"
+                  value={
+                    poi.jadwal && poi.jamMulai && poi.jamSelesai
+                      ? `${poi.jadwal}, ${poi.jamMulai} – ${poi.jamSelesai}`
+                      : poi.jadwal
+                  }
+                />
                 <ReadField label="Assigned FO" value={poi.assignedFo} />
                 <ReadField label="Catatan" value={poi.catatan} />
               </div>
