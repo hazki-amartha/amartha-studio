@@ -314,7 +314,9 @@ export function contextSteps(lead: PipelineLead): ContextStep[] {
   if (lead.contextHistory) return lead.contextHistory
   return lead.log.map((entry, i) => ({
     date: `${entry.at} 2026`,
-    title: entry.system ?? (i === 0 ? 'Lead created' : STATUS_META[entry.status].full),
+    // The first touch always reads as the lead being created, whatever system
+    // detail that entry also carries; later entries use their system message.
+    title: i === 0 ? 'Lead created' : (entry.system ?? STATUS_META[entry.status].full),
     detail: entry.note || undefined,
   }))
 }

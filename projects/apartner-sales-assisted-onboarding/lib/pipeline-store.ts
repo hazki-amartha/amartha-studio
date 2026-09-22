@@ -27,7 +27,7 @@ import {
   type SurveyMode,
 } from './pipeline'
 import { leadCategory } from './tasks'
-import { APPLICATION_SECTIONS } from './application'
+import { APPLICATION_SECTIONS } from './survey'
 
 interface PipelineState {
   leads: Record<string, PipelineLead>

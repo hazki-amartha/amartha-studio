@@ -10,6 +10,7 @@ Project-local components (§4), all built from tokens + design-system components
 - `lib/pipeline-ui.tsx` (added) — OnboardingModeSheet, the self-service/assisted choice after the majelis step. Used by pendaftaran and kumpulan-jadwal.
 - `lib/tasks.tsx` (added) — LeadBoardCard + PoiBoardCard, the Phase-2 board cards (two date pills, source/place, pinned location, onboarding-mode line). Used by SalesList.
 - `lib/group-tasks.ts` — the Group Formation tasks shown on the Tugas page (a new majelis with >5 approved members, ready for its first MV).
+- `lib/survey.ts` — the assisted-survey model + progress store: the three boxes (BP Feedback / Survey Uji Kelayakan / Ritual), their step questions, and per-lead completion read by the survey-form / ritual pages.
 
 Extracted from `apartner-majelis-view` on 2026-09-08 so the Sales module can be
 iterated without the field day around it. The pipeline files came across
