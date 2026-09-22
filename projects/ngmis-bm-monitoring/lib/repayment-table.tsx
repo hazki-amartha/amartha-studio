@@ -121,11 +121,24 @@ export function TableHeading() {
 export function BpTable({
   unit,
   action,
+  onNameClick,
+  onDetailClick,
 }: {
   unit: Unit
   /** The end state's extra column. Omitted entirely by the MVP rather than
    *  rendered empty, so the two tables differ in shape and not just content. */
   action?: { header: string; render: (bp: RepaymentBp) => ReactNode }
+  /** Opens the end state's BP drawer from her own name, not just the Aksi
+   *  button — a BM reading a compliant row still wants to check what the BP
+   *  actually did this week. Omitted by the MVP, which has no drawer to open,
+   *  so its names stay plain text rather than a link that goes nowhere. */
+  onNameClick?: (bp: RepaymentBp) => void
+  /** A second, separate entry point beneath the name — the BP → mitra
+   *  drill-down, alongside the task drawer `onNameClick` opens rather than
+   *  instead of it: two different questions ("what should the BM do" vs
+   *  "what's actually been happening with this mitra"), so they get two
+   *  separate links rather than one link trying to answer both. */
+  onDetailClick?: (bp: RepaymentBp) => void
 }) {
   return (
     <Panel className="p-0">
@@ -188,8 +201,43 @@ export function BpTable({
               // columns without losing its line.
               const zebra = i % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'
               return (
-                <tr key={bp.id} className={`border-b border-default ${zebra}`}>
-                  <td className="px-16 py-16 text-14 text-default">{bp.name}</td>
+                <tr
+                  key={bp.id}
+                  onClick={onDetailClick ? () => onDetailClick(bp) : undefined}
+                  className={`border-b border-default ${zebra} ${
+                    onDetailClick ? 'cursor-pointer hover:bg-neutral-100' : ''
+                  }`}
+                >
+                  <td className="px-16 py-16 text-14 text-default">
+                    <span className="flex flex-col items-start gap-2">
+                      {onNameClick ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onNameClick(bp)
+                          }}
+                          className="font-bold text-link hover:underline"
+                        >
+                          {bp.name}
+                        </button>
+                      ) : (
+                        bp.name
+                      )}
+                      {onDetailClick ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDetailClick(bp)
+                          }}
+                          className="text-12 text-link hover:underline"
+                        >
+                          Lihat detail
+                        </button>
+                      ) : null}
+                    </span>
+                  </td>
                   {GROUPS.map((group) => {
                     const bucket = bp[group.id]
                     const short = shortfall(bucket, group.id, unit)

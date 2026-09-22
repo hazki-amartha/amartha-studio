@@ -9,6 +9,7 @@ import {
   showPencairanDefault,
   showPencairanLeads,
   showPencairanLeadsB,
+  showPencairanLeadsDetail,
 } from './lib/demo'
 
 export const project: ProjectModule = {
@@ -48,7 +49,7 @@ export const project: ProjectModule = {
           id: 'pencairan-leads',
           label: 'With Leads monitoring',
           description:
-            'Pencairan: kartu tanpa % dan target, plus panel Potential mitra (Unqualified, Qualified, UK, Disetujui) di bawah Mitra baru.',
+            'Pencairan: kartu tanpa % dan target, plus panel Potential mitra (Tanpa KTP, Dengan KTP, Follow up, UK, Disetujui) di bawah Mitra baru.',
           apply: showPencairanLeads,
         },
         {
@@ -57,6 +58,13 @@ export const project: ProjectModule = {
           description:
             'Pencairan: kolom Lead permanen — labelnya membuka lima tahapan — dan baris Total cabang di atas tabel, tanpa panel di bawah Mitra baru.',
           apply: showPencairanLeadsB,
+        },
+        {
+          id: 'pencairan-leads-detail',
+          label: 'Pencairan: NTB detail',
+          description:
+            'Sama seperti With Leads monitoring, tapi New mitra, Follow up dan UK masing-masing dipecah per tahap NTB (status KTP, minat, draft/submitted).',
+          apply: showPencairanLeadsDetail,
         },
         {
           id: 'pencairan-default',
