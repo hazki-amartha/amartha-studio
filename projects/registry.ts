@@ -31,5 +31,6 @@ export const registry: Registry = {
   'afin-linear': () => import('./afin-linear').then((m) => m.project),
   'apartner-sales-assisted-onboarding': () =>
     import('./apartner-sales-assisted-onboarding').then((m) => m.project),
+  'bm-poi-ngmis': () => import('./bm-poi-ngmis').then((m) => m.project),
   // <append new projects above this line — one line per project>
 }

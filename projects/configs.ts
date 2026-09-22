@@ -44,5 +44,6 @@ export const configs: ConfigRegistry = {
   'afin-linear': () => import('./afin-linear/project.config').then((m) => m.config),
   'apartner-sales-assisted-onboarding': () =>
     import('./apartner-sales-assisted-onboarding/project.config').then((m) => m.config),
+  'bm-poi-ngmis': () => import('./bm-poi-ngmis/project.config').then((m) => m.config),
   // <append new projects above this line — one line per project>
 }
