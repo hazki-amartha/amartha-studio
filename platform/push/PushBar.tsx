@@ -1,16 +1,18 @@
 'use client'
 
 // =============================================================================
-// Push — the top bar's button for sending a project live from this laptop.
+// Push — the bar at the foot of Edit mode's panel, under whichever tab is
+// showing, for sending a project live from this laptop.
 //
-// It belongs to the project, not to a mode or a selection: whatever made the
-// change — chat, Design mode, the designer's own agent — it's pushed from
+// It belongs to the project, not to a tab or a selection: whatever made the
+// change — chat, the Edit tab, the designer's own agent — it's pushed from
 // here. The count is what differs from what's live, read from the working
-// copy, so it's right whoever wrote the files. Unsaved Design edits are saved
-// first, so it's one press.
+// copy, so it's right whoever wrote the files. Unsaved Edit-tab edits are
+// saved first, so it's one press. Pressing Push opens the details in place:
+// the files, and the password and name the first time.
 //
-// Dev server only (app/api/push). On the deployed link, Design mode's own
-// panel still pushes; the two meet when the modes merge.
+// Dev server only (app/api/push). On the deployed link the Edit tab's own
+// footer pushes, and this renders nothing.
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -70,13 +72,12 @@ function usePushStatus(slug: string) {
   return { status, refresh }
 }
 
-export function PushButton({ slug }: { slug: string }) {
+export function PushBar({ slug }: { slug: string }) {
   const { status, refresh } = usePushStatus(slug)
   const design = useSyncExternalStore(subscribeDesignStore, getDesignStoreState, getDesignStoreServerSnapshot)
   const [open, setOpen] = useState(false)
   const [live, setLive] = useState(false)
   const was = useRef<PushStatus['change']>('none')
-  const root = useRef<HTMLDivElement>(null)
 
   // "Going live…" turning into nothing means it landed: say so for a moment.
   const change = status?.change ?? 'none'
@@ -90,20 +91,6 @@ export function PushButton({ slug }: { slug: string }) {
     was.current = change
   }, [change])
 
-  useEffect(() => {
-    if (!open) return
-    const away = (e: PointerEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false)
-    }
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    document.addEventListener('pointerdown', away)
-    document.addEventListener('keydown', esc)
-    return () => {
-      document.removeEventListener('pointerdown', away)
-      document.removeEventListener('keydown', esc)
-    }
-  }, [open])
-
   if (!status?.available) return null
 
   const unsaved = design.backend === 'fs' ? design.pending.length : 0
@@ -111,34 +98,42 @@ export function PushButton({ slug }: { slug: string }) {
   const waiting = change === 'waiting'
   const failed = change === 'failed'
 
-  const label = waiting ? 'Going live…' : live ? 'Live' : failed ? 'Push failed' : 'Push'
-  const tone = failed
-    ? 'bg-red-50 font-bold text-red-700 dark:bg-ink-800 dark:text-red-400'
+  const line = waiting
+    ? 'Going live…'
     : live
-      ? 'bg-green-50 font-bold text-green-700 dark:bg-ink-800 dark:text-green-400'
-      : count > 0 && !waiting
-        ? 'bg-primary-500 font-bold text-neutral-white hover:bg-primary-600'
-        : 'text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50'
+      ? 'Live'
+      : failed
+        ? 'The last push didn’t pass the checks'
+        : count > 0
+          ? `${plural(count, 'change')} not live`
+          : 'Everything is live'
+  const lineTone = failed
+    ? 'text-red-700 dark:text-red-400'
+    : live
+      ? 'font-bold text-green-700 dark:text-green-400'
+      : 'text-caption dark:text-neutral-400'
 
   return (
-    <div ref={root} className="relative">
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(!open)
-          if (!open) void refresh()
-        }}
-        aria-expanded={open}
-        title="Push — send this project’s changes live"
-        className={`flex h-32 shrink-0 items-center gap-8 rounded-full px-12 text-12 transition-colors ${tone}`}
-      >
-        {label}
-        {count > 0 && !waiting && !live && !failed ? (
-          <span className="rounded-full bg-neutral-white px-4 text-10 font-bold text-primary-500">{count}</span>
-        ) : null}
-      </button>
+    <div className="flex flex-none flex-col gap-8 border-t border-default pt-12 dark:border-ink-700">
+      <div className="flex items-center justify-between gap-8">
+        <span className={`truncate text-12 ${lineTone}`}>{line}</span>
+        {open ? null : (
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(true)
+              void refresh()
+            }}
+            disabled={waiting || (count === 0 && !failed)}
+            title="Push — send this project’s changes live"
+            className={`${count > 0 ? PRIMARY : SECONDARY} flex-none py-4`}
+          >
+            Push
+          </button>
+        )}
+      </div>
       {open ? (
-        <PushPopover
+        <PushDetails
           slug={slug}
           status={status}
           unsaved={unsaved}
@@ -150,7 +145,7 @@ export function PushButton({ slug }: { slug: string }) {
   )
 }
 
-function PushPopover({
+function PushDetails({
   slug,
   status,
   unsaved,
@@ -251,8 +246,7 @@ function PushPopover({
   }
 
   return (
-    <div className="absolute right-0 top-full z-50 mt-8 flex w-320 flex-col gap-12 rounded-16 border border-default bg-neutral-white p-16 shadow-lg dark:border-ink-700 dark:bg-ink-900">
-      <p className="text-14 font-bold text-default dark:text-neutral-50">Push to live</p>
+    <div className="flex flex-col gap-8">
       {body}
       {error ? <p className="whitespace-pre-line text-12 text-red-700 dark:text-red-400">{error}</p> : null}
 
@@ -300,7 +294,7 @@ function PushPopover({
       ) : null}
 
       <button type="button" className={`${NOTE} self-end`} onClick={onClose}>
-        Close
+        {waiting ? 'Close' : 'Cancel'}
       </button>
     </div>
   )

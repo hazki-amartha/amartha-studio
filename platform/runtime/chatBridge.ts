@@ -1,22 +1,20 @@
 // =============================================================================
-// Chat bridge — whether chat is showing, and whether it can run here. Shared
-// between the shell's top-bar Chat button and the prototype view's panel,
-// which are far apart in the tree (the same reason as designBridge).
+// Chat bridge — whether chat can run here: on the dev server, with an editing
+// password set. Read by Edit mode's panel, which offers the Chat tab only then,
+// and by the CSS tab's "Ask chat about this".
 //
-// Chat is the first tab of the prototype view's panel (STUDIO-EDITING-PLAN
-// Part E). It is about the current selection — Edit mode's pinned element —
-// so there is no attachment or pick state here any more: the selection IS the
-// attachment. `open` is the top-bar button's side of it: pressing it asks the
-// panel to show Chat, and the panel reports back when Chat stops showing.
+// Chat is the first tab of Edit mode's panel (STUDIO-EDITING-PLAN Part E), and
+// it is about the current selection — the pinned element — so there is no
+// attachment or pick state here: the selection IS the attachment. Which tab is
+// showing lives in designBridge with the rest of Edit mode.
 // =============================================================================
 
 interface ChatBridgeState {
-  open: boolean
   /** null until the server has answered; false on a deployment. */
   available: boolean | null
 }
 
-let state: ChatBridgeState = { open: false, available: null }
+let state: ChatBridgeState = { available: null }
 const listeners = new Set<() => void>()
 
 function set(patch: Partial<ChatBridgeState>) {
@@ -33,14 +31,10 @@ export function getChat(): ChatBridgeState {
   return state
 }
 
-const SERVER: ChatBridgeState = { open: false, available: null }
-/** Chat is a client-only affordance; the server always renders it closed. */
+const SERVER: ChatBridgeState = { available: null }
+/** Chat is a client-only affordance; the server never offers it. */
 export function getChatServerSnapshot(): ChatBridgeState {
   return SERVER
-}
-
-export function setChatOpen(open: boolean) {
-  if (state.open !== open) set({ open })
 }
 
 export function setChatAvailable(available: boolean) {

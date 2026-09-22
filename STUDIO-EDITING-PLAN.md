@@ -894,9 +894,11 @@ After living with chat beside Design and Inspect, and a second look at Airship
 - **Chat becomes the panel's first tab**, not a separate dock. It uses the
   shared selection as a removable chip (Airship) instead of its own Pick layer.
   In Prototype, with nothing selected, the panel shows only Chat.
-- **One Push, in the top bar**, beside Chat. Pushing is the project's, not a
-  mode's or a selection's: whatever made the change — chat, Design edits, the
-  designer's own agent — it goes live from there.
+- **One Push, at the foot of Edit mode's panel**, under whichever tab shows.
+  Pushing is the project's, not a tab's or a selection's: whatever made the
+  change — chat, Edit-tab edits, the designer's own agent — it goes live from
+  there. (First built in the top bar; moved into the panel, and the top bar's
+  Chat button removed, on the owner's call the same day.)
 - **Keep our pick rule** (nearest authored element) and token-locked edits.
   Don't copy Airship's free resize handles or its per-turn Commit/Push buttons.
 
@@ -921,9 +923,9 @@ working copy and builds one commit on GitHub from main's tip.
 
 ### E2–E3. One Edit mode, Chat as its first tab (built 2026-09-22)
 
-Top bar Prototype · Edit · Flow. The prototype view's right panel is Chat ·
-Edit · CSS in Edit mode, and Chat alone in Prototype (only while the top bar's
-Chat button asks for it). Chat is about Edit mode's pinned element — a chip
+Top bar Prototype · Edit · Flow, and nothing else for the project. Edit mode's
+right panel is Chat · Edit · CSS with the Push bar under all three; Prototype
+mode has no chat. Chat is about Edit mode's pinned element — a chip
 with an ✕ that deselects — so its own Pick layer and the attachment state are
 gone. The conversation lives in a module store (`useLiveChat`), so it and a
 running turn survive mode switches, tab flips, minimizing and full screen; New

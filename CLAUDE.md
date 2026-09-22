@@ -488,12 +488,12 @@ same working copy. Treat all of it as the designer's own work, with these rules:
   documentation, §2), is almost always a stray test — surface it and ask
   instead of shipping it. Everything in the designer's own project ships
   without comment.
-- **Owners can push without you.** On the deployed link, Edit mode's panel
-  has a **Push** button (it lands as `[<slug>] Design changes from the studio
-  (<name>)`); on the dev server the top bar has one that pushes the project's
-  changed files through the studio's GitHub App (it lands as `[<slug>] Changes
-  from the studio (<name>)`, and fast-forwards this checkout afterwards when
-  it's on `main`). Both only ever touch `projects/<slug>/`. That is the
+- **Owners can push without you.** Edit mode's panel has a **Push** button.
+  On the deployed link it's in the Edit tab and lands as `[<slug>] Design
+  changes from the studio (<name>)`; on the dev server it's a bar under every
+  tab that pushes the project's changed files through the studio's GitHub App,
+  lands as `[<slug>] Changes from the studio (<name>)`, and fast-forwards this
+  checkout afterwards when it's on `main`. Both only ever touch `projects/<slug>/`. That is the
   designer's own work arriving on `main`: pull before you start, as always, and
   treat it like any other commit of theirs.
 - **The panel's "Save" is not a third verb.** It exists only on the dev

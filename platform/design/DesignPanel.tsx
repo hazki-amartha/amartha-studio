@@ -1054,8 +1054,7 @@ function ActionsFooter({
   } else if (!linked && n === 0 && !store.busy && saved > 0) {
     note = (
       <>
-        Saved to your working copy — not live yet. Say <span className="font-bold">commit</span> or{' '}
-        <span className="font-bold">push</span> when you’re ready.
+        Saved — not live yet. <span className="font-bold">Push</span> below when you’re ready.
       </>
     )
   }

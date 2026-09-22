@@ -22,8 +22,6 @@ import {
   setBareMode,
   subscribeBareMode,
 } from '@/platform/runtime/presentBridge'
-import { ChatButton } from '@/platform/chat/ChatDock'
-import { PushButton } from '@/platform/push/PushButton'
 import styles from './chrome.module.css'
 import { HeaderStatusProvider, useHeaderStatus } from './headerStatus'
 import {
@@ -351,13 +349,6 @@ function AppShellInner({
             <HeaderStatusView />
             {currentSlug ? <ViewToggle slug={currentSlug} isFlow={isFlow} /> : null}
             {currentSlug && !isFlow ? <FullScreenButton /> : null}
-            {/* Beside the modes, not among them: Chat is a tab of the prototype's
-                panel, reachable from Prototype and Edit alike. Not on Flow,
-                which has no panel. Renders nothing where chat can't run. */}
-            {currentSlug && !isFlow ? <ChatButton /> : null}
-            {/* The project's, not a mode's: whatever made the change, it goes
-                live from here. Renders nothing off the dev server. */}
-            {currentSlug ? <PushButton slug={currentSlug} /> : null}
           </div>
         </header>
 

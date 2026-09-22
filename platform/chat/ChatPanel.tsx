@@ -17,7 +17,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CloseIcon, InspectIcon } from '@/platform/chrome/icons'
 import { PanelHeader } from '@/platform/chrome/SidePanel'
 import { resolveTarget } from '@/platform/inspect/resolve'
-import { setDesignMode } from '@/platform/runtime/designBridge'
 import { attachmentFor } from './attach'
 import type { RecordedTurn, TranscriptEvent } from './transcript'
 import { useTranscriptReplay } from './useTranscriptReplay'
@@ -250,11 +249,10 @@ export function ChatPanel({ turn }: { turn: RecordedTurn }) {
 }
 
 /**
- * Chat as the first tab of the prototype view's panel. It is about the current
- * selection — Edit mode's pinned element — shown as a chip with an ✕ that
- * deselects; there is no separate pick. With nothing selected (or in
- * Prototype, where nothing can be) the message goes without an element, and
- * "Select an element" switches to Edit mode to pick one.
+ * Chat as the first tab of Edit mode's panel. It is about the current
+ * selection — the pinned element — shown as a chip with an ✕ that deselects;
+ * there is no separate pick. With nothing selected the message is about the
+ * project as a whole.
  *
  * The conversation lives in useLiveChat's store, so this can mount and unmount
  * with the panel without losing a word, or a turn that is still running.
@@ -264,7 +262,6 @@ export function LiveChatPanel({
   screenId,
   pinned,
   onDeselect,
-  editing,
   tabs,
   onMinimize,
   className,
@@ -273,8 +270,6 @@ export function LiveChatPanel({
   screenId: string
   pinned: Element | null
   onDeselect: () => void
-  /** In Edit mode, where elements can be picked. */
-  editing: boolean
   tabs?: ReactNode
   onMinimize?: () => void
   className?: string
@@ -358,20 +353,11 @@ export function LiveChatPanel({
               <CloseIcon className="size-12" />
             </button>
           </span>
-        ) : editing ? (
-          <span className="text-12 font-regular text-neutral-600">
+        ) : (
+          <span className="flex items-center gap-4 text-12 font-regular text-neutral-600">
+            <InspectIcon className="size-16 flex-none" />
             Click an element in the prototype to ask about it.
           </span>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setDesignMode(true)}
-            title="Switch to Edit and click an element to ask about it"
-            className="flex h-32 flex-none items-center gap-4 rounded-full border border-neutral-200 px-12 text-12 font-bold text-neutral-700 hover:border-primary-500 hover:text-primary-500 dark:border-ink-700 dark:text-neutral-200"
-          >
-            <InspectIcon className="size-16" />
-            Select an element
-          </button>
         )}
       </div>
       <textarea
