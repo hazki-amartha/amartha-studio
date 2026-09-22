@@ -21,22 +21,18 @@ import {
 } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
-  ABSENCE_OK,
   BONUS,
-  CURRENT_LIMIT,
   GROUP_SIZE,
   KONDISI,
   MAJELIS_KONDISI,
   MILESTONES,
   STRETCH,
   TOTAL_WEEKS,
-  attended,
   bonusState,
   eligible,
   kondisiOf,
   majelisOf,
   milestoneStatus,
-  onTime,
   short,
   type MilestoneStatus,
 } from '../lib/data'
@@ -47,7 +43,6 @@ export function HomeBScreen() {
   return (
     <HomeShell>
       <TimelineCard />
-      <LimitDetail />
       <BonusDetail />
     </HomeShell>
   )
@@ -183,34 +178,6 @@ function Prize({
       <span className="text-12 font-bold">{amount}</span>
       <span className="text-10">{note}</span>
     </span>
-  )
-}
-
-// --- Individual: limit increase at week 48 ----------------------------------
-
-function LimitDetail() {
-  const s = useApp()
-  const flow = useFlow()
-  const info = KONDISI[kondisiOf(s)]
-
-  return (
-    <RewardDetail
-      chip="bg-primary-50 text-primary-500"
-      icon={<User size={20} />}
-      owner="Hasil Ibu sendiri"
-      badge={<Badge intent={info.intent}>{info.label}</Badge>}
-      headline={info.cap ? `Naik limit s/d ${short(info.cap)}` : 'Limit belum pasti naik'}
-      sub={`Dari ${short(CURRENT_LIMIT)} sekarang, di minggu ${TOTAL_WEEKS} — hanya dari angsuran dan kehadiran Ibu.`}
-      action="Lihat riwayat angsuran"
-      onAction={() => flow.go('riwayat')}
-    >
-      <Row warn={s.late.length > 0}>
-        Bayar lancar {onTime(s)} dari {TOTAL_WEEKS} minggu
-      </Row>
-      <Row warn={s.absent.length > ABSENCE_OK}>
-        Hadir kumpulan {attended(s)} dari {TOTAL_WEEKS} minggu
-      </Row>
-    </RewardDetail>
   )
 }
 
