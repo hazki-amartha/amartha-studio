@@ -9,6 +9,37 @@ import { ChevronDown } from '@/design-system/icons'
 
 const CONTROL_H = 40
 
+export function SidebarPromo({
+  icon,
+  title,
+  body,
+  action,
+  onAction,
+}: {
+  icon: ReactNode
+  title: string
+  body: string
+  action: string
+  onAction: () => void
+}) {
+  return (
+    <div className="flex flex-col items-center gap-8 rounded-12 bg-primary-50 p-12 text-center">
+      <span className="flex size-32 items-center justify-center rounded-full bg-primary-500 text-neutral-white">
+        {icon}
+      </span>
+      <span className="text-12 font-bold text-default">{title}</span>
+      <span className="text-10 text-caption">{body}</span>
+      <button
+        type="button"
+        onClick={onAction}
+        className="w-full rounded-full border border-primary-500 px-8 py-4 text-10 font-bold text-link"
+      >
+        {action}
+      </button>
+    </div>
+  )
+}
+
 export function PageHeading({ title, actions }: { title: string; actions?: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-16">

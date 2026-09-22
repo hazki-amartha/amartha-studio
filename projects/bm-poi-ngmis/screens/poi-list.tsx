@@ -6,6 +6,7 @@
 import { Button } from '@/design-system/components'
 import { Plus } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
+import { BmShell } from '../lib/shell'
 import { EmptyState, PageHeading, Panel, SimpleTable, type TableRow } from '../lib/ui'
 import { usePois } from '../lib/store'
 
@@ -33,24 +34,26 @@ export function PoiListScreen() {
   }))
 
   return (
-    <div className="flex h-full flex-col gap-24 overflow-y-auto bg-neutral-50 p-32">
-      <PageHeading
-        title="POI creation"
-        actions={
-          <Button onClick={() => flow.go('poi-create')}>
-            <Plus size={16} />
-            Tambah POI
-          </Button>
-        }
-      />
+    <BmShell breadcrumbs={[{ label: 'Home' }, { label: 'Branches' }, { label: 'POI creation', current: true }]}>
+      <div className="flex flex-col gap-24">
+        <PageHeading
+          title="POI creation"
+          actions={
+            <Button onClick={() => flow.go('poi-create')}>
+              <Plus size={16} />
+              Tambah POI
+            </Button>
+          }
+        />
 
-      <Panel>
-        {rows.length ? (
-          <SimpleTable columns={COLUMNS} rows={rows} />
-        ) : (
-          <EmptyState title="Belum ada POI" body="Tambah titik pertama untuk cabang ini." />
-        )}
-      </Panel>
-    </div>
+        <Panel>
+          {rows.length ? (
+            <SimpleTable columns={COLUMNS} rows={rows} />
+          ) : (
+            <EmptyState title="Belum ada POI" body="Tambah titik pertama untuk cabang ini." />
+          )}
+        </Panel>
+      </div>
+    </BmShell>
   )
 }
