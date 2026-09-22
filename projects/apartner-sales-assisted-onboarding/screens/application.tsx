@@ -15,7 +15,7 @@ import { Button, Card, NavigationHeader, SelectableCard } from '@/design-system/
 import { BottomSheet, Input } from '@/design-system/components'
 import { ChevronRight } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { APPLICATION_GROUPS, APPLICATION_SECTIONS } from '../lib/application'
+import { APPLICATION_SECTIONS } from '../lib/application'
 import { dateFromToday, majelisLine } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import { AppScreen, StickyBar, VisitTitle } from '../lib/ui'
@@ -77,36 +77,28 @@ export function ApplicationScreen() {
         />
       }
     >
-      {APPLICATION_GROUPS.map((group) => (
-        <div key={group.id} className="flex flex-col gap-8">
-          <span className="text-14 font-bold text-default">{group.title}</span>
-          <Card>
-            <div className="flex flex-col">
-              {group.sections.map((s, i) => {
-                const complete = done.has(s.id)
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => toggle(s.id)}
-                    className={`flex items-center gap-8 py-12 text-left ${i > 0 ? 'border-t border-default' : ''}`}
-                  >
-                    <span className="flex min-w-0 flex-1 flex-col gap-2">
-                      <span className="text-14 font-bold text-default">{s.label}</span>
-                      <span className={`text-12 ${complete ? 'text-green-600' : 'text-caption'}`}>
-                        {complete ? 'Completed' : s.hint}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-disabled">
-                      <ChevronRight size={20} />
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+      {APPLICATION_SECTIONS.map((s) => {
+        const complete = done.has(s.id)
+        return (
+          <Card key={s.id}>
+            <button
+              type="button"
+              onClick={() => toggle(s.id)}
+              className="flex w-full items-center gap-8 text-left"
+            >
+              <span className="flex min-w-0 flex-1 flex-col gap-2">
+                <span className="text-14 font-bold text-default">{s.label}</span>
+                <span className={`text-12 ${complete ? 'text-green-600' : 'text-caption'}`}>
+                  {complete ? 'Completed' : s.hint}
+                </span>
+              </span>
+              <span className="shrink-0 text-disabled">
+                <ChevronRight size={20} />
+              </span>
+            </button>
           </Card>
-        </div>
-      ))}
+        )
+      })}
 
       <StickyBar>
         {!allDone ? (
