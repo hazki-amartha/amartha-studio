@@ -93,6 +93,19 @@ let pois: PoiRecord[] = [
   },
 ]
 
+export interface DemoBooking {
+  day: string
+  jamMulai: string
+  jamSelesai: string
+  poiName: string
+}
+
+/** Extra bookings shown on the Ketersediaan FO grid for a presentation, on
+ *  top of whatever's really in `pois` — kept separate so a demo-packed week
+ *  never shows up as a fake row on the actual POI list. Cleared whenever the
+ *  form opens fresh, so it never leaks into a real editing session. */
+let demoBookings: DemoBooking[] = []
+
 let draft: PoiDraft = { ...EMPTY_DRAFT }
 /** The id being edited, or null when the form is for a new POI — set by a
  *  list row's "edit" action, read by the form to switch its title/submit
@@ -141,6 +154,7 @@ export function setDraftField<K extends keyof PoiDraft>(field: K, value: PoiDraf
 export function beginCreate() {
   draft = { ...EMPTY_DRAFT }
   editingId = null
+  demoBookings = []
   notify()
 }
 
@@ -149,6 +163,7 @@ export function beginEdit(poi: PoiRecord) {
   const { id, ...fields } = poi
   draft = { ...fields }
   editingId = id
+  demoBookings = []
   notify()
 }
 
@@ -188,6 +203,40 @@ export function fillSampleDraft() {
   }
   editingId = null
   notify()
+}
+
+/** The "Jadwal padat (demo)" state (index.ts) — Sari Handayani's week filled
+ *  with visits, so a presentation shows a realistically busy grid instead of
+ *  the mostly-empty one three seed POIs produce. Booking labels are plain
+ *  activity names, not real POI names — the point is a full-looking grid,
+ *  not fictional locations pretending to be real ones. */
+export function packSchedule() {
+  demoBookings = [
+    { day: 'Senin', jamMulai: '09.00', jamSelesai: '11.00', poiName: 'Visit Majelis A' },
+    { day: 'Senin', jamMulai: '13.00', jamSelesai: '15.00', poiName: 'Home Visit B' },
+    { day: 'Selasa', jamMulai: '10.00', jamSelesai: '12.00', poiName: 'Visit Majelis C' },
+    { day: 'Selasa', jamMulai: '14.00', jamSelesai: '16.00', poiName: 'Home Visit D' },
+    { day: 'Rabu', jamMulai: '09.00', jamSelesai: '12.00', poiName: 'Visit Majelis E' },
+    { day: 'Rabu', jamMulai: '14.00', jamSelesai: '17.00', poiName: 'Home Visit F' },
+    { day: 'Kamis', jamMulai: '09.00', jamSelesai: '11.00', poiName: 'Visit Majelis G' },
+    { day: 'Kamis', jamMulai: '13.00', jamSelesai: '16.00', poiName: 'Home Visit H' },
+    { day: 'Jumat', jamMulai: '09.00', jamSelesai: '12.00', poiName: 'Visit Majelis I' },
+    { day: 'Jumat', jamMulai: '14.00', jamSelesai: '17.00', poiName: 'Home Visit J' },
+    { day: 'Sabtu', jamMulai: '10.00', jamSelesai: '12.00', poiName: 'Visit Majelis K' },
+  ]
+  draft = { ...draft, assignedFo: 'Sari Handayani' }
+  notify()
+}
+
+export function useDemoBookings() {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l)
+      return () => listeners.delete(l)
+    },
+    () => demoBookings,
+    () => demoBookings,
+  )
 }
 
 export function useDraft() {

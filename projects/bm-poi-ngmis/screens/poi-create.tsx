@@ -12,7 +12,16 @@
 
 import { Button, Input } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
-import { addPoi, beginCreate, setDraftField, updatePoi, useDraft, useEditingId, usePois } from '../lib/store'
+import {
+  addPoi,
+  beginCreate,
+  setDraftField,
+  updatePoi,
+  useDemoBookings,
+  useDraft,
+  useEditingId,
+  usePois,
+} from '../lib/store'
 import { BmShell } from '../lib/shell'
 import { EmptyState, FieldLabel, FoAvailabilityGrid, PageHeading, Panel, Select, SectionTitle } from '../lib/ui'
 
@@ -55,18 +64,23 @@ export function PoiCreateScreen() {
   const draft = useDraft()
   const editingId = useEditingId()
   const pois = usePois()
+  const demoBookings = useDemoBookings()
   const title = editingId ? 'Edit POI' : 'POI Baru'
 
   // The selected FO's own bookings this week — excluding the record being
   // edited, so editing a POI doesn't show it blocking its own slot. Only
-  // bookings with their own hours can be placed on an hourly grid.
-  const bookings = pois
-    .filter(
-      (p) => p.id !== editingId && p.assignedFo === draft.assignedFo && p.jadwal && p.jamMulai && p.jamSelesai,
-    )
-    .map((p) => ({ day: p.jadwal, jamMulai: p.jamMulai, jamSelesai: p.jamSelesai, poiName: p.name }))
+  // bookings with their own hours can be placed on an hourly grid. Demo
+  // bookings (the "Jadwal padat" state) ride along on top, for a presentation.
+  const bookings = [
+    ...pois
+      .filter(
+        (p) => p.id !== editingId && p.assignedFo === draft.assignedFo && p.jadwal && p.jamMulai && p.jamSelesai,
+      )
+      .map((p) => ({ day: p.jadwal, jamMulai: p.jamMulai, jamSelesai: p.jamSelesai, poiName: p.name })),
+    ...(draft.assignedFo === 'Sari Handayani' ? demoBookings : []),
+  ]
 
-  const canSubmit = draft.name.trim() && draft.jenis.trim() && draft.kecamatan && draft.desa && draft.jadwal
+  const canSubmit = draft.name.trim() && draft.jenis.trim() && draft.kecamatan && draft.desa
 
   const cancel = () => {
     beginCreate()
@@ -189,7 +203,6 @@ export function PoiCreateScreen() {
               <div className="grid grid-cols-2 gap-16">
                 <Select
                   label="Jadwal Sosialisasi"
-                  required
                   placeholder="Isi jadwal POI"
                   value={draft.jadwal}
                   onChange={(v) => setDraftField('jadwal', v)}

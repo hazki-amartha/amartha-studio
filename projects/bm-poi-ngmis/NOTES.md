@@ -39,3 +39,16 @@ A list row's default landing is now `poi-detail` (read-only), not the form
 directly — `beginView`/`useViewingId` are the same pattern as `editingId` but
 kept separate, since viewing never touches the draft. Its own "Edit" button
 is what calls `beginEdit` and goes to `poi-create`.
+
+Jadwal Sosialisasi dropped its required mark and its spot in `canSubmit` —
+the availability grid is now the primary way it gets filled (a free-cell
+click sets it), so gating Submit on it fought the flow the grid is for.
+
+**Jadwal padat (demo)** (`packSchedule`) seeds `demoBookings` — extra
+bookings shown on the availability grid ONLY when Assigned FO is Sari
+Handayani, never written into `pois`, so a packed presentation week never
+shows up as fake rows on the real POI list. Booking labels ("Visit Majelis
+A", "Home Visit B", …) are plain activity names rather than invented POI
+names, since the point is a realistically full grid, not fictional
+locations. `beginCreate`/`beginEdit` clear it, so it never leaks into an
+unrelated editing session.
