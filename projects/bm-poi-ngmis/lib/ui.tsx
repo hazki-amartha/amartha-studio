@@ -139,6 +139,92 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
   )
 }
 
+export interface FoAvailabilityBooking {
+  fo: string
+  day: string
+  poiName: string
+}
+
+/**
+ * Who's already booked which day this week — so picking Jadwal and Assigned
+ * FO is one glance at a grid instead of a guess followed by checking every
+ * other POI for a clash. A busy cell names the POI it's booked for rather
+ * than just greying out, since "who else is at Pasar Ciseeng Monday" is
+ * exactly what the BM needs to route around it. Clicking a free cell sets
+ * both fields at once.
+ */
+export function FoAvailabilityGrid({
+  fos,
+  days,
+  bookings,
+  selectedFo,
+  selectedDay,
+  onPick,
+}: {
+  fos: string[]
+  days: { value: string; label: string }[]
+  bookings: FoAvailabilityBooking[]
+  selectedFo: string
+  selectedDay: string
+  onPick: (fo: string, day: string) => void
+}) {
+  const bookingFor = (fo: string, day: string) => bookings.find((b) => b.fo === fo && b.day === day)
+
+  return (
+    <div className="overflow-x-auto rounded-8 border border-default">
+      <table className="w-full border-collapse text-left">
+        <thead>
+          <tr>
+            <th className="border-b border-default bg-neutral-50 px-12 py-8 text-12 font-bold text-default">
+              FO
+            </th>
+            {days.map((d) => (
+              <th
+                key={d.value}
+                className="border-b border-l border-default bg-neutral-50 px-12 py-8 text-12 font-bold text-default"
+              >
+                {d.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {fos.map((fo) => (
+            <tr key={fo} className="border-b border-default last:border-b-0">
+              <td className="px-12 py-8 text-14 font-bold text-default">{fo}</td>
+              {days.map((d) => {
+                const booking = bookingFor(fo, d.value)
+                const selected = fo === selectedFo && d.value === selectedDay
+                return (
+                  <td key={d.value} className="border-l border-default p-4 text-center align-middle">
+                    {booking ? (
+                      <span className="block truncate rounded-8 bg-neutral-50 px-8 py-8 text-12 text-caption">
+                        {booking.poiName}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onPick(fo, d.value)}
+                        className={`block w-full truncate rounded-8 px-8 py-8 text-12 font-bold ${
+                          selected
+                            ? 'bg-primary-500 text-neutral-white'
+                            : 'bg-green-50 text-green-500 hover:bg-primary-50 hover:text-link'
+                        }`}
+                      >
+                        {selected ? 'Dipilih' : 'Tersedia'}
+                      </button>
+                    )}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export function Select({
   label,
   required,

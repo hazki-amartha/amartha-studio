@@ -17,6 +17,7 @@ from `projects/ngmis-bm-monitoring/lib/ui.tsx`'s `Panel`/`Select`/`SidebarPromo`
 - `Select` — plain `<select>` with a chevron, matched to `Input`'s height so the grid lines up.
 - `FieldLabel` — the required/optional label row, matched to the "POI Baru" design handoff.
 - `SimpleTable` / `EmptyState` — the POI list table and its empty state, same shape as `ngmis-bm-monitoring`'s. A `TableRow.onClick` gets the hover/pointer treatment; a row without one stays inert.
+- `FoAvailabilityGrid` — new here, not copied from anywhere. FO × day-of-week, under Jadwal/Assigned FO in Detail Sosialisasi: a busy cell names the POI it's already booked for (not just greyed out, since "who's at Pasar Ciseeng Monday" is what the BM needs to route around), a free cell is a button that sets both Jadwal and Assigned FO in one click. Bookings are read straight off the existing POI list (`assignedFo` + `jadwal` per record) — no separate schedule data to seed or keep in sync. The record being edited is excluded from its own bookings so it never shows itself as a conflict.
 
 `lib/store.ts` holds the POI list in a module store (screens remount on `go()`,
 so `useState` alone would lose a newly-submitted POI on the way back to the
