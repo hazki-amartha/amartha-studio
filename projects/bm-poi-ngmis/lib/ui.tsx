@@ -198,25 +198,25 @@ export function FoAvailabilityGrid({
             <th className="border-b border-default bg-neutral-50 px-12 py-8 text-12 font-bold text-default">
               {fo}
             </th>
-            {hours.map((h) => (
+            {days.map((d) => (
               <th
-                key={h.value}
-                className="border-b border-l border-default bg-neutral-50 px-8 py-8 text-12 font-bold text-default"
+                key={d.value}
+                className="border-b border-l border-default bg-neutral-50 px-12 py-8 text-12 font-bold text-default"
               >
-                {h.label}
+                {d.label}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {days.map((d) => (
-            <tr key={d.value} className="border-b border-default last:border-b-0">
-              <td className="px-12 py-8 text-14 font-bold text-default">{d.label}</td>
-              {hours.map((h) => {
+          {hours.map((h) => (
+            <tr key={h.value} className="border-b border-default last:border-b-0">
+              <td className="px-12 py-8 text-14 font-bold text-default">{h.label}</td>
+              {days.map((d) => {
                 const booking = bookingFor(d.value, h.value)
                 const selected = d.value === selectedDay && h.value === selectedHour
                 return (
-                  <td key={h.value} className="border-l border-default p-4 text-center align-middle">
+                  <td key={d.value} className="border-l border-default p-4 text-center align-middle">
                     {booking ? (
                       <span
                         title={booking.poiName}
