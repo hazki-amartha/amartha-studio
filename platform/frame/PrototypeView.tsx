@@ -67,6 +67,13 @@ import {
 } from '@/platform/runtime/presentBridge'
 import { InspectLayer, InspectorPanel, LayersPanel } from '@/platform/inspect'
 import { DesignLayer, DesignPanel } from '@/platform/design'
+import { attachElement } from '@/platform/chat/attach'
+import {
+  getChat,
+  getChatServerSnapshot,
+  setChatPicking,
+  subscribeChat,
+} from '@/platform/runtime/chatBridge'
 import { layersDrag } from '@/platform/design/actions'
 import { toggleSelected } from '@/platform/design/selection'
 import { refind } from '@/platform/design/overlay'
@@ -138,25 +145,47 @@ function AppViewport({
   preview?: Element | null
 } = {}) {
   const { current } = useFlow()
+  const chatPicking = useSyncExternalStore(
+    subscribeChat,
+    () => getChat().picking,
+    () => getChatServerSnapshot().picking,
+  )
+  // The chat's pick button borrows the layer for one click, over whatever mode
+  // is on — the mode's own layers step aside until the pick lands or is cancelled.
+  const pickingForChat = chatPicking && Boolean(slug)
   return (
     <div
       className={styles.viewport}
       data-device={device}
-      data-inspect={inspect ? 'on' : undefined}
+      data-inspect={inspect || pickingForChat ? 'on' : undefined}
     >
       <ScreenStage />
-      {inspect && onPin ? (
+      {pickingForChat ? (
+        <InspectLayer
+          pinned={null}
+          onPin={(el) => {
+            if (el) attachElement(el, slug!, current)
+            else setChatPicking(false)
+          }}
+          pick="authored"
+        />
+      ) : null}
+      {/* Both modes pick by design mode's rule — the nearest element the
+          project's source wrote. Inspect used to jump to the nearest FunDS
+          boundary, and since `Screen` is one, plain content kept selecting the
+          whole screen. A placed component still wins over its own insides. */}
+      {inspect && onPin && !pickingForChat ? (
         <InspectLayer
           pinned={pinned ?? null}
           onPin={onPin}
           preview={preview}
-          pick={design ? 'authored' : 'component'}
+          pick="authored"
           onShiftPick={design ? (el) => (pinned ? toggleSelected(el) : onPin(el)) : undefined}
           onRepin={onRepin}
           tone={design ? 'design' : 'inspect'}
         />
       ) : null}
-      {inspect && design && onPin && slug ? (
+      {inspect && design && onPin && slug && !pickingForChat ? (
         <DesignLayer
           slug={slug}
           screenId={current}

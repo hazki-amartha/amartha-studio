@@ -37,6 +37,9 @@ export interface InspectTarget {
   authored: AuthoredClass[]
   computed: ComputedRow[]
   text: string
+  /** `<file>:<line>:<col>` of the JSX that drew it — design mode's source map
+   *  (platform/design/stamp.cjs). Null for markup outside `projects/`. */
+  source: string | null
 }
 
 /** The nearest FunDS component boundary at or above `el`. */
@@ -191,5 +194,6 @@ export function resolveTarget(el: Element): InspectTarget {
     authored,
     computed: computedRows(el),
     text: (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 60),
+    source: el.closest('[data-src]')?.getAttribute('data-src') ?? null,
   }
 }
