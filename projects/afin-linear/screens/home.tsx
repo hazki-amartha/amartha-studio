@@ -65,14 +65,14 @@ function LimitCard() {
 
       <div className="mt-16 flex items-start gap-12 text-neutral-white">
         <div className="min-w-0 flex-1">
-          <p className="text-14">Limit saat ini</p>
           <p className="mt-4 text-20">{short(CURRENT_LIMIT)}</p>
+                  <p className="text-14">Limit saat ini</p>
         </div>
         <div className="min-w-0 flex-1 text-right">
-          <p className="text-14">Naik limit hingga</p>
           <p className="mt-4 text-20 font-bold">
             {info.cap ? `Rp6-${short(info.cap).replace('Rp', '')}` : 'Belum pasti'}
           </p>
+                  <p className="text-14">Naik limit hingga</p>
         </div>
       </div>
     </RewardCard>
