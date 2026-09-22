@@ -274,17 +274,24 @@ export class GitHub {
    * Let it land itself once CI is green — `gh pr merge --auto --squash`.
    * GitHub refuses when the PR can already merge ("clean status"); that is a
    * success here, and the merge is done directly instead.
+   *
+   * `title` is what lands on main. Left to GitHub, a squash of a one-commit
+   * branch takes that commit's message instead of the change's title.
    */
-  async autoMerge(pull: { number: number; nodeId: string }): Promise<void> {
+  async autoMerge(pull: { number: number; nodeId: string }, title: string): Promise<void> {
+    const headline = `${title} (#${pull.number})`
     const { status, data } = await this.call<{ errors?: { message: string }[] }>('POST', '/graphql', {
       query:
-        'mutation($id: ID!) { enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: SQUASH }) { clientMutationId } }',
-      variables: { id: pull.nodeId },
+        'mutation($id: ID!, $headline: String!) { enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: SQUASH, commitHeadline: $headline }) { clientMutationId } }',
+      variables: { id: pull.nodeId, headline },
     })
     const errors = data?.errors ?? []
     if (status === 200 && errors.length === 0) return
     if (errors.some((e) => /clean status/i.test(e.message))) {
-      const merged = await this.call('PUT', this.repoPath(`/pulls/${pull.number}/merge`), { merge_method: 'squash' })
+      const merged = await this.call('PUT', this.repoPath(`/pulls/${pull.number}/merge`), {
+        merge_method: 'squash',
+        commit_title: headline,
+      })
       if (merged.status === 200) return
     }
     throw new GitHubError('The change was opened but could not be set to go live on its own.', status)

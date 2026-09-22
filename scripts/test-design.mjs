@@ -1178,6 +1178,7 @@ function fakeGitHub(files) {
   const pulls = []
   const calls = []
   const merged = []
+  const headlines = []
   /** Check runs by commit, as the fake CI reports them. */
   const checks = new Map()
   const json = (status, body) => new Response(body === undefined ? '' : JSON.stringify(body), { status })
@@ -1251,11 +1252,12 @@ function fakeGitHub(files) {
     }
     if (u.pathname === '/graphql') {
       merged.push(body.variables.id)
+      headlines.push(body.variables.headline)
       return json(200, { data: {} })
     }
     return json(404, {})
   }
-  return { fetchImpl, refs, pulls, calls, merged, checks }
+  return { fetchImpl, refs, pulls, calls, merged, headlines, checks }
 }
 
 const CONFIG = {
@@ -1378,6 +1380,8 @@ test('github: apply rebuilds from the build, commits to the branch, and undoes b
   assert.equal(gh.pulls[0].base, 'main')
   assert.match(gh.pulls[0].title, /^\[afin-linear\] /)
   assert.deepEqual(gh.merged, ['PR_1'])
+  // What lands on main is the change's title, not the branch's one commit.
+  assert.deepEqual(gh.headlines, ['[afin-linear] Design changes from the studio (Hazki) (#1)'])
   const again = await call(github.githubPush, { slug: 'afin-linear', push: true, name: 'Hazki' }, CONFIG, gh.fetchImpl)
   assert.equal(again.ok, true)
   assert.equal(gh.pulls.length, 1, 'pushing twice reuses the open change')

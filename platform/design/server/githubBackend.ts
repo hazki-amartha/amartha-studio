@@ -102,16 +102,17 @@ export async function githubPush(
     const existed = await gh.getFile(`projects/${body.slug}/project.config.ts`, branch)
     if (!existed) return refuse('Nothing has been applied yet, so there is nothing to push.')
 
+    const title = `[${body.slug}] Design changes from the studio (${body.name})`
     const pull = await gh.openPull(
       branch,
-      `[${body.slug}] Design changes from the studio (${body.name})`,
+      title,
       [
         `Made by ${body.name} in design mode on the deployed studio, against ${config.sha.slice(0, 7)}.`,
         '',
         `Only \`projects/${body.slug}/\` is touched; it lands on its own once CI is green.`,
       ].join('\n'),
     )
-    await gh.autoMerge(pull)
+    await gh.autoMerge(pull, title)
     return NextResponse.json({ ok: true, pushed: true } satisfies DesignResponse)
   } catch (err) {
     return failed(err)
