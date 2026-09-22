@@ -153,35 +153,42 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
 }
 
 export interface FoAvailabilityBooking {
-  fo: string
   day: string
+  /** Start/end as "HH.00" — same format as the Jam ramai POI fields, since a
+   *  booking's busy hours come straight off that POI's own hours. */
+  jamMulai: string
+  jamSelesai: string
   poiName: string
 }
 
 /**
- * Who's already booked which day this week — so picking Jadwal and Assigned
- * FO is one glance at a grid instead of a guess followed by checking every
- * other POI for a clash. A busy cell names the POI it's booked for rather
- * than just greying out, since "who else is at Pasar Ciseeng Monday" is
- * exactly what the BM needs to route around it. Clicking a free cell sets
- * both fields at once.
+ * One FO's own week, broken down by the hour — not every FO at once, since
+ * the BM has already picked who from Assigned FO above; this is about WHEN,
+ * not WHO. A busy cell names the POI it's booked for rather than just
+ * greying out, since "what's Sari doing Monday at 10" is exactly what the BM
+ * needs to route around. Clicking a free cell sets Jadwal to that day and
+ * Jam ramai POI to that hour.
  */
 export function FoAvailabilityGrid({
-  fos,
+  fo,
   days,
+  hours,
   bookings,
-  selectedFo,
   selectedDay,
+  selectedHour,
   onPick,
 }: {
-  fos: string[]
+  fo: string
   days: { value: string; label: string }[]
+  /** Each hour is its slot's START, e.g. "09.00" covers 09.00–10.00. */
+  hours: { value: string; label: string }[]
   bookings: FoAvailabilityBooking[]
-  selectedFo: string
   selectedDay: string
-  onPick: (fo: string, day: string) => void
+  selectedHour: string
+  onPick: (day: string, hour: string) => void
 }) {
-  const bookingFor = (fo: string, day: string) => bookings.find((b) => b.fo === fo && b.day === day)
+  const bookingFor = (day: string, hour: string) =>
+    bookings.find((b) => b.day === day && hour >= b.jamMulai && hour < b.jamSelesai)
 
   return (
     <div className="overflow-x-auto rounded-8 border border-default">
@@ -189,36 +196,39 @@ export function FoAvailabilityGrid({
         <thead>
           <tr>
             <th className="border-b border-default bg-neutral-50 px-12 py-8 text-12 font-bold text-default">
-              FO
+              {fo}
             </th>
-            {days.map((d) => (
+            {hours.map((h) => (
               <th
-                key={d.value}
-                className="border-b border-l border-default bg-neutral-50 px-12 py-8 text-12 font-bold text-default"
+                key={h.value}
+                className="border-b border-l border-default bg-neutral-50 px-8 py-8 text-12 font-bold text-default"
               >
-                {d.label}
+                {h.label}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {fos.map((fo) => (
-            <tr key={fo} className="border-b border-default last:border-b-0">
-              <td className="px-12 py-8 text-14 font-bold text-default">{fo}</td>
-              {days.map((d) => {
-                const booking = bookingFor(fo, d.value)
-                const selected = fo === selectedFo && d.value === selectedDay
+          {days.map((d) => (
+            <tr key={d.value} className="border-b border-default last:border-b-0">
+              <td className="px-12 py-8 text-14 font-bold text-default">{d.label}</td>
+              {hours.map((h) => {
+                const booking = bookingFor(d.value, h.value)
+                const selected = d.value === selectedDay && h.value === selectedHour
                 return (
-                  <td key={d.value} className="border-l border-default p-4 text-center align-middle">
+                  <td key={h.value} className="border-l border-default p-4 text-center align-middle">
                     {booking ? (
-                      <span className="block truncate rounded-8 bg-neutral-50 px-8 py-8 text-12 text-caption">
+                      <span
+                        title={booking.poiName}
+                        className="block truncate rounded-8 bg-neutral-50 px-4 py-8 text-12 text-caption"
+                      >
                         {booking.poiName}
                       </span>
                     ) : (
                       <button
                         type="button"
-                        onClick={() => onPick(fo, d.value)}
-                        className={`block w-full truncate rounded-8 px-8 py-8 text-12 font-bold ${
+                        onClick={() => onPick(d.value, h.value)}
+                        className={`block w-full truncate rounded-8 px-4 py-8 text-12 font-bold ${
                           selected
                             ? 'bg-primary-500 text-neutral-white'
                             : 'bg-green-50 text-green-500 hover:bg-primary-50 hover:text-link'
