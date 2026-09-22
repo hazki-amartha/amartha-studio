@@ -1,9 +1,9 @@
 # NOTES
 
 Project-local components (CLAUDE.md §4), copied (not imported — §1) and trimmed
-from `projects/apartner-bm-majelis-view/lib/ui.tsx`'s `SelectField`/`OptionSheet`
-pair — the mobile BM app's own way of doing a picker, since FunDS has no
-desktop-style `<select>` on a phone:
+from `projects/ngmis-bm-monitoring/lib/ui.tsx`'s `Panel`/`Select` pair — FunDS
+has no desktop `<select>` or back-office card:
 
-- `SelectField` / `OptionSheet` (`lib/ui.tsx`) — a tappable field that opens a `BottomSheet` of `SelectableCard` options. `SelectField`'s `chevron="right"` variant marks the map-point field as a drill-in rather than a picker.
-- `SectionTitle` / `FieldLabel` — the bold section headings and the required/optional label row, matched to the "POI Baru" design handoff.
+- `Panel` / `PageHeading` / `SectionTitle` (`lib/ui.tsx`) — the bordered content card and headings, sized for the 1440×900 desktop canvas.
+- `Select` — plain `<select>` with a chevron, matched to `Input`'s height so the grid lines up.
+- `FieldLabel` — the required/optional label row, matched to the "POI Baru" design handoff.

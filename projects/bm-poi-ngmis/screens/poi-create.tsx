@@ -1,47 +1,41 @@
 'use client'
 
-// POI Baru — the form behind the "POI creation" menu item. Kecamatan gates
-// Kelurahan/Desa the way the reference mobile POI form does: the field starts
-// disabled and only opens once a kecamatan is picked. The map point is a
-// BottomSheet placeholder rather than a real map (CLAUDE.md §3 — nothing that
-// leaves the prototype).
+// POI Baru — desktop dashboard size, content only (no sidebar/breadcrumb
+// chrome): the same General / Kontak dan Lokasi / Detail Sosialisasi fields as
+// the mobile handoff, laid out on the wider canvas as a two-column grid.
+// Kecamatan gates Kelurahan/Desa the way the reference form does — the field
+// starts disabled and only opens once a kecamatan is picked.
 
 import { useState } from 'react'
-import { BottomSheet, Button, Input, NavigationHeader } from '@/design-system/components'
+import { Button, Input } from '@/design-system/components'
 import { Check } from '@/design-system/icons'
-import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { FieldLabel, OptionSheet, SectionTitle, SelectField } from '../lib/ui'
+import { FieldLabel, PageHeading, Panel, Select, SectionTitle } from '../lib/ui'
 
 const KECAMATAN_DESA: Record<string, string[]> = {
   Ciseeng: ['Ciseeng', 'Putat Nutug', 'Cibeuteung Udik', 'Cibeuteung Hilir'],
   Parung: ['Parung', 'Waru', 'Jabon Mekar'],
   'Gunung Sindur': ['Gunung Sindur', 'Curug', 'Cidokom'],
 }
-const KECAMATAN_OPTIONS = Object.keys(KECAMATAN_DESA).map((v) => ({ label: v, value: v }))
+const KECAMATAN_OPTIONS = Object.keys(KECAMATAN_DESA).map((v) => ({ value: v, label: v }))
 
 const HOURS = Array.from({ length: 16 }, (_, i) => {
   const v = `${String(6 + i).padStart(2, '0')}.00`
-  return { label: v, value: v }
+  return { value: v, label: v }
 })
 
 const JADWAL_OPTIONS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map((v) => ({
-  label: v,
   value: v,
+  label: v,
 }))
 
 const FO_OPTIONS = ['Sari Handayani', 'Rina Marlina', 'Ani Suryani', 'Dewi Lestari'].map((v) => ({
-  label: v,
   value: v,
+  label: v,
 }))
-
-type MenuId = 'jam-mulai' | 'jam-selesai' | 'kecamatan' | 'desa' | 'jadwal' | 'fo' | null
 
 export function PoiCreateScreen() {
   const flow = useFlow()
-  const [menu, setMenu] = useState<MenuId>(null)
-  const [mapOpen, setMapOpen] = useState(false)
-
   const [name, setName] = useState('')
   const [jenis, setJenis] = useState('')
   const [jamMulai, setJamMulai] = useState('')
@@ -60,218 +54,151 @@ export function PoiCreateScreen() {
 
   if (done) {
     return (
-      <Screen topBar={<NavigationHeader title="POI Baru" onBack={flow.back} />}>
-        <div className="flex flex-1 flex-col items-center justify-center gap-8 py-48 text-center">
-          <span className="flex h-48 w-48 items-center justify-center rounded-full bg-green-50 text-green-500">
-            <Check size={24} />
-          </span>
-          <span className="text-16 font-bold text-default">POI ditambahkan</span>
-          <span className="text-14 text-caption">{name || 'Lokasi ini'} tersimpan sebagai titik baru.</span>
-          <div className="pt-8">
-            <Button onClick={flow.back}>Kembali</Button>
-          </div>
+      <div className="flex h-full flex-col items-center justify-center gap-8 bg-neutral-50 text-center">
+        <span className="flex size-48 items-center justify-center rounded-full bg-green-50 text-green-500">
+          <Check size={24} />
+        </span>
+        <span className="text-16 font-bold text-default">POI ditambahkan</span>
+        <span className="text-14 text-caption">{name || 'Lokasi ini'} tersimpan sebagai titik baru.</span>
+        <div className="pt-8">
+          <Button onClick={flow.back}>Kembali</Button>
         </div>
-      </Screen>
+      </div>
     )
   }
 
   return (
-    <Screen topBar={<NavigationHeader title="POI Baru" onBack={flow.back} />}>
-      <div className="flex flex-1 flex-col gap-24">
-        <div className="flex flex-col gap-12">
-          <SectionTitle>General</SectionTitle>
+    <div className="flex h-full flex-col gap-24 overflow-y-auto bg-neutral-50 p-32">
+      <PageHeading title="POI Baru" />
 
-          <Input
-            label="POI Name"
-            required
-            placeholder="Isi nama POI"
-            helperText="Contoh: Pasar Ciseeng, Puskesmas RT 01, Warung Ibu"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-
-          <Input
-            label="POI Type"
-            required
-            placeholder="Isi tipe POI"
-            helperText="Contoh: Pasar, Posyandu, Warung, dll"
-            value={jenis}
-            onChange={(e) => setJenis(e.target.value)}
-          />
-
-          <div className="flex flex-col gap-8">
-            <FieldLabel optional>Jam ramai POI</FieldLabel>
-            <div className="flex gap-8">
-              <SelectField
-                label=""
-                placeholder="Start with"
-                value={jamMulai}
-                onClick={() => setMenu('jam-mulai')}
+      <Panel>
+        <div className="flex flex-col gap-32">
+          <div className="flex flex-col gap-16">
+            <SectionTitle>General</SectionTitle>
+            <div className="grid grid-cols-2 gap-16">
+              <Input
+                label="POI Name"
+                required
+                placeholder="Isi nama POI"
+                helperText="Contoh: Pasar Ciseeng, Puskesmas RT 01, Warung Ibu"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
               />
-              <SelectField
-                label=""
-                placeholder="End with"
-                value={jamSelesai}
-                onClick={() => setMenu('jam-selesai')}
+              <Input
+                label="POI Type"
+                required
+                placeholder="Isi tipe POI"
+                helperText="Contoh: Pasar, Posyandu, Warung, dll"
+                value={jenis}
+                onChange={(e) => setJenis(e.target.value)}
+              />
+              <div className="flex flex-col gap-8">
+                <FieldLabel optional>Jam ramai POI</FieldLabel>
+                <div className="grid grid-cols-2 gap-16">
+                  <Select
+                    label=""
+                    placeholder="Start with"
+                    value={jamMulai}
+                    onChange={setJamMulai}
+                    options={HOURS}
+                  />
+                  <Select
+                    label=""
+                    placeholder="End with"
+                    value={jamSelesai}
+                    onChange={setJamSelesai}
+                    options={HOURS}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-16">
+            <SectionTitle>Kontak dan Lokasi</SectionTitle>
+            <div className="grid grid-cols-2 gap-16">
+              <Select
+                label="Kecamatan"
+                required
+                placeholder="Pilih kecamatan"
+                value={kecamatan}
+                onChange={(v) => {
+                  setKecamatan(v)
+                  setDesa('')
+                }}
+                options={KECAMATAN_OPTIONS}
+              />
+              <Select
+                label="Kelurahan atau Desa"
+                required
+                placeholder="Pilih kelurahan atau desa"
+                value={desa}
+                onChange={setDesa}
+                options={(KECAMATAN_DESA[kecamatan] ?? []).map((v) => ({ value: v, label: v }))}
+                disabled={!kecamatan}
+              />
+              <Input
+                label="Alamat (titik di peta)"
+                optionalText="(optional)"
+                placeholder="cth. Jl. Raya Ciseeng No. 12"
+                value={alamat}
+                onChange={(e) => setAlamat(e.target.value)}
+              />
+              <Input
+                label="Nama kontak"
+                optionalText="(optional)"
+                placeholder="Contoh: John Doe"
+                value={namaKontak}
+                onChange={(e) => setNamaKontak(e.target.value)}
+              />
+              <Input
+                label="No. HP kontak"
+                optionalText="(optional)"
+                prefix="+62"
+                placeholder="Isi nomor HP yang aktif"
+                helperText="Contoh: 8567891298"
+                value={hpKontak}
+                onChange={(e) => setHpKontak(e.target.value.replace(/\D/g, ''))}
               />
             </div>
           </div>
-        </div>
 
-        <div className="flex flex-col gap-12">
-          <SectionTitle>Kontak dan Lokasi</SectionTitle>
-
-          <SelectField
-            label="Kecamatan"
-            required
-            placeholder="Pilih kecamatan"
-            value={kecamatan}
-            onClick={() => setMenu('kecamatan')}
-          />
-
-          <SelectField
-            label="Kelurahan atau Desa"
-            required
-            placeholder="Pilih kelurahan atau desa"
-            value={desa}
-            onClick={() => setMenu('desa')}
-            disabled={!kecamatan}
-          />
-
-          <SelectField
-            label="Alamat (titik di peta)"
-            optional
-            placeholder="Atur titik alamat di peta"
-            value={alamat}
-            onClick={() => setMapOpen(true)}
-            chevron="right"
-          />
-
-          <Input
-            label="Nama kontak"
-            optionalText="(optional)"
-            placeholder="Contoh: John Doe"
-            value={namaKontak}
-            onChange={(e) => setNamaKontak(e.target.value)}
-          />
-
-          <Input
-            label="No. HP kontak"
-            optionalText="(optional)"
-            prefix="+62"
-            placeholder="Isi nomor HP yang aktif"
-            helperText="Contoh: 8567891298"
-            value={hpKontak}
-            onChange={(e) => setHpKontak(e.target.value.replace(/\D/g, ''))}
-          />
-        </div>
-
-        <div className="flex flex-col gap-12">
-          <SectionTitle>Detail Sosialisasi</SectionTitle>
-
-          <SelectField
-            label="Jadwal Sosialisasi"
-            required
-            placeholder="Isi jadwal POI"
-            value={jadwal}
-            onClick={() => setMenu('jadwal')}
-          />
-
-          <SelectField
-            label="Assigned FO"
-            optional
-            placeholder="Pilih FO / BP"
-            value={assignedFo}
-            onClick={() => setMenu('fo')}
-          />
-
-          <Input
-            label="Catatan"
-            optionalText="(optional)"
-            placeholder="Tulis catatan"
-            value={catatan}
-            onChange={(e) => setCatatan(e.target.value)}
-          />
-        </div>
-
-        <Button onClick={() => setDone(true)} disabled={!canSubmit}>
-          Submit
-        </Button>
-      </div>
-
-      <OptionSheet
-        open={menu === 'jam-mulai'}
-        title="Jam mulai"
-        name="jam-mulai"
-        options={HOURS}
-        value={jamMulai}
-        onPick={setJamMulai}
-        onClose={() => setMenu(null)}
-      />
-      <OptionSheet
-        open={menu === 'jam-selesai'}
-        title="Jam selesai"
-        name="jam-selesai"
-        options={HOURS}
-        value={jamSelesai}
-        onPick={setJamSelesai}
-        onClose={() => setMenu(null)}
-      />
-      <OptionSheet
-        open={menu === 'kecamatan'}
-        title="Kecamatan"
-        name="kecamatan"
-        options={KECAMATAN_OPTIONS}
-        value={kecamatan}
-        onPick={(v) => {
-          setKecamatan(v)
-          setDesa('')
-        }}
-        onClose={() => setMenu(null)}
-      />
-      <OptionSheet
-        open={menu === 'desa'}
-        title="Kelurahan atau Desa"
-        name="desa"
-        options={(KECAMATAN_DESA[kecamatan] ?? []).map((v) => ({ label: v, value: v }))}
-        value={desa}
-        onPick={setDesa}
-        onClose={() => setMenu(null)}
-      />
-      <OptionSheet
-        open={menu === 'jadwal'}
-        title="Jadwal Sosialisasi"
-        name="jadwal"
-        options={JADWAL_OPTIONS}
-        value={jadwal}
-        onPick={setJadwal}
-        onClose={() => setMenu(null)}
-      />
-      <OptionSheet
-        open={menu === 'fo'}
-        title="Assigned FO"
-        name="fo"
-        options={FO_OPTIONS}
-        value={assignedFo}
-        onPick={setAssignedFo}
-        onClose={() => setMenu(null)}
-      />
-
-      <BottomSheet open={mapOpen} onClose={() => setMapOpen(false)} title="Atur titik alamat">
-        <div className="flex flex-col gap-16">
-          <div className="flex items-center justify-center rounded-12 bg-neutral-50 py-48 text-14 text-caption">
-            Peta (placeholder)
+          <div className="flex flex-col gap-16">
+            <SectionTitle>Detail Sosialisasi</SectionTitle>
+            <div className="grid grid-cols-2 gap-16">
+              <Select
+                label="Jadwal Sosialisasi"
+                required
+                placeholder="Isi jadwal POI"
+                value={jadwal}
+                onChange={setJadwal}
+                options={JADWAL_OPTIONS}
+              />
+              <Select
+                label="Assigned FO"
+                optional
+                placeholder="Pilih FO / BP"
+                value={assignedFo}
+                onChange={setAssignedFo}
+                options={FO_OPTIONS}
+              />
+              <Input
+                label="Catatan"
+                optionalText="(optional)"
+                placeholder="Tulis catatan"
+                value={catatan}
+                onChange={(e) => setCatatan(e.target.value)}
+              />
+            </div>
           </div>
-          <Button
-            onClick={() => {
-              setAlamat('Titik ditandai di peta')
-              setMapOpen(false)
-            }}
-          >
-            Gunakan titik ini
-          </Button>
+
+          <div className="flex justify-end">
+            <Button onClick={() => setDone(true)} disabled={!canSubmit}>
+              Submit
+            </Button>
+          </div>
         </div>
-      </BottomSheet>
-    </Screen>
+      </Panel>
+    </div>
   )
 }

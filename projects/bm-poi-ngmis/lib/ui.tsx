@@ -1,16 +1,24 @@
 'use client'
 
-// Project-local form components (CLAUDE.md §4), copied (not imported — §1)
-// from `projects/apartner-bm-majelis-view/lib/ui.tsx`'s SelectField/OptionSheet
-// pattern — the mobile BM app's own way of doing a picker, since FunDS has no
-// desktop-style `<select>` on a phone.
+// Project-local desktop surfaces (CLAUDE.md §4) — FunDS has no `<select>` or
+// back-office card; both are copied (not imported — §1) and trimmed from
+// `projects/ngmis-bm-monitoring/lib/ui.tsx`'s `Panel`/`Select` pair.
 
 import type { ReactNode } from 'react'
-import { BottomSheet, SelectableCard } from '@/design-system/components'
-import { ChevronDown, ChevronRight } from '@/design-system/icons'
+import { ChevronDown } from '@/design-system/icons'
+
+const CONTROL_H = 40
+
+export function PageHeading({ title }: { title: string }) {
+  return <h1 className="text-24 font-bold text-default">{title}</h1>
+}
 
 export function SectionTitle({ children }: { children: ReactNode }) {
   return <span className="text-16 font-bold text-default">{children}</span>
+}
+
+export function Panel({ children }: { children: ReactNode }) {
+  return <div className="rounded-16 border border-default bg-neutral-white p-24">{children}</div>
 }
 
 export function FieldLabel({
@@ -35,82 +43,58 @@ export function HelperText({ children }: { children: ReactNode }) {
   return <span className="text-12 text-caption">{children}</span>
 }
 
-export function SelectField({
+export function Select({
   label,
   required,
   optional,
   placeholder,
   value,
-  onClick,
+  options,
+  onChange,
   disabled,
-  /** The map-point picker reads as a drill-in (▸), not a picker (⌄). */
-  chevron = 'down',
 }: {
-  label?: string
+  label: string
   required?: boolean
   optional?: boolean
   placeholder: string
-  value?: string | null
-  onClick: () => void
+  value: string
+  options: { value: string; label: string }[]
+  onChange: (value: string) => void
   disabled?: boolean
-  chevron?: 'down' | 'right'
 }) {
   return (
-    <div className="flex flex-col gap-8">
-      {label ? (
-        <FieldLabel required={required} optional={optional}>
-          {label}
-        </FieldLabel>
-      ) : null}
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        className={`flex items-center justify-between gap-8 rounded-8 border px-12 py-8 text-left text-14 ${
-          disabled
-            ? 'border-default bg-neutral-50 text-disabled'
-            : 'border-default bg-neutral-white text-default'
-        }`}
-      >
-        <span className={`truncate ${value ? '' : 'text-placeholder'}`}>{value || placeholder}</span>
-        <span className="shrink-0 text-disabled">
-          {chevron === 'right' ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+    <label className="flex flex-col gap-8">
+      <FieldLabel required={required} optional={optional}>
+        {label}
+      </FieldLabel>
+      <div className="relative">
+        <select
+          aria-label={label}
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full appearance-none rounded-8 border border-default bg-neutral-white pl-12 pr-32 text-14 font-regular ${
+            disabled ? 'text-placeholder' : 'text-default'
+          }`}
+          style={{ height: CONTROL_H }}
+        >
+          <option value="" disabled>
+            {placeholder}
+          </option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <span
+          className={`pointer-events-none absolute right-12 top-12 ${
+            disabled ? 'text-placeholder' : 'text-caption'
+          }`}
+        >
+          <ChevronDown size={16} />
         </span>
-      </button>
-    </div>
-  )
-}
-
-export function OptionSheet<T>({
-  open,
-  title,
-  name,
-  options,
-  value,
-  onPick,
-  onClose,
-}: {
-  open: boolean
-  title: string
-  name: string
-  options: { label: string; value: T }[]
-  value: T
-  onPick: (v: T) => void
-  onClose: () => void
-}) {
-  return (
-    <BottomSheet open={open} onClose={onClose} title={title}>
-      <div className="flex flex-col gap-8">
-        {options.map((o) => (
-          <SelectableCard
-            key={o.label}
-            name={name}
-            title={o.label}
-            checked={o.value === value}
-            onChange={() => onPick(o.value)}
-          />
-        ))}
       </div>
-    </BottomSheet>
+    </label>
   )
 }
