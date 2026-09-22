@@ -37,7 +37,7 @@ const HOURS = Array.from({ length: 16 }, (_, i) => {
   return { value: v, label: v }
 })
 
-const JADWAL_OPTIONS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map((v) => ({
+const JADWAL_OPTIONS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map((v) => ({
   value: v,
   label: v,
 }))
@@ -49,7 +49,7 @@ const FO_OPTIONS = ['Sari Handayani', 'Rina Marlina', 'Ani Suryani', 'Dewi Lesta
 
 // 09.00–18.00, one column per hour slot — the FO availability grid's own
 // range, narrower than the Jam ramai POI picker's full-day one.
-const GRID_HOURS = Array.from({ length: 9 }, (_, i) => {
+const GRID_HOURS = Array.from({ length: 10 }, (_, i) => {
   const v = `${String(9 + i).padStart(2, '0')}.00`
   return { value: v, label: v }
 })
