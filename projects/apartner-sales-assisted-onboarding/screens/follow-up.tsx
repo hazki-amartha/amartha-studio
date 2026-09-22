@@ -359,6 +359,15 @@ export function FollowUpScreen() {
                   size="lg"
                   className="w-full"
                   disabled={!canAct}
+                  onClick={() => flow.go('application')}
+                >
+                  Lanjutkan onboarding
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full"
+                  disabled={!canAct}
                   onClick={() => {
                     pipelineStore.takeoverAssisted(lead.id)
                     flow.go('application')
@@ -367,7 +376,7 @@ export function FollowUpScreen() {
                   Ambil alih jadi assisted
                 </Button>
                 <span className="text-center text-12 text-caption">
-                  Calon mitra sedang mengisi survey self-service di AFin.
+                  Calon mitra mengisi survey uji kelayakan sendiri via AFin.
                 </span>
               </>
             ) : (
@@ -377,7 +386,7 @@ export function FollowUpScreen() {
                 disabled={!canAct}
                 onClick={() => flow.go('application')}
               >
-                Lanjutkan survey
+                Lanjutkan onboarding
               </Button>
             )
           ) : lead.status === 'survey-submitted' ? (
@@ -455,7 +464,7 @@ export function FollowUpScreen() {
               disabled={!canAct}
               onClick={() => flow.go('pendaftaran')}
             >
-              Mulai pendaftaran
+              Mulai onboarding
             </Button>
             <Button
               size="lg"

@@ -30,7 +30,6 @@ import {
   dateFromToday,
   dateWithWeekday,
   majelisLine,
-  onboardingLine,
   sourceDetail,
   type Agenda,
   type PipelineLead,
@@ -395,7 +394,6 @@ export function LeadBoardCard({
   const loc = lead.address?.kecamatan
     ? [lead.address.kecamatan, lead.address.desa].filter(Boolean).join(', ')
     : ''
-  const onboarding = onboardingLine(lead)
   // Submitted and approved surveys carry no follow-up, so they show no schedule.
   const noSchedule = lead.status === 'survey-submitted' || lead.status === 'approved'
   return (
@@ -415,9 +413,6 @@ export function LeadBoardCard({
             <MapPin size={16} />
             <span className="truncate">{loc}</span>
           </span>
-        ) : null}
-        {onboarding ? (
-          <span className="truncate text-12 font-bold text-primary-500">{onboarding}</span>
         ) : null}
       </div>
     </button>

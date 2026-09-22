@@ -120,7 +120,23 @@ export const project: ProjectModule = {
       id: 'application',
       title: 'Survey Assisted',
       component: lazyScreen(() => import('./screens/application'), 'ApplicationScreen'),
-      flowsTo: [{ to: 'sales', label: 'Submit → Survey submitted' }],
+      flowsTo: [
+        { to: 'survey-form', label: 'BP Feedback / Uji Kelayakan' },
+        { to: 'ritual', label: 'Ritual explanation' },
+        { to: 'sales', label: 'Submit → Survey submitted' },
+      ],
+    },
+    {
+      id: 'survey-form',
+      title: 'Survey Form',
+      component: lazyScreen(() => import('./screens/survey-form'), 'SurveyFormScreen'),
+      flowsTo: [{ to: 'application', label: 'Selesai' }],
+    },
+    {
+      id: 'ritual',
+      title: 'Ritual Explanation',
+      component: lazyScreen(() => import('./screens/ritual'), 'RitualScreen'),
+      flowsTo: [{ to: 'application', label: 'Selesai' }],
     },
     {
       id: 'survey-started',
