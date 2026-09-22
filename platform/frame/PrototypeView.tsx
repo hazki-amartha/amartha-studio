@@ -479,6 +479,8 @@ function ToolPanel({
   slug: string
   screenId: string
 }) {
+  // Every tab fills the panel, so the Push bar under them never moves.
+  const fill = { ...props, className: `${props.className ?? ''} flex-1` }
   const header =
     tabs.length > 1 ? (
       <PanelTabs tabs={tabs.map((id) => ({ id, label: TAB_LABELS[id] }))} active={tab} onChange={setEditTab} />
@@ -487,9 +489,9 @@ function ToolPanel({
   return (
     <>
       <div className={tab === 'edit' ? 'contents' : 'hidden'}>
-        <DesignPanel {...props} tabs={header} />
+        <DesignPanel {...fill} tabs={header} />
       </div>
-      {tab === 'css' ? <InspectorPanel {...props} tabs={header} /> : null}
+      {tab === 'css' ? <InspectorPanel {...fill} tabs={header} /> : null}
       {tab === 'chat' ? (
         <LiveChatPanel
           slug={props.slug}
@@ -498,7 +500,7 @@ function ToolPanel({
           onDeselect={() => props.onPin(null)}
           tabs={header}
           onMinimize={props.onMinimize}
-          className={props.className}
+          className={fill.className}
         />
       ) : null}
       <PushBar slug={props.slug} />
@@ -561,7 +563,7 @@ function usePanelState(editing: boolean, hasNotes: boolean, openByDefault: boole
     setRight(editing ? 'tool' : rest)
   }, [editing, rest])
 
-  return { leftOpen, setLeftOpen, right, setRight, tab, tabs, showingChat: tab === 'chat' }
+  return { leftOpen, setLeftOpen, right, setRight, tab, tabs }
 }
 
 interface SlotProps {
@@ -646,9 +648,9 @@ function panelSlots(a: SlotProps) {
     ) : null,
   ].filter(Boolean)
 
-  // Chat's transcript scrolls inside a full-height card, so its composer stays
-  // on screen; every other panel is as tall as its content.
-  return { left, leftPill, right, rightPills, rightFull: showingTool && slots.showingChat }
+  // The tool panel is always full height, so the Push bar at its foot stays in
+  // one place whichever tab is showing; Notes is as tall as its content.
+  return { left, leftPill, right, rightPills, rightFull: showingTool }
 }
 
 /**
