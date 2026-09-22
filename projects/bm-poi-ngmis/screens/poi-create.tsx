@@ -14,7 +14,7 @@ import { Button, Input } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
 import { addPoi, beginCreate, setDraftField, updatePoi, useDraft, useEditingId, usePois } from '../lib/store'
 import { BmShell } from '../lib/shell'
-import { FieldLabel, FoAvailabilityGrid, PageHeading, Panel, Select, SectionTitle } from '../lib/ui'
+import { EmptyState, FieldLabel, FoAvailabilityGrid, PageHeading, Panel, Select, SectionTitle } from '../lib/ui'
 
 const KECAMATAN_DESA: Record<string, string[]> = {
   Ciseeng: ['Ciseeng', 'Putat Nutug', 'Cibeuteung Udik', 'Cibeuteung Hilir'],
@@ -38,6 +38,18 @@ const FO_OPTIONS = ['Sari Handayani', 'Rina Marlina', 'Ani Suryani', 'Dewi Lesta
   label: v,
 }))
 
+// 09.00–18.00, one column per hour slot — the FO availability grid's own
+// range, narrower than the Jam ramai POI picker's full-day one.
+const GRID_HOURS = Array.from({ length: 9 }, (_, i) => {
+  const v = `${String(9 + i).padStart(2, '0')}.00`
+  return { value: v, label: v }
+})
+
+function nextHour(hour: string) {
+  const h = Number(hour.split('.')[0]) + 1
+  return `${String(h).padStart(2, '0')}.00`
+}
+
 export function PoiCreateScreen() {
   const flow = useFlow()
   const draft = useDraft()
@@ -45,12 +57,14 @@ export function PoiCreateScreen() {
   const pois = usePois()
   const title = editingId ? 'Edit POI' : 'POI Baru'
 
-  // Every other POI's own Jadwal/Assigned FO, so the grid can show what's
-  // already booked — excluding the record being edited, so editing a POI
-  // doesn't show it blocking its own slot.
+  // The selected FO's own bookings this week — excluding the record being
+  // edited, so editing a POI doesn't show it blocking its own slot. Only
+  // bookings with their own hours can be placed on an hourly grid.
   const bookings = pois
-    .filter((p) => p.id !== editingId && p.assignedFo && p.jadwal)
-    .map((p) => ({ fo: p.assignedFo, day: p.jadwal, poiName: p.name }))
+    .filter(
+      (p) => p.id !== editingId && p.assignedFo === draft.assignedFo && p.jadwal && p.jamMulai && p.jamSelesai,
+    )
+    .map((p) => ({ day: p.jadwal, jamMulai: p.jamMulai, jamSelesai: p.jamSelesai, poiName: p.name }))
 
   const canSubmit = draft.name.trim() && draft.jenis.trim() && draft.kecamatan && draft.desa && draft.jadwal
 
@@ -199,18 +213,26 @@ export function PoiCreateScreen() {
               </div>
 
               <div className="flex flex-col gap-8">
-                <FieldLabel optional>Ketersediaan FO minggu ini</FieldLabel>
-                <FoAvailabilityGrid
-                  fos={FO_OPTIONS.map((o) => o.value)}
-                  days={JADWAL_OPTIONS}
-                  bookings={bookings}
-                  selectedFo={draft.assignedFo}
-                  selectedDay={draft.jadwal}
-                  onPick={(fo, day) => {
-                    setDraftField('assignedFo', fo)
-                    setDraftField('jadwal', day)
-                  }}
-                />
+                <FieldLabel>Ketersediaan FO minggu ini</FieldLabel>
+                {draft.assignedFo ? (
+                  <FoAvailabilityGrid
+                    fo={draft.assignedFo}
+                    days={JADWAL_OPTIONS}
+                    hours={GRID_HOURS}
+                    bookings={bookings}
+                    selectedDay={draft.jadwal}
+                    selectedHour={draft.jamMulai}
+                    onPick={(day, hour) => {
+                      setDraftField('jadwal', day)
+                      setDraftField('jamMulai', hour)
+                      setDraftField('jamSelesai', nextHour(hour))
+                    }}
+                  />
+                ) : (
+                  <div className="rounded-8 border border-default">
+                    <EmptyState title="Pilih Assigned FO dahulu" body="Ketersediaannya akan tampil di sini, per jam." />
+                  </div>
+                )}
               </div>
             </div>
 
