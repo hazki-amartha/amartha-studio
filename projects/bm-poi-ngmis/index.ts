@@ -6,17 +6,10 @@ export const project: ProjectModule = {
   config,
   screens: [
     {
-      id: 'poi-list',
-      title: 'POI creation',
-      component: lazyScreen(() => import('./screens/poi-list'), 'PoiListScreen'),
-      entry: true,
-      flowsTo: [{ to: 'poi-create', label: 'Tambah POI' }],
-    },
-    {
       id: 'poi-create',
-      title: 'Tambah POI',
+      title: 'POI Baru',
       component: lazyScreen(() => import('./screens/poi-create'), 'PoiCreateScreen'),
-      flowsTo: [{ to: 'poi-list', label: 'Simpan / Batal' }],
+      entry: true,
     },
   ],
 }

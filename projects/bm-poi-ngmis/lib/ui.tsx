@@ -1,146 +1,116 @@
 'use client'
 
-// Project-local desktop surfaces — Panel, Select and a plain table — copied
-// (not imported, §1) from `projects/ngmis-bm-monitoring/lib/ui.tsx` and
-// trimmed to what a POI list + form actually needs.
+// Project-local form components (CLAUDE.md §4), copied (not imported — §1)
+// from `projects/apartner-bm-majelis-view/lib/ui.tsx`'s SelectField/OptionSheet
+// pattern — the mobile BM app's own way of doing a picker, since FunDS has no
+// desktop-style `<select>` on a phone.
 
 import type { ReactNode } from 'react'
-import { ChevronDown } from '@/design-system/icons'
+import { BottomSheet, SelectableCard } from '@/design-system/components'
+import { ChevronDown, ChevronRight } from '@/design-system/icons'
 
-const CONTROL_H = 32
+export function SectionTitle({ children }: { children: ReactNode }) {
+  return <span className="text-16 font-bold text-default">{children}</span>
+}
 
-export function Panel({
+export function FieldLabel({
   children,
-  className = 'p-16',
+  required,
+  optional,
 }: {
   children: ReactNode
-  className?: string
+  required?: boolean
+  optional?: boolean
 }) {
   return (
-    <div className={`rounded-12 border border-default bg-neutral-white ${className}`}>
+    <span className="text-12 font-bold text-default">
       {children}
-    </div>
+      {required ? <span className="text-red-500"> *</span> : null}
+      {optional ? <span className="font-regular text-caption"> (optional)</span> : null}
+    </span>
   )
 }
 
-export function PanelHeading({
-  title,
-  subtitle,
-  action,
-}: {
-  title: string
-  subtitle?: string
-  action?: ReactNode
-}) {
-  return (
-    <div className="flex items-start justify-between gap-16 pb-12">
-      <div className="flex flex-col gap-2">
-        <span className="text-16 font-bold text-default">{title}</span>
-        {subtitle ? <span className="text-12 text-caption">{subtitle}</span> : null}
-      </div>
-      {action}
-    </div>
-  )
+export function HelperText({ children }: { children: ReactNode }) {
+  return <span className="text-12 text-caption">{children}</span>
 }
 
-export function Select({
-  value,
-  options,
-  onChange,
+export function SelectField({
   label,
+  required,
+  optional,
+  placeholder,
+  value,
+  onClick,
   disabled,
+  /** The map-point picker reads as a drill-in (▸), not a picker (⌄). */
+  chevron = 'down',
 }: {
-  value: string
-  options: { value: string; label: string }[]
-  onChange: (value: string) => void
-  label: string
-  /** A cascading field — e.g. Desa — that has nothing to choose from until its
-   *  parent is picked. Greyed rather than hidden, so the field grid keeps its
-   *  shape as the form fills in. */
+  label?: string
+  required?: boolean
+  optional?: boolean
+  placeholder: string
+  value?: string | null
+  onClick: () => void
   disabled?: boolean
+  chevron?: 'down' | 'right'
 }) {
   return (
-    <label className="flex flex-col gap-4">
-      <span className="text-12 font-bold text-default">{label}</span>
-      <div className="relative">
-        <select
-          aria-label={label}
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-          className={`w-full appearance-none rounded-8 border border-default bg-neutral-white pl-12 pr-32 text-14 font-regular ${
-            disabled ? 'text-placeholder' : 'text-default'
-          }`}
-          style={{ height: CONTROL_H }}
-        >
-          <option value="" disabled>
-            Pilih {label.toLowerCase()}
-          </option>
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <span
-          className={`pointer-events-none absolute right-8 top-8 ${
-            disabled ? 'text-placeholder' : 'text-caption'
-          }`}
-        >
-          <ChevronDown size={16} />
+    <div className="flex flex-col gap-8">
+      {label ? (
+        <FieldLabel required={required} optional={optional}>
+          {label}
+        </FieldLabel>
+      ) : null}
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={`flex items-center justify-between gap-8 rounded-8 border px-12 py-8 text-left text-14 ${
+          disabled
+            ? 'border-default bg-neutral-50 text-disabled'
+            : 'border-default bg-neutral-white text-default'
+        }`}
+      >
+        <span className={`truncate ${value ? '' : 'text-placeholder'}`}>{value || placeholder}</span>
+        <span className="shrink-0 text-disabled">
+          {chevron === 'right' ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
         </span>
+      </button>
+    </div>
+  )
+}
+
+export function OptionSheet<T>({
+  open,
+  title,
+  name,
+  options,
+  value,
+  onPick,
+  onClose,
+}: {
+  open: boolean
+  title: string
+  name: string
+  options: { label: string; value: T }[]
+  value: T
+  onPick: (v: T) => void
+  onClose: () => void
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} title={title}>
+      <div className="flex flex-col gap-8">
+        {options.map((o) => (
+          <SelectableCard
+            key={o.label}
+            name={name}
+            title={o.label}
+            checked={o.value === value}
+            onChange={() => onPick(o.value)}
+          />
+        ))}
       </div>
-    </label>
-  )
-}
-
-export interface TableColumn {
-  id: string
-  header: string
-}
-
-export interface TableRow {
-  id: string
-  cells: Record<string, ReactNode>
-}
-
-export function SimpleTable({ columns, rows }: { columns: TableColumn[]; rows: TableRow[] }) {
-  return (
-    <div className="min-w-0 overflow-x-auto">
-      <table className="w-full border-collapse text-left">
-        <thead>
-          <tr>
-            {columns.map((c) => (
-              <th
-                key={c.id}
-                className="border-b border-default bg-neutral-50 px-12 py-8 text-12 font-bold text-default"
-              >
-                {c.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className="border-b border-default align-middle">
-              {columns.map((c) => (
-                <td key={c.id} className="px-12 py-12 text-14 text-default">
-                  {row.cells[c.id]}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-export function EmptyState({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="flex flex-col items-center gap-4 py-40 text-center">
-      <span className="text-14 font-bold text-default">{title}</span>
-      <span className="text-12 text-caption">{body}</span>
-    </div>
+    </BottomSheet>
   )
 }

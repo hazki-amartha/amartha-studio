@@ -6,8 +6,8 @@ export const config: ProjectConfig = {
   businessUnit: 'Lending',
   platform: 'NGMIS',
   owner: 'Patricia',
-  description: 'Branches ▸ POI creation — the BM adds and reviews the points of interest she has marked for her branch.',
-  device: 'desktop',
+  description: 'Branches ▸ POI creation — the BM form for marking a new point of interest for her branch.',
+  device: 'mobile',
   status: 'draft',
   createdAt: '2026-09-22',
 }
