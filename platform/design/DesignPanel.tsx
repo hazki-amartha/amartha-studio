@@ -115,6 +115,8 @@ export interface DesignPanelProps {
   screenId: string
   className?: string
   onMinimize?: () => void
+  /** The Edit mode's tabs, drawn in this panel's header. */
+  tabs?: React.ReactNode
 }
 
 // --- class classification ----------------------------------------------------
@@ -277,8 +279,9 @@ export function DesignPanel({
   screenId,
   className,
   onMinimize,
+  tabs,
 }: DesignPanelProps) {
-  const shell = { title: 'Design', onMinimize, className }
+  const shell = { title: 'Edit', tabs, onMinimize, className }
   const store = useSyncExternalStore(
     subscribeDesignStore,
     getDesignStoreState,

@@ -180,11 +180,11 @@ function PushPopover({
     if (!name) return
     setError(null)
     if (unsaved > 0) {
-      setBusy('Saving your Design edits…')
+      setBusy('Saving your edits…')
       const saved = await applyPending()
       if (!saved) {
         setBusy(null)
-        return setError('Some Design edits couldn’t be saved, so nothing was pushed. See the Design panel.')
+        return setError('Some edits couldn’t be saved, so nothing was pushed. See the Edit panel.')
       }
       // Give the saved files a beat to land on disk before they're read.
       await new Promise((r) => setTimeout(r, 300))
@@ -236,7 +236,7 @@ function PushPopover({
           ))}
           {unsaved > 0 ? (
             <li className="text-12 text-caption dark:text-neutral-400">
-              + {plural(unsaved, 'unsaved Design edit')}, saved first
+              + {plural(unsaved, 'unsaved edit')}, saved first
             </li>
           ) : null}
         </ul>

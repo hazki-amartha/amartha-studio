@@ -48,17 +48,16 @@ import {
 } from '@/platform/runtime'
 import { clearScreenBridge, publishScreenBridge } from '@/platform/runtime/bridge'
 import {
-  getInspectMode,
-  getInspectServerSnapshot,
-  setInspectMode,
-  subscribeInspectMode,
-} from '@/platform/runtime/inspectBridge'
-import {
   getDesignMode,
   getDesignServerSnapshot,
+  getEditTab,
+  getEditTabServerSnapshot,
   setDesignMode,
+  setEditTab,
   subscribeDesignMode,
+  type EditTab,
 } from '@/platform/runtime/designBridge'
+import { getDesignStoreServerSnapshot, getDesignStoreState, subscribeDesignStore } from '@/platform/design/designStore'
 import {
   getBareMode,
   getBareServerSnapshot,
@@ -78,7 +77,7 @@ import { layersDrag } from '@/platform/design/actions'
 import { toggleSelected } from '@/platform/design/selection'
 import { refind } from '@/platform/design/overlay'
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '@/platform/chrome/icons'
-import { PanelPill, PanelShell } from '@/platform/chrome/SidePanel'
+import { PanelPill, PanelShell, PanelTabs } from '@/platform/chrome/SidePanel'
 import { DeviceFrame } from './DeviceFrame'
 import { DEVICE_SPECS, outerSize } from './device'
 import styles from './prototype.module.css'
@@ -122,14 +121,13 @@ function BridgePublisher({ slug, screens }: { slug: string; screens: ScreenDef[]
 
 /** The running app: the active screen stage, which now carries the device
  *  status-bar strip itself (see `Screen` in platform/primitives).
- *  In inspect mode it also carries the pick layer, which sits inside the device
+ *  In Edit mode it also carries the pick layer, which sits inside the device
  *  screen so it inherits the frame's scale. Mobile passes nothing, so the layer
  *  never mounts there. */
 function AppViewport({
   device = 'mobile',
   slug,
-  inspect,
-  design,
+  editing,
   pinned,
   onPin,
   onRepin,
@@ -137,8 +135,7 @@ function AppViewport({
 }: {
   device?: DeviceKind
   slug?: string
-  inspect?: boolean
-  design?: boolean
+  editing?: boolean
   pinned?: Element | null
   onPin?: (el: Element | null) => void
   onRepin?: (stale: Element) => void
@@ -157,7 +154,7 @@ function AppViewport({
     <div
       className={styles.viewport}
       data-device={device}
-      data-inspect={inspect || pickingForChat ? 'on' : undefined}
+      data-inspect={editing || pickingForChat ? 'on' : undefined}
     >
       <ScreenStage />
       {pickingForChat ? (
@@ -170,22 +167,23 @@ function AppViewport({
           pick="authored"
         />
       ) : null}
-      {/* Both modes pick by design mode's rule — the nearest element the
-          project's source wrote. Inspect used to jump to the nearest FunDS
-          boundary, and since `Screen` is one, plain content kept selecting the
-          whole screen. A placed component still wins over its own insides. */}
-      {inspect && onPin && !pickingForChat ? (
+      {/* Picks the nearest element the project's source wrote. Picking the
+          nearest FunDS boundary was tried and dropped: `Screen` is one, so
+          plain content kept selecting the whole screen. A placed component
+          still wins over its own insides. Whichever tab is showing, the canvas
+          behaves the same — the tab is what you do with the pick. */}
+      {editing && onPin && !pickingForChat ? (
         <InspectLayer
           pinned={pinned ?? null}
           onPin={onPin}
           preview={preview}
           pick="authored"
-          onShiftPick={design ? (el) => (pinned ? toggleSelected(el) : onPin(el)) : undefined}
+          onShiftPick={(el) => (pinned ? toggleSelected(el) : onPin(el))}
           onRepin={onRepin}
-          tone={design ? 'design' : 'inspect'}
+          tone="design"
         />
       ) : null}
-      {inspect && design && onPin && slug && !pickingForChat ? (
+      {editing && onPin && slug && !pickingForChat ? (
         <DesignLayer
           slug={slug}
           screenId={current}
@@ -448,16 +446,10 @@ function DeviceStepper({ children }: { children: ReactNode }) {
   )
 }
 
-/** Pick-mode plumbing shared by both framed layouts: the inspect and design
- *  flags (both ride the same pick layer), and the pinned element that must be
- *  dropped whenever the screen under it remounts. */
+/** Edit-mode plumbing shared by both framed layouts: the flag, and the pinned
+ *  element that must be dropped whenever the screen under it remounts. */
 function useInspectState() {
-  const inspect = useSyncExternalStore(
-    subscribeInspectMode,
-    getInspectMode,
-    getInspectServerSnapshot,
-  )
-  const design = useSyncExternalStore(subscribeDesignMode, getDesignMode, getDesignServerSnapshot)
+  const editing = useSyncExternalStore(subscribeDesignMode, getDesignMode, getDesignServerSnapshot)
   const [pinned, setPinned] = useState<Element | null>(null)
   // Re-find a pin that left the screen — only while it is still the pin. See
   // InspectLayer's `onRepin` for the race this closes.
@@ -474,20 +466,65 @@ function useInspectState() {
   useEffect(() => setPinned(null), [current])
   useEffect(() => setPreview(null), [current])
   useEffect(() => {
-    if (!inspect && !design) {
+    if (!editing) {
       setPinned(null)
       setPreview(null)
     }
-  }, [inspect, design])
+  }, [editing])
 
-  return { inspect, design, pinned, setPinned, repin, preview, setPreview, current }
+  return { editing, pinned, setPinned, repin, preview, setPreview, current }
+}
+
+// --- the Edit panel ----------------------------------------------------------
+//
+// One selection, two things to do with it (STUDIO-EDITING-PLAN Part E): Edit
+// changes it, CSS reads it. Where nothing can be saved — a shared link with no
+// backend — it opens on CSS, since Edit could only collect; the designer's own
+// choice wins from then on.
+//
+// The Edit panel stays MOUNTED behind the CSS tab: it is what restores the
+// unsaved list and asks where saves go, and its staged edits must survive a
+// look at the CSS. The CSS panel is mounted only while showing — it reads
+// computed styles once per pin, so a fresh mount is what makes it show the
+// element as it is after an edit.
+
+const EDIT_TABS: { id: EditTab; label: string }[] = [
+  { id: 'edit', label: 'Edit' },
+  { id: 'css', label: 'CSS' },
+]
+
+function EditPanel(props: {
+  className?: string
+  onMinimize: () => void
+  pinned: Element | null
+  onPin: (el: Element | null) => void
+  slug: string
+  screenId: string
+}) {
+  const chosen = useSyncExternalStore(subscribeDesignMode, getEditTab, getEditTabServerSnapshot)
+  const backend = useSyncExternalStore(
+    subscribeDesignStore,
+    () => getDesignStoreState().backend,
+    () => getDesignStoreServerSnapshot().backend,
+  )
+  const tab: EditTab = chosen ?? (backend === 'record' ? 'css' : 'edit')
+  const tabs = <PanelTabs tabs={EDIT_TABS} active={tab} onChange={setEditTab} />
+
+  return (
+    <>
+      <div className={tab === 'edit' ? 'contents' : 'hidden'}>
+        <DesignPanel {...props} tabs={tabs} />
+      </div>
+      {tab === 'css' ? <InspectorPanel {...props} tabs={tabs} /> : null}
+    </>
+  )
 }
 
 // --- the panel slots ---------------------------------------------------------
 //
 // Both layouts show the same three panels in the same two places: States or
-// Layers on the left, and on the right either the picking tool (inspect/design)
-// or Notes. What differs is only where a slot is drawn — a column beside a
+// Layers on the left, and on the right either the Edit panel (its Edit and CSS
+// tabs) or Notes. What differs is only where a slot is drawn — a column beside a
 // phone, a drawer over a 1440 canvas — so everything about WHICH panel is
 // showing lives here, once.
 
@@ -526,7 +563,6 @@ interface SlotProps {
   screens: ScreenDef[]
   current: string
   picking: boolean
-  design: boolean
   hasStates: boolean
   hasNotes: boolean
   pinned: Element | null
@@ -546,7 +582,6 @@ function panelSlots(a: SlotProps) {
   const { slots } = a
   const leftExists = a.picking || a.hasStates
   const leftTitle = a.picking ? 'Layers' : 'States'
-  const toolTitle = a.design ? 'Design' : 'Inspect'
 
   const hideLeft = () => slots.setLeftOpen(false)
 
@@ -558,7 +593,7 @@ function panelSlots(a: SlotProps) {
         pinned={a.pinned}
         onPin={a.setPinned}
         onHover={a.setPreview}
-        drag={a.design ? layersDrag(a.config.slug, a.current) : undefined}
+        drag={layersDrag(a.config.slug, a.current)}
       />
     ) : (
       <StatesPanel
@@ -575,25 +610,14 @@ function panelSlots(a: SlotProps) {
 
   const showingTool = slots.right === 'tool' && a.picking
   const right = showingTool ? (
-    a.design ? (
-      <DesignPanel
-        className={a.panelClassName}
-        onMinimize={() => slots.setRight(null)}
-        pinned={a.pinned}
-        onPin={a.setPinned}
-        slug={a.config.slug}
-        screenId={a.current}
-      />
-    ) : (
-      <InspectorPanel
-        className={a.panelClassName}
-        onMinimize={() => slots.setRight(null)}
-        pinned={a.pinned}
-        onPin={a.setPinned}
-        slug={a.config.slug}
-        screenId={a.current}
-      />
-    )
+    <EditPanel
+      className={a.panelClassName}
+      onMinimize={() => slots.setRight(null)}
+      pinned={a.pinned}
+      onPin={a.setPinned}
+      slug={a.config.slug}
+      screenId={a.current}
+    />
   ) : slots.right === 'notes' && a.hasNotes ? (
     <AnnotationPanel
       screens={a.screens}
@@ -607,7 +631,7 @@ function panelSlots(a: SlotProps) {
   // a designer editing a screen may still want its notes.
   const rightPills = [
     a.picking && !showingTool ? (
-      <PanelPill key="tool" label={toolTitle} onClick={() => slots.setRight('tool')} />
+      <PanelPill key="tool" label="Edit" onClick={() => slots.setRight('tool')} />
     ) : null,
     a.hasNotes && slots.right !== 'notes' ? (
       <PanelPill key="notes" label="Notes" onClick={() => slots.setRight('notes')} />
@@ -625,8 +649,7 @@ function panelSlots(a: SlotProps) {
  * in it rather than collapsing the grid.
  */
 function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
-  const { inspect, design, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
-  const picking = inspect || design
+  const { editing: picking, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
 
   const active = screens.find((s) => s.id === current)
   const hasStates = (active?.states?.length ?? 0) > 0
@@ -638,7 +661,6 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
     screens,
     current,
     picking,
-    design,
     hasStates,
     hasNotes,
     pinned,
@@ -662,8 +684,7 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
           <DeviceFrame>
             <AppViewport
               slug={config.slug}
-              inspect={picking}
-              design={design}
+              editing={picking}
               pinned={pinned}
               onPin={setPinned}
               onRepin={repin}
@@ -691,8 +712,7 @@ function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: Sc
  * they open from. Same panels, same controls — only the placement differs.
  */
 function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
-  const { inspect, design, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
-  const picking = inspect || design
+  const { editing: picking, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
 
   const active = screens.find((s) => s.id === current)
   const hasStates = (active?.states?.length ?? 0) > 0
@@ -704,7 +724,6 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
     screens,
     current,
     picking,
-    design,
     hasStates,
     hasNotes,
     pinned,
@@ -726,8 +745,7 @@ function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; scree
             <AppViewport
               device="desktop"
               slug={config.slug}
-              inspect={picking}
-              design={design}
+              editing={picking}
               pinned={pinned}
               onPin={setPinned}
               onRepin={repin}
@@ -880,11 +898,10 @@ export function PrototypeView({ config, initialScreenId, initialBare }: Prototyp
     getBareServerSnapshot,
   )
 
-  // Both mode flags outlive this route, so leaving for the gallery or the flow
-  // view would otherwise strand the shell in a mode with nothing to apply it to.
+  // Both flags outlive this route, so leaving for the gallery or the flow view
+  // would otherwise strand the shell in a mode with nothing to apply it to.
   useEffect(
     () => () => {
-      setInspectMode(false)
       setDesignMode(false)
       setBareMode(false)
     },

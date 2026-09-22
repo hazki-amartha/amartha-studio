@@ -34,6 +34,8 @@ export interface InspectorPanelProps {
   /** The annotations column geometry, handed down by the prototype view. */
   className?: string
   onMinimize?: () => void
+  /** The Edit mode's tabs, drawn in this panel's header. */
+  tabs?: React.ReactNode
 }
 
 function Heading({ children }: { children: React.ReactNode }) {
@@ -76,6 +78,7 @@ export function InspectorPanel({
   screenId,
   className,
   onMinimize,
+  tabs,
 }: InspectorPanelProps) {
   const [copied, setCopied] = useState<'agent' | 'spec' | null>(null)
   const chatAvailable = useSyncExternalStore(
@@ -83,7 +86,7 @@ export function InspectorPanel({
     () => getChat().available,
     () => getChatServerSnapshot().available,
   )
-  const shell = { title: 'Inspect', onMinimize, className }
+  const shell = { title: 'CSS', tabs, onMinimize, className }
 
   // Recomputed per pin rather than per frame — computed styles are only read
   // when the selection changes, not while a box is being tracked.

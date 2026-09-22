@@ -30,6 +30,9 @@ const SURFACE_BG = 'bg-neutral-white dark:bg-ink-900'
 
 export interface PanelShellProps {
   title: string
+  /** Drawn in the header instead of the title — for a panel with tabs. The
+   *  title still names the panel for the minimize control. */
+  tabs?: ReactNode
   /** Omitted for a panel that cannot be dismissed; then no control is drawn. */
   onMinimize?: () => void
   /** Column geometry from the layout (width, alignment) or `w-full` in a drawer. */
@@ -40,6 +43,7 @@ export interface PanelShellProps {
 
 export function PanelShell({
   title,
+  tabs,
   onMinimize,
   className,
   onMouseLeave,
@@ -60,9 +64,11 @@ export function PanelShell({
       <div
         className={`sticky top-0 z-10 flex items-center justify-between gap-8 pb-8 pt-8 ${SURFACE_BG}`}
       >
-        <span className="truncate text-10 font-bold uppercase text-caption dark:text-neutral-400">
-          {title}
-        </span>
+        {tabs ?? (
+          <span className="truncate text-10 font-bold uppercase text-caption dark:text-neutral-400">
+            {title}
+          </span>
+        )}
         {onMinimize ? (
           <button
             type="button"
@@ -100,5 +106,38 @@ export function PanelPill({
     >
       {label}
     </button>
+  )
+}
+
+/** A panel's tabs, for its header: one selection, several things to do with
+ *  it. Small and quiet — the header is chrome, the body is the content. */
+export function PanelTabs<T extends string>({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: { id: T; label: string }[]
+  active: T
+  onChange: (id: T) => void
+}) {
+  return (
+    <div role="tablist" className="flex items-center gap-2 rounded-full bg-neutral-50 p-2 dark:bg-ink-950">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          aria-selected={t.id === active}
+          onClick={() => onChange(t.id)}
+          className={`rounded-full px-12 py-2 text-12 ${
+            t.id === active
+              ? 'bg-neutral-white font-bold text-link shadow-sm dark:bg-ink-800 dark:text-neutral-50 dark:shadow-none'
+              : 'text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50'
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
   )
 }

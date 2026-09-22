@@ -11,12 +11,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import {
-  getInspectMode,
-  getInspectServerSnapshot,
-  setInspectMode,
-  subscribeInspectMode,
-} from '@/platform/runtime/inspectBridge'
-import {
   getDesignMode,
   getDesignServerSnapshot,
   setDesignMode,
@@ -38,7 +32,6 @@ import {
   EditIcon,
   ExpandIcon,
   FlowIcon,
-  InspectIcon,
   PanelIcon,
 } from './icons'
 import { MobileTopNav } from './MobileTopNav'
@@ -94,99 +87,61 @@ function resolveRoute(pathname: string, projects: ProjectIndexEntry[]): RouteInf
 }
 
 /**
- * Segmented prototype/inspect/flow switch — only shown on a project route.
+ * Segmented Prototype · Edit · Flow switch — only shown on a project route.
  *
- * Prototype and Inspect are the SAME route wearing two interaction models, so
- * Inspect is a plain button when we're already there: navigating would remount
+ * Prototype and Edit are the SAME route wearing two interaction models, so
+ * Edit is a plain button when we're already there: navigating would remount
  * PrototypeView and reset the visit stack, dumping the viewer back on the entry
- * screen — exactly wrong for a tool whose job is describing the element in
- * front of them. Coming from Flow there is no stack to protect, so it links,
- * setting the flag before the navigation so the view mounts already inspecting.
+ * screen — exactly wrong for a tool whose job is the element in front of them.
+ * Coming from Flow there is no stack to protect, so it links, setting the flag
+ * before the navigation so the view mounts already editing.
+ *
+ * Edit is what Design and Inspect were before they merged: one mode for
+ * selecting, with the Edit and CSS tabs in its panel (STUDIO-EDITING-PLAN
+ * Part E). It exists everywhere, but saves only where a backend can write; on
+ * a shared link with none the panel opens on CSS.
  */
 function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
-  const inspect = useSyncExternalStore(
-    subscribeInspectMode,
-    getInspectMode,
-    getInspectServerSnapshot,
-  )
-  const design = useSyncExternalStore(subscribeDesignMode, getDesignMode, getDesignServerSnapshot)
+  const editing = useSyncExternalStore(subscribeDesignMode, getDesignMode, getDesignServerSnapshot)
 
   const base =
     'flex items-center gap-4 rounded-full px-12 py-4 text-12 transition-colors'
   const on = `${base} bg-neutral-white font-bold text-link shadow-sm dark:border dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50 dark:shadow-none`
   const off = `${base} text-caption hover:text-default dark:border dark:border-transparent dark:text-neutral-400 dark:hover:text-neutral-50`
 
-  const showingPrototype = !isFlow && !inspect && !design
-  const showingInspect = !isFlow && inspect && !design
-  const showingDesign = !isFlow && design
-
-  const enterInspect = () => {
-    setDesignMode(false)
-    setInspectMode(true)
-  }
-  const enterDesign = () => {
-    setInspectMode(false)
-    setDesignMode(true)
-  }
-  const leaveModes = () => {
-    setInspectMode(false)
-    setDesignMode(false)
-  }
+  const showingPrototype = !isFlow && !editing
+  const showingEdit = !isFlow && editing
 
   return (
     <div className="flex shrink-0 items-center gap-2 rounded-full bg-neutral-50 p-2 dark:bg-ink-950">
       <Link
         href={`/p/${slug}`}
-        onClick={leaveModes}
+        onClick={() => setDesignMode(false)}
         aria-current={showingPrototype ? 'page' : undefined}
         className={showingPrototype ? on : off}
       >
         <DeviceIcon className="size-16" />
         Prototype
       </Link>
-      {/* Design exists everywhere, but means different things: on the dev server
-          it writes into the prototype, and on a deployment — which has no
-          source behind it — it collects the changes to copy and send on. The
-          panel owns that distinction; the segment is just the way in. */}
       {isFlow ? (
-        <Link href={`/p/${slug}`} onClick={enterDesign} className={off}>
+        <Link href={`/p/${slug}`} onClick={() => setDesignMode(true)} className={off}>
           <EditIcon className="size-16" />
-          Design
+          Edit
         </Link>
       ) : (
         <button
           type="button"
-          onClick={enterDesign}
-          aria-current={showingDesign ? 'page' : undefined}
-          className={showingDesign ? on : off}
+          onClick={() => setDesignMode(true)}
+          aria-current={showingEdit ? 'page' : undefined}
+          className={showingEdit ? on : off}
         >
           <EditIcon className="size-16" />
-          Design
-        </button>
-      )}
-      {isFlow ? (
-        <Link
-          href={`/p/${slug}`}
-          onClick={enterInspect}
-          className={off}
-        >
-          <InspectIcon className="size-16" />
-          Inspect
-        </Link>
-      ) : (
-        <button
-          type="button"
-          onClick={enterInspect}
-          aria-current={showingInspect ? 'page' : undefined}
-          className={showingInspect ? on : off}
-        >
-          <InspectIcon className="size-16" />
-          Inspect
+          Edit
         </button>
       )}
       <Link
         href={`/p/${slug}/flow`}
-        onClick={leaveModes}
+        onClick={() => setDesignMode(false)}
         aria-current={isFlow ? 'page' : undefined}
         className={isFlow ? on : off}
       >

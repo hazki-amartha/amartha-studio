@@ -1,22 +1,29 @@
 // =============================================================================
-// Design bridge — a module-level store holding one boolean: is design mode on.
+// Edit bridge — is Edit mode on, and which of its tabs is showing.
 //
-// The exact shape of inspectBridge, for the exact reasons written there: the
-// shell's toggle and the running prototype are far apart in the tree, and a
-// context would re-render the whole shell on every flip.
+// Edit mode is what Design and Inspect were before they merged (2026-09-22,
+// STUDIO-EDITING-PLAN Part E): selecting is the mode, and what you do with the
+// selection is a tab — Edit changes it, CSS reads it. The names below still
+// say "design" because that is what the rest of platform/design calls it.
 //
-// Design and inspect are mutually exclusive modes over the same pick layer; the
-// exclusivity lives at the call sites (the shell's ViewToggle), not here —
-// each bridge stays one dumb flag.
+// A module-level store rather than context: the shell's toggle and the running
+// prototype are far apart in the tree, and a context would re-render the whole
+// shell on every flip. The pinned element is NOT here — it stays local React
+// state in the prototype view, where everything that needs it is a sibling.
 // =============================================================================
 
+export type EditTab = 'edit' | 'css'
+
 let designing = false
+/** null until the designer picks one; the panel then chooses by backend. */
+let tab: EditTab | null = null
 const listeners = new Set<() => void>()
+const emit = () => listeners.forEach((l) => l())
 
 export function setDesignMode(on: boolean) {
   if (designing === on) return
   designing = on
-  listeners.forEach((l) => l())
+  emit()
 }
 
 export function subscribeDesignMode(cb: () => void): () => void {
@@ -28,7 +35,21 @@ export function getDesignMode(): boolean {
   return designing
 }
 
-/** Design mode is a client-only affordance; the server always renders it off. */
+/** Edit mode is a client-only affordance; the server always renders it off. */
 export function getDesignServerSnapshot(): boolean {
   return false
+}
+
+export function setEditTab(next: EditTab) {
+  if (tab === next) return
+  tab = next
+  emit()
+}
+
+export function getEditTab(): EditTab | null {
+  return tab
+}
+
+export function getEditTabServerSnapshot(): EditTab | null {
+  return null
 }
