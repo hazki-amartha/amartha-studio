@@ -1,14 +1,15 @@
 'use client'
 
 // POI creation — the entry point: every point of interest the BM has marked
-// for her branch, with the way to add another.
+// for her branch, with the way to add another, and to edit one already on
+// the list.
 
 import { Button } from '@/design-system/components'
 import { Plus } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { BmShell } from '../lib/shell'
 import { EmptyState, PageHeading, Panel, SimpleTable, type TableRow } from '../lib/ui'
-import { usePois } from '../lib/store'
+import { beginCreate, beginEdit, usePois } from '../lib/store'
 
 const COLUMNS = [
   { id: 'name', header: 'Nama tempat' },
@@ -24,6 +25,10 @@ export function PoiListScreen() {
 
   const rows: TableRow[] = pois.map((poi) => ({
     id: poi.id,
+    onClick: () => {
+      beginEdit(poi)
+      flow.go('poi-create')
+    },
     cells: {
       name: poi.name,
       jenis: poi.jenis,
@@ -39,7 +44,12 @@ export function PoiListScreen() {
         <PageHeading
           title="POI creation"
           actions={
-            <Button onClick={() => flow.go('poi-create')}>
+            <Button
+              onClick={() => {
+                beginCreate()
+                flow.go('poi-create')
+              }}
+            >
               <Plus size={16} />
               Tambah POI
             </Button>
