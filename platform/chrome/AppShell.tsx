@@ -28,6 +28,7 @@ import {
   setBareMode,
   subscribeBareMode,
 } from '@/platform/runtime/presentBridge'
+import { ChatButton, ChatDock } from '@/platform/chat/ChatDock'
 import styles from './chrome.module.css'
 import { HeaderStatusProvider, useHeaderStatus } from './headerStatus'
 import {
@@ -394,16 +395,23 @@ function AppShellInner({
             <HeaderStatusView />
             {currentSlug ? <ViewToggle slug={currentSlug} isFlow={isFlow} /> : null}
             {currentSlug && !isFlow ? <FullScreenButton /> : null}
+            {/* Beside the modes, not among them: chat stays open across all of
+                them. It renders nothing where chat can't run. */}
+            {currentSlug ? <ChatButton /> : null}
           </div>
         </header>
 
-        {isProto ? (
-          <TripleTapExit className="min-h-0 flex-1 touch-manipulation overflow-y-auto">
-            {children}
-          </TripleTapExit>
-        ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-        )}
+        <div className="flex min-h-0 flex-1">
+          {isProto ? (
+            <TripleTapExit className="min-h-0 min-w-0 flex-1 touch-manipulation overflow-y-auto">
+              {children}
+            </TripleTapExit>
+          ) : (
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{children}</div>
+          )}
+          {/* Hidden rather than unmounted in full screen, so the chat survives it. */}
+          {currentSlug ? <ChatDock slug={currentSlug} suppressed={bareProto} /> : null}
+        </div>
       </div>
     </div>
   )

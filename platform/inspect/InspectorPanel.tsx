@@ -13,10 +13,17 @@
 // is what the design system's hand-written `ds-*` CSS is doing underneath.
 // =============================================================================
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import { PanelShell } from '@/platform/chrome/SidePanel'
 import { ancestorChain, labelOf, resolveTarget } from './resolve'
 import { copyForAgent } from './copyForAgent'
+import { attachmentFor } from '@/platform/chat/attach'
+import {
+  attachToChat,
+  getChat,
+  getChatServerSnapshot,
+  subscribeChat,
+} from '@/platform/runtime/chatBridge'
 import { copySpec } from './copySpec'
 
 export interface InspectorPanelProps {
@@ -71,6 +78,11 @@ export function InspectorPanel({
   onMinimize,
 }: InspectorPanelProps) {
   const [copied, setCopied] = useState<'agent' | 'spec' | null>(null)
+  const chatAvailable = useSyncExternalStore(
+    subscribeChat,
+    () => getChat().available,
+    () => getChatServerSnapshot().available,
+  )
   const shell = { title: 'Inspect', onMinimize, className }
 
   // Recomputed per pin rather than per frame — computed styles are only read
@@ -206,6 +218,18 @@ export function InspectorPanel({
         >
           {copied === 'agent' ? 'Copied' : 'Copy for agent'}
         </button>
+        {/* Where chat runs, the same handoff goes straight into it — the
+            composer shows the element as a chip, and the ask is the blank. */}
+        {chatAvailable ? (
+          <button
+            type="button"
+            onClick={() => attachToChat(attachmentFor(target, slug, screenId))}
+            title="Attach this element to the chat and say what should change"
+            className="rounded-full bg-primary-500 px-16 py-8 text-12 font-bold text-neutral-white hover:bg-primary-600"
+          >
+            Ask chat about this
+          </button>
+        ) : null}
       </div>
 
       {/* The same thing Escape does, for anyone who doesn't know Escape does it. */}

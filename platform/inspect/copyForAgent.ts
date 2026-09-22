@@ -6,9 +6,10 @@
 // an agent to grep to it and states the current values, so the ask can be a
 // diff ("gap-12 → gap-16") rather than a description.
 //
-// The file line is hedged on purpose. Screen ids map to filenames by
+// The file line is exact when design mode's source map stamped the element
+// (`data-src`), and hedged otherwise: screen ids map to filenames by
 // convention, but plenty of markup lives in helpers a screen imports, so
-// promising an exact file would be a confident lie some of the time.
+// promising an exact file without the stamp would be a confident lie.
 // =============================================================================
 
 import type { InspectTarget } from './resolve'
@@ -17,9 +18,14 @@ export function copyForAgent(target: InspectTarget, slug: string, screenId: stri
   const lines: string[] = []
 
   lines.push(`Amartha Studio · project \`${slug}\` · screen \`${screenId}\``)
-  lines.push(
-    `File: projects/${slug}/screens/${screenId}.tsx (or a helper it imports from lib/)`,
-  )
+  if (target.source) {
+    const [file, line] = target.source.split(':')
+    lines.push(`File: ${file}, line ${line}`)
+  } else {
+    lines.push(
+      `File: projects/${slug}/screens/${screenId}.tsx (or a helper it imports from lib/)`,
+    )
+  }
   lines.push('')
 
   const props = target.props.map(([k, v]) => ` ${k}="${v}"`).join('')

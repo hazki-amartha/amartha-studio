@@ -180,6 +180,11 @@ export const EditIcon = icon(
   </>,
 )
 
+// Chat — a speech bubble: ask Claude for a change.
+export const ChatIcon = icon(
+  <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" />,
+)
+
 // Inspect — a marquee with a cursor in it: pick an element, read its spec.
 export const InspectIcon = icon(
   <>

@@ -847,6 +847,21 @@ through `/api/chat/cap`. The KV store is provisioned from the Vercel Marketplace
 
 ### B7. The panel — `platform/chat/`
 
+> **Changed 2026-09-22 — chat is not a mode.** It is a **Chat** button on the
+> top bar, beside the mode switch, that opens and closes a panel docked on the
+> right of the shell (`ChatDock.tsx`, state in `platform/runtime/chatBridge.ts`).
+> It stays open across Prototype · Design · Inspect · Flow, and closing it hides
+> rather than unmounts, so the conversation and a running turn survive. The
+> element hand-off is Inspect's **Ask chat about this** button, which attaches
+> the `copyForAgent` string as a chip in the composer. The reference for this
+> interaction is **Airship** (github.com/0xnyn/airship): a local CLI agent
+> driven from a visual editor, with an element selected and a prompt beside it.
+>
+> Until there is an API key, `app/api/chat` runs the **`claude` CLI on the dev
+> server's own laptop** (the owner's subscription login) instead of a sandbox,
+> behind design mode's editing password. The paragraph below is the original
+> design, kept for the parts that still hold.
+
 `ChatPanel.tsx` takes the right column in a **Chat** mode of the shell's
 segmented switch (Prototype · Inspect · Design · Chat · Flow), wired through a
 `chatBridge.ts` like the others. It renders only for an owner or an admin. The
