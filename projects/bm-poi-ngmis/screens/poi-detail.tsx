@@ -41,20 +41,15 @@ export function PoiDetailScreen() {
         <PageHeading
           title={poi.name}
           actions={
-            <>
-              <Button variant="outline" onClick={() => flow.go('poi-list')}>
-                Kembali
-              </Button>
-              <Button
-                onClick={() => {
-                  beginEdit(poi)
-                  flow.go('poi-create')
-                }}
-              >
-                <Pen size={16} />
-                Edit
-              </Button>
-            </>
+            <Button
+              onClick={() => {
+                beginEdit(poi)
+                flow.go('poi-create')
+              }}
+            >
+              <Pen size={16} />
+              Edit
+            </Button>
           }
         />
 
@@ -90,6 +85,12 @@ export function PoiDetailScreen() {
                 <ReadField label="Assigned FO" value={poi.assignedFo} />
                 <ReadField label="Catatan" value={poi.catatan} />
               </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => flow.go('poi-list')}>
+                Kembali
+              </Button>
             </div>
           </div>
         </Panel>
