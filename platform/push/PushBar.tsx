@@ -75,9 +75,16 @@ function usePushStatus(slug: string) {
 export function PushBar({ slug }: { slug: string }) {
   const { status, refresh } = usePushStatus(slug)
   const design = useSyncExternalStore(subscribeDesignStore, getDesignStoreState, getDesignStoreServerSnapshot)
-  const [open, setOpen] = useState(false)
   const [live, setLive] = useState(false)
+  const [name, setName] = useState<string | null>(null)
+  const [unlocked, setUnlocked] = useState(false)
+  /** Asked the first time only, at the press — never before. */
+  const [asking, setAsking] = useState<'password' | 'name' | null>(null)
+  const [showFiles, setShowFiles] = useState(false)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const was = useRef<PushStatus['change']>('none')
+  useEffect(() => setName(storedName()), [])
 
   // "Going live…" turning into nothing means it landed: say so for a moment.
   const change = status?.change ?? 'none'
@@ -97,6 +104,56 @@ export function PushBar({ slug }: { slug: string }) {
   const count = status.files.length + unsaved
   const waiting = change === 'waiting'
   const failed = change === 'failed'
+  const prefix = `projects/${slug}/`
+  const isOwner = (n: string | null) =>
+    Boolean(n && status.owners.some((o) => o.toLocaleLowerCase() === n.toLocaleLowerCase()))
+
+  // Why Push can't go at all, said once, under the bar.
+  const blocked = !status.configured
+    ? 'Push needs the studio’s GitHub App set up on this laptop.'
+    : status.locked
+      ? status.locked
+      : status.conflicts.length > 0
+        ? 'Someone changed a file marked “changed since” after this laptop last updated. Ask your agent to bring the project up to date, then push again.'
+        : null
+
+  const push = async (as: string) => {
+    setAsking(null)
+    setError(null)
+    if (unsaved > 0) {
+      setBusy('Saving…')
+      const saved = await applyPending()
+      if (!saved) {
+        setBusy(null)
+        return setError('Some edits couldn’t be saved, so nothing was pushed. See the Edit tab.')
+      }
+      // Give the saved files a beat to land on disk before they're read.
+      await new Promise((r) => setTimeout(r, 300))
+    }
+    setBusy('Pushing…')
+    let result: PushResult
+    try {
+      const res = await fetch('/api/push', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ slug, push: true, name: as }),
+      })
+      result = (await res.json()) as PushResult
+    } catch {
+      result = { ok: false, reason: 'The studio server did not answer.' }
+    }
+    setBusy(null)
+    if (!result.ok) return setError(result.reason)
+    setShowFiles(false)
+    void refresh()
+  }
+
+  /** One press — unless this browser hasn't said its password or name yet. */
+  const press = (password = unlocked || !status.needsPassword, who = name) => {
+    if (!password) return setAsking('password')
+    if (!isOwner(who)) return setAsking('name')
+    void push(who!)
+  }
 
   const line = waiting
     ? 'Going live…'
@@ -112,119 +169,20 @@ export function PushBar({ slug }: { slug: string }) {
     : live
       ? 'font-bold text-green-700 dark:text-green-400'
       : 'text-caption dark:text-neutral-400'
+  const canPush = count > 0 && !waiting && !blocked
 
   return (
     <div className="flex flex-none flex-col gap-8 border-t border-default pt-12 dark:border-ink-700">
-      <div className="flex items-center justify-between gap-8">
-        <span className={`truncate text-12 ${lineTone}`}>{line}</span>
-        {open ? null : (
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(true)
-              void refresh()
-            }}
-            disabled={waiting || (count === 0 && !failed)}
-            title="Push — send this project’s changes live"
-            className={`${count > 0 ? PRIMARY : SECONDARY} flex-none py-4`}
-          >
-            Push
-          </button>
-        )}
-      </div>
-      {open ? (
-        <PushDetails
-          slug={slug}
-          status={status}
-          unsaved={unsaved}
-          onPushed={() => void refresh()}
-          onClose={() => setOpen(false)}
-        />
-      ) : null}
-    </div>
-  )
-}
-
-function PushDetails({
-  slug,
-  status,
-  unsaved,
-  onPushed,
-  onClose,
-}: {
-  slug: string
-  status: PushStatus
-  unsaved: number
-  onPushed: () => void
-  onClose: () => void
-}) {
-  const [name, setName] = useState<string | null>(null)
-  const [busy, setBusy] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [unlocked, setUnlocked] = useState(false)
-  useEffect(() => setName(storedName()), [])
-
-  const owner = Boolean(name && status.owners.some((o) => o.toLocaleLowerCase() === name.toLocaleLowerCase()))
-  const needsPassword = status.needsPassword && !unlocked
-  const prefix = `projects/${slug}/`
-  const waiting = status.change === 'waiting'
-  const count = status.files.length + unsaved
-  const blocked = !status.configured || Boolean(status.locked) || status.conflicts.length > 0 || waiting
-
-  const push = async () => {
-    if (!name) return
-    setError(null)
-    if (unsaved > 0) {
-      setBusy('Saving your edits…')
-      const saved = await applyPending()
-      if (!saved) {
-        setBusy(null)
-        return setError('Some edits couldn’t be saved, so nothing was pushed. See the Edit panel.')
-      }
-      // Give the saved files a beat to land on disk before they're read.
-      await new Promise((r) => setTimeout(r, 300))
-    }
-    setBusy('Checking and pushing…')
-    let result: PushResult
-    try {
-      const res = await fetch('/api/push', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ slug, push: true, name }),
-      })
-      result = (await res.json()) as PushResult
-    } catch {
-      result = { ok: false, reason: 'The studio server did not answer.' }
-    }
-    setBusy(null)
-    if (!result.ok) return setError(result.reason)
-    onPushed()
-  }
-
-  let body: React.ReactNode
-  if (!status.configured) {
-    body = <p className={NOTE}>Push needs the studio’s GitHub App set up on this laptop.</p>
-  } else if (status.locked) {
-    body = <p className={NOTE}>{status.locked}</p>
-  } else if (waiting) {
-    body = <p className={NOTE}>Pushed. It goes live on its own in a minute or two.</p>
-  } else if (count === 0) {
-    body = <p className={NOTE}>Nothing to push — this project matches what’s live.</p>
-  } else {
-    body = (
-      <>
-        {status.change === 'failed' ? (
-          <p className="text-12 text-red-700 dark:text-red-400">
-            The last push didn’t pass the checks, so it isn’t live. Fix it and push again.
-          </p>
-        ) : null}
+      {showFiles && count > 0 ? (
         <ul className="flex max-h-200 flex-col gap-4 overflow-y-auto">
           {status.files.map((f) => (
             <li key={f.path} className="flex items-center justify-between gap-8 text-12">
               <span className="truncate text-default dark:text-neutral-50">
                 {f.path.startsWith(prefix) ? f.path.slice(prefix.length) : f.path}
               </span>
-              <span className={`shrink-0 ${status.conflicts.includes(f.path) ? 'text-red-700' : 'text-caption dark:text-neutral-400'}`}>
+              <span
+                className={`shrink-0 ${status.conflicts.includes(f.path) ? 'text-red-700' : 'text-caption dark:text-neutral-400'}`}
+              >
                 {status.conflicts.includes(f.path) ? 'changed since' : f.change}
               </span>
             </li>
@@ -235,67 +193,67 @@ function PushDetails({
             </li>
           ) : null}
         </ul>
-        {status.conflicts.length > 0 ? (
-          <p className="text-12 text-red-700 dark:text-red-400">
-            Someone changed a file marked “changed since” after this laptop last updated. Ask your agent to bring
-            the project up to date, then push again.
-          </p>
-        ) : null}
-      </>
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-8">
-      {body}
-      {error ? <p className="whitespace-pre-line text-12 text-red-700 dark:text-red-400">{error}</p> : null}
-
-      {!blocked && count > 0 ? (
-        needsPassword ? (
-          <PasswordStep slug={slug} onUnlocked={() => setUnlocked(true)} />
-        ) : !owner ? (
-          <div className="flex flex-col gap-8">
-            <span className="text-12 font-bold text-default dark:text-neutral-50">Who’s pushing?</span>
-            {status.owners.map((o) => (
-              <button
-                key={o}
-                type="button"
-                className={SECONDARY}
-                onClick={() => {
-                  setDesignerName(o)
-                  setName(o)
-                }}
-              >
-                I’m {o}
-              </button>
-            ))}
-            <span className={NOTE}>Only {status.owners.join(' and ')} can push this project.</span>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <button type="button" className={PRIMARY} disabled={Boolean(busy)} onClick={() => void push()}>
-              {busy ?? `Push ${plural(count, 'change')}`}
-            </button>
-            <p className="text-center text-10 text-placeholder dark:text-neutral-600">
-              Pushing as {name}.{' '}
-              <button
-                type="button"
-                className="underline"
-                onClick={() => {
-                  setDesignerName(null)
-                  setName(null)
-                }}
-              >
-                Not you?
-              </button>
-            </p>
-          </div>
-        )
       ) : null}
 
-      <button type="button" className={`${NOTE} self-end`} onClick={onClose}>
-        {waiting ? 'Close' : 'Cancel'}
-      </button>
+      {count > 0 && blocked ? <p className="text-12 text-red-700 dark:text-red-400">{blocked}</p> : null}
+      {error ? <p className="whitespace-pre-line text-12 text-red-700 dark:text-red-400">{error}</p> : null}
+
+      {asking === 'password' ? (
+        <PasswordStep
+          slug={slug}
+          onUnlocked={() => {
+            setUnlocked(true)
+            press(true)
+          }}
+        />
+      ) : null}
+      {asking === 'name' ? (
+        <div className="flex flex-col gap-8">
+          <span className="text-12 font-bold text-default dark:text-neutral-50">Who’s pushing?</span>
+          {status.owners.map((o) => (
+            <button
+              key={o}
+              type="button"
+              className={SECONDARY}
+              onClick={() => {
+                setDesignerName(o)
+                setName(o)
+                press(true, o)
+              }}
+            >
+              I’m {o}
+            </button>
+          ))}
+          <span className={NOTE}>Only {status.owners.join(' and ')} can push this project.</span>
+        </div>
+      ) : null}
+
+      <div className="flex items-center justify-between gap-8">
+        {count > 0 && !waiting ? (
+          <button
+            type="button"
+            onClick={() => setShowFiles(!showFiles)}
+            aria-expanded={showFiles}
+            title={showFiles ? 'Hide the files' : 'Show which files go out'}
+            className={`truncate text-left text-12 underline decoration-dotted underline-offset-4 ${lineTone}`}
+          >
+            {line}
+          </button>
+        ) : (
+          <span className={`truncate text-12 ${lineTone}`}>{line}</span>
+        )}
+        {canPush ? (
+          <button
+            type="button"
+            onClick={() => press()}
+            disabled={Boolean(busy)}
+            title={name && isOwner(name) ? `Push as ${name}` : 'Push — send this project’s changes live'}
+            className={`${PRIMARY} flex-none`}
+          >
+            {busy ?? `Push ${plural(count, 'change')}`}
+          </button>
+        ) : null}
+      </div>
     </div>
   )
 }
