@@ -14,7 +14,7 @@
 // =============================================================================
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ArrowUpIcon, CloseIcon, InspectIcon, StopIcon } from '@/platform/chrome/icons'
+import { CloseIcon, InspectIcon, StopIcon } from '@/platform/chrome/icons'
 import { PanelHeader } from '@/platform/chrome/SidePanel'
 import { resolveTarget } from '@/platform/inspect/resolve'
 import { attachmentFor } from './attach'
@@ -375,17 +375,17 @@ export function LiveChatPanel({
           }
           className="w-full resize-none bg-transparent text-14 font-regular text-ink-900 outline-none placeholder:text-neutral-400 dark:text-neutral-white"
         />
-        <div className="flex items-center justify-between gap-8">
-          <span className="text-10 font-regular text-neutral-400">⌘↵ to send</span>
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={running ? chat.stop : submit}
             disabled={!running && !chat.draft.trim()}
             aria-label={running ? 'Stop' : 'Send'}
             title={running ? 'Stop this turn' : 'Send (⌘↵)'}
-            className="flex size-32 flex-none items-center justify-center rounded-8 bg-primary-500 text-neutral-white hover:bg-primary-600 disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-ink-700"
+            className="flex h-32 min-w-32 flex-none items-center justify-center rounded-8 bg-primary-500 px-8 text-14 font-bold text-neutral-white hover:bg-primary-600 disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-ink-700"
           >
-            {running ? <StopIcon className="size-16" /> : <ArrowUpIcon className="size-16" />}
+            {/* The shortcut IS the label: it says how to send without a hint beside it. */}
+            {running ? <StopIcon className="size-16" /> : '⌘↵'}
           </button>
         </div>
       </div>

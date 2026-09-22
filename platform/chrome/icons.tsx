@@ -195,13 +195,5 @@ export const InspectIcon = icon(
   </>,
 )
 
-// Send — an arrow up: the chat composer's send button.
-export const ArrowUpIcon = icon(
-  <>
-    <path d="M12 19V5" />
-    <path d="M6 11l6-6 6 6" />
-  </>,
-)
-
 // Stop — a square: stops the chat turn that is running.
 export const StopIcon = icon(<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" />)
