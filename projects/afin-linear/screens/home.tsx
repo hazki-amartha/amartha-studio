@@ -91,7 +91,6 @@ function BonusCard() {
     <RewardCard
       title="Dapatkan pencairan tambahan"
       caption={`${done} dari ${STRETCH} minggu`}
-      blue
       panel={
         <Checklist
           title="Pertahankan kelancaran majelis"
@@ -111,7 +110,7 @@ function BonusCard() {
         {Array.from({ length: STRETCH }, (_, i) => (
           <span
             key={i}
-            className={`h-12 min-w-0 flex-1 rounded-full ${i < done ? 'bg-green-400' : 'bg-blue-800'}`}
+            className={`h-12 min-w-0 flex-1 rounded-full ${i < done ? 'bg-green-400' : 'bg-primary-700'}`}
           />
         ))}
       </div>

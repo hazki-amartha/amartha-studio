@@ -71,7 +71,7 @@ export function HomeShell({ children }: { children: ReactNode }) {
 
       <div className="flex gap-12">
         <QuickLink icon={<ChatCircleQuestion size={20} />} label="Tanya Jawab" />
-        <QuickLink icon={<Headset size={20} />} label="AmarthaCare" />
+        <QuickLink icon={<Headset size={20} />} label="AmarthaCare" primary />
       </div>
 
       <p className="text-center text-10 text-caption">
@@ -223,7 +223,15 @@ function Shortcut({ icon, label }: { icon: ReactNode; label: string }) {
   )
 }
 
-function QuickLink({ icon, label }: { icon: ReactNode; label: string }) {
+function QuickLink({ icon, label, primary }: { icon: ReactNode; label: string; primary?: boolean }) {
+  if (primary) {
+    return (
+      <span className="flex flex-1 items-center justify-center gap-8 rounded-full bg-primary-500 px-12 py-12 text-14 font-bold text-neutral-white">
+        {icon}
+        {label}
+      </span>
+    )
+  }
   return (
     <span className="flex flex-1 items-center justify-center gap-8 rounded-full border border-default bg-neutral-white px-12 py-12 text-14 text-default">
       <span className="text-primary-500">{icon}</span>
