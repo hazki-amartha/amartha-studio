@@ -11,7 +11,19 @@ export const project: ProjectModule = {
       title: 'POI creation',
       component: lazyScreen(() => import('./screens/poi-list'), 'PoiListScreen'),
       entry: true,
-      flowsTo: [{ to: 'poi-create', label: 'Tambah POI' }],
+      flowsTo: [
+        { to: 'poi-create', label: 'Tambah POI' },
+        { to: 'poi-detail', label: 'Lihat POI' },
+      ],
+    },
+    {
+      id: 'poi-detail',
+      title: 'Detail POI',
+      component: lazyScreen(() => import('./screens/poi-detail'), 'PoiDetailScreen'),
+      flowsTo: [
+        { to: 'poi-list', label: 'Kembali' },
+        { to: 'poi-create', label: 'Edit' },
+      ],
     },
     {
       id: 'poi-create',

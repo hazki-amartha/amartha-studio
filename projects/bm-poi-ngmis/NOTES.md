@@ -18,6 +18,7 @@ from `projects/ngmis-bm-monitoring/lib/ui.tsx`'s `Panel`/`Select`/`SidebarPromo`
 - `FieldLabel` — the required/optional label row, matched to the "POI Baru" design handoff.
 - `SimpleTable` / `EmptyState` — the POI list table and its empty state, same shape as `ngmis-bm-monitoring`'s. A `TableRow.onClick` gets the hover/pointer treatment; a row without one stays inert.
 - `FoAvailabilityGrid` — new here, not copied from anywhere. FO × day-of-week, under Jadwal/Assigned FO in Detail Sosialisasi: a busy cell names the POI it's already booked for (not just greyed out, since "who's at Pasar Ciseeng Monday" is what the BM needs to route around), a free cell is a button that sets both Jadwal and Assigned FO in one click. Bookings are read straight off the existing POI list (`assignedFo` + `jadwal` per record) — no separate schedule data to seed or keep in sync. The record being edited is excluded from its own bookings so it never shows itself as a conflict.
+- `ReadField` — new here. The label style from the form's own `FieldLabel`, paired with plain text instead of an input, for the read-only detail screen. An empty value prints a placeholder dash rather than going blank.
 
 `lib/store.ts` holds the POI list in a module store (screens remount on `go()`,
 so `useState` alone would lose a newly-submitted POI on the way back to the
@@ -28,9 +29,13 @@ The POI Baru form's fields live in that same store as a `draft`
 (`setDraftField` / `useDraft`), not local `useState` — that's what lets the
 **Auto-filled** state (`poi-create`'s `states`, `fillSampleDraft`) and an
 edited row both fill the form before the screen mounts. `editingId`
-(`useEditingId`) is which POI a list row is editing, or `null` for a fresh
-one — set by `beginCreate`/`beginEdit`, called from the list *before*
-`flow.go('poi-create')`, and read back by the form to switch its title
-("POI Baru" / "Edit POI") and Submit between `addPoi`/`updatePoi`. Both
-clear the draft and `editingId` afterward (`beginCreate` again) so the next
-visit starts blank.
+(`useEditingId`) is which POI is being edited, or `null` for a fresh one —
+set by `beginCreate`/`beginEdit`, read back by the form to switch its title
+("POI Baru" / "Edit POI") and Submit between `addPoi`/`updatePoi`. Both clear
+the draft and `editingId` afterward (`beginCreate` again) so the next visit
+starts blank.
+
+A list row's default landing is now `poi-detail` (read-only), not the form
+directly — `beginView`/`useViewingId` are the same pattern as `editingId` but
+kept separate, since viewing never touches the draft. Its own "Edit" button
+is what calls `beginEdit` and goes to `poi-create`.
