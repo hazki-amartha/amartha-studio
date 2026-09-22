@@ -373,6 +373,37 @@ test('move into another container re-indents to the new depth', () => {
   )
 })
 
+test('a move inside a nested container keeps its siblings’ indentation', () => {
+  // recast re-indents a patched element by its own column, new line breaks
+  // included: these used to land at 8 + 8 = 16 (the afin-linear limit card).
+  const NESTED = `export function A() {
+  return (
+    <Screen>
+      <div className="flex">
+        <div className="a">
+          <p className="x">
+            {one}
+          </p>
+          <p className="y">Two</p>
+        </div>
+      </div>
+    </Screen>
+  )
+}
+`
+  const at = addresses(NESTED)
+  const out = ok(applyEdits(NESTED, [{ kind: 'move', src: at('p', 0), to: { after: at('p', 1) } }]))
+  assert.ok(
+    out.includes(`        <div className="a">
+          <p className="y">Two</p>
+          <p className="x">
+            {one}
+          </p>
+        </div>`),
+    out,
+  )
+})
+
 test('move out of a container, next to an element in the parent', () => {
   const at = addresses(HOME)
   const out = ok(applyEdits(HOME, [{ kind: 'move', src: at('span', 0), to: { after: at('Card', 1) } }]))

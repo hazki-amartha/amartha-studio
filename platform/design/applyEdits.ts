@@ -64,6 +64,8 @@ import {
   isLayoutText,
   lineIndent,
   parentOf,
+  settleIndents,
+  unsettled,
   tagName,
   text as jsxText,
   ws,
@@ -709,7 +711,9 @@ export function applyEdits(
     if (refusal) return { ok: false, refused: refusal }
   }
 
-  let out = restoreSemicolons(source, fillCopies(print(ast).code, ctx.copies))
+  const printed = settleIndents(fillCopies(print(ast).code, ctx.copies))
+  if (unsettled(printed)) return refuse(edits[0], 'the change couldn’t be laid out cleanly in the file')
+  let out = restoreSemicolons(source, printed)
   if (structural) out = tidyImports(source, out, ctx.needs)
   return { ok: true, source: out }
 }

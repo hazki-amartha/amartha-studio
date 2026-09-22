@@ -56,8 +56,11 @@ export function canHold(el: JSXElement): boolean {
 
 /** Whitespace that only lays out lines — dropped by JSX when rendering. */
 export function isLayoutText(c: JSXChild): boolean {
-  return n.JSXText.check(c) && /^\s*$/.test(c.value) && c.value.includes('\n')
+  return n.JSXText.check(c) && /^\s*$/.test(unmarked(c.value)) && c.value.includes('\n')
 }
+
+/** A break's text as it will print — without the marks `ws` carries. */
+const unmarked = (value: string) => value.replace(/\u0001([ \t]*)\u0002/g, '$1')
 
 export function isElementish(c: JSXChild): boolean {
   return !isLayoutText(c)
@@ -84,7 +87,7 @@ function childIndent(parent: JSXParent, ind: Indent): string {
   for (let i = 1; i < kids.length; i++) {
     const ws = kids[i - 1]
     if (isElementish(kids[i]) && n.JSXText.check(ws)) {
-      const m = /\n([ \t]*)$/.exec(ws.value)
+      const m = /\n([ \t]*)$/.exec(unmarked(ws.value))
       if (m) return m[1]
     }
   }
@@ -102,7 +105,38 @@ export function lineIndent(
   return line ? (/^[ \t]*/.exec(line)?.[0] ?? '') : ''
 }
 
-export const ws = (indent: string) => b.jsxText(`\n${indent}`)
+/**
+ * A line break this batch writes, carrying the indentation it means.
+ *
+ * recast does not print new whitespace as written. Patching an element in
+ * place, it re-indents the element by its own column — new breaks included —
+ * so "\n" + 10 spaces inside an element at column 8 came out at 18. Reprinting
+ * an element whole, it drops a whitespace-only break and lays the children out
+ * itself. Which of the two happens depends on which ancestor recast chose to
+ * reprint, and that isn't ours to predict.
+ *
+ * So the indentation travels between two marks that are not whitespace:
+ * recast leaves them alone either way, and `settleIndents` turns each back
+ * into a break at exactly the indentation inside them.
+ */
+const OPEN = '\u0001'
+const CLOSE = '\u0002'
+
+export const ws = (indent: string) => b.jsxText(`\n${OPEN}${indent}${CLOSE}`)
+
+/**
+ * Printed source with every written break at exactly the indentation it was
+ * given. A mark still at the start of a line lost only its indentation (the
+ * patched path); one that isn't lost its line break too (the reprinted path).
+ */
+export function settleIndents(code: string): string {
+  return code
+    .replace(/^[ \t]*\u0001([ \t]*)\u0002/gm, '$1')
+    .replace(/[ \t]*\u0001([ \t]*)\u0002/g, '\n$1')
+}
+
+/** Whether any mark survived — a print this module can't vouch for. */
+export const unsettled = (code: string) => code.includes(OPEN) || code.includes(CLOSE)
 
 /**
  * Take `el` out of `parent`, with the one line-break text that belongs to it.
