@@ -27,7 +27,9 @@ import {
   DISBURSEMENT_TARGETS,
   branchDisbursement,
   meetsRenewal,
+  leadsFollowUp,
   leadsTotal,
+  leadsUk,
   nilaiShortfall,
   nilaiTotal,
   noaBaruShortfall,
@@ -337,8 +339,8 @@ function BranchRow({ potentialOpen }: { potentialOpen: boolean }) {
         <>
           <td className={cell}>{funnel.unqualified}</td>
           <td className={cell}>{funnel.qualified}</td>
-          <td className={cell}>{funnel.followUp}</td>
-          <td className={cell}>{funnel.uk}</td>
+          <td className={cell}>{funnel.followUpInterested + funnel.followUpNotInterested}</td>
+          <td className={cell}>{funnel.ukDraft + funnel.ukSubmitted}</td>
           <td className={cell}>{funnel.disetujui}</td>
         </>
       ) : null}
@@ -396,8 +398,8 @@ function BpRow({
           <>
             <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsUnqualified}</td>
             <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsQualified}</td>
-            <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsFollowUp}</td>
-            <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsUk}</td>
+            <td className="px-12 pt-16 text-center text-14 text-default">{leadsFollowUp(bp)}</td>
+            <td className="px-12 pt-16 text-center text-14 text-default">{leadsUk(bp)}</td>
             <td className="px-12 pt-16 text-center text-14 text-default">{bp.leadsDisetujui}</td>
           </>
         ) : null}

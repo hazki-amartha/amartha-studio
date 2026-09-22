@@ -95,12 +95,12 @@ export function BranchSummaryPage({ pembayaran }: { pembayaran: ReactNode }) {
       {tab === 'repayment' ? pembayaran : null}
       {tab === 'cash' ? <CashTable /> : null}
       {tab === 'disbursement' ? (
-        pencairanVariant === 'leads' ? (
-          <DisbursementTableLeads />
+        pencairanVariant === 'default' ? (
+          <DisbursementTable />
         ) : pencairanVariant === 'leadsB' ? (
           <DisbursementTableLeadsB />
         ) : (
-          <DisbursementTable />
+          <DisbursementTableLeads detailed={pencairanVariant === 'leads-detail'} />
         )
       ) : null}
     </BmShell>

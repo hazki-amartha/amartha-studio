@@ -286,96 +286,114 @@ export function targetsMet(bp: RepaymentBp) {
   return { met: met.length, total: SCORED_BUCKETS.length }
 }
 
-/** What the BM should do about a BP who is missing standards.
- *
- * The action keys off the bucket with the biggest shortfall in mitra, because
- * the three failures need different responses: mitra going unpaid at DPD 0
- * means collection is not happening at all, which is what a surprise visit
- * tests; DPD 1-30 means it is happening but not landing, which is a coaching
- * problem; and 31-90 is past what a BP can fix alone.
- *
- * Returns null for a BP clearing every standard — no action is the right
- * answer there, and inventing one would bury the BPs who need it.
- */
-export interface Action {
-  /** The bucket that triggered it, so the brief can be looked up. */
+// --- End state: the BP → mitra detail drill-down -----------------------------
+//
+// What opens when a BM clicks "Lihat detail" on a BP: every mitra under her
+// (not just the ones behind a standard — a general lookup, not a shortfall
+// list), each with her own DPD, tunggakan and the tindakan already logged
+// against her, then drills once more into that one mitra's full call/visit
+// history. Both panels are DERIVED from the BP's own numbers — a name pool
+// cycled by the BP's own index — rather than hand-authored per BP, so ten BPs
+// don't mean ten bespoke fixtures to keep in sync.
+
+const MAJELIS_NAMES = ['Majelis 1', 'Majelis 2', 'Majelis 3']
+const MITRA_NAMES = ['Siti Aminah', 'Wahyuni', 'Dewi Lestari', 'Ratna Sari', 'Yuli Astuti', 'Nur Fadilah']
+
+/** The DPD chip a mitra wears in this drawer, and what "Semua status" filters
+ *  by — its own four bands, finer than the loan-bucket `BUCKET_ORDER` the
+ *  table above groups by: a single mitra's DPD is one number, so it reads
+ *  naturally at a tighter grain than an aggregate bucket does. */
+export const MITRA_DPD_BUCKETS: { id: string; label: string; intent: BucketIntent }[] = [
+  { id: 'dpd0', label: 'DPD 0', intent: 'green' },
+  { id: 'dpd130', label: 'DPD 1-30', intent: 'yellow' },
+  { id: 'dpd3060', label: 'DPD 30-60', intent: 'orange' },
+  { id: 'dpd6090', label: 'DPD 60-90', intent: 'red' },
+]
+
+export function dpdChipLabel(dpdId: string) {
+  return MITRA_DPD_BUCKETS.find((b) => b.id === dpdId)?.label ?? dpdId
+}
+
+export function dpdChipIntent(dpdId: string) {
+  return MITRA_DPD_BUCKETS.find((b) => b.id === dpdId)?.intent ?? 'green'
+}
+
+export interface MitraTindakan {
+  date: string
+  /** Pembayaran logs Telepon/Home Visit against an existing mitra; Pencairan
+   *  logs "Contacted" against a lead who hasn't been visited yet — a
+   *  different vocabulary for a different relationship, not two names for
+   *  the same thing, so both stay distinct values rather than one being
+   *  aliased to the other. */
+  jenis: 'Telepon' | 'Home Visit' | 'Contacted'
+  pelaku: 'AM' | 'BM' | 'BP'
+  hasil: string
+  hasilOk: boolean
+  /** null when the visit/call itself carried no payment outcome to report. */
+  dibayar: string | null
+}
+
+export interface BpMitraDetail {
   id: string
-  label: string
-  reason: string
+  /** "002" — a stand-in for the mitra code the real roster prefixes each name
+   *  with, so the row reads the same shape without fabricating a full address. */
+  code: string
+  name: string
+  majelis: string
+  dpdId: string
+  tunggakan: number
+  /** Most recent first — the roster panel shows the first two as a preview,
+   *  the mitra's own panel shows the whole thing. */
+  tindakan: MitraTindakan[]
+  followUp: string
 }
 
-/** The brief behind an action. A button that only says "Surprise visit" leaves
- *  the BM to invent the instruction, the window and the proof — which is how
- *  two BMs end up running the same task differently. */
-export interface ActionBrief {
-  title: string
-  what: string
-  when: string
-  /** The day the task lands on once created — stated rather than derived from
-   *  `when`, which is a range and would have to be parsed back out. */
-  scheduledFor: string
-  evidence: string[]
-  ifNotDone: string
-}
+const TINDAKAN_JENIS: MitraTindakan['jenis'][] = ['Home Visit', 'Telepon', 'Home Visit', 'Telepon', 'Telepon']
+const TINDAKAN_PELAKU: MitraTindakan['pelaku'][] = ['AM', 'BM', 'BP', 'BP', 'BP']
+const TINDAKAN_HASIL: { label: string; ok: boolean }[] = [
+  { label: 'Tidak berhasil', ok: false },
+  { label: 'Tidak berhasil', ok: false },
+  { label: 'Diterima mitra', ok: true },
+  { label: 'Diterima mitra', ok: true },
+  { label: 'Janji bayar', ok: true },
+]
 
-export const ACTION_BRIEFS: Record<string, ActionBrief> = {
-  dpd0: {
-    title: 'Surprise visit',
-    what: 'Datangi majelis tanpa memberi tahu lebih dulu. Periksa apakah kumpulan benar berjalan dan mitra yang baru telat sudah didatangi.',
-    when: 'Selasa 28 - Rabu 29 Juli',
-    scheduledFor: 'Selasa, 28 Juli',
-    evidence: [
-      'Foto di lokasi majelis',
-      'Titik lokasi otomatis dari BP App',
-      'Catatan penyebab mitra tidak bayar',
-    ],
-    ifNotDone: 'Tidak ada. Hasilnya masuk ke penilaian mingguan.',
-  },
-  dpd130: {
-    title: 'Dampingi penagihan',
-    what: 'Ikut BP ke majelis dan dampingi saat menagih mitra yang sudah telat. Tunjukkan cara membuka pembicaraan, jangan ambil alih.',
-    when: 'Rabu 29 - Kamis 30 Juli',
-    scheduledFor: 'Rabu, 29 Juli',
-    evidence: [
-      'Catatan hasil tiap mitra yang didampingi',
-      'Kesepakatan tanggal bayar dari mitra',
-    ],
-    ifNotDone: 'Tidak ada. Hasilnya masuk ke penilaian mingguan.',
-  },
-  dpd3190: {
-    title: 'Eskalasi ke Area Manager',
-    what: 'Bawa daftar mitra DPD 31-90 ke Area Manager. Sudah di luar yang bisa diselesaikan BP sendiri.',
-    when: 'Sebelum Jumat 31 Juli',
-    scheduledFor: 'Kamis, 30 Juli',
-    evidence: ['Daftar mitra dan riwayat penagihannya', 'Rencana tindak lanjut yang disetujui AM'],
-    ifNotDone: 'Tidak ada. Hasilnya masuk ke penilaian mingguan.',
-  },
-}
-
-const ACTION_BY_BUCKET: Record<string, string> = {
-  dpd0: 'Surprise visit',
-  dpd130: 'Dampingi penagihan',
-  dpd3190: 'Eskalasi ke Area Manager',
-}
-
-const BUCKET_LABEL: Record<string, string> = {
-  dpd0: 'DPD 0',
-  dpd130: 'DPD 1-30',
-  dpd3190: 'DPD 31-90',
-}
-
-export function recommendedAction(bp: RepaymentBp): Action | null {
-  const gaps = SCORED_BUCKETS.map((id) => ({
-    id,
-    short: shortfall(bp[id as 'dpd0' | 'dpd130' | 'dpd3190'], id) ?? 0,
-  }))
-  const worst = gaps.reduce((a, b) => (b.short > a.short ? b : a))
-  if (worst.short === 0) return null
-  return {
-    id: worst.id,
-    label: ACTION_BY_BUCKET[worst.id],
-    reason: `${worst.short} mitra ${BUCKET_LABEL[worst.id]} kurang dari target`,
-  }
+/** Every mitra under a BP, not just the ones missing a standard — "Lihat
+ *  detail" is a general lookup, not a shortfall list. Four mitra, cycled from
+ *  the shared name/majelis pools above, each carrying five tindakan entries
+ *  so the drawer's history table has enough rows to read as a real log
+ *  rather than a single row repeated. Counts and rupiah scale off the BP's
+ *  own `majelis`, the one real per-BP number available for fabricating this,
+ *  rather than being identical for every row. */
+export function mitraDetailFor(bp: RepaymentBp): BpMitraDetail[] {
+  const start = REPAYMENT_BPS.findIndex((b) => b.id === bp.id)
+  const bucketIds = MITRA_DPD_BUCKETS.map((b) => b.id)
+  return Array.from({ length: 4 }, (_, i) => {
+    const dpdId = bucketIds[(start + i) % bucketIds.length]
+    const tunggakan = 1_500_000 + bp.majelis * 120_000 + i * 350_000
+    const tindakan: MitraTindakan[] = Array.from({ length: 5 }, (_, j) => {
+      const idx = (start + i + j) % TINDAKAN_JENIS.length
+      const hasil = TINDAKAN_HASIL[idx]
+      return {
+        date: `${29 - j} Ags 2026, 10:15`,
+        jenis: TINDAKAN_JENIS[idx],
+        pelaku: TINDAKAN_PELAKU[idx],
+        hasil: hasil.label,
+        hasilOk: hasil.ok,
+        dibayar: hasil.ok && j === 0 ? `Dibayar Rp${rupiah(500_000 + i * 100_000)}` : 'Tidak dibayar',
+      }
+    })
+    return {
+      id: `${bp.id}-mitra-${i}`,
+      code: String(i + 1).padStart(3, '0'),
+      name: MITRA_NAMES[(start + i) % MITRA_NAMES.length],
+      majelis: MAJELIS_NAMES[(start + i) % MAJELIS_NAMES.length],
+      dpdId,
+      tunggakan,
+      tindakan,
+      followUp: `Home Visit oleh BP, sebelum ${10 + i} Sep 2026`,
+    }
+  })
 }
 
 // --- Pencairan ---------------------------------------------------------------
@@ -404,30 +422,57 @@ export interface DisbursementBp {
   nilaiBaru: number
   nilaiLanjutan: number
   /** This BP's leads stuck before Disetujui — "With Leads monitoring" opens
-   *  these up per row, same stages the branch card breaks out. */
+   *  these up per row, same stages the branch card breaks out. Three of the
+   *  five stages carry their own breakdown rather than a flat count: New
+   *  mitra by KTP status, Follow up by interest, UK by draft/submitted —
+   *  each pair sums to that stage's total, so the flat total is never
+   *  stored separately and can't drift from its own two halves. */
   leadsUnqualified: number
   leadsQualified: number
   /** Leads with KTP who've had their follow-up call/visit, ahead of UK. */
-  leadsFollowUp: number
-  leadsUk: number
+  leadsFollowUpInterested: number
+  leadsFollowUpNotInterested: number
+  leadsUkDraft: number
+  leadsUkSubmitted: number
   /** Leads approved this period. NOT the same as `noaBaru`: an approved lead
    *  can still fail to disburse in the period it was approved in (paperwork,
    *  the mitra backing out, a majelis slot slipping to next month), so
    *  Disetujui can run ahead of the NoA the BP actually cleared. */
   leadsDisetujui: number
+  /** The NTB (New-to-Bank) acquisition funnel behind this BP's Mitra baru
+   *  NoA, in the product's own stage names — Prospek through Survei dikirim
+   *  — rather than "With Leads monitoring"'s KTP/UK breakdown. Mitra
+   *  disetujui reuses `leadsDisetujui`: both name the same "approved this
+   *  period" count, just read from the default table's own toggle instead
+   *  of the Leads cut's panel, so the two never carry two different answers
+   *  to the same question. */
+  ntbProspek: number
+  ntbDilanjuti: number
+  ntbSurveiDimulai: number
+  ntbSurveiDikirim: number
+  /** The ETB (Existing-to-Bank) renewal funnel behind Mitra lanjutan's NoA —
+   *  same four stages, starting from the leads pool instead of a KTP check.
+   *  `etbDisetujui` is its own field rather than reusing `leadsDisetujui`:
+   *  that field is approvals into Mitra baru, and a renewal approval is a
+   *  different event. */
+  etbTotalLeads: number
+  etbDilanjuti: number
+  etbSurveiDimulai: number
+  etbSurveiDikirim: number
+  etbDisetujui: number
 }
 
 export const DISBURSEMENT_BPS: DisbursementBp[] = [
-  { id: 'bp-sukma', name: 'Sukma Ayuningrum', majelis: 6, noaBaru: 2, noaLanjutan: 11, renewalDue: 14, nilaiBaru: 10, nilaiLanjutan: 72, leadsUnqualified: 5, leadsQualified: 2, leadsFollowUp: 1, leadsUk: 1, leadsDisetujui: 3 },
-  { id: 'bp-cenli', name: 'Cenli Cencen', majelis: 8, noaBaru: 2, noaLanjutan: 13, renewalDue: 16, nilaiBaru: 10, nilaiLanjutan: 87, leadsUnqualified: 5, leadsQualified: 2, leadsFollowUp: 1, leadsUk: 1, leadsDisetujui: 2 },
-  { id: 'bp-diski', name: 'Diski Tafa Ilham', majelis: 8, noaBaru: 3, noaLanjutan: 13, renewalDue: 15, nilaiBaru: 15, nilaiLanjutan: 89, leadsUnqualified: 4, leadsQualified: 3, leadsFollowUp: 2, leadsUk: 2, leadsDisetujui: 4 },
-  { id: 'bp-laili', name: 'Laili Maulidia', majelis: 8, noaBaru: 3, noaLanjutan: 15, renewalDue: 18, nilaiBaru: 15, nilaiLanjutan: 103, leadsUnqualified: 4, leadsQualified: 3, leadsFollowUp: 2, leadsUk: 2, leadsDisetujui: 3 },
-  { id: 'bp-ainur', name: 'Ainur Rohmah', majelis: 8, noaBaru: 4, noaLanjutan: 15, renewalDue: 17, nilaiBaru: 20, nilaiLanjutan: 106, leadsUnqualified: 3, leadsQualified: 3, leadsFollowUp: 2, leadsUk: 2, leadsDisetujui: 5 },
-  { id: 'bp-fadhil', name: 'Fadhil Maulana', majelis: 7, noaBaru: 4, noaLanjutan: 16, renewalDue: 18, nilaiBaru: 20, nilaiLanjutan: 114, leadsUnqualified: 3, leadsQualified: 3, leadsFollowUp: 2, leadsUk: 2, leadsDisetujui: 4 },
-  { id: 'bp-rudi', name: 'Rudi Hartono', majelis: 6, noaBaru: 5, noaLanjutan: 16, renewalDue: 20, nilaiBaru: 25, nilaiLanjutan: 116, leadsUnqualified: 3, leadsQualified: 3, leadsFollowUp: 2, leadsUk: 2, leadsDisetujui: 6 },
-  { id: 'bp-alif', name: 'M. Alif Rizqi', majelis: 8, noaBaru: 5, noaLanjutan: 18, renewalDue: 20, nilaiBaru: 25, nilaiLanjutan: 124, leadsUnqualified: 3, leadsQualified: 3, leadsFollowUp: 2, leadsUk: 2, leadsDisetujui: 5 },
-  { id: 'bp-budi', name: 'Budi Ngurah', majelis: 6, noaBaru: 6, noaLanjutan: 18, renewalDue: 21, nilaiBaru: 30, nilaiLanjutan: 126, leadsUnqualified: 2, leadsQualified: 3, leadsFollowUp: 2, leadsUk: 2, leadsDisetujui: 6 },
-  { id: 'bp-fauzan', name: 'Fauzan Aditama', majelis: 7, noaBaru: 6, noaLanjutan: 19, renewalDue: 21, nilaiBaru: 30, nilaiLanjutan: 133, leadsUnqualified: 2, leadsQualified: 3, leadsFollowUp: 2, leadsUk: 2, leadsDisetujui: 6 },
+  { id: 'bp-sukma', name: 'Sukma Ayuningrum', majelis: 6, noaBaru: 2, noaLanjutan: 11, renewalDue: 14, nilaiBaru: 10, nilaiLanjutan: 72, leadsUnqualified: 5, leadsQualified: 2, leadsFollowUpInterested: 1, leadsFollowUpNotInterested: 0, leadsUkDraft: 0, leadsUkSubmitted: 1, leadsDisetujui: 3, ntbProspek: 10, ntbDilanjuti: 7, ntbSurveiDimulai: 5, ntbSurveiDikirim: 4, etbTotalLeads: 22, etbDilanjuti: 17, etbSurveiDimulai: 14, etbSurveiDikirim: 12, etbDisetujui: 12 },
+  { id: 'bp-cenli', name: 'Cenli Cencen', majelis: 8, noaBaru: 2, noaLanjutan: 13, renewalDue: 16, nilaiBaru: 10, nilaiLanjutan: 87, leadsUnqualified: 5, leadsQualified: 2, leadsFollowUpInterested: 1, leadsFollowUpNotInterested: 0, leadsUkDraft: 0, leadsUkSubmitted: 1, leadsDisetujui: 2, ntbProspek: 9, ntbDilanjuti: 6, ntbSurveiDimulai: 4, ntbSurveiDikirim: 3, etbTotalLeads: 26, etbDilanjuti: 20, etbSurveiDimulai: 16, etbSurveiDikirim: 14, etbDisetujui: 14 },
+  { id: 'bp-diski', name: 'Diski Tafa Ilham', majelis: 8, noaBaru: 3, noaLanjutan: 13, renewalDue: 15, nilaiBaru: 15, nilaiLanjutan: 89, leadsUnqualified: 4, leadsQualified: 3, leadsFollowUpInterested: 1, leadsFollowUpNotInterested: 1, leadsUkDraft: 1, leadsUkSubmitted: 1, leadsDisetujui: 4, ntbProspek: 14, ntbDilanjuti: 10, ntbSurveiDimulai: 7, ntbSurveiDikirim: 5, etbTotalLeads: 26, etbDilanjuti: 20, etbSurveiDimulai: 16, etbSurveiDikirim: 14, etbDisetujui: 13 },
+  { id: 'bp-laili', name: 'Laili Maulidia', majelis: 8, noaBaru: 3, noaLanjutan: 15, renewalDue: 18, nilaiBaru: 15, nilaiLanjutan: 103, leadsUnqualified: 4, leadsQualified: 3, leadsFollowUpInterested: 1, leadsFollowUpNotInterested: 1, leadsUkDraft: 1, leadsUkSubmitted: 1, leadsDisetujui: 3, ntbProspek: 13, ntbDilanjuti: 9, ntbSurveiDimulai: 6, ntbSurveiDikirim: 4, etbTotalLeads: 30, etbDilanjuti: 23, etbSurveiDimulai: 19, etbSurveiDikirim: 16, etbDisetujui: 15 },
+  { id: 'bp-ainur', name: 'Ainur Rohmah', majelis: 8, noaBaru: 4, noaLanjutan: 15, renewalDue: 17, nilaiBaru: 20, nilaiLanjutan: 106, leadsUnqualified: 3, leadsQualified: 3, leadsFollowUpInterested: 1, leadsFollowUpNotInterested: 1, leadsUkDraft: 1, leadsUkSubmitted: 1, leadsDisetujui: 5, ntbProspek: 18, ntbDilanjuti: 13, ntbSurveiDimulai: 9, ntbSurveiDikirim: 6, etbTotalLeads: 30, etbDilanjuti: 23, etbSurveiDimulai: 19, etbSurveiDikirim: 16, etbDisetujui: 16 },
+  { id: 'bp-fadhil', name: 'Fadhil Maulana', majelis: 7, noaBaru: 4, noaLanjutan: 16, renewalDue: 18, nilaiBaru: 20, nilaiLanjutan: 114, leadsUnqualified: 3, leadsQualified: 3, leadsFollowUpInterested: 1, leadsFollowUpNotInterested: 1, leadsUkDraft: 1, leadsUkSubmitted: 1, leadsDisetujui: 4, ntbProspek: 17, ntbDilanjuti: 12, ntbSurveiDimulai: 8, ntbSurveiDikirim: 5, etbTotalLeads: 32, etbDilanjuti: 25, etbSurveiDimulai: 20, etbSurveiDikirim: 17, etbDisetujui: 16 },
+  { id: 'bp-rudi', name: 'Rudi Hartono', majelis: 6, noaBaru: 5, noaLanjutan: 16, renewalDue: 20, nilaiBaru: 25, nilaiLanjutan: 116, leadsUnqualified: 3, leadsQualified: 3, leadsFollowUpInterested: 1, leadsFollowUpNotInterested: 1, leadsUkDraft: 1, leadsUkSubmitted: 1, leadsDisetujui: 6, ntbProspek: 22, ntbDilanjuti: 16, ntbSurveiDimulai: 11, ntbSurveiDikirim: 7, etbTotalLeads: 32, etbDilanjuti: 25, etbSurveiDimulai: 20, etbSurveiDikirim: 17, etbDisetujui: 17 },
+  { id: 'bp-alif', name: 'M. Alif Rizqi', majelis: 8, noaBaru: 5, noaLanjutan: 18, renewalDue: 20, nilaiBaru: 25, nilaiLanjutan: 124, leadsUnqualified: 3, leadsQualified: 3, leadsFollowUpInterested: 1, leadsFollowUpNotInterested: 1, leadsUkDraft: 1, leadsUkSubmitted: 1, leadsDisetujui: 5, ntbProspek: 21, ntbDilanjuti: 15, ntbSurveiDimulai: 10, ntbSurveiDikirim: 6, etbTotalLeads: 36, etbDilanjuti: 28, etbSurveiDimulai: 22, etbSurveiDikirim: 19, etbDisetujui: 18 },
+  { id: 'bp-budi', name: 'Budi Ngurah', majelis: 6, noaBaru: 6, noaLanjutan: 18, renewalDue: 21, nilaiBaru: 30, nilaiLanjutan: 126, leadsUnqualified: 2, leadsQualified: 3, leadsFollowUpInterested: 1, leadsFollowUpNotInterested: 1, leadsUkDraft: 1, leadsUkSubmitted: 1, leadsDisetujui: 6, ntbProspek: 26, ntbDilanjuti: 19, ntbSurveiDimulai: 13, ntbSurveiDikirim: 8, etbTotalLeads: 36, etbDilanjuti: 28, etbSurveiDimulai: 22, etbSurveiDikirim: 19, etbDisetujui: 19 },
+  { id: 'bp-fauzan', name: 'Fauzan Aditama', majelis: 7, noaBaru: 6, noaLanjutan: 19, renewalDue: 21, nilaiBaru: 30, nilaiLanjutan: 133, leadsUnqualified: 2, leadsQualified: 3, leadsFollowUpInterested: 1, leadsFollowUpNotInterested: 1, leadsUkDraft: 1, leadsUkSubmitted: 1, leadsDisetujui: 6, ntbProspek: 25, ntbDilanjuti: 18, ntbSurveiDimulai: 12, ntbSurveiDikirim: 7, etbTotalLeads: 38, etbDilanjuti: 29, etbSurveiDimulai: 23, etbSurveiDikirim: 20, etbDisetujui: 19 },
 ]
 
 /**
@@ -502,21 +547,162 @@ export function branchDisbursement() {
  * to next month), so Disetujui can run ahead of NoA — see `leadsDisetujui` on
  * `DisbursementBp`.
  */
-export const leadsTotal = (bp: DisbursementBp) =>
-  bp.leadsUnqualified + bp.leadsQualified + bp.leadsFollowUp + bp.leadsUk + bp.leadsDisetujui
+export const leadsFollowUp = (bp: DisbursementBp) =>
+  bp.leadsFollowUpInterested + bp.leadsFollowUpNotInterested
+export const leadsUk = (bp: DisbursementBp) => bp.leadsUkDraft + bp.leadsUkSubmitted
 
-/** Branch totals for the funnel, summed from every BP's row. */
+export const leadsTotal = (bp: DisbursementBp) =>
+  bp.leadsUnqualified + bp.leadsQualified + leadsFollowUp(bp) + leadsUk(bp) + bp.leadsDisetujui
+
+/** Branch totals for the funnel, summed from every BP's row. Follow up and UK
+ *  carry their own breakdown alongside the stage total, same shape the BP
+ *  table's columns use. */
 export function potentialMitraFunnel() {
   return {
     unqualified: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsUnqualified, 0),
     qualified: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsQualified, 0),
-    followUp: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsFollowUp, 0),
-    uk: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsUk, 0),
+    followUpInterested: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsFollowUpInterested, 0),
+    followUpNotInterested: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsFollowUpNotInterested, 0),
+    ukDraft: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsUkDraft, 0),
+    ukSubmitted: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsUkSubmitted, 0),
     disetujui: DISBURSEMENT_BPS.reduce((n, bp) => n + bp.leadsDisetujui, 0),
   }
 }
 
 export const potentialMitraTotal = () => DISBURSEMENT_BPS.reduce((n, bp) => n + leadsTotal(bp), 0)
+
+// --- Pencairan: the BP → mitra detail drill-down -----------------------------
+//
+// The same "Lihat detail" drawer Pembayaran uses (lib/mitra-drawer.tsx),
+// reading a different question: not "how behind is this mitra on paying"
+// but "where is this lead stuck in the NTB funnel". The chip is a funnel
+// stage instead of a DPD band, and the metric is the loan amount a lead has
+// applied for instead of a rupiah owed — everything else, including the
+// tindakan log, is the same shape so the shared drawer doesn't have to know
+// which tab it's in.
+
+/** The funnel-stage chip a lead wears in this drawer — the same five stages
+ *  the table's own "Lihat Alur" already opens onto (see
+ *  disbursement-table.tsx's `NTB_FUNNEL`), reused rather than inventing a
+ *  second name for the same journey. */
+export const NTB_STAGE_BUCKETS: { id: string; label: string; intent: BucketIntent }[] = [
+  { id: 'prospek', label: 'Prospek', intent: 'yellow' },
+  { id: 'dilanjuti', label: 'Dilanjuti', intent: 'orange' },
+  { id: 'surveiDimulai', label: 'Survei dimulai', intent: 'orange' },
+  { id: 'surveiDikirim', label: 'Survei dikirim', intent: 'orange' },
+  { id: 'disetujui', label: 'Mitra disetujui', intent: 'green' },
+]
+
+export function ntbStageLabel(stageId: string) {
+  return NTB_STAGE_BUCKETS.find((b) => b.id === stageId)?.label ?? stageId
+}
+
+export function ntbStageIntent(stageId: string) {
+  return NTB_STAGE_BUCKETS.find((b) => b.id === stageId)?.intent ?? 'yellow'
+}
+
+export interface DisbursementMitraDetail {
+  id: string
+  /** Both null before Survei dimulai — a Prospek or a Dilanjuti lead hasn't
+   *  been assigned a mitra code or a majelis yet; that assignment happens
+   *  once a survey is underway. */
+  code: string | null
+  name: string
+  majelis: string | null
+  stageId: string
+  /** When the lead itself was logged — the app's own leads list badges this
+   *  ("Kamis, 21 Jul 2026" / "Hari ini"), separate from any tindakan date. */
+  leadDate: string
+  leadDateRelative: string
+  /** How this lead entered the pipeline — "POI Pasar Ciseeng", "Reaktivasi -
+   *  eks Majelis Dahlia" — the app's own leads list names the source on
+   *  every card, not just the mitra's own name and majelis. */
+  source: string
+  /** A place name, not a distance — "500m near you" is true only at the
+   *  moment the BP happened to be standing there, and stops meaning
+   *  anything the next time this card is read. */
+  location: string
+  tindakan: MitraTindakan[]
+  followUp: string
+}
+
+/** Always "Contacted" — a lead never gets a Home Visit or a Telepon-flavoured
+ *  entry logged against her, only the one generic touch the app itself logs.
+ *  Always the BP too: she's the one running her own pipeline, not an AM or
+ *  BM stepping in the way Pembayaran's tindakan mixes all three. */
+const NTB_TINDAKAN_JENIS: MitraTindakan['jenis'][] = ['Contacted']
+const NTB_TINDAKAN_PELAKU: MitraTindakan['pelaku'][] = ['BP']
+const NTB_TINDAKAN_HASIL: { label: string; ok: boolean; note: string }[] = [
+  { label: 'Tidak diangkat', ok: false, note: 'Belum terhubung' },
+  { label: 'Tertarik', ok: true, note: 'Lanjut ke survei' },
+  { label: 'Survei selesai', ok: true, note: 'Menunggu persetujuan' },
+  { label: 'Tidak di tempat', ok: false, note: 'Dijadwalkan ulang' },
+  { label: 'Disetujui', ok: true, note: 'Menunggu pencairan' },
+]
+
+/** Every lead behind a BP's Mitra baru funnel, not just the branch total —
+ *  same shape and same reasoning as `mitraDetailFor`: four leads, cycled
+ *  from the shared name/majelis pools, each with five tindakan entries so
+ *  the drawer's log reads as a real history. */
+/** The app's own leads-list vocabulary — how a lead entered the pipeline —
+ *  cycled per lead the same way the name/majelis pools are, rather than
+ *  every card claiming the same source. */
+const LEAD_SOURCES = [
+  'POI Pasar Ciseeng',
+  'Reaktivasi - eks Majelis Dahlia',
+  'POI Warung Bu Ipah',
+  'Referral mitra existing',
+]
+const LEAD_LOCATIONS = [
+  'Ciseeng, Parigi Mekar',
+  'Panunggangan, Cirebon',
+  'Cirebon, Jawa Barat',
+  'Sumber, Kabupaten Cirebon',
+]
+const LEAD_DATES: { date: string; relative: string }[] = [
+  { date: 'Kamis, 27 Ags 2026', relative: 'Hari ini' },
+  { date: 'Rabu, 26 Ags 2026', relative: 'Kemarin' },
+  { date: 'Selasa, 25 Ags 2026', relative: '2 hari lalu' },
+  { date: 'Senin, 24 Ags 2026', relative: '3 hari lalu' },
+]
+
+export function disbursementMitraDetailFor(bp: DisbursementBp): DisbursementMitraDetail[] {
+  const start = DISBURSEMENT_BPS.findIndex((b) => b.id === bp.id)
+  const stageIds = NTB_STAGE_BUCKETS.map((b) => b.id)
+  // A mitra code and a majelis both wait for the same milestone: a survey
+  // actually underway. A Prospek or a Dilanjuti lead is still just a name
+  // and a phone number, with nothing assigned to her yet.
+  const surveyed = ['surveiDimulai', 'surveiDikirim', 'disetujui']
+  return Array.from({ length: 4 }, (_, i) => {
+    const stageId = stageIds[(start + i) % stageIds.length]
+    const tindakan: MitraTindakan[] = Array.from({ length: 5 }, (_, j) => {
+      const hasilIdx = (start + i + j) % NTB_TINDAKAN_HASIL.length
+      const hasil = NTB_TINDAKAN_HASIL[hasilIdx]
+      return {
+        date: `${29 - j} Ags 2026, 10:15`,
+        jenis: NTB_TINDAKAN_JENIS[(start + i + j) % NTB_TINDAKAN_JENIS.length],
+        pelaku: NTB_TINDAKAN_PELAKU[(start + i + j) % NTB_TINDAKAN_PELAKU.length],
+        hasil: hasil.label,
+        hasilOk: hasil.ok,
+        dibayar: hasil.note,
+      }
+    })
+    const leadDate = LEAD_DATES[(start + i) % LEAD_DATES.length]
+    return {
+      id: `${bp.id}-lead-${i}`,
+      code: surveyed.includes(stageId) ? String(i + 1).padStart(3, '0') : null,
+      name: MITRA_NAMES[(start + i) % MITRA_NAMES.length],
+      majelis: surveyed.includes(stageId) ? MAJELIS_NAMES[(start + i) % MAJELIS_NAMES.length] : null,
+      stageId,
+      leadDate: leadDate.date,
+      leadDateRelative: leadDate.relative,
+      source: LEAD_SOURCES[(start + i) % LEAD_SOURCES.length],
+      location: LEAD_LOCATIONS[(start + i) % LEAD_LOCATIONS.length],
+      tindakan,
+      followUp: `Survei oleh BP, sebelum ${10 + i} Sep 2026`,
+    }
+  })
+}
 
 // --- Progres harian ------------------------------------------------------
 

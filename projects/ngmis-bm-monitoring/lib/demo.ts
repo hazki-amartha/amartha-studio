@@ -11,25 +11,25 @@ import { store } from './store'
 import { store as dailyStore } from './daily-store'
 
 /** What ships first: the figures, no movement, no ranking. */
-export const showMvp = () => {
-  store.clearTasks()
-  store.setVariant('mvp')
-}
+export const showMvp = () => store.setVariant('mvp')
 
 /** Where it is heading: rates lead, scored by colour, with week-on-week
  *  movement and the branch's worst bucket called out. */
-export const showEndState = () => {
-  store.clearTasks()
-  store.setVariant('end')
-}
+export const showEndState = () => store.setVariant('end')
 
 /** Pencairan, with Mitra baru's lead funnel opened up: no rate on the
- *  headline cards, Unqualified/Qualified/UK/Disetujui broken out underneath. */
+ *  headline cards, Tanpa KTP/Dengan KTP/Follow up/UK/Disetujui broken out
+ *  underneath as flat counts. */
 export const showPencairanLeads = () => store.setPencairanVariant('leads')
 
 /** Leads cut, Option B: a Lead column whose label opens the five stages, and
  *  a Total cabang row pinned at the top instead of the branch panel. */
 export const showPencairanLeadsB = () => store.setPencairanVariant('leadsB')
+
+/** Same funnel, one layer deeper: New mitra, Follow up and UK each split by
+ *  NTB stage (KTP status, interest, draft/submitted) instead of one flat
+ *  count per stage. */
+export const showPencairanLeadsDetail = () => store.setPencairanVariant('leads-detail')
 
 /** Back to the plain Pencairan cut — counts and rate, no funnel. */
 export const showPencairanDefault = () => store.setPencairanVariant('default')
