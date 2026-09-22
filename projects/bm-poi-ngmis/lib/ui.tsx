@@ -87,6 +87,9 @@ export interface TableColumn {
 export interface TableRow {
   id: string
   cells: Record<string, ReactNode>
+  /** A row that opens something — the hover state and pointer cursor only
+   *  apply when this is set, so a plain read-only table stays inert. */
+  onClick?: () => void
 }
 
 export function SimpleTable({ columns, rows }: { columns: TableColumn[]; rows: TableRow[] }) {
@@ -107,7 +110,13 @@ export function SimpleTable({ columns, rows }: { columns: TableColumn[]; rows: T
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id} className="border-b border-default align-middle">
+            <tr
+              key={row.id}
+              onClick={row.onClick}
+              className={`border-b border-default align-middle ${
+                row.onClick ? 'cursor-pointer hover:bg-primary-50' : ''
+              }`}
+            >
               {columns.map((c) => (
                 <td key={c.id} className="px-12 py-12 text-14 text-default">
                   {row.cells[c.id]}

@@ -1,18 +1,18 @@
 'use client'
 
-// POI Baru — reached from Branches ▸ POI creation. The same General / Kontak
-// dan Lokasi / Detail Sosialisasi fields as the mobile handoff, laid out on
-// the desktop canvas as a two-column grid. Kecamatan gates Kelurahan/Desa the
-// way the reference form does — the field starts disabled and only opens once
-// a kecamatan is picked.
+// POI Baru / Edit POI — reached from Branches ▸ POI creation, either from
+// "Tambah POI" or by clicking a row in the list. Same screen either way: the
+// list decides which by calling `beginCreate` or `beginEdit` before it
+// navigates here, and `editingId` is what the form and Submit read that
+// decision back from.
 //
 // Fields read from and write to the module store's draft, not useState — that
-// is what lets the "Auto-filled" state (index.ts) fill the form before this
-// screen even mounts.
+// is what lets the "Auto-filled" state (index.ts) and an edited row's own
+// values fill the form before this screen even mounts.
 
 import { Button, Input } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
-import { addPoi, resetDraft, setDraftField, useDraft } from '../lib/store'
+import { addPoi, beginCreate, setDraftField, updatePoi, useDraft, useEditingId } from '../lib/store'
 import { BmShell } from '../lib/shell'
 import { FieldLabel, PageHeading, Panel, Select, SectionTitle } from '../lib/ui'
 
@@ -41,23 +41,30 @@ const FO_OPTIONS = ['Sari Handayani', 'Rina Marlina', 'Ani Suryani', 'Dewi Lesta
 export function PoiCreateScreen() {
   const flow = useFlow()
   const draft = useDraft()
+  const editingId = useEditingId()
+  const title = editingId ? 'Edit POI' : 'POI Baru'
 
   const canSubmit = draft.name.trim() && draft.jenis.trim() && draft.kecamatan && draft.desa && draft.jadwal
+
+  const cancel = () => {
+    beginCreate()
+    flow.go('poi-list')
+  }
 
   return (
     <BmShell
       breadcrumbs={[
         { label: 'Home' },
         { label: 'Branches' },
-        { label: 'POI creation', onClick: () => flow.go('poi-list') },
-        { label: 'POI Baru', current: true },
+        { label: 'POI creation', onClick: cancel },
+        { label: title, current: true },
       ]}
     >
       <div className="flex flex-col gap-24">
         <PageHeading
-          title="POI Baru"
+          title={title}
           actions={
-            <Button variant="outline" onClick={() => flow.go('poi-list')}>
+            <Button variant="outline" onClick={cancel}>
               Batal
             </Button>
           }
@@ -187,15 +194,12 @@ export function PoiCreateScreen() {
             <div className="flex justify-end">
               <Button
                 onClick={() => {
-                  addPoi({
-                    name: draft.name,
-                    jenis: draft.jenis,
-                    kecamatan: draft.kecamatan,
-                    desa: draft.desa,
-                    jadwal: draft.jadwal,
-                    assignedFo: draft.assignedFo,
-                  })
-                  resetDraft()
+                  if (editingId) {
+                    updatePoi(editingId, draft)
+                  } else {
+                    addPoi(draft)
+                  }
+                  beginCreate()
                   flow.go('poi-list')
                 }}
                 disabled={!canSubmit}
