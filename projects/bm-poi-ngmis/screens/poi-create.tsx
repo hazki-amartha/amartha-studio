@@ -12,9 +12,9 @@
 
 import { Button, Input } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
-import { addPoi, beginCreate, setDraftField, updatePoi, useDraft, useEditingId } from '../lib/store'
+import { addPoi, beginCreate, setDraftField, updatePoi, useDraft, useEditingId, usePois } from '../lib/store'
 import { BmShell } from '../lib/shell'
-import { FieldLabel, PageHeading, Panel, Select, SectionTitle } from '../lib/ui'
+import { FieldLabel, FoAvailabilityGrid, PageHeading, Panel, Select, SectionTitle } from '../lib/ui'
 
 const KECAMATAN_DESA: Record<string, string[]> = {
   Ciseeng: ['Ciseeng', 'Putat Nutug', 'Cibeuteung Udik', 'Cibeuteung Hilir'],
@@ -42,7 +42,15 @@ export function PoiCreateScreen() {
   const flow = useFlow()
   const draft = useDraft()
   const editingId = useEditingId()
+  const pois = usePois()
   const title = editingId ? 'Edit POI' : 'POI Baru'
+
+  // Every other POI's own Jadwal/Assigned FO, so the grid can show what's
+  // already booked — excluding the record being edited, so editing a POI
+  // doesn't show it blocking its own slot.
+  const bookings = pois
+    .filter((p) => p.id !== editingId && p.assignedFo && p.jadwal)
+    .map((p) => ({ fo: p.assignedFo, day: p.jadwal, poiName: p.name }))
 
   const canSubmit = draft.name.trim() && draft.jenis.trim() && draft.kecamatan && draft.desa && draft.jadwal
 
@@ -187,6 +195,21 @@ export function PoiCreateScreen() {
                   placeholder="Tulis catatan"
                   value={draft.catatan}
                   onChange={(e) => setDraftField('catatan', e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-8">
+                <FieldLabel optional>Ketersediaan FO minggu ini</FieldLabel>
+                <FoAvailabilityGrid
+                  fos={FO_OPTIONS.map((o) => o.value)}
+                  days={JADWAL_OPTIONS}
+                  bookings={bookings}
+                  selectedFo={draft.assignedFo}
+                  selectedDay={draft.jadwal}
+                  onPick={(fo, day) => {
+                    setDraftField('assignedFo', fo)
+                    setDraftField('jadwal', day)
+                  }}
                 />
               </div>
             </div>
