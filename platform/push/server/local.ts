@@ -278,6 +278,9 @@ export async function check(slug: string): Promise<ChangeState | 'none'> {
   if (!record) return 'none'
   const state = await (await github()).changeState(record.branch)
   if (state === 'landed') {
+    // Whatever branch this checkout is on, learn what main now holds: the
+    // count reads it, and a stale main keeps counting what just went live.
+    await git(['fetch', '--quiet', 'origin', 'main']).catch(() => undefined)
     await catchUp(record).catch(() => undefined)
     await rememberLanded(slug, record.files)
     await remember(slug, null)
@@ -296,7 +299,6 @@ export async function check(slug: string): Promise<ChangeState | 'none'> {
  */
 export async function catchUp(record: InFlight) {
   if ((await git(['branch', '--show-current'])).trim() !== 'main') return
-  await git(['fetch', '--quiet', 'origin', 'main'])
   const now = await working(Object.keys(record.files))
   const same = Object.keys(record.files).filter((p) => now.get(p) === record.files[p])
   const written = same.filter((p) => record.files[p] !== null)
