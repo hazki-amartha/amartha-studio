@@ -5,11 +5,14 @@
 // the desktop canvas as a two-column grid. Kecamatan gates Kelurahan/Desa the
 // way the reference form does — the field starts disabled and only opens once
 // a kecamatan is picked.
+//
+// Fields read from and write to the module store's draft, not useState — that
+// is what lets the "Auto-filled" state (index.ts) fill the form before this
+// screen even mounts.
 
-import { useState } from 'react'
 import { Button, Input } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
-import { addPoi } from '../lib/store'
+import { addPoi, resetDraft, setDraftField, useDraft } from '../lib/store'
 import { BmShell } from '../lib/shell'
 import { FieldLabel, PageHeading, Panel, Select, SectionTitle } from '../lib/ui'
 
@@ -37,20 +40,9 @@ const FO_OPTIONS = ['Sari Handayani', 'Rina Marlina', 'Ani Suryani', 'Dewi Lesta
 
 export function PoiCreateScreen() {
   const flow = useFlow()
-  const [name, setName] = useState('')
-  const [jenis, setJenis] = useState('')
-  const [jamMulai, setJamMulai] = useState('')
-  const [jamSelesai, setJamSelesai] = useState('')
-  const [kecamatan, setKecamatan] = useState('')
-  const [desa, setDesa] = useState('')
-  const [alamat, setAlamat] = useState('')
-  const [namaKontak, setNamaKontak] = useState('')
-  const [hpKontak, setHpKontak] = useState('')
-  const [jadwal, setJadwal] = useState('')
-  const [assignedFo, setAssignedFo] = useState('')
-  const [catatan, setCatatan] = useState('')
+  const draft = useDraft()
 
-  const canSubmit = name.trim() && jenis.trim() && kecamatan && desa && jadwal
+  const canSubmit = draft.name.trim() && draft.jenis.trim() && draft.kecamatan && draft.desa && draft.jadwal
 
   return (
     <BmShell
@@ -81,16 +73,16 @@ export function PoiCreateScreen() {
                   required
                   placeholder="Isi nama POI"
                   helperText="Contoh: Pasar Ciseeng, Puskesmas RT 01, Warung Ibu"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={draft.name}
+                  onChange={(e) => setDraftField('name', e.target.value)}
                 />
                 <Input
                   label="POI Type"
                   required
                   placeholder="Isi tipe POI"
                   helperText="Contoh: Pasar, Posyandu, Warung, dll"
-                  value={jenis}
-                  onChange={(e) => setJenis(e.target.value)}
+                  value={draft.jenis}
+                  onChange={(e) => setDraftField('jenis', e.target.value)}
                 />
                 <div className="flex flex-col gap-8">
                   <FieldLabel optional>Jam ramai POI</FieldLabel>
@@ -98,15 +90,15 @@ export function PoiCreateScreen() {
                     <Select
                       label=""
                       placeholder="Start with"
-                      value={jamMulai}
-                      onChange={setJamMulai}
+                      value={draft.jamMulai}
+                      onChange={(v) => setDraftField('jamMulai', v)}
                       options={HOURS}
                     />
                     <Select
                       label=""
                       placeholder="End with"
-                      value={jamSelesai}
-                      onChange={setJamSelesai}
+                      value={draft.jamSelesai}
+                      onChange={(v) => setDraftField('jamSelesai', v)}
                       options={HOURS}
                     />
                   </div>
@@ -121,10 +113,10 @@ export function PoiCreateScreen() {
                   label="Kecamatan"
                   required
                   placeholder="Pilih kecamatan"
-                  value={kecamatan}
+                  value={draft.kecamatan}
                   onChange={(v) => {
-                    setKecamatan(v)
-                    setDesa('')
+                    setDraftField('kecamatan', v)
+                    setDraftField('desa', '')
                   }}
                   options={KECAMATAN_OPTIONS}
                 />
@@ -132,24 +124,24 @@ export function PoiCreateScreen() {
                   label="Kelurahan atau Desa"
                   required
                   placeholder="Pilih kelurahan atau desa"
-                  value={desa}
-                  onChange={setDesa}
-                  options={(KECAMATAN_DESA[kecamatan] ?? []).map((v) => ({ value: v, label: v }))}
-                  disabled={!kecamatan}
+                  value={draft.desa}
+                  onChange={(v) => setDraftField('desa', v)}
+                  options={(KECAMATAN_DESA[draft.kecamatan] ?? []).map((v) => ({ value: v, label: v }))}
+                  disabled={!draft.kecamatan}
                 />
                 <Input
                   label="Alamat (titik di peta)"
                   optionalText="(optional)"
                   placeholder="cth. Jl. Raya Ciseeng No. 12"
-                  value={alamat}
-                  onChange={(e) => setAlamat(e.target.value)}
+                  value={draft.alamat}
+                  onChange={(e) => setDraftField('alamat', e.target.value)}
                 />
                 <Input
                   label="Nama kontak"
                   optionalText="(optional)"
                   placeholder="Contoh: John Doe"
-                  value={namaKontak}
-                  onChange={(e) => setNamaKontak(e.target.value)}
+                  value={draft.namaKontak}
+                  onChange={(e) => setDraftField('namaKontak', e.target.value)}
                 />
                 <Input
                   label="No. HP kontak"
@@ -157,8 +149,8 @@ export function PoiCreateScreen() {
                   prefix="+62"
                   placeholder="Isi nomor HP yang aktif"
                   helperText="Contoh: 8567891298"
-                  value={hpKontak}
-                  onChange={(e) => setHpKontak(e.target.value.replace(/\D/g, ''))}
+                  value={draft.hpKontak}
+                  onChange={(e) => setDraftField('hpKontak', e.target.value.replace(/\D/g, ''))}
                 />
               </div>
             </div>
@@ -170,24 +162,24 @@ export function PoiCreateScreen() {
                   label="Jadwal Sosialisasi"
                   required
                   placeholder="Isi jadwal POI"
-                  value={jadwal}
-                  onChange={setJadwal}
+                  value={draft.jadwal}
+                  onChange={(v) => setDraftField('jadwal', v)}
                   options={JADWAL_OPTIONS}
                 />
                 <Select
                   label="Assigned FO"
                   optional
                   placeholder="Pilih FO / BP"
-                  value={assignedFo}
-                  onChange={setAssignedFo}
+                  value={draft.assignedFo}
+                  onChange={(v) => setDraftField('assignedFo', v)}
                   options={FO_OPTIONS}
                 />
                 <Input
                   label="Catatan"
                   optionalText="(optional)"
                   placeholder="Tulis catatan"
-                  value={catatan}
-                  onChange={(e) => setCatatan(e.target.value)}
+                  value={draft.catatan}
+                  onChange={(e) => setDraftField('catatan', e.target.value)}
                 />
               </div>
             </div>
@@ -195,7 +187,15 @@ export function PoiCreateScreen() {
             <div className="flex justify-end">
               <Button
                 onClick={() => {
-                  addPoi({ name, jenis, kecamatan, desa, jadwal, assignedFo })
+                  addPoi({
+                    name: draft.name,
+                    jenis: draft.jenis,
+                    kecamatan: draft.kecamatan,
+                    desa: draft.desa,
+                    jadwal: draft.jadwal,
+                    assignedFo: draft.assignedFo,
+                  })
+                  resetDraft()
                   flow.go('poi-list')
                 }}
                 disabled={!canSubmit}

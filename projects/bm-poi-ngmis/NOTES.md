@@ -22,3 +22,9 @@ from `projects/ngmis-bm-monitoring/lib/ui.tsx`'s `Panel`/`Select`/`SidebarPromo`
 so `useState` alone would lose a newly-submitted POI on the way back to the
 list) — three representative rows seeded, matching the "keep mock data to
 what's on screen" rule.
+
+The POI Baru form's fields live in that same store as a `draft` (`setDraftField`
+/ `resetDraft` / `useDraft`), not local `useState` — that's what lets the
+**Auto-filled** state (`poi-create`'s `states`, `fillSampleDraft`) fill the form
+before the screen mounts, the same way a state seeds any other screen's module
+store. `resetDraft()` runs on Submit so the next visit starts blank again.
