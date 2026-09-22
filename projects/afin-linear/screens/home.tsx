@@ -91,6 +91,7 @@ function BonusCard() {
     <RewardCard
       title="Dapatkan pencairan tambahan"
       caption={`${done} dari ${STRETCH} minggu`}
+      blue
       panel={
         <Checklist
           title="Pertahankan kelancaran majelis"
@@ -110,7 +111,7 @@ function BonusCard() {
         {Array.from({ length: STRETCH }, (_, i) => (
           <span
             key={i}
-            className={`h-12 min-w-0 flex-1 rounded-full ${i < done ? 'bg-green-400' : 'bg-primary-700'}`}
+            className={`h-12 min-w-0 flex-1 rounded-full ${i < done ? 'bg-green-400' : 'bg-blue-800'}`}
           />
         ))}
       </div>
@@ -129,17 +130,23 @@ function RewardCard({
   title,
   caption,
   panel,
+  blue = false,
   children,
 }: {
   title: string
   caption: string
   panel: ReactNode
+  blue?: boolean
   children: ReactNode
 }) {
   return (
-    <div className="rounded-24 bg-gradient-to-b from-primary-400 to-primary-600 p-4">
+    <div
+      className={`rounded-24 bg-gradient-to-b p-4 ${blue ? 'from-blue-500 to-blue-700' : 'from-primary-400 to-primary-600'}`}
+    >
       <div className="flex items-center gap-12 p-12">
-        <span className="flex size-48 shrink-0 items-center justify-center rounded-12 bg-primary-700 text-neutral-white">
+        <span
+          className={`flex size-48 shrink-0 items-center justify-center rounded-12 text-neutral-white ${blue ? 'bg-blue-800' : 'bg-primary-700'}`}
+        >
           <MoneyBag size={24} />
         </span>
         <span className="min-w-0 flex-1">
