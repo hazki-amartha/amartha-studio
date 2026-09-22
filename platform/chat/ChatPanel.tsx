@@ -14,7 +14,7 @@
 // =============================================================================
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { CloseIcon, InspectIcon } from '@/platform/chrome/icons'
+import { ArrowUpIcon, CloseIcon, InspectIcon, StopIcon } from '@/platform/chrome/icons'
 import { PanelHeader } from '@/platform/chrome/SidePanel'
 import { resolveTarget } from '@/platform/inspect/resolve'
 import { attachmentFor } from './attach'
@@ -339,9 +339,14 @@ export function LiveChatPanel({
           : `Done in ${clock(chat.last?.durationMs ?? chat.elapsedMs)} · ${changed} file${changed === 1 ? '' : 's'} changed · saved, not live`
       }
     >
-      <div className="mb-8 flex min-h-32 items-center gap-8">
+      {/* One box, as in Claude and Airship: the selection's chip, the message,
+          and the send button inside it. ⌘↵ sends; Enter is a new line — a
+          change request is often a few lines, and a stray Enter shouldn't
+          spend a turn. */}
+      <div className="flex flex-col gap-8 rounded-12 border border-neutral-200 bg-neutral-white p-8 focus-within:border-primary-500 dark:border-ink-700 dark:bg-ink-800">
         {attachment ? (
-          <span className="flex min-w-0 items-center gap-4 rounded-full bg-primary-50 py-4 pl-12 pr-4 text-12 font-bold text-primary-500">
+          <span className="flex min-w-0 items-center gap-4 self-start rounded-full bg-primary-50 py-4 pl-8 pr-4 text-12 font-bold text-primary-500">
+            <InspectIcon className="size-12 flex-none" />
             <span className="truncate">{attachment.label}</span>
             <button
               type="button"
@@ -353,34 +358,37 @@ export function LiveChatPanel({
               <CloseIcon className="size-12" />
             </button>
           </span>
-        ) : (
-          <span className="flex items-center gap-4 text-12 font-regular text-neutral-600">
-            <InspectIcon className="size-16 flex-none" />
-            Click an element in the prototype to ask about it.
-          </span>
-        )}
-      </div>
-      <textarea
-        value={chat.draft}
-        onChange={(e) => chat.setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            submit()
+        ) : null}
+        <textarea
+          value={chat.draft}
+          onChange={(e) => chat.setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault()
+              submit()
+            }
+          }}
+          rows={2}
+          aria-label="Message"
+          placeholder={
+            attachment ? 'What should change about it?' : 'Describe the change, or click an element first'
           }
-        }}
-        rows={3}
-        placeholder={attachment ? 'What should change about it?' : 'Ask for a change'}
-        className={`${fieldClass} resize-none`}
-      />
-      <button
-        type="button"
-        onClick={running ? chat.stop : submit}
-        disabled={!running && !chat.draft.trim()}
-        className={buttonClass}
-      >
-        {running ? 'Stop' : 'Send'}
-      </button>
+          className="w-full resize-none bg-transparent text-14 font-regular text-ink-900 outline-none placeholder:text-neutral-400 dark:text-neutral-white"
+        />
+        <div className="flex items-center justify-between gap-8">
+          <span className="text-10 font-regular text-neutral-400">⌘↵ to send</span>
+          <button
+            type="button"
+            onClick={running ? chat.stop : submit}
+            disabled={!running && !chat.draft.trim()}
+            aria-label={running ? 'Stop' : 'Send'}
+            title={running ? 'Stop this turn' : 'Send (⌘↵)'}
+            className="flex size-32 flex-none items-center justify-center rounded-8 bg-primary-500 text-neutral-white hover:bg-primary-600 disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-ink-700"
+          >
+            {running ? <StopIcon className="size-16" /> : <ArrowUpIcon className="size-16" />}
+          </button>
+        </div>
+      </div>
     </ChatView>,
   )
 }

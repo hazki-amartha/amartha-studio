@@ -228,32 +228,30 @@ export function PushBar({ slug }: { slug: string }) {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between gap-8">
-        {count > 0 && !waiting ? (
-          <button
-            type="button"
-            onClick={() => setShowFiles(!showFiles)}
-            aria-expanded={showFiles}
-            title={showFiles ? 'Hide the files' : 'Show which files go out'}
-            className={`truncate text-left text-12 underline decoration-dotted underline-offset-4 ${lineTone}`}
-          >
-            {line}
-          </button>
-        ) : (
-          <span className={`truncate text-12 ${lineTone}`}>{line}</span>
-        )}
-        {canPush ? (
-          <button
-            type="button"
-            onClick={() => press()}
-            disabled={Boolean(busy)}
-            title={name && isOwner(name) ? `Push as ${name}` : 'Push — send this project’s changes live'}
-            className={`${PRIMARY} flex-none`}
-          >
-            {busy ?? `Push ${plural(count, 'change')}`}
-          </button>
-        ) : null}
-      </div>
+      {count > 0 && !waiting ? (
+        <button
+          type="button"
+          onClick={() => setShowFiles(!showFiles)}
+          aria-expanded={showFiles}
+          title={showFiles ? 'Hide the files' : 'Show which files go out'}
+          className={`self-start truncate text-left text-12 underline decoration-dotted underline-offset-4 ${lineTone}`}
+        >
+          {line}
+        </button>
+      ) : (
+        <span className={`truncate text-12 ${lineTone}`}>{line}</span>
+      )}
+      {canPush ? (
+        <button
+          type="button"
+          onClick={() => press()}
+          disabled={Boolean(busy)}
+          title={name && isOwner(name) ? `Push as ${name}` : 'Push — send this project’s changes live'}
+          className={`${PRIMARY} w-full`}
+        >
+          {busy ?? `Push ${plural(count, 'change')}`}
+        </button>
+      ) : null}
     </div>
   )
 }
