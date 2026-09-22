@@ -8,8 +8,8 @@
 
 import { useState } from 'react'
 import { Button, Input } from '@/design-system/components'
-import { Check } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
+import { addPoi } from '../lib/store'
 import { FieldLabel, PageHeading, Panel, Select, SectionTitle } from '../lib/ui'
 
 const KECAMATAN_DESA: Record<string, string[]> = {
@@ -48,28 +48,19 @@ export function PoiCreateScreen() {
   const [jadwal, setJadwal] = useState('')
   const [assignedFo, setAssignedFo] = useState('')
   const [catatan, setCatatan] = useState('')
-  const [done, setDone] = useState(false)
 
   const canSubmit = name.trim() && jenis.trim() && kecamatan && desa && jadwal
 
-  if (done) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-8 bg-neutral-50 text-center">
-        <span className="flex size-48 items-center justify-center rounded-full bg-green-50 text-green-500">
-          <Check size={24} />
-        </span>
-        <span className="text-16 font-bold text-default">POI ditambahkan</span>
-        <span className="text-14 text-caption">{name || 'Lokasi ini'} tersimpan sebagai titik baru.</span>
-        <div className="pt-8">
-          <Button onClick={flow.back}>Kembali</Button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex h-full flex-col gap-24 overflow-y-auto bg-neutral-50 p-32">
-      <PageHeading title="POI Baru" />
+      <PageHeading
+        title="POI Baru"
+        actions={
+          <Button variant="outline" onClick={() => flow.go('poi-list')}>
+            Batal
+          </Button>
+        }
+      />
 
       <Panel>
         <div className="flex flex-col gap-32">
@@ -193,7 +184,13 @@ export function PoiCreateScreen() {
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={() => setDone(true)} disabled={!canSubmit}>
+            <Button
+              onClick={() => {
+                addPoi({ name, jenis, kecamatan, desa, jadwal, assignedFo })
+                flow.go('poi-list')
+              }}
+              disabled={!canSubmit}
+            >
               Submit
             </Button>
           </div>
