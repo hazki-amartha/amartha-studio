@@ -26,6 +26,7 @@
 // =============================================================================
 
 import { createSign } from 'crypto'
+import { readFileSync } from 'fs'
 
 export interface GitHubConfig {
   appId: string
@@ -84,13 +85,20 @@ export function githubConfig(env: NodeJS.ProcessEnv = process.env): GitHubConfig
  * Same App, same variables, but no build commit: a laptop's changes are cut
  * from main's tip at the moment of pushing, not from a deployment. The repo
  * comes from `origin` when the `STUDIO_GH_REPO_*` names aren't set.
+ *
+ * On a laptop the key can also be the downloaded `.pem` file itself —
+ * `STUDIO_GH_APP_PRIVATE_KEY_PATH`, or a `.pem` path in the key's own name —
+ * rather than 25 lines pasted into `.env.local`.
  */
 export function githubLocalConfig(
   origin: string | null,
   env: NodeJS.ProcessEnv = process.env,
 ): Omit<GitHubConfig, 'sha'> | null {
   const appId = env.STUDIO_GH_APP_ID
-  const key = env.STUDIO_GH_APP_PRIVATE_KEY
+  // A path in either name is read as the key file: pasting the path into the
+  // key's own name is the natural mistake, and a PEM never looks like a path.
+  const given = env.STUDIO_GH_APP_PRIVATE_KEY_PATH ?? env.STUDIO_GH_APP_PRIVATE_KEY
+  const key = given && !given.includes('-----BEGIN') && /\.pem$/i.test(given.trim()) ? readKey(given.trim()) : given
   const installationId = env.STUDIO_GH_APP_INSTALLATION_ID
   const fromOrigin = origin?.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?\/?$/)
   const owner = env.STUDIO_GH_REPO_OWNER ?? fromOrigin?.[1]
@@ -104,6 +112,14 @@ export function githubLocalConfig(
     repo,
     base: env.STUDIO_GH_BASE_BRANCH ?? 'main',
     api: env.STUDIO_GH_API_URL,
+  }
+}
+
+function readKey(file: string): string | undefined {
+  try {
+    return readFileSync(file.replace(/^~(?=\/)/, process.env.HOME ?? '~'), 'utf8')
+  } catch {
+    return undefined
   }
 }
 

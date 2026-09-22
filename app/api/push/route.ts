@@ -28,7 +28,8 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const DEV = process.env.NODE_ENV === 'development'
-const configured = () => Boolean(process.env.STUDIO_GH_APP_ID && process.env.STUDIO_GH_APP_PRIVATE_KEY)
+const configured = () =>
+  Boolean(process.env.STUDIO_GH_APP_ID && (process.env.STUDIO_GH_APP_PRIVATE_KEY || process.env.STUDIO_GH_APP_PRIVATE_KEY_PATH))
 
 // The button polls; GitHub is asked about a push in flight at most this often.
 const CHECK_EVERY_MS = 8000
