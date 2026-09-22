@@ -373,6 +373,37 @@ test('move into another container re-indents to the new depth', () => {
   )
 })
 
+test('a move inside a nested container keeps its siblings’ indentation', () => {
+  // recast re-indents a patched element by its own column, new line breaks
+  // included: these used to land at 8 + 8 = 16 (the afin-linear limit card).
+  const NESTED = `export function A() {
+  return (
+    <Screen>
+      <div className="flex">
+        <div className="a">
+          <p className="x">
+            {one}
+          </p>
+          <p className="y">Two</p>
+        </div>
+      </div>
+    </Screen>
+  )
+}
+`
+  const at = addresses(NESTED)
+  const out = ok(applyEdits(NESTED, [{ kind: 'move', src: at('p', 0), to: { after: at('p', 1) } }]))
+  assert.ok(
+    out.includes(`        <div className="a">
+          <p className="y">Two</p>
+          <p className="x">
+            {one}
+          </p>
+        </div>`),
+    out,
+  )
+})
+
 test('move out of a container, next to an element in the parent', () => {
   const at = addresses(HOME)
   const out = ok(applyEdits(HOME, [{ kind: 'move', src: at('span', 0), to: { after: at('Card', 1) } }]))
@@ -1147,6 +1178,7 @@ function fakeGitHub(files) {
   const pulls = []
   const calls = []
   const merged = []
+  const headlines = []
   /** Check runs by commit, as the fake CI reports them. */
   const checks = new Map()
   const json = (status, body) => new Response(body === undefined ? '' : JSON.stringify(body), { status })
@@ -1220,11 +1252,12 @@ function fakeGitHub(files) {
     }
     if (u.pathname === '/graphql') {
       merged.push(body.variables.id)
+      headlines.push(body.variables.headline)
       return json(200, { data: {} })
     }
     return json(404, {})
   }
-  return { fetchImpl, refs, pulls, calls, merged, checks }
+  return { fetchImpl, refs, pulls, calls, merged, headlines, checks }
 }
 
 const CONFIG = {
@@ -1347,6 +1380,8 @@ test('github: apply rebuilds from the build, commits to the branch, and undoes b
   assert.equal(gh.pulls[0].base, 'main')
   assert.match(gh.pulls[0].title, /^\[afin-linear\] /)
   assert.deepEqual(gh.merged, ['PR_1'])
+  // What lands on main is the change's title, not the branch's one commit.
+  assert.deepEqual(gh.headlines, ['[afin-linear] Design changes from the studio (Hazki) (#1)'])
   const again = await call(github.githubPush, { slug: 'afin-linear', push: true, name: 'Hazki' }, CONFIG, gh.fetchImpl)
   assert.equal(again.ok, true)
   assert.equal(gh.pulls.length, 1, 'pushing twice reuses the open change')

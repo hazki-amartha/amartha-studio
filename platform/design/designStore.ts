@@ -19,32 +19,28 @@
 // them in exactly this order, which is what keeps the preview honest. Moving
 // the same element twice keeps only the latest move, re-queued at the end.
 //
-// There are two things the list can be spent on, and the pending list is
-// identical either way:
+// There is ONE list, and two things it can be spent on. It can always be
+// copied out as a description of the changes, for someone else to apply. And
+// where the studio can write (GET /api/design says where), it can be written:
 //
-//   • WRITE — the dev server has the source, so Apply writes the files.
-//   • RECORD — a built deployment has no source and nothing that could write
-//     it, so the list is copied out as a description of the changes instead.
-//     This is the only honest behaviour there: the alternative is a panel that
-//     appears to save and silently loses everything on refresh.
-//
-// Record mode is forced outside dev, and available inside it — a lead can go
-// through someone else's running prototype and come away with a list without
-// touching their working copy.
-//
-// Where WRITE goes depends on where the studio is running (GET /api/design):
-//
-//   • `fs` — the dev server writes the working copy. Written edits leave the
-//     list; undo is one step per Apply press, by a snapshot the backend kept
-//     and restores only while the file is still what that write produced.
-//   • `github` — a deployment with the studio's GitHub App (D4). The deployed
-//     screen never changes, so written edits STAY on the list, marked
-//     applied, and the overlay keeps drawing them. Every Apply re-sends a
+//   • `fs` — the dev server writes the working copy (Save). Written edits
+//     leave the list; undo is one step per Save press, by a snapshot the
+//     backend kept and restores only while the file is still what that write
+//     produced.
+//   • `github` — a deployment with the studio's GitHub App (D4). Push writes
+//     the list to a change branch and opens the change, in one press. The
+//     deployed screen never changes, so written edits STAY on the list, marked
+//     applied, and the overlay keeps drawing them. Every write re-sends a
 //     file's whole list, which the backend rebuilds from the deployed copy;
-//     undo is "drop the entry and apply again". Push opens the change. The
-//     list is kept per deployment (by build SHA) and survives a reload.
+//     taking an entry back is "drop it and write again".
+//   • `record` — a deployment with nothing that could write: copying is all
+//     there is. The alternative is a panel that appears to save and silently
+//     loses everything on refresh.
 //
-// Before Apply, undo just unstages the last-touched change.
+// Whether THIS person may write — the editing password, and being an owner —
+// is asked at the moment they press Push, never before: the list they made
+// while looking around is the list they push. It survives a reload, per
+// project, whichever backend it is headed for.
 // =============================================================================
 
 import { sameLayout, type Layout } from './layout'
@@ -76,10 +72,9 @@ export interface UndoEntry {
   token: string
   /** Human line for the panel, phrased forward. */
   label: string
+  /** How many changes that write carried — what "Revert N changes" counts. */
+  count: number
 }
-
-/** Where Apply sends the list. See the header. */
-export type SinkMode = 'write' | 'record'
 
 export type Backend = DesignStatus['backend']
 
@@ -102,8 +97,7 @@ export interface DesignStoreState {
    *  replaces the footer's "Couldn't apply …" when that isn't what happened. */
   error: { label: string; reason: string; title?: string } | null
   undo: UndoEntry[]
-  mode: SinkMode
-  /** Where WRITE goes, once the route has said. */
+  /** Where a write goes, once the route has said. */
   backend: Backend
   /** `github`: the deployment's build commit. */
   sha?: string
@@ -186,7 +180,6 @@ let state: DesignStoreState = {
   busy: false,
   error: null,
   undo: [],
-  mode: DEV ? 'write' : 'record',
   backend: DEV ? 'fs' : 'record',
   owners: [],
   name: null,
@@ -248,7 +241,6 @@ const serverSnapshot: DesignStoreState = {
   busy: false,
   error: null,
   undo: [],
-  mode: 'record',
   backend: 'record',
   owners: [],
   name: null,
@@ -259,33 +251,16 @@ export function getDesignStoreServerSnapshot(): DesignStoreState {
   return serverSnapshot
 }
 
-/** Whether this person may write here, given what the route said. */
-export function canWrite(s: DesignStoreState = state): boolean {
-  if (s.backend === 'record' || s.locked || s.needsPassword) return false
-  if (s.backend === 'fs') return true
-  return Boolean(s.name && s.owners.some((o) => o.toLocaleLowerCase() === s.name!.toLocaleLowerCase()))
+/** Whether this studio can write this project at all — the button exists. */
+export function canSave(s: DesignStoreState = state): boolean {
+  return s.backend !== 'record' && !s.locked
 }
 
-export function setSinkMode(mode: SinkMode) {
-  if (mode === 'write' && !canWrite()) return
-  if (state.mode === mode) return
-  if (state.backend === 'github') {
-    // On the link the two lists mean different things — one is saved to a
-    // branch, one is a note to send on — so each is put away and read back
-    // whole. The mode changes WITHOUT an emit, because every emit persists:
-    // an emit here would save the emptied list over the one about to load.
-    persist()
-    pending.clear()
-    state = { ...state, mode, error: null }
-    loadFromStorage()
-    return
-  }
-  // On the dev server the list carries across, as it always has: a staged
-  // tweak can be collected instead of written, and a collected one applied.
-  // Switching INTO collecting also picks up whatever was collected before.
-  state = { ...state, mode, error: null }
-  if (mode === 'record') loadFromStorage()
-  else emit({})
+/** Whether this person may write here right now, given what the route said. */
+export function canWrite(s: DesignStoreState = state): boolean {
+  if (!canSave(s) || s.needsPassword) return false
+  if (s.backend === 'fs') return true
+  return Boolean(s.name && s.owners.some((o) => o.toLocaleLowerCase() === s.name!.toLocaleLowerCase()))
 }
 
 /** Remember who is editing, on this browser. */
@@ -296,30 +271,25 @@ export function setDesignerName(name: string | null) {
   } catch {
     // Not remembered; still used for this session.
   }
-  state = { ...state, name }
-  const mode: SinkMode = canWrite() ? 'write' : 'record'
-  if (state.backend === 'github' && mode !== state.mode) setSinkMode(mode)
-  else emit({})
+  emit({ name })
 }
 
 /**
  * Enter the editing password. Returns why it failed, or null once this
- * browser may save — the route has set a cookie that lasts 30 days.
+ * browser may save — the route has set a cookie that lasts 30 days. The list
+ * is untouched either way.
  */
 export async function unlockEditing(password: string): Promise<string | null> {
   if (!storageSlug) return 'Open a project first.'
   const res = await sink({ slug: storageSlug, unlock: password })
   if (!res.ok) return res.reason
-  state = { ...state, needsPassword: false }
-  const mode: SinkMode = canWrite() ? 'write' : 'record'
-  if (mode !== state.mode) setSinkMode(mode)
-  else emit({})
+  emit({ needsPassword: false })
   return null
 }
 
 /**
- * Ask the route where WRITE goes for this project, and settle the mode.
- * Called once per project by the panel.
+ * Ask the route where a write goes for this project. Called once per project
+ * by the panel.
  */
 async function probe(slug: string) {
   let status: DesignStatus | null = null
@@ -330,12 +300,7 @@ async function probe(slug: string) {
     // No answer: stay as we are.
   }
   if (!status || storageSlug !== slug) return
-  const settle = () => {
-    const mode: SinkMode = canWrite() ? 'write' : 'record'
-    if (mode !== state.mode) setSinkMode(mode)
-    else emit({})
-  }
-  const next: DesignStoreState = {
+  state = {
     ...state,
     backend: status.backend,
     sha: status.sha,
@@ -344,36 +309,33 @@ async function probe(slug: string) {
     needsPassword: status.needsPassword,
     name: storedName(),
   }
-  // Settled without an emit for the same reason as setSinkMode: the list's
-  // storage key depends on these.
-  state = next
-  settle()
+  if (status.backend === 'github') settleDeployment()
+  emit({})
 }
 
 // --- surviving a refresh -----------------------------------------------------
 //
-// Only in record mode, and only because there is nowhere else for the work to
-// live: a written edit is safe in a file, but a recorded one exists solely in
-// this tab. A lead half an hour into a review must not lose it to a stray
-// reload. Keyed per project so a whole pass across screens copies as one list.
+// The list lives in this tab until it is written — and on the link, a written
+// list is still the only record of what the branch holds — so it is kept in
+// localStorage, per project. A lead half an hour into a review must not lose
+// it to a stray reload, and a whole pass across screens copies as one list.
 
 const STORAGE_PREFIX = 'db.edit.changes.'
-const GITHUB_PREFIX = 'db.design.github.'
+/** Before there was one list, the link kept its written list apart, per build. */
+const LEGACY_GITHUB_PREFIX = 'db.design.github.'
 let storageSlug: string | null = null
+/** `github`: the build the stored list was written against, as read back. */
+let storedSha: string | undefined
 
 type StoredRow = Omit<PendingEntry, 'patched'> & { key: string }
-interface GithubList {
+interface StoredList {
   rows: StoredRow[]
   pushed: boolean
+  /** `github`: the build the applied rows were written against. */
+  sha?: string
 }
 
-/** Where the current list lives, or null when it lives nowhere (fs writes). */
-function storageKey(): string | null {
-  if (!storageSlug) return null
-  if (state.mode === 'record') return `${STORAGE_PREFIX}${storageSlug}`
-  if (state.backend === 'github' && state.sha) return `${GITHUB_PREFIX}${storageSlug}.${state.sha}`
-  return null
-}
+const storageKey = () => (storageSlug ? `${STORAGE_PREFIX}${storageSlug}` : null)
 
 function persist() {
   const key = storageKey()
@@ -390,13 +352,10 @@ function persist() {
       seq: p.seq,
       applied: p.applied,
     }))
-    if (state.mode === 'record') {
-      if (rows.length === 0) window.localStorage.removeItem(key)
-      else window.localStorage.setItem(key, JSON.stringify(rows))
-    } else if (rows.length === 0 && !state.pushed) {
-      window.localStorage.removeItem(key)
-    } else {
-      window.localStorage.setItem(key, JSON.stringify({ rows, pushed: state.pushed } satisfies GithubList))
+    if (rows.length === 0 && !state.pushed) window.localStorage.removeItem(key)
+    else {
+      const list: StoredList = { rows, pushed: state.pushed, sha: state.sha ?? storedSha }
+      window.localStorage.setItem(key, JSON.stringify(list))
     }
   } catch {
     // A full or disabled localStorage costs persistence, not the session.
@@ -404,61 +363,75 @@ function persist() {
 }
 
 /** Point the store at a project, reading back what is there and asking the
- *  route where WRITE goes. Called by the panel once it knows the project. */
+ *  route where a write goes. Called by the panel once it knows the project. */
 export function restoreChanges(slug: string) {
   if (storageSlug === slug) return
   storageSlug = slug
   pending.clear()
   state = { ...state, pushed: false, landed: false, undo: [] }
-  loadFromStorage()
+  storedSha = undefined
+  const list = readList(storageKey())
+  if (list) {
+    addRows(list.rows)
+    storedSha = list.sha
+    state = { ...state, pushed: list.pushed }
+  }
+  emit({})
   void probe(slug)
 }
 
-/** Read the current list back from where it lives. Always emits. */
-function loadFromStorage() {
-  const key = storageKey()
-  if (!key) {
-    emit({ pushed: false })
-    return
-  }
+function readList(key: string | null): StoredList | null {
+  if (!key) return null
   try {
     const raw = window.localStorage.getItem(key)
-    let pushed = false
-    if (raw) {
-      const parsed = JSON.parse(raw) as StoredRow[] | GithubList
-      const rows = Array.isArray(parsed) ? parsed : parsed.rows
-      pushed = !Array.isArray(parsed) && parsed.pushed
-      for (const { key: k, ...row } of rows) {
-        // What is already staged here is newer, and already painted.
-        if (pending.has(k)) continue
-        // Restored entries are listed but NOT on the DOM — the screen they
-        // belong to may not even be mounted.
-        pending.set(k, { ...row, patched: false })
-        seq = Math.max(seq, row.seq)
-      }
-    }
-    if (state.backend === 'github') forgetOtherDeployments()
-    emit({ pushed })
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as StoredRow[] | StoredList
+    return Array.isArray(parsed) ? { rows: parsed, pushed: false } : parsed
   } catch {
     // Unreadable storage is treated as no storage.
-    emit({ pushed: false })
+    return null
   }
 }
 
-/** A list from an earlier deployment is spent: either it landed, or it was
- *  never pushed and its positions no longer match anything. */
-function forgetOtherDeployments() {
+function addRows(rows: StoredRow[]) {
+  for (const { key: k, ...row } of rows) {
+    // What is already staged here is newer, and already painted.
+    if (pending.has(k)) continue
+    // Restored entries are listed but NOT on the DOM — the screen they
+    // belong to may not even be mounted.
+    pending.set(k, { ...row, patched: false })
+    seq = Math.max(seq, row.seq)
+  }
+}
+
+/**
+ * `github`, once the build is known: a list written against an earlier build
+ * is spent — either it landed, or it was never pushed and that branch is
+ * gone with its build. What was never written is still good to push. Also
+ * folds in the list an older studio kept apart for this build.
+ */
+function settleDeployment() {
   if (!storageSlug || !state.sha) return
-  const prefix = `${GITHUB_PREFIX}${storageSlug}.`
-  const keep = `${prefix}${state.sha}`
+  const prefix = `${LEGACY_GITHUB_PREFIX}${storageSlug}.`
   try {
+    const legacy = readList(`${prefix}${state.sha}`)
+    if (legacy) {
+      addRows(legacy.rows)
+      if (legacy.pushed) state = { ...state, pushed: true }
+      storedSha = state.sha
+    }
     for (let i = window.localStorage.length - 1; i >= 0; i--) {
       const k = window.localStorage.key(i)
-      if (k && k.startsWith(prefix) && k !== keep) window.localStorage.removeItem(k)
+      if (k && k.startsWith(prefix)) window.localStorage.removeItem(k)
     }
   } catch {
     // Harmless to leave.
   }
+  if (storedSha && storedSha !== state.sha) {
+    for (const [k, p] of pending) if (p.applied) pending.delete(k)
+    state = { ...state, pushed: false }
+  }
+  storedSha = state.sha
 }
 
 export function setOnFlushed(cb: (() => void) | null) {
@@ -857,7 +830,8 @@ export async function copyChangeList(): Promise<boolean> {
 // --- applying ----------------------------------------------------------------
 
 /**
- * Write every pending edit. One press, one batch per file.
+ * Write every pending edit — Save on the dev server, the first half of Push on
+ * the link. One press, one batch per file.
  *
  * Each batch is applied ATOMICALLY: the backend checks the file's version,
  * verifies each edit against the syntax tree, and refuses the whole list on
@@ -873,12 +847,12 @@ export async function copyChangeList(): Promise<boolean> {
  * list. On `github` it is EVERY edit for the file, applied or not — the
  * backend rebuilds the file from the deployed copy — and they stay, marked.
  *
- * Never reachable in record mode — there is nowhere to write.
+ * Returns whether everything was written.
  */
-export async function applyPending(): Promise<void> {
-  if (state.busy || state.mode !== 'write' || state.pushed) return
+export async function applyPending(): Promise<boolean> {
+  if (state.busy || !canWrite() || state.pushed) return false
   const rows = ordered().filter(([, p]) => !p.applied)
-  if (rows.length === 0) return
+  if (rows.length === 0) return true
   emit({ busy: true })
 
   const files: string[] = []
@@ -915,6 +889,7 @@ export async function applyPending(): Promise<void> {
   onFlushed?.()
   // Drop the settled structure from the published list once it has expired.
   if (settling.length > 0) setTimeout(() => emit({}), SETTLE_MS + 50)
+  return error === null
 }
 
 type Outcome = { undo?: UndoEntry } | { label: string; reason: string }
@@ -948,7 +923,7 @@ async function send(file: string, group: [string, PendingEntry][], taken?: Pendi
     name: state.backend === 'github' ? (state.name ?? undefined) : undefined,
   })
   if (!res.ok) return { label, reason: res.reason }
-  return 'undo' in res && res.undo ? { undo: { slug, token: res.undo, label } } : {}
+  return 'undo' in res && res.undo ? { undo: { slug, token: res.undo, label, count: entries.length } } : {}
 }
 
 /**
@@ -957,7 +932,7 @@ async function send(file: string, group: [string, PendingEntry][], taken?: Pendi
  * back.
  */
 async function rewrite(file: string, taken?: PendingEntry) {
-  if (state.backend !== 'github' || state.mode !== 'write') return
+  if (state.backend !== 'github' || !canWrite()) return
   emit({ busy: true })
   const group = ordered().filter(([, p]) => p.applied && fileOfEdit(p.edit) === file)
   const outcome = await send(file, group, taken)
@@ -991,12 +966,14 @@ export async function undoLast(): Promise<void> {
 }
 
 /**
- * `github`: open this deployment's change and let it land itself. Everything
- * must be applied first. Afterwards the list is kept, and kept on screen,
- * until the next deployment brings the change in for real.
+ * `github`: write whatever isn't written yet, then open this deployment's
+ * change and let it land itself — one press. A write that is refused stops
+ * it before anything is opened. Afterwards the list is kept, and kept on
+ * screen, until the next deployment brings the change in for real.
  */
 export async function pushChanges(): Promise<void> {
   if (state.busy || state.backend !== 'github' || state.pushed || !state.name || !storageSlug) return
+  if (!(await applyPending())) return
   const rows = ordered()
   if (rows.length === 0 || rows.some(([, p]) => !p.applied)) return
   emit({ busy: true })
@@ -1006,6 +983,44 @@ export async function pushChanges(): Promise<void> {
     pushed: res.ok,
     error: res.ok ? null : { label: 'the push', reason: res.reason },
   })
+}
+
+/** How many changes Revert would take back: the list, and on the dev server
+ *  what was saved from it too. */
+export function revertableCount(s: DesignStoreState = state): number {
+  if (s.pushed) return 0
+  return s.pending.length + (s.backend === 'fs' ? s.undo.reduce((n, u) => n + u.count, 0) : 0)
+}
+
+/**
+ * Take back every change — the list, and whatever was written from it: on the
+ * link the branch's files go back to the deployed copy, on the dev server each
+ * Save is undone, newest first. Returns what was unstaged, so the caller can
+ * revert the optimistic patches.
+ */
+export function revertAll(): Unstaged[] {
+  if (state.busy || state.pushed) return []
+  const rows = ordered()
+  const written = new Map<string, PendingEntry>()
+  for (const [, p] of rows) if (p.applied) written.set(fileOfEdit(p.edit), p)
+  pending.clear()
+  const out = rows.map(([, p]) => ({ edit: p.edit, component: p.component }))
+  emit({ error: null })
+  if (state.backend === 'github') {
+    void rewriteAll(written)
+  } else if (state.backend === 'fs' && state.undo.length > 0) {
+    void undoAllSaves()
+  }
+  return out
+}
+
+/** One file at a time: every write moves the same branch. */
+async function rewriteAll(written: Map<string, PendingEntry>) {
+  for (const [file, taken] of written) await rewrite(file, taken)
+}
+
+async function undoAllSaves() {
+  while (state.undo.length > 0 && !state.error) await undoLast()
 }
 
 // --- after Push ----------------------------------------------------------------

@@ -84,10 +84,10 @@ import { COMPONENT_PROPS } from './componentProps'
 import { Section } from './DesignSections'
 import {
   applyPending,
+  canSave,
   canWrite,
   clearDesignError,
   copyChangeList,
-  discardPending,
   fileOf,
   newEdit,
   pushChanges,
@@ -97,15 +97,14 @@ import {
   getDesignStoreServerSnapshot,
   getDesignStoreState,
   restoreChanges,
+  revertAll,
+  revertableCount,
   setOnFlushed,
-  setSinkMode,
   stageClassEdit,
   stagePropEdit,
   stageTextEdit,
   subscribeDesignStore,
-  undoLast,
   unstage,
-  unstageLast,
 } from './designStore'
 import type { Edit } from './protocol'
 
@@ -430,14 +429,10 @@ export function DesignPanel({
     [revertEdit],
   )
 
-  const onUndo = useCallback(() => {
-    if (store.pending.length > 0) {
-      const edit = unstageLast()
-      if (edit) revertEdit(edit)
-    } else {
-      void undoLast()
-    }
-  }, [store.pending.length, revertEdit])
+  const onRevert = useCallback(() => {
+    for (const unstaged of revertAll()) revertStagedPatch(unstaged.edit, unstaged.component)
+    bump()
+  }, [])
 
   // --- fallback copy string --------------------------------------------------
   const [copied, setCopied] = useState(false)
@@ -469,16 +464,10 @@ export function DesignPanel({
     window.setTimeout(() => setCopied(false), 1500)
   }, [store.error, store.pending.length, target, slug, screenId, pinnedFile])
 
-  const discardAll = useCallback(() => {
-    for (const unstaged of discardPending()) revertStagedPatch(unstaged.edit, unstaged.component)
-    bump()
-  }, [])
-
   // --- render ----------------------------------------------------------------
 
   const footer = (
     <>
-      <NamePrompt store={store} />
       <ChangesSection
         pending={store.pending}
         screenId={screenId}
@@ -489,11 +478,10 @@ export function DesignPanel({
         storeError={store.error}
         onCopy={copyFallback}
         copied={copied}
-        onDiscard={store.pending.length > 0 ? discardAll : undefined}
+        onDiscard={store.pending.length > 0 ? onRevert : undefined}
       />
       <div className="border-t border-default dark:border-ink-700" />
-      <ActionsFooter store={store} onUndo={onUndo} />
-      <ModeSwitch store={store} />
+      <ActionsFooter store={store} onRevert={onRevert} />
     </>
   )
 
@@ -961,9 +949,6 @@ function ChangesSection({
               {p.screenId !== screenId ? (
                 <span className="text-placeholder dark:text-neutral-600"> · {p.screenId}</span>
               ) : null}
-              {p.applied ? (
-                <span className="text-placeholder dark:text-neutral-600"> · saved</span>
-              ) : null}
             </span>
             {locked ? null : (
               <button
@@ -991,25 +976,40 @@ const NOTE = 'text-12 text-caption dark:text-neutral-400'
 
 const plural = (n: number) => `${n} change${n === 1 ? '' : 's'}`
 
+/**
+ * One list, and what can be done with it here:
+ *
+ *   dev server — Save writes it into the working copy; commit and push go
+ *                through the agent.
+ *   the link   — Push writes it and sends it live, in one press. The editing
+ *                password and who is editing are asked THEN, inline, and the
+ *                push carries on once they are answered — never up front,
+ *                where answering them used to swap the list out.
+ *   anywhere   — Copy hands it on; Revert takes it all back.
+ */
 function ActionsFooter({
   store,
-  onUndo,
+  onRevert,
 }: {
   store: ReturnType<typeof getDesignStoreState>
-  onUndo: () => void
+  onRevert: () => void
 }) {
   const [copied, setCopied] = useState(false)
+  /** The link's questions, asked when Push is pressed. */
+  const [asking, setAsking] = useState<'password' | 'name' | null>(null)
+  const [confirming, setConfirming] = useState(false)
   const n = store.pending.length
-  const unsaved = store.pending.filter((p) => !p.applied).length
-  const recording = store.mode === 'record'
-  const linked = !recording && store.backend === 'github'
-  const lastPending = n > 0 ? store.pending[n - 1] : null
-  const lastApplied = store.undo.length > 0 ? store.undo[store.undo.length - 1] : null
-  const undoLabel = lastPending
-    ? `Undo · ${lastPending.label}`
-    : lastApplied
-      ? `Undo · ${lastApplied.label}`
-      : 'Nothing to undo'
+  const writable = canSave(store)
+  const linked = writable && store.backend === 'github'
+  const revertable = revertableCount(store)
+  const saved = store.backend === 'fs' ? store.undo.reduce((k, u) => k + u.count, 0) : 0
+
+  // A second tap confirms; left alone, the question goes away.
+  useEffect(() => {
+    if (!confirming) return
+    const t = window.setTimeout(() => setConfirming(false), 3000)
+    return () => window.clearTimeout(t)
+  }, [confirming])
 
   const copy = useCallback(() => {
     void copyChangeList().then((ok) => {
@@ -1019,25 +1019,36 @@ function ActionsFooter({
     })
   }, [])
 
+  /** Push, asking first for whatever this browser hasn't answered yet. */
+  const push = useCallback(() => {
+    const now = getDesignStoreState()
+    if (now.needsPassword) return setAsking('password')
+    if (!canWrite(now)) return setAsking('name')
+    setAsking(null)
+    void pushChanges()
+  }, [])
+
+  const revert = () => {
+    if (!confirming) return setConfirming(true)
+    setConfirming(false)
+    onRevert()
+  }
+
   // What happens next differs by where the changes go, and each is worth
   // saying at the moment the designer would wonder — not in a doc.
   let note: React.ReactNode = null
-  if (recording) {
+  if (store.backend === 'record') {
     note =
       n > 0
-        ? 'These changes aren’t saved anywhere. Copy them and send them over to be applied.'
-        : 'Tweaks here are for describing a change, not saving one.'
+        ? 'This is a shared link, so these changes aren’t saved anywhere. Copy them and send them over to be applied.'
+        : 'This is a shared link, so tweaks here are for describing a change, not saving one.'
+  } else if (store.locked) {
+    note = store.locked
   } else if (linked && store.landed) {
     note = 'It’s landed. The link picks it up in a couple of minutes — refresh then.'
   } else if (linked && store.pushed) {
     note = 'Pushed. It goes live on its own in a few minutes — these stay on screen until it does.'
-  } else if (linked && n > 0 && unsaved === 0) {
-    note = (
-      <>
-        Saved — not live yet. <span className="font-bold">Push</span> when you’re ready.
-      </>
-    )
-  } else if (!linked && n === 0 && !store.busy && lastApplied) {
+  } else if (!linked && n === 0 && !store.busy && saved > 0) {
     note = (
       <>
         Saved to your working copy — not live yet. Say <span className="font-bold">commit</span> or{' '}
@@ -1046,91 +1057,75 @@ function ActionsFooter({
     )
   }
 
-  const primary = recording ? (
+  const empty = n === 0 && !store.pushed
+  const primary = !writable ? (
     <button type="button" onClick={copy} disabled={n === 0 || store.busy} className={PRIMARY}>
       {n === 0 ? 'No changes yet' : copied ? 'Copied' : `Copy ${plural(n)}`}
     </button>
-  ) : linked && unsaved === 0 && n > 0 ? (
-    <button
-      type="button"
-      onClick={() => void pushChanges()}
-      disabled={store.busy || store.pushed}
-      className={PRIMARY}
-    >
-      {store.busy ? 'Pushing…' : store.pushed ? 'Pushed' : `Push ${plural(n)}`}
+  ) : linked ? (
+    <button type="button" onClick={push} disabled={empty || store.busy || store.pushed} className={PRIMARY}>
+      {store.busy ? 'Pushing…' : store.pushed ? 'Pushed' : empty ? 'No changes yet' : `Push ${plural(n)}`}
     </button>
   ) : (
-    <button
-      type="button"
-      onClick={() => void applyPending()}
-      disabled={unsaved === 0 || store.busy || store.pushed}
-      className={PRIMARY}
-    >
-      {store.busy ? 'Saving…' : unsaved === 0 ? 'No changes yet' : `Apply ${plural(unsaved)}`}
+    <button type="button" onClick={() => void applyPending()} disabled={empty || store.busy} className={PRIMARY}>
+      {store.busy ? 'Saving…' : empty ? 'No changes yet' : `Save ${plural(n)}`}
     </button>
   )
 
   return (
     <div className="flex flex-col gap-4">
       {note ? <p className={NOTE}>{note}</p> : null}
+      {linked && asking === 'password' && !store.pushed ? (
+        <PasswordStep onUnlocked={push} onCancel={() => setAsking(null)} />
+      ) : null}
+      {linked && asking === 'name' && !store.pushed ? (
+        <NameStep
+          owners={store.owners}
+          onChoose={(name) => {
+            setDesignerName(name)
+            push()
+          }}
+          onCancel={() => setAsking(null)}
+        />
+      ) : null}
       {primary}
-      <button
-        type="button"
-        onClick={onUndo}
-        disabled={(!lastPending && !lastApplied) || store.busy || store.pushed}
-        className={SECONDARY}
-      >
-        {undoLabel}
-      </button>
+      {writable && n > 0 && !store.pushed ? (
+        <button type="button" onClick={copy} disabled={store.busy} className={SECONDARY}>
+          {copied ? 'Copied' : `Copy ${plural(n)}`}
+        </button>
+      ) : null}
+      {revertable > 0 ? (
+        <button
+          type="button"
+          onClick={revert}
+          disabled={store.busy}
+          className={`rounded-full px-16 py-4 text-12 font-bold disabled:cursor-not-allowed disabled:text-placeholder ${
+            confirming ? 'text-red-700 dark:text-red-400' : 'text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50'
+          }`}
+        >
+          {confirming ? `Revert ${plural(revertable)}?` : `Revert ${plural(revertable)}`}
+        </button>
+      ) : null}
+      {linked && store.name && canWrite(store) && !store.pushed ? (
+        <p className="text-center text-10 text-placeholder dark:text-neutral-600">
+          Pushing as {store.name}.{' '}
+          <button type="button" className="underline" onClick={() => setDesignerName(null)}>
+            Not you?
+          </button>
+        </p>
+      ) : null}
     </div>
   )
 }
 
-// --- who is editing (github) ---------------------------------------------------
+// --- asked at Push (github) ----------------------------------------------------
 
 /**
- * On the deployed link, Apply commits in someone's name, so the panel asks
- * whose — once per browser. Only the project's owners are offered: anyone
- * else can still collect changes and send them on, which is what the last
- * option says.
+ * The studio is open to view; pushing from it needs the editing password
+ * (STUDIO_EDIT_PASSWORD). Asked once per browser, the first time Push is
+ * pressed; the push carries on once it is accepted.
  */
-function NamePrompt({ store }: { store: ReturnType<typeof getDesignStoreState> }) {
-  if (store.backend !== 'github' || store.locked) return null
-  if (store.needsPassword) return <PasswordPrompt />
-  const owner = canWrite(store)
-  if (owner) {
-    return (
-      <p className="text-10 text-placeholder dark:text-neutral-600">
-        Saving as {store.name}.{' '}
-        <button type="button" className="underline" onClick={() => setDesignerName(null)}>
-          Not you?
-        </button>
-      </p>
-    )
-  }
-  return (
-    <Section title="Who’s editing?">
-      <div className="flex flex-col gap-4">
-        {store.owners.map((o) => (
-          <button key={o} type="button" className={SECONDARY} onClick={() => setDesignerName(o)}>
-            I’m {o}
-          </button>
-        ))}
-        <span className={NOTE}>
-          {store.name
-            ? `${store.name} isn’t an owner of this project, so changes here are collected to send on.`
-            : 'Owners can save changes from here. Anyone else can collect them and send them on.'}
-        </span>
-      </div>
-    </Section>
-  )
-}
-
-/**
- * The studio is open to view; saving from it needs the editing password
- * (STUDIO_EDIT_PASSWORD). Asked once per browser, before the name.
- */
-function PasswordPrompt() {
+function PasswordStep({ onUnlocked, onCancel }: { onUnlocked: () => void; onCancel: () => void }) {
   const [value, setValue] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -1141,82 +1136,63 @@ function PasswordPrompt() {
     const reason = await unlockEditing(value)
     setBusy(false)
     setError(reason)
-    if (!reason) setValue('')
+    if (!reason) onUnlocked()
   }
   return (
-    <Section title="Editing password">
-      <form className="flex flex-col gap-4" onSubmit={(e) => void submit(e)}>
-        <input
-          type="password"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          autoComplete="current-password"
-          aria-label="Editing password"
-          className="rounded-8 border border-neutral-200 bg-neutral-white px-8 py-4 text-12 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-white"
-        />
-        <button type="submit" className={SECONDARY} disabled={!value || busy}>
-          {busy ? 'Checking…' : 'Unlock saving'}
+    <form className="flex flex-col gap-4 rounded-12 border border-default p-8 dark:border-ink-700" onSubmit={(e) => void submit(e)}>
+      <span className="text-12 font-bold text-default dark:text-neutral-50">Editing password</span>
+      <input
+        type="password"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        autoComplete="current-password"
+        aria-label="Editing password"
+        autoFocus
+        className="rounded-8 border border-neutral-200 bg-neutral-white px-8 py-4 text-12 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-white"
+      />
+      <span className={error ? 'text-12 text-red-700' : NOTE}>
+        {error ?? 'Pushing from this link needs the editing password. Your changes stay as they are.'}
+      </span>
+      <div className="flex gap-8">
+        <button type="submit" className={`flex-1 ${SECONDARY}`} disabled={!value || busy}>
+          {busy ? 'Checking…' : 'Continue'}
         </button>
-        <span className={error ? 'text-12 text-red-700' : NOTE}>
-          {error ?? 'Anyone can look around. Saving from this link needs the editing password.'}
-        </span>
-      </form>
-    </Section>
+        <button type="button" className={`${NOTE} px-8`} onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
   )
 }
 
-// --- write / record switch ---------------------------------------------------
-
 /**
- * Only rendered where there is a choice. With nowhere to write, the mode is a
- * fact rather than a setting and showing a switch would imply otherwise;
- * there, this explains the situation in one line instead.
- *
- * Collecting where saving is possible is still useful: someone can go through
- * a running prototype, gather a list of changes, and hand it over without
- * touching the prototype at all.
+ * A push lands in someone's name, so the first one asks whose — once per
+ * browser. Only the project's owners are offered: anyone else copies the
+ * changes and sends them on.
  */
-function ModeSwitch({ store }: { store: ReturnType<typeof getDesignStoreState> }) {
-  const mode = store.mode
-  if (store.backend === 'record') {
-    return (
-      <p className="text-10 text-placeholder dark:text-neutral-600">
-        This is a shared link, so changes here are collected to send on, not saved.
-      </p>
-    )
-  }
-  if (store.locked) {
-    return <p className="text-10 text-placeholder dark:text-neutral-600">{store.locked}</p>
-  }
-  if (!canWrite(store)) return null
-
-  const saveTitle =
-    store.backend === 'github'
-      ? 'Apply saves the changes, ready to push'
-      : 'Apply writes the changes into this prototype'
-
-  const opt = (value: 'write' | 'record', label: string, title: string) => (
-    <button
-      type="button"
-      onClick={() => setSinkMode(value)}
-      title={title}
-      className={`px-8 py-2 text-10 ${
-        mode === value
-          ? 'bg-neutral-50 font-bold text-link dark:bg-ink-800 dark:text-neutral-50'
-          : 'text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50'
-      }`}
-    >
-      {label}
-    </button>
-  )
-
+function NameStep({
+  owners,
+  onChoose,
+  onCancel,
+}: {
+  owners: string[]
+  onChoose: (name: string) => void
+  onCancel: () => void
+}) {
   return (
-    <div className="flex items-center justify-between gap-8">
-      <span className="text-10 uppercase text-placeholder dark:text-neutral-600">Changes</span>
-      <div className="flex overflow-hidden rounded-8 border border-default dark:border-ink-700">
-        {opt('write', 'Save', saveTitle)}
-        {opt('record', 'Collect', 'Collect the changes to copy and send on, saving nothing')}
-      </div>
+    <div className="flex flex-col gap-4 rounded-12 border border-default p-8 dark:border-ink-700">
+      <span className="text-12 font-bold text-default dark:text-neutral-50">Who’s pushing?</span>
+      {owners.map((o) => (
+        <button key={o} type="button" className={SECONDARY} onClick={() => onChoose(o)}>
+          I’m {o}
+        </button>
+      ))}
+      <span className={NOTE}>
+        Only {owners.join(' and ')} can push this project. Anyone else can copy the changes and send them on.
+      </span>
+      <button type="button" className={`${NOTE} self-start`} onClick={onCancel}>
+        Cancel
+      </button>
     </div>
   )
 }
