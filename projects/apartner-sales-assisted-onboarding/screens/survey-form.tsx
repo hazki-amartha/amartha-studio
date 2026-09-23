@@ -39,7 +39,7 @@ export function SurveyFormScreen() {
 
   if (!lead) {
     return (
-      <AppScreen topBar={<NavigationHeader title={label} onBack={() => flow.go('application')} />}>
+      <AppScreen topBar={<NavigationHeader title={label} onBack={() => flow.go('calon-mitra')} />}>
         <span className="text-14 text-caption">Lead tidak ditemukan.</span>
       </AppScreen>
     )
@@ -51,12 +51,12 @@ export function SurveyFormScreen() {
 
   function next() {
     surveyStore.markStep(lead.id, section, current.id)
-    if (isLast) flow.go('application')
+    if (isLast) flow.go('calon-mitra')
     else setStep(step + 1)
   }
 
   return (
-    <AppScreen topBar={<NavigationHeader title={label} onBack={() => flow.go('application')} />}>
+    <AppScreen topBar={<NavigationHeader title={label} onBack={() => flow.go('calon-mitra')} />}>
       {/* Step tabs — jump between steps; a check marks a completed one. */}
       <div className="flex gap-8 overflow-x-auto pb-2">
         {steps.map((s, i) => {

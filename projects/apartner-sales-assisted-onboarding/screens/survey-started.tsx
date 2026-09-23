@@ -65,7 +65,7 @@ export function SurveyStartedScreen() {
           className="w-full"
           onClick={() => {
             pipelineStore.takeoverAssisted(lead.id)
-            flow.go('application')
+            flow.go('calon-mitra')
           }}
         >
           Ambil alih jadi assisted

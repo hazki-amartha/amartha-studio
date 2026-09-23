@@ -28,6 +28,23 @@ export interface MajelisEntry {
   status: MajelisStatus
 }
 
+/**
+ * Which majelis a page is about: an active directory group by id, or a new
+ * (draft) majelis being formed from onboarding leads, keyed by its name (it has
+ * no directory entry yet).
+ */
+export type MajelisRef = { kind: 'existing'; id: string } | { kind: 'draft'; name: string }
+
+/** The kumpulan days a majelis can meet — the day filter's options. */
+export const KUMPULAN_DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat']
+
+/** The smallest active majelis; a draft is this many mitra short of running. */
+export const MIN_MEMBERS = 5
+
+/** How many mitra a draft still needs to become active (0 for an active group). */
+export const shortfallOf = (entry: MajelisEntry): number =>
+  Math.max(0, MIN_MEMBERS - entry.members)
+
 export const MAJELIS_DIRECTORY: MajelisEntry[] = [
   {
     id: 'seruni',

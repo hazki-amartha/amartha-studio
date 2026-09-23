@@ -16,6 +16,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Screen, type ScreenProps } from '@/platform/primitives'
 import { BottomSheet, Button, Input, SelectableCard } from '@/design-system/components'
 import { Check, ChevronDown, MagnifyingGlass } from '@/design-system/icons'
+import { ProductLogo } from '@/design-system/assets'
 import { REJECT_AFTER } from './store'
 
 /**
@@ -434,6 +435,22 @@ export function Chip({
     >
       {children}
     </button>
+  )
+}
+
+/**
+ * The product a majelis runs on, colour-coded (ported from the BP New Concept
+ * directory). GL is the default and shows nothing; Modal wears its logo; a mixed
+ * group reads "GL Modal Mix".
+ */
+export function ProductBadge({ product }: { product: 'Modal' | 'GL' | 'Hybrid' }) {
+  if (product === 'GL') return null
+  const ink = product === 'Modal' ? 'text-blue-500' : 'text-caption'
+  return (
+    <span className={`flex shrink-0 items-center gap-4 ${ink}`}>
+      {product === 'Modal' ? <ProductLogo name="modal" size={16} /> : null}
+      <span className="text-12 font-bold">{product === 'Hybrid' ? 'GL Modal Mix' : product}</span>
+    </span>
   )
 }
 

@@ -83,6 +83,8 @@ export function TabBar({ active, action }: { active: TabId; action?: ReactNode }
             else if (tab.id === active) return
             else if (tab.id === 'sales') flow.go('sales')
             else if (tab.id === 'today') flow.go('tugas')
+            else if (tab.id === 'majelis-list') flow.go('majelis-list')
+            else if (tab.id === 'mitra-list') flow.go('mitra-list')
           },
         }))}
       />

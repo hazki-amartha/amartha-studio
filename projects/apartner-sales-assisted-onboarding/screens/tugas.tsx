@@ -17,10 +17,10 @@ import { dateFromToday } from '../lib/pipeline'
 import {
   GROUP_FORMATION_TASKS,
   groupTaskStore,
-  setGroupTask,
   useGroupTasks,
   type GroupFormationTask,
 } from '../lib/group-tasks'
+import { setFormation } from '../lib/formation'
 import { TabBar } from '../lib/tabs'
 import { AppScreen, EmptyState, VisitTitle } from '../lib/ui'
 
@@ -91,7 +91,7 @@ export function TugasScreen() {
 
   function startActivation(task: GroupFormationTask) {
     setGate(null)
-    setGroupTask(task)
+    setFormation({ mode: 'form', majelisName: `Majelis ${task.majelisName}`, memberCount: task.memberCount })
     flow.go('group-formation')
   }
 

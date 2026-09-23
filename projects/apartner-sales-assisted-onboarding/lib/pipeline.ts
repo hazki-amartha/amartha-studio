@@ -640,14 +640,12 @@ export type LeadsSection =
   | 'survey-approved'
   | 'survey-submitted'
   | 'survey-ongoing'
-  | 'perkenalan'
   | 'follow-up'
 
 export const LEADS_SECTION_ORDER: LeadsSection[] = [
   'survey-approved',
   'survey-submitted',
   'survey-ongoing',
-  'perkenalan',
   'follow-up',
 ]
 
@@ -655,19 +653,20 @@ export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
   'survey-approved': 'Survey approved',
   'survey-submitted': 'Survey submitted',
   'survey-ongoing': 'Survey ongoing',
-  perkenalan: 'Perkenalan majelis',
   'follow-up': 'Follow up',
 }
 
 /**
  * Which Leads-board section a lead belongs to — one bucket, by a fixed priority.
- * A lead in the majelis-introduction stage (`kumpulanStage: 'follow-up'`) is
- * "Perkenalan majelis"; the survey statuses each get their own section; and
- * everything still worked by hand — new, interested, and the two cold statuses
- * that reactivate — falls under "Follow up".
+ * The survey statuses each get their own section; everything still worked by
+ * hand — new, interested, and the two cold statuses that reactivate — falls
+ * under "Follow up".
  */
+/** A lead in onboarding — survey ongoing or submitted — shown as "Calon Mitra". */
+export const isCalonMitra = (lead: PipelineLead): boolean =>
+  lead.status === 'survey-created' || lead.status === 'survey-submitted'
+
 export function leadsSection(lead: PipelineLead): LeadsSection {
-  if (lead.kumpulanStage === 'follow-up') return 'perkenalan'
   switch (lead.status) {
     case 'approved':
       return 'survey-approved'
@@ -1259,16 +1258,11 @@ export const SEED_PIPELINE: PipelineLead[] = [
     address: { kecamatan: 'Ciseeng', desa: 'Putat Nutug', detail: 'Kp. Nutug RT 02/RW 02', mapsCoord: 'pinned' },
     status: 'interested',
     ageDays: 3,
-    kumpulanStage: 'follow-up',
-    agenda: { day: 'today', kind: 'Perkenalan', when: 'Hari ini', order: 11, dueDays: 0 },
-    // She reached the kumpulan stage through an application — the previous step is
-    // that application, never "Lead created".
+    agenda: { day: 'today', kind: 'Follow up', when: 'Hari ini', order: 11, dueDays: 0 },
     contextHistory: [
       { date: '18 Jul 2026', title: 'Lead created', detail: 'Dari POI Pasar Ciseeng' },
       { date: '20 Jul 2026', title: 'Follow up', detail: 'Tertarik produk Modal, siap gabung majelis' },
-      { date: '21 Jul 2026', title: 'Aplikasi untuk majelis existing' },
     ],
-    lastResult: { kind: 'kumpulan', date: '21 Jul 2026' },
     majelis: { kind: 'existing', id: 'seruni' },
     nik: '',
     ktp: false,
