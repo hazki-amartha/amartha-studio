@@ -39,7 +39,11 @@ import {
   DISBURSEMENT_BPS,
   DISBURSEMENT_TARGETS,
   branchDisbursement,
+  disbursementLanjutanDetailFor,
   disbursementMitraDetailFor,
+  etbStageIntent,
+  etbStageLabel,
+  ETB_STAGE_BUCKETS,
   nilaiShortfall,
   nilaiTotal,
   noaBaruShortfall,
@@ -61,7 +65,7 @@ const TOTAL_GROUP = {
   id: 'total',
   header: 'Total',
   target: `Target ${rp(DISBURSEMENT_TARGETS.nilai)} pencairan`,
-  cols: ['NoA', 'Pencairan'],
+  cols: ['#Mitra', 'Dicairkan'],
 } as const
 
 const BARU_GROUP = {
@@ -70,10 +74,12 @@ const BARU_GROUP = {
   target: `Target ${DISBURSEMENT_TARGETS.noaBaru} mitra`,
 } as const
 
+/** Converted to a headcount, the same shape Mitra baru's own target already
+ *  uses — see `branchDisbursement`'s `renewalTarget` for why. */
 const LANJUTAN_GROUP = {
   id: 'lanjutan',
   header: 'Mitra lanjutan',
-  target: `Target ${DISBURSEMENT_TARGETS.renewalRate}% NoA`,
+  target: `Target ${branchDisbursement().renewalTarget} mitra`,
 } as const
 
 /** Each segment's own funnel — hidden until that segment's "Lihat Alur" is
@@ -100,8 +106,8 @@ const ETB_FUNNEL = [
 /** Fixed per-column widths, so every sub-column lines up the same amount of
  *  space under its header regardless of how long the label is. */
 const COL_WIDTH: Record<string, number> = {
-  NoA: 96,
-  Pencairan: 116,
+  '#Mitra': 96,
+  Dicairkan: 116,
   Prospek: 84,
   'Total leads': 88,
   Dilanjuti: 84,
@@ -112,27 +118,37 @@ const COL_WIDTH: Record<string, number> = {
 
 const SHORT_CELL = 'px-12 pb-16 pt-4 text-center text-10 text-caption whitespace-nowrap'
 
-const STAGE_STATUS_OPTIONS = NTB_STAGE_BUCKETS.map((b) => ({ value: b.id, label: b.label }))
+/** Both funnels' stages in one list, distinct ids and all — the roster's
+ *  status filter reads either segment, and combining them here is what lets
+ *  "Semua status" mean all of it rather than just NTB's five. */
+const STAGE_STATUS_OPTIONS = [...NTB_STAGE_BUCKETS, ...ETB_STAGE_BUCKETS].map((b) => ({
+  value: b.id,
+  label: b.label,
+}))
 
 /** `DisbursementMitraDetail`'s funnel-stage shape mapped into the shared
  *  drawer's generic chip — Pencairan's own reading of "what to show beside a
  *  lead's name and her tindakan log", the way repayment-grid.tsx maps its
  *  own DPD shape. No metric: a lead carries no figure the way Pembayaran's
  *  mitra carries tunggakan, so `metricLabel`/`metricValue` stay unset and
- *  the drawer skips that block entirely. */
+ *  the drawer skips that block entirely. Reads the stage label/intent from
+ *  whichever funnel `segment` says this record belongs to. */
 function toDrawerRow(m: DisbursementMitraDetail): MitraDrawerRow {
+  const stageLabel = m.segment === 'lanjutan' ? etbStageLabel : ntbStageLabel
+  const stageIntent = m.segment === 'lanjutan' ? etbStageIntent : ntbStageIntent
   return {
     id: m.id,
     code: m.code ?? undefined,
     name: m.name,
     majelis: m.majelis ?? undefined,
     statusId: m.stageId,
-    statusLabel: ntbStageLabel(m.stageId),
-    statusIntent: ntbStageIntent(m.stageId),
+    statusLabel: stageLabel(m.stageId),
+    statusIntent: stageIntent(m.stageId),
     leadDate: m.leadDate,
     leadDateRelative: m.leadDateRelative,
     source: m.source,
     location: m.location,
+    segment: m.segment,
     tindakan: m.tindakan,
     followUp: m.followUp,
   }
@@ -158,6 +174,17 @@ function etbFunnelValues(bp: DisbursementBp) {
   }
 }
 
+/** Field-wise sum across every BP's row — `ntbFunnelValues`/`etbFunnelValues`
+ *  already shape one BP's funnel; this adds them up the same shape, so the
+ *  branch total sits directly under each funnel column's own label. */
+function sumValues<T extends Record<string, number>>(rows: T[]): T {
+  const totals: Record<string, number> = {}
+  for (const key of Object.keys(rows[0])) {
+    totals[key] = rows.reduce((n, row) => n + row[key], 0)
+  }
+  return totals as T
+}
+
 /**
  * The branch headline: each card names the target it's read against in the
  * corner, then the count, then how much of the denominator that figure
@@ -173,7 +200,7 @@ export function DisbursementMetrics() {
 
   return (
     <div className="grid grid-cols-3 gap-16 pb-16">
-      <BucketCard label="Pencairan" value={rp(nilai)} caption={`/${rp(nilaiTarget)}`} />
+      <BucketCard label="Dicairkan" value={rp(nilai)} caption={`/${rp(nilaiTarget)}`} />
       <BucketCard label="Mitra baru" value={`${branch.baru}`} caption={`/${baruTarget}`} />
       <BucketCard label="Mitra lanjutan" value={`${branch.lanjutan}`} caption={`/${branch.due}`} />
     </div>
@@ -236,7 +263,9 @@ export function DisbursementTable() {
   // NTB funnel instead of DPD (see toDrawerRow above).
   const [detailBp, setDetailBp] = useState<DisbursementBp | null>(null)
   const [detailMitraId, setDetailMitraId] = useState<string | null>(null)
-  const drawerRoster = detailBp ? disbursementMitraDetailFor(detailBp).map(toDrawerRow) : []
+  const drawerRoster = detailBp
+    ? [...disbursementMitraDetailFor(detailBp), ...disbursementLanjutanDetailFor(detailBp)].map(toDrawerRow)
+    : []
   const drawerMitra = drawerRoster.find((m) => m.id === detailMitraId) ?? null
   // Scrolled to whenever its funnel opens, so the newly-added columns land
   // in view instead of the BM having to notice and scroll for herself.
@@ -251,10 +280,47 @@ export function DisbursementTable() {
     if (etbOpen) etbFunnelRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'end', block: 'nearest' })
   }, [etbOpen])
 
-  const baruCols = ntbOpen ? ['NoA', 'Pencairan', ...NTB_FUNNEL.map((f) => f.label)] : ['NoA', 'Pencairan']
+  const baruCols = ntbOpen
+    ? ['#Mitra', 'Dicairkan', ...NTB_FUNNEL.map((f) => f.label)]
+    : ['#Mitra', 'Dicairkan']
   const lanjutanCols = etbOpen
-    ? ['NoA', 'Pencairan', ...ETB_FUNNEL.map((f) => f.label)]
-    : ['NoA', 'Pencairan']
+    ? ['#Mitra', 'Dicairkan', ...ETB_FUNNEL.map((f) => f.label)]
+    : ['#Mitra', 'Dicairkan']
+
+  // The branch total for every column on screen, aligned to each group's
+  // own `Cols` array above so a header cell and its total never drift out
+  // of step with each other.
+  const branch = branchDisbursement()
+  const totalNilaiSum = DISBURSEMENT_BPS.reduce((n, bp) => n + nilaiTotal(bp), 0)
+  const baruNilaiSum = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.nilaiBaru, 0)
+  const lanjutanNilaiSum = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.nilaiLanjutan, 0)
+  const ntbTotals = sumValues(DISBURSEMENT_BPS.map(ntbFunnelValues))
+  const etbTotals = sumValues(DISBURSEMENT_BPS.map(etbFunnelValues))
+
+  const totalColValues = [`${branch.baru + branch.lanjutan}`, rp(totalNilaiSum)]
+  const baruColValues = ntbOpen
+    ? [
+        `${branch.baru}`,
+        rp(baruNilaiSum),
+        `${ntbTotals.prospek}`,
+        `${ntbTotals.dilanjuti}`,
+        `${ntbTotals.surveiDimulai}`,
+        `${ntbTotals.surveiDikirim}`,
+        `${ntbTotals.disetujui}`,
+      ]
+    : [`${branch.baru}`, rp(baruNilaiSum)]
+  const lanjutanColValues = etbOpen
+    ? [
+        `${branch.lanjutan}`,
+        rp(lanjutanNilaiSum),
+        `${etbTotals.totalLeads}`,
+        `${etbTotals.dilanjuti}`,
+        `${etbTotals.surveiDimulai}`,
+        `${etbTotals.surveiDikirim}`,
+        `${etbTotals.disetujui}`,
+      ]
+    : [`${branch.lanjutan}`, rp(lanjutanNilaiSum)]
+
   const colspan = 1 + TOTAL_GROUP.cols.length + baruCols.length + lanjutanCols.length
   const minWidth =
     150 +
@@ -329,7 +395,10 @@ export function DisbursementTable() {
                       i === 0 ? 'border-l border-default' : ''
                     }`}
                   >
-                    {label}
+                    <span className="flex flex-col items-center gap-2">
+                      {label}
+                      <span className="text-14 font-bold text-default">{totalColValues[i]}</span>
+                    </span>
                   </th>
                 ))}
                 {baruCols.map((label, i) => (
@@ -340,7 +409,10 @@ export function DisbursementTable() {
                       i === 0 ? 'border-l border-default' : ''
                     }`}
                   >
-                    {label}
+                    <span className="flex flex-col items-center gap-2">
+                      {label}
+                      <span className="text-14 font-bold text-default">{baruColValues[i]}</span>
+                    </span>
                   </th>
                 ))}
                 {lanjutanCols.map((label, i) => (
@@ -351,7 +423,10 @@ export function DisbursementTable() {
                       i === 0 ? 'border-l border-default' : ''
                     }`}
                   >
-                    {label}
+                    <span className="flex flex-col items-center gap-2">
+                      {label}
+                      <span className="text-14 font-bold text-default">{lanjutanColValues[i]}</span>
+                    </span>
                   </th>
                 ))}
               </tr>

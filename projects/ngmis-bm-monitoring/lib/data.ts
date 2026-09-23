@@ -570,7 +570,11 @@ export function branchDisbursement() {
   const baru = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.noaBaru, 0)
   const lanjutan = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.noaLanjutan, 0)
   const due = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.renewalDue, 0)
-  return { baru, lanjutan, due, renewal: due === 0 ? 0 : (lanjutan / due) * 100 }
+  /** The 85% standard converted to a headcount — how many renewals the
+   *  branch is actually judged against, in the same "N mitra" shape Mitra
+   *  baru's target already uses. */
+  const renewalTarget = Math.ceil((due * DISBURSEMENT_TARGETS.renewalRate) / 100)
+  return { baru, lanjutan, due, renewal: due === 0 ? 0 : (lanjutan / due) * 100, renewalTarget }
 }
 
 /**
@@ -662,6 +666,10 @@ export interface DisbursementMitraDetail {
   location: string
   tindakan: MitraTindakan[]
   followUp: string
+  /** Which funnel this record belongs to — the drawer's roster filter reads
+   *  this to split "Lihat detail" between new mitra (NTB) and renewal mitra
+   *  (ETB) rather than only ever showing the NTB pipeline. */
+  segment: 'baru' | 'lanjutan'
 }
 
 /** Always "Contacted" — a lead never gets a Home Visit or a Telepon-flavoured
@@ -774,6 +782,83 @@ export function disbursementMitraDetailFor(bp: DisbursementBp): DisbursementMitr
       location: LEAD_LOCATIONS[(start + i) % LEAD_LOCATIONS.length],
       tindakan,
       followUp: `Survei oleh BP, sebelum ${10 + i} Sep 2026`,
+      segment: 'baru',
+    }
+  })
+}
+
+/** The renewal side of the same funnel — ETB's own five stages, reusing
+ *  `NTB_STAGE_BUCKETS`' shape but distinct ids (a shared id between the two
+ *  would make one status option match rows from both funnels at once). The
+ *  journey mirrors NTB's (contact → survey → approval); only the first
+ *  stage and the last label differ, since a renewal starts from an existing
+ *  mitra flagged for reactivation rather than a cold lead, and ends in a
+ *  renewal rather than a first-time approval. */
+export const ETB_STAGE_BUCKETS: { id: string; label: string; intent: BucketIntent }[] = [
+  { id: 'etbDitawarkan', label: 'Ditawarkan', intent: 'yellow' },
+  { id: 'etbDilanjuti', label: 'Dilanjuti', intent: 'orange' },
+  { id: 'etbSurveiDimulai', label: 'Survei dimulai', intent: 'orange' },
+  { id: 'etbSurveiDikirim', label: 'Survei dikirim', intent: 'orange' },
+  { id: 'etbDisetujui', label: 'Mitra diperpanjang', intent: 'green' },
+]
+
+export function etbStageLabel(stageId: string) {
+  return ETB_STAGE_BUCKETS.find((b) => b.id === stageId)?.label ?? stageId
+}
+
+export function etbStageIntent(stageId: string) {
+  return ETB_STAGE_BUCKETS.find((b) => b.id === stageId)?.intent ?? 'yellow'
+}
+
+/** How a renewal mitra was flagged, in place of a lead's "source" — she
+ *  isn't newly acquired, so the pool reads as "why this touch happened now"
+ *  instead of "where this lead came from". */
+const RENEWAL_SOURCES = [
+  'Jatuh tempo bulan ini',
+  'Follow-up jatuh tempo',
+  'Reaktivasi otomatis',
+  'Ditawarkan BP saat kunjungan',
+]
+
+/** Every mitra behind a BP's Mitra lanjutan funnel — same shape and same
+ *  reasoning as `disbursementMitraDetailFor`, reusing the same tindakan
+ *  outcome pool (a renewal call and a new-mitra call fail or land the same
+ *  handful of ways) but the ETB stage vocabulary and a renewal-flavoured
+ *  `source`. Unlike an NTB lead, a renewal mitra already has a code and a
+ *  majelis at every stage — she's existing, not being onboarded. */
+export function disbursementLanjutanDetailFor(bp: DisbursementBp): DisbursementMitraDetail[] {
+  const start = DISBURSEMENT_BPS.findIndex((b) => b.id === bp.id)
+  const stageIds = ETB_STAGE_BUCKETS.map((b) => b.id)
+  return Array.from({ length: 4 }, (_, i) => {
+    const stageId = stageIds[(start + i) % stageIds.length]
+    const tindakan: MitraTindakan[] = Array.from({ length: 5 }, (_, j) => {
+      const hasilIdx = (start + i + j + 1) % NTB_TINDAKAN_HASIL.length
+      const hasil = NTB_TINDAKAN_HASIL[hasilIdx]
+      return {
+        date: `${29 - j} Ags 2026, 10:15`,
+        jenis: NTB_TINDAKAN_JENIS[(start + i + j) % NTB_TINDAKAN_JENIS.length],
+        pelaku: NTB_TINDAKAN_PELAKU[(start + i + j) % NTB_TINDAKAN_PELAKU.length],
+        hasil: hasil.label,
+        hasilOk: hasil.ok,
+        dibayar: hasil.note,
+        catatan: hasil.catatan,
+        evidence: hasil.evidence,
+      }
+    })
+    const leadDate = LEAD_DATES[(start + i + 1) % LEAD_DATES.length]
+    return {
+      id: `${bp.id}-lanjutan-${i}`,
+      code: String(i + 1).padStart(3, '0'),
+      name: MITRA_NAMES[(start + i + 2) % MITRA_NAMES.length],
+      majelis: MAJELIS_NAMES[(start + i + 1) % MAJELIS_NAMES.length],
+      stageId,
+      leadDate: leadDate.date,
+      leadDateRelative: leadDate.relative,
+      source: RENEWAL_SOURCES[(start + i) % RENEWAL_SOURCES.length],
+      location: LEAD_LOCATIONS[(start + i + 1) % LEAD_LOCATIONS.length],
+      tindakan,
+      followUp: `Survei oleh BP, sebelum ${12 + i} Sep 2026`,
+      segment: 'lanjutan',
     }
   })
 }
