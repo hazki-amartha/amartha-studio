@@ -117,7 +117,8 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/calon-mitra'), 'CalonMitraScreen'),
       flowsTo: [
         { to: 'survey-form', label: 'BP Feedback / Uji Kelayakan' },
-        { to: 'group-formation', label: 'Penerimaan majelis' },
+        { to: 'ritual', label: 'Ritual explanation' },
+        { to: 'majelis-page', label: 'Buka majelis' },
         { to: 'sales', label: 'Submit onboarding' },
       ],
     },
@@ -125,6 +126,12 @@ export const project: ProjectModule = {
       id: 'survey-form',
       title: 'Survey Form',
       component: lazyScreen(() => import('./screens/survey-form'), 'SurveyFormScreen'),
+      flowsTo: [{ to: 'calon-mitra', label: 'Selesai' }],
+    },
+    {
+      id: 'ritual',
+      title: 'Ritual Explanation',
+      component: lazyScreen(() => import('./screens/ritual'), 'RitualScreen'),
       flowsTo: [{ to: 'calon-mitra', label: 'Selesai' }],
     },
     {

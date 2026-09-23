@@ -16,16 +16,18 @@ import { Badge, BottomSheet, Button, Card, NavigationHeader } from '@/design-sys
 import type { BadgeIntent } from '@/design-system/components/Badge'
 import { ChevronRight } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { contextSteps, majelisLine } from '../lib/pipeline'
+import { contextSteps, majelisLine, surveyStatusLabel } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import {
   APPLICATION_SECTIONS,
+  RITUAL_POINTS,
   doneCount,
+  doneStepIds,
   sectionComplete,
   setActiveSection,
   useSurvey,
 } from '../lib/survey'
-import { isLeadAccepted, isMajelisActivated, setFormation, useFormation } from '../lib/formation'
+import { isLeadAccepted, isMajelisActivated, useFormation } from '../lib/formation'
 import { store } from '../lib/store'
 import { AppScreen, StickyBar } from '../lib/ui'
 
@@ -51,6 +53,7 @@ export function CalonMitraScreen() {
   const assignment = lead.majelis
   const isExisting = assignment.kind === 'existing'
   const isNewMajelis = assignment.kind === 'new'
+  const existingId = assignment.kind === 'existing' ? assignment.id : ''
   const newMajelisName = assignment.kind === 'new' ? assignment.name : ''
   const accepted = isLeadAccepted(formation, lead.id)
 
@@ -59,14 +62,17 @@ export function CalonMitraScreen() {
   const isMitra =
     approved && (isExisting ? accepted : isNewMajelis ? isMajelisActivated(formation, newMajelisName) : false)
   // The status shown under her name follows the pipeline status until she is a Mitra.
-  const statusLabel = isMitra
-    ? 'Mitra'
-    : submitted
-      ? 'Survey submitted'
-      : approved
-        ? 'Survey approved'
-        : 'Survey ongoing'
+  const statusLabel = isMitra ? 'Mitra' : surveyStatusLabel(lead.status)
   const statusIntent: BadgeIntent = isMitra || approved ? 'green' : submitted ? 'blue' : 'orange'
+
+  // A short explainer that sits directly under the status — what this stage means.
+  const statusNote: { text: string; cls: string } | null = isMitra
+    ? { text: `Sudah menjadi Mitra ${majelisLine(lead)}.`, cls: 'font-bold text-green-600' }
+    : approved
+      ? { text: 'Survey disetujui — selesaikan penerimaan majelis untuk aktivasi.', cls: 'text-green-600' }
+      : submitted
+        ? { text: 'Survey sudah masuk — menunggu keputusan underwriting.', cls: 'text-caption' }
+        : null
 
   // Once the survey is submitted or approved it is read-only — nothing to fill in.
   const readOnly = submitted || approved
@@ -76,7 +82,8 @@ export function CalonMitraScreen() {
   const complete = (id: (typeof APPLICATION_SECTIONS)[number]['id']) =>
     readOnly || sectionComplete(survey, lead.id, id)
   const required = APPLICATION_SECTIONS.filter((s) => !(isSelf && s.id === 'uji-kelayakan'))
-  const allDone = required.every((s) => complete(s.id))
+  const ritualDone = readOnly || doneStepIds(survey, lead.id, 'ritual').length >= RITUAL_POINTS.length
+  const allDone = required.every((s) => complete(s.id)) && ritualDone
 
   function openSection(id: (typeof APPLICATION_SECTIONS)[number]['id']) {
     setActiveSection(id)
@@ -89,14 +96,11 @@ export function CalonMitraScreen() {
     flow.go('sales')
   }
 
-  function openAcceptance() {
-    setFormation({
-      mode: 'accept',
-      leadId: lead.id,
-      leadName: lead.name,
-      majelisName: majelisLine(lead),
-    })
-    flow.go('group-formation')
+  // Both boxes open the majelis page — an existing group's own page (where the
+  // acceptance happens once she is approved), or the new draft majelis' page.
+  function openExistingMajelis() {
+    store.openMajelisPage({ kind: 'existing', id: existingId })
+    flow.go('majelis-page')
   }
 
   function openNewMajelis() {
@@ -128,18 +132,22 @@ export function CalonMitraScreen() {
               see history
             </button>
           </div>
+
+          {/* The stage explainer, right under the status. */}
+          {statusNote ? <span className={`text-12 ${statusNote.cls}`}>{statusNote.text}</span> : null}
+
           {/* Majelis box — always tappable. An existing group opens the member
               acceptance form; a new (draft) majelis opens its detail page. */}
           {isExisting ? (
             <button
               type="button"
-              onClick={openAcceptance}
+              onClick={openExistingMajelis}
               className="flex items-center justify-between gap-8 rounded-12 border border-default bg-neutral-white px-12 py-12 text-left active:bg-neutral-50"
             >
               <span className="flex min-w-0 flex-col gap-2">
                 <span className="text-14 font-bold text-default">{majelisLine(lead)}</span>
                 <span className={`text-12 ${accepted ? 'font-bold text-green-600' : 'text-orange-500'}`}>
-                  {accepted ? 'Sudah diterima majelis' : 'Belum diterima majelis'}
+                  {accepted ? 'Sudah diterima majelis' : approved ? 'Menunggu penerimaan majelis' : 'Belum diterima majelis'}
                 </span>
               </span>
               <span className="shrink-0 text-disabled">
@@ -207,32 +215,48 @@ export function CalonMitraScreen() {
         )
       })}
 
-      <StickyBar>
-        {isMitra ? (
-          <span className="rounded-12 border border-green-500 bg-green-50 px-12 py-12 text-center text-12 font-bold text-green-600">
-            Sudah menjadi Mitra {majelisLine(lead)}.
-          </span>
-        ) : approved ? (
-          <span className="rounded-12 border border-green-200 bg-green-50 px-12 py-12 text-center text-12 text-green-600">
-            Survey disetujui — selesaikan penerimaan majelis untuk aktivasi.
-          </span>
-        ) : submitted ? (
-          <span className="rounded-12 border border-blue-200 bg-blue-50 px-12 py-12 text-center text-12 text-blue-600">
-            Survey sudah masuk — menunggu keputusan underwriting.
-          </span>
-        ) : (
-          <>
-            {!allDone ? (
-              <span className="text-center text-12 text-caption">
-                Lengkapi survey untuk mengirim onboarding.
+      {/* Ritual explanation — a box like the others, opening its own page. */}
+      {(() => {
+        const rDone = doneStepIds(survey, lead.id, 'ritual').length
+        const rSub = ritualDone
+          ? 'Selesai'
+          : rDone === 0
+            ? 'Belum diisi'
+            : `${rDone}/${RITUAL_POINTS.length} selesai`
+        return (
+          <Card>
+            <button
+              type="button"
+              onClick={() => (readOnly ? undefined : flow.go('ritual'))}
+              disabled={readOnly}
+              className="flex w-full items-center gap-8 text-left disabled:cursor-default"
+            >
+              <span className="flex min-w-0 flex-1 flex-col gap-2">
+                <span className="text-14 font-bold text-default">Ritual explanation</span>
+                <span className={`text-12 ${ritualDone ? 'text-green-600' : 'text-caption'}`}>{rSub}</span>
               </span>
-            ) : null}
-            <Button size="lg" className="w-full" disabled={!allDone} onClick={submit}>
-              Submit Onboarding
-            </Button>
-          </>
-        )}
-      </StickyBar>
+              {readOnly ? null : (
+                <span className="shrink-0 text-disabled">
+                  <ChevronRight size={20} />
+                </span>
+              )}
+            </button>
+          </Card>
+        )
+      })()}
+
+      {readOnly ? null : (
+        <StickyBar>
+          {!allDone ? (
+            <span className="text-center text-12 text-caption">
+              Lengkapi survey untuk mengirim onboarding.
+            </span>
+          ) : null}
+          <Button size="lg" className="w-full" disabled={!allDone} onClick={submit}>
+            Submit Onboarding
+          </Button>
+        </StickyBar>
+      )}
 
       {/* History */}
       <BottomSheet open={historyOpen} onClose={() => setHistoryOpen(false)} title="Riwayat">

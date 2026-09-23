@@ -24,6 +24,7 @@ import {
   type FormationStepId,
 } from '../lib/formation'
 import { SelectField } from '../lib/pipeline-ui'
+import { RITUAL_POINTS } from '../lib/survey'
 import { AppScreen, StageBar, StickyBar } from '../lib/ui'
 
 const MEMBERS = ['Rohaya', 'Siti Aisyah', 'Euis Komariah', 'Nia Kurniasih', 'Dewi Anggraeni', 'Sri Mulyani']
@@ -31,12 +32,6 @@ const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
 const pad = (n: number) => String(n).padStart(2, '0')
 const TIMES: string[] = []
 for (let m = 8 * 60; m <= 16 * 60; m += 30) TIMES.push(`${pad(Math.floor(m / 60))}.${pad(m % 60)}`)
-
-const RITUAL_POINTS = [
-  'Perkenalan visi & misi Amartha ke seluruh anggota',
-  'Penjelasan tanggung renteng & disiplin bayar mingguan',
-  'Doa bersama & pembacaan komitmen majelis',
-]
 
 function UploadRow({
   icon,
@@ -120,9 +115,9 @@ export function GroupFormationScreen() {
 
   function finish() {
     if (ctx.mode === 'accept') {
-      formationStore.acceptLead(ctx.leadId)
-      pipelineStore.setFlash(`${ctx.leadName} diterima di ${ctx.majelisName}`)
-      flow.go('calon-mitra')
+      ctx.memberIds.forEach((id) => formationStore.acceptLead(id))
+      pipelineStore.setFlash(`${ctx.memberIds.length} anggota baru diterima di ${ctx.majelisName}`)
+      flow.go('majelis-page')
     } else {
       formationStore.activateMajelis(ctx.majelisName)
       pipelineStore.setFlash(`${ctx.majelisName} terbentuk`)
@@ -156,7 +151,8 @@ export function GroupFormationScreen() {
         <span className="text-12 text-caption">
           {ctx.mode === 'accept' ? (
             <>
-              Penerimaan <span className="font-bold text-primary-500">{ctx.leadName}</span> ke{' '}
+              Penerimaan{' '}
+              <span className="font-bold text-primary-500">{ctx.memberNames.join(', ')}</span> ke{' '}
               {ctx.majelisName}
             </>
           ) : (

@@ -13,7 +13,15 @@
 
 import { useSyncExternalStore } from 'react'
 
-export type SectionId = 'bp-feedback' | 'uji-kelayakan'
+export type SectionId = 'bp-feedback' | 'uji-kelayakan' | 'ritual'
+
+/** The three ritual points — shared by the onboarding ritual checklist and the
+ *  group-formation / acceptance ritual step. */
+export const RITUAL_POINTS = [
+  'Perkenalan visi & misi Amartha ke seluruh anggota',
+  'Penjelasan tanggung renteng & disiplin bayar mingguan',
+  'Doa bersama & pembacaan komitmen majelis',
+]
 
 export interface AppSection {
   id: SectionId

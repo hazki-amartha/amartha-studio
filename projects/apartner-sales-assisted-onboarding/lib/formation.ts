@@ -29,7 +29,8 @@ export const FORMATION_STEP_LABEL: Record<FormationStepId, string> = {
 const ACCEPT_STEPS: FormationStepId[] = ['perjanjian', 'ritual']
 
 export type FormationContext =
-  | { mode: 'accept'; leadId: string; leadName: string; majelisName: string }
+  // Accept newly-approved members into an existing majelis (batch).
+  | { mode: 'accept'; majelisName: string; memberIds: string[]; memberNames: string[] }
   | { mode: 'form'; majelisName: string; memberCount: number }
 
 export function stepsForContext(ctx: FormationContext): FormationStepId[] {

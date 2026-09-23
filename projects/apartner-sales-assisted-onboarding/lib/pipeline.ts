@@ -666,6 +666,23 @@ export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
 export const isCalonMitra = (lead: PipelineLead): boolean =>
   lead.status === 'survey-created' || lead.status === 'survey-submitted'
 
+/** A lead somewhere in the onboarding funnel — survey ongoing, submitted, or
+ *  approved. These are the members forming/joining a majelis. */
+export const isOnboardingLead = (lead: PipelineLead): boolean =>
+  isCalonMitra(lead) || lead.status === 'approved'
+
+/** The onboarding status shown on the Calon Mitra card and the majelis potential
+ *  members — following the Leads status, not a flat "Calon Mitra". */
+export function surveyStatusLabel(status: LeadStatus): string {
+  return status === 'survey-created'
+    ? 'Survey ongoing'
+    : status === 'survey-submitted'
+      ? 'Survey submitted'
+      : status === 'approved'
+        ? 'Survey approved'
+        : ''
+}
+
 export function leadsSection(lead: PipelineLead): LeadsSection {
   switch (lead.status) {
     case 'approved':
@@ -1059,6 +1076,32 @@ export const SEED_PIPELINE: PipelineLead[] = [
       { at: '15 Juli', via: 'manual', status: 'survey-created', system: 'Produk GL' },
       { at: '16 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
       { at: '19 Juli', via: 'system', status: 'approved', system: 'Lolos underwriting, cair Rp2.000.000 pada 24 Juli' },
+    ],
+  },
+  {
+    // Approved, but forming a NEW (draft) majelis — she waits for the group to be
+    // activated. Shows as an approved potential member on the Batu Sangkar page.
+    id: 'p20',
+    name: 'Wulan Sari',
+    phone: '0857-4432-1198',
+    address: { kecamatan: 'Ciseeng', desa: 'Cibeuteung Udik', detail: 'Kp. Cibeuteung RT 03/RW 05', mapsCoord: 'pinned' },
+    source: 'referral',
+    referredBy: 'Ibu Ipah (Warung Bu Ipah)',
+    fo: 'Nurhayati',
+    photo: true,
+    status: 'approved',
+    ageDays: 6,
+    majelis: { kind: 'new', name: 'Majelis Batu Sangkar' },
+    nik: '3201095504920011',
+    ktp: true,
+    product: 'Modal',
+    amount: 'Rp2.500.000',
+    disburseDate: '25 Juli',
+    log: [
+      { at: '14 Juli', via: 'poi', status: 'interested', system: 'Diajak Ibu Ipah bikin majelis baru' },
+      { at: '16 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
+      { at: '18 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '20 Juli', via: 'system', status: 'approved', system: 'Lolos underwriting, cair Rp2.500.000 pada 25 Juli' },
     ],
   },
   {
