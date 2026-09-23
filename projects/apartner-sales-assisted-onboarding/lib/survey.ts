@@ -1,31 +1,30 @@
 'use client'
 
-// The assisted survey — three boxes on the application page, each its own
+// The assisted survey — two boxes on the Calon Mitra detail page, each its own
 // multi-step page:
 //
 //   BP Feedback        3 steps, 3 questions each
 //   Survey Uji Kelayakan  6 steps (Data pribadi … Foto tempat usaha), 3 each
-//   Ritual explanation  3 points, checkbox to complete
 //
-// The questions are placeholders for now. Progress is held in a module store so
-// each box on the application page shows how far the sub-page got, and survives
-// navigating in and out (screens remount).
+// (The majelis ritual is no longer part of the survey — it moved into the group
+// formation / acceptance flow.) The questions are placeholders for now. Progress
+// is held in a module store so each box shows how far its sub-page got, and
+// survives navigating in and out (screens remount).
 
 import { useSyncExternalStore } from 'react'
 
-export type SectionId = 'bp-feedback' | 'uji-kelayakan' | 'ritual'
+export type SectionId = 'bp-feedback' | 'uji-kelayakan'
 
 export interface AppSection {
   id: SectionId
   label: string
-  /** How many steps / points the section has — the denominator on its card. */
+  /** How many steps the section has — the denominator on its card. */
   total: number
 }
 
 export const APPLICATION_SECTIONS: AppSection[] = [
   { id: 'bp-feedback', label: 'BP Feedback', total: 3 },
   { id: 'uji-kelayakan', label: 'Survey Uji Kelayakan', total: 6 },
-  { id: 'ritual', label: 'Ritual explanation', total: 3 },
 ]
 
 export interface SurveyStep {
@@ -82,12 +81,6 @@ export const UJI_KELAYAKAN_STEPS: SurveyStep[] = KELAYAKAN_TITLES.map(({ id, tit
     `Pertanyaan 3 — ${title}`,
   ],
 }))
-
-export const RITUAL_POINTS = [
-  'Perkenalan visi & misi Amartha ke seluruh anggota',
-  'Penjelasan tanggung renteng & disiplin bayar mingguan',
-  'Doa bersama & pembacaan komitmen majelis',
-]
 
 export function stepsFor(section: SectionId): SurveyStep[] {
   return section === 'bp-feedback' ? BP_FEEDBACK_STEPS : UJI_KELAYAKAN_STEPS

@@ -144,10 +144,14 @@ export function SalesList({ scope }: { scope: Scope }) {
   }
 
   function openLead(lead: PipelineLead) {
-    // Every lead opens the same detail page — the follow-up layout with the
-    // context stepper / history — whatever stage she is at.
     pipelineStore.open(lead.id)
-    flow.go('follow-up')
+    // A lead in the onboarding funnel — survey ongoing / submitted / approved —
+    // opens the Calon Mitra detail; everyone else opens the follow-up detail.
+    const calon =
+      lead.status === 'survey-created' ||
+      lead.status === 'survey-submitted' ||
+      lead.status === 'approved'
+    flow.go(calon ? 'calon-mitra' : 'follow-up')
   }
 
   function openPoi(t: PoiTask) {
@@ -198,7 +202,6 @@ export function SalesList({ scope }: { scope: Scope }) {
       | { key: string; label: string; kind: 'poi'; rows: PoiTask[] }
     const sections: Section[] = [
       { key: 'survey-ongoing', label: LEADS_SECTION_LABEL['survey-ongoing'], kind: 'lead', rows: leadRows('survey-ongoing') },
-      { key: 'perkenalan', label: LEADS_SECTION_LABEL.perkenalan, kind: 'lead', rows: leadRows('perkenalan') },
       { key: 'poi', label: 'POI visit', kind: 'poi', rows: poiRows },
       { key: 'follow-up', label: LEADS_SECTION_LABEL['follow-up'], kind: 'lead', rows: leadRows('follow-up') },
     ]

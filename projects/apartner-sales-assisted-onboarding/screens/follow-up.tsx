@@ -28,8 +28,8 @@ import {
   type PipelineLead,
 } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { OnboardingModeSheet, PickSheet } from '../lib/pipeline-ui'
-import { useApp } from '../lib/store'
+import { PickSheet } from '../lib/pipeline-ui'
+import { store, useApp } from '../lib/store'
 import { agendaDueDays, leadScheduleLabel, overdueDays } from '../lib/tasks'
 import { AppScreen, ContactButton } from '../lib/ui'
 
@@ -51,9 +51,8 @@ const DROP_REASONS = [
   'Lainnya',
 ]
 
-/** How this detail page reads: kumpulan, survey stage, reactivation, or follow-up. */
+/** How this detail page reads: survey stage, reactivation, or follow-up. */
 function followUpTitle(lead: PipelineLead): string {
-  if (lead.kumpulanStage === 'follow-up') return 'Perkenalan Majelis'
   if (lead.status === 'survey-created') return 'Lead: Survey berjalan'
   if (lead.status === 'survey-submitted') return 'Lead: Survey submitted'
   if (lead.status === 'approved') return 'Lead: Survey approved'
@@ -193,7 +192,6 @@ export function FollowUpScreen() {
   const lead = leads[openId]
   const [sheet, setSheet] = useState<SheetId>(null)
   const [foOpen, setFoOpen] = useState(false)
-  const [modeOpen, setModeOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
 
@@ -215,9 +213,6 @@ export function FollowUpScreen() {
   const nextSuffix =
     late > 0 ? `Telat ${late} hari` : dueDays === 0 ? 'Hari ini' : leadScheduleLabel(lead.agenda)
 
-  // A lead in the "Perkenalan" stage is worked differently: she is reminded
-  // to attend the kumpulan, not asked to continue an application.
-  const isKumpulan = lead.kumpulanStage === 'follow-up'
   // A lead already in the onboarding funnel — her survey is created, submitted or
   // approved — swaps the follow-up-result buttons for the survey's own actions.
   const isSurvey =
@@ -302,8 +297,8 @@ export function FollowUpScreen() {
         </div>
       </Card>
 
-      {/* The context history stepper. A kumpulan lead shows the attend reminder,
-          a reactivation shows the loan limits — both under the follow-up date. */}
+      {/* The context history stepper. A reactivation shows the loan limits under
+          the follow-up date. */}
       <ContextStepper
         past={past}
         nextDate={nextDate}
@@ -311,18 +306,7 @@ export function FollowUpScreen() {
         nextLate={late > 0}
         hideNext={lead.status === 'survey-submitted' || lead.status === 'approved'}
         nextExtra={
-          isKumpulan ? (
-            <span className="flex flex-col gap-8">
-              <span className="text-14 text-default">
-                Ingatkan Lead untuk hadir ke kumpulan {majelisLine(lead)}. Perkenalkan dengan
-                anggota Majelis, pastikan seluruh anggota Majelis setuju untuk menambahkan{' '}
-                {lead.name} sebagai anggota baru Majelis
-              </span>
-              <span className="rounded-12 border border-blue-200 bg-blue-50 px-12 py-8 text-12 text-blue-600">
-                Lead akan hilang dari list Sales, dan masuk ke list Mitra saat survey dimulai
-              </span>
-            </span>
-          ) : isReactivation && lead.reactivation ? (
+          isReactivation && lead.reactivation ? (
             <span className="text-14 text-default">
               {lead.name} sebelumnya punya limit {lead.reactivation.prevLimit}, dan bisa
               diaktifkan kembali dengan potensi limit sampai{' '}
@@ -335,17 +319,15 @@ export function FollowUpScreen() {
       {/* Follow up result — the heading sits with its buttons in a full-bleed
           background bar at the bottom of the page (not sticky). */}
       <div className="-mx-16 mt-auto flex flex-col gap-12 border-t border-default bg-neutral-white p-16">
-        {isKumpulan ? null : (
-          <span className="text-14 font-bold text-default">
-            {isSurvey
-              ? lead.status === 'survey-created'
-                ? 'Survey sedang berjalan'
-                : lead.status === 'survey-submitted'
-                  ? 'Survey sudah masuk'
-                  : 'Survey disetujui'
-              : 'Follow up result?'}
-          </span>
-        )}
+        <span className="text-14 font-bold text-default">
+          {isSurvey
+            ? lead.status === 'survey-created'
+              ? 'Survey sedang berjalan'
+              : lead.status === 'survey-submitted'
+                ? 'Survey sudah masuk'
+                : 'Survey disetujui'
+            : 'Follow up result?'}
+        </span>
         {!canAct ? (
           <span className="text-12 text-caption">
             Tugas ini milik {lead.fo}. Tugaskan ke dirimu untuk mengerjakannya.
@@ -359,7 +341,7 @@ export function FollowUpScreen() {
                   size="lg"
                   className="w-full"
                   disabled={!canAct}
-                  onClick={() => flow.go('application')}
+                  onClick={() => flow.go('calon-mitra')}
                 >
                   Lanjutkan onboarding
                 </Button>
@@ -372,7 +354,7 @@ export function FollowUpScreen() {
                 size="lg"
                 className="w-full"
                 disabled={!canAct}
-                onClick={() => flow.go('application')}
+                onClick={() => flow.go('calon-mitra')}
               >
                 Lanjutkan onboarding
               </Button>
@@ -387,7 +369,10 @@ export function FollowUpScreen() {
                 size="lg"
                 className="w-full"
                 disabled={!canAct}
-                onClick={() => flow.go('majelis-page')}
+                onClick={() => {
+                  store.openMajelisPage(null)
+                  flow.go('majelis-page')
+                }}
               >
                 Lihat halaman Majelis
               </Button>
@@ -401,49 +386,15 @@ export function FollowUpScreen() {
                 size="lg"
                 className="w-full"
                 disabled={!canAct}
-                onClick={() => flow.go('majelis-page')}
+                onClick={() => {
+                  store.openMajelisPage(null)
+                  flow.go('majelis-page')
+                }}
               >
                 Lihat halaman Majelis
               </Button>
             </>
           )
-        ) : isKumpulan ? (
-          <>
-            <Button
-              size="lg"
-              className="w-full"
-              disabled={!canAct}
-              onClick={() => setModeOpen(true)}
-            >
-              Start Onboarding
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full"
-              disabled={!canAct}
-              onClick={() => {
-                setReason('')
-                setNote('')
-                setSheet('reschedule-why')
-              }}
-            >
-              Reschedule ke kumpulan berikutnya
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full"
-              disabled={!canAct}
-              onClick={() => {
-                pipelineStore.cancelKumpulanFollowUp(lead.id)
-                pipelineStore.setFlash(`${lead.name} batal gabung ${majelisLine(lead)} — kembali ke follow up`)
-                flow.go('sales')
-              }}
-            >
-              Batal gabung ke majelis
-            </Button>
-          </>
         ) : (
           <>
             <Button
@@ -538,22 +489,6 @@ export function FollowUpScreen() {
         onPick={(f) => {
           pipelineStore.setFo(lead.id, f)
           setFoOpen(false)
-        }}
-      />
-
-      {/* Perkenalan majelis → Start Onboarding: pick Assisted or Self Serve. */}
-      <OnboardingModeSheet
-        open={modeOpen}
-        onClose={() => setModeOpen(false)}
-        onPick={(mode) => {
-          setModeOpen(false)
-          pipelineStore.beginOnboarding(lead.id, mode)
-          if (mode === 'self') {
-            pipelineStore.setFlash(`${lead.name} diundang mengisi survey self-service`)
-            flow.go('survey-started')
-          } else {
-            flow.go('application')
-          }
         }}
       />
     </AppScreen>

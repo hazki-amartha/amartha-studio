@@ -60,7 +60,7 @@ export function KumpulanJadwalScreen() {
       pipelineStore.setFlash(`${lead.name} diundang mengisi survey self-service`)
       flow.go('survey-started')
     } else {
-      flow.go('application')
+      flow.go('calon-mitra')
     }
   }
 

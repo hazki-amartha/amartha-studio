@@ -16,6 +16,7 @@
 
 import { useSyncExternalStore } from 'react'
 import { findEvent, type SosialisasiEvent } from './events'
+import { type MajelisRef, type MajelisStatus } from './schedule'
 
 export interface AppState {
   /** The sosialisasi the POI screen is about — an `EVENTS` id. */
@@ -41,6 +42,11 @@ export interface AppState {
   reschedules: Record<string, { count: number; reason: string; date: string }>
   /** taskId → the reason it was closed for good. */
   rejects: Record<string, string>
+  /** Majelis directory filters — day and status (null = all). */
+  majelisDay: string | null
+  majelisStatus: MajelisStatus | null
+  /** Which majelis the Majelis page is showing (null = the open lead's own). */
+  openMajelis: MajelisRef | null
 }
 
 const initial: AppState = {
@@ -52,6 +58,9 @@ const initial: AppState = {
   activeTask: 't3',
   reschedules: {},
   rejects: {},
+  majelisDay: null,
+  majelisStatus: null,
+  openMajelis: null,
 }
 
 let state: AppState = initial
@@ -90,6 +99,21 @@ export const store = {
   /** Flip between the BP and BM views. */
   toggleRole() {
     store.set({ role: state.role === 'BP' ? 'BM' : 'BP' })
+  },
+
+  /** Majelis directory filters. */
+  setMajelisDay(day: string | null) {
+    store.set({ majelisDay: day })
+  },
+  setMajelisStatus(status: MajelisStatus | null) {
+    store.set({ majelisStatus: status })
+  },
+  resetMajelisFilters() {
+    store.set({ majelisDay: null, majelisStatus: null })
+  },
+  /** Open a majelis on the Majelis page; null = show the open lead's own. */
+  openMajelisPage(ref: MajelisRef | null) {
+    store.set({ openMajelis: ref })
   },
   /** Opens a follow-up from the schedule — the rostered call. */
   startFollowUp(taskId: string) {

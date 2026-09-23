@@ -1,13 +1,12 @@
 'use client'
 
-// Group formation — the "first MV" a new majelis runs once more than five of its
-// members clear underwriting, opened from the Group Formation task on the Tugas
-// page. A four-step wizard:
+// Group formation — two shapes, chosen by the formation context (see
+// lib/formation.ts):
 //
-//   1. Ketua Majelis     — pick the ketua, upload the voting photo
-//   2. Perjanjian Majelis — upload the pernyataan & tanggung-renteng letters
-//   3. Schedule & Location — set the kumpulan location and schedule
-//   4. Ritual            — run the three ritual pointers
+//   form   — activate a NEW (draft) majelis: all four steps (Ketua · Perjanjian ·
+//            Jadwal & Lokasi · Ritual).
+//   accept — accept a calon mitra into an EXISTING majelis: the two per-member
+//            steps (Perjanjian · Ritual).
 //
 // Every upload / location / photo is a click-through affordance (it flips a
 // badge), never a real file picker — same as the rest of this prototype.
@@ -17,15 +16,17 @@ import { Badge, BottomSheet, Button, Card, NavigationHeader, SelectableCard } fr
 import { Camera, CheckCircle, File, MagnifyingGlass, MapPin, Users } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { pipelineStore } from '../lib/pipeline-store'
-import { getGroupTask } from '../lib/group-tasks'
+import {
+  FORMATION_STEP_LABEL,
+  formationStore,
+  getFormation,
+  stepsForContext,
+  type FormationStepId,
+} from '../lib/formation'
 import { SelectField } from '../lib/pipeline-ui'
 import { AppScreen, StageBar, StickyBar } from '../lib/ui'
 
-const STEP_LABELS = ['Ketua', 'Perjanjian', 'Jadwal', 'Ritual']
-
-// The majelis' approved members — the pool the ketua is voted from.
 const MEMBERS = ['Rohaya', 'Siti Aisyah', 'Euis Komariah', 'Nia Kurniasih', 'Dewi Anggraeni', 'Sri Mulyani']
-
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
 const pad = (n: number) => String(n).padStart(2, '0')
 const TIMES: string[] = []
@@ -37,7 +38,6 @@ const RITUAL_POINTS = [
   'Doa bersama & pembacaan komitmen majelis',
 ]
 
-/** A document / photo upload row — flips from "Upload" to a "Terlampir" badge. */
 function UploadRow({
   icon,
   label,
@@ -81,46 +81,59 @@ type SheetId = 'ketua' | 'hari' | 'jam' | null
 
 export function GroupFormationScreen() {
   const flow = useFlow()
-  const task = getGroupTask()
-  const [step, setStep] = useState(1)
+  const ctx = getFormation()
+  const steps = stepsForContext(ctx)
+  const [idx, setIdx] = useState(0)
   const [sheet, setSheet] = useState<SheetId>(null)
 
-  // Step 1
+  // Ketua
   const [ketua, setKetua] = useState('')
   const [votingPhoto, setVotingPhoto] = useState(false)
-  // Step 2
+  // Perjanjian
   const [pernyataan, setPernyataan] = useState(false)
   const [tanggungRenteng, setTanggungRenteng] = useState(false)
-  // Step 3
+  // Jadwal & Lokasi
   const [locationAddr, setLocationAddr] = useState('')
   const [mapOpen, setMapOpen] = useState(false)
   const [addrDraft, setAddrDraft] = useState('')
   const [hari, setHari] = useState('')
   const [jam, setJam] = useState('')
-  // Step 4
+  // Ritual
   const [ritual, setRitual] = useState<Set<string>>(new Set())
 
+  const current: FormationStepId = steps[idx]
+  const isLast = idx === steps.length - 1
+
   const stepDone =
-    step === 1
+    current === 'ketua'
       ? ketua !== '' && votingPhoto
-      : step === 2
+      : current === 'perjanjian'
         ? pernyataan && tanggungRenteng
-        : step === 3
+        : current === 'jadwal'
           ? locationAddr !== '' && hari !== '' && jam !== ''
           : ritual.size === RITUAL_POINTS.length
 
   function back() {
-    if (step === 1) flow.go('tugas')
-    else setStep(step - 1)
+    if (idx === 0) flow.back()
+    else setIdx(idx - 1)
+  }
+
+  function finish() {
+    if (ctx.mode === 'accept') {
+      formationStore.acceptLead(ctx.leadId)
+      pipelineStore.setFlash(`${ctx.leadName} diterima di ${ctx.majelisName}`)
+      flow.go('calon-mitra')
+    } else {
+      formationStore.activateMajelis(ctx.majelisName)
+      pipelineStore.setFlash(`${ctx.majelisName} terbentuk`)
+      flow.go('sales')
+    }
   }
 
   function next() {
     if (!stepDone) return
-    if (step < 4) setStep(step + 1)
-    else {
-      pipelineStore.setFlash(`Majelis ${task.majelisName} terbentuk — MV pertama selesai`)
-      flow.go('sales')
-    }
+    if (isLast) finish()
+    else setIdx(idx + 1)
   }
 
   function toggleRitual(point: string) {
@@ -132,21 +145,32 @@ export function GroupFormationScreen() {
     })
   }
 
+  const title = ctx.mode === 'accept' ? 'Penerimaan Anggota' : 'Pembentukan Majelis'
+
   return (
-    <AppScreen topBar={<NavigationHeader title="Pembentukan Majelis" onBack={back} />}>
+    <AppScreen topBar={<NavigationHeader title={title} onBack={back} />}>
       <div className="flex items-start gap-8 rounded-12 border border-primary-200 bg-primary-50 px-12 py-12">
         <span className="shrink-0 text-primary-500">
           <Users size={20} />
         </span>
         <span className="text-12 text-caption">
-          MV pertama <span className="font-bold text-primary-500">Majelis {task.majelisName}</span> ·{' '}
-          {task.memberCount} anggota disetujui
+          {ctx.mode === 'accept' ? (
+            <>
+              Penerimaan <span className="font-bold text-primary-500">{ctx.leadName}</span> ke{' '}
+              {ctx.majelisName}
+            </>
+          ) : (
+            <>
+              MV pertama <span className="font-bold text-primary-500">{ctx.majelisName}</span> ·{' '}
+              {ctx.memberCount} anggota disetujui
+            </>
+          )}
         </span>
       </div>
 
-      <StageBar current={step} labels={STEP_LABELS} />
+      <StageBar current={idx + 1} labels={steps.map((s) => FORMATION_STEP_LABEL[s])} />
 
-      {step === 1 ? (
+      {current === 'ketua' ? (
         <div className="flex flex-col gap-12">
           <StepHeading title="Ketua Majelis" sub="Pilih ketua hasil voting dan lampirkan buktinya." />
           <SelectField
@@ -163,7 +187,7 @@ export function GroupFormationScreen() {
             onToggle={() => setVotingPhoto((v) => !v)}
           />
         </div>
-      ) : step === 2 ? (
+      ) : current === 'perjanjian' ? (
         <div className="flex flex-col gap-12">
           <StepHeading title="Perjanjian Majelis" sub="Lampirkan dokumen perjanjian majelis." />
           <UploadRow
@@ -179,7 +203,7 @@ export function GroupFormationScreen() {
             onToggle={() => setTanggungRenteng((v) => !v)}
           />
         </div>
-      ) : step === 3 ? (
+      ) : current === 'jadwal' ? (
         <div className="flex flex-col gap-12">
           <StepHeading title="Jadwal & Lokasi" sub="Tentukan lokasi dan jadwal kumpulan majelis." />
           <div className="flex flex-col gap-8">
@@ -268,7 +292,7 @@ export function GroupFormationScreen() {
 
       <StickyBar>
         <Button size="lg" className="w-full" disabled={!stepDone} onClick={next}>
-          {step < 4 ? 'Lanjut' : 'Aktifkan Majelis'}
+          {isLast ? (ctx.mode === 'accept' ? 'Terima anggota' : 'Aktifkan Majelis') : 'Lanjut'}
         </Button>
       </StickyBar>
 
@@ -325,8 +349,6 @@ export function GroupFormationScreen() {
         </div>
       </BottomSheet>
 
-      {/* Lokasi kumpulan — a map view with a typed address. The kumpulan can be
-          held somewhere other than the majelis' registered location. */}
       <BottomSheet
         open={mapOpen}
         onClose={() => setMapOpen(false)}

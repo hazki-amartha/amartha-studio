@@ -15,6 +15,7 @@ export const project: ProjectModule = {
       entry: true,
       flowsTo: [
         { to: 'follow-up', label: 'buka lead' },
+        { to: 'calon-mitra', label: 'buka calon mitra' },
         { to: 'lead-new', label: 'Tambah lead' },
         { to: 'sosialisasi', label: 'buka POI' },
         { to: 'all-tasks', label: 'Lihat semua' },
@@ -52,12 +53,6 @@ export const project: ProjectModule = {
       ],
     },
     {
-      id: 'lead-detail',
-      title: 'Detail Lead',
-      component: lazyScreen(() => import('./screens/lead-detail'), 'LeadDetailScreen'),
-      flowsTo: [{ to: 'follow-up', label: 'Mulai follow up' }],
-    },
-    {
       id: 'lead-new',
       title: 'Tambah Lead',
       component: lazyScreen(() => import('./screens/lead-new'), 'LeadNewScreen'),
@@ -91,8 +86,8 @@ export const project: ProjectModule = {
         },
       ],
       flowsTo: [
-        { to: 'pendaftaran', label: 'Mulai pendaftaran' },
-        { to: 'application', label: 'Lanjutkan / takeover survey' },
+        { to: 'pendaftaran', label: 'Mulai onboarding' },
+        { to: 'calon-mitra', label: 'Lanjutkan onboarding' },
         { to: 'majelis-page', label: 'Survey approved → majelis' },
         { to: 'sales', label: 'Reschedule / Drop' },
       ],
@@ -103,7 +98,7 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/pendaftaran'), 'PendaftaranScreen'),
       flowsTo: [
         { to: 'kumpulan-jadwal', label: 'Majelis baru → buat majelis' },
-        { to: 'application', label: 'Existing → survey assisted' },
+        { to: 'calon-mitra', label: 'Existing → onboarding' },
         { to: 'survey-started', label: 'Existing → survey self-service' },
       ],
     },
@@ -112,31 +107,25 @@ export const project: ProjectModule = {
       title: 'Buat Majelis Baru',
       component: lazyScreen(() => import('./screens/kumpulan-jadwal'), 'KumpulanJadwalScreen'),
       flowsTo: [
-        { to: 'application', label: 'Survey assisted' },
+        { to: 'calon-mitra', label: 'Onboarding assisted' },
         { to: 'survey-started', label: 'Survey self-service' },
       ],
     },
     {
-      id: 'application',
-      title: 'Survey Assisted',
-      component: lazyScreen(() => import('./screens/application'), 'ApplicationScreen'),
+      id: 'calon-mitra',
+      title: 'Calon Mitra',
+      component: lazyScreen(() => import('./screens/calon-mitra'), 'CalonMitraScreen'),
       flowsTo: [
         { to: 'survey-form', label: 'BP Feedback / Uji Kelayakan' },
-        { to: 'ritual', label: 'Ritual explanation' },
-        { to: 'sales', label: 'Submit → Survey submitted' },
+        { to: 'group-formation', label: 'Penerimaan majelis' },
+        { to: 'sales', label: 'Submit onboarding' },
       ],
     },
     {
       id: 'survey-form',
       title: 'Survey Form',
       component: lazyScreen(() => import('./screens/survey-form'), 'SurveyFormScreen'),
-      flowsTo: [{ to: 'application', label: 'Selesai' }],
-    },
-    {
-      id: 'ritual',
-      title: 'Ritual Explanation',
-      component: lazyScreen(() => import('./screens/ritual'), 'RitualScreen'),
-      flowsTo: [{ to: 'application', label: 'Selesai' }],
+      flowsTo: [{ to: 'calon-mitra', label: 'Selesai' }],
     },
     {
       id: 'survey-started',
@@ -144,14 +133,29 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/survey-started'), 'SurveyStartedScreen'),
       flowsTo: [
         { to: 'sales', label: 'Kembali ke Sales' },
-        { to: 'application', label: 'Ambil alih jadi assisted' },
+        { to: 'calon-mitra', label: 'Ambil alih jadi assisted' },
       ],
+    },
+    {
+      id: 'majelis-list',
+      title: 'Majelis',
+      component: lazyScreen(() => import('./screens/majelis-list'), 'MajelisListScreen'),
+      flowsTo: [{ to: 'majelis-page', label: 'Buka majelis' }],
+    },
+    {
+      id: 'mitra-list',
+      title: 'Mitra',
+      component: lazyScreen(() => import('./screens/mitra-list'), 'MitraListScreen'),
+      flowsTo: [{ to: 'calon-mitra', label: 'Buka mitra' }],
     },
     {
       id: 'majelis-page',
       title: 'Halaman Majelis',
       component: lazyScreen(() => import('./screens/majelis-page'), 'MajelisPageScreen'),
-      flowsTo: [{ to: 'follow-up', label: 'Kembali' }],
+      flowsTo: [
+        { to: 'follow-up', label: 'Kembali (lead)' },
+        { to: 'majelis-list', label: 'Kembali (direktori)' },
+      ],
     },
     {
       id: 'tugas',
