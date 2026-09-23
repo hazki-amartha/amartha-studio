@@ -1,14 +1,211 @@
 {
   "root": true,
-  "extends": ["next/core-web-vitals", "plugin:tailwindcss/recommended"],
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:tailwindcss/recommended"
+  ],
   "rules": {
     "tailwindcss/no-arbitrary-value": "error",
-    "tailwindcss/no-custom-classname": ["error", { "whitelist": ["ds\\-.*"] }]
+    "tailwindcss/no-custom-classname": [
+      "error",
+      {
+        "whitelist": [
+          "ds\\-.*"
+        ]
+      }
+    ]
   },
   "settings": {
     "tailwindcss": {
       "config": "tailwind.config.ts",
-      "callees": ["clsx", "cn"]
+      "callees": [
+        "clsx",
+        "cn"
+      ]
     }
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "projects/**/*.{ts,tsx,js,jsx}"
+      ],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "fetch",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "name": "XMLHttpRequest",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "name": "WebSocket",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "name": "EventSource",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "name": "importScripts",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "name": "localStorage",
+            "message": "Prototypes keep state in a module store (CLAUDE.md \u00a73), not browser storage."
+          },
+          {
+            "name": "sessionStorage",
+            "message": "Prototypes keep state in a module store (CLAUDE.md \u00a73), not browser storage."
+          },
+          {
+            "name": "indexedDB",
+            "message": "Prototypes keep state in a module store (CLAUDE.md \u00a73), not browser storage."
+          },
+          {
+            "name": "eval",
+            "message": "Project code can't run code built from strings or raw HTML."
+          }
+        ],
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "window",
+            "property": "fetch",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "object": "window",
+            "property": "open",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "object": "window",
+            "property": "localStorage",
+            "message": "Prototypes keep state in a module store (CLAUDE.md \u00a73), not browser storage."
+          },
+          {
+            "object": "window",
+            "property": "sessionStorage",
+            "message": "Prototypes keep state in a module store (CLAUDE.md \u00a73), not browser storage."
+          },
+          {
+            "object": "window",
+            "property": "indexedDB",
+            "message": "Prototypes keep state in a module store (CLAUDE.md \u00a73), not browser storage."
+          },
+          {
+            "object": "window",
+            "property": "eval",
+            "message": "Project code can't run code built from strings or raw HTML."
+          },
+          {
+            "object": "globalThis",
+            "property": "fetch",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "object": "globalThis",
+            "property": "open",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "object": "globalThis",
+            "property": "localStorage",
+            "message": "Prototypes keep state in a module store (CLAUDE.md \u00a73), not browser storage."
+          },
+          {
+            "object": "globalThis",
+            "property": "sessionStorage",
+            "message": "Prototypes keep state in a module store (CLAUDE.md \u00a73), not browser storage."
+          },
+          {
+            "object": "globalThis",
+            "property": "indexedDB",
+            "message": "Prototypes keep state in a module store (CLAUDE.md \u00a73), not browser storage."
+          },
+          {
+            "object": "globalThis",
+            "property": "eval",
+            "message": "Project code can't run code built from strings or raw HTML."
+          },
+          {
+            "object": "self",
+            "property": "fetch",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "object": "self",
+            "property": "open",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "object": "self",
+            "property": "localStorage",
+            "message": "Prototypes keep state in a module store (CLAUDE.md \u00a73), not browser storage."
+          },
+          {
+            "object": "self",
+            "property": "sessionStorage",
+            "message": "Prototypes keep state in a module store (CLAUDE.md \u00a73), not browser storage."
+          },
+          {
+            "object": "self",
+            "property": "indexedDB",
+            "message": "Prototypes keep state in a module store (CLAUDE.md \u00a73), not browser storage."
+          },
+          {
+            "object": "self",
+            "property": "eval",
+            "message": "Project code can't run code built from strings or raw HTML."
+          },
+          {
+            "object": "document",
+            "property": "cookie",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "object": "navigator",
+            "property": "sendBeacon",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "object": "location",
+            "property": "assign",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          },
+          {
+            "object": "location",
+            "property": "replace",
+            "message": "Prototypes don't reach outside the studio (CLAUDE.md \u00a73) \u2014 draw the result on a screen instead."
+          }
+        ],
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "NewExpression[callee.name='Function']",
+            "message": "Project code can't run code built from strings or raw HTML."
+          },
+          {
+            "selector": "CallExpression[callee.name='Function']",
+            "message": "Project code can't run code built from strings or raw HTML."
+          },
+          {
+            "selector": "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+            "message": "Project code can't run code built from strings or raw HTML."
+          },
+          {
+            "selector": "AssignmentExpression[left.type='MemberExpression'][left.property.name=/^(location|href|innerHTML|outerHTML)$/]",
+            "message": "Project code can't run code built from strings or raw HTML. Navigate with go(), and render content with JSX."
+          },
+          {
+            "selector": "ImportExpression[source.type!='Literal']",
+            "message": "Project code can't run code built from strings or raw HTML."
+          }
+        ]
+      }
+    }
+  ]
 }
