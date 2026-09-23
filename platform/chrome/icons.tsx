@@ -195,5 +195,41 @@ export const InspectIcon = icon(
   </>,
 )
 
+// A pointer arrow — the selection chip in chat: "this is what you clicked".
+export const CursorIcon = icon(<path d="M5 3l14 7-6 2-2 6z" />)
+
 // Stop — a square: stops the chat turn that is running.
 export const StopIcon = icon(<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" />)
+
+// --- Panel tabs --------------------------------------------------------------
+
+// CSS — angle brackets: read the element's computed styles.
+export const CodeIcon = icon(<path d="M9 7l-5 5 5 5M15 7l5 5-5 5" />)
+
+// Screens — two pages, one behind the other.
+export const ScreensIcon = icon(
+  <>
+    <rect x="7" y="3" width="12" height="15" rx="2" />
+    <path d="M5 7v11a3 3 0 0 0 3 3h8" />
+  </>,
+)
+
+// Layers — stacked sheets.
+export const LayersIcon = icon(
+  <>
+    <path d="M12 3l9 5-9 5-9-5 9-5z" />
+    <path d="M3 13l9 5 9-5" />
+  </>,
+)
+
+// Notes — a page with lines.
+export const NotesIcon = icon(
+  <>
+    <rect x="5" y="3" width="14" height="18" rx="2" />
+    <path d="M9 8h6M9 12h6M9 16h3" />
+  </>,
+)
+
+// Zoom — the canvas's zoom steps.
+export const PlusIcon = icon(<path d="M12 5v14M5 12h14" />)
+export const MinusIcon = icon(<path d="M5 12h14" />)

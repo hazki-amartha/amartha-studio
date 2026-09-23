@@ -281,7 +281,7 @@ export function DesignPanel({
   onMinimize,
   tabs,
 }: DesignPanelProps) {
-  const shell = { title: 'Edit', tabs, onMinimize, className }
+  const shell = { title: 'Design', tabs, onMinimize, className }
   const store = useSyncExternalStore(
     subscribeDesignStore,
     getDesignStoreState,

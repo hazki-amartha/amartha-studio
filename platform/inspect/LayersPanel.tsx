@@ -3,10 +3,10 @@
 // =============================================================================
 // Inspect · the layers outline panel.
 //
-// Takes the left column — the side a design tool puts layers on — while inspect
-// or edit is running, mirroring how the inspector takes the right. States and
-// layers are never wanted at once: one is for presenting a prototype, the other
-// for taking it apart.
+// Docks in the shell's sidebar as the Layers tab beside Screens — the side a
+// design tool puts layers on — while edit is running, mirroring how the tool
+// panel takes the right. With the sidebar hidden it falls back to the
+// prototype's own left column instead.
 //
 // It exists because hovering is not a complete way to select. Small elements,
 // overlapped elements, and the wrappers that carry the padding you want to
@@ -62,6 +62,8 @@ export interface LayersPanelProps {
   className?: string
   onMinimize?: () => void
   drag?: LayersDrag
+  /** Docked in the sidebar: no card header — the sidebar's tabs name it. */
+  embedded?: boolean
 }
 
 interface DragState {
@@ -76,7 +78,10 @@ function useOutline(): OutlineNode[] {
   const [nodes, setNodes] = useState<OutlineNode[]>([])
 
   useEffect(() => {
-    const root = document.querySelector('[data-inspect]')
+    // The app viewport, found by `data-device` rather than `data-inspect`: the
+    // tree sits in the sidebar in both modes, and `data-inspect` is only set
+    // while Edit is on — so a tree mounted before Edit found no root, ever.
+    const root = document.querySelector('[data-device]')
     if (!root) return
 
     let timer: ReturnType<typeof setTimeout> | null = null
@@ -92,9 +97,13 @@ function useOutline(): OutlineNode[] {
     // geometry every animation frame. Left unfiltered those writes reset the
     // debounce forever and the tree would never rebuild at all.
     const mo = new MutationObserver((records) => {
+      const ours = (n: Node) => n instanceof Element && n.hasAttribute('data-inspect-layer')
       const real = records.some((r) => {
         const target = r.target instanceof Element ? r.target : r.target.parentElement
-        return !target?.closest('[data-inspect-layer]')
+        if (target?.closest('[data-inspect-layer]')) return false
+        // The CSS tab's default-value probe visits for one task (inspect/computed.ts).
+        const moved = [...Array.from(r.addedNodes), ...Array.from(r.removedNodes)]
+        return !(r.type === 'childList' && moved.length > 0 && moved.every(ours))
       })
       if (real) schedule()
     })
@@ -302,6 +311,7 @@ export function LayersPanel({
   className,
   onMinimize,
   drag,
+  embedded,
 }: LayersPanelProps) {
   const nodes = useOutline()
   const [collapsed, setCollapsed] = useState<Set<Element>>(new Set())
@@ -330,6 +340,37 @@ export function LayersPanel({
     })
   }, [path])
 
+  const tree =
+    nodes.length === 0 ? (
+      <p className="text-12 text-caption dark:text-neutral-400">Nothing on this screen yet.</p>
+    ) : (
+      <div className="flex flex-col">
+        {nodes.map((node, i) => (
+          <Row
+            key={i}
+            node={node}
+            depth={0}
+            pinned={pinned}
+            collapsed={collapsed}
+            onToggle={toggle}
+            onPin={onPin}
+            onHover={onHover}
+            drag={drag}
+            dragState={dragState}
+            setDragState={setDragState}
+          />
+        ))}
+      </div>
+    )
+
+  if (embedded) {
+    return (
+      <div className={className} onMouseLeave={() => onHover(null)}>
+        {tree}
+      </div>
+    )
+  }
+
   return (
     <PanelShell
       title="Layers"
@@ -337,27 +378,7 @@ export function LayersPanel({
       className={className}
       onMouseLeave={() => onHover(null)}
     >
-      {nodes.length === 0 ? (
-        <p className="text-12 text-caption dark:text-neutral-400">Nothing on this screen yet.</p>
-      ) : (
-        <div className="flex flex-col">
-          {nodes.map((node, i) => (
-            <Row
-              key={i}
-              node={node}
-              depth={0}
-              pinned={pinned}
-              collapsed={collapsed}
-              onToggle={toggle}
-              onPin={onPin}
-              onHover={onHover}
-              drag={drag}
-              dragState={dragState}
-              setDragState={setDragState}
-            />
-          ))}
-        </div>
-      )}
+      {tree}
     </PanelShell>
   )
 }

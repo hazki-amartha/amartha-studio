@@ -38,6 +38,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import type { DeviceKind, ProjectConfig, ScreenDef } from '@/platform/types'
 import {
   PrototypeProvider,
@@ -72,8 +73,24 @@ import { PushBar } from '@/platform/push/PushBar'
 import { layersDrag } from '@/platform/design/actions'
 import { toggleSelected } from '@/platform/design/selection'
 import { refind } from '@/platform/design/overlay'
-import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '@/platform/chrome/icons'
-import { PanelPill, PanelShell, PanelTabs } from '@/platform/chrome/SidePanel'
+import {
+  ChatIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CloseIcon,
+  CodeIcon,
+  EditIcon,
+  MinusIcon,
+  PlusIcon,
+} from '@/platform/chrome/icons'
+import { PanelShell, PanelTabs } from '@/platform/chrome/SidePanel'
+import { CanvasControls } from '@/platform/chrome/CanvasControls'
+import {
+  getSidebarSlots,
+  getSidebarSlotsServerSnapshot,
+  setSidebarLive,
+  subscribeSidebarSlots,
+} from '@/platform/chrome/sidebarSlots'
 import { DeviceFrame } from './DeviceFrame'
 import { DEVICE_SPECS, outerSize } from './device'
 import styles from './prototype.module.css'
@@ -170,25 +187,16 @@ function AppViewport({
   )
 }
 
-function AnnotationPanel({
-  screens,
-  projectNotes,
-  className,
-  onMinimize,
-}: {
-  screens: ScreenDef[]
-  projectNotes?: string[]
-  className?: string
-  onMinimize?: () => void
-}) {
+/** The live screen's notes (or the project's), for the sidebar's Notes tab. */
+function NotesBody({ screens, projectNotes }: { screens: ScreenDef[]; projectNotes?: string[] }) {
   const { current } = useFlow()
   const active = screens.find((s) => s.id === current)
   const notes = active?.notes && active.notes.length > 0 ? active.notes : (projectNotes ?? [])
 
   return (
-    <PanelShell title="Notes" onMinimize={onMinimize} className={className}>
+    <>
       {active ? (
-        <h2 className="text-16 font-bold text-default dark:text-neutral-50">{active.title}</h2>
+        <h2 className="text-14 font-bold text-default dark:text-neutral-50">{active.title}</h2>
       ) : null}
       {notes.length > 0 ? (
         <ul className="flex flex-col gap-8">
@@ -199,77 +207,9 @@ function AnnotationPanel({
           ))}
         </ul>
       ) : (
-        <p className="text-14 text-caption dark:text-neutral-400">No annotations for this screen.</p>
+        <p className="text-12 text-caption dark:text-neutral-400">No notes for this screen.</p>
       )}
-    </PanelShell>
-  )
-}
-
-/**
- * The states panel — the annotation panel's mirror image, on the left.
- *
- * It is a presentation aid: during a walkthrough the state being discussed is
- * often six taps of setup away, and some states cannot be tapped to at all. One
- * click puts the screen in the condition, without leaving it.
- *
- * The selection it shows is what was last APPLIED here, not what the project is
- * actually in — the platform cannot know that, and pretending otherwise would
- * mean reading project internals. It resets when the screen changes, so a stale
- * highlight never survives a navigation.
- *
- * Whether it is on screen at all is the layout's business now (see
- * usePanelState), so that every panel is dismissed the same way.
- */
-function StatesPanel({
-  screens,
-  className,
-  onMinimize,
-}: {
-  screens: ScreenDef[]
-  className?: string
-  onMinimize?: () => void
-}) {
-  const { current } = useFlow()
-  const active = screens.find((s) => s.id === current)
-  const states = active?.states ?? []
-  const [applied, setApplied] = useState<string | null>(null)
-
-  useEffect(() => setApplied(null), [current])
-
-  return (
-    <PanelShell title="States" onMinimize={onMinimize} className={className}>
-      <div className="flex flex-col gap-8">
-        {states.map((state) => {
-          const on = applied === state.id
-          return (
-            <button
-              key={state.id}
-              type="button"
-              onClick={() => {
-                state.apply()
-                setApplied(state.id)
-              }}
-              className={`flex flex-col gap-2 rounded-12 border px-12 py-8 text-left ${
-                on
-                  ? 'border-primary-500 bg-primary-50 dark:border-ink-700 dark:bg-ink-800'
-                  : 'border-default bg-neutral-white hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:hover:bg-ink-800'
-              }`}
-            >
-              <span
-                className={`text-14 font-bold ${on ? 'text-link dark:text-neutral-50' : 'text-default dark:text-neutral-50'}`}
-              >
-                {state.label}
-              </span>
-              {state.description ? (
-                <span className="text-12 text-caption dark:text-neutral-400">
-                  {state.description}
-                </span>
-              ) : null}
-            </button>
-          )
-        })}
-      </div>
-    </PanelShell>
+    </>
   )
 }
 
@@ -368,6 +308,150 @@ function FittedDevice({
   )
 }
 
+const MIN_ZOOM = 0.2
+const MAX_ZOOM = 3
+const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2, 3]
+
+const DESKTOP_FRAME = outerSize(DEVICE_SPECS.desktop)
+
+const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z))
+
+/**
+ * The desktop frame on a canvas you can zoom and pan — opens fitted, like
+ * FittedDevice, then zooms past that when a 1440 layout shrunk beside the
+ * panels is too small to work on. Pinch or ⌘/Ctrl-scroll zooms at the
+ * pointer, plain scrolling pans, and ZoomControl (in the canvas's corner
+ * buttons) steps or refits.
+ *
+ * `null` zoom means "fit": it follows the canvas as it resizes, so opening or
+ * hiding a panel keeps a fitted frame fitted. Any explicit zoom stays put.
+ *
+ * A hook rather than state inside the canvas, because the control lives with
+ * the other corner buttons, away from the frame it zooms.
+ */
+function useCanvasZoom(spec: { width: number; height: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [fit, setFit] = useState(1)
+  const [zoom, setZoom] = useState<number | null>(null)
+  const scale = zoom ?? fit
+  // The wheel handler is attached once, so it reads the live scale from here.
+  const scaleRef = useRef(scale)
+  scaleRef.current = scale
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      setFit(Math.min(1, el.clientWidth / spec.width, el.clientHeight / spec.height))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [spec.width, spec.height])
+
+  // Zooms keeping the point under (x, y) — canvas coordinates — where it is.
+  const zoomAt = useCallback((next: number, x: number, y: number) => {
+    const el = ref.current
+    const prev = scaleRef.current
+    const to = clampZoom(next)
+    setZoom(to)
+    if (!el) return
+    const px = (el.scrollLeft + x) / prev
+    const py = (el.scrollTop + y) / prev
+    requestAnimationFrame(() => {
+      el.scrollLeft = px * to - x
+      el.scrollTop = py * to - y
+    })
+  }, [])
+
+  // Non-passive, so a pinch zooms the frame instead of the whole page.
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      const box = el.getBoundingClientRect()
+      zoomAt(scaleRef.current * Math.exp(-e.deltaY * 0.01), e.clientX - box.left, e.clientY - box.top)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [zoomAt])
+
+  const step = (dir: 1 | -1) => {
+    const el = ref.current
+    const next =
+      dir === 1
+        ? (ZOOM_STEPS.find((z) => z > scale + 0.01) ?? MAX_ZOOM)
+        : ([...ZOOM_STEPS].reverse().find((z) => z < scale - 0.01) ?? MIN_ZOOM)
+    zoomAt(next, (el?.clientWidth ?? 0) / 2, (el?.clientHeight ?? 0) / 2)
+  }
+
+  return { ref, spec, scale, fitted: zoom == null, refit: () => setZoom(null), step }
+}
+
+type CanvasZoom = ReturnType<typeof useCanvasZoom>
+
+function ZoomableDevice({ zoom, children }: { zoom: CanvasZoom; children: ReactNode }) {
+  const { ref, spec, scale } = zoom
+  return (
+    // `m-auto` on the child, not centring on the parent: it centres a frame
+    // smaller than the canvas and still lets a larger one scroll to its left
+    // and top edges, which flex centring would push out of reach.
+    <div ref={ref} className="flex h-full min-h-0 min-w-0 flex-1 overflow-auto">
+      <div className="m-auto flex-none" style={{ width: spec.width * scale, height: spec.height * scale }}>
+        <div
+          style={{
+            width: spec.width,
+            height: spec.height,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** `− Fit +`, beside the canvas's full-screen button. */
+function ZoomControl({ zoom }: { zoom: CanvasZoom }) {
+  const btn =
+    'flex size-32 items-center justify-center rounded-full text-caption hover:bg-neutral-50 hover:text-default disabled:text-placeholder dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50 dark:disabled:text-neutral-600'
+  return (
+    <div className="flex h-40 items-center gap-2 rounded-full border border-default bg-neutral-white px-4 shadow-sm dark:border-ink-700 dark:bg-ink-900 dark:shadow-none">
+      <button
+        type="button"
+        onClick={() => zoom.step(-1)}
+        disabled={zoom.scale <= MIN_ZOOM}
+        aria-label="Zoom out"
+        title="Zoom out"
+        className={btn}
+      >
+        <MinusIcon className="size-16" />
+      </button>
+      <button
+        type="button"
+        onClick={zoom.refit}
+        title={zoom.fitted ? 'Fitted to the canvas' : 'Fit to the canvas'}
+        className="min-w-52 rounded-full px-8 py-4 text-12 font-bold text-default hover:bg-neutral-50 dark:text-neutral-50 dark:hover:bg-ink-800"
+      >
+        {zoom.fitted ? 'Fit' : `${Math.round(zoom.scale * 100)}%`}
+      </button>
+      <button
+        type="button"
+        onClick={() => zoom.step(1)}
+        disabled={zoom.scale >= MAX_ZOOM}
+        aria-label="Zoom in"
+        title="Zoom in"
+        className={btn}
+      >
+        <PlusIcon className="size-16" />
+      </button>
+    </div>
+  )
+}
+
 function StepButton({
   onClick,
   disabled,
@@ -449,93 +533,30 @@ function useInspectState() {
   return { editing, pinned, setPinned, repin, preview, setPreview, current }
 }
 
-// --- the tool panel: Chat · Edit · CSS ----------------------------------------
+// --- the right panel: Chat · Design · CSS ------------------------------------
 //
 // One selection, three things to do with it (STUDIO-EDITING-PLAN Part E): Chat
-// asks for a change to it, Edit changes it, CSS reads it — and under all three,
-// Push sends the project's changes live, whichever tab made them. Where nothing
-// can be saved — a shared link with no backend — it opens on CSS, since Edit
-// could only collect; the designer's own choice of tab wins from then on.
+// asks for a change to it, Design changes it, CSS reads it. Whether the canvas
+// selects at all is the Edit toggle in its corner, not a tab — tapping through
+// the app is navigation, and navigation (Screens, and each screen's states)
+// lives in the left sidebar. Under every tab, Push sends the project's changes
+// live, whichever tab made them. Where nothing can be saved — a shared link
+// with no backend — it opens on CSS, since Design could only collect.
 //
-// The Edit panel stays MOUNTED behind the other tabs: it is what restores the
+// The Design panel stays MOUNTED behind Chat and CSS: it is what restores the
 // unsaved list and asks where saves go, and its staged edits must survive a
 // look elsewhere. CSS mounts fresh each time — it reads computed styles once
 // per pin, so a fresh mount shows the element as it is after an edit. Chat
 // mounts freely too: its conversation lives in useLiveChat's store.
 
-const TAB_LABELS: Record<EditTab, string> = { chat: 'Chat', edit: 'Edit', css: 'CSS' }
-
-function ToolPanel({
-  tab,
-  tabs,
-  ...props
-}: {
-  tab: EditTab
-  tabs: EditTab[]
-  className?: string
-  onMinimize: () => void
-  pinned: Element | null
-  onPin: (el: Element | null) => void
-  slug: string
-  screenId: string
-}) {
-  // Every tab fills the panel, so the Push bar under them never moves.
-  const fill = { ...props, className: `${props.className ?? ''} flex-1` }
-  const header =
-    tabs.length > 1 ? (
-      <PanelTabs tabs={tabs.map((id) => ({ id, label: TAB_LABELS[id] }))} active={tab} onChange={setEditTab} />
-    ) : undefined
-
-  return (
-    <>
-      <div className={tab === 'edit' ? 'contents' : 'hidden'}>
-        <DesignPanel {...fill} tabs={header} />
-      </div>
-      {tab === 'css' ? <InspectorPanel {...fill} tabs={header} /> : null}
-      {tab === 'chat' ? (
-        <LiveChatPanel
-          slug={props.slug}
-          screenId={props.screenId}
-          pinned={props.pinned}
-          onDeselect={() => props.onPin(null)}
-          tabs={header}
-          onMinimize={props.onMinimize}
-          className={fill.className}
-        />
-      ) : null}
-      <PushBar slug={props.slug} />
-    </>
-  )
+const TAB_META: Record<EditTab, { label: string; icon: typeof ChatIcon }> = {
+  chat: { label: 'Chat', icon: ChatIcon },
+  edit: { label: 'Design', icon: EditIcon },
+  css: { label: 'CSS', icon: CodeIcon },
 }
 
-// --- the panel slots ---------------------------------------------------------
-//
-// Both layouts show the same panels in the same two places: States or Layers on
-// the left, and on the right either the tool panel (Chat · Edit · CSS) or
-// Notes. What differs is only where a slot is drawn — a column beside a phone,
-// a drawer over a 1440 canvas — so everything about WHICH panel is showing
-// lives here, once.
-
-/**
- * The surface a panel sits on — the same in both layouts, so a prototype's
- * panels don't change character with the device it happens to be.
- * `flex max-h-full flex-col` is load-bearing: it bounds the panel against the
- * view so it scrolls inside its card instead of running off the screen.
- */
-const PANEL_CARD =
-  'flex max-h-full flex-col rounded-16 border border-default bg-neutral-white px-12 pb-12 dark:border-ink-700 dark:bg-ink-900'
-
-/** The right slot holds one of two things, or nothing. */
-type RightSlot = 'tool' | 'notes' | null
-
-/** Which panels are showing, and the tool panel's tab — shared by both layouts. */
-function usePanelState(editing: boolean, hasNotes: boolean, openByDefault: boolean) {
-  const [leftOpen, setLeftOpen] = useState(openByDefault)
-  const rest: RightSlot = openByDefault && hasNotes ? 'notes' : null
-  // A layout can mount already in Edit — arriving from Flow, or back from full
-  // screen — and must open on its panel then.
-  const [right, setRight] = useState<RightSlot>(() => (editing ? 'tool' : rest))
-
+/** Which tabs exist, and which one is showing. */
+function usePanelTab() {
   useEffect(probeChat, [])
   const chatAvailable = useSyncExternalStore(
     subscribeChat,
@@ -553,240 +574,203 @@ function usePanelState(editing: boolean, hasNotes: boolean, openByDefault: boole
   const tabs: EditTab[] = chatAvailable ? ['chat', 'edit', 'css'] : ['edit', 'css']
   const tab: EditTab = chosen && tabs.includes(chosen) ? chosen : fallback
 
-  // Entering Edit IS the request to see its panel, and leaving hands the slot
-  // back. Acts only on that transition: re-running whenever a screen's notes
-  // appear or vanish would reopen a panel the viewer had just put away.
-  const wasEditing = useRef(editing)
-  useEffect(() => {
-    if (wasEditing.current === editing) return
-    wasEditing.current = editing
-    setRight(editing ? 'tool' : rest)
-  }, [editing, rest])
-
-  return { leftOpen, setLeftOpen, right, setRight, tab, tabs }
+  return { tab, tabs, select: setEditTab }
 }
 
-interface SlotProps {
-  config: ProjectConfig
+function RightPanel({
+  pinned,
+  onPin,
+  slug,
+  screenId,
+  onMinimize,
+}: {
+  pinned: Element | null
+  onPin: (el: Element | null) => void
+  slug: string
+  screenId: string
+  onMinimize: () => void
+}) {
+  const { tab, tabs, select } = usePanelTab()
+  // The panel's own title and ✕ above the tabs — the ✕ ends Edit, whichever
+  // tab is showing, so it belongs to the panel rather than to a tab's row.
+  const header = (
+    <div className="flex w-full flex-col">
+      <div className="flex h-48 items-center justify-between">
+        <span className="text-14 font-bold text-default dark:text-neutral-50">Edit</span>
+        <button
+          type="button"
+          onClick={onMinimize}
+          aria-label="Close Edit"
+          title="Close Edit — clicks tap through the prototype again"
+          className="flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+        >
+          <CloseIcon className="size-16" />
+        </button>
+      </div>
+      <PanelTabs tabs={tabs.map((id) => ({ id, ...TAB_META[id] }))} active={tab} onChange={select} />
+    </div>
+  )
+  // Every tab fills the panel, so the Push bar under them never moves.
+  const fill = 'flex-1'
+  const common = { className: fill, pinned, onPin, slug, screenId }
+
+  return (
+    <aside
+      className={`${styles.panel} flex h-full min-h-0 flex-none flex-col rounded-16 border border-default bg-neutral-white px-12 pb-12 dark:border-ink-700 dark:bg-ink-900`}
+    >
+      <div className={tab === 'edit' ? 'contents' : 'hidden'}>
+        <DesignPanel {...common} tabs={header} />
+      </div>
+      {tab === 'css' ? <InspectorPanel {...common} tabs={header} /> : null}
+      {tab === 'chat' ? (
+        <LiveChatPanel
+          slug={slug}
+          screenId={screenId}
+          pinned={pinned}
+          onDeselect={() => onPin(null)}
+          tabs={header}
+          className={fill}
+        />
+      ) : null}
+      <PushBar slug={slug} />
+    </aside>
+  )
+}
+
+// --- the left sidebar's Layers and Notes -------------------------------------
+//
+// Both live in the shell's sidebar, as tabs beside Screens (see
+// chrome/sidebarSlots.ts). They are drawn from here because they need the
+// running prototype; the sidebar only lends them a place.
+
+function SidebarPortals({
+  screens,
+  notes,
+  editing,
+  slug,
+  current,
+  pinned,
+  setPinned,
+  setPreview,
+}: {
   screens: ScreenDef[]
+  notes?: string[]
+  editing: boolean
+  slug: string
   current: string
-  picking: boolean
-  hasStates: boolean
-  hasNotes: boolean
   pinned: Element | null
   setPinned: (el: Element | null) => void
   setPreview: (el: Element | null) => void
-  slots: ReturnType<typeof usePanelState>
-  /** Geometry for an open panel: a fixed column, or `w-full` inside a drawer. */
-  panelClassName?: string
-}
+}) {
+  const slots = useSyncExternalStore(subscribeSidebarSlots, getSidebarSlots, getSidebarSlotsServerSnapshot)
+  useEffect(() => {
+    setSidebarLive(true)
+    return () => setSidebarLive(false)
+  }, [])
 
-/**
- * The panels and the pills that bring them back, as nodes for a layout to
- * place. A panel and its own pill are never both returned, which is what stops
- * a floating tab from covering the title of the panel it opened.
- */
-function panelSlots(a: SlotProps) {
-  const { slots } = a
-  const leftExists = a.picking || a.hasStates
-  const leftTitle = a.picking ? 'Layers' : 'States'
-
-  const hideLeft = () => slots.setLeftOpen(false)
-
-  const left =
-    !leftExists || !slots.leftOpen ? null : a.picking ? (
-      <LayersPanel
-        className={a.panelClassName}
-        onMinimize={hideLeft}
-        pinned={a.pinned}
-        onPin={a.setPinned}
-        onHover={a.setPreview}
-        drag={layersDrag(a.config.slug, a.current)}
-      />
-    ) : (
-      <StatesPanel
-        screens={a.screens}
-        className={a.panelClassName}
-        onMinimize={hideLeft}
-      />
-    )
-
-  const leftPill =
-    leftExists && !slots.leftOpen ? (
-      <PanelPill label={leftTitle} onClick={() => slots.setLeftOpen(true)} />
-    ) : null
-
-  const showingTool = slots.right === 'tool' && a.picking
-  const right = showingTool ? (
-    <ToolPanel
-      tab={slots.tab}
-      tabs={slots.tabs}
-      className={a.panelClassName}
-      onMinimize={() => slots.setRight(null)}
-      pinned={a.pinned}
-      onPin={a.setPinned}
-      slug={a.config.slug}
-      screenId={a.current}
-    />
-  ) : slots.right === 'notes' && a.hasNotes ? (
-    <AnnotationPanel
-      screens={a.screens}
-      projectNotes={a.config.notes}
-      className={a.panelClassName}
-      onMinimize={() => slots.setRight(null)}
-    />
-  ) : null
-
-  // Whatever the right slot could show but isn't. Both can be offered at once —
-  // a designer editing a screen may still want its notes.
-  const rightPills = [
-    a.picking && !showingTool ? (
-      <PanelPill key="tool" label="Edit" onClick={() => slots.setRight('tool')} />
-    ) : null,
-    a.hasNotes && slots.right !== 'notes' ? (
-      <PanelPill key="notes" label="Notes" onClick={() => slots.setRight('notes')} />
-    ) : null,
-  ].filter(Boolean)
-
-  // The tool panel is always full height, so the Push bar at its foot stays in
-  // one place whichever tab is showing; Notes is as tall as its content.
-  return { left, leftPill, right, rightPills, rightFull: showingTool }
-}
-
-/**
- * The phone layout: the device between two 264px columns.
- *
- * The columns are load-bearing even when empty — they are what holds the device
- * optically centred — so a minimized panel keeps its column and leaves a pill
- * in it rather than collapsing the grid.
- */
-function DesktopLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
-  const { editing: picking, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
-
-  const active = screens.find((s) => s.id === current)
-  const hasStates = (active?.states?.length ?? 0) > 0
-  const hasNotes = (active?.notes?.length ?? 0) > 0 || (config.notes?.length ?? 0) > 0
-
-  const slots = usePanelState(picking, hasNotes, true)
-  const { left, leftPill, right, rightPills, rightFull } = panelSlots({
-    config,
-    screens,
-    current,
-    picking,
-    hasStates,
-    hasNotes,
-    pinned,
-    setPinned,
-    setPreview,
-    slots,
-  })
+  // Picking a layer is a request to work on it, so it starts Edit first.
+  const pinFromList = (el: Element | null) => {
+    if (el && !editing) setDesignMode(true)
+    setPinned(el)
+  }
 
   return (
-    <div
-      className={`h-full min-h-0 w-full gap-32 overflow-hidden bg-neutral-50 px-16 py-24 dark:bg-ink-950 ${styles.desktop}`}
-    >
-      {left ? (
-        <div className={`${styles.states} ${PANEL_CARD}`}>{left}</div>
-      ) : (
-        <div className={`${styles.states} pt-8`}>{leftPill}</div>
-      )}
-
-      <DeviceStepper>
-        <ScaledDevice>
-          <DeviceFrame>
-            <AppViewport
-              slug={config.slug}
-              editing={picking}
+    <>
+      {slots.layers
+        ? createPortal(
+            <LayersPanel
+              embedded
               pinned={pinned}
-              onPin={setPinned}
-              onRepin={repin}
-              preview={preview}
-            />
-          </DeviceFrame>
-        </ScaledDevice>
-      </DeviceStepper>
-
-      {right ? (
-        <div className={`${styles.annotations} ${PANEL_CARD} ${rightFull ? 'h-full' : ''}`}>{right}</div>
-      ) : (
-        <div className={`${styles.annotations} flex flex-col items-end gap-4 pt-8`}>
-          {rightPills}
-        </div>
-      )}
-    </div>
+              onPin={pinFromList}
+              onHover={setPreview}
+              drag={editing ? layersDrag(slug, current) : undefined}
+            />,
+            slots.layers,
+          )
+        : null}
+      {slots.notes ? createPortal(<NotesBody screens={screens} projectNotes={notes} />, slots.notes) : null}
+    </>
   )
 }
 
 /**
- * The desktop-device layout. The frame is 1440 wide before anything surrounds
- * it, so unlike the phone it cannot share the row with two 264px columns: the
- * panels become drawers over the canvas, and their pills float in the corners
- * they open from. Same panels, same controls — only the placement differs.
+ * The framed layout — the device on the canvas with its view controls in the
+ * corner, the sidebar's tabs on the left (drawn by the shell), and the one
+ * panel floating on the right. The phone sits at
+ * life size or smaller by height; a 1440 desktop frame scales to fit both axes
+ * of what's left beside the panel.
  */
-function DesktopDeviceLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
-  const { editing: picking, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
+function FramedLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
+  const { editing, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
+  const device = config.device ?? 'mobile'
+  const zoom = useCanvasZoom(DESKTOP_FRAME)
+  // The right panel IS Edit: open, clicks select for its tools; closed, they
+  // tap through the app. One switch, so neither can be on without the other —
+  // selecting with nowhere to act on the selection would be a trap.
+  const startEditing = () => setDesignMode(true)
+  const stopEditing = () => setDesignMode(false)
 
-  const active = screens.find((s) => s.id === current)
-  const hasStates = (active?.states?.length ?? 0) > 0
-  const hasNotes = (active?.notes?.length ?? 0) > 0 || (config.notes?.length ?? 0) > 0
-
-  const slots = usePanelState(picking, hasNotes, false)
-  const { left, leftPill, right, rightPills, rightFull } = panelSlots({
-    config,
-    screens,
-    current,
-    picking,
-    hasStates,
-    hasNotes,
-    pinned,
-    setPinned,
-    setPreview,
-    slots,
-    panelClassName: 'w-full',
-  })
-
-  const spec = DEVICE_SPECS.desktop
+  const viewport = (
+    <AppViewport
+      device={device}
+      slug={config.slug}
+      editing={editing}
+      pinned={pinned}
+      onPin={setPinned}
+      onRepin={repin}
+      preview={preview}
+    />
+  )
 
   return (
-    <div
-      className={`relative h-full min-h-0 w-full overflow-hidden bg-neutral-50 px-16 py-24 dark:bg-ink-950 ${styles.desktopDevice}`}
-    >
-      <DeviceStepper>
-        <FittedDevice spec={outerSize(spec)}>
-          <DeviceFrame device="desktop">
-            <AppViewport
-              device="desktop"
-              slug={config.slug}
-              editing={picking}
-              pinned={pinned}
-              onPin={setPinned}
-              onRepin={repin}
-              preview={preview}
-            />
-          </DeviceFrame>
-        </FittedDevice>
-      </DeviceStepper>
+    <div className="flex h-full min-h-0 w-full gap-16 overflow-hidden bg-neutral-50 p-16 dark:bg-ink-950">
+      <SidebarPortals
+        screens={screens}
+        notes={config.notes}
+        editing={editing}
+        slug={config.slug}
+        current={current}
+        pinned={pinned}
+        setPinned={setPinned}
+        setPreview={setPreview}
+      />
 
-      {leftPill ? <div className="absolute left-16 top-24 z-30">{leftPill}</div> : null}
-      {rightPills.length > 0 ? (
-        <div className="absolute right-16 top-24 z-30 flex flex-col items-end gap-4">
-          {rightPills}
-        </div>
-      ) : null}
+      <div className="relative flex min-w-0 flex-1">
+        {device === 'desktop' ? (
+          // The 1440 frame fills its cell, so it starts below the corner
+          // buttons rather than under them.
+          <div className={`min-w-0 flex-1 pt-48 ${styles.desktopDevice}`}>
+            <DeviceStepper>
+              <ZoomableDevice zoom={zoom}>
+                <DeviceFrame device="desktop">{viewport}</DeviceFrame>
+              </ZoomableDevice>
+            </DeviceStepper>
+          </div>
+        ) : (
+          <div className="flex min-w-0 flex-1 justify-center py-8">
+            <DeviceStepper>
+              <ScaledDevice>
+                <DeviceFrame>{viewport}</DeviceFrame>
+              </ScaledDevice>
+            </DeviceStepper>
+          </div>
+        )}
+        <CanvasControls
+          slug={config.slug}
+          onEdit={editing ? undefined : startEditing}
+          zoom={device === 'desktop' ? <ZoomControl zoom={zoom} /> : null}
+          className="absolute right-0 top-0 z-30"
+        />
+      </div>
 
-      {left ? (
-        <div
-          className={`${PANEL_CARD} ${styles.drawer} ${styles.drawerLeft}`}
-        >
-          {left}
-        </div>
-      ) : null}
-      {right ? (
-        <div
-          className={`${PANEL_CARD} ${styles.drawer} ${styles.drawerRight}`}
-        >
-          {right}
-        </div>
+      {editing ? (
+        <RightPanel
+          pinned={pinned}
+          onPin={setPinned}
+          slug={config.slug}
+          screenId={current}
+          onMinimize={stopEditing}
+        />
       ) : null}
     </div>
   )
@@ -942,10 +926,8 @@ export function PrototypeView({ config, initialScreenId, initialBare }: Prototyp
       <BridgePublisher slug={config.slug} screens={screens} />
       {bare ? (
         <BareLayout device={device} fill={impliedBare} explicit={explicitBare} />
-      ) : device === 'desktop' ? (
-        <DesktopDeviceLayout config={config} screens={screens} />
       ) : (
-        <DesktopLayout config={config} screens={screens} />
+        <FramedLayout config={config} screens={screens} />
       )}
     </PrototypeProvider>
   )
