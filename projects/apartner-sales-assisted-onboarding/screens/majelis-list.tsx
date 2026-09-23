@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { Badge, NavigationHeader } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
 import {
+  DRAFT_SCHEDULE,
   KUMPULAN_DAYS,
   MAJELIS_DIRECTORY,
   shortfallOf,
@@ -64,18 +65,35 @@ export function MajelisListScreen() {
       const name = l.majelis.kind === 'new' ? l.majelis.name : ''
       draftCounts.set(name, (draftCounts.get(name) ?? 0) + 1)
     })
-  const draftEntries: MajelisEntry[] = [...draftCounts].map(([name, members]) => ({
-    id: `${DRAFT_PREFIX}${name}`,
-    name,
-    place: 'Majelis baru — belum aktif',
-    day: '-',
-    time: '-',
-    members,
-    menunggak: 0,
-    type: 'Modal',
-    status: 'draft',
-  }))
+  const draftEntries: MajelisEntry[] = [...draftCounts].map(([name, members]) => {
+    const sched = DRAFT_SCHEDULE[name]
+    return {
+      id: `${DRAFT_PREFIX}${name}`,
+      name,
+      place: 'Majelis baru — belum aktif',
+      day: sched?.day ?? '-',
+      time: sched?.time ?? '-',
+      members,
+      menunggak: 0,
+      type: 'Modal',
+      status: 'draft',
+    }
+  })
   const allGroups = [...draftEntries, ...MAJELIS_DIRECTORY]
+
+  // Calon mitra being onboarded into each group — how many, and how many have
+  // cleared underwriting. Shown on active groups so the BP sees new members
+  // arriving without opening the page.
+  const onboardingLeads = order.map((id) => leads[id]).filter(isOnboardingLead)
+  function potentialFor(entry: MajelisEntry): { total: number; approved: number } {
+    const isDraftEntry = entry.id.startsWith(DRAFT_PREFIX)
+    const matches = onboardingLeads.filter((l) =>
+      isDraftEntry
+        ? l.majelis.kind === 'new' && l.majelis.name === entry.name
+        : l.majelis.kind === 'existing' && l.majelis.id === entry.id,
+    )
+    return { total: matches.length, approved: matches.filter((l) => l.status === 'approved').length }
+  }
 
   const q = query.trim().toLowerCase()
   const groups = allGroups.filter((m) => {
@@ -133,6 +151,7 @@ export function MajelisListScreen() {
             <Row
               key={m.id}
               entry={m}
+              potential={potentialFor(m)}
               onOpen={() => {
                 store.openMajelisPage(
                   m.id.startsWith(DRAFT_PREFIX)
@@ -177,7 +196,15 @@ export function MajelisListScreen() {
 }
 
 /** The directory row: name, place, when it meets, then what it is. */
-function Row({ entry, onOpen }: { entry: MajelisEntry; onOpen: () => void }) {
+function Row({
+  entry,
+  potential,
+  onOpen,
+}: {
+  entry: MajelisEntry
+  potential: { total: number; approved: number }
+  onOpen: () => void
+}) {
   const draft = entry.status === 'draft'
   const short = shortfallOf(entry)
 
@@ -206,6 +233,11 @@ function Row({ entry, onOpen }: { entry: MajelisEntry; onOpen: () => void }) {
         ) : (
           <span className="text-12 font-bold text-orange-500">Kurang {short} mitra untuk aktif</span>
         )
+      ) : potential.total > 0 ? (
+        <span className="text-12 font-bold text-green-600">
+          {potential.total} potential mitra
+          {potential.approved > 0 ? ` (${potential.approved} approved)` : ` (${potential.total} ongoing)`}
+        </span>
       ) : null}
     </button>
   )

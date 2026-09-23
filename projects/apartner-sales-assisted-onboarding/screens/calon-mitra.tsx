@@ -96,6 +96,13 @@ export function CalonMitraScreen() {
     flow.go('sales')
   }
 
+  // Survey progress is already saved to the survey store on every toggle, so
+  // "save for later" just leaves the onboarding open and returns to Sales.
+  function saveForLater() {
+    pipelineStore.setFlash(`Progress onboarding ${lead.name} disimpan`)
+    flow.go('sales')
+  }
+
   // Both boxes open the majelis page — an existing group's own page (where the
   // acceptance happens once she is approved), or the new draft majelis' page.
   function openExistingMajelis() {
@@ -254,6 +261,9 @@ export function CalonMitraScreen() {
           ) : null}
           <Button size="lg" className="w-full" disabled={!allDone} onClick={submit}>
             Submit Onboarding
+          </Button>
+          <Button variant="outline" size="lg" className="w-full" onClick={saveForLater}>
+            Simpan untuk nanti
           </Button>
         </StickyBar>
       )}

@@ -18,7 +18,37 @@ export interface GroupFormationTask {
 }
 
 export const GROUP_FORMATION_TASKS: GroupFormationTask[] = [
-  { id: 'gf-batu-sangkar', majelisName: 'Batu Sangkar', memberCount: 6, time: '10.00' },
+  { id: 'gf-cibeuteung-udik', majelisName: 'Cibeuteung Udik', memberCount: 6, time: '10.00' },
+]
+
+/**
+ * Penerimaan Anggota tasks — an ACTIVE majelis with newly-approved members
+ * waiting to be accepted (Perjanjian + Ritual). Distinct from group formation:
+ * the group already runs; these are late joiners being brought in. Tapping one
+ * opens the acceptance flow (group-formation in `accept` mode). One
+ * representative task at on-screen scale (§3).
+ */
+export interface PenerimaanTask {
+  id: string
+  /** The active directory majelis the new members join. */
+  majelisId: string
+  majelisName: string
+  /** The newly-approved members waiting to be accepted. */
+  memberNames: string[]
+  memberIds: string[]
+  /** The scheduled time on the task card. */
+  time: string
+}
+
+export const PENERIMAAN_TASKS: PenerimaanTask[] = [
+  {
+    id: 'pa-anggrek',
+    majelisId: 'anggrek',
+    majelisName: 'Majelis Anggrek',
+    memberNames: ['Marta Hakim', 'Rukmini'],
+    memberIds: ['pa-anggrek-1', 'pa-anggrek-2'],
+    time: '13.00',
+  },
 ]
 
 // Which task the group-formation detail is about — set right before navigating,
