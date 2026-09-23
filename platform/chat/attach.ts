@@ -1,13 +1,18 @@
 // =============================================================================
-// Turning a picked element into a chat attachment — shared by the chat's own
-// pick button and Inspect's "Ask chat about this", so both hand the agent the
-// same thing: Inspect's copyForAgent text, with the blank for the change removed
-// because the chat message IS the change.
+// The selection as chat context: Inspect's copyForAgent text for the element,
+// with the blank for the change removed because the chat message IS the change.
+// The label is what the chip in the composer says.
 // =============================================================================
 
 import { copyForAgent } from '@/platform/inspect/copyForAgent'
-import { resolveTarget, type InspectTarget } from '@/platform/inspect/resolve'
-import { attachToChat, type ChatAttachment } from '@/platform/runtime/chatBridge'
+import type { InspectTarget } from '@/platform/inspect/resolve'
+
+export interface ChatAttachment {
+  /** What the chip in the composer says: "Button “Lanjut”", "<div>". */
+  label: string
+  /** Sent to the agent ahead of the message. */
+  context: string
+}
 
 export function attachmentFor(target: InspectTarget, slug: string, screenId: string): ChatAttachment {
   const name = target.component ?? `<${target.tag}>`
@@ -19,8 +24,4 @@ export function attachmentFor(target: InspectTarget, slug: string, screenId: str
       '\n',
     ),
   }
-}
-
-export function attachElement(el: Element, slug: string, screenId: string) {
-  attachToChat(attachmentFor(resolveTarget(el), slug, screenId))
 }

@@ -30,6 +30,9 @@ const SURFACE_BG = 'bg-neutral-white dark:bg-ink-900'
 
 export interface PanelShellProps {
   title: string
+  /** Drawn in the header instead of the title — for a panel with tabs. The
+   *  title still names the panel for the minimize control. */
+  tabs?: ReactNode
   /** Omitted for a panel that cannot be dismissed; then no control is drawn. */
   onMinimize?: () => void
   /** Column geometry from the layout (width, alignment) or `w-full` in a drawer. */
@@ -40,6 +43,7 @@ export interface PanelShellProps {
 
 export function PanelShell({
   title,
+  tabs,
   onMinimize,
   className,
   onMouseLeave,
@@ -57,26 +61,45 @@ export function PanelShell({
     >
       {/* Sticky so the way out stays reachable however far the body scrolls —
           a long layers tree used to bury its own minimize button. */}
-      <div
-        className={`sticky top-0 z-10 flex items-center justify-between gap-8 pb-8 pt-8 ${SURFACE_BG}`}
-      >
+      <PanelHeader title={title} tabs={tabs} onMinimize={onMinimize} className="sticky top-0 z-10" />
+      <div className="flex flex-col gap-12 pb-8">{children}</div>
+    </aside>
+  )
+}
+
+/** A panel's header: its title or tabs, and the way to minimize it. Exported
+ *  for a panel that lays out its own body — Chat, whose transcript scrolls
+ *  while its composer stays put. */
+export function PanelHeader({
+  title,
+  tabs,
+  onMinimize,
+  className,
+}: {
+  title: string
+  tabs?: ReactNode
+  onMinimize?: () => void
+  className?: string
+}) {
+  return (
+    <div className={`flex items-center justify-between gap-8 pb-8 pt-8 ${SURFACE_BG} ${className ?? ''}`}>
+      {tabs ?? (
         <span className="truncate text-10 font-bold uppercase text-caption dark:text-neutral-400">
           {title}
         </span>
-        {onMinimize ? (
-          <button
-            type="button"
-            onClick={onMinimize}
-            aria-label={`Hide ${title}`}
-            title={`Hide ${title}`}
-            className="flex size-20 flex-none items-center justify-center rounded-4 text-caption hover:bg-neutral-white hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
-          >
-            <CloseIcon className="size-16" />
-          </button>
-        ) : null}
-      </div>
-      <div className="flex flex-col gap-12 pb-8">{children}</div>
-    </aside>
+      )}
+      {onMinimize ? (
+        <button
+          type="button"
+          onClick={onMinimize}
+          aria-label={`Hide ${title}`}
+          title={`Hide ${title}`}
+          className="flex size-20 flex-none items-center justify-center rounded-4 text-caption hover:bg-neutral-white hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+        >
+          <CloseIcon className="size-16" />
+        </button>
+      ) : null}
+    </div>
   )
 }
 
@@ -100,5 +123,38 @@ export function PanelPill({
     >
       {label}
     </button>
+  )
+}
+
+/** A panel's tabs, for its header: one selection, several things to do with
+ *  it. Small and quiet — the header is chrome, the body is the content. */
+export function PanelTabs<T extends string>({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: { id: T; label: string }[]
+  active: T
+  onChange: (id: T) => void
+}) {
+  return (
+    <div role="tablist" className="flex items-center gap-2 rounded-full bg-neutral-50 p-2 dark:bg-ink-950">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          aria-selected={t.id === active}
+          onClick={() => onChange(t.id)}
+          className={`rounded-full px-12 py-2 text-12 ${
+            t.id === active
+              ? 'bg-neutral-white font-bold text-link shadow-sm dark:bg-ink-800 dark:text-neutral-50 dark:shadow-none'
+              : 'text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50'
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
   )
 }

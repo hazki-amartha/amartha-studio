@@ -469,14 +469,15 @@ studio.
 clean them up yourself. You may use a git worktree internally for parallel work,
 but a designer never sees or manages one — it is never part of their vocabulary.
 
-### Design-mode tweaks — files can change without you
+### Edit-mode tweaks — files can change without you
 
-The studio shell's **Design mode** lets a designer tweak token values, text, and
+The studio shell's **Edit mode** lets a designer tweak token values, text, and
 component props, and move, duplicate, delete, wrap or insert elements,
 themselves; pressing **Save** writes those changes straight into
-`projects/<slug>/` on the dev server. (It was called Edit mode until
-2026-09-16; the rules below are unchanged, the engine underneath is not.) Treat
-them as the designer's own work, with these rules:
+`projects/<slug>/` on the dev server. (Since 2026-09-22 it is one mode whose
+panel has an **Edit** tab — formerly Design mode — and a **CSS** tab — formerly
+Inspect mode. The rules below are unchanged.) Chat in the studio writes the
+same working copy. Treat all of it as the designer's own work, with these rules:
 
 - **They ride commit and push silently.** "Commit it" includes whatever panel
   tweaks are in the working tree — don't quiz the designer about edits they
@@ -487,12 +488,14 @@ them as the designer's own work, with these rules:
   documentation, §2), is almost always a stray test — surface it and ask
   instead of shipping it. Everything in the designer's own project ships
   without comment.
-- **On the deployed link, owners can push without you.** Once the studio's
-  GitHub App is set up, Design mode there has one **Push** button that sends
-  the change live itself (it asks for the editing password and the owner's
-  name the first time); it lands as `[<slug>] Design changes from the
-  studio (<name>)`. That is the designer's own work arriving on `main`: pull
-  before you start, as always, and treat it like any other commit of theirs.
+- **Owners can push without you.** Edit mode's panel has a **Push** button.
+  On the deployed link it's in the Edit tab and lands as `[<slug>] Design
+  changes from the studio (<name>)`; on the dev server it's a bar under every
+  tab that pushes the project's changed files through the studio's GitHub App,
+  lands as `[<slug>] Changes from the studio (<name>)`, and fast-forwards this
+  checkout afterwards when it's on `main`. Both only ever touch `projects/<slug>/`. That is the
+  designer's own work arriving on `main`: pull before you start, as always, and
+  treat it like any other commit of theirs.
 - **The panel's "Save" is not a third verb.** It exists only on the dev
   server and writes the working copy, nothing more — the panel says so. If a
   designer thinks Save made something live, say plainly that saved tweaks are

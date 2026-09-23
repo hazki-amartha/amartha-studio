@@ -17,13 +17,8 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import { PanelShell } from '@/platform/chrome/SidePanel'
 import { ancestorChain, labelOf, resolveTarget } from './resolve'
 import { copyForAgent } from './copyForAgent'
-import { attachmentFor } from '@/platform/chat/attach'
-import {
-  attachToChat,
-  getChat,
-  getChatServerSnapshot,
-  subscribeChat,
-} from '@/platform/runtime/chatBridge'
+import { getChat, getChatServerSnapshot, subscribeChat } from '@/platform/runtime/chatBridge'
+import { setEditTab } from '@/platform/runtime/designBridge'
 import { copySpec } from './copySpec'
 
 export interface InspectorPanelProps {
@@ -34,6 +29,8 @@ export interface InspectorPanelProps {
   /** The annotations column geometry, handed down by the prototype view. */
   className?: string
   onMinimize?: () => void
+  /** The Edit mode's tabs, drawn in this panel's header. */
+  tabs?: React.ReactNode
 }
 
 function Heading({ children }: { children: React.ReactNode }) {
@@ -76,6 +73,7 @@ export function InspectorPanel({
   screenId,
   className,
   onMinimize,
+  tabs,
 }: InspectorPanelProps) {
   const [copied, setCopied] = useState<'agent' | 'spec' | null>(null)
   const chatAvailable = useSyncExternalStore(
@@ -83,7 +81,7 @@ export function InspectorPanel({
     () => getChat().available,
     () => getChatServerSnapshot().available,
   )
-  const shell = { title: 'Inspect', onMinimize, className }
+  const shell = { title: 'CSS', tabs, onMinimize, className }
 
   // Recomputed per pin rather than per frame — computed styles are only read
   // when the selection changes, not while a box is being tracked.
@@ -218,13 +216,13 @@ export function InspectorPanel({
         >
           {copied === 'agent' ? 'Copied' : 'Copy for agent'}
         </button>
-        {/* Where chat runs, the same handoff goes straight into it — the
-            composer shows the element as a chip, and the ask is the blank. */}
+        {/* Where chat runs, the same handoff is one tab away: Chat is about
+            the selection, so this element is already its chip. */}
         {chatAvailable ? (
           <button
             type="button"
-            onClick={() => attachToChat(attachmentFor(target, slug, screenId))}
-            title="Attach this element to the chat and say what should change"
+            onClick={() => setEditTab('chat')}
+            title="Open Chat about this element and say what should change"
             className="rounded-full bg-primary-500 px-16 py-8 text-12 font-bold text-neutral-white hover:bg-primary-600"
           >
             Ask chat about this

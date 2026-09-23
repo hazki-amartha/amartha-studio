@@ -2,7 +2,7 @@
 // Present bridge — a module-level store holding one boolean: is the prototype
 // being presented bare (filling the browser window, no studio chrome).
 //
-// Same shape and the same reasoning as inspectBridge: the shell's toggle and the
+// Same shape and the same reasoning as designBridge: the shell's toggle and the
 // running prototype sit far apart in the tree, and a context here would
 // re-render the whole shell every time the mode flips.
 //

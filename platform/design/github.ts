@@ -26,6 +26,7 @@
 // =============================================================================
 
 import { createSign } from 'crypto'
+import { readFileSync } from 'fs'
 
 export interface GitHubConfig {
   appId: string
@@ -76,6 +77,59 @@ export function githubConfig(env: NodeJS.ProcessEnv = process.env): GitHubConfig
     base,
     api: env.STUDIO_GH_API_URL,
   }
+}
+
+/**
+ * The App's configuration for Push on the dev server, or null without it.
+ *
+ * Same App, same variables, but no build commit: a laptop's changes are cut
+ * from main's tip at the moment of pushing, not from a deployment. The repo
+ * comes from `origin` when the `STUDIO_GH_REPO_*` names aren't set.
+ *
+ * On a laptop the key can also be the downloaded `.pem` file itself —
+ * `STUDIO_GH_APP_PRIVATE_KEY_PATH`, or a `.pem` path in the key's own name —
+ * rather than 25 lines pasted into `.env.local`.
+ */
+export function githubLocalConfig(
+  origin: string | null,
+  env: NodeJS.ProcessEnv = process.env,
+): Omit<GitHubConfig, 'sha'> | null {
+  const appId = env.STUDIO_GH_APP_ID
+  // A path in either name is read as the key file: pasting the path into the
+  // key's own name is the natural mistake, and a PEM never looks like a path.
+  const given = env.STUDIO_GH_APP_PRIVATE_KEY_PATH ?? env.STUDIO_GH_APP_PRIVATE_KEY
+  const key = given && !given.includes('-----BEGIN') && /\.pem$/i.test(given.trim()) ? readKey(given.trim()) : given
+  const installationId = env.STUDIO_GH_APP_INSTALLATION_ID
+  const fromOrigin = origin?.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?\/?$/)
+  const owner = env.STUDIO_GH_REPO_OWNER ?? fromOrigin?.[1]
+  const repo = env.STUDIO_GH_REPO_SLUG ?? fromOrigin?.[2]
+  if (!appId || !key || !installationId || !owner || !repo) return null
+  return {
+    appId,
+    privateKey: key.includes('\\n') ? key.replace(/\\n/g, '\n') : key,
+    installationId,
+    owner,
+    repo,
+    base: env.STUDIO_GH_BASE_BRANCH ?? 'main',
+    api: env.STUDIO_GH_API_URL,
+  }
+}
+
+function readKey(file: string): string | undefined {
+  try {
+    return readFileSync(file.replace(/^~(?=\/)/, process.env.HOME ?? '~'), 'utf8')
+  } catch {
+    return undefined
+  }
+}
+
+/** One file in a multi-file commit: new contents, or null to delete it. */
+export interface TreeChange {
+  path: string
+  /** File bytes; null deletes the path. */
+  content: Buffer | null
+  /** Git file mode; ordinary files are 100644. */
+  mode?: string
 }
 
 const b64url = (input: string | Buffer) =>
@@ -212,6 +266,71 @@ export class GitHub {
         status,
       )
     }
+  }
+
+  /** The commit a branch points at. */
+  async branchSha(branch: string): Promise<string> {
+    const { status, data } = await this.call<{ object: { sha: string } }>(
+      'GET',
+      this.repoPath(`/git/ref/heads/${encodePath(branch)}`),
+    )
+    if (status !== 200 || !data) throw new GitHubError('The studio could not read main from GitHub.', status)
+    return data.object.sha
+  }
+
+  /**
+   * Commit several files at once on top of `parent`, and start `branch` at the
+   * result — one commit, however many files, so a push can't half-land.
+   * Returns each written path's blob SHA (git's own hash of the contents).
+   */
+  async commitFiles(
+    branch: string,
+    parent: string,
+    changes: TreeChange[],
+    message: string,
+  ): Promise<Record<string, string | null>> {
+    const parentCommit = await this.call<{ tree: { sha: string } }>('GET', this.repoPath(`/git/commits/${parent}`))
+    if (parentCommit.status !== 200 || !parentCommit.data) {
+      throw new GitHubError('The studio could not read main from GitHub.', parentCommit.status)
+    }
+
+    const blobs: Record<string, string | null> = {}
+    const tree: { path: string; mode: string; type: 'blob'; sha: string | null }[] = []
+    for (const change of changes) {
+      let sha: string | null = null
+      if (change.content) {
+        const blob = await this.call<{ sha: string }>('POST', this.repoPath('/git/blobs'), {
+          content: change.content.toString('base64'),
+          encoding: 'base64',
+        })
+        if (blob.status !== 201 || !blob.data) throw new GitHubError('A file could not be sent to GitHub.', blob.status)
+        sha = blob.data.sha
+      }
+      blobs[change.path] = sha
+      tree.push({ path: change.path, mode: change.mode ?? '100644', type: 'blob', sha })
+    }
+
+    const made = await this.call<{ sha: string }>('POST', this.repoPath('/git/trees'), {
+      base_tree: parentCommit.data.tree.sha,
+      tree,
+    })
+    if (made.status !== 201 || !made.data) throw new GitHubError('The change could not be put together on GitHub.', made.status)
+
+    const commit = await this.call<{ sha: string }>('POST', this.repoPath('/git/commits'), {
+      message,
+      tree: made.data.sha,
+      parents: [parent],
+    })
+    if (commit.status !== 201 || !commit.data) throw new GitHubError('The change could not be committed on GitHub.', commit.status)
+
+    const ref = await this.call('POST', this.repoPath('/git/refs'), { ref: `refs/heads/${branch}`, sha: commit.data.sha })
+    if (ref.status !== 201) throw new GitHubError('The studio could not start a branch for this change.', ref.status)
+    return blobs
+  }
+
+  /** Close a change without landing it — a failed push being replaced. */
+  async closePull(number: number): Promise<void> {
+    await this.call('PATCH', this.repoPath(`/pulls/${number}`), { state: 'closed' })
   }
 
   /** The open pull request from `branch`, if there is one. */

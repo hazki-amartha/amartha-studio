@@ -13,15 +13,11 @@
 // spend figure that makes the cost of the wait legible rather than a surprise.
 // =============================================================================
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { CloseIcon, InspectIcon } from '@/platform/chrome/icons'
-import {
-  attachToChat,
-  getChat,
-  getChatServerSnapshot,
-  setChatPicking,
-  subscribeChat,
-} from '@/platform/runtime/chatBridge'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { CloseIcon, InspectIcon, StopIcon } from '@/platform/chrome/icons'
+import { PanelHeader } from '@/platform/chrome/SidePanel'
+import { resolveTarget } from '@/platform/inspect/resolve'
+import { attachmentFor } from './attach'
 import type { RecordedTurn, TranscriptEvent } from './transcript'
 import { useTranscriptReplay } from './useTranscriptReplay'
 import { useLiveChat } from './useLiveChat'
@@ -75,6 +71,8 @@ function ChatView({
   headerControls,
   doneLabel,
   onClose,
+  embedded,
+  statusExtra,
   children,
 }: {
   subtitle: string
@@ -82,6 +80,11 @@ function ChatView({
   headerControls?: ReactNode
   onClose?: () => void
   doneLabel: string
+  /** Inside the prototype view's panel: no header of its own (the panel's tabs
+   *  are the header) and no side padding (the panel's card has it). */
+  embedded?: boolean
+  /** Beside the spend, in the status line — New chat. */
+  statusExtra?: ReactNode
   children: ReactNode
 }) {
   const scroller = useRef<HTMLDivElement>(null)
@@ -93,8 +96,15 @@ function ChatView({
   const running = state.status === 'running'
   const last = state.events[state.events.length - 1]
 
+  const inset = embedded ? '' : 'px-16'
+
   return (
-    <div className="flex h-full flex-col bg-neutral-white dark:bg-ink-900">
+    <div
+      className={
+        embedded ? 'flex min-h-0 flex-1 flex-col' : 'flex h-full flex-col bg-neutral-white dark:bg-ink-900'
+      }
+    >
+      {embedded ? null : (
       <header className="flex items-center justify-between border-b border-neutral-200 px-16 py-12 dark:border-ink-700">
         <div className="min-w-0">
           <p className="text-14 font-bold text-ink-900 dark:text-neutral-white">Chat</p>
@@ -113,8 +123,12 @@ function ChatView({
           </button>
         ) : null}
       </header>
+      )}
 
-      <div ref={scroller} className="flex-1 overflow-y-auto px-16 py-12">
+      <div ref={scroller} className={`min-h-0 flex-1 overflow-y-auto py-12 ${inset}`}>
+        {state.events.length === 0 && embedded ? (
+          <p className="text-12 font-regular text-neutral-600">{subtitle}</p>
+        ) : null}
         {state.events.map((event, i) => {
           switch (event.kind) {
             case 'user':
@@ -160,8 +174,8 @@ function ChatView({
         )}
       </div>
 
-      <footer className="border-t border-neutral-200 px-16 py-12 dark:border-ink-700">
-        <div className="mb-8 flex items-center justify-between text-12 font-regular text-neutral-600">
+      <footer className={`border-t border-neutral-200 py-12 dark:border-ink-700 ${inset}`}>
+        <div className="mb-8 flex items-center justify-between gap-8 text-12 font-regular text-neutral-600">
           <span>
             {running
               ? `Working — ${clock(state.elapsedMs)}`
@@ -169,7 +183,10 @@ function ChatView({
                 ? doneLabel
                 : 'Idle'}
           </span>
-          <span>${state.spendUsd.toFixed(2)}</span>
+          <span className="flex items-center gap-8">
+            {statusExtra}
+            <span>${state.spendUsd.toFixed(2)}</span>
+          </span>
         </div>
         {children}
       </footer>
@@ -231,30 +248,62 @@ export function ChatPanel({ turn }: { turn: RecordedTurn }) {
   )
 }
 
-export function LiveChatPanel({ slug, onClose }: { slug: string; onClose?: () => void }) {
+/**
+ * Chat as the first tab of Edit mode's panel. It is about the current
+ * selection — the pinned element — shown as a chip with an ✕ that deselects;
+ * there is no separate pick. With nothing selected the message is about the
+ * project as a whole.
+ *
+ * The conversation lives in useLiveChat's store, so this can mount and unmount
+ * with the panel without losing a word, or a turn that is still running.
+ */
+export function LiveChatPanel({
+  slug,
+  screenId,
+  pinned,
+  onDeselect,
+  tabs,
+  onMinimize,
+  className,
+}: {
+  slug: string
+  screenId: string
+  pinned: Element | null
+  onDeselect: () => void
+  tabs?: ReactNode
+  onMinimize?: () => void
+  className?: string
+}) {
   const chat = useLiveChat(slug)
-  const { attachment, picking } = useSyncExternalStore(subscribeChat, getChat, getChatServerSnapshot)
-  const [draft, setDraft] = useState('')
   const running = chat.status === 'running'
+  const attachment = useMemo(
+    () => (pinned ? attachmentFor(resolveTarget(pinned), slug, screenId) : null),
+    [pinned, slug, screenId],
+  )
 
   const submit = () => {
-    if (!draft.trim() || running) return
+    const draft = chat.draft.trim()
+    if (!draft || running) return
     if (attachment) {
       // The element goes to the agent in full; the transcript shows the chip.
-      chat.send(`${attachment.context}\n\nChange: ${draft.trim()}`, `[${attachment.label}] ${draft.trim()}`)
-      attachToChat(null)
+      chat.send(`${attachment.context}\n\nChange: ${draft}`, `[${attachment.label}] ${draft}`)
     } else {
       chat.send(draft)
     }
-    setDraft('')
   }
 
   const changed = chat.last?.changed.length ?? 0
-  const subtitle = `${slug} · Claude on this laptop${chat.model ? ` · ${chat.model}` : ''}`
+  const subtitle = `Claude on this laptop${chat.model ? ` · ${chat.model}` : ''} — ask for a change to ${slug}.`
+  const shell = (body: ReactNode) => (
+    <aside className={`flex min-h-0 flex-1 flex-col ${className ?? ''}`}>
+      <PanelHeader title="Chat" tabs={tabs} onMinimize={onMinimize} />
+      {body}
+    </aside>
+  )
 
   if (chat.gate !== 'open') {
-    return (
-      <ChatView subtitle={subtitle} state={chat} doneLabel="" onClose={onClose}>
+    return shell(
+      <ChatView subtitle={subtitle} state={chat} doneLabel="" embedded>
         {chat.gate === 'unavailable' ? (
           <p className="text-12 font-regular text-neutral-600">
             Chat runs only on the dev server, and only once STUDIO_EDIT_PASSWORD is set in
@@ -263,80 +312,84 @@ export function LiveChatPanel({ slug, onClose }: { slug: string; onClose?: () =>
         ) : chat.gate === 'checking' ? null : (
           <PasswordForm onUnlock={chat.unlock} />
         )}
-      </ChatView>
+      </ChatView>,
     )
   }
 
-  return (
+  return shell(
     <ChatView
       subtitle={subtitle}
       state={chat}
-      onClose={onClose}
+      embedded
+      statusExtra={
+        chat.events.length > 0 ? (
+          <button
+            type="button"
+            onClick={chat.newChat}
+            title="Start over — a new conversation"
+            className="font-bold text-primary-500 hover:underline"
+          >
+            New chat
+          </button>
+        ) : null
+      }
       doneLabel={
         chat.last?.error
           ? 'Stopped'
           : `Done in ${clock(chat.last?.durationMs ?? chat.elapsedMs)} · ${changed} file${changed === 1 ? '' : 's'} changed · saved, not live`
       }
     >
-      {/* One move, as in Airship: arm the picker, click the element in the
-          prototype, and it lands here as a chip. Esc cancels. */}
-      <div className="mb-8 flex min-h-32 items-center gap-8">
-        <button
-          type="button"
-          onClick={() => setChatPicking(!picking)}
-          aria-pressed={picking}
-          title={picking ? 'Cancel picking (Esc)' : 'Point at an element in the prototype'}
-          className={`flex h-32 flex-none items-center gap-4 rounded-full px-12 text-12 font-bold ${
-            picking
-              ? 'bg-primary-500 text-neutral-white'
-              : 'border border-neutral-200 text-neutral-700 hover:border-primary-500 hover:text-primary-500 dark:border-ink-700 dark:text-neutral-200'
-          }`}
-        >
-          <InspectIcon className="size-16" />
-          {picking ? 'Click an element…' : attachment ? 'Repick' : 'Pick'}
-        </button>
-        {attachment && !picking ? (
-          <span className="flex min-w-0 items-center gap-4 rounded-full bg-primary-50 py-4 pl-12 pr-4 text-12 font-bold text-primary-500">
+      {/* One box, as in Claude and Airship: the selection's chip, the message,
+          and the send button inside it. ⌘↵ sends; Enter is a new line — a
+          change request is often a few lines, and a stray Enter shouldn't
+          spend a turn. */}
+      <div className="flex flex-col gap-8 rounded-12 border border-neutral-200 bg-neutral-white p-8 focus-within:border-primary-500 dark:border-ink-700 dark:bg-ink-800">
+        {attachment ? (
+          <span className="flex min-w-0 items-center gap-4 self-start rounded-full bg-primary-50 py-4 pl-8 pr-4 text-12 font-bold text-primary-500">
+            <InspectIcon className="size-12 flex-none" />
             <span className="truncate">{attachment.label}</span>
             <button
               type="button"
-              onClick={() => attachToChat(null)}
-              aria-label="Remove the attached element"
+              onClick={onDeselect}
+              aria-label="Deselect the element"
+              title="Deselect — the message will be about the project"
               className="flex size-20 flex-none items-center justify-center rounded-full hover:bg-primary-200"
             >
               <CloseIcon className="size-12" />
             </button>
           </span>
-        ) : picking ? (
-          <span className="truncate text-12 font-regular text-neutral-600">Esc to cancel</span>
         ) : null}
-      </div>
-      <textarea
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            submit()
+        <textarea
+          value={chat.draft}
+          onChange={(e) => chat.setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault()
+              submit()
+            }
+          }}
+          rows={2}
+          aria-label="Message"
+          placeholder={
+            attachment ? 'What should change about it?' : 'Describe the change, or click an element first'
           }
-        }}
-        rows={3}
-        placeholder={
-          attachment
-            ? 'What should change about it?'
-            : 'Ask for a change — or Pick an element first'
-        }
-        className={`${fieldClass} resize-none`}
-      />
-      <button
-        type="button"
-        onClick={running ? chat.stop : submit}
-        disabled={!running && !draft.trim()}
-        className={buttonClass}
-      >
-        {running ? 'Stop' : 'Send'}
-      </button>
-    </ChatView>
+          className="w-full resize-none bg-transparent text-14 font-regular text-ink-900 outline-none placeholder:text-neutral-400 dark:text-neutral-white"
+        />
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={running ? chat.stop : submit}
+            disabled={!running && !chat.draft.trim()}
+            aria-label={running ? 'Stop' : 'Send'}
+            title={running ? 'Stop this turn' : 'Send (⌘↵)'}
+            className="flex h-32 min-w-32 flex-none items-center justify-center rounded-8 bg-primary-500 px-8 text-14 font-bold text-neutral-white hover:bg-primary-600 disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-ink-700"
+          >
+            {/* The shortcut IS the label: it says how to send without a hint beside it. */}
+            {running ? <StopIcon className="size-16" /> : '⌘↵'}
+          </button>
+        </div>
+      </div>
+    </ChatView>,
   )
 }
 

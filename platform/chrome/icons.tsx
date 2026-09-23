@@ -194,3 +194,6 @@ export const InspectIcon = icon(
     <path d="M11 11l7 2.6-3 1.2-1.2 3z" />
   </>,
 )
+
+// Stop — a square: stops the chat turn that is running.
+export const StopIcon = icon(<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" />)

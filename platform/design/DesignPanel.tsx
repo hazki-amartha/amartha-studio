@@ -115,6 +115,8 @@ export interface DesignPanelProps {
   screenId: string
   className?: string
   onMinimize?: () => void
+  /** The Edit mode's tabs, drawn in this panel's header. */
+  tabs?: React.ReactNode
 }
 
 // --- class classification ----------------------------------------------------
@@ -277,8 +279,9 @@ export function DesignPanel({
   screenId,
   className,
   onMinimize,
+  tabs,
 }: DesignPanelProps) {
-  const shell = { title: 'Design', onMinimize, className }
+  const shell = { title: 'Edit', tabs, onMinimize, className }
   const store = useSyncExternalStore(
     subscribeDesignStore,
     getDesignStoreState,
@@ -1051,8 +1054,7 @@ function ActionsFooter({
   } else if (!linked && n === 0 && !store.busy && saved > 0) {
     note = (
       <>
-        Saved to your working copy — not live yet. Say <span className="font-bold">commit</span> or{' '}
-        <span className="font-bold">push</span> when you’re ready.
+        Saved — not live yet. <span className="font-bold">Push</span> below when you’re ready.
       </>
     )
   }
