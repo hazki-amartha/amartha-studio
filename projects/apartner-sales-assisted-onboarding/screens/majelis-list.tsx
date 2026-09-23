@@ -15,7 +15,7 @@ import {
   type MajelisEntry,
   type MajelisStatus,
 } from '../lib/schedule'
-import { isCalonMitra } from '../lib/pipeline'
+import { isOnboardingLead } from '../lib/pipeline'
 import { usePipeline } from '../lib/pipeline-store'
 import { store, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
@@ -59,7 +59,7 @@ export function MajelisListScreen() {
   const draftCounts = new Map<string, number>()
   order
     .map((id) => leads[id])
-    .filter((l) => isCalonMitra(l) && l.majelis.kind === 'new')
+    .filter((l) => isOnboardingLead(l) && l.majelis.kind === 'new')
     .forEach((l) => {
       const name = l.majelis.kind === 'new' ? l.majelis.name : ''
       draftCounts.set(name, (draftCounts.get(name) ?? 0) + 1)
@@ -201,7 +201,11 @@ function Row({ entry, onOpen }: { entry: MajelisEntry; onOpen: () => void }) {
         <ProductBadge product={entry.type} />
       </span>
       {draft ? (
-        <span className="text-12 font-bold text-orange-500">Kurang {short} mitra untuk aktif</span>
+        short === 0 ? (
+          <span className="text-12 font-bold text-green-600">Majelis siap diaktivasi</span>
+        ) : (
+          <span className="text-12 font-bold text-orange-500">Kurang {short} mitra untuk aktif</span>
+        )
       ) : null}
     </button>
   )

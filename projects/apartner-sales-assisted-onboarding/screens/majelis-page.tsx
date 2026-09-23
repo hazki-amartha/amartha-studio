@@ -13,10 +13,11 @@ import { Badge, Card, NavigationHeader } from '@/design-system/components'
 import { CalendarDots, ChevronRight, MapPin, Users } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS_DIRECTORY, MIN_MEMBERS, type MajelisEntry } from '../lib/schedule'
-import { isCalonMitra, majelisLine, type PipelineLead } from '../lib/pipeline'
+import { isOnboardingLead, majelisLine, type LeadStatus, type PipelineLead } from '../lib/pipeline'
+import type { BadgeIntent } from '@/design-system/components/Badge'
 import { useApp } from '../lib/store'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { isMajelisActivated, setFormation, useFormation } from '../lib/formation'
+import { isLeadAccepted, isMajelisActivated, setFormation, useFormation } from '../lib/formation'
 import { AppScreen, ProductBadge } from '../lib/ui'
 
 // A short stand-in mitra roster for an active majelis.
@@ -26,6 +27,15 @@ function StatusBadge({ entry }: { entry: MajelisEntry }) {
   if (entry.status === 'draft') return <Badge intent="yellow">Draft</Badge>
   if (entry.menunggak > 0) return <Badge intent="orange">{entry.menunggak} Mitra DPD</Badge>
   return <Badge intent="green">Aktif</Badge>
+}
+
+/** A member's status on the majelis page — the survey stage, or, once approved,
+ *  whether she is still waiting to be accepted or is already a Mitra. */
+function memberStatus(status: LeadStatus, accepted: boolean): { label: string; intent: BadgeIntent } {
+  if (status === 'approved')
+    return accepted ? { label: 'Mitra', intent: 'green' } : { label: 'Menunggu penerimaan', intent: 'yellow' }
+  if (status === 'survey-submitted') return { label: 'Survey submitted', intent: 'blue' }
+  return { label: 'Survey ongoing', intent: 'orange' }
 }
 
 export function MajelisPageScreen() {
@@ -56,12 +66,12 @@ export function MajelisPageScreen() {
   const isDraft = existing ? existing.status === 'draft' : draftName !== ''
   const activated = isMajelisActivated(formation, name)
 
-  // Potential members — calon mitra whose majelis is this one.
+  // The leads onboarding into this majelis — survey ongoing, submitted, approved.
   const potential: PipelineLead[] = order
     .map((id) => leads[id])
     .filter(
       (l) =>
-        isCalonMitra(l) &&
+        isOnboardingLead(l) &&
         (existing
           ? l.majelis.kind === 'existing' && l.majelis.id === existing.id
           : draftName !== '' && l.majelis.kind === 'new' && l.majelis.name === draftName),
@@ -73,8 +83,16 @@ export function MajelisPageScreen() {
   const showRoster = Boolean(existing)
   const roster = showRoster ? ROSTER.slice(0, Math.min(members, ROSTER.length)) : []
   const more = showRoster ? Math.max(0, members - roster.length) : 0
-  // A majelis needs at least MIN_MEMBERS mitra before it can be formed/activated.
+  // A majelis needs at least MIN_MEMBERS mitra to form. A synthesized new majelis
+  // also waits until every one of its members is approved; a directory draft
+  // (fixed roster) just needs the count.
   const canForm = members >= MIN_MEMBERS
+  const allApproved = potential.length > 0 && potential.every((m) => m.status === 'approved')
+  const readyToActivate = canForm && (Boolean(existing) || allApproved)
+
+  // Approved members not yet accepted into the group — the "new members" that a
+  // "update group formation" (member acceptance) run brings in.
+  const newApproved = potential.filter((l) => l.status === 'approved' && !isLeadAccepted(formation, l.id))
 
   function openPotential(l: PipelineLead) {
     pipelineStore.open(l.id)
@@ -83,6 +101,16 @@ export function MajelisPageScreen() {
 
   function formMajelis() {
     setFormation({ mode: 'form', majelisName: name, memberCount: members })
+    flow.go('group-formation')
+  }
+
+  function acceptNewMembers() {
+    setFormation({
+      mode: 'accept',
+      majelisName: name,
+      memberIds: newApproved.map((l) => l.id),
+      memberNames: newApproved.map((l) => l.name),
+    })
     flow.go('group-formation')
   }
 
@@ -121,26 +149,55 @@ export function MajelisPageScreen() {
             </div>
           ) : null}
 
-          {/* Draft majelis — activate it through the full group formation, but
-              only once it has at least MIN_MEMBERS mitra. */}
+          {/* New approved members waiting to be accepted — the entry point to the
+              member acceptance (Perjanjian + Ritual). Only for an ACTIVE majelis;
+              a draft brings its members in through the full formation instead. */}
+          {newApproved.length > 0 && !isDraft ? (
+            <button
+              type="button"
+              onClick={acceptNewMembers}
+              className="flex items-center justify-between gap-8 rounded-12 border border-primary-200 bg-primary-50 px-12 py-12 text-left active:bg-neutral-50"
+            >
+              <span className="flex min-w-0 flex-col gap-2">
+                <span className="text-14 font-bold text-primary-500">
+                  Ada {newApproved.length} anggota baru
+                </span>
+                <span className="text-12 text-caption">Update group formation untuk menerima mereka.</span>
+              </span>
+              <span className="shrink-0 text-primary-500">
+                <ChevronRight size={20} />
+              </span>
+            </button>
+          ) : null}
+
+          {/* Draft majelis — form it through the full group formation. Workable
+              once it has MIN_MEMBERS mitra (and, for a new majelis, once every
+              member is approved). When every member is approved it reads
+              "siap diaktivasi". */}
           {isDraft ? (
             activated ? (
               <div className="rounded-12 border border-green-500 bg-green-50 px-12 py-12 text-12 font-bold text-green-600">
                 Majelis sudah dibentuk & aktif
               </div>
-            ) : canForm ? (
+            ) : readyToActivate ? (
               <button
                 type="button"
                 onClick={formMajelis}
-                className="flex items-center justify-between gap-8 rounded-12 border border-orange-200 bg-orange-50 px-12 py-12 text-left active:bg-neutral-50"
+                className={`flex items-center justify-between gap-8 rounded-12 border px-12 py-12 text-left active:bg-neutral-50 ${
+                  allApproved ? 'border-green-500 bg-green-50' : 'border-orange-200 bg-orange-50'
+                }`}
               >
                 <span className="flex min-w-0 flex-col gap-2">
-                  <span className="text-14 font-bold text-orange-500">Majelis ini belum aktif</span>
+                  <span className={`text-14 font-bold ${allApproved ? 'text-green-600' : 'text-orange-500'}`}>
+                    {allApproved ? 'Majelis siap diaktivasi' : 'Majelis ini belum aktif'}
+                  </span>
                   <span className="text-12 text-caption">
-                    Jalankan pembentukan majelis untuk mengaktifkannya.
+                    {allApproved
+                      ? 'Semua anggota sudah disetujui — jalankan pembentukan majelis.'
+                      : 'Jalankan pembentukan majelis untuk mengaktifkannya.'}
                   </span>
                 </span>
-                <span className="shrink-0 text-orange-500">
+                <span className={`shrink-0 ${allApproved ? 'text-green-600' : 'text-orange-500'}`}>
                   <ChevronRight size={20} />
                 </span>
               </button>
@@ -148,8 +205,9 @@ export function MajelisPageScreen() {
               <div className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-50 px-12 py-12">
                 <span className="text-14 font-bold text-orange-500">Majelis ini belum aktif</span>
                 <span className="text-12 text-caption">
-                  Butuh minimal {MIN_MEMBERS} anggota untuk dibentuk — kurang{' '}
-                  {MIN_MEMBERS - members} anggota lagi.
+                  {!canForm
+                    ? `Butuh minimal ${MIN_MEMBERS} anggota untuk dibentuk — kurang ${MIN_MEMBERS - members} anggota lagi.`
+                    : 'Menunggu seluruh anggota disetujui underwriting.'}
                 </span>
               </div>
             )
@@ -205,9 +263,14 @@ export function MajelisPageScreen() {
                     {l.name.charAt(0)}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-14 text-default">{l.name}</span>
-                  <Badge intent="orange" size="sm">
-                    Calon Mitra
-                  </Badge>
+                  {(() => {
+                    const st = memberStatus(l.status, isLeadAccepted(formation, l.id))
+                    return (
+                      <Badge intent={st.intent} size="sm">
+                        {st.label}
+                      </Badge>
+                    )
+                  })()}
                   <span className="shrink-0 text-disabled">
                     <ChevronRight size={20} />
                   </span>
