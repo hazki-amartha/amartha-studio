@@ -14,8 +14,9 @@
 // component), so it lives here instead of being copied into each tab's file.
 
 import { useState, type ReactNode } from 'react'
-import { Badge, Button, Input, type BadgeIntent } from '@/design-system/components'
+import { Badge, Button, Input, Modal, type BadgeIntent } from '@/design-system/components'
 import {
+  Camera,
   ChevronRight,
   Cross,
   CrossCircleFill,
@@ -68,9 +69,12 @@ export interface MitraDrawerRow {
 
 /** One tindakan entry, shared by the roster panel's two-line preview and the
  *  detail panel's full log — same row shape either place, just how many of
- *  them show up. */
-function TindakanRow({ t }: { t: MitraTindakan }) {
-  return (
+ *  them show up. `onClick` is only wired in the detail panel's timeline: the
+ *  roster preview's rows sit inside a card whose own click already drills
+ *  into the mitra, so a second, narrower click target there would fight the
+ *  first. */
+function TindakanRow({ t, onClick }: { t: MitraTindakan; onClick?: () => void }) {
+  const content = (
     <span className="flex flex-wrap items-center justify-between gap-8 rounded-8 bg-neutral-50 px-12 py-8">
       <span className="flex flex-col gap-2">
         <span className="text-12 font-bold text-default">{t.date}</span>
@@ -93,6 +97,120 @@ function TindakanRow({ t }: { t: MitraTindakan }) {
         <span className="text-10 text-caption">{t.dibayar ?? '—'}</span>
       </span>
     </span>
+  )
+
+  if (!onClick) return content
+
+  return (
+    <button type="button" onClick={onClick} className="block w-full text-left active:opacity-70">
+      {content}
+    </button>
+  )
+}
+
+/** The illustrated stand-ins for a tindakan's evidence — drawn, not real
+ *  (CLAUDE.md §3: no embedded map, and no fabricated photo asset either).
+ *  `MapPreview` is a smaller copy of `agent-map.tsx`'s "roads and pins"
+ *  band; `PhotoPreview` is the same idea for a photo, a filled tile rather
+ *  than an actual image nobody captured. */
+function MapPreview({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col gap-8">
+      <span className="flex items-center gap-4 text-12 font-bold text-caption">
+        <MapPin size={16} /> Lokasi
+      </span>
+      <div className="relative overflow-hidden rounded-12 bg-neutral-100 py-32">
+        <span className="absolute left-0 right-0 top-16 h-2 bg-neutral-200" />
+        <span className="absolute bottom-12 left-0 right-0 h-2 bg-neutral-200" />
+        <span className="absolute bottom-0 left-20 top-0 w-2 bg-neutral-200" />
+        <span className="absolute bottom-0 right-24 top-0 w-2 bg-neutral-200" />
+        <span className="absolute left-24 top-24 text-primary-500">
+          <MapPin size={20} />
+        </span>
+        <span className="absolute bottom-6 right-8 rounded-full bg-neutral-white px-8 py-2 text-10 text-caption">
+          Ilustrasi peta
+        </span>
+      </div>
+      <span className="text-12 text-caption">{label}</span>
+    </div>
+  )
+}
+
+function PhotoPreview() {
+  return (
+    <div className="flex flex-col gap-8">
+      <span className="flex items-center gap-4 text-12 font-bold text-caption">
+        <Camera size={16} /> Bukti foto
+      </span>
+      <div className="flex items-center justify-center rounded-12 bg-neutral-100 py-32 text-caption">
+        <Camera size={24} />
+      </div>
+      <span className="text-12 text-caption">Foto kunjungan tersimpan di aplikasi BP.</span>
+    </div>
+  )
+}
+
+/**
+ * One tindakan's own picture, opened from the timeline: the same date,
+ * pelaku and hasil the row already shows, then the catatan behind it, and —
+ * for a task logged in person — the photo and location that came with it.
+ * A Telepon call has neither, so those two sections just don't render
+ * rather than showing an empty box.
+ */
+function TindakanDetailModal({
+  tindakan,
+  locationLabel,
+  onClose,
+}: {
+  tindakan: MitraTindakan | null
+  locationLabel: string
+  onClose: () => void
+}) {
+  return (
+    <Modal open={!!tindakan} onClose={onClose} size="md" title="Detail tindakan">
+      {tindakan ? (
+        <div className="flex flex-col gap-16">
+          <div className="flex flex-wrap items-center justify-between gap-8">
+            <span className="flex flex-col gap-2">
+              <span className="text-14 font-bold text-default">{tindakan.date}</span>
+              <span className="flex items-center gap-4">
+                <Badge
+                  intent={tindakan.pelaku === 'BP' ? 'primary' : tindakan.pelaku === 'BM' ? 'blue' : 'orange'}
+                  size="sm"
+                >
+                  {tindakan.pelaku}
+                </Badge>
+                <span className="text-12 text-caption">{tindakan.jenis}</span>
+              </span>
+            </span>
+            <Badge
+              intent={tindakan.hasilOk ? 'green' : 'red'}
+              variant="subtle"
+              size="sm"
+              leadingIcon={tindakan.hasilOk ? <CheckCircle size={16} /> : <CrossCircleFill size={16} />}
+            >
+              {tindakan.hasil}
+            </Badge>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <span className="text-12 font-bold text-caption">Catatan</span>
+            <p className="text-14 text-default">{tindakan.catatan}</p>
+          </div>
+
+          {tindakan.evidence ? (
+            <>
+              <PhotoPreview />
+              <MapPreview label={locationLabel} />
+            </>
+          ) : (
+            <p className="rounded-8 bg-neutral-50 px-12 py-8 text-12 text-caption">
+              Tidak ada foto atau lokasi tercatat — tindakan ini dilakukan dari jarak jauh.
+            </p>
+          )}
+        </div>
+      ) : null}
+    </Modal>
   )
 }
 
@@ -242,6 +360,12 @@ function MitraDetailPanel({ mitra, onClose }: { mitra: MitraDrawerRow; onClose: 
   // not hardcoded to Telepon/Home Visit — Pencairan's leads log "Contacted"
   // instead of Telepon, and a hardcoded pair would print a permanent 0.
   const jenisSeen = Array.from(new Set(mitra.tindakan.map((t) => t.jenis)))
+  // Which tindakan's own detail is open, by index rather than identity — two
+  // entries can share every visible field. Pencairan's leads carry their own
+  // `location`; Pembayaran's mitra don't log one, so her majelis stands in
+  // for "roughly where" the visit happened.
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const locationLabel = mitra.location ?? (mitra.majelis ? `Sekitar ${mitra.majelis}` : 'Lokasi tidak tercatat')
 
   return (
     <div className="flex h-full flex-col border-l border-default" style={{ width: DETAIL_PANEL_W }}>
@@ -313,7 +437,7 @@ function MitraDetailPanel({ mitra, onClose }: { mitra: MitraDrawerRow; onClose: 
                   <span className={`w-2 flex-1 ${last ? '' : 'bg-neutral-200'}`} />
                 </div>
                 <div className="flex-1 pb-12">
-                  <TindakanRow t={t} />
+                  <TindakanRow t={t} onClick={() => setOpenIndex(i)} />
                 </div>
               </div>
             )
@@ -326,6 +450,12 @@ function MitraDetailPanel({ mitra, onClose }: { mitra: MitraDrawerRow; onClose: 
           Tutup
         </Button>
       </div>
+
+      <TindakanDetailModal
+        tindakan={openIndex !== null ? mitra.tindakan[openIndex] : null}
+        locationLabel={locationLabel}
+        onClose={() => setOpenIndex(null)}
+      />
     </div>
   )
 }

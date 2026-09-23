@@ -331,6 +331,15 @@ export interface MitraTindakan {
   hasilOk: boolean
   /** null when the visit/call itself carried no payment outcome to report. */
   dibayar: string | null
+  /** What actually happened, in full — the detail view's own read, richer
+   *  than the short outcome caption the timeline row shows beside the
+   *  badge. */
+  catatan: string
+  /** Whether this task was logged in person, with a geotagged photo as
+   *  proof. A Telepon call happens from wherever the BP is and carries
+   *  neither; a Home Visit and Pencairan's site-visit outcomes
+   *  (Survei selesai, Tidak di tempat) do. */
+  evidence: boolean
 }
 
 export interface BpMitraDetail {
@@ -350,12 +359,39 @@ export interface BpMitraDetail {
 
 const TINDAKAN_JENIS: MitraTindakan['jenis'][] = ['Home Visit', 'Telepon', 'Home Visit', 'Telepon', 'Telepon']
 const TINDAKAN_PELAKU: MitraTindakan['pelaku'][] = ['AM', 'BM', 'BP', 'BP', 'BP']
-const TINDAKAN_HASIL: { label: string; ok: boolean }[] = [
-  { label: 'Tidak berhasil', ok: false },
-  { label: 'Tidak berhasil', ok: false },
-  { label: 'Diterima mitra', ok: true },
-  { label: 'Diterima mitra', ok: true },
-  { label: 'Janji bayar', ok: true },
+/** Paired 1:1 with `TINDAKAN_JENIS` by index — `evidence` follows the
+ *  channel (a visit is logged in person, a call isn't), not the outcome. */
+const TINDAKAN_HASIL: { label: string; ok: boolean; catatan: string; evidence: boolean }[] = [
+  {
+    label: 'Tidak berhasil',
+    ok: false,
+    catatan: 'Mitra tidak ada di rumah saat kunjungan dilakukan; tetangga menyebut sedang ke pasar.',
+    evidence: true,
+  },
+  {
+    label: 'Tidak berhasil',
+    ok: false,
+    catatan: 'Telepon tidak diangkat setelah tiga kali percobaan.',
+    evidence: false,
+  },
+  {
+    label: 'Diterima mitra',
+    ok: true,
+    catatan: 'Mitra ditemui langsung di rumah dan menyatakan kesanggupan membayar.',
+    evidence: true,
+  },
+  {
+    label: 'Diterima mitra',
+    ok: true,
+    catatan: 'Mitra menjawab telepon dan menyatakan bersedia membayar sesuai jadwal.',
+    evidence: false,
+  },
+  {
+    label: 'Janji bayar',
+    ok: true,
+    catatan: 'Mitra berjanji melunasi tunggakan sebelum akhir minggu.',
+    evidence: false,
+  },
 ]
 
 /** Every mitra under a BP, not just the ones missing a standard — "Lihat
@@ -381,6 +417,8 @@ export function mitraDetailFor(bp: RepaymentBp): BpMitraDetail[] {
         hasil: hasil.label,
         hasilOk: hasil.ok,
         dibayar: hasil.ok && j === 0 ? `Dibayar Rp${rupiah(500_000 + i * 100_000)}` : 'Tidak dibayar',
+        catatan: hasil.catatan,
+        evidence: hasil.evidence,
       }
     })
     return {
@@ -632,12 +670,46 @@ export interface DisbursementMitraDetail {
  *  BM stepping in the way Pembayaran's tindakan mixes all three. */
 const NTB_TINDAKAN_JENIS: MitraTindakan['jenis'][] = ['Contacted']
 const NTB_TINDAKAN_PELAKU: MitraTindakan['pelaku'][] = ['BP']
-const NTB_TINDAKAN_HASIL: { label: string; ok: boolean; note: string }[] = [
-  { label: 'Tidak diangkat', ok: false, note: 'Belum terhubung' },
-  { label: 'Tertarik', ok: true, note: 'Lanjut ke survei' },
-  { label: 'Survei selesai', ok: true, note: 'Menunggu persetujuan' },
-  { label: 'Tidak di tempat', ok: false, note: 'Dijadwalkan ulang' },
-  { label: 'Disetujui', ok: true, note: 'Menunggu pencairan' },
+/** `evidence` marks the two outcomes that mean a BP was actually at the
+ *  lead's location — Survei selesai and Tidak di tempat — not the phone
+ *  touches (Tidak diangkat, Tertarik) or the approval note (Disetujui),
+ *  which are logged from wherever the BP happens to be. */
+const NTB_TINDAKAN_HASIL: { label: string; ok: boolean; note: string; catatan: string; evidence: boolean }[] = [
+  {
+    label: 'Tidak diangkat',
+    ok: false,
+    note: 'Belum terhubung',
+    catatan: 'Nomor telepon dihubungi tiga kali, tidak ada jawaban.',
+    evidence: false,
+  },
+  {
+    label: 'Tertarik',
+    ok: true,
+    note: 'Lanjut ke survei',
+    catatan: 'Lead dihubungi dan menyatakan tertarik; dijadwalkan untuk survei.',
+    evidence: false,
+  },
+  {
+    label: 'Survei selesai',
+    ok: true,
+    note: 'Menunggu persetujuan',
+    catatan: 'Survei lapangan selesai dilakukan; hasil menunggu persetujuan.',
+    evidence: true,
+  },
+  {
+    label: 'Tidak di tempat',
+    ok: false,
+    note: 'Dijadwalkan ulang',
+    catatan: 'BP mendatangi lokasi sesuai jadwal survei, namun lead tidak ada di tempat.',
+    evidence: true,
+  },
+  {
+    label: 'Disetujui',
+    ok: true,
+    note: 'Menunggu pencairan',
+    catatan: 'Pengajuan disetujui; menunggu proses pencairan.',
+    evidence: false,
+  },
 ]
 
 /** Every lead behind a BP's Mitra baru funnel, not just the branch total —
@@ -685,6 +757,8 @@ export function disbursementMitraDetailFor(bp: DisbursementBp): DisbursementMitr
         hasil: hasil.label,
         hasilOk: hasil.ok,
         dibayar: hasil.note,
+        catatan: hasil.catatan,
+        evidence: hasil.evidence,
       }
     })
     const leadDate = LEAD_DATES[(start + i) % LEAD_DATES.length]
