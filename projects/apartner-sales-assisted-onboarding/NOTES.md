@@ -12,6 +12,7 @@ Project-local components (§4), all built from tokens + design-system components
 - `lib/group-tasks.ts` — the Group Formation tasks shown on the Tugas page (a new majelis with >5 approved members, ready for its first MV).
 - `lib/survey.ts` — the assisted-survey model + progress store: the three boxes (BP Feedback / Survey Uji Kelayakan / Ritual), their step questions, and per-lead completion read by the survey-form / ritual pages.
 - `lib/ui.tsx` (added) — ProductBadge, the colour-coded majelis product chip, ported from the BP New Concept directory. Used by the Majelis list + page.
+- `lib/roster.tsx` — MAJELIS_ROSTER (stand-in active-majelis mitra) + MitraRosterCard + DpdBadge, ported from the BP New Concept mitra card: product, arrangement (keringanan / janji bayar) and DPD bucket. Used by the Majelis page roster.
 
 The Majelis module (`screens/majelis-list.tsx` directory + `screens/majelis-page.tsx` detail) is ported from `apartner-majelis-view` (A-Partner BP New Concept), adapted to this project's `MAJELIS_DIRECTORY`; the field-day roster (collection / DPD) is out of scope here.
 

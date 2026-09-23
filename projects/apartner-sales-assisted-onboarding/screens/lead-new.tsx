@@ -1,19 +1,19 @@
 'use client'
 
-// Tambah Lead — one short form.
+// Tambah Prospek — one short capture form.
 //
-//   Source (preselected) · Nama · No. HP · Alamat Rumah (fields inline) ·
-//   Pinjaman di kompetitor? · Foto bukti
+//   Sumber (read-only) · Nama · No. HP · Alamat rumah (kecamatan · kelurahan ·
+//   titik peta) · Pinjaman di kompetitor · Bukti foto
 //
 // The SOURCE is chosen BEFORE this screen — a bottom sheet on the Sales page, or
-// fixed by a sosialisasi — so here it is read-only. A pengajuan's questions (KTP,
-// majelis, produk) are not here; those come later, once the prospect has said
-// yes. Saving returns to wherever the form was opened from (Sales, or the POI's
-// running leads list).
+// fixed by a sosialisasi — so here it is a read-only line. A pengajuan's
+// questions (KTP, majelis, produk) are not here; those come later, once the
+// prospect has said yes. Saving returns to wherever the form was opened from
+// (Sales, or the POI's running leads list).
 
-import { useRef, useState } from 'react'
-import { Button, Input } from '@/design-system/components'
-import { ArrowLeft, Camera, FileCheck, MapPin } from '@/design-system/icons'
+import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
+import { Button, Input, NavigationHeader } from '@/design-system/components'
+import { Camera, FileCheck } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   getAddLeadEntry,
@@ -21,7 +21,7 @@ import {
   type AddLeadEntry,
   type AddLeadSource,
 } from '../lib/pipeline-store'
-import { PickSheet, SelectField } from '../lib/pipeline-ui'
+import { PickSheet, ReadonlyField, SelectField } from '../lib/pipeline-ui'
 import { poiStore } from '../lib/poi-store'
 import { store, useApp } from '../lib/store'
 import { AppScreen, Chip, StickyBar } from '../lib/ui'
@@ -31,7 +31,6 @@ import {
   FIELD_OFFICERS,
   KECAMATAN_LIST,
   WILAYAH,
-  addressComplete,
   type LeadAddress,
 } from '../lib/pipeline'
 
@@ -41,9 +40,55 @@ const LENDER_OPTIONS = ['Mekaar', 'BRI', 'Lainnya']
 
 function sumberLabel(s: AddLeadSource | null): string {
   if (!s) return ''
-  if (s.source === 'poi') return s.poi ? `POI Visit · ${s.poi}` : 'POI Visit'
-  if (s.source === 'canvassing') return s.poi ? `Canvassing · ${s.poi}` : 'Canvassing'
-  return s.referredBy ? `Referral · ${s.referredBy}` : 'Referral'
+  if (s.source === 'poi') return s.poi ? `POI Visit • ${s.poi}` : 'POI Visit'
+  if (s.source === 'canvassing') return s.poi ? `Canvassing • ${s.poi}` : 'Canvassing'
+  return s.referredBy ? `Referral • ${s.referredBy}` : 'Referral'
+}
+
+/** A text field with a fixed prefix box (+62, Rp) — matches the Input chrome. */
+function PrefixField({
+  label,
+  required,
+  optionalText,
+  prefix,
+  value,
+  onChange,
+  placeholder,
+  helper,
+  inputMode,
+}: {
+  label: string
+  required?: boolean
+  optionalText?: string
+  prefix: string
+  value: string
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void
+  placeholder: string
+  helper?: ReactNode
+  inputMode?: 'tel' | 'numeric'
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <span className="text-12 font-regular text-default">
+        {label}
+        {required ? <span className="text-red-500"> *</span> : null}
+        {optionalText ? <span className="font-regular text-caption"> ({optionalText})</span> : null}
+      </span>
+      <div className="flex items-stretch overflow-hidden rounded-8 border border-default bg-neutral-white focus-within:border-primary-500">
+        <span className="flex items-center border-r border-default bg-neutral-50 px-12 text-14 text-default">
+          {prefix}
+        </span>
+        <input
+          inputMode={inputMode}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          className="min-w-0 flex-1 bg-transparent px-12 py-8 text-14 text-default outline-none placeholder:text-placeholder"
+        />
+      </div>
+      {helper ? <span className="text-12 text-caption">{helper}</span> : null}
+    </div>
+  )
 }
 
 export function LeadNewScreen() {
@@ -71,19 +116,20 @@ export function LeadNewScreen() {
 
   const desaOptions = address.kecamatan ? WILAYAH[address.kecamatan] ?? [] : []
   const pinned = Boolean(address.mapsCoord)
-  const hasAddress = addressComplete(address)
-  // Lender & amount are optional now — a "Ya" answer alone is enough.
+  // Lender & amount are optional — a "Ada" answer alone is enough.
   const competitorLender = lenderChoice === 'Lainnya' ? lenderOther.trim() : lenderChoice
+  // Required: name, phone, kecamatan, kelurahan/desa, foto. Titik peta &
+  // competitor loan are optional.
   const ready =
     name.trim() !== '' &&
     phone.trim() !== '' &&
     sumber !== null &&
-    hasAddress &&
-    competitorLoan !== null &&
+    Boolean(address.kecamatan) &&
+    Boolean(address.desa) &&
     photo
 
-  // Marking the pin stands in for a reverse-geocode: it fills the detail line if
-  // it is still empty, so a marked location arrives with a readable address.
+  // Marking the pin stands in for setting a map point (§3 — the prototype draws
+  // the map, nothing opens a real one). It fills the detail line if still empty.
   function markPin() {
     setAddress((a) => {
       const guessed = a.desa ? `Kp. ${a.desa} RT 02/RW 05` : 'Kp. sekitar lokasi RT 02/RW 05'
@@ -147,125 +193,81 @@ export function LeadNewScreen() {
   }
 
   return (
-    <AppScreen
-      topBar={
-        <div className="flex items-center gap-12 border-b border-default bg-neutral-white px-16 py-8">
-          <button
-            type="button"
-            aria-label="Kembali"
-            onClick={goBack}
-            className="flex h-32 w-32 shrink-0 items-center justify-center text-default"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">New lead</span>
-        </div>
-      }
-    >
+    <AppScreen topBar={<NavigationHeader title="Tambah prospek" onBack={goBack} />}>
       <div className="flex flex-col gap-16">
-        <SelectField
-          label="Source"
-          readOnly
-          value={sumber ? sumberLabel(sumber) : undefined}
-          placeholder="Sumber"
-          onClick={() => {}}
-        />
+        <ReadonlyField label="Sumber" value={sumber ? sumberLabel(sumber) : undefined} />
+
         {isBM ? (
-          <SelectField label="Petugas" required value={fo} placeholder="Pilih petugas" onClick={() => setSheet('fo')} />
+          <SelectField
+            label="Petugas"
+            required
+            value={fo}
+            placeholder="Pilih petugas"
+            onClick={() => setSheet('fo')}
+          />
         ) : null}
+
         <Input
           label="Nama"
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Nama calon mitra"
+          placeholder="Contoh: Marta Hakim"
         />
-        <Input
-          label="No. HP"
+
+        <PrefixField
+          label="Nomor HP"
           required
+          prefix="+62"
           inputMode="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          placeholder="08xx-xxxx-xxxx"
-          helperText="Nomor dicek otomatis — sudah terdaftar / mitra aktif akan ditandai"
+          placeholder="Isi nomor HP yang aktif"
+          helper="Contoh: 8567891298"
         />
 
-        {/* Alamat Rumah — fields exposed inline. */}
-        <div className="flex flex-col gap-12">
-          <SelectField
-            label="Kecamatan"
-            required
-            value={address.kecamatan || undefined}
-            placeholder="Pilih kecamatan"
-            onClick={() => setSheet('kecamatan')}
-          />
-          <SelectField
-            label="Desa"
-            required
-            value={address.desa || undefined}
-            placeholder={address.kecamatan ? 'Pilih desa' : 'Pilih kecamatan dulu'}
-            onClick={() => {
-              if (address.kecamatan) setSheet('desa')
-            }}
-          />
-          <div className="flex flex-col gap-8">
-            <span className="text-12 font-regular text-default">
-              Titik alamat <span className="text-caption">(opsional)</span>
-            </span>
-            {pinned ? (
-              <>
-                <div className="relative flex items-center justify-center rounded-8 bg-blue-50 py-32">
-                  <span className="text-primary-500">
-                    <MapPin size={24} />
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-12 text-green-600">Lokasi sudah ditandai</span>
-                  <button
-                    type="button"
-                    onClick={() => setAddress({ ...address, mapsCoord: '' })}
-                    className="text-12 font-bold text-link"
-                  >
-                    Ubah pin
-                  </button>
-                </div>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={markPin}
-                className="flex items-center justify-center gap-8 rounded-8 border border-dashed border-default py-16 text-14 font-bold text-primary-500"
-              >
-                <MapPin size={20} />
-                Tandai lokasi di peta
-              </button>
-            )}
-          </div>
-          <Input
-            label="Detail alamat"
-            optionalText="opsional"
-            value={address.detail}
-            onChange={(e) => setAddress({ ...address, detail: e.target.value })}
-            placeholder="Kampung / RT / RW"
-          />
-        </div>
+        <SelectField
+          label="Kecamatan rumah calon mitra"
+          required
+          value={address.kecamatan || undefined}
+          placeholder="Pilih kecamatan"
+          onClick={() => setSheet('kecamatan')}
+        />
+        <SelectField
+          label="Kelurahan/desa rumah calon mitra"
+          required
+          value={address.desa || undefined}
+          placeholder={address.kecamatan ? 'Pilih kelurahan atau desa' : 'Pilih kecamatan dulu'}
+          onClick={() => {
+            if (address.kecamatan) setSheet('desa')
+          }}
+        />
+        <SelectField
+          label="Alamat calon mitra"
+          optionalText="opsional"
+          value={pinned ? address.detail || 'Titik alamat sudah diatur' : undefined}
+          placeholder="Atur titik alamat di peta"
+          description={pinned ? <span className="text-green-600">Lokasi sudah ditandai</span> : undefined}
+          onClick={markPin}
+        />
 
+        {/* Pinjaman di kompetitor — optional. "Ada" reveals lender + nominal. */}
         <div className="flex flex-col gap-8">
-          <span className="text-12 text-default">
-            Punya pinjaman di kompetitor?<span className="text-red-500"> *</span>
+          <span className="text-12 font-regular text-default">
+            Pinjaman di kompetitor <span className="font-regular text-caption">(opsional)</span>
           </span>
           <div className="flex gap-8">
             <Chip selected={competitorLoan === true} onClick={() => setCompetitorLoan(true)}>
-              Ya
+              Ada
             </Chip>
             <Chip selected={competitorLoan === false} onClick={() => setCompetitorLoan(false)}>
-              Tidak
+              Tidak Ada
             </Chip>
           </div>
           {competitorLoan === true ? (
             <div className="flex flex-col gap-12 pt-4">
               <SelectField
-                label="Nama pemberi pinjaman"
+                label="Kompetitor pemberi pinjaman"
                 optionalText="opsional"
                 value={lenderChoice || undefined}
                 placeholder="Pilih pemberi pinjaman"
@@ -279,22 +281,23 @@ export function LeadNewScreen() {
                   placeholder="Tulis nama pemberi pinjaman"
                 />
               ) : null}
-              <Input
-                label="Nominal pinjaman"
+              <PrefixField
+                label="Total Pinjaman"
                 optionalText="opsional"
+                prefix="Rp"
                 inputMode="numeric"
                 value={competitorAmount}
                 onChange={(e) => setCompetitorAmount(e.target.value)}
-                placeholder="Rp"
+                placeholder="Isi nominal pinjaman"
               />
             </div>
           ) : null}
         </div>
 
-        {/* Foto bukti — captured inline, not a dropdown. */}
+        {/* Bukti foto — captured inline, not a dropdown. */}
         <div className="flex flex-col gap-8">
-          <span className="text-12 text-default">
-            Foto bukti<span className="text-red-500"> *</span>
+          <span className="text-12 font-regular text-default">
+            Bukti foto bersama calon mitra<span className="text-red-500"> *</span>
           </span>
           {photo ? (
             <div className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12">
@@ -314,10 +317,10 @@ export function LeadNewScreen() {
             <button
               type="button"
               onClick={() => setPhoto(true)}
-              className="flex w-full flex-col items-center gap-4 rounded-8 border border-default bg-canvas-blue p-16 text-caption"
+              className="flex w-full flex-col items-center gap-4 rounded-8 border border-dashed border-default bg-canvas-blue p-16 text-caption"
             >
               <Camera size={24} />
-              <span className="text-14 text-default">Ambil foto bersama calon mitra</span>
+              <span className="text-14 text-default">Ambil foto</span>
             </button>
           )}
         </div>
@@ -325,7 +328,7 @@ export function LeadNewScreen() {
 
       <StickyBar>
         <Button size="lg" className="w-full" disabled={!ready} onClick={submit}>
-          Submit
+          Simpan ke Daftar Prospek
         </Button>
       </StickyBar>
 
@@ -343,7 +346,7 @@ export function LeadNewScreen() {
       />
       <PickSheet
         open={sheet === 'desa'}
-        title="Desa"
+        title="Kelurahan/desa"
         options={desaOptions}
         value={address.desa}
         onClose={() => setSheet(null)}
@@ -354,7 +357,7 @@ export function LeadNewScreen() {
       />
       <PickSheet
         open={sheet === 'lender'}
-        title="Nama pemberi pinjaman"
+        title="Kompetitor pemberi pinjaman"
         options={LENDER_OPTIONS}
         value={lenderChoice}
         onClose={() => setSheet(null)}
