@@ -7,9 +7,8 @@
 // dismissed them: the phone layout gave States a pill of its own, the desktop
 // layout put everything behind floating tabs that then sat ON TOP of the panel
 // they had opened, and the right-hand side could not be dismissed at all. This
-// is the single answer: a panel is either open — with a minimize control in a
-// header that stays put while the body scrolls — or closed, leaving a pill.
-// Never both, so a tab can never cover its own panel's title.
+// is the single answer: one header that stays put while the body scrolls,
+// holding the panel's title or its tabs.
 //
 // Placement is still the layouts' business, because it genuinely differs: a
 // 390px device leaves room for real columns beside it, while a 1440px one
@@ -22,6 +21,7 @@
 
 import type { ReactNode } from 'react'
 import { CloseIcon } from './icons'
+import styles from './chrome.module.css'
 
 /** The panel's own surface, which the sticky header has to repeat — otherwise
  *  scrolled content shows through it. Every panel sits on a card, in both
@@ -82,7 +82,9 @@ export function PanelHeader({
   className?: string
 }) {
   return (
-    <div className={`flex items-center justify-between gap-8 pb-8 pt-8 ${SURFACE_BG} ${className ?? ''}`}>
+    <div
+      className={`flex items-center justify-between gap-8 pb-8 ${tabs ? '' : 'pt-8'} ${SURFACE_BG} ${className ?? ''}`}
+    >
       {tabs ?? (
         <span className="truncate text-10 font-bold uppercase text-caption dark:text-neutral-400">
           {title}
@@ -92,8 +94,9 @@ export function PanelHeader({
         <button
           type="button"
           onClick={onMinimize}
-          aria-label={`Hide ${title}`}
-          title={`Hide ${title}`}
+          // With tabs the control hides the whole panel, not the tab showing.
+          aria-label={tabs ? 'Hide panel' : `Hide ${title}`}
+          title={tabs ? 'Hide panel' : `Hide ${title}`}
           className="flex size-20 flex-none items-center justify-center rounded-4 text-caption hover:bg-neutral-white hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
         >
           <CloseIcon className="size-16" />
@@ -103,58 +106,40 @@ export function PanelHeader({
   )
 }
 
-/** The way back to a minimized panel. Positioned by the caller — a column in
- *  one layout, floating over the canvas in the other. */
-export function PanelPill({
-  label,
-  onClick,
-  className,
-}: {
-  label: string
-  onClick: () => void
-  className?: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-expanded={false}
-      className={`rounded-full border border-default bg-neutral-white px-12 py-4 text-12 font-bold text-caption shadow-sm hover:bg-neutral-50 hover:text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50 ${className ?? ''}`}
-    >
-      {label}
-    </button>
-  )
-}
-
-/** A panel's tabs, for its header: one selection, several things to do with
- *  it. Small and quiet — the header is chrome, the body is the content. */
+/** A panel's tabs, for its header: equal-width, icon and label, the active
+ *  one underlined — the same bar on both sidebars. */
 export function PanelTabs<T extends string>({
   tabs,
   active,
   onChange,
 }: {
-  tabs: { id: T; label: string }[]
+  tabs: { id: T; label: string; icon?: (props: { className?: string }) => ReactNode }[]
   active: T
   onChange: (id: T) => void
 }) {
   return (
-    <div role="tablist" className="flex items-center gap-2 rounded-full bg-neutral-50 p-2 dark:bg-ink-950">
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          role="tab"
-          aria-selected={t.id === active}
-          onClick={() => onChange(t.id)}
-          className={`rounded-full px-12 py-2 text-12 ${
-            t.id === active
-              ? 'bg-neutral-white font-bold text-link shadow-sm dark:bg-ink-800 dark:text-neutral-50 dark:shadow-none'
-              : 'text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50'
-          }`}
-        >
-          {t.label}
-        </button>
-      ))}
+    <div role="tablist" className={`flex w-full items-stretch ${styles.tabs}`}>
+      {tabs.map((t) => {
+        const on = t.id === active
+        const Icon = t.icon
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(t.id)}
+            className={`flex h-40 min-w-0 flex-1 items-center justify-center gap-8 border-b-2 px-4 text-12 ${
+              on
+                ? 'border-primary-500 font-bold text-default dark:text-neutral-50'
+                : 'border-transparent text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50'
+            }`}
+          >
+            {Icon ? <Icon className="size-16 flex-none" /> : null}
+            <span className="truncate">{t.label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }

@@ -14,7 +14,7 @@
 // =============================================================================
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { CloseIcon, InspectIcon, StopIcon } from '@/platform/chrome/icons'
+import { CloseIcon, CursorIcon, StopIcon } from '@/platform/chrome/icons'
 import { PanelHeader } from '@/platform/chrome/SidePanel'
 import { resolveTarget } from '@/platform/inspect/resolve'
 import { attachmentFor } from './attach'
@@ -134,7 +134,7 @@ function ChatView({
             case 'user':
               return (
                 <div key={i} className="mb-16 mt-4 rounded-12 bg-neutral-50 px-12 py-8 dark:bg-ink-800">
-                  <p className="whitespace-pre-wrap text-14 font-regular text-ink-900 dark:text-neutral-200">
+                  <p className="whitespace-pre-wrap break-words text-14 font-regular text-ink-900 dark:text-neutral-200">
                     {event.text}
                   </p>
                 </div>
@@ -295,7 +295,7 @@ export function LiveChatPanel({
   const changed = chat.last?.changed.length ?? 0
   const subtitle = `Claude on this laptop${chat.model ? ` · ${chat.model}` : ''} — ask for a change to ${slug}.`
   const shell = (body: ReactNode) => (
-    <aside className={`flex min-h-0 flex-1 flex-col ${className ?? ''}`}>
+    <aside className={`flex min-h-0 min-w-0 flex-1 flex-col ${className ?? ''}`}>
       <PanelHeader title="Chat" tabs={tabs} onMinimize={onMinimize} />
       {body}
     </aside>
@@ -345,15 +345,21 @@ export function LiveChatPanel({
           spend a turn. */}
       <div className="flex flex-col gap-8 rounded-12 border border-neutral-200 bg-neutral-white p-8 focus-within:border-primary-500 dark:border-ink-700 dark:bg-ink-800">
         {attachment ? (
-          <span className="flex min-w-0 items-center gap-4 self-start rounded-full bg-primary-50 py-4 pl-8 pr-4 text-12 font-bold text-primary-500">
-            <InspectIcon className="size-12 flex-none" />
-            <span className="truncate">{attachment.label}</span>
+          // Quiet on purpose: the selection is context, not the message — a
+          // neutral chip, capped to the box so a long label truncates instead
+          // of pushing the panel wider.
+          <span
+            title={attachment.label}
+            className="flex min-w-0 max-w-full items-center gap-8 self-start rounded-8 border border-neutral-200 bg-neutral-50 py-4 pl-8 pr-4 text-12 text-neutral-700 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-200"
+          >
+            <CursorIcon className="size-12 flex-none text-caption dark:text-neutral-400" />
+            <span className="min-w-0 truncate">{attachment.label}</span>
             <button
               type="button"
               onClick={onDeselect}
               aria-label="Deselect the element"
               title="Deselect — the message will be about the project"
-              className="flex size-20 flex-none items-center justify-center rounded-full hover:bg-primary-200"
+              className="flex size-20 flex-none items-center justify-center rounded-4 text-caption hover:bg-neutral-200 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-700 dark:hover:text-neutral-50"
             >
               <CloseIcon className="size-12" />
             </button>

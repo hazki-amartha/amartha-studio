@@ -1,6 +1,8 @@
 // =============================================================================
 // AppShell — the studio chrome: icon rail + contextual secondary sidebar +
-// content region with a collapse toggle and breadcrumb top bar.
+// content region with a breadcrumb top bar and collapse toggle. Inside a
+// project there is no top bar: the sidebar is its Screens · Layers · Notes
+// panel, and the view switch floats on the canvas (CanvasControls).
 // Wraps every tool route except /unlock (which renders bare). Built only from
 // FunDS tokens; the single non-token width lives in chrome.module.css.
 // =============================================================================
@@ -10,12 +12,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
-import {
-  getDesignMode,
-  getDesignServerSnapshot,
-  setDesignMode,
-  subscribeDesignMode,
-} from '@/platform/runtime/designBridge'
 import {
   getBareMode,
   getBareServerSnapshot,
@@ -27,11 +23,11 @@ import { HeaderStatusProvider, useHeaderStatus } from './headerStatus'
 import {
   ChevronRightIcon,
   DeviceIcon,
-  EditIcon,
   ExpandIcon,
   FlowIcon,
   PanelIcon,
 } from './icons'
+import { CanvasControls } from './CanvasControls'
 import { MobileTopNav } from './MobileTopNav'
 import { NavRail, type RailSection } from './NavRail'
 import { ScreenSidebar } from './ScreenSidebar'
@@ -84,97 +80,6 @@ function resolveRoute(pathname: string, projects: ProjectIndexEntry[]): RouteInf
   }
 }
 
-/**
- * Segmented Prototype · Edit · Flow switch — only shown on a project route.
- *
- * Prototype and Edit are the SAME route wearing two interaction models, so
- * Edit is a plain button when we're already there: navigating would remount
- * PrototypeView and reset the visit stack, dumping the viewer back on the entry
- * screen — exactly wrong for a tool whose job is the element in front of them.
- * Coming from Flow there is no stack to protect, so it links, setting the flag
- * before the navigation so the view mounts already editing.
- *
- * Edit is what Design and Inspect were before they merged: one mode for
- * selecting, with the Edit and CSS tabs in its panel (STUDIO-EDITING-PLAN
- * Part E). It exists everywhere, but saves only where a backend can write; on
- * a shared link with none the panel opens on CSS.
- */
-function ViewToggle({ slug, isFlow }: { slug: string; isFlow: boolean }) {
-  const editing = useSyncExternalStore(subscribeDesignMode, getDesignMode, getDesignServerSnapshot)
-
-  const base =
-    'flex items-center gap-4 rounded-full px-12 py-4 text-12 transition-colors'
-  const on = `${base} bg-neutral-white font-bold text-link shadow-sm dark:border dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50 dark:shadow-none`
-  const off = `${base} text-caption hover:text-default dark:border dark:border-transparent dark:text-neutral-400 dark:hover:text-neutral-50`
-
-  const showingPrototype = !isFlow && !editing
-  const showingEdit = !isFlow && editing
-
-  return (
-    <div className="flex shrink-0 items-center gap-2 rounded-full bg-neutral-50 p-2 dark:bg-ink-950">
-      <Link
-        href={`/p/${slug}`}
-        onClick={() => setDesignMode(false)}
-        aria-current={showingPrototype ? 'page' : undefined}
-        className={showingPrototype ? on : off}
-      >
-        <DeviceIcon className="size-16" />
-        Prototype
-      </Link>
-      {isFlow ? (
-        <Link href={`/p/${slug}`} onClick={() => setDesignMode(true)} className={off}>
-          <EditIcon className="size-16" />
-          Edit
-        </Link>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setDesignMode(true)}
-          aria-current={showingEdit ? 'page' : undefined}
-          className={showingEdit ? on : off}
-        >
-          <EditIcon className="size-16" />
-          Edit
-        </button>
-      )}
-      <Link
-        href={`/p/${slug}/flow`}
-        onClick={() => setDesignMode(false)}
-        aria-current={isFlow ? 'page' : undefined}
-        className={isFlow ? on : off}
-      >
-        <FlowIcon className="size-16" />
-        Flow
-      </Link>
-    </div>
-  )
-}
-
-/**
- * Full screen — hands the whole browser window to the prototype.
- *
- * It sets a flag rather than navigating: the route is already right, and
- * remounting PrototypeView would reset the visit stack, dropping the viewer
- * back on the entry screen at exactly the moment they wanted to show something.
- * Same reasoning as the Inspect button beside it.
- *
- * Only on the prototype route — the flow view is a diagram, and there is
- * nothing to present bare.
- */
-function FullScreenButton() {
-  return (
-    <button
-      type="button"
-      onClick={() => setBareMode(true)}
-      aria-label="Full screen"
-      title="Full screen"
-      className="flex size-32 shrink-0 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
-    >
-      <ExpandIcon className="size-20" />
-    </button>
-  )
-}
-
 function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-8">
@@ -205,7 +110,8 @@ function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
   )
 }
 
-/** Route-published extras (zoom, badges) rendered into the top bar. */
+/** Route-published extras (zoom, badges) — in the top bar, or beside the flow
+ *  view's floating controls where there is no top bar. */
 function HeaderStatusView() {
   const status = useHeaderStatus()
   if (!status) return null
@@ -314,7 +220,20 @@ function AppShellInner({
     <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-ink-950">
       <NavRail active={active} className={bareProto ? 'hidden' : 'hidden md:flex'} />
 
-      {collapsed || bareProto ? null : (
+      {/* Inside a project the sidebar holds Screens · Layers · Notes, which the
+          prototype can't do without — so it stays, and only elsewhere folds. */}
+      {(collapsed && !isProto) || bareProto ? null : isProto && currentProject ? (
+        // Inside a project the sidebar floats as a card on the canvas, matching
+        // the Edit panel opposite — both are tools laid over the design, not
+        // columns of the page.
+        <div className="hidden shrink-0 py-16 pl-16 md:flex">
+          <aside
+            className={`${styles.projectCard} overflow-y-auto rounded-16 border border-default bg-neutral-white px-12 pb-12 dark:border-ink-700 dark:bg-ink-900`}
+          >
+            <ScreenSidebar project={currentProject} />
+          </aside>
+        </div>
+      ) : (
         <aside
           className={`${styles.secondary} hidden shrink-0 overflow-y-auto border-r border-default bg-neutral-white px-8 py-16 dark:border-ink-700 dark:bg-ink-900 md:block`}
         >
@@ -331,8 +250,10 @@ function AppShellInner({
       <div className="flex min-w-0 flex-1 flex-col">
         {isProto ? null : <MobileTopNav active={active} />}
 
+        {/* No top bar inside a project: the sidebar already names it, and the
+            view switch and full screen float on the canvas instead. */}
         <header
-          className={`${bareProto ? 'hidden' : isProto ? 'hidden md:flex' : 'flex'} h-48 shrink-0 items-center gap-12 border-b border-default bg-neutral-white px-16 dark:border-ink-700 dark:bg-ink-900`}
+          className={`${isProto ? 'hidden' : 'flex'} h-48 shrink-0 items-center gap-12 border-b border-default bg-neutral-white px-16 dark:border-ink-700 dark:bg-ink-900`}
         >
           <button
             type="button"
@@ -347,12 +268,10 @@ function AppShellInner({
           <Breadcrumb crumbs={crumbs} />
           <div className="ml-auto flex shrink-0 items-center gap-12">
             <HeaderStatusView />
-            {currentSlug ? <ViewToggle slug={currentSlug} isFlow={isFlow} /> : null}
-            {currentSlug && !isFlow ? <FullScreenButton /> : null}
           </div>
         </header>
 
-        <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-h-0 flex-1">
           {isProto ? (
             <TripleTapExit className="min-h-0 min-w-0 flex-1 touch-manipulation overflow-y-auto">
               {children}
@@ -360,6 +279,16 @@ function AppShellInner({
           ) : (
             <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{children}</div>
           )}
+          {/* The prototype draws its own, beside its right panel; the flow
+              view's canvas is the whole area, so they go in its corner here. */}
+          {currentSlug && isFlow ? (
+            <CanvasControls
+              slug={currentSlug}
+              isFlow
+              status={<HeaderStatusView />}
+              className="absolute right-16 top-16 z-30 hidden md:flex"
+            />
+          ) : null}
         </div>
       </div>
     </div>
