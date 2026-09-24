@@ -1,7 +1,10 @@
 // =============================================================================
-// Push · on the dev server. Sends a project's changes from this laptop live,
-// through the studio's GitHub App — the same App the deployed link pushes
-// with — without touching this checkout's branches.
+// Push · on the dev server. Sends a project's changes from this laptop live
+// without touching this checkout's branches — through the studio's GitHub App
+// when this laptop has its key (the same App the deployed link pushes with),
+// and otherwise through the designer's own GitHub login, the one `gh` holds
+// for their terminal. Either way the change is built the same and lands the
+// same; only whose name it opens under differs.
 //
 // Several Claude sessions share this checkout, so Push never switches branch,
 // commits or stashes here. It reads the working copy and builds the commit on
@@ -35,7 +38,14 @@ import { existsSync } from 'node:fs'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { GitHub, GitHubError, githubLocalConfig, kebab, type ChangeState } from '@/platform/design/github'
+import {
+  GitHub,
+  GitHubError,
+  githubLocalConfig,
+  githubUserConfig,
+  kebab,
+  type ChangeState,
+} from '@/platform/design/github'
 import { projectFacts, whyNot } from '@/platform/design/server/common'
 import type { PushFile } from '../protocol'
 
@@ -174,16 +184,49 @@ async function remember(slug: string, record: InFlight | null) {
 
 export class PushRefused extends Error {}
 
-async function github(): Promise<GitHub> {
-  let origin: string | null = null
+async function origin(): Promise<string | null> {
   try {
-    origin = (await git(['remote', 'get-url', 'origin'])).trim()
+    return (await git(['remote', 'get-url', 'origin'])).trim()
   } catch {
-    // No origin: only the STUDIO_GH_REPO_* names can say where to push.
+    return null // No origin: only the STUDIO_GH_REPO_* names can say where to push.
   }
-  const config = githubLocalConfig(origin)
+}
+
+// `gh auth token` is asked at most this often: the button polls a push in
+// flight, and a designer who signs in mid-session is picked up within a minute.
+const TOKEN_TTL_MS = 60 * 1000
+let ghToken: { at: number; token: string | null } | null = null
+
+/** The GitHub token this laptop's `gh` is signed in with, or null. */
+async function userToken(): Promise<string | null> {
+  if (ghToken && Date.now() - ghToken.at < TOKEN_TTL_MS) return ghToken.token
+  let token: string | null = null
+  try {
+    token = (await run('gh', ['auth', 'token'], { timeout: 10_000, encoding: 'utf8' })).stdout.trim() || null
+  } catch {
+    // gh missing or signed out.
+  }
+  ghToken = { at: Date.now(), token }
+  return token
+}
+
+/** Who Push would sign in as here: the App, the designer's own login, or nobody. */
+export async function pushLogin(): Promise<'app' | 'user' | null> {
+  const from = await origin()
+  if (githubLocalConfig(from)) return 'app'
+  const token = await userToken()
+  return token && githubUserConfig(from, token) ? 'user' : null
+}
+
+async function github(): Promise<GitHub> {
+  const from = await origin()
+  const token = githubLocalConfig(from) ? null : await userToken()
+  const config = githubLocalConfig(from) ?? (token ? githubUserConfig(from, token) : null)
   if (!config) {
-    throw new PushRefused('Push needs the studio’s GitHub App on this laptop (STUDIO_GH_APP_* in .env.local).')
+    throw new PushRefused(
+      'Push uses your GitHub login, and GitHub isn’t signed in on this laptop. ' +
+        'Ask Claude Code in your terminal to sign you in to GitHub, then push again.',
+    )
   }
   // `sha` is the build commit on a deployment; nothing here reads it.
   return new GitHub({ ...config, sha: '' })

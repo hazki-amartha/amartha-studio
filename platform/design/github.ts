@@ -40,6 +40,9 @@ export interface GitHubConfig {
   base: string
   /** GitHub's API root — overridable for GitHub Enterprise, and for testing. */
   api?: string
+  /** A person's own GitHub token, used as-is instead of the App (see
+   *  `githubUserConfig`); the App fields are then unused. */
+  token?: string
 }
 
 /**
@@ -108,6 +111,33 @@ export function githubLocalConfig(
     appId,
     privateKey: key.includes('\\n') ? key.replace(/\\n/g, '\n') : key,
     installationId,
+    owner,
+    repo,
+    base: env.STUDIO_GH_BASE_BRANCH ?? 'main',
+    api: env.STUDIO_GH_API_URL,
+  }
+}
+
+/**
+ * Push on a designer's laptop without the App: their own GitHub login — the
+ * token `gh` already holds, the one their agent pushes with from the terminal.
+ * The change then opens in their name, and lands under the same rules as any
+ * change of theirs. Same repo resolution as `githubLocalConfig`.
+ */
+export function githubUserConfig(
+  origin: string | null,
+  token: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Omit<GitHubConfig, 'sha'> | null {
+  const fromOrigin = origin?.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?\/?$/)
+  const owner = env.STUDIO_GH_REPO_OWNER ?? fromOrigin?.[1]
+  const repo = env.STUDIO_GH_REPO_SLUG ?? fromOrigin?.[2]
+  if (!token || !owner || !repo) return null
+  return {
+    appId: '',
+    privateKey: '',
+    installationId: '',
+    token,
     owner,
     repo,
     base: env.STUDIO_GH_BASE_BRANCH ?? 'main',
@@ -192,6 +222,7 @@ export class GitHub {
   }
 
   private async installationToken(): Promise<string> {
+    if (this.config.token) return this.config.token
     if (this.token) return this.token
     const res = await this.fetchImpl(
       `${this.api}/app/installations/${this.config.installationId}/access_tokens`,

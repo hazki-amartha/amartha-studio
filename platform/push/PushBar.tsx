@@ -110,7 +110,7 @@ export function PushBar({ slug }: { slug: string }) {
 
   // Why Push can't go at all, said once, under the bar.
   const blocked = !status.configured
-    ? 'Push needs the studio’s GitHub App set up on this laptop.'
+    ? 'Push uses your GitHub login, and GitHub isn’t signed in on this laptop. Ask Claude Code in your terminal to sign you in, then push again.'
     : status.locked
       ? status.locked
       : status.conflicts.length > 0
