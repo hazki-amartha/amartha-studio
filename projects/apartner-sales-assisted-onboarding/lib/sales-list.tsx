@@ -184,10 +184,12 @@ export function SalesList({ scope }: { scope: Scope }) {
     // no follow-up to do, so they wait on "Lihat semua". A follow-up must be due.
     const leadsToday = leadsAll.filter((l) => {
       const sec = leadsSection(l)
-      if (sec === 'survey-submitted' || sec === 'survey-approved') return false
+      // Submitted surveys are in underwriting — no BP action, so not on the board.
+      if (sec === 'survey-submitted') return false
       // Survey ongoing is follow-up-managed too: only the ones due now show
       // today, so a "Butuh waktu lebih" reschedule moves her off the board.
       if (sec === 'follow-up' || sec === 'survey-ongoing') return agendaDueDays(l.agenda) <= 0
+      // Survey approved (Ready for disbursement) is always an open task.
       return true
     })
     const poiToday = dueTasks(allPoiTasks) as PoiTask[]
@@ -202,6 +204,7 @@ export function SalesList({ scope }: { scope: Scope }) {
       | { key: string; label: string; kind: 'lead'; rows: PipelineLead[] }
       | { key: string; label: string; kind: 'poi'; rows: PoiTask[] }
     const sections: Section[] = [
+      { key: 'survey-approved', label: LEADS_SECTION_LABEL['survey-approved'], kind: 'lead', rows: leadRows('survey-approved') },
       { key: 'survey-ongoing', label: LEADS_SECTION_LABEL['survey-ongoing'], kind: 'lead', rows: leadRows('survey-ongoing') },
       { key: 'poi', label: 'POI visit', kind: 'poi', rows: poiRows },
       { key: 'follow-up', label: LEADS_SECTION_LABEL['follow-up'], kind: 'lead', rows: leadRows('follow-up') },

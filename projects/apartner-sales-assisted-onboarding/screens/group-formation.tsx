@@ -144,27 +144,23 @@ export function GroupFormationScreen() {
 
   return (
     <AppScreen topBar={<NavigationHeader title={title} onBack={back} />}>
-      <div className="flex items-start gap-8 rounded-12 border border-primary-200 bg-primary-50 px-12 py-12">
-        <span className="shrink-0 text-primary-500">
-          <Users size={20} />
-        </span>
-        <span className="text-12 text-caption">
-          {ctx.mode === 'accept' ? (
-            <>
-              Penerimaan{' '}
-              <span className="font-bold text-primary-500">{ctx.memberNames.join(', ')}</span> ke{' '}
-              {ctx.majelisName}
-            </>
-          ) : (
-            <>
+      {/* The banner + stepper only make sense for the multi-step formation;
+          the single-page acceptance drops both. */}
+      {ctx.mode === 'form' ? (
+        <>
+          <div className="flex items-start gap-8 rounded-12 border border-primary-200 bg-primary-50 px-12 py-12">
+            <span className="shrink-0 text-primary-500">
+              <Users size={20} />
+            </span>
+            <span className="text-12 text-caption">
               MV pertama <span className="font-bold text-primary-500">{ctx.majelisName}</span> ·{' '}
               {ctx.memberCount} anggota disetujui
-            </>
-          )}
-        </span>
-      </div>
+            </span>
+          </div>
 
-      <StageBar current={idx + 1} labels={steps.map((s) => FORMATION_STEP_LABEL[s])} />
+          <StageBar current={idx + 1} labels={steps.map((s) => FORMATION_STEP_LABEL[s])} />
+        </>
+      ) : null}
 
       {current === 'ketua' ? (
         <div className="flex flex-col gap-12">
@@ -185,7 +181,11 @@ export function GroupFormationScreen() {
         </div>
       ) : current === 'perjanjian' ? (
         <div className="flex flex-col gap-12">
-          <StepHeading title="Perjanjian Majelis" sub="Lampirkan dokumen perjanjian majelis." />
+          {/* The heading orients the multi-step formation; the single-page
+              acceptance drops it. */}
+          {ctx.mode === 'form' ? (
+            <StepHeading title="Perjanjian Majelis" sub="Lampirkan dokumen perjanjian majelis." />
+          ) : null}
           <UploadRow
             icon={<File size={20} />}
             label="Surat pernyataan majelis"

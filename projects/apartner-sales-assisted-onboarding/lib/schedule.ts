@@ -43,8 +43,8 @@ export const KUMPULAN_DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat']
  * directory entry, so its agreed day/time lives here until the group is
  * activated and moves into `MAJELIS_DIRECTORY`.
  */
-export const DRAFT_SCHEDULE: Record<string, { day: string; time: string }> = {
-  'Majelis Batu Sangkar': { day: 'Kamis', time: '08.00' },
+export const DRAFT_SCHEDULE: Record<string, { day: string; time: string; location?: string }> = {
+  'Majelis Batu Sangkar': { day: 'Kamis', time: '08.00', location: 'Balai RW 05, Cibeuteung Udik' },
 }
 
 /** The smallest active majelis; a draft is this many mitra short of running. */

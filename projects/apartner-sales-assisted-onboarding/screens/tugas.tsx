@@ -23,7 +23,7 @@ import {
   type GroupFormationTask,
   type PenerimaanTask,
 } from '../lib/group-tasks'
-import { isLeadAccepted, isMajelisActivated, setFormation, useFormation } from '../lib/formation'
+import { isMajelisActivated, isMemberAccepted, setFormation, useFormation } from '../lib/formation'
 import { draftApprovedCount } from '../lib/roster'
 import { usePipeline } from '../lib/pipeline-store'
 import { store } from '../lib/store'
@@ -127,23 +127,24 @@ export function TugasScreen() {
     time: m.time,
   }))
 
-  // Penerimaan Anggota — active majelis with newly-approved members to accept
-  // (Mawar, Melati). Derived from the onboarding leads assigned to each group.
+  // Penerimaan Anggota — active majelis with calon mitra pending KM acceptance.
+  // KM acceptance happens before the survey is submitted, so the pending members
+  // are the survey-ongoing leads not yet accepted (e.g. Euis Komariah → Mawar).
   const paTasks: PenerimaanTask[] = MAJELIS_DIRECTORY.filter((m) => m.status === 'aktif')
     .map((m): PenerimaanTask => {
-      const newApproved = onboardingLeads.filter(
+      const pending = onboardingLeads.filter(
         (l) =>
           l.majelis.kind === 'existing' &&
           l.majelis.id === m.id &&
-          l.status === 'approved' &&
-          !isLeadAccepted(formation, l.id),
+          l.status === 'survey-created' &&
+          !isMemberAccepted(formation, l),
       )
       return {
         id: `pa-${m.id}`,
         majelisId: m.id,
         majelisName: m.name,
-        memberIds: newApproved.map((l) => l.id),
-        memberNames: newApproved.map((l) => l.name),
+        memberIds: pending.map((l) => l.id),
+        memberNames: pending.map((l) => l.name),
         time: m.time,
       }
     })

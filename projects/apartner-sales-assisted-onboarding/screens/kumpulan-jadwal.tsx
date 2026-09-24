@@ -8,9 +8,10 @@
 
 import { useState } from 'react'
 import { BottomSheet, Button, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
+import { MapPin } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { OnboardingModeSheet, SelectField } from '../lib/pipeline-ui'
+import { getOnboardingTiming, pipelineStore, usePipeline } from '../lib/pipeline-store'
+import { SelectField } from '../lib/pipeline-ui'
 import { AppScreen, StickyBar } from '../lib/ui'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -28,10 +29,10 @@ export function KumpulanJadwalScreen() {
   const lead = leads[openId]
 
   const [namaMajelis, setNamaMajelis] = useState('')
+  const [lokasi, setLokasi] = useState('')
   const [hari, setHari] = useState('')
   const [jam, setJam] = useState('')
   const [picker, setPicker] = useState<PickerKey | null>(null)
-  const [modeOpen, setModeOpen] = useState(false)
 
   if (!lead) {
     return (
@@ -41,7 +42,7 @@ export function KumpulanJadwalScreen() {
     )
   }
 
-  const ready = namaMajelis.trim() !== ''
+  const ready = namaMajelis.trim() !== '' && lokasi.trim() !== '' && hari !== '' && jam !== ''
   const pickerOptions = picker === 'hari' ? HARI : TIMES
   const pickerValue = picker === 'hari' ? hari : jam
 
@@ -51,16 +52,30 @@ export function KumpulanJadwalScreen() {
     setPicker(null)
   }
 
-  // Name the majelis on her record, start the survey in the chosen mode, and
-  // route to the matching survey screen.
-  function startOnboarding(mode: 'self' | 'assisted') {
-    setModeOpen(false)
-    pipelineStore.beginOnboarding(lead.id, mode, { kind: 'new', name: namaMajelis.trim() })
-    if (mode === 'self') {
-      pipelineStore.setFlash(`${lead.name} diundang mengisi survey self-service`)
-      flow.go('survey-started')
-    } else {
+  // Marking the pin stands in for a map point (§3 — the prototype draws the map,
+  // nothing opens a real one), same as the Add Leads address field. It fills a
+  // readable location near the lead.
+  function markLocation() {
+    const desa = lead.address?.desa
+    setLokasi(desa ? `Kp. ${desa} RT 02/RW 05` : 'Balai RW setempat')
+  }
+
+  // Name the new majelis on her record and start the survey. The now/later choice
+  // was made back on the Lengkapi data page; the mode (assisted / self) comes
+  // later, on the Calon Mitra page.
+  function save() {
+    pipelineStore.beginOnboarding(lead.id, undefined, {
+      kind: 'new',
+      name: namaMajelis.trim(),
+      location: lokasi.trim(),
+      day: hari,
+      time: jam,
+    })
+    if (getOnboardingTiming() === 'now') {
       flow.go('calon-mitra')
+    } else {
+      pipelineStore.setFlash(`${lead.name} disimpan sebagai calon mitra`)
+      flow.go('sales')
     }
   }
 
@@ -76,8 +91,37 @@ export function KumpulanJadwalScreen() {
           helperText="Contoh: 123_Kota_Kelurahan_01"
         />
 
+        <div className="flex flex-col gap-8">
+          <span className="text-12 font-regular text-default">
+            Lokasi Kumpulan<span className="text-red-500"> *</span>
+          </span>
+          {lokasi ? (
+            <>
+              <div className="relative flex items-center justify-center rounded-8 bg-blue-50 py-32">
+                <span className="text-primary-500">
+                  <MapPin size={24} />
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-12 text-green-600">Lokasi sudah ditandai</span>
+                <button type="button" onClick={() => setLokasi('')} className="text-12 font-bold text-link">
+                  Ubah pin
+                </button>
+              </div>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={markLocation}
+              className="flex items-center justify-center gap-8 rounded-8 border border-dashed border-default py-16 text-14 font-bold text-primary-500"
+            >
+              <MapPin size={20} />
+              Tandai lokasi di peta
+            </button>
+          )}
+        </div>
+
         <div className="flex flex-col gap-12">
-          <span className="text-18 font-bold text-default">Jadwal Kumpulan</span>
           <SelectField
             label="Tentukan hari kumpulan"
             boldLabel
@@ -99,7 +143,7 @@ export function KumpulanJadwalScreen() {
         <span className="text-center text-12 text-caption">
           Pastikan data yang diisi benar dan dapat dipertanggungjawabkan.
         </span>
-        <Button size="lg" className="w-full" disabled={!ready} onClick={() => setModeOpen(true)}>
+        <Button size="lg" className="w-full" disabled={!ready} onClick={save}>
           Simpan
         </Button>
       </StickyBar>
@@ -123,7 +167,6 @@ export function KumpulanJadwalScreen() {
         </div>
       </BottomSheet>
 
-      <OnboardingModeSheet open={modeOpen} onClose={() => setModeOpen(false)} onPick={startOnboarding} />
     </AppScreen>
   )
 }

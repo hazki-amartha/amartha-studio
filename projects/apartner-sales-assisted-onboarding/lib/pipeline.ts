@@ -105,7 +105,7 @@ export const MEMBER_ROLE_LABEL: Record<MemberRole, string> = {
  */
 export type MajelisAssignment =
   | { kind: 'existing'; id: string }
-  | { kind: 'new'; name: string }
+  | { kind: 'new'; name: string; location?: string; day?: string; time?: string }
   | { kind: 'none'; branch: string }
 
 /**
@@ -650,7 +650,7 @@ export const LEADS_SECTION_ORDER: LeadsSection[] = [
 ]
 
 export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
-  'survey-approved': 'Survey approved',
+  'survey-approved': 'Waiting for disbursement',
   'survey-submitted': 'Survey submitted',
   'survey-ongoing': 'Survey ongoing',
   'follow-up': 'Follow up',
@@ -1113,6 +1113,72 @@ export const SEED_PIPELINE: PipelineLead[] = [
       { at: '16 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
       { at: '18 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
       { at: '20 Juli', via: 'system', status: 'approved', system: 'Lolos underwriting, cair Rp2.500.000 pada 25 Juli' },
+    ],
+  },
+  // Four more approved members of the new Majelis Batu Sangkar — with Wulan Sari
+  // that is five approved, enough to form the group. So an approved member's
+  // Waiting-for-disbursement page shows the "Start group formation" CTA.
+  ...(['Sumarni', 'Yeni Marlina', 'Dedeh Kurnia', 'Lilis Suryani'] as const).map(
+    (nama, i): PipelineLead => ({
+      id: `p2${i + 1}`,
+      name: nama,
+      phone: `0857-4432-11${90 + i}`,
+      address: {
+        kecamatan: 'Ciseeng',
+        desa: 'Cibeuteung Udik',
+        detail: `Kp. Cibeuteung RT 0${i + 2}/RW 05`,
+        mapsCoord: 'pinned',
+      },
+      source: 'referral',
+      referredBy: 'Ibu Ipah (Warung Bu Ipah)',
+      fo: 'Nurhayati',
+      photo: true,
+      status: 'approved',
+      ageDays: 6,
+      majelis: { kind: 'new', name: 'Majelis Batu Sangkar' },
+      nik: `320109550492001${i + 2}`,
+      ktp: true,
+      product: 'Modal',
+      amount: 'Rp2.000.000',
+      disburseDate: '25 Juli',
+      log: [
+        { at: '14 Juli', via: 'poi', status: 'interested', system: 'Diajak Ibu Ipah bikin majelis baru' },
+        { at: '16 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
+        { at: '18 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+        { at: '20 Juli', via: 'system', status: 'approved', system: 'Lolos underwriting' },
+      ],
+    }),
+  ),
+  {
+    // Waiting for disbursement, joining a brand-new majelis that cannot be formed
+    // yet — she is its only approved member so far (needs MIN_MEMBERS).
+    id: 'p25',
+    name: 'Ratna Dewi',
+    phone: '0857-6621-7788',
+    address: { kecamatan: 'Ciseeng', desa: 'Ciseeng', detail: 'Kp. Ciseeng Wetan RT 04/RW 02', mapsCoord: 'pinned' },
+    source: 'referral',
+    referredBy: 'Ibu Rina (Majelis Mawar)',
+    fo: 'Nurhayati',
+    photo: true,
+    status: 'approved',
+    ageDays: 5,
+    majelis: {
+      kind: 'new',
+      name: 'Majelis Ciseeng Wetan',
+      location: 'Balai RW 02, Ciseeng Wetan',
+      day: 'Selasa',
+      time: '09.00',
+    },
+    nik: '3201094408930021',
+    ktp: true,
+    product: 'Modal',
+    amount: 'Rp2.000.000',
+    disburseDate: '26 Juli',
+    log: [
+      { at: '13 Juli', via: 'poi', status: 'interested' },
+      { at: '15 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
+      { at: '17 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '19 Juli', via: 'system', status: 'approved', system: 'Lolos underwriting' },
     ],
   },
   {

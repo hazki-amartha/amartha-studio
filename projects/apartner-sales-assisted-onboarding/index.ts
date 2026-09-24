@@ -119,8 +119,16 @@ export const project: ProjectModule = {
         { to: 'survey-form', label: 'BP Feedback / Uji Kelayakan' },
         { to: 'ritual', label: 'Ritual explanation' },
         { to: 'majelis-page', label: 'Buka majelis' },
+        { to: 'group-formation', label: 'Start group formation' },
+        { to: 'disbursement', label: 'Start disbursement' },
         { to: 'sales', label: 'Submit onboarding' },
       ],
+    },
+    {
+      id: 'disbursement',
+      title: 'Pencairan',
+      component: lazyScreen(() => import('./screens/disbursement'), 'DisbursementScreen'),
+      flowsTo: [{ to: 'calon-mitra', label: 'Kembali' }],
     },
     {
       id: 'survey-form',
