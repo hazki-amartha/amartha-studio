@@ -192,8 +192,12 @@ export const pipelineStore = {
    * category) is left as-is; she simply falls off today's board and reopens in
    * 90 days where she was.
    */
-  dropLead(id: string, reason: string) {
+  dropLead(id: string, reason: string, endOnboarding = false) {
     completeTask(id, (lead) => ({
+      // Dropping a lead whose survey is under way ends the onboarding: her status
+      // becomes `rejected` so she leaves the Survey ongoing section (which is not
+      // date-gated). A plain lead keeps her status and simply defers 90 days.
+      ...(endOnboarding ? { status: 'rejected' as const } : {}),
       lastResult: { kind: 'dropped', date: dateFromToday(0), reason: reason.trim() || undefined },
       contextHistory: [
         ...contextSteps(lead),
@@ -208,7 +212,12 @@ export const pipelineStore = {
         dueDays: 90,
       },
       nextFollowUp: dateFromToday(90),
-      log: appendLog(lead, { via: 'manual', status: lead.status, system: 'Lead di-drop — dijadwalkan 90 hari', note: reason.trim() || undefined }),
+      log: appendLog(lead, {
+        via: 'manual',
+        status: endOnboarding ? 'rejected' : lead.status,
+        system: 'Lead di-drop — dijadwalkan 90 hari',
+        note: reason.trim() || undefined,
+      }),
     }))
   },
 
