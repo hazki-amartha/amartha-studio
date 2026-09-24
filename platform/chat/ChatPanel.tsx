@@ -306,9 +306,11 @@ export function LiveChatPanel({
       <ChatView subtitle={subtitle} state={chat} doneLabel="" embedded>
         {chat.gate === 'unavailable' ? (
           <p className="text-12 font-regular text-neutral-600">
-            Chat runs only on the dev server, and only once STUDIO_EDIT_PASSWORD is set in
-            .env.local.
+            Chat only runs on the laptop that&rsquo;s running the studio — open it at
+            localhost:4000 there.
           </p>
+        ) : chat.gate === 'no-cli' || chat.gate === 'signed-out' ? (
+          <SignInHelp missing={chat.gate === 'no-cli'} onRecheck={chat.recheck} />
         ) : chat.gate === 'checking' ? null : (
           <PasswordForm onUnlock={chat.unlock} />
         )}
@@ -400,6 +402,23 @@ export function LiveChatPanel({
 }
 
 /** The design-mode editing password — one password unlocks both. */
+/** Chat is the designer's own Claude Code, so fixing this happens in their
+ *  terminal — the one place they already use it. */
+function SignInHelp({ missing, onRecheck }: { missing: boolean; onRecheck: () => void }) {
+  return (
+    <div>
+      <p className="mb-8 text-12 font-regular text-neutral-600">
+        {missing
+          ? 'Chat uses Claude Code on this laptop, and it isn’t installed here yet.'
+          : 'Chat uses your Claude Code, and it isn’t signed in. Open your terminal, type claude, and log in — then come back here.'}
+      </p>
+      <button type="button" onClick={onRecheck} className={buttonClass}>
+        Check again
+      </button>
+    </div>
+  )
+}
+
 function PasswordForm({ onUnlock }: { onUnlock: (password: string) => Promise<string | null> }) {
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -425,7 +444,7 @@ function PasswordForm({ onUnlock }: { onUnlock: (password: string) => Promise<st
         className={fieldClass}
       />
       <p className="mb-8 text-12 font-regular text-neutral-600">
-        {error ?? 'Chat drives Claude on this laptop, so it needs the editing password.'}
+        {error ?? 'Chat drives Claude on the laptop running the studio, so from here it needs the editing password.'}
       </p>
       <button type="submit" disabled={!value || busy} className={buttonClass}>
         Unlock

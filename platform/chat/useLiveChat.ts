@@ -39,7 +39,9 @@ type ServerEvent =
 /** A ChatEvent before it is stamped — Omit distributed over the union. */
 type Unstamped = ChatEvent extends infer E ? (E extends ChatEvent ? Omit<E, 'at'> : never) : never
 
-export type Gate = 'checking' | 'unavailable' | 'locked' | 'open'
+/** 'signed-out' and 'no-cli': chat is allowed here, but Claude Code on this
+ *  laptop can't run a turn until the designer fixes it in their terminal. */
+export type Gate = 'checking' | 'unavailable' | 'locked' | 'signed-out' | 'no-cli' | 'open'
 
 interface Conversation {
   status: ChatState['status']
@@ -197,15 +199,32 @@ function setDraft(draft: string) {
   set({ draft })
 }
 
+interface Status {
+  available: boolean
+  needsPassword: boolean
+  signIn: 'signed-in' | 'signed-out' | 'no-cli' | null
+}
+
+function gateOf(s: Status | null): Gate {
+  if (!s?.available) return 'unavailable'
+  if (s.needsPassword) return 'locked'
+  if (s.signIn === 'no-cli') return 'no-cli'
+  if (s.signIn === 'signed-out') return 'signed-out'
+  return 'open'
+}
+
 let probed = false
 function probe() {
   if (probed) return
   probed = true
+  check()
+}
+
+/** Ask the route again — after unlocking, or after signing in in the terminal. */
+function check() {
   fetch('/api/chat', { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null))
-    .then((s: { available: boolean; needsPassword: boolean } | null) =>
-      setGate(!s?.available ? 'unavailable' : s.needsPassword ? 'locked' : 'open'),
-    )
+    .then((s: Status | null) => setGate(gateOf(s)))
     .catch(() => setGate('unavailable'))
 }
 
@@ -216,7 +235,7 @@ async function unlock(password: string): Promise<string | null> {
     body: JSON.stringify({ unlock: password }),
   })
   if (res.ok) {
-    setGate('open')
+    check()
     return null
   }
   const body = (await res.json().catch(() => null)) as { error?: string } | null
@@ -229,6 +248,8 @@ export interface LiveChat extends ChatState {
   gate: Gate
   /** Resolves to an error message, or null once unlocked. */
   unlock: (password: string) => Promise<string | null>
+  /** Re-checks the gate, e.g. once the designer has signed in. */
+  recheck: () => void
   /** `shown` is what the transcript displays, when it differs from the prompt. */
   send: (prompt: string, shown?: string) => void
   stop: () => void
@@ -261,6 +282,7 @@ export function useLiveChat(slug: string): LiveChat {
   return {
     gate: g,
     unlock,
+    recheck: check,
     status: c.status,
     events: c.events,
     elapsedMs,

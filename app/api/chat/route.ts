@@ -10,10 +10,12 @@
 //
 // Dev only. On a deployment there is no CLI and no subscription; the route 404s.
 //
-// Behind design mode's editing password (STUDIO_EDIT_PASSWORD, same cookie, so
-// unlocking one unlocks both). The dev server listens on every interface, and
-// without a gate anyone on the same Wi-Fi could drive an agent on this laptop.
-// With no password in .env.local, chat stays shut.
+// Open with no password to the designer at this laptop (platform/chat/
+// localRequest.ts): `npm run dev` binds to 127.0.0.1, and a request that came
+// through a tunnel, from another website, or under another hostname doesn't
+// count as local. Everything else — the demo link, the sandbox — still needs
+// design mode's editing password (STUDIO_EDIT_PASSWORD, same cookie, so
+// unlocking one unlocks both), and with no password set it stays shut.
 //
 // What is enforced in code rather than asked for in prose (B4: an appended
 // instruction loses to CLAUDE.md): no git, no gh, no dev server — denied at the
@@ -25,7 +27,7 @@
 // a reset here could wipe someone else's uncommitted work.
 // =============================================================================
 
-import { spawn, execFileSync, type ChildProcess } from 'node:child_process'
+import { spawn, execFile, execFileSync, type ChildProcess } from 'node:child_process'
 import path from 'node:path'
 import { KEBAB } from '@/platform/design/server/common'
 import {
@@ -37,6 +39,7 @@ import {
   passwordMatches,
   verifyEditToken,
 } from '@/platform/design/server/editGate'
+import { isLocalRequest } from '@/platform/chat/localRequest'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -138,15 +141,22 @@ function toolDetail(input: Record<string, unknown>): string {
   return ''
 }
 
-/** A clean env for the child: no API key (use the subscription login), and none
+const CLI = process.env.CHAT_LOCAL_CLAUDE ?? 'claude'
+
+/** A clean env for the CLI: no API key (use the subscription login), and none
  *  of the parent Claude session's variables, which would make it a sub-session. */
-function childEnv(slug: string): NodeJS.ProcessEnv {
+function cliEnv(): NodeJS.ProcessEnv {
   const env = {} as NodeJS.ProcessEnv
   for (const [k, v] of Object.entries(process.env)) {
     if (k === 'ANTHROPIC_API_KEY' || k === 'CLAUDECODE' || k.startsWith('CLAUDE_CODE_')) continue
     if (k === 'CLAUDE_PID' || k === 'NODE_OPTIONS') continue
     env[k] = v
   }
+  return env
+}
+
+function childEnv(slug: string): NodeJS.ProcessEnv {
+  const env = cliEnv()
   env.ENABLE_CLAUDEAI_MCP_SERVERS = 'false'
   // Read by scripts/chat-guard.mjs.
   env.CHAT_SLUG = slug
@@ -154,17 +164,45 @@ function childEnv(slug: string): NodeJS.ProcessEnv {
   return env
 }
 
+export type SignIn = 'signed-in' | 'signed-out' | 'no-cli'
+
+/** Is Claude Code installed here, and signed in? Asked once when the panel
+ *  opens, so a designer who was logged out hears how to fix it instead of
+ *  watching a turn fail. */
+function signIn(): Promise<SignIn> {
+  return new Promise((resolve) => {
+    execFile(CLI, ['auth', 'status'], { env: cliEnv(), timeout: 15_000 }, (err, stdout) => {
+      if ((err as NodeJS.ErrnoException | null)?.code === 'ENOENT') return resolve('no-cli')
+      try {
+        resolve((JSON.parse(stdout) as { loggedIn?: boolean }).loggedIn ? 'signed-in' : 'signed-out')
+      } catch {
+        resolve('signed-out')
+      }
+    })
+  })
+}
+
+/** At this laptop, or through the editing password. */
+function allowed(request: Request): boolean {
+  return isLocalRequest(request) || verifyEditToken(editCookie(request))
+}
+
 export interface ChatStatus {
-  /** False on a deployment, or with no editing password set locally. */
+  /** False on a deployment, or off this laptop with no editing password set. */
   available: boolean
   needsPassword: boolean
+  /** Only checked for someone who may use chat. */
+  signIn: SignIn | null
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const available = process.env.NODE_ENV === 'development' && isEditGateConfigured()
+  const available =
+    process.env.NODE_ENV === 'development' && (isLocalRequest(request) || isEditGateConfigured())
+  const open = available && allowed(request)
   const status: ChatStatus = {
     available,
-    needsPassword: available && !verifyEditToken(editCookie(request)),
+    needsPassword: available && !open,
+    signIn: open ? await signIn() : null,
   }
   return Response.json(status, { headers: { 'cache-control': 'no-store' } })
 }
@@ -198,9 +236,10 @@ interface ChatRequest {
 export async function POST(request: Request): Promise<Response> {
   if (process.env.NODE_ENV !== 'development') return new Response(null, { status: 404 })
 
-  if (!isEditGateConfigured()) {
+  const local = isLocalRequest(request)
+  if (!local && !isEditGateConfigured()) {
     return Response.json(
-      { error: 'Chat needs STUDIO_EDIT_PASSWORD in .env.local.' },
+      { error: 'Chat only opens on the laptop running the studio.' },
       { status: 403 },
     )
   }
@@ -211,8 +250,11 @@ export async function POST(request: Request): Promise<Response> {
   } catch {
     return Response.json({ error: 'That request could not be read.' }, { status: 400 })
   }
-  if ('unlock' in body) return unlock(body.unlock)
-  if (!verifyEditToken(editCookie(request))) {
+  if ('unlock' in body) {
+    if (!isEditGateConfigured()) return Response.json({ ok: true })
+    return unlock(body.unlock)
+  }
+  if (!local && !verifyEditToken(editCookie(request))) {
     return Response.json({ error: 'Enter the editing password first.' }, { status: 401 })
   }
   if (!body.slug || !KEBAB.test(body.slug)) {
@@ -253,7 +295,7 @@ export async function POST(request: Request): Promise<Response> {
   if (body.sessionId) args.push('--resume', body.sessionId)
 
   const before = dirtyPaths()
-  const child = spawn(process.env.CHAT_LOCAL_CLAUDE ?? 'claude', args, {
+  const child = spawn(CLI, args, {
     cwd: ROOT,
     env: childEnv(body.slug),
     stdio: ['ignore', 'pipe', 'pipe'],

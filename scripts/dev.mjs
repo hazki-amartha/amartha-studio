@@ -118,7 +118,14 @@ const child = spawn(
   //
   // The cost is dev compile speed. Revisit if Turbopack grows a pre-transform
   // hook, or if the stamping moves to SWC.
-  ['next', 'dev', '-p', String(PORT), ...passthrough],
+  //
+  // `-H 127.0.0.1`: only this laptop can connect. Chat drives the designer's own
+  // Claude Code with no password when the request is local
+  // (platform/chat/localRequest.ts); listening on every interface would put that
+  // one Wi-Fi hop away from anyone in the office. A demo link reaches the studio
+  // through a tunnel running on this laptop, so it still works — and still asks
+  // for the editing password.
+  ['next', 'dev', '-p', String(PORT), '-H', '127.0.0.1', ...passthrough],
   { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' },
 )
 
