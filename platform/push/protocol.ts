@@ -10,9 +10,9 @@ export interface PushFile {
 }
 
 export interface PushStatus {
-  /** Dev server, editing password set, a real project. */
+  /** Dev server, a real project, and this laptop or an editing password. */
   available: boolean
-  /** The studio's GitHub App is set up on this laptop. */
+  /** Push can sign in to GitHub here: the studio's App, or the designer's own login. */
   configured: boolean
   needsPassword: boolean
   owners: string[]

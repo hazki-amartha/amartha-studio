@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation'
 import type { ProjectModule } from '@/platform/types'
 import { usePublishHeaderStatus } from '@/platform/chrome'
 import { nextZoom, ZoomControl } from '@/platform/chrome/ZoomControl'
+import { ShortcutSheet, useShortcuts } from '@/platform/chrome/shortcuts'
 import { registry } from '@/projects/registry'
 import { resolveProject } from '@/platform/runtime/resolveProject'
 import { Edges } from './Edges'
@@ -174,6 +175,28 @@ export function FlowCanvas({ slug }: { slug: string }) {
       return { zoom: nz, x: cw / 2 - (cw / 2 - v.x) * ratio, y: ch / 2 - (ch / 2 - v.y) * ratio }
     })
   }, [])
+
+  // 100% about the middle, like − and +.
+  const actual = useCallback(() => {
+    const el = containerRef.current
+    if (!el) return
+    const { width: cw, height: ch } = el.getBoundingClientRect()
+    setView((v) => {
+      const ratio = 1 / v.zoom
+      return { zoom: 1, x: cw / 2 - (cw / 2 - v.x) * ratio, y: ch / 2 - (ch / 2 - v.y) * ratio }
+    })
+  }, [])
+
+  // The prototype's zoom keys, so the zoom buttons' tooltips hold here too.
+  const [shortcuts, setShortcuts] = useState(false)
+  useShortcuts({
+    fit: () => void fit(),
+    actual,
+    zoomIn: () => step(1),
+    zoomOut: () => step(-1),
+    help: () => setShortcuts((open) => !open),
+    escape: () => (shortcuts ? (setShortcuts(false), true) : undefined),
+  })
 
   // --- pan (pointer drag) ---------------------------------------------------
   const drag = useRef<{
@@ -474,6 +497,12 @@ export function FlowCanvas({ slug }: { slug: string }) {
           onStep={step}
           onFit={fit}
           className="absolute bottom-16 left-16 z-10"
+        />
+      ) : null}
+      {shortcuts ? (
+        <ShortcutSheet
+          only={['fit', 'actual', 'zoomIn', 'zoomOut', 'escape', 'help']}
+          onClose={() => setShortcuts(false)}
         />
       ) : null}
     </div>

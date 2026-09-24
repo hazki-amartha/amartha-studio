@@ -8,6 +8,7 @@
 // =============================================================================
 
 import { MinusIcon, PlusIcon } from './icons'
+import { withKey } from './shortcuts'
 
 const BTN =
   'flex size-32 items-center justify-center rounded-full text-caption hover:bg-neutral-50 hover:text-default disabled:text-placeholder dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50 dark:disabled:text-neutral-600'
@@ -51,7 +52,7 @@ export function ZoomControl({
         onClick={() => onStep(-1)}
         disabled={scale <= min}
         aria-label="Zoom out"
-        title="Zoom out"
+        title={withKey('Zoom out', 'zoomOut')}
         className={BTN}
       >
         <MinusIcon className="size-16" />
@@ -59,7 +60,7 @@ export function ZoomControl({
       <button
         type="button"
         onClick={onFit}
-        title={fitted ? 'Fitted to the canvas' : 'Fit to the canvas'}
+        title={fitted ? 'Fitted to the canvas' : withKey('Fit to the canvas', 'fit')}
         className="min-w-52 rounded-full px-8 py-4 text-12 font-bold text-default hover:bg-neutral-50 dark:text-neutral-50 dark:hover:bg-ink-800"
       >
         {fitted ? 'Fit' : `${Math.round(scale * 100)}%`}
@@ -69,7 +70,7 @@ export function ZoomControl({
         onClick={() => onStep(1)}
         disabled={scale >= max}
         aria-label="Zoom in"
-        title="Zoom in"
+        title={withKey('Zoom in', 'zoomIn')}
         className={BTN}
       >
         <PlusIcon className="size-16" />

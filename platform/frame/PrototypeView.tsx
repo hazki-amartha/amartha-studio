@@ -44,6 +44,7 @@ import {
   PrototypeProvider,
   ScreenStage,
   useFlow,
+  useRestart,
   useScreenJump,
   useScreenStep,
 } from '@/platform/runtime'
@@ -87,6 +88,7 @@ import {
 import { PanelShell, PanelTabs } from '@/platform/chrome/SidePanel'
 import { CanvasControls, FullScreenButton, ViewSwitch } from '@/platform/chrome/CanvasControls'
 import { nextZoom, ZoomControl } from '@/platform/chrome/ZoomControl'
+import { ShortcutSheet, useShortcuts, type ShortcutAction } from '@/platform/chrome/shortcuts'
 import {
   getSidebarSlots,
   getSidebarSlotsServerSnapshot,
@@ -387,7 +389,12 @@ function useCanvasZoom(spec: { width: number; height: number }) {
     zoomAt(nextZoom(scale, dir, MIN_ZOOM, MAX_ZOOM), (el?.clientWidth ?? 0) / 2, (el?.clientHeight ?? 0) / 2)
   }
 
-  return { ref, spec, scale, fitted: zoom == null, refit: () => setZoom(null), step }
+  const actual = () => {
+    const el = ref.current
+    zoomAt(1, (el?.clientWidth ?? 0) / 2, (el?.clientHeight ?? 0) / 2)
+  }
+
+  return { ref, spec, scale, fitted: zoom == null, refit: () => setZoom(null), step, actual }
 }
 
 type CanvasZoom = ReturnType<typeof useCanvasZoom>
@@ -679,6 +686,30 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
   // selecting with nowhere to act on the selection would be a trap.
   const startEditing = () => setDesignMode(true)
   const stopEditing = () => setDesignMode(false)
+  const restart = useRestart()
+  const [shortcuts, setShortcuts] = useState(false)
+  const keys: Partial<Record<ShortcutAction, () => boolean | void>> = {
+    comment: canComment ? () => setCommentMode(!commenting) : undefined,
+    edit: () => setDesignMode(!editing),
+    fullscreen: () => setBareMode(true),
+    restart,
+    ...(device === 'desktop'
+      ? {
+          fit: zoom.refit,
+          actual: zoom.actual,
+          zoomIn: () => zoom.step(1),
+          zoomOut: () => zoom.step(-1),
+        }
+      : {}),
+    help: () => setShortcuts((open) => !open),
+    // One step back. A selection clears first — the Edit layer does that — and
+    // only an empty Edit closes; Comment handles its own Esc.
+    escape: () => {
+      if (shortcuts) return (setShortcuts(false), true)
+      if (editing && !pinned) stopEditing()
+    },
+  }
+  useShortcuts(keys)
 
   const viewport = (
     <AppViewport
@@ -746,6 +777,12 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
         ) : null}
         <FullScreenButton className="absolute bottom-0 right-0 z-30" />
       </div>
+      {shortcuts ? (
+        <ShortcutSheet
+          only={(Object.keys(keys) as ShortcutAction[]).filter((k) => keys[k])}
+          onClose={() => setShortcuts(false)}
+        />
+      ) : null}
 
       {editing ? (
         <RightPanel
@@ -805,15 +842,11 @@ function BareLayout({
   explicit: boolean
 }) {
   // Esc is the reflex for leaving anything full screen, so it works even when
-  // the button is deliberately absent.
-  useEffect(() => {
-    if (!explicit) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setBareMode(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [explicit])
+  // the button is deliberately absent; F goes back the way it came in.
+  const restart = useRestart()
+  useShortcuts(
+    explicit ? { escape: () => setBareMode(false), fullscreen: () => setBareMode(false), restart } : {},
+  )
 
   if (fill) {
     return (
