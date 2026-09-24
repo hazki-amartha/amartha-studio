@@ -1,19 +1,21 @@
 // =============================================================================
-// NavRail — the slim icon rail. Top-level destinations: Studio and FunDS.
+// NavRail — the slim icon rail. Top-level destinations: Studio, FunDS and
+// Assets (the illustration generator, a separate app embedded at /assets).
 // Active section is driven by the route (resolved in AppShell).
 // =============================================================================
 
 'use client'
 
 import Link from 'next/link'
-import { FundsIcon, StudioIcon, StudioMark } from './icons'
+import { AssetsIcon, FundsIcon, StudioIcon, StudioMark } from './icons'
 import { ThemeToggle } from './theme'
 
-export type RailSection = 'studio' | 'funds'
+export type RailSection = 'studio' | 'funds' | 'assets'
 
 const ITEMS: { section: RailSection; href: string; label: string; Icon: typeof StudioIcon }[] = [
   { section: 'studio', href: '/', label: 'Studio', Icon: StudioIcon },
   { section: 'funds', href: '/system', label: 'FunDS', Icon: FundsIcon },
+  { section: 'assets', href: '/assets', label: 'Assets', Icon: AssetsIcon },
 ]
 
 export function NavRail({

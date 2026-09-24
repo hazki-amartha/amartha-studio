@@ -2,7 +2,7 @@
 // MobileTopNav — the shell's chrome below md, where there is no room for the
 // icon rail or the secondary sidebar. A 48px bar (hamburger + wordmark) sits
 // above the breadcrumb bar; the hamburger expands the top-level destinations
-// (Studio, FunDS) inline. Prototype routes never render this — they go
+// (Studio, FunDS, Assets) inline. Prototype routes never render this — they go
 // fullscreen with TripleTapExit instead.
 // =============================================================================
 
@@ -10,13 +10,14 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { CloseIcon, FundsIcon, MenuIcon, StudioIcon } from './icons'
+import { AssetsIcon, CloseIcon, FundsIcon, MenuIcon, StudioIcon } from './icons'
 import type { RailSection } from './NavRail'
 import { ThemeToggle } from './theme'
 
 const ITEMS: { section: RailSection; href: string; label: string; Icon: typeof StudioIcon }[] = [
   { section: 'studio', href: '/', label: 'Studio', Icon: StudioIcon },
   { section: 'funds', href: '/system', label: 'FunDS', Icon: FundsIcon },
+  { section: 'assets', href: '/assets', label: 'Assets', Icon: AssetsIcon },
 ]
 
 export function MobileTopNav({ active }: { active: RailSection | null }) {
