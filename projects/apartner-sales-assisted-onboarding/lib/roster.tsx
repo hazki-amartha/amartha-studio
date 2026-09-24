@@ -9,6 +9,7 @@
 // states the reference shows, not a full 22-row group.
 
 import { Badge } from '@/design-system/components'
+import type { BadgeIntent } from '@/design-system/components/Badge'
 import { User } from '@/design-system/icons'
 import { ProductBadge } from './ui'
 
@@ -51,6 +52,77 @@ export function DpdBadge({ dpd }: { dpd: number }) {
     <Badge intent={intent} variant="outline">
       {dpdBucket(dpd)}
     </Badge>
+  )
+}
+
+// --- Draft potential members ------------------------------------------------
+// A draft majelis (Kenari, Teratai) has no active mitra yet — it is a group
+// being gathered, so its members are calon mitra at various survey stages. A
+// representative stand-in list (§3), shown on the draft majelis page in place of
+// the active roster.
+
+export type PotentialStatus = 'ongoing' | 'submitted' | 'approved'
+
+export interface PotentialMitra {
+  id: string
+  name: string
+  status: PotentialStatus
+}
+
+// Per-draft potential members, keyed by directory id. A majelis activates only
+// once at least MIN_MEMBERS of them are "survey approved" (cleared underwriting):
+//   - Teratai — 6 gathered, all 6 approved → ready to activate.
+//   - Kenari  — 11 gathered but only 4 approved so far → still short.
+// All approved members are listed explicitly; the remaining not-yet-approved
+// ones beyond this list fold into "dan N lainnya" on the page.
+export const DRAFT_POTENTIAL: Record<string, PotentialMitra[]> = {
+  teratai: [
+    { id: 'te1', name: 'Yayah Suryani', status: 'approved' },
+    { id: 'te2', name: 'Imas Masitoh', status: 'approved' },
+    { id: 'te3', name: 'Neneng Hasanah', status: 'approved' },
+    { id: 'te4', name: 'Titin Kartika', status: 'approved' },
+    { id: 'te5', name: 'Wiwi Winarti', status: 'approved' },
+    { id: 'te6', name: 'Eneng Rohaeti', status: 'approved' },
+  ],
+  kenari: [
+    { id: 'ke1', name: 'Sukaesih', status: 'approved' },
+    { id: 'ke2', name: 'Rohimah', status: 'approved' },
+    { id: 'ke3', name: 'Darsih', status: 'approved' },
+    { id: 'ke4', name: 'Enok Suryani', status: 'approved' },
+    { id: 'ke5', name: 'Marlina Dewi', status: 'submitted' },
+    { id: 'ke6', name: 'Yuyun Yuningsih', status: 'ongoing' },
+  ],
+}
+
+/** The gathered potential members of a draft directory majelis. */
+export function draftPotential(id: string): PotentialMitra[] {
+  return DRAFT_POTENTIAL[id] ?? []
+}
+
+/** How many of a draft majelis' members have cleared underwriting (approved). */
+export function draftApprovedCount(id: string): number {
+  return draftPotential(id).filter((m) => m.status === 'approved').length
+}
+
+const POTENTIAL_BADGE: Record<PotentialStatus, { label: string; intent: BadgeIntent }> = {
+  ongoing: { label: 'Survey ongoing', intent: 'orange' },
+  submitted: { label: 'Survey submitted', intent: 'blue' },
+  approved: { label: 'Survey approved', intent: 'green' },
+}
+
+/** One potential-member row for a draft majelis — name-initial avatar + status. */
+export function PotentialMemberRow({ member, divider }: { member: PotentialMitra; divider?: boolean }) {
+  const b = POTENTIAL_BADGE[member.status]
+  return (
+    <div className={`flex items-center gap-12 py-8 ${divider ? 'border-t border-default' : ''}`}>
+      <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-primary-50 text-12 font-bold text-primary-500">
+        {member.name.charAt(0)}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-14 text-default">{member.name}</span>
+      <Badge intent={b.intent} size="sm">
+        {b.label}
+      </Badge>
+    </div>
   )
 }
 
