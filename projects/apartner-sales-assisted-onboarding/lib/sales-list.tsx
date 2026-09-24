@@ -145,13 +145,12 @@ export function SalesList({ scope }: { scope: Scope }) {
 
   function openLead(lead: PipelineLead) {
     pipelineStore.open(lead.id)
-    // A lead in the onboarding funnel — survey ongoing / submitted / approved —
-    // opens the Calon Mitra detail; everyone else opens the follow-up detail.
-    const calon =
-      lead.status === 'survey-created' ||
-      lead.status === 'survey-submitted' ||
-      lead.status === 'approved'
-    flow.go(calon ? 'calon-mitra' : 'follow-up')
+    // Submitted / approved surveys are past follow-up management — they open the
+    // Calon Mitra detail directly. Everyone else (including a Survey ongoing
+    // lead) goes through the follow-up triage first: continue survey, ask for
+    // more time, or drop.
+    const direct = lead.status === 'survey-submitted' || lead.status === 'approved'
+    flow.go(direct ? 'calon-mitra' : 'follow-up')
   }
 
   function openPoi(t: PoiTask) {
@@ -186,7 +185,9 @@ export function SalesList({ scope }: { scope: Scope }) {
     const leadsToday = leadsAll.filter((l) => {
       const sec = leadsSection(l)
       if (sec === 'survey-submitted' || sec === 'survey-approved') return false
-      if (sec === 'follow-up') return agendaDueDays(l.agenda) <= 0
+      // Survey ongoing is follow-up-managed too: only the ones due now show
+      // today, so a "Butuh waktu lebih" reschedule moves her off the board.
+      if (sec === 'follow-up' || sec === 'survey-ongoing') return agendaDueDays(l.agenda) <= 0
       return true
     })
     const poiToday = dueTasks(allPoiTasks) as PoiTask[]

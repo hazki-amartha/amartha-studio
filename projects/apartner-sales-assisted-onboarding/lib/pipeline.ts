@@ -916,6 +916,12 @@ export const SEED_PIPELINE: PipelineLead[] = [
         system: 'Didaftarkan oleh BM/AM',
         note: 'Pemilik warung; punya 8 teman yang juga tertarik.',
       },
+      {
+        at: '21 Juli',
+        via: 'manual',
+        status: 'survey-created',
+        system: 'Onboarding dimulai (assisted) — Majelis Batu Sangkar',
+      },
     ],
   },
   {
@@ -1041,7 +1047,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     status: 'survey-created',
     surveyMode: 'self',
     ageDays: 5,
-    agenda: { day: 'upcoming', kind: 'Diproses', when: 'Rabu, 13.00', order: 2 },
+    agenda: { day: 'today', kind: 'Diproses', when: '13.00', order: 2 },
     majelis: { kind: 'existing', id: 'mawar' },
     nik: '3201094507880002',
     ktp: true,
@@ -1051,7 +1057,12 @@ export const SEED_PIPELINE: PipelineLead[] = [
     log: [
       { at: '14 Juli', via: 'poi', status: 'interested' },
       { at: '16 Juli', via: 'telepon', status: 'interested', system: 'KTP dilengkapi' },
-      { at: '20 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
+      {
+        at: '20 Juli',
+        via: 'manual',
+        status: 'survey-created',
+        system: 'Onboarding dimulai (self-service) — gabung Majelis Mawar',
+      },
     ],
   },
   {

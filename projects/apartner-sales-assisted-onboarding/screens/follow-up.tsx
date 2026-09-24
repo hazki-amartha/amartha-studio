@@ -41,6 +41,9 @@ const RESCHEDULE_REASONS = [
   'Belum bisa dihubungi',
 ]
 
+// A survey-ongoing lead asking for more time has its own, shorter reason list.
+const SURVEY_RESCHEDULE_REASONS = ['Lead butuh waktu', 'Belum bisa dihubungi']
+
 const DROP_REASONS = [
   'Belum diizinkan suami / keluarga',
   'Belum butuh pinjaman saat ini',
@@ -225,8 +228,11 @@ export function FollowUpScreen() {
   const canAct = !isBM || lead.fo === CURRENT_FO
 
   function dropLead() {
-    pipelineStore.dropLead(lead.id, reason || 'Lead di-drop')
-    pipelineStore.setFlash(`${lead.name} di-drop — dijadwalkan ulang 90 hari`)
+    // Dropping a survey-ongoing lead ends her onboarding (status → rejected) so
+    // she leaves the Survey ongoing board; a plain lead just defers.
+    const endOnboarding = lead.status === 'survey-created'
+    pipelineStore.dropLead(lead.id, reason || 'Lead di-drop', endOnboarding)
+    pipelineStore.setFlash(`${lead.name} di-drop`)
     flow.go('sales')
   }
 
@@ -335,30 +341,47 @@ export function FollowUpScreen() {
         ) : null}
         {isSurvey ? (
           lead.status === 'survey-created' ? (
-            lead.surveyMode === 'self' ? (
-              <>
-                <Button
-                  size="lg"
-                  className="w-full"
-                  disabled={!canAct}
-                  onClick={() => flow.go('calon-mitra')}
-                >
-                  Lanjutkan onboarding
-                </Button>
-                <span className="text-center text-12 text-caption">
-                  Calon mitra mengisi survey uji kelayakan sendiri via AFin.
-                </span>
-              </>
-            ) : (
+            <>
               <Button
                 size="lg"
                 className="w-full"
                 disabled={!canAct}
                 onClick={() => flow.go('calon-mitra')}
               >
-                Lanjutkan onboarding
+                Lanjutkan survey
               </Button>
-            )
+              {lead.surveyMode === 'self' ? (
+                <span className="text-center text-12 text-caption">
+                  Calon mitra mengisi survey uji kelayakan sendiri via AFin.
+                </span>
+              ) : null}
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full"
+                disabled={!canAct}
+                onClick={() => {
+                  setReason('')
+                  setNote('')
+                  setSheet('reschedule-why')
+                }}
+              >
+                Butuh waktu lebih
+              </Button>
+              <button
+                type="button"
+                disabled={!canAct}
+                onClick={() => {
+                  setReason('')
+                  setSheet('drop')
+                }}
+                className={`mt-8 self-center py-4 text-12 font-bold underline ${
+                  canAct ? 'text-link' : 'text-disabled'
+                }`}
+              >
+                Drop lead
+              </button>
+            </>
           ) : lead.status === 'survey-submitted' ? (
             <>
               <span className="rounded-12 border border-blue-200 bg-blue-50 px-12 py-12 text-12 text-blue-600">
@@ -440,7 +463,7 @@ export function FollowUpScreen() {
       {/* Reschedule — why; the next follow-up is set to one day later. */}
       <BottomSheet open={sheet === 'reschedule-why'} onClose={() => setSheet(null)} title="Alasan">
         <div className="flex flex-col gap-8">
-          {RESCHEDULE_REASONS.map((r) => (
+          {(lead.status === 'survey-created' ? SURVEY_RESCHEDULE_REASONS : RESCHEDULE_REASONS).map((r) => (
             <SelectableCard
               key={r}
               name="reschedule-why"
