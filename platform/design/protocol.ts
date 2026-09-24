@@ -320,6 +320,10 @@ export interface DesignStatus {
   locked?: string
   /** `github`: this browser must enter the editing password before saving. */
   needsPassword?: boolean
+  /** `github`: sign-in is how this link saves, and nobody is signed in. */
+  needsSignIn?: boolean
+  /** `github`: the signed-in editor's display name — who changes go out as. */
+  signedInAs?: string
 }
 
 /**

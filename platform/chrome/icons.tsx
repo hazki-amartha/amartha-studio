@@ -57,6 +57,14 @@ export const AssetsIcon = icon(
   </>,
 )
 
+// Account — a person; signed out, it offers Google sign-in.
+export const AccountIcon = icon(
+  <>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21a8 8 0 0 1 16 0" />
+  </>,
+)
+
 // Panel toggle — collapse/expand the secondary sidebar.
 export const PanelIcon = icon(
   <>
