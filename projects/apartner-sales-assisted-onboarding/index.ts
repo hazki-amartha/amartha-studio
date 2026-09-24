@@ -188,7 +188,7 @@ export const project: ProjectModule = {
       id: 'group-formation',
       title: 'Pembentukan Majelis',
       component: lazyScreen(() => import('./screens/group-formation'), 'GroupFormationScreen'),
-      flowsTo: [{ to: 'sales', label: 'Majelis terbentuk' }],
+      flowsTo: [{ to: 'calon-mitra', label: 'Majelis terbentuk → lead' }],
     },
     {
       id: 'sosialisasi',

@@ -121,7 +121,9 @@ export function GroupFormationScreen() {
     } else {
       formationStore.activateMajelis(ctx.majelisName)
       pipelineStore.setFlash(`${ctx.majelisName} terbentuk`)
-      flow.go('sales')
+      // Return to where the formation was started — from a lead, that's her
+      // page, now showing "Ready for disbursement".
+      flow.back()
     }
   }
 
