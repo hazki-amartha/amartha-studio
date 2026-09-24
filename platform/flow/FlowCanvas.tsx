@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useRouter } from 'next/navigation'
 import type { ProjectModule } from '@/platform/types'
 import { usePublishHeaderStatus } from '@/platform/chrome'
+import { nextZoom, ZoomControl } from '@/platform/chrome/ZoomControl'
 import { registry } from '@/projects/registry'
 import { resolveProject } from '@/platform/runtime/resolveProject'
 import { Edges } from './Edges'
@@ -136,13 +137,14 @@ export function FlowCanvas({ slug }: { slug: string }) {
     return new Set(layout.links.filter((l) => l.from === selected).map((l) => l.to))
   }, [layout, selected])
 
-  // --- fit-to-view once, when layout + container are known -----------------
-  useEffect(() => {
-    if (!layout || fittedRef.current) return
+  // --- fit-to-view: once, when layout + container are known, and on Fit ----
+  // The zoom a fit landed on, so the control can read "Fit" until it changes.
+  const [fitZoom, setFitZoom] = useState<number | null>(null)
+  const fit = useCallback(() => {
     const el = containerRef.current
-    if (!el) return
+    if (!layout || !el) return false
     const { width: cw, height: ch } = el.getBoundingClientRect()
-    if (cw === 0 || ch === 0) return
+    if (cw === 0 || ch === 0) return false
     const contentW = layout.width + CANVAS_PAD * 2
     const contentH = layout.height + CANVAS_PAD * 2
     const z = Math.min(cw / contentW, ch / contentH, 1)
@@ -152,8 +154,26 @@ export function FlowCanvas({ slug }: { slug: string }) {
       x: (cw - layout.width * nz) / 2,
       y: (ch - layout.height * nz) / 2,
     })
-    fittedRef.current = true
+    setFitZoom(nz)
+    return true
   }, [layout])
+
+  useEffect(() => {
+    if (!layout || fittedRef.current) return
+    if (fit()) fittedRef.current = true
+  }, [layout, fit])
+
+  // − and + zoom about the middle of the canvas.
+  const step = useCallback((dir: 1 | -1) => {
+    const el = containerRef.current
+    if (!el) return
+    const { width: cw, height: ch } = el.getBoundingClientRect()
+    setView((v) => {
+      const nz = nextZoom(v.zoom, dir, MIN_ZOOM, MAX_ZOOM)
+      const ratio = nz / v.zoom
+      return { zoom: nz, x: cw / 2 - (cw / 2 - v.x) * ratio, y: ch / 2 - (ch / 2 - v.y) * ratio }
+    })
+  }, [])
 
   // --- pan (pointer drag) ---------------------------------------------------
   const drag = useRef<{
@@ -338,7 +358,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
   // canvas's zoom and grid-fallback badge too, so this route has no header.
   usePublishHeaderStatus(
     state === 'ready'
-      ? { zoom: view.zoom, badge: layout?.isGrid ? 'no flow metadata' : undefined }
+      ? { badge: layout?.isGrid ? 'no flow metadata' : undefined }
       : null,
   )
 
@@ -354,7 +374,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
   }
 
   return (
-    <div className="flex h-full flex-col bg-neutral-50 dark:bg-ink-950">
+    <div className="relative flex h-full flex-col bg-neutral-50 dark:bg-ink-950">
       <div
         ref={containerRef}
         className="relative flex-1 cursor-grab touch-none select-none overflow-hidden overscroll-none active:cursor-grabbing"
@@ -367,7 +387,7 @@ export function FlowCanvas({ slug }: { slug: string }) {
           <button
             type="button"
             data-reset
-            className="absolute bottom-16 left-16 z-10 rounded-full border border-default bg-neutral-white px-12 py-8 text-12 text-caption hover:text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+            className="absolute bottom-16 right-16 z-10 rounded-full border border-default bg-neutral-white px-12 py-8 text-12 text-caption hover:text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
           >
             Reset layout
           </button>
@@ -443,6 +463,19 @@ export function FlowCanvas({ slug }: { slug: string }) {
           </div>
         )}
       </div>
+      {/* Outside the pan surface, which captures the pointer and would
+          swallow the buttons' clicks. */}
+      {placed ? (
+        <ZoomControl
+          scale={view.zoom}
+          fitted={fitZoom != null && Math.abs(view.zoom - fitZoom) < 0.001}
+          min={MIN_ZOOM}
+          max={MAX_ZOOM}
+          onStep={step}
+          onFit={fit}
+          className="absolute bottom-16 left-16 z-10"
+        />
+      ) : null}
     </div>
   )
 }

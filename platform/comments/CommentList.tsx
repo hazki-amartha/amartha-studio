@@ -1,14 +1,15 @@
 'use client'
 
 // =============================================================================
-// Comments · the sidebar's list — the Notes tab, which now holds the project's
-// review feedback under whatever notes the project itself declares. This
-// screen's comments first, each one opening its pin; every other screen's open
-// comments after, each one jumping there.
+// Comments · the right panel. Open, clicks on the device drop pins; its ✕
+// closes it and clicks tap through the app again — the same switch as Edit,
+// and the two never show at once. This screen's comments first, each one
+// opening its pin; every other screen's after, each one jumping there.
 // =============================================================================
 
 import { useFlow, useScreenJump } from '@/platform/runtime'
 import type { ScreenDef } from '@/platform/types'
+import { CloseIcon } from '@/platform/chrome/icons'
 import { ago, initials } from './CommentLayer'
 import type { Comment } from './protocol'
 import { numberOf, openComment, setCommentMode, setShowResolved, useComments } from './store'
@@ -41,12 +42,19 @@ function Row({ comment, number, active, onClick }: { comment: Comment; number: n
   )
 }
 
-export function CommentList({ screens, projectNotes }: { screens: ScreenDef[]; projectNotes?: string[] }) {
+export function CommentsPanel({
+  screens,
+  onClose,
+  className,
+}: {
+  screens: ScreenDef[]
+  onClose: () => void
+  /** Column geometry from the layout — the same width as the Edit panel. */
+  className?: string
+}) {
   const { current } = useFlow()
   const jump = useScreenJump()
-  const { available, comments, openId, showResolved } = useComments()
-  const active = screens.find((s) => s.id === current)
-  const notes = active?.notes && active.notes.length > 0 ? active.notes : (projectNotes ?? [])
+  const { comments, openId, showResolved } = useComments()
 
   const shown = (c: Comment) => showResolved || !c.resolved
   const here = comments.filter((c) => c.screenId === current && shown(c))
@@ -61,64 +69,63 @@ export function CommentList({ screens, projectNotes }: { screens: ScreenDef[]; p
   }
 
   return (
-    <>
-      {active ? <h2 className="text-14 font-bold text-default dark:text-neutral-50">{active.title}</h2> : null}
-      {notes.length > 0 ? (
-        <ul className="flex flex-col gap-8">
-          {notes.map((note, i) => (
-            <li key={i} className="text-14 text-caption dark:text-neutral-400">
-              {note}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+    <aside
+      className={`${className ?? ''} flex h-full min-h-0 flex-none flex-col rounded-16 border border-default bg-neutral-white px-12 pb-12 dark:border-ink-700 dark:bg-ink-900`}
+    >
+      {/* The Edit panel's header — a 48px title row with the way out. */}
+      <div className="flex h-48 flex-none items-center justify-between">
+        <span className="text-14 font-bold text-default dark:text-neutral-50">Comments</span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close Comments"
+          title="Close Comments — clicks tap through the prototype again"
+          className="flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+        >
+          <CloseIcon className="size-16" />
+        </button>
+      </div>
 
-      {available ? (
-        <>
-          <div className="flex items-center justify-between pt-8">
-            <span className="text-12 font-bold text-caption dark:text-neutral-400">Comments</span>
-            {resolvedCount > 0 ? (
-              <button
-                type="button"
-                onClick={() => setShowResolved(!showResolved)}
-                className="text-12 text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50"
-              >
-                {showResolved ? 'Hide resolved' : `Show resolved (${resolvedCount})`}
-              </button>
-            ) : null}
-          </div>
-          {here.length > 0 ? (
-            <div className="-mx-8 flex flex-col">
-              {here.map((c) => (
-                <Row key={c.id} comment={c} number={numberOf(comments, c.id)} active={openId === c.id} onClick={() => open(c)} />
-              ))}
-            </div>
-          ) : (
+      <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <span className="truncate text-12 font-bold text-caption dark:text-neutral-400">
+            {screens.find((sc) => sc.id === current)?.title ?? 'This screen'}
+          </span>
+          {resolvedCount > 0 ? (
             <button
               type="button"
-              onClick={() => setCommentMode(true)}
-              className="text-left text-12 text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50"
+              onClick={() => setShowResolved(!showResolved)}
+              className="flex-none text-12 text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50"
             >
-              No comments on this screen. Turn on Comment and click anywhere on it to add one.
+              {showResolved ? 'Hide resolved' : `Show resolved (${resolvedCount})`}
             </button>
-          )}
-          {elsewhere.length > 0 ? (
-            <>
-              <span className="pt-8 text-12 font-bold text-caption dark:text-neutral-400">Other screens</span>
-              <div className="-mx-8 flex flex-col">
-                {elsewhere.map((c) => (
-                  <div key={c.id} className="flex flex-col">
-                    <span className="px-8 pt-4 text-10 text-caption dark:text-neutral-400">{titleOf(c.screenId)}</span>
-                    <Row comment={c} number={numberOf(comments, c.id)} active={false} onClick={() => open(c)} />
-                  </div>
-                ))}
-              </div>
-            </>
           ) : null}
-        </>
-      ) : notes.length === 0 ? (
-        <p className="text-12 text-caption dark:text-neutral-400">No notes for this screen.</p>
-      ) : null}
-    </>
+        </div>
+        {here.length > 0 ? (
+          <div className="-mx-8 flex flex-col">
+            {here.map((c) => (
+              <Row key={c.id} comment={c} number={numberOf(comments, c.id)} active={openId === c.id} onClick={() => open(c)} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-12 text-caption dark:text-neutral-400">
+            No comments on this screen yet. Click anywhere on it to add one.
+          </p>
+        )}
+        {elsewhere.length > 0 ? (
+          <>
+            <span className="pt-8 text-12 font-bold text-caption dark:text-neutral-400">Other screens</span>
+            <div className="-mx-8 flex flex-col">
+              {elsewhere.map((c) => (
+                <div key={c.id} className="flex flex-col">
+                  <span className="px-8 pt-4 text-10 text-caption dark:text-neutral-400">{titleOf(c.screenId)}</span>
+                  <Row comment={c} number={numberOf(comments, c.id)} active={false} onClick={() => open(c)} />
+                </div>
+              ))}
+            </div>
+          </>
+        ) : null}
+      </div>
+    </aside>
   )
 }

@@ -36,7 +36,7 @@ type Tab = 'screens' | 'layers' | 'notes'
 const TABS: { id: Tab; label: string; icon: typeof ScreensIcon }[] = [
   { id: 'screens', label: 'Screens', icon: ScreensIcon },
   { id: 'layers', label: 'Layers', icon: LayersIcon },
-  { id: 'notes', label: 'Comments', icon: NotesIcon },
+  { id: 'notes', label: 'Notes', icon: NotesIcon },
 ]
 
 function getServerSnapshot() {

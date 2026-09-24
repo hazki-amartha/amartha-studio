@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useFlow } from '@/platform/runtime'
-import { CheckIcon, CloseIcon, MoreIcon } from '@/platform/chrome/icons'
+import { CheckCircleIcon, CloseIcon, MoreIcon } from '@/platform/chrome/icons'
 import type { Comment } from './protocol'
 import {
   editComment,
@@ -59,7 +59,7 @@ export function CommentLayer() {
   const ref = useRef<HTMLDivElement>(null)
   // The scroller's offset under the layer and how far it has scrolled, in
   // device pixels; kept in state so pins re-render as the page scrolls.
-  const [frame, setFrame] = useState({ top: 0, scroll: 0, scale: 1 })
+  const [frame, setFrame] = useState({ top: 0, scroll: 0, scale: 1, width: 0 })
 
   const measure = useCallback(() => {
     const layer = ref.current
@@ -67,8 +67,11 @@ export function CommentLayer() {
     if (!layer || !scroller) return
     const scale = scaleOf(layer)
     const top = (scroller.getBoundingClientRect().top - layer.getBoundingClientRect().top) / scale
+    const width = layer.offsetWidth
     setFrame((f) =>
-      f.top === top && f.scroll === scroller.scrollTop && f.scale === scale ? f : { top, scroll: scroller.scrollTop, scale },
+      f.top === top && f.scroll === scroller.scrollTop && f.scale === scale && f.width === width
+        ? f
+        : { top, scroll: scroller.scrollTop, scale, width },
     )
   }, [])
 
@@ -122,6 +125,13 @@ export function CommentLayer() {
 
   const visible = comments.filter((c) => c.screenId === current && (showResolved || !c.resolved || c.id === openId))
   const counter = 1 / frame.scale
+  // A pin grows up and to the right of its spot; near the screen's right or
+  // top edge it would be clipped, so it grows the other way there instead.
+  const reach = PIN_PX * counter
+  const flip = (at: { x: number; y: number }) => ({
+    left: frame.width > 0 && at.x + reach > frame.width,
+    down: frame.top - frame.scroll + at.y - reach < 0,
+  })
 
   return (
     <div
@@ -137,6 +147,7 @@ export function CommentLayer() {
             key={c.id}
             at={c}
             counter={counter}
+            flip={flip(c)}
             active={openId === c.id}
             muted={c.resolved}
             label={initials(c.author)}
@@ -147,7 +158,7 @@ export function CommentLayer() {
           </Pin>
         ))}
         {draft && draft.screenId === current && openId === 'draft' ? (
-          <Pin at={draft} counter={counter} active label="+" title="New comment" onOpen={() => openComment(null)}>
+          <Pin at={draft} counter={counter} flip={flip(draft)} active label="+" title="New comment" onOpen={() => openComment(null)}>
             <Composer draft={draft} />
           </Pin>
         ) : null}
@@ -158,9 +169,20 @@ export function CommentLayer() {
 
 /** A pin whose bottom-left corner is the spot it points at — the Figma shape —
  *  held at the same on-screen size whatever the canvas zoom. */
+const PIN_PX = 32
+
+/** The pin's sharp corner — the one on the spot — for each way it can grow. */
+const POINT: Record<string, string> = {
+  ru: 'rounded-bl-none',
+  lu: 'rounded-br-none',
+  rd: 'rounded-tl-none',
+  ld: 'rounded-tr-none',
+}
+
 function Pin({
   at,
   counter,
+  flip,
   active,
   muted,
   label,
@@ -170,6 +192,7 @@ function Pin({
 }: {
   at: { x: number; y: number }
   counter: number
+  flip: { left: boolean; down: boolean }
   active: boolean
   muted?: boolean
   label: string
@@ -186,7 +209,12 @@ function Pin({
   return (
     <div
       className="absolute"
-      style={{ left: at.x, top: at.y, transform: `scale(${counter}) translateY(-100%)`, transformOrigin: 'top left' }}
+      style={{
+        left: at.x,
+        top: at.y,
+        transform: `scale(${counter}) translate(${flip.left ? '-100%' : '0'}, ${flip.down ? '0' : '-100%'})`,
+        transformOrigin: 'top left',
+      }}
     >
       <button
         ref={ref}
@@ -196,7 +224,7 @@ function Pin({
           e.stopPropagation()
           onOpen()
         }}
-        className={`flex size-32 items-center justify-center rounded-full rounded-bl-none border-2 border-neutral-white text-12 font-bold shadow-lg ${tone}`}
+        className={`flex size-32 items-center justify-center rounded-full ${POINT[`${flip.left ? 'l' : 'r'}${flip.down ? 'd' : 'u'}`]} border-2 border-neutral-white text-12 font-bold shadow-lg ${tone}`}
       >
         {label}
       </button>
@@ -276,7 +304,7 @@ function ErrorLine() {
 
 function Composer({ draft }: { draft: Draft }) {
   const [name, setName] = useState(getCommenterName)
-  const [askName] = useState(() => !getCommenterName())
+  const [askName, setAskName] = useState(() => !getCommenterName())
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
   const ready = body.trim() && name.trim() && !busy
@@ -314,9 +342,18 @@ function Composer({ draft }: { draft: Draft }) {
       />
       <ErrorLine />
       <div className="flex items-center justify-between gap-8">
-        <span className="truncate text-12 text-caption dark:text-neutral-400">
-          {askName ? 'Shown with your comments' : `As ${name}`}
-        </span>
+        {askName ? (
+          <span className="truncate text-12 text-caption dark:text-neutral-400">Shown with your comments</span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAskName(true)}
+            title="Change your name"
+            className="min-w-0 truncate text-left text-12 text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50"
+          >
+            As {name} · <span className="underline">Change</span>
+          </button>
+        )}
         <div className="flex gap-4">
           <button type="button" onClick={() => openComment(null)} className={GHOST}>
             Cancel
@@ -346,26 +383,13 @@ function Thread({ comment, number }: { comment: Comment; number: number }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center gap-8">
-        <span className="flex size-24 flex-none items-center justify-center rounded-full bg-ink-900 text-10 font-bold text-neutral-white">
-          {initials(comment.author)}
+      {/* Number and time, then ··· · resolve · close — with a rule under it,
+          full width. */}
+      <div className="-mx-12 flex items-center gap-4 border-b border-default px-12 pb-8 dark:border-ink-700">
+        <span className="min-w-0 flex-1 truncate text-12 text-caption dark:text-neutral-400">
+          #{number} · {ago(comment.createdAt)}
+          {comment.editedAt ? ' · edited' : ''}
         </span>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-14 font-bold text-default dark:text-neutral-50">{comment.author}</span>
-          <span className="text-12 text-caption dark:text-neutral-400">
-            #{number} · {ago(comment.createdAt)}
-            {comment.editedAt ? ' · edited' : ''}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => resolveComment(comment.id, !comment.resolved)}
-          title={comment.resolved ? 'Reopen' : 'Resolve'}
-          aria-label={comment.resolved ? 'Reopen' : 'Resolve'}
-          className={comment.resolved ? `${ICON_BTN} bg-green-50 text-green-500 dark:bg-ink-800` : ICON_BTN}
-        >
-          <CheckIcon className="size-16" />
-        </button>
         {comment.mine ? (
           <div className="relative">
             <button
@@ -404,6 +428,15 @@ function Thread({ comment, number }: { comment: Comment; number: number }) {
             ) : null}
           </div>
         ) : null}
+        <button
+          type="button"
+          onClick={() => resolveComment(comment.id, !comment.resolved)}
+          title={comment.resolved ? 'Reopen' : 'Resolve'}
+          aria-label={comment.resolved ? 'Reopen' : 'Resolve'}
+          className={comment.resolved ? `${ICON_BTN} bg-green-50 text-green-500 dark:bg-ink-800` : ICON_BTN}
+        >
+          <CheckCircleIcon className="size-16" />
+        </button>
         <button type="button" onClick={() => openComment(null)} title="Close" aria-label="Close" className={ICON_BTN}>
           <CloseIcon className="size-16" />
         </button>
@@ -436,7 +469,10 @@ function Thread({ comment, number }: { comment: Comment; number: number }) {
           </div>
         </>
       ) : (
-        <p className="whitespace-pre-wrap break-words text-14 text-default dark:text-neutral-50">{comment.body}</p>
+        <div className="flex flex-col gap-4">
+          <p className="whitespace-pre-wrap break-words text-14 text-default dark:text-neutral-50">{comment.body}</p>
+          <span className="truncate text-12 font-bold text-caption dark:text-neutral-400">{comment.author}</span>
+        </div>
       )}
 
       {confirming ? (

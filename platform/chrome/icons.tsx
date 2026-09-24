@@ -242,8 +242,13 @@ export const CommentIcon = icon(
   </>,
 )
 
-// Resolve — a tick.
-export const CheckIcon = icon(<path d="M5 12.5l4.5 4.5L19 7.5" />)
+// Resolve — a tick in a circle.
+export const CheckCircleIcon = icon(
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8 12.5l2.5 2.5L16 9.5" />
+  </>,
+)
 
 // A comment's own actions — edit, delete — behind three dots.
 export const MoreIcon = icon(
