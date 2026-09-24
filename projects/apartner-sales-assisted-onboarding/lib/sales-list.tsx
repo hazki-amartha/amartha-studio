@@ -137,7 +137,7 @@ export function SalesList({ scope }: { scope: Scope }) {
   const allPoiTasks = buildTasks([], pois).filter((t): t is PoiTask => t.kind === 'poi')
 
   // The section a lead shows in — approved splits into "Ready for disbursement"
-  // (majelis settled) and "Waiting for disbursement" (new majelis not formed).
+  // (majelis settled) and "Waiting for group formation" (new majelis not formed).
   const displaySection = (l: PipelineLead): LeadsSection =>
     l.status === 'approved' && canDisburse(formation, l) ? 'ready-for-disbursement' : leadsSection(l)
 
