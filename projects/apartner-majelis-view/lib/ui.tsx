@@ -108,7 +108,7 @@ export function Avatar({ name, size = 40 }: { name: string; size?: 32 | 40 }) {
 // from finishing was shown a bar that said she was already done, and the same
 // visit ran on a 3-step bar in the majelis flow and a 4th-step-shaped one at the
 // door. The home visit counts its own Bukti & Kirim as a step; this now matches.
-export const STAGE_LABELS = ['Kehadiran', 'Penagihan', 'Penawaran', 'Bukti']
+export const STAGE_LABELS = ['Hadir', 'Tagih', 'Tawarkan', 'Bukti']
 
 // A home visit is one mitra, so there is no queue to clear and no cross-sell
 // tail. Persiapan reviews who she is, records who was met, and — when nobody was
@@ -739,7 +739,7 @@ export function AttendanceChoice({
       aria-label={label}
       aria-pressed={selected}
       onClick={onClick}
-      className={`flex flex-1 items-center justify-center rounded-8 border px-8 py-8 text-12 ${classes}`}
+      className={`flex flex-1 items-center justify-center rounded-8 border px-8 py-8 text-14 ${classes}`}
     >
       {children}
     </button>
@@ -1263,11 +1263,10 @@ export function RosterFilter<T extends string>({
     >
       {options.map((option) => {
         const selected = option.id === value
-        // The picked chip keeps the white ground of the others and takes the
-        // brand colour on its border and its word only — a tinted fill made the
-        // filter row read as a second, louder header above the roster.
+        // The picked chip takes the brand tint on its ground, border and word —
+        // matching the BP APP 2026 Figma.
         const tone = selected
-          ? 'border-primary-500 bg-neutral-white text-primary-500'
+          ? 'border-primary-500 bg-primary-50 text-primary-500'
           : 'border-default bg-neutral-white text-neutral-700'
         return (
           <button
@@ -1276,7 +1275,7 @@ export function RosterFilter<T extends string>({
             role="radio"
             aria-checked={selected}
             onClick={() => onPick(option.id)}
-            className={`shrink-0 whitespace-nowrap rounded-8 border px-12 py-8 text-12 font-bold ${tone}`}
+            className={`shrink-0 whitespace-nowrap rounded-8 border px-12 py-8 text-14 font-regular ${tone}`}
           >
             {option.label} ({option.count})
           </button>

@@ -38,7 +38,7 @@ import {
   useApp,
   openMajelisEntry,
 } from '../lib/store'
-import { AppScreen, AttendanceChoice, ChoiceList, ProductBadge, ReasonNote, RosterFilter, SectionTitle, StageBar, StickyBar, VisitTitle } from '../lib/ui'
+import { AppScreen, AttendanceChoice, ChoiceList, ProductBadge, ReasonNote, RosterFilter, StageBar, StickyBar, VisitTitle } from '../lib/ui'
 
 // Why a mitra isn't at the majelis. A fixed list, not free text: the BP is
 // running a register in a room, and the reasons a member misses a weekly
@@ -67,8 +67,8 @@ type FilterId = 'semua' | 'sudah' | 'belum'
 // roster — only the verb changes, from tagih to dicatat.
 const FILTERS: { id: FilterId; label: string }[] = [
   { id: 'semua', label: 'Semua' },
-  { id: 'sudah', label: 'Tercatat' },
-  { id: 'belum', label: 'Belum tercatat' },
+  { id: 'sudah', label: 'Dicatat' },
+  { id: 'belum', label: 'Belum Dicatat' },
 ]
 
 export function AttendanceScreen() {
@@ -127,7 +127,7 @@ export function AttendanceScreen() {
           room for: the balai's address and the KM, which used to arrive in a
           sheet before the roster and be re-openable from an info button up here.
           Both pieces of chrome are gone; the two facts stayed. */}
-      <div className="-mx-16 -mt-16 flex flex-col gap-12 border-b border-default bg-neutral-white px-16 pb-12 pt-16">
+      <div className="-mx-16 -mt-16 flex flex-col gap-12 rounded-b-16 border-b border-default bg-neutral-white p-16">
         <StageBar current={1} />
 
         <div className="border-t border-default pt-12">
@@ -147,14 +147,14 @@ export function AttendanceScreen() {
           it on the wrong majelis needs one tap back, not 22, and the flip keeps
           the undo where the mistake was made rather than hiding it in a menu. */}
       <div className="flex items-center gap-8">
-        <SectionTitle>Daftar Mitra</SectionTitle>
+        <h2 className="text-16 font-bold text-default">Daftar mitra</h2>
         <span className="flex-1" />
         <button
           type="button"
           onClick={() => (settled < total ? store.markAllPresent() : store.clearAllAttendance())}
-          className="shrink-0 text-12 font-bold text-primary-500"
+          className="shrink-0 text-14 font-bold text-primary-500"
         >
-          {settled < total ? 'Catat semua hadir' : 'Kosongkan semua'}
+          {settled < total ? 'Tandai semua hadir' : 'Kosongkan semua'}
         </button>
       </div>
 
@@ -211,7 +211,7 @@ export function AttendanceScreen() {
                       label={`Tidak hadir — ${mitra.name}`}
                       onClick={() => store.setAttendance(mitra.id, 'tidak')}
                     >
-                      Tidak hadir
+                      Tidak Hadir
                     </AttendanceChoice>
                     <AttendanceChoice
                       tone="green"
@@ -261,8 +261,8 @@ export function AttendanceScreen() {
             {present} hadir · {total - present} tidak hadir
           </span>
         ) : (
-          <span className="text-center text-12 font-bold text-orange-500">
-            {left} mitra belum dicatat kehadirannya
+          <span className="text-center text-12 text-caption">
+            {left} mitra belum dicatat kehadirannya.
           </span>
         )}
         <Button
