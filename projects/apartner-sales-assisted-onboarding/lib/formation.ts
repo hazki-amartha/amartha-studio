@@ -103,3 +103,15 @@ export function isMemberAccepted(s: FormationState, lead: PipelineLead): boolean
 export function isMajelisActivated(s: FormationState, name: string): boolean {
   return s.activatedMajelis.includes(name)
 }
+
+/**
+ * Whether an approved lead can start disbursement now — her majelis is settled:
+ * an existing group, or a new one already formed (activated). A new majelis that
+ * is not yet formed is still "waiting for disbursement".
+ */
+export function canDisburse(s: FormationState, lead: PipelineLead): boolean {
+  if (lead.status !== 'approved') return false
+  if (lead.majelis.kind === 'existing') return true
+  if (lead.majelis.kind === 'new') return isMajelisActivated(s, lead.majelis.name)
+  return false
+}
