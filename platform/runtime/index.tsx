@@ -168,7 +168,7 @@ export function ScreenStage() {
   return (
     <div className={styles.stage}>
       {/* key on the screen id so React remounts (and re-animates) on navigation */}
-      <div key={current} className={`${styles.slide} ${slideClass}`}>
+      <div key={current} data-screen-scroller className={`${styles.slide} ${slideClass}`}>
         {/* Screens are lazyScreen()-deferred, so the first visit to one waits on
             its chunk. Fallback is blank rather than a spinner: the wait is a
             frame or two on localhost, and a flashing loader would read as part

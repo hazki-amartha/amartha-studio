@@ -70,6 +70,9 @@ import { DesignLayer, DesignPanel } from '@/platform/design'
 import { LiveChatPanel } from '@/platform/chat/ChatPanel'
 import { getChat, getChatServerSnapshot, probeChat, subscribeChat } from '@/platform/runtime/chatBridge'
 import { PushBar } from '@/platform/push/PushBar'
+import { CommentLayer } from '@/platform/comments/CommentLayer'
+import { CommentList } from '@/platform/comments/CommentList'
+import { setCommentMode, useComments, useCommentsFor } from '@/platform/comments/store'
 import { layersDrag } from '@/platform/design/actions'
 import { toggleSelected } from '@/platform/design/selection'
 import { refind } from '@/platform/design/overlay'
@@ -145,6 +148,7 @@ function AppViewport({
   onPin,
   onRepin,
   preview,
+  commenting,
 }: {
   device?: DeviceKind
   slug?: string
@@ -153,6 +157,8 @@ function AppViewport({
   onPin?: (el: Element | null) => void
   onRepin?: (stale: Element) => void
   preview?: Element | null
+  /** Comment is on: clicks drop review pins instead of tapping the app. */
+  commenting?: boolean
 } = {}) {
   const { current } = useFlow()
   return (
@@ -183,33 +189,8 @@ function AppViewport({
           onRepin={onRepin}
         />
       ) : null}
+      {commenting ? <CommentLayer /> : null}
     </div>
-  )
-}
-
-/** The live screen's notes (or the project's), for the sidebar's Notes tab. */
-function NotesBody({ screens, projectNotes }: { screens: ScreenDef[]; projectNotes?: string[] }) {
-  const { current } = useFlow()
-  const active = screens.find((s) => s.id === current)
-  const notes = active?.notes && active.notes.length > 0 ? active.notes : (projectNotes ?? [])
-
-  return (
-    <>
-      {active ? (
-        <h2 className="text-14 font-bold text-default dark:text-neutral-50">{active.title}</h2>
-      ) : null}
-      {notes.length > 0 ? (
-        <ul className="flex flex-col gap-8">
-          {notes.map((note, i) => (
-            <li key={i} className="text-14 text-caption dark:text-neutral-400">
-              {note}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-12 text-caption dark:text-neutral-400">No notes for this screen.</p>
-      )}
-    </>
   )
 }
 
@@ -688,7 +669,7 @@ function SidebarPortals({
             slots.layers,
           )
         : null}
-      {slots.notes ? createPortal(<NotesBody screens={screens} projectNotes={notes} />, slots.notes) : null}
+      {slots.notes ? createPortal(<CommentList screens={screens} projectNotes={notes} />, slots.notes) : null}
     </>
   )
 }
@@ -704,6 +685,13 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
   const { editing, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
   const device = config.device ?? 'mobile'
   const zoom = useCanvasZoom(DESKTOP_FRAME)
+  useCommentsFor(config.slug)
+  const { mode: commenting, available: canComment } = useComments()
+  // Comment and Edit both take over clicks on the device, so opening Edit —
+  // from its button or by picking a layer — ends Comment.
+  useEffect(() => {
+    if (editing) setCommentMode(false)
+  }, [editing])
   // The right panel IS Edit: open, clicks select for its tools; closed, they
   // tap through the app. One switch, so neither can be on without the other —
   // selecting with nowhere to act on the selection would be a trap.
@@ -719,6 +707,7 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
       onPin={setPinned}
       onRepin={repin}
       preview={preview}
+      commenting={commenting && !editing}
     />
   )
 
@@ -758,6 +747,7 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
         <CanvasControls
           slug={config.slug}
           onEdit={editing ? undefined : startEditing}
+          comment={canComment ? { on: commenting, toggle: () => setCommentMode(!commenting) } : undefined}
           zoom={device === 'desktop' ? <ZoomControl zoom={zoom} /> : null}
           className="absolute right-0 top-0 z-30"
         />
@@ -900,6 +890,7 @@ export function PrototypeView({ config, initialScreenId, initialBare }: Prototyp
     () => () => {
       setDesignMode(false)
       setBareMode(false)
+      setCommentMode(false)
     },
     [],
   )

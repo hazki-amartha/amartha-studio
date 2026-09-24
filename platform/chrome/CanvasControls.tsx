@@ -12,7 +12,7 @@
 
 import Link from 'next/link'
 import { setBareMode } from '@/platform/runtime/presentBridge'
-import { DeviceIcon, EditIcon, ExpandIcon, FlowIcon } from './icons'
+import { CommentIcon, DeviceIcon, EditIcon, ExpandIcon, FlowIcon } from './icons'
 
 const ROUND =
   'flex size-40 flex-none items-center justify-center rounded-full border border-default bg-neutral-white text-caption shadow-sm hover:bg-neutral-50 hover:text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:shadow-none dark:hover:bg-ink-800 dark:hover:text-neutral-50'
@@ -26,6 +26,7 @@ export function CanvasControls({
   isFlow = false,
   status,
   onEdit,
+  comment,
   zoom,
   className,
 }: {
@@ -36,6 +37,9 @@ export function CanvasControls({
   /** Given while the prototype isn't in Edit: opens the right panel, and clicks
    *  start selecting. Once it's open, the panel's ✕ is the way back. */
   onEdit?: () => void
+  /** Review comments, where a comment store is configured: on, clicks on the
+   *  device drop a pin instead of tapping the app. */
+  comment?: { on: boolean; toggle: () => void }
   /** The prototype's zoom control, beside full screen. */
   zoom?: React.ReactNode
   className?: string
@@ -64,6 +68,22 @@ export function CanvasControls({
         {isFlow ? <DeviceIcon className="size-16" /> : <FlowIcon className="size-16" />}
         {isFlow ? 'Prototype' : 'Flow'}
       </Link>
+      {comment ? (
+        <button
+          type="button"
+          onClick={comment.toggle}
+          aria-pressed={comment.on}
+          title={comment.on ? 'Stop commenting (Esc)' : 'Comment — click anywhere on the screen to leave feedback'}
+          className={
+            comment.on
+              ? 'flex h-40 flex-none items-center gap-8 rounded-full bg-blue-500 px-16 text-14 font-bold text-neutral-white shadow-sm hover:bg-blue-600 dark:shadow-none'
+              : PILL
+          }
+        >
+          <CommentIcon className="size-16" />
+          Comment
+        </button>
+      ) : null}
       {/* Last, at the corner, and inverted against the chrome (white on the
           dark shell, near-black on the light one): the one action here that
           starts work. Not brand purple — that is the prototype's colour, and

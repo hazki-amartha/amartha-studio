@@ -233,3 +233,23 @@ export const NotesIcon = icon(
 // Zoom — the canvas's zoom steps.
 export const PlusIcon = icon(<path d="M12 5v14M5 12h14" />)
 export const MinusIcon = icon(<path d="M5 12h14" />)
+
+// Comment — a pin-shaped bubble with a plus: drop review feedback on a spot.
+export const CommentIcon = icon(
+  <>
+    <path d="M12 21H4.5A1.5 1.5 0 0 1 3 19.5V12a9 9 0 1 1 9 9z" />
+    <path d="M12 8.5v7M8.5 12h7" />
+  </>,
+)
+
+// Resolve — a tick.
+export const CheckIcon = icon(<path d="M5 12.5l4.5 4.5L19 7.5" />)
+
+// A comment's own actions — edit, delete — behind three dots.
+export const MoreIcon = icon(
+  <>
+    <circle cx="5" cy="12" r="1" fill="currentColor" />
+    <circle cx="12" cy="12" r="1" fill="currentColor" />
+    <circle cx="19" cy="12" r="1" fill="currentColor" />
+  </>,
+)
