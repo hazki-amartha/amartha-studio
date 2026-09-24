@@ -13,10 +13,11 @@
 // been activated, so the majelis box / directory reflect it after navigating.
 
 import { useSyncExternalStore } from 'react'
+import type { PipelineLead } from './pipeline'
 
 export type FormationStepId = 'ketua' | 'perjanjian' | 'jadwal' | 'ritual'
 
-export const FORMATION_STEP_ORDER: FormationStepId[] = ['ketua', 'perjanjian', 'jadwal', 'ritual']
+export const FORMATION_STEP_ORDER: FormationStepId[] = ['ketua', 'perjanjian', 'jadwal']
 
 export const FORMATION_STEP_LABEL: Record<FormationStepId, string> = {
   ketua: 'Ketua',
@@ -25,8 +26,8 @@ export const FORMATION_STEP_LABEL: Record<FormationStepId, string> = {
   ritual: 'Ritual',
 }
 
-/** An existing-majelis acceptance only runs the two per-member steps. */
-const ACCEPT_STEPS: FormationStepId[] = ['perjanjian', 'ritual']
+/** An existing-majelis acceptance is a single page — just the perjanjian. */
+const ACCEPT_STEPS: FormationStepId[] = ['perjanjian']
 
 export type FormationContext =
   // Accept newly-approved members into an existing majelis (batch).
@@ -83,6 +84,20 @@ export function useFormation(): FormationState {
 
 export function isLeadAccepted(s: FormationState, id: string): boolean {
   return s.acceptedLeads.includes(id)
+}
+
+/**
+ * Whether a lead has been accepted by her existing majelis. Beyond an explicit
+ * acceptance run, the rule is: in an EXISTING majelis, KM acceptance is required
+ * before the survey is submitted — so any lead who has reached Survey submitted
+ * or Approved there has, by definition, already been accepted.
+ */
+export function isMemberAccepted(s: FormationState, lead: PipelineLead): boolean {
+  if (isLeadAccepted(s, lead.id)) return true
+  return (
+    lead.majelis.kind === 'existing' &&
+    (lead.status === 'approved' || lead.status === 'survey-submitted')
+  )
 }
 
 export function isMajelisActivated(s: FormationState, name: string): boolean {

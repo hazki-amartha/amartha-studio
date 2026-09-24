@@ -12,8 +12,8 @@ import { BottomSheet, Button, Input, NavigationHeader, SelectableCard } from '@/
 import { Camera, FileCheck, MapPin } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { MAJELIS_DIRECTORY, majelisDistanceKm } from '../lib/schedule'
-import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { OnboardingModeSheet, PickSheet, SelectField } from '../lib/pipeline-ui'
+import { pipelineStore, setOnboardingTiming, usePipeline } from '../lib/pipeline-store'
+import { OnboardingTimingSheet, PickSheet, SelectField } from '../lib/pipeline-ui'
 import { AppScreen, SearchField, StickyBar } from '../lib/ui'
 import {
   EMPTY_ADDRESS,
@@ -40,13 +40,13 @@ export function PendaftaranScreen() {
   // '' = none, 'baru' = new majelis, otherwise an existing majelis id.
   const [majelisChoice, setMajelisChoice] = useState('')
   const [majelisQuery, setMajelisQuery] = useState('')
-  // The onboarding-mode sheet (existing majelis) — opened once registration is
-  // confirmed, before the survey starts.
-  const [modeOpen, setModeOpen] = useState(false)
+  // The onboarding-timing sheet (existing majelis) — opened once the data is
+  // filled: onboard now, or save as a calon mitra and continue later.
+  const [timingOpen, setTimingOpen] = useState(false)
 
   if (!lead) {
     return (
-      <AppScreen topBar={<NavigationHeader title="Mulai Pendaftaran" onBack={() => flow.back()} />}>
+      <AppScreen topBar={<NavigationHeader title="Lengkapi data" onBack={() => flow.back()} />}>
         <span className="text-14 text-caption">Lead tidak ditemukan.</span>
       </AppScreen>
     )
@@ -82,30 +82,32 @@ export function PendaftaranScreen() {
   function submit() {
     if (!ready) return
     pipelineStore.saveRegistrationDetails(lead.id, nik, ktp, address)
-    // New majelis: create it first (name, ketua, schedule), then pick a mode
-    // there. Existing majelis: the introduction is done — pick the mode now.
+    // Ask now-or-later here for BOTH paths. A new majelis then goes to "Buat
+    // Majelis Baru" carrying the choice; an existing one starts right away.
+    setTimingOpen(true)
+  }
+
+  // The mode (assisted / self) is chosen later, on the Calon Mitra page.
+  function startOnboarding(when: 'now' | 'later') {
+    setTimingOpen(false)
+    // New majelis: carry the timing into the "Buat Majelis Baru" step.
     if (majelisChoice === 'baru') {
+      setOnboardingTiming(when)
       flow.go('kumpulan-jadwal')
       return
     }
-    setModeOpen(true)
-  }
-
-  // Existing-majelis onboarding: assign her to the group, start the survey in the
-  // chosen mode, and route to the matching survey screen.
-  function startOnboarding(mode: 'self' | 'assisted') {
-    setModeOpen(false)
-    pipelineStore.beginOnboarding(lead.id, mode, { kind: 'existing', id: majelisChoice })
-    if (mode === 'self') {
-      pipelineStore.setFlash(`${lead.name} diundang mengisi survey self-service`)
-      flow.go('survey-started')
-    } else {
+    // Existing majelis: assign her to the group and start the survey.
+    pipelineStore.beginOnboarding(lead.id, undefined, { kind: 'existing', id: majelisChoice })
+    if (when === 'now') {
       flow.go('calon-mitra')
+    } else {
+      pipelineStore.setFlash(`${lead.name} disimpan sebagai calon mitra`)
+      flow.go('sales')
     }
   }
 
   return (
-    <AppScreen topBar={<NavigationHeader title="Mulai Pendaftaran" onBack={() => flow.back()} />}>
+    <AppScreen topBar={<NavigationHeader title="Lengkapi data" onBack={() => flow.back()} />}>
       <div className="flex flex-col gap-12">
         {/* KTP — photo and NIK exposed inline, no sheet. */}
         <div className="flex flex-col gap-8">
@@ -213,7 +215,7 @@ export function PendaftaranScreen() {
 
       <StickyBar>
         <Button size="lg" className="w-full" disabled={!ready} onClick={submit}>
-          Mulai Pendaftaran
+          Submit
         </Button>
       </StickyBar>
 
@@ -278,7 +280,7 @@ export function PendaftaranScreen() {
         </div>
       </BottomSheet>
 
-      <OnboardingModeSheet open={modeOpen} onClose={() => setModeOpen(false)} onPick={startOnboarding} />
+      <OnboardingTimingSheet open={timingOpen} onClose={() => setTimingOpen(false)} onPick={startOnboarding} />
     </AppScreen>
   )
 }

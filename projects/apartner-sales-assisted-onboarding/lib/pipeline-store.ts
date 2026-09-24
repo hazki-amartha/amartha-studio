@@ -637,9 +637,11 @@ export const pipelineStore = {
    * her to fill it in on AFin; `assisted` is the BP filling it in beside her.
    * She moves to Survey ongoing and the follow-up she was in counts as done.
    */
-  beginOnboarding(id: string, mode: SurveyMode, majelis?: MajelisAssignment) {
+  beginOnboarding(id: string, mode: SurveyMode | undefined, majelis?: MajelisAssignment) {
     completeTask(id, (lead) => ({
       status: 'survey-created',
+      // The survey mode (assisted / self) is chosen later, on the Calon Mitra
+      // page when Survey Uji Kelayakan is first opened — so it may be unset here.
       surveyMode: mode,
       majelis: majelis ?? lead.majelis,
       // Starting the survey ends the majelis-introduction stage.
@@ -655,7 +657,30 @@ export const pipelineStore = {
         system:
           mode === 'self'
             ? 'Lead diundang mengisi survey self-service di AFin'
-            : 'Survey assisted dimulai bersama calon mitra',
+            : mode === 'assisted'
+              ? 'Survey assisted dimulai bersama calon mitra'
+              : 'Onboarding dimulai — cara survey dipilih di uji kelayakan',
+      }),
+    }))
+  },
+
+  /**
+   * Choose the survey mode after onboarding has begun — set on the Calon Mitra
+   * page when the BP first opens Survey Uji Kelayakan. `assisted` = BP fills it
+   * beside her; `self` = she fills it on AFin. Her status is unchanged.
+   */
+  chooseSurveyMode(id: string, mode: SurveyMode) {
+    patchLead(id, (lead) => ({
+      surveyMode: mode,
+      selfServiceStarted: mode === 'self',
+      assistedStarted: mode === 'assisted',
+      log: appendLog(lead, {
+        via: 'manual',
+        status: lead.status,
+        system:
+          mode === 'self'
+            ? 'Survey uji kelayakan: self-service di AFin'
+            : 'Survey uji kelayakan: assisted oleh BP',
       }),
     }))
   },
@@ -745,4 +770,16 @@ export function setAddLeadEntry(entry: AddLeadEntry) {
 
 export function getAddLeadEntry(): AddLeadEntry {
   return addLeadEntry
+}
+
+// The onboarding-timing choice (now / later), carried from the Lengkapi data page
+// through the "Buat Majelis Baru" step for a new majelis.
+let onboardingTiming: 'now' | 'later' = 'now'
+
+export function setOnboardingTiming(when: 'now' | 'later') {
+  onboardingTiming = when
+}
+
+export function getOnboardingTiming(): 'now' | 'later' {
+  return onboardingTiming
 }

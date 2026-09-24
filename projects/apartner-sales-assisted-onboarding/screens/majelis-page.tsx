@@ -20,7 +20,7 @@ import { isOnboardingLead, majelisLine, type LeadStatus, type PipelineLead } fro
 import type { BadgeIntent } from '@/design-system/components/Badge'
 import { useApp } from '../lib/store'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { isLeadAccepted, isMajelisActivated, setFormation, useFormation } from '../lib/formation'
+import { isMajelisActivated, isMemberAccepted, setFormation, useFormation } from '../lib/formation'
 import {
   draftApprovedCount,
   draftPotential,
@@ -32,9 +32,8 @@ import { AppScreen, VisitTitle } from '../lib/ui'
 
 /** A member's status on the majelis page — the survey stage, or, once approved,
  *  whether she is still waiting to be accepted or is already a Mitra. */
-function memberStatus(status: LeadStatus, accepted: boolean): { label: string; intent: BadgeIntent } {
-  if (status === 'approved')
-    return accepted ? { label: 'Mitra', intent: 'green' } : { label: 'Survey approved', intent: 'green' }
+function memberStatus(status: LeadStatus): { label: string; intent: BadgeIntent } {
+  if (status === 'approved') return { label: 'Waiting for disbursement', intent: 'green' }
   if (status === 'survey-submitted') return { label: 'Survey submitted', intent: 'blue' }
   return { label: 'Survey ongoing', intent: 'orange' }
 }
@@ -130,9 +129,11 @@ export function MajelisPageScreen() {
   const readyToActivate = approvedCount >= MIN_MEMBERS
   const shortApproved = Math.max(0, MIN_MEMBERS - approvedCount)
 
-  // Approved members not yet accepted into the group — the "new members" that a
-  // "update group formation" (member acceptance) run brings in.
-  const newApproved = potential.filter((l) => l.status === 'approved' && !isLeadAccepted(formation, l.id))
+  // Calon mitra pending KM acceptance — survey-ongoing members not yet accepted.
+  // (KM acceptance precedes survey submission, so these are the ones to bring in.)
+  const newApproved = potential.filter(
+    (l) => l.status === 'survey-created' && !isMemberAccepted(formation, l),
+  )
 
   const draftSched = DRAFT_SCHEDULE[name]
   const subtitle = existing
@@ -188,9 +189,9 @@ export function MajelisPageScreen() {
         </div>
       ) : null}
 
-      {/* New approved members waiting to be accepted — the entry point to the
-          member acceptance (Perjanjian + Ritual). Only for an ACTIVE majelis;
-          a draft brings its members in through the full formation instead. */}
+      {/* Calon mitra pending KM acceptance — the entry point to the member
+          acceptance (Perjanjian). Only for an ACTIVE majelis; a draft brings its
+          members in through the full formation instead. */}
       {newApproved.length > 0 && !isDraft ? (
         <button
           type="button"
@@ -198,8 +199,10 @@ export function MajelisPageScreen() {
           className="flex items-center justify-between gap-8 rounded-12 border border-primary-200 bg-primary-50 px-12 py-12 text-left active:bg-neutral-50"
         >
           <span className="flex min-w-0 flex-col gap-2">
-            <span className="text-14 font-bold text-primary-500">Ada {newApproved.length} anggota baru</span>
-            <span className="text-12 text-caption">Update group formation untuk menerima mereka.</span>
+            <span className="text-14 font-bold text-primary-500">
+              {newApproved.length} calon mitra menunggu penerimaan
+            </span>
+            <span className="text-12 text-caption">Jalankan penerimaan anggota (KM) untuk mereka.</span>
           </span>
           <span className="shrink-0 text-primary-500">
             <ChevronRight size={20} />
@@ -240,19 +243,60 @@ export function MajelisPageScreen() {
         )
       ) : null}
 
-      {/* Mitra roster — only an active group has one. Standalone cards, each
-          carrying her product, arrangement and DPD bucket. */}
-      {showRoster ? (
+      {/* Anggota Majelis — active mitra and onboarding members in one list, each
+          with its status under the name. */}
+      {showRoster || (isDirectoryDraft && existing) || potential.length > 0 ? (
         <>
           <span className="flex items-center gap-8 pt-4 text-14 font-bold text-default">
             <Users size={20} />
             Anggota Majelis
           </span>
+          {isDirectoryDraft && existing ? (
+            <span className="-mt-4 text-12 text-caption">
+              {approvedCount} dari {existing.members} anggota sudah survey approved
+            </span>
+          ) : null}
           <div className="flex flex-col gap-8">
-            {MAJELIS_ROSTER.map((m) => (
-              <MitraRosterCard key={m.id} mitra={m} />
-            ))}
-            {more > 0 ? (
+            {/* Active mitra roster (active group only). */}
+            {showRoster ? MAJELIS_ROSTER.map((m) => <MitraRosterCard key={m.id} mitra={m} />) : null}
+
+            {/* Draft directory majelis — its stand-in potential members. */}
+            {isDirectoryDraft && existing
+              ? draftPotential(existing.id).map((m) => <PotentialMemberRow key={m.id} member={m} />)
+              : null}
+
+            {/* Onboarding members from the pipeline (active group + synthesized draft). */}
+            {!isDirectoryDraft
+              ? potential.map((l) => {
+                  const st = memberStatus(l.status)
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => openPotential(l)}
+                      className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left active:bg-neutral-50"
+                    >
+                      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-50 text-14 font-bold text-primary-500">
+                        {l.name.charAt(0)}
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col gap-2">
+                        <span className="truncate text-14 font-bold text-default">{l.name}</span>
+                        <span className="flex">
+                          <Badge intent={st.intent} size="sm">
+                            {st.label}
+                          </Badge>
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-disabled">
+                        <ChevronRight size={20} />
+                      </span>
+                    </button>
+                  )
+                })
+              : null}
+
+            {/* "and N more" tail. */}
+            {showRoster && more > 0 ? (
               <div className="flex items-center gap-4">
                 <span className="text-12 text-caption">dan {more} anggota lainnya</span>
                 <button type="button" className="text-12 font-bold text-link">
@@ -260,73 +304,12 @@ export function MajelisPageScreen() {
                 </button>
               </div>
             ) : null}
+            {isDirectoryDraft && existing && existing.members > draftPotential(existing.id).length ? (
+              <span className="text-12 text-caption">
+                dan {existing.members - draftPotential(existing.id).length} calon mitra lainnya
+              </span>
+            ) : null}
           </div>
-        </>
-      ) : null}
-
-      {/* Potential members. A draft DIRECTORY majelis (Kenari, Teratai) has no
-          pipeline leads of its own yet, so it shows the stand-in list; a
-          synthesized draft / active group shows its real onboarding leads. */}
-      {isDirectoryDraft && existing ? (
-        <>
-          <span className="flex items-center gap-8 pt-4 text-14 font-bold text-default">
-            <Users size={20} />
-            Potential member ({existing.members})
-          </span>
-          <span className="-mt-8 text-12 text-caption">
-            {approvedCount} dari {existing.members} anggota sudah survey approved
-          </span>
-          <Card>
-            <div className="flex flex-col">
-              {draftPotential(existing.id).map((m, i) => (
-                <PotentialMemberRow key={m.id} member={m} divider={i > 0} />
-              ))}
-              {existing.members > draftPotential(existing.id).length ? (
-                <span className="pt-8 text-12 text-caption">
-                  dan {existing.members - draftPotential(existing.id).length} calon mitra lainnya
-                </span>
-              ) : null}
-            </div>
-          </Card>
-        </>
-      ) : null}
-
-      {/* Potential members — calon mitra being onboarded into this majelis. The
-          heading sits outside the box, like Anggota Majelis. */}
-      {!isDirectoryDraft && potential.length > 0 ? (
-        <>
-          <span className="flex items-center gap-8 pt-4 text-14 font-bold text-default">
-            <Users size={20} />
-            Potential member ({potential.length})
-          </span>
-          <Card>
-            <div className="flex flex-col">
-              {potential.map((l, i) => (
-                <button
-                  key={l.id}
-                  type="button"
-                  onClick={() => openPotential(l)}
-                  className={`flex items-center gap-12 py-8 text-left ${i > 0 ? 'border-t border-default' : ''}`}
-                >
-                  <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-primary-50 text-12 font-bold text-primary-500">
-                    {l.name.charAt(0)}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-14 text-default">{l.name}</span>
-                  {(() => {
-                    const st = memberStatus(l.status, isLeadAccepted(formation, l.id))
-                    return (
-                      <Badge intent={st.intent} size="sm">
-                        {st.label}
-                      </Badge>
-                    )
-                  })()}
-                  <span className="shrink-0 text-disabled">
-                    <ChevronRight size={20} />
-                  </span>
-                </button>
-              ))}
-            </div>
-          </Card>
         </>
       ) : null}
 

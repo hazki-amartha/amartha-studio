@@ -86,6 +86,52 @@ export function OnboardingModeSheet({
   )
 }
 
+/**
+ * After the data is filled ("Lengkapi data"), the BP chooses WHEN to onboard:
+ * start the survey now, or save the lead as a calon mitra and continue later.
+ * The survey MODE (assisted / self) is no longer chosen here — that moves to the
+ * Calon Mitra page, at the first Survey Uji Kelayakan tap.
+ */
+export function OnboardingTimingSheet({
+  open,
+  onClose,
+  onPick,
+}: {
+  open: boolean
+  onClose: () => void
+  onPick: (when: 'now' | 'later') => void
+}) {
+  const options: { when: 'now' | 'later'; title: string; description: string }[] = [
+    {
+      when: 'now',
+      title: 'Onboarding sekarang',
+      description: 'Langsung mulai survey onboarding bersama calon mitra.',
+    },
+    {
+      when: 'later',
+      title: 'Onboarding nanti',
+      description: 'Simpan sebagai calon mitra; lanjutkan survey lain waktu.',
+    },
+  ]
+  return (
+    <BottomSheet open={open} onClose={onClose} title="Lanjutkan onboarding?">
+      <div className="flex flex-col gap-8">
+        {options.map((o) => (
+          <button
+            key={o.when}
+            type="button"
+            onClick={() => onPick(o.when)}
+            className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left active:bg-neutral-50"
+          >
+            <span className="text-14 font-bold text-default">{o.title}</span>
+            <span className="text-12 text-caption">{o.description}</span>
+          </button>
+        ))}
+      </div>
+    </BottomSheet>
+  )
+}
+
 // Interest as coloured text: green for interested, blue (informational) for
 // undecided, red for not interested.
 export const INTEREST_TEXT: Record<Interest, string> = {

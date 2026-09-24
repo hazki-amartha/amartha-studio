@@ -110,18 +110,22 @@ const POTENTIAL_BADGE: Record<PotentialStatus, { label: string; intent: BadgeInt
   approved: { label: 'Survey approved', intent: 'green' },
 }
 
-/** One potential-member row for a draft majelis — name-initial avatar + status. */
-export function PotentialMemberRow({ member, divider }: { member: PotentialMitra; divider?: boolean }) {
+/** One potential-member card — name-initial avatar + the status under the name. */
+export function PotentialMemberRow({ member }: { member: PotentialMitra }) {
   const b = POTENTIAL_BADGE[member.status]
   return (
-    <div className={`flex items-center gap-12 py-8 ${divider ? 'border-t border-default' : ''}`}>
-      <span className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-primary-50 text-12 font-bold text-primary-500">
+    <div className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12">
+      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-50 text-14 font-bold text-primary-500">
         {member.name.charAt(0)}
       </span>
-      <span className="min-w-0 flex-1 truncate text-14 text-default">{member.name}</span>
-      <Badge intent={b.intent} size="sm">
-        {b.label}
-      </Badge>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="truncate text-14 font-bold text-default">{member.name}</span>
+        <span className="flex">
+          <Badge intent={b.intent} size="sm">
+            {b.label}
+          </Badge>
+        </span>
+      </div>
     </div>
   )
 }
@@ -138,14 +142,12 @@ export function MitraRosterCard({ mitra }: { mitra: RosterMitra }) {
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="truncate text-16 font-bold text-default">{mitra.name}</span>
         <span className="flex flex-wrap items-center gap-4">
+          <DpdBadge dpd={mitra.dpd} />
           <ProductBadge product={mitra.product} />
           {mitra.ptp ? <Badge intent="blue">Janji bayar {mitra.ptp}</Badge> : null}
           {mitra.keringanan ? <Badge intent="yellow">Dapat keringanan</Badge> : null}
         </span>
       </div>
-      <span className="shrink-0">
-        <DpdBadge dpd={mitra.dpd} />
-      </span>
     </div>
   )
 }
