@@ -7,6 +7,7 @@
 'use client'
 
 import Link from 'next/link'
+import { AccountButton } from './AccountButton'
 import { AssetsIcon, FundsIcon, StudioIcon, StudioMark } from './icons'
 import { ThemeToggle } from './theme'
 
@@ -60,8 +61,9 @@ export function NavRail({
         })}
       </div>
 
-      <div className="mt-auto">
+      <div className="mt-auto flex flex-col items-center gap-4">
         <ThemeToggle />
+        <AccountButton />
       </div>
     </nav>
   )

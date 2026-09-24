@@ -11,10 +11,14 @@
 // this route like every other page. "Mine" is the browser's random key
 // (KEY_HEADER), stored only as a hash: it stops one viewer editing another's
 // words by accident, not a determined impersonator.
+//
+// Signed in (platform/auth), a new comment goes out under the account's name
+// instead of the typed one, so a signed-in author can't be misnamed.
 // =============================================================================
 
 import { randomUUID } from 'node:crypto'
 import { configs } from '@/projects/configs'
+import { getStudioUser } from '@/platform/auth/server'
 import { KEY_HEADER, LIMITS, type Comment, type CommentRequest, type CommentsResponse } from '@/platform/comments/protocol'
 import {
   countComments,
@@ -80,7 +84,7 @@ export async function POST(request: Request): Promise<Response> {
       const x = coord(body.x)
       const y = coord(body.y)
       const words = text(body.body, LIMITS.body)
-      const author = text(body.author, LIMITS.author)
+      const author = text((await getStudioUser())?.label ?? body.author, LIMITS.author)
       if (typeof body.screenId !== 'string' || !KEBAB.test(body.screenId)) return refuse('Unknown screen')
       if (x === null || y === null) return refuse('Bad position')
       if (!words) return refuse('Write something first')
