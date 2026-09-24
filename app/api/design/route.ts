@@ -13,12 +13,19 @@
 //   SITE_PASSWORD         the whole studio is gated; everyone inside may save
 //   STUDIO_EDIT_PASSWORD  the studio is open to view; saving needs this one
 //
-// (The name the panel asks for is a courtesy check on top — see
-// platform/design/server/common.ts.)
+// With sign-in configured (platform/auth), a signed-in editor needs neither:
+// the session is the gate, and the push is made in their `display_name`, not
+// a name the panel sends. The password stays as a fallback until it is unset.
+//
+// (Without sign-in, the name the panel asks for is a courtesy check on top —
+// see platform/design/server/common.ts.)
 // =============================================================================
 
 import { NextResponse } from 'next/server'
 import { isGateConfigured } from '@/app/unlock/auth'
+import { isAuthConfigured } from '@/platform/auth/env'
+import type { StudioUser } from '@/platform/auth/protocol'
+import { canEditAs, getStudioUser, isSameOrigin } from '@/platform/auth/server'
 import { githubConfig } from '@/platform/design/github'
 import type {
   DesignCheckRequest,
@@ -44,28 +51,42 @@ import { githubApply, githubCheck, githubPush } from '@/platform/design/server/g
 
 function backend(): 'fs' | 'github' | 'record' {
   if (process.env.NODE_ENV === 'development') return 'fs'
-  return githubConfig() && (isGateConfigured() || isEditGateConfigured()) ? 'github' : 'record'
+  return githubConfig() && (isGateConfigured() || isEditGateConfigured() || isAuthConfigured()) ? 'github' : 'record'
 }
 
-/** Whether this request may save. Behind the site gate, getting in was enough. */
-function mayEdit(request: Request): boolean {
-  if (isGateConfigured()) return true
-  return verifyEditToken(editCookie(request))
+/**
+ * Whether this request may save, and who is signed in. A signed-in editor
+ * always may; otherwise behind the site gate getting in was enough, and
+ * failing that the editing password's cookie.
+ */
+async function access(request: Request): Promise<{ may: boolean; user: StudioUser | null }> {
+  const user = await getStudioUser()
+  if (canEditAs(user) && isSameOrigin(request)) return { may: true, user }
+  if (isGateConfigured()) return { may: true, user }
+  return { may: verifyEditToken(editCookie(request)), user }
 }
+
+const NOT_AN_EDITOR = 'Your account can’t save from the link yet. Ask the studio owner to set you up as an editor.'
 
 export async function GET(request: Request): Promise<NextResponse> {
   const slug = new URL(request.url).searchParams.get('slug') ?? ''
   const facts = KEBAB.test(slug) ? await projectFacts(slug) : null
   const kind = backend()
+  const { may, user } = kind === 'github' ? await access(request) : { may: false, user: null }
+  const signedInAs = canEditAs(user) ? user.displayName : undefined
+  // Signed in without edit rights, and no password cookie to fall back on.
+  const notAnEditor = kind === 'github' && !may && user !== null
   const status: DesignStatus = {
     backend: kind,
     sha: kind === 'github' ? githubConfig()?.sha : undefined,
     owners: facts?.owners ?? [],
     locked:
       kind === 'github' && facts
-        ? (whyNot(facts, facts.owners[0] ?? 'x') ?? undefined)
+        ? (whyNot(facts, signedInAs ?? facts.owners[0] ?? 'x') ?? (notAnEditor ? NOT_AN_EDITOR : undefined))
         : undefined,
-    needsPassword: kind === 'github' && !mayEdit(request) ? true : undefined,
+    needsSignIn: kind === 'github' && !may && !user && isAuthConfigured() ? true : undefined,
+    needsPassword: kind === 'github' && !may && !isAuthConfigured() ? true : undefined,
+    signedInAs,
   }
   return NextResponse.json(status, { headers: { 'cache-control': 'no-store' } })
 }
@@ -90,7 +111,13 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   if ('unlock' in body) return unlock(body)
-  if (!mayEdit(request)) return refuse('Enter the editing password first.')
+  const { may, user } = await access(request)
+  if (!may) {
+    if (user) return refuse(NOT_AN_EDITOR)
+    return refuse(isAuthConfigured() ? 'Sign in with your Amartha Google account first.' : 'Enter the editing password first.')
+  }
+  // Signed in, the account decides whose name the change goes out under.
+  if (canEditAs(user)) Object.assign(body, { name: user.displayName })
 
   const config = githubConfig()!
   if ('push' in body) return githubPush(body, config)

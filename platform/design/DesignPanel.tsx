@@ -30,6 +30,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { signIn } from '@/platform/auth/session'
 import { PanelShell } from '@/platform/chrome/SidePanel'
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Trash } from '@/design-system/icons'
 import { ancestorChain, labelOf, resolveTarget } from '@/platform/inspect/resolve'
@@ -999,7 +1000,7 @@ function ActionsFooter({
 }) {
   const [copied, setCopied] = useState(false)
   /** The link's questions, asked when Push is pressed. */
-  const [asking, setAsking] = useState<'password' | 'name' | null>(null)
+  const [asking, setAsking] = useState<'signin' | 'password' | 'name' | null>(null)
   const [confirming, setConfirming] = useState(false)
   const n = store.pending.length
   const writable = canSave(store)
@@ -1025,8 +1026,10 @@ function ActionsFooter({
   /** Push, asking first for whatever this browser hasn't answered yet. */
   const push = useCallback(() => {
     const now = getDesignStoreState()
+    if (now.needsSignIn) return setAsking('signin')
     if (now.needsPassword) return setAsking('password')
-    if (!canWrite(now)) return setAsking('name')
+    // Signed in, the name is the account's; `locked` already says why not.
+    if (!canWrite(now)) return setAsking(now.signedIn ? null : 'name')
     setAsking(null)
     void pushChanges()
   }, [])
@@ -1077,6 +1080,7 @@ function ActionsFooter({
   return (
     <div className="flex flex-col gap-4">
       {note ? <p className={NOTE}>{note}</p> : null}
+      {linked && asking === 'signin' && !store.pushed ? <SignInStep onCancel={() => setAsking(null)} /> : null}
       {linked && asking === 'password' && !store.pushed ? (
         <PasswordStep onUnlocked={push} onCancel={() => setAsking(null)} />
       ) : null}
@@ -1121,6 +1125,26 @@ function ActionsFooter({
 }
 
 // --- asked at Push (github) ----------------------------------------------------
+
+/**
+ * Sign-in is how this link saves (platform/auth). Google sign-in leaves the
+ * page, so the list rides it out in localStorage (§ surviving a refresh) and
+ * Push is pressed again on the way back.
+ */
+function SignInStep({ onCancel }: { onCancel: () => void }) {
+  return (
+    <div className="flex flex-col gap-4 rounded-12 border border-default p-8 dark:border-ink-700">
+      <span className="text-12 font-bold text-default dark:text-neutral-50">Sign in to push</span>
+      <button type="button" className={SECONDARY} onClick={() => signIn()}>
+        Continue with Google
+      </button>
+      <span className={NOTE}>Pushing from this link needs your Amartha Google account. Your changes stay as they are.</span>
+      <button type="button" className={`${NOTE} self-start`} onClick={onCancel}>
+        Cancel
+      </button>
+    </div>
+  )
+}
 
 /**
  * The studio is open to view; pushing from it needs the editing password

@@ -107,7 +107,12 @@ export interface DesignStoreState {
   locked?: string
   /** `github`: this browser hasn't entered the editing password yet. */
   needsPassword?: boolean
-  /** Who is editing, as the designer told the panel (`github`). */
+  /** `github`: sign-in is how this link saves, and nobody is signed in. */
+  needsSignIn?: boolean
+  /** `github`: signed in, so `name` is the account's, not a choice. */
+  signedIn?: boolean
+  /** Who is editing: the signed-in account's display name, or, without
+   *  sign-in, the name the designer told the panel (`github`). */
   name: string | null
   /** `github`: this deployment's changes have been pushed. */
   pushed: boolean
@@ -258,7 +263,7 @@ export function canSave(s: DesignStoreState = state): boolean {
 
 /** Whether this person may write here right now, given what the route said. */
 export function canWrite(s: DesignStoreState = state): boolean {
-  if (!canSave(s) || s.needsPassword) return false
+  if (!canSave(s) || s.needsPassword || s.needsSignIn) return false
   if (s.backend === 'fs') return true
   return Boolean(s.name && s.owners.some((o) => o.toLocaleLowerCase() === s.name!.toLocaleLowerCase()))
 }
@@ -307,7 +312,9 @@ async function probe(slug: string) {
     owners: status.owners,
     locked: status.locked,
     needsPassword: status.needsPassword,
-    name: storedName(),
+    needsSignIn: status.needsSignIn,
+    signedIn: Boolean(status.signedInAs),
+    name: status.signedInAs ?? storedName(),
   }
   if (status.backend === 'github') settleDeployment()
   emit({})

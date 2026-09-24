@@ -3,7 +3,7 @@
 // content region with a breadcrumb top bar and collapse toggle. Inside a
 // project there is no top bar: the sidebar is its Screens · Layers · Notes
 // panel, and the view switch floats on the canvas (CanvasControls).
-// Wraps every tool route except /unlock (which renders bare). Built only from
+// Wraps every tool route except /unlock and /auth/* (which render bare). Built only from
 // FunDS tokens; the single non-token width lives in chrome.module.css.
 // =============================================================================
 
@@ -202,8 +202,8 @@ function AppShellInner({
     })
   }, [])
 
-  // Unlock gate renders without any chrome.
-  if (pathname.startsWith('/unlock')) return <>{children}</>
+  // The unlock gate and the sign-in hand-off render without any chrome.
+  if (pathname.startsWith('/unlock') || pathname.startsWith('/auth/')) return <>{children}</>
 
   const { active, currentSlug, isFlow, crumbs } = resolveRoute(pathname, projects)
 

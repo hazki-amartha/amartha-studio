@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useStudioUser } from '@/platform/auth/session'
 import { useFlow } from '@/platform/runtime'
 import { CheckCircleIcon, CloseIcon, MoreIcon } from '@/platform/chrome/icons'
 import type { Comment } from './protocol'
@@ -303,8 +304,12 @@ function ErrorLine() {
 }
 
 function Composer({ draft }: { draft: Draft }) {
-  const [name, setName] = useState(getCommenterName)
-  const [askName, setAskName] = useState(() => !getCommenterName())
+  // Signed in, the account names the comment (the route does the same).
+  const account = useStudioUser().user?.label ?? null
+  const [typed, setName] = useState(getCommenterName)
+  const [asking, setAskName] = useState(() => !getCommenterName())
+  const name = account ?? typed
+  const askName = asking && !account
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
   const ready = body.trim() && name.trim() && !busy
@@ -312,7 +317,7 @@ function Composer({ draft }: { draft: Draft }) {
   const send = async () => {
     if (!ready) return
     setBusy(true)
-    setCommenterName(name)
+    if (!account) setCommenterName(name)
     await postComment({ ...draft, body, author: name.trim() })
     setBusy(false)
   }
@@ -342,7 +347,9 @@ function Composer({ draft }: { draft: Draft }) {
       />
       <ErrorLine />
       <div className="flex items-center justify-between gap-8">
-        {askName ? (
+        {account ? (
+          <span className="min-w-0 truncate text-12 text-caption dark:text-neutral-400">As {account}</span>
+        ) : askName ? (
           <span className="truncate text-12 text-caption dark:text-neutral-400">Shown with your comments</span>
         ) : (
           <button
