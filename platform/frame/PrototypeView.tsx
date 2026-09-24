@@ -70,6 +70,9 @@ import { DesignLayer, DesignPanel } from '@/platform/design'
 import { LiveChatPanel } from '@/platform/chat/ChatPanel'
 import { getChat, getChatServerSnapshot, probeChat, subscribeChat } from '@/platform/runtime/chatBridge'
 import { PushBar } from '@/platform/push/PushBar'
+import { CommentLayer } from '@/platform/comments/CommentLayer'
+import { CommentsPanel } from '@/platform/comments/CommentList'
+import { setCommentMode, useComments, useCommentsFor } from '@/platform/comments/store'
 import { layersDrag } from '@/platform/design/actions'
 import { toggleSelected } from '@/platform/design/selection'
 import { refind } from '@/platform/design/overlay'
@@ -80,11 +83,10 @@ import {
   CloseIcon,
   CodeIcon,
   EditIcon,
-  MinusIcon,
-  PlusIcon,
-} from '@/platform/chrome/icons'
+    } from '@/platform/chrome/icons'
 import { PanelShell, PanelTabs } from '@/platform/chrome/SidePanel'
-import { CanvasControls } from '@/platform/chrome/CanvasControls'
+import { CanvasControls, FullScreenButton, ViewSwitch } from '@/platform/chrome/CanvasControls'
+import { nextZoom, ZoomControl } from '@/platform/chrome/ZoomControl'
 import {
   getSidebarSlots,
   getSidebarSlotsServerSnapshot,
@@ -145,6 +147,7 @@ function AppViewport({
   onPin,
   onRepin,
   preview,
+  commenting,
 }: {
   device?: DeviceKind
   slug?: string
@@ -153,6 +156,8 @@ function AppViewport({
   onPin?: (el: Element | null) => void
   onRepin?: (stale: Element) => void
   preview?: Element | null
+  /** Comment is on: clicks drop review pins instead of tapping the app. */
+  commenting?: boolean
 } = {}) {
   const { current } = useFlow()
   return (
@@ -183,6 +188,7 @@ function AppViewport({
           onRepin={onRepin}
         />
       ) : null}
+      {commenting ? <CommentLayer /> : null}
     </div>
   )
 }
@@ -310,7 +316,6 @@ function FittedDevice({
 
 const MIN_ZOOM = 0.2
 const MAX_ZOOM = 3
-const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2, 3]
 
 const DESKTOP_FRAME = outerSize(DEVICE_SPECS.desktop)
 
@@ -379,11 +384,7 @@ function useCanvasZoom(spec: { width: number; height: number }) {
 
   const step = (dir: 1 | -1) => {
     const el = ref.current
-    const next =
-      dir === 1
-        ? (ZOOM_STEPS.find((z) => z > scale + 0.01) ?? MAX_ZOOM)
-        : ([...ZOOM_STEPS].reverse().find((z) => z < scale - 0.01) ?? MIN_ZOOM)
-    zoomAt(next, (el?.clientWidth ?? 0) / 2, (el?.clientHeight ?? 0) / 2)
+    zoomAt(nextZoom(scale, dir, MIN_ZOOM, MAX_ZOOM), (el?.clientWidth ?? 0) / 2, (el?.clientHeight ?? 0) / 2)
   }
 
   return { ref, spec, scale, fitted: zoom == null, refit: () => setZoom(null), step }
@@ -410,44 +411,6 @@ function ZoomableDevice({ zoom, children }: { zoom: CanvasZoom; children: ReactN
           {children}
         </div>
       </div>
-    </div>
-  )
-}
-
-/** `− Fit +`, beside the canvas's full-screen button. */
-function ZoomControl({ zoom }: { zoom: CanvasZoom }) {
-  const btn =
-    'flex size-32 items-center justify-center rounded-full text-caption hover:bg-neutral-50 hover:text-default disabled:text-placeholder dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50 dark:disabled:text-neutral-600'
-  return (
-    <div className="flex h-40 items-center gap-2 rounded-full border border-default bg-neutral-white px-4 shadow-sm dark:border-ink-700 dark:bg-ink-900 dark:shadow-none">
-      <button
-        type="button"
-        onClick={() => zoom.step(-1)}
-        disabled={zoom.scale <= MIN_ZOOM}
-        aria-label="Zoom out"
-        title="Zoom out"
-        className={btn}
-      >
-        <MinusIcon className="size-16" />
-      </button>
-      <button
-        type="button"
-        onClick={zoom.refit}
-        title={zoom.fitted ? 'Fitted to the canvas' : 'Fit to the canvas'}
-        className="min-w-52 rounded-full px-8 py-4 text-12 font-bold text-default hover:bg-neutral-50 dark:text-neutral-50 dark:hover:bg-ink-800"
-      >
-        {zoom.fitted ? 'Fit' : `${Math.round(zoom.scale * 100)}%`}
-      </button>
-      <button
-        type="button"
-        onClick={() => zoom.step(1)}
-        disabled={zoom.scale >= MAX_ZOOM}
-        aria-label="Zoom in"
-        title="Zoom in"
-        className={btn}
-      >
-        <PlusIcon className="size-16" />
-      </button>
     </div>
   )
 }
@@ -704,6 +667,13 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
   const { editing, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
   const device = config.device ?? 'mobile'
   const zoom = useCanvasZoom(DESKTOP_FRAME)
+  useCommentsFor(config.slug)
+  const { mode: commenting, available: canComment } = useComments()
+  // Comment and Edit both take over clicks on the device, so opening Edit —
+  // from its button or by picking a layer — ends Comment.
+  useEffect(() => {
+    if (editing) setCommentMode(false)
+  }, [editing])
   // The right panel IS Edit: open, clicks select for its tools; closed, they
   // tap through the app. One switch, so neither can be on without the other —
   // selecting with nowhere to act on the selection would be a trap.
@@ -719,6 +689,7 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
       onPin={setPinned}
       onRepin={repin}
       preview={preview}
+      commenting={commenting && !editing}
     />
   )
 
@@ -758,9 +729,22 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
         <CanvasControls
           slug={config.slug}
           onEdit={editing ? undefined : startEditing}
-          zoom={device === 'desktop' ? <ZoomControl zoom={zoom} /> : null}
+          onComment={canComment && !commenting ? () => setCommentMode(true) : undefined}
           className="absolute right-0 top-0 z-30"
         />
+        <ViewSwitch slug={config.slug} className="absolute left-0 top-0 z-30" />
+        {device === 'desktop' ? (
+          <ZoomControl
+            scale={zoom.scale}
+            fitted={zoom.fitted}
+            min={MIN_ZOOM}
+            max={MAX_ZOOM}
+            onStep={zoom.step}
+            onFit={zoom.refit}
+            className="absolute bottom-0 left-0 z-30"
+          />
+        ) : null}
+        <FullScreenButton className="absolute bottom-0 right-0 z-30" />
       </div>
 
       {editing ? (
@@ -771,6 +755,9 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
           screenId={current}
           onMinimize={stopEditing}
         />
+      ) : null}
+      {commenting && !editing ? (
+        <CommentsPanel screens={screens} onClose={() => setCommentMode(false)} className={styles.panel} />
       ) : null}
     </div>
   )
@@ -900,6 +887,7 @@ export function PrototypeView({ config, initialScreenId, initialBare }: Prototyp
     () => () => {
       setDesignMode(false)
       setBareMode(false)
+      setCommentMode(false)
     },
     [],
   )

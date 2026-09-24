@@ -27,7 +27,7 @@ import {
   FlowIcon,
   PanelIcon,
 } from './icons'
-import { CanvasControls } from './CanvasControls'
+import { CanvasControls, ViewSwitch } from './CanvasControls'
 import { MobileTopNav } from './MobileTopNav'
 import { NavRail, type RailSection } from './NavRail'
 import { ScreenSidebar } from './ScreenSidebar'
@@ -282,12 +282,17 @@ function AppShellInner({
           {/* The prototype draws its own, beside its right panel; the flow
               view's canvas is the whole area, so they go in its corner here. */}
           {currentSlug && isFlow ? (
-            <CanvasControls
-              slug={currentSlug}
-              isFlow
-              status={<HeaderStatusView />}
-              className="absolute right-16 top-16 z-30 hidden md:flex"
-            />
+            <>
+              {/* Top left, where the prototype keeps its Flow switch, so
+                  going across and back is the same click in the same place. */}
+              <ViewSwitch slug={currentSlug} isFlow className="absolute left-16 top-16 z-30 hidden md:flex" />
+              <CanvasControls
+                slug={currentSlug}
+                isFlow
+                status={<HeaderStatusView />}
+                className="absolute right-16 top-16 z-30 hidden md:flex"
+              />
+            </>
           ) : null}
         </div>
       </div>
