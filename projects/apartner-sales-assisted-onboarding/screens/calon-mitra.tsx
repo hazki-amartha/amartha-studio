@@ -14,7 +14,7 @@
 import { useState } from 'react'
 import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
 import type { BadgeIntent } from '@/design-system/components/Badge'
-import { ArrowLeft, CalendarDots, CheckCircle, MapPin, WhatsappLogo } from '@/design-system/icons'
+import { ArrowLeft, CalendarDots, CheckCircle, Hourglass, MapPin, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { dateFromToday, majelisLine, surveyStatusLabel, type SurveyMode } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
@@ -42,6 +42,9 @@ export function CalonMitraScreen() {
   // The survey-mode choice (assisted / self) is made here, at the first Survey
   // Uji Kelayakan tap — not back at registration.
   const [modeOpen, setModeOpen] = useState(false)
+  // After Submit Onboarding the page shows a loading state until the BP taps the
+  // control that finishes the (simulated) underwriting.
+  const [submitting, setSubmitting] = useState(false)
 
   if (!lead) {
     return (
@@ -124,10 +127,16 @@ export function CalonMitraScreen() {
     if (mode === 'assisted') openSection('uji-kelayakan')
   }
 
+  // Submit stays on the page: the survey goes in and a loading state shows until
+  // the BP finishes the (simulated) underwriting.
   function submit() {
     pipelineStore.submitSurvey(lead.id)
-    pipelineStore.setFlash(`Survey ${lead.name} dikirim — menunggu keputusan underwriting`)
-    flow.go('sales')
+    setSubmitting(true)
+  }
+
+  function finishUnderwriting() {
+    pipelineStore.approveSurvey(lead.id)
+    setSubmitting(false)
   }
 
   // Survey progress is already saved to the survey store on every toggle, so
@@ -167,40 +176,67 @@ export function CalonMitraScreen() {
     flow.go('group-formation')
   }
 
-  return (
-    <AppScreen
-      topBar={
-        <header className="flex shrink-0 items-center gap-8 border-b border-default bg-neutral-white px-16 py-8">
+  const header = (
+    <header className="flex shrink-0 items-center gap-8 border-b border-default bg-neutral-white px-16 py-8">
+      <button
+        type="button"
+        onClick={() => flow.go('sales')}
+        aria-label="Kembali"
+        className="-ml-4 flex h-32 w-32 shrink-0 items-center justify-center text-default"
+      >
+        <ArrowLeft size={20} />
+      </button>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-16 font-bold text-default">{lead.name}</span>
+        <span className="flex">
+          <Badge intent={statusIntent} size="sm">
+            {statusLabel}
+          </Badge>
+        </span>
+        {submitted ? (
+          <span className="text-10 text-caption">
+            Waiting for underwriting results · ETA: {dateFromToday(3)}
+          </span>
+        ) : null}
+      </div>
+      <ContactButton label={`Chat WhatsApp ${lead.name}`} tone="green" onClick={() => {}}>
+        <WhatsappLogo size={20} />
+      </ContactButton>
+      <ContactButton label={`Peta ${lead.name}`} tone="red" onClick={() => {}}>
+        <MapPin size={20} />
+      </ContactButton>
+    </header>
+  )
+
+  // Loading state after Submit — held until the BP taps the control below.
+  if (submitting) {
+    return (
+      <AppScreen topBar={header}>
+        <div className="flex flex-1 flex-col items-center justify-center gap-12 py-48 text-center">
+          <span className="flex h-48 w-48 items-center justify-center rounded-full bg-primary-50 text-primary-500">
+            <Hourglass size={24} />
+          </span>
+          <div className="flex flex-col gap-2">
+            <span className="text-16 font-bold text-default">Memproses onboarding</span>
+            <span className="text-12 text-caption">
+              Survey masuk — KYC &amp; underwriting sedang berjalan.
+            </span>
+          </div>
+          {/* Orange = a simulation control, not part of the real design. */}
           <button
             type="button"
-            onClick={() => flow.go('sales')}
-            aria-label="Kembali"
-            className="-ml-4 flex h-32 w-32 shrink-0 items-center justify-center text-default"
+            onClick={finishUnderwriting}
+            className="rounded-full border border-orange-500 bg-orange-50 px-16 py-8 text-14 font-bold text-orange-500"
           >
-            <ArrowLeft size={20} />
+            Tandai underwriting selesai
           </button>
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-16 font-bold text-default">{lead.name}</span>
-            <span className="flex">
-              <Badge intent={statusIntent} size="sm">
-                {statusLabel}
-              </Badge>
-            </span>
-            {submitted ? (
-              <span className="text-10 text-caption">
-                Waiting for underwriting results · ETA: {dateFromToday(3)}
-              </span>
-            ) : null}
-          </div>
-          <ContactButton label={`Chat WhatsApp ${lead.name}`} tone="green" onClick={() => {}}>
-            <WhatsappLogo size={20} />
-          </ContactButton>
-          <ContactButton label={`Peta ${lead.name}`} tone="red" onClick={() => {}}>
-            <MapPin size={20} />
-          </ContactButton>
-        </header>
-      }
-    >
+        </div>
+      </AppScreen>
+    )
+  }
+
+  return (
+    <AppScreen topBar={header}>
       {/* Majelis card — name, place + kumpulan slot, then the stage. A new
           (draft) majelis shows its approved / in-progress counts; an existing
           group shows the KM-acceptance state and its Start button. Both can open
