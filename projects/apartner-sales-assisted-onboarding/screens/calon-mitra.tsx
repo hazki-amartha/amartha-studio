@@ -301,6 +301,14 @@ export function CalonMitraScreen() {
         </Card>
       ) : null}
 
+      {/* Group formation sits right below the Majelis card (the disbursement
+          button stays pinned at the bottom). */}
+      {approved && readyToForm ? (
+        <Button size="lg" className="w-full" onClick={startGroupFormation}>
+          Start group formation
+        </Button>
+      ) : null}
+
       {/* Survey + ritual cards — hidden once approved (Ready for disbursement). */}
       {!approved ? (
         <>
@@ -407,11 +415,7 @@ export function CalonMitraScreen() {
           otherwise the survey submit bar. */}
       {approved ? (
         <StickyBar>
-          {readyToForm ? (
-            <Button size="lg" className="w-full" onClick={startGroupFormation}>
-              Start group formation
-            </Button>
-          ) : !canDisburse ? (
+          {!canDisburse && !readyToForm ? (
             <span className="text-center text-12 text-caption">
               Menunggu anggota lain — majelis belum cukup untuk dibentuk.
             </span>
