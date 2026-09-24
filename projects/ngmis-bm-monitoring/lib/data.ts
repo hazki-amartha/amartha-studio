@@ -331,6 +331,15 @@ export interface MitraTindakan {
   hasilOk: boolean
   /** null when the visit/call itself carried no payment outcome to report. */
   dibayar: string | null
+  /** What actually happened, in full — the detail view's own read, richer
+   *  than the short outcome caption the timeline row shows beside the
+   *  badge. */
+  catatan: string
+  /** Whether this task was logged in person, with a geotagged photo as
+   *  proof. A Telepon call happens from wherever the BP is and carries
+   *  neither; a Home Visit and Pencairan's site-visit outcomes
+   *  (Survei selesai, Tidak di tempat) do. */
+  evidence: boolean
 }
 
 export interface BpMitraDetail {
@@ -350,12 +359,39 @@ export interface BpMitraDetail {
 
 const TINDAKAN_JENIS: MitraTindakan['jenis'][] = ['Home Visit', 'Telepon', 'Home Visit', 'Telepon', 'Telepon']
 const TINDAKAN_PELAKU: MitraTindakan['pelaku'][] = ['AM', 'BM', 'BP', 'BP', 'BP']
-const TINDAKAN_HASIL: { label: string; ok: boolean }[] = [
-  { label: 'Tidak berhasil', ok: false },
-  { label: 'Tidak berhasil', ok: false },
-  { label: 'Diterima mitra', ok: true },
-  { label: 'Diterima mitra', ok: true },
-  { label: 'Janji bayar', ok: true },
+/** Paired 1:1 with `TINDAKAN_JENIS` by index — `evidence` follows the
+ *  channel (a visit is logged in person, a call isn't), not the outcome. */
+const TINDAKAN_HASIL: { label: string; ok: boolean; catatan: string; evidence: boolean }[] = [
+  {
+    label: 'Tidak berhasil',
+    ok: false,
+    catatan: 'Mitra tidak ada di rumah saat kunjungan dilakukan; tetangga menyebut sedang ke pasar.',
+    evidence: true,
+  },
+  {
+    label: 'Tidak berhasil',
+    ok: false,
+    catatan: 'Telepon tidak diangkat setelah tiga kali percobaan.',
+    evidence: false,
+  },
+  {
+    label: 'Diterima mitra',
+    ok: true,
+    catatan: 'Mitra ditemui langsung di rumah dan menyatakan kesanggupan membayar.',
+    evidence: true,
+  },
+  {
+    label: 'Diterima mitra',
+    ok: true,
+    catatan: 'Mitra menjawab telepon dan menyatakan bersedia membayar sesuai jadwal.',
+    evidence: false,
+  },
+  {
+    label: 'Janji bayar',
+    ok: true,
+    catatan: 'Mitra berjanji melunasi tunggakan sebelum akhir minggu.',
+    evidence: false,
+  },
 ]
 
 /** Every mitra under a BP, not just the ones missing a standard — "Lihat
@@ -381,6 +417,8 @@ export function mitraDetailFor(bp: RepaymentBp): BpMitraDetail[] {
         hasil: hasil.label,
         hasilOk: hasil.ok,
         dibayar: hasil.ok && j === 0 ? `Dibayar Rp${rupiah(500_000 + i * 100_000)}` : 'Tidak dibayar',
+        catatan: hasil.catatan,
+        evidence: hasil.evidence,
       }
     })
     return {
@@ -532,7 +570,11 @@ export function branchDisbursement() {
   const baru = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.noaBaru, 0)
   const lanjutan = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.noaLanjutan, 0)
   const due = DISBURSEMENT_BPS.reduce((n, bp) => n + bp.renewalDue, 0)
-  return { baru, lanjutan, due, renewal: due === 0 ? 0 : (lanjutan / due) * 100 }
+  /** The 85% standard converted to a headcount — how many renewals the
+   *  branch is actually judged against, in the same "N mitra" shape Mitra
+   *  baru's target already uses. */
+  const renewalTarget = Math.ceil((due * DISBURSEMENT_TARGETS.renewalRate) / 100)
+  return { baru, lanjutan, due, renewal: due === 0 ? 0 : (lanjutan / due) * 100, renewalTarget }
 }
 
 /**
@@ -624,6 +666,10 @@ export interface DisbursementMitraDetail {
   location: string
   tindakan: MitraTindakan[]
   followUp: string
+  /** Which funnel this record belongs to — the drawer's roster filter reads
+   *  this to split "Lihat detail" between new mitra (NTB) and renewal mitra
+   *  (ETB) rather than only ever showing the NTB pipeline. */
+  segment: 'baru' | 'lanjutan'
 }
 
 /** Always "Contacted" — a lead never gets a Home Visit or a Telepon-flavoured
@@ -632,12 +678,46 @@ export interface DisbursementMitraDetail {
  *  BM stepping in the way Pembayaran's tindakan mixes all three. */
 const NTB_TINDAKAN_JENIS: MitraTindakan['jenis'][] = ['Contacted']
 const NTB_TINDAKAN_PELAKU: MitraTindakan['pelaku'][] = ['BP']
-const NTB_TINDAKAN_HASIL: { label: string; ok: boolean; note: string }[] = [
-  { label: 'Tidak diangkat', ok: false, note: 'Belum terhubung' },
-  { label: 'Tertarik', ok: true, note: 'Lanjut ke survei' },
-  { label: 'Survei selesai', ok: true, note: 'Menunggu persetujuan' },
-  { label: 'Tidak di tempat', ok: false, note: 'Dijadwalkan ulang' },
-  { label: 'Disetujui', ok: true, note: 'Menunggu pencairan' },
+/** `evidence` marks the two outcomes that mean a BP was actually at the
+ *  lead's location — Survei selesai and Tidak di tempat — not the phone
+ *  touches (Tidak diangkat, Tertarik) or the approval note (Disetujui),
+ *  which are logged from wherever the BP happens to be. */
+const NTB_TINDAKAN_HASIL: { label: string; ok: boolean; note: string; catatan: string; evidence: boolean }[] = [
+  {
+    label: 'Tidak diangkat',
+    ok: false,
+    note: 'Belum terhubung',
+    catatan: 'Nomor telepon dihubungi tiga kali, tidak ada jawaban.',
+    evidence: false,
+  },
+  {
+    label: 'Tertarik',
+    ok: true,
+    note: 'Lanjut ke survei',
+    catatan: 'Lead dihubungi dan menyatakan tertarik; dijadwalkan untuk survei.',
+    evidence: false,
+  },
+  {
+    label: 'Survei selesai',
+    ok: true,
+    note: 'Menunggu persetujuan',
+    catatan: 'Survei lapangan selesai dilakukan; hasil menunggu persetujuan.',
+    evidence: true,
+  },
+  {
+    label: 'Tidak di tempat',
+    ok: false,
+    note: 'Dijadwalkan ulang',
+    catatan: 'BP mendatangi lokasi sesuai jadwal survei, namun lead tidak ada di tempat.',
+    evidence: true,
+  },
+  {
+    label: 'Disetujui',
+    ok: true,
+    note: 'Menunggu pencairan',
+    catatan: 'Pengajuan disetujui; menunggu proses pencairan.',
+    evidence: false,
+  },
 ]
 
 /** Every lead behind a BP's Mitra baru funnel, not just the branch total —
@@ -685,6 +765,8 @@ export function disbursementMitraDetailFor(bp: DisbursementBp): DisbursementMitr
         hasil: hasil.label,
         hasilOk: hasil.ok,
         dibayar: hasil.note,
+        catatan: hasil.catatan,
+        evidence: hasil.evidence,
       }
     })
     const leadDate = LEAD_DATES[(start + i) % LEAD_DATES.length]
@@ -700,6 +782,83 @@ export function disbursementMitraDetailFor(bp: DisbursementBp): DisbursementMitr
       location: LEAD_LOCATIONS[(start + i) % LEAD_LOCATIONS.length],
       tindakan,
       followUp: `Survei oleh BP, sebelum ${10 + i} Sep 2026`,
+      segment: 'baru',
+    }
+  })
+}
+
+/** The renewal side of the same funnel — ETB's own five stages, reusing
+ *  `NTB_STAGE_BUCKETS`' shape but distinct ids (a shared id between the two
+ *  would make one status option match rows from both funnels at once). The
+ *  journey mirrors NTB's (contact → survey → approval); only the first
+ *  stage and the last label differ, since a renewal starts from an existing
+ *  mitra flagged for reactivation rather than a cold lead, and ends in a
+ *  renewal rather than a first-time approval. */
+export const ETB_STAGE_BUCKETS: { id: string; label: string; intent: BucketIntent }[] = [
+  { id: 'etbDitawarkan', label: 'Ditawarkan', intent: 'yellow' },
+  { id: 'etbDilanjuti', label: 'Dilanjuti', intent: 'orange' },
+  { id: 'etbSurveiDimulai', label: 'Survei dimulai', intent: 'orange' },
+  { id: 'etbSurveiDikirim', label: 'Survei dikirim', intent: 'orange' },
+  { id: 'etbDisetujui', label: 'Mitra diperpanjang', intent: 'green' },
+]
+
+export function etbStageLabel(stageId: string) {
+  return ETB_STAGE_BUCKETS.find((b) => b.id === stageId)?.label ?? stageId
+}
+
+export function etbStageIntent(stageId: string) {
+  return ETB_STAGE_BUCKETS.find((b) => b.id === stageId)?.intent ?? 'yellow'
+}
+
+/** How a renewal mitra was flagged, in place of a lead's "source" — she
+ *  isn't newly acquired, so the pool reads as "why this touch happened now"
+ *  instead of "where this lead came from". */
+const RENEWAL_SOURCES = [
+  'Jatuh tempo bulan ini',
+  'Follow-up jatuh tempo',
+  'Reaktivasi otomatis',
+  'Ditawarkan BP saat kunjungan',
+]
+
+/** Every mitra behind a BP's Mitra lanjutan funnel — same shape and same
+ *  reasoning as `disbursementMitraDetailFor`, reusing the same tindakan
+ *  outcome pool (a renewal call and a new-mitra call fail or land the same
+ *  handful of ways) but the ETB stage vocabulary and a renewal-flavoured
+ *  `source`. Unlike an NTB lead, a renewal mitra already has a code and a
+ *  majelis at every stage — she's existing, not being onboarded. */
+export function disbursementLanjutanDetailFor(bp: DisbursementBp): DisbursementMitraDetail[] {
+  const start = DISBURSEMENT_BPS.findIndex((b) => b.id === bp.id)
+  const stageIds = ETB_STAGE_BUCKETS.map((b) => b.id)
+  return Array.from({ length: 4 }, (_, i) => {
+    const stageId = stageIds[(start + i) % stageIds.length]
+    const tindakan: MitraTindakan[] = Array.from({ length: 5 }, (_, j) => {
+      const hasilIdx = (start + i + j + 1) % NTB_TINDAKAN_HASIL.length
+      const hasil = NTB_TINDAKAN_HASIL[hasilIdx]
+      return {
+        date: `${29 - j} Ags 2026, 10:15`,
+        jenis: NTB_TINDAKAN_JENIS[(start + i + j) % NTB_TINDAKAN_JENIS.length],
+        pelaku: NTB_TINDAKAN_PELAKU[(start + i + j) % NTB_TINDAKAN_PELAKU.length],
+        hasil: hasil.label,
+        hasilOk: hasil.ok,
+        dibayar: hasil.note,
+        catatan: hasil.catatan,
+        evidence: hasil.evidence,
+      }
+    })
+    const leadDate = LEAD_DATES[(start + i + 1) % LEAD_DATES.length]
+    return {
+      id: `${bp.id}-lanjutan-${i}`,
+      code: String(i + 1).padStart(3, '0'),
+      name: MITRA_NAMES[(start + i + 2) % MITRA_NAMES.length],
+      majelis: MAJELIS_NAMES[(start + i + 1) % MAJELIS_NAMES.length],
+      stageId,
+      leadDate: leadDate.date,
+      leadDateRelative: leadDate.relative,
+      source: RENEWAL_SOURCES[(start + i) % RENEWAL_SOURCES.length],
+      location: LEAD_LOCATIONS[(start + i + 1) % LEAD_LOCATIONS.length],
+      tindakan,
+      followUp: `Survei oleh BP, sebelum ${12 + i} Sep 2026`,
+      segment: 'lanjutan',
     }
   })
 }
