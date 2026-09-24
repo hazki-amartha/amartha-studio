@@ -1,66 +1,34 @@
 'use client'
 
-// Group Formation tasks for the Tugas page. A new majelis becomes one of these
-// once more than five of its new members are approved (UK passed): the majelis
-// can hold its "first MV" — pick a ketua, run the oath, make the first
-// disbursement. Kept to one representative task at on-screen scale (§3) rather
-// than seeding six approved leads to derive it.
+// Tugas-page task types + the reschedule store. The tasks themselves are DERIVED
+// from the real majelis directory + pipeline in the Tugas screen (so they always
+// point at a majelis that actually exists, by its status):
+//
+//   Group Formation — a draft majelis with enough members to form (Kenari, Teratai)
+//   Penerimaan Anggota — an active majelis with newly-approved members to accept
+//                        (Mawar, Melati)
 
 import { useSyncExternalStore } from 'react'
 
 export interface GroupFormationTask {
   id: string
+  majelisId: string
+  /** Full directory name, e.g. "Majelis Teratai". */
   majelisName: string
-  /** How many new members are approved (the >5 that triggers formation). */
+  /** Members gathered so far (the draft's directory count). */
   memberCount: number
-  /** The scheduled time on the task card. */
+  /** The scheduled time on the task card (the majelis' kumpulan slot). */
   time: string
 }
 
-export const GROUP_FORMATION_TASKS: GroupFormationTask[] = [
-  { id: 'gf-cibeuteung-udik', majelisName: 'Cibeuteung Udik', memberCount: 6, time: '10.00' },
-]
-
-/**
- * Penerimaan Anggota tasks — an ACTIVE majelis with newly-approved members
- * waiting to be accepted (Perjanjian + Ritual). Distinct from group formation:
- * the group already runs; these are late joiners being brought in. Tapping one
- * opens the acceptance flow (group-formation in `accept` mode). One
- * representative task at on-screen scale (§3).
- */
 export interface PenerimaanTask {
   id: string
-  /** The active directory majelis the new members join. */
   majelisId: string
   majelisName: string
   /** The newly-approved members waiting to be accepted. */
-  memberNames: string[]
   memberIds: string[]
-  /** The scheduled time on the task card. */
+  memberNames: string[]
   time: string
-}
-
-export const PENERIMAAN_TASKS: PenerimaanTask[] = [
-  {
-    id: 'pa-anggrek',
-    majelisId: 'anggrek',
-    majelisName: 'Majelis Anggrek',
-    memberNames: ['Marta Hakim', 'Rukmini'],
-    memberIds: ['pa-anggrek-1', 'pa-anggrek-2'],
-    time: '13.00',
-  },
-]
-
-// Which task the group-formation detail is about — set right before navigating,
-// read once on mount (screens take no props and remount on navigation).
-let selected: GroupFormationTask = GROUP_FORMATION_TASKS[0]
-
-export function setGroupTask(task: GroupFormationTask) {
-  selected = task
-}
-
-export function getGroupTask(): GroupFormationTask {
-  return selected
 }
 
 // --- Task state (rescheduled) ----------------------------------------------

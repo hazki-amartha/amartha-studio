@@ -15,16 +15,17 @@ import { useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button } from '@/design-system/components'
 import { ChevronDown } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { dateFromToday } from '../lib/pipeline'
+import { dateFromToday, isOnboardingLead } from '../lib/pipeline'
+import { MAJELIS_DIRECTORY, MIN_MEMBERS } from '../lib/schedule'
 import {
-  GROUP_FORMATION_TASKS,
-  PENERIMAAN_TASKS,
   groupTaskStore,
   useGroupTasks,
   type GroupFormationTask,
   type PenerimaanTask,
 } from '../lib/group-tasks'
 import { isLeadAccepted, isMajelisActivated, setFormation, useFormation } from '../lib/formation'
+import { draftApprovedCount } from '../lib/roster'
+import { usePipeline } from '../lib/pipeline-store'
 import { store } from '../lib/store'
 import { TabBar } from '../lib/tabs'
 import { AppScreen, EmptyState, FilterBar, FilterChip, OptionSheet } from '../lib/ui'
@@ -102,14 +103,55 @@ export function TugasScreen() {
   const flow = useFlow()
   const { rescheduled } = useGroupTasks()
   const formation = useFormation()
+  const { leads, order } = usePipeline()
   const [gate, setGate] = useState<GroupFormationTask | null>(null)
+  const [paGate, setPaGate] = useState<PenerimaanTask | null>(null)
   const [filter, setFilter] = useState<'type' | 'status' | null>(null)
   const [typeF, setTypeF] = useState('all')
   const [statusF, setStatusF] = useState('all')
 
+  // Tasks are derived from the real majelis directory + pipeline, so they always
+  // point at a majelis that exists, by its status.
+  const onboardingLeads = order.map((id) => leads[id]).filter(isOnboardingLead)
+
+  // Group Formation — a draft majelis can form only once at least MIN_MEMBERS of
+  // its members are survey approved. Teratai (6 approved) qualifies; Kenari (4)
+  // does not yet.
+  const gfTasks: GroupFormationTask[] = MAJELIS_DIRECTORY.filter(
+    (m) => m.status === 'draft' && draftApprovedCount(m.id) >= MIN_MEMBERS,
+  ).map((m) => ({
+    id: `gf-${m.id}`,
+    majelisId: m.id,
+    majelisName: m.name,
+    memberCount: draftApprovedCount(m.id),
+    time: m.time,
+  }))
+
+  // Penerimaan Anggota — active majelis with newly-approved members to accept
+  // (Mawar, Melati). Derived from the onboarding leads assigned to each group.
+  const paTasks: PenerimaanTask[] = MAJELIS_DIRECTORY.filter((m) => m.status === 'aktif')
+    .map((m): PenerimaanTask => {
+      const newApproved = onboardingLeads.filter(
+        (l) =>
+          l.majelis.kind === 'existing' &&
+          l.majelis.id === m.id &&
+          l.status === 'approved' &&
+          !isLeadAccepted(formation, l.id),
+      )
+      return {
+        id: `pa-${m.id}`,
+        majelisId: m.id,
+        majelisName: m.name,
+        memberIds: newApproved.map((l) => l.id),
+        memberNames: newApproved.map((l) => l.name),
+        time: m.time,
+      }
+    })
+    .filter((t) => t.memberIds.length > 0)
+
   function startActivation(task: GroupFormationTask) {
     setGate(null)
-    setFormation({ mode: 'form', majelisName: `Majelis ${task.majelisName}`, memberCount: task.memberCount })
+    setFormation({ mode: 'form', majelisName: task.majelisName, memberCount: task.memberCount })
     flow.go('group-formation')
   }
 
@@ -121,6 +163,7 @@ export function TugasScreen() {
   // Accepting new members runs the acceptance flow (group-formation in `accept`
   // mode). Point the majelis page at this group so the finish lands on it.
   function openPenerimaan(task: PenerimaanTask) {
+    setPaGate(null)
     store.openMajelisPage({ kind: 'existing', id: task.majelisId })
     setFormation({
       mode: 'accept',
@@ -131,37 +174,44 @@ export function TugasScreen() {
     flow.go('group-formation')
   }
 
+  function skipPenerimaan(task: PenerimaanTask) {
+    setPaGate(null)
+    groupTaskStore.reschedule(task.id, dateFromToday(7))
+  }
+
   // Flatten both task kinds into one list of rows.
   const rows: TaskRow[] = [
-    ...GROUP_FORMATION_TASKS.map((task): TaskRow => {
+    ...gfTasks.map((task): TaskRow => {
       const movedTo = rescheduled[task.id]
-      const done = isMajelisActivated(formation, `Majelis ${task.majelisName}`)
+      const done = isMajelisActivated(formation, task.majelisName)
       return {
         id: task.id,
         code: 'GF',
         kind: 'Pembentukan Majelis',
         kindLine: `Group Formation · ${task.time}`,
-        title: `Majelis ${task.majelisName}`,
-        subtitle: movedTo ? `Dipindah ke ${movedTo}` : `${task.memberCount} anggota disetujui`,
+        title: task.majelisName,
+        subtitle: movedTo ? `Dipindah ke ${movedTo}` : `${task.memberCount} anggota survey approved`,
         status: movedTo ? 'Dijadwalkan ulang' : 'Belum mulai',
         statusIntent: movedTo ? 'neutral' : 'orange',
         done,
         onOpen: done || movedTo ? undefined : () => setGate(task),
       }
     }),
-    ...PENERIMAAN_TASKS.map((task): TaskRow => {
-      const done = task.memberIds.every((id) => isLeadAccepted(formation, id))
+    ...paTasks.map((task): TaskRow => {
+      const movedTo = rescheduled[task.id]
       return {
         id: task.id,
         code: 'PA',
         kind: 'Penerimaan Anggota',
         kindLine: `Penerimaan anggota · ${task.time}`,
         title: task.majelisName,
-        subtitle: `${task.memberNames.length} anggota baru: ${task.memberNames.join(', ')}`,
-        status: 'Belum mulai',
-        statusIntent: 'orange',
-        done,
-        onOpen: done ? undefined : () => openPenerimaan(task),
+        subtitle: movedTo
+          ? `Dipindah ke ${movedTo}`
+          : `${task.memberNames.length} anggota baru: ${task.memberNames.join(', ')}`,
+        status: movedTo ? 'Dijadwalkan ulang' : 'Belum mulai',
+        statusIntent: movedTo ? 'neutral' : 'orange',
+        done: false,
+        onOpen: movedTo ? undefined : () => setPaGate(task),
       }
     }),
   ]
@@ -258,6 +308,30 @@ export function TugasScreen() {
             onClick={() => gate && skipTask(gate)}
           >
             Belum, lewati tugas
+          </Button>
+          <span className="text-center text-12 text-caption">
+            Tugas akan dijadwalkan ulang otomatis ke minggu depan.
+          </span>
+        </div>
+      </BottomSheet>
+
+      {/* Penerimaan Anggota gate — same shape as the group-formation gate. */}
+      <BottomSheet
+        open={Boolean(paGate)}
+        onClose={() => setPaGate(null)}
+        title="Mulai penerimaan anggota baru?"
+      >
+        <div className="flex flex-col gap-8">
+          <Button size="lg" className="w-full" onClick={() => paGate && openPenerimaan(paGate)}>
+            Mulai Penerimaan Anggota
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="w-full"
+            onClick={() => paGate && skipPenerimaan(paGate)}
+          >
+            Lewati Tugas
           </Button>
           <span className="text-center text-12 text-caption">
             Tugas akan dijadwalkan ulang otomatis ke minggu depan.

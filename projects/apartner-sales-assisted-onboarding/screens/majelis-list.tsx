@@ -12,10 +12,11 @@ import {
   DRAFT_SCHEDULE,
   KUMPULAN_DAYS,
   MAJELIS_DIRECTORY,
-  shortfallOf,
+  MIN_MEMBERS,
   type MajelisEntry,
   type MajelisStatus,
 } from '../lib/schedule'
+import { draftApprovedCount } from '../lib/roster'
 import { isOnboardingLead } from '../lib/pipeline'
 import { usePipeline } from '../lib/pipeline-store'
 import { store, useApp } from '../lib/store'
@@ -206,7 +207,13 @@ function Row({
   onOpen: () => void
 }) {
   const draft = entry.status === 'draft'
-  const short = shortfallOf(entry)
+  // A draft activates only once >= MIN_MEMBERS members are survey approved. That
+  // count comes from a directory draft's stand-in roster, or a synthesized
+  // draft's pipeline leads.
+  const draftApproved = entry.id.startsWith(DRAFT_PREFIX)
+    ? potential.approved
+    : draftApprovedCount(entry.id)
+  const shortApproved = Math.max(0, MIN_MEMBERS - draftApproved)
 
   return (
     <button
@@ -228,10 +235,12 @@ function Row({
         <ProductBadge product={entry.type} />
       </span>
       {draft ? (
-        short === 0 ? (
+        shortApproved === 0 ? (
           <span className="text-12 font-bold text-green-600">Majelis siap diaktivasi</span>
         ) : (
-          <span className="text-12 font-bold text-orange-500">Kurang {short} mitra untuk aktif</span>
+          <span className="text-12 font-bold text-orange-500">
+            Kurang {shortApproved} anggota survey approved untuk aktif
+          </span>
         )
       ) : potential.total > 0 ? (
         <span className="text-12 font-bold text-green-600">

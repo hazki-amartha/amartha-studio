@@ -21,7 +21,13 @@ import type { BadgeIntent } from '@/design-system/components/Badge'
 import { useApp } from '../lib/store'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import { isLeadAccepted, isMajelisActivated, setFormation, useFormation } from '../lib/formation'
-import { MAJELIS_ROSTER, MitraRosterCard } from '../lib/roster'
+import {
+  draftApprovedCount,
+  draftPotential,
+  MAJELIS_ROSTER,
+  MitraRosterCard,
+  PotentialMemberRow,
+} from '../lib/roster'
 import { AppScreen, VisitTitle } from '../lib/ui'
 
 /** A member's status on the majelis page — the survey stage, or, once approved,
@@ -107,17 +113,22 @@ export function MajelisPageScreen() {
           : draftName !== '' && l.majelis.kind === 'new' && l.majelis.name === draftName),
     )
 
-  const members = existing?.members ?? potential.length
-  // A directory majelis (active or draft) has a mitra roster; a synthesized new
-  // majelis is still forming from its potential members and has none yet.
-  const showRoster = Boolean(existing)
+  // Only an ACTIVE directory majelis has a running mitra roster ("Anggota
+  // Majelis"). A draft — directory or synthesized — is still being gathered, so
+  // it shows Potential members instead.
+  const isDirectoryDraft = existing?.status === 'draft'
+  const showRoster = existing?.status === 'aktif'
   const more = existing ? Math.max(0, existing.members - MAJELIS_ROSTER.length) : 0
-  // A majelis needs at least MIN_MEMBERS mitra to form. A synthesized new majelis
-  // also waits until every one of its members is approved; a directory draft
-  // (fixed roster) just needs the count.
-  const canForm = members >= MIN_MEMBERS
-  const allApproved = potential.length > 0 && potential.every((m) => m.status === 'approved')
-  const readyToActivate = canForm && (Boolean(existing) || allApproved)
+  // A majelis activates only once at least MIN_MEMBERS of its members are
+  // "survey approved" (cleared underwriting) — not merely gathered. That count
+  // comes from a directory draft's stand-in roster, or a synthesized draft's
+  // pipeline leads.
+  const approvedCount =
+    isDirectoryDraft && existing
+      ? draftApprovedCount(existing.id)
+      : potential.filter((l) => l.status === 'approved').length
+  const readyToActivate = approvedCount >= MIN_MEMBERS
+  const shortApproved = Math.max(0, MIN_MEMBERS - approvedCount)
 
   // Approved members not yet accepted into the group — the "new members" that a
   // "update group formation" (member acceptance) run brings in.
@@ -138,7 +149,7 @@ export function MajelisPageScreen() {
   }
 
   function formMajelis() {
-    setFormation({ mode: 'form', majelisName: name, memberCount: members })
+    setFormation({ mode: 'form', majelisName: name, memberCount: approvedCount })
     flow.go('group-formation')
   }
 
@@ -206,21 +217,15 @@ export function MajelisPageScreen() {
           <button
             type="button"
             onClick={formMajelis}
-            className={`flex items-center justify-between gap-8 rounded-12 border px-12 py-12 text-left active:bg-neutral-50 ${
-              allApproved ? 'border-green-500 bg-green-50' : 'border-orange-200 bg-orange-50'
-            }`}
+            className="flex items-center justify-between gap-8 rounded-12 border border-green-500 bg-green-50 px-12 py-12 text-left active:bg-neutral-50"
           >
             <span className="flex min-w-0 flex-col gap-2">
-              <span className={`text-14 font-bold ${allApproved ? 'text-green-600' : 'text-orange-500'}`}>
-                {allApproved ? 'Majelis siap diaktivasi' : 'Majelis ini belum aktif'}
-              </span>
+              <span className="text-14 font-bold text-green-600">Majelis siap diaktivasi</span>
               <span className="text-12 text-caption">
-                {allApproved
-                  ? 'Semua anggota sudah disetujui — jalankan pembentukan majelis.'
-                  : 'Jalankan pembentukan majelis untuk mengaktifkannya.'}
+                {approvedCount} anggota sudah survey approved — jalankan pembentukan majelis.
               </span>
             </span>
-            <span className={`shrink-0 ${allApproved ? 'text-green-600' : 'text-orange-500'}`}>
+            <span className="shrink-0 text-green-600">
               <ChevronRight size={20} />
             </span>
           </button>
@@ -228,9 +233,8 @@ export function MajelisPageScreen() {
           <div className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-50 px-12 py-12">
             <span className="text-14 font-bold text-orange-500">Majelis ini belum aktif</span>
             <span className="text-12 text-caption">
-              {!canForm
-                ? `Butuh minimal ${MIN_MEMBERS} anggota untuk dibentuk — kurang ${MIN_MEMBERS - members} anggota lagi.`
-                : 'Menunggu seluruh anggota disetujui underwriting.'}
+              Butuh {MIN_MEMBERS} anggota survey approved untuk aktivasi — baru {approvedCount} approved,
+              kurang {shortApproved} lagi.
             </span>
           </div>
         )
@@ -260,9 +264,36 @@ export function MajelisPageScreen() {
         </>
       ) : null}
 
+      {/* Potential members. A draft DIRECTORY majelis (Kenari, Teratai) has no
+          pipeline leads of its own yet, so it shows the stand-in list; a
+          synthesized draft / active group shows its real onboarding leads. */}
+      {isDirectoryDraft && existing ? (
+        <>
+          <span className="flex items-center gap-8 pt-4 text-14 font-bold text-default">
+            <Users size={20} />
+            Potential member ({existing.members})
+          </span>
+          <span className="-mt-8 text-12 text-caption">
+            {approvedCount} dari {existing.members} anggota sudah survey approved
+          </span>
+          <Card>
+            <div className="flex flex-col">
+              {draftPotential(existing.id).map((m, i) => (
+                <PotentialMemberRow key={m.id} member={m} divider={i > 0} />
+              ))}
+              {existing.members > draftPotential(existing.id).length ? (
+                <span className="pt-8 text-12 text-caption">
+                  dan {existing.members - draftPotential(existing.id).length} calon mitra lainnya
+                </span>
+              ) : null}
+            </div>
+          </Card>
+        </>
+      ) : null}
+
       {/* Potential members — calon mitra being onboarded into this majelis. The
           heading sits outside the box, like Anggota Majelis. */}
-      {potential.length > 0 ? (
+      {!isDirectoryDraft && potential.length > 0 ? (
         <>
           <span className="flex items-center gap-8 pt-4 text-14 font-bold text-default">
             <Users size={20} />
