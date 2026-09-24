@@ -18,6 +18,8 @@ import {
   setBareMode,
   subscribeBareMode,
 } from '@/platform/runtime/presentBridge'
+import { resolveAssetPage } from './assetPages'
+import { AssetsSidebar } from './AssetsSidebar'
 import styles from './chrome.module.css'
 import { HeaderStatusProvider, useHeaderStatus } from './headerStatus'
 import {
@@ -58,6 +60,16 @@ function resolveRoute(pathname: string, projects: ProjectIndexEntry[]): RouteInf
       currentSlug: null,
       isFlow: false,
       crumbs: [{ label: 'FunDS', href: '/system' }, { label: 'System' }],
+    }
+  }
+
+  const isAssets = pathname === '/assets' || pathname.startsWith('/assets/')
+  if (isAssets) {
+    return {
+      active: 'assets',
+      currentSlug: null,
+      isFlow: false,
+      crumbs: [{ label: 'Assets', href: '/assets' }, { label: resolveAssetPage(pathname).label }],
     }
   }
 
@@ -239,6 +251,8 @@ function AppShellInner({
         >
           {active === 'funds' ? (
             <SystemSidebar />
+          ) : active === 'assets' ? (
+            <AssetsSidebar />
           ) : currentProject ? (
             <ScreenSidebar project={currentProject} />
           ) : (

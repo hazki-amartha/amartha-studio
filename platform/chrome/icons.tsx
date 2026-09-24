@@ -47,6 +47,16 @@ export const FundsIcon = icon(
   </>,
 )
 
+// Assets — a framed picture with a spark (the illustration generator).
+export const AssetsIcon = icon(
+  <>
+    <rect x="3" y="5" width="18" height="15" rx="2" />
+    <path d="M3 16l5-5 5 5" />
+    <path d="M13 14l2-2 6 6" />
+    <path d="M17 2v4M15 4h4" />
+  </>,
+)
+
 // Panel toggle — collapse/expand the secondary sidebar.
 export const PanelIcon = icon(
   <>

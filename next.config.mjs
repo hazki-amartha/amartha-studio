@@ -14,6 +14,22 @@ const nextConfig = {
   // two never share a directory. Unset (Vercel, `next start`) it stays `.next`.
   distDir: process.env.NEXT_DIST_DIR || '.next',
 
+  // Assets — the illustration generator is its own app and deployment
+  // (repo: amartha-illustration, built with basePath '/assets-app'). Proxying
+  // it here puts it on the studio's origin, which is what lets /assets embed it
+  // as a same-origin frame: its Google sign-in popup and the frame share
+  // cookies, and the frame can follow the studio theme. The password gate in
+  // middleware.ts runs before rewrites, so it guards these paths too.
+  // Unset ASSET_GENERATOR_URL leaves /assets showing a "not connected" note.
+  async rewrites() {
+    const target = process.env.ASSET_GENERATOR_URL?.replace(/\/$/, '')
+    if (!target) return []
+    return [
+      { source: '/assets-app', destination: `${target}/assets-app` },
+      { source: '/assets-app/:path*', destination: `${target}/assets-app/:path*` },
+    ]
+  },
+
   // Design mode's source map. `platform/design/stamp.cjs` stamps every JSX
   // element in a project screen with `data-src="<file>:<line>:<col>"`, which is
   // what lets the studio address one JSX node from one DOM node.
