@@ -25,7 +25,7 @@ function config(): { url: string; token: string } | null {
 
 export const isStoreConfigured = () => config() !== null
 
-async function redis<T>(...command: (string | number)[]): Promise<T> {
+export async function redis<T>(...command: (string | number)[]): Promise<T> {
   const c = config()
   if (!c) throw new Error('Comment store is not configured')
   const res = await fetch(c.url, {

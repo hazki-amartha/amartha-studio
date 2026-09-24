@@ -18,5 +18,9 @@ export interface StudioUser {
 export interface MeResponse {
   /** Whether this deployment has sign-in at all. */
   configured: boolean
+  /** Whether the whole studio needs it (STUDIO_REQUIRE_SIGN_IN). */
+  required: boolean
   user: StudioUser | null
+  /** Prototypes this browser holds a share link to (platform/share). */
+  shares: Record<string, 'view' | 'comment'>
 }

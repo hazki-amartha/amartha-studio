@@ -72,6 +72,8 @@ import { LiveChatPanel } from '@/platform/chat/ChatPanel'
 import { getChat, getChatServerSnapshot, probeChat, subscribeChat } from '@/platform/runtime/chatBridge'
 import { PushBar } from '@/platform/push/PushBar'
 import { CommentLayer } from '@/platform/comments/CommentLayer'
+import { useGuestAccess } from '@/platform/auth/session'
+import { ShareButton } from '@/platform/share/ShareButton'
 import { CommentsPanel } from '@/platform/comments/CommentList'
 import { setCommentMode, useComments, useCommentsFor } from '@/platform/comments/store'
 import { layersDrag } from '@/platform/design/actions'
@@ -675,7 +677,14 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
   const device = config.device ?? 'mobile'
   const zoom = useCanvasZoom(DESKTOP_FRAME)
   useCommentsFor(config.slug)
-  const { mode: commenting, available: canComment } = useComments()
+  const { mode: commenting, available: commentsOn } = useComments()
+  // Opened from a share link (platform/share): never Edit, and comments only
+  // when the link allows them. The routes enforce the same; this is the UI.
+  const guest = useGuestAccess(config.slug)
+  const canComment = commentsOn && guest !== 'view'
+  useEffect(() => {
+    if (guest && editing) setDesignMode(false)
+  }, [guest, editing])
   // Comment and Edit both take over clicks on the device, so opening Edit —
   // from its button or by picking a layer — ends Comment.
   useEffect(() => {
@@ -690,7 +699,7 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
   const [shortcuts, setShortcuts] = useState(false)
   const keys: Partial<Record<ShortcutAction, () => boolean | void>> = {
     comment: canComment ? () => setCommentMode(!commenting) : undefined,
-    edit: () => setDesignMode(!editing),
+    edit: guest ? undefined : () => setDesignMode(!editing),
     fullscreen: () => setBareMode(true),
     restart,
     ...(device === 'desktop'
@@ -759,8 +768,9 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
         )}
         <CanvasControls
           slug={config.slug}
-          onEdit={editing ? undefined : startEditing}
+          onEdit={editing || guest ? undefined : startEditing}
           onComment={canComment && !commenting ? () => setCommentMode(true) : undefined}
+          share={guest ? null : <ShareButton slug={config.slug} />}
           className="absolute right-0 top-0 z-30"
         />
         <ViewSwitch slug={config.slug} className="absolute left-0 top-0 z-30" />

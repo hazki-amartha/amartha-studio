@@ -14,11 +14,20 @@
 //
 // Signed in (platform/auth), a new comment goes out under the account's name
 // instead of the typed one, so a signed-in author can't be misnamed.
+//
+// Once the whole studio needs sign-in (STUDIO_REQUIRE_SIGN_IN), a visitor who
+// isn't signed in gets comments only through a share link with comment access
+// (platform/share): read, write, and edit or delete their own from the same
+// browser, as before. Resolving is for signed-in people. A view-only link sees
+// no comments at all.
 // =============================================================================
 
 import { randomUUID } from 'node:crypto'
 import { configs } from '@/projects/configs'
+import { isSignInRequired } from '@/platform/auth/env'
+import type { StudioUser } from '@/platform/auth/protocol'
 import { getStudioUser } from '@/platform/auth/server'
+import { shareAccess } from '@/platform/share/server/access'
 import { KEY_HEADER, LIMITS, type Comment, type CommentRequest, type CommentsResponse } from '@/platform/comments/protocol'
 import {
   countComments,
@@ -58,10 +67,21 @@ function present(c: StoredComment, me: string | null): Comment {
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 const coord = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100_000 ? Math.round(v) : null)
 
+/**
+ * Who is asking: a signed-in account, a guest with a comment link, or — once
+ * sign-in is required — nobody who may see comments here.
+ */
+async function caller(slug: string): Promise<{ user: StudioUser | null; allowed: boolean }> {
+  const user = await getStudioUser()
+  if (user || !isSignInRequired()) return { user, allowed: true }
+  return { user, allowed: (await shareAccess(slug)) === 'comment' }
+}
+
 export async function GET(request: Request): Promise<Response> {
   if (!isStoreConfigured()) return json({ available: false, comments: [] } satisfies CommentsResponse)
   const slug = new URL(request.url).searchParams.get('slug')
   if (!knownSlug(slug)) return refuse('Unknown project', 404)
+  if (!(await caller(slug)).allowed) return json({ available: false, comments: [] } satisfies CommentsResponse)
   const me = viewer(request)
   try {
     const comments = (await listComments(slug)).map((c) => present(c, me))
@@ -77,6 +97,8 @@ export async function POST(request: Request): Promise<Response> {
   if (!body || !knownSlug(body.slug)) return refuse('Unknown project', 404)
   const me = viewer(request)
   if (!me) return refuse('Missing commenter key')
+  const { user, allowed } = await caller(body.slug)
+  if (!allowed) return refuse('Sign in, or open this prototype from a link that allows comments', 403)
   const now = new Date().toISOString()
 
   try {
@@ -84,7 +106,7 @@ export async function POST(request: Request): Promise<Response> {
       const x = coord(body.x)
       const y = coord(body.y)
       const words = text(body.body, LIMITS.body)
-      const author = text((await getStudioUser())?.label ?? body.author, LIMITS.author)
+      const author = text(user?.label ?? body.author, LIMITS.author)
       if (typeof body.screenId !== 'string' || !KEBAB.test(body.screenId)) return refuse('Unknown screen')
       if (x === null || y === null) return refuse('Bad position')
       if (!words) return refuse('Write something first')
@@ -110,6 +132,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!found) return refuse('That comment was deleted', 404)
 
     if (body.action === 'resolve') {
+      if (!user && isSignInRequired()) return refuse('Only Amartha accounts can resolve comments', 403)
       const next = { ...found, resolved: Boolean(body.resolved) }
       await putComment(body.slug, next)
       return json({ comment: present(next, me) })

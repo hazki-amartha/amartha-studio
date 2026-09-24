@@ -14,6 +14,7 @@
 
 import Link from 'next/link'
 import { useCallback, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useGuestAccess } from '@/platform/auth/session'
 import { getScreenBridge, subscribeScreenBridge } from '@/platform/runtime/bridge'
 import type { ScreenState } from '@/platform/types'
 
@@ -74,6 +75,8 @@ export function TripleTapExit({
   const taps = useRef<number[]>([])
   const bridge = useSyncExternalStore(subscribeScreenBridge, getScreenBridge, getServerSnapshot)
   const states = bridge?.states ?? []
+  // A share-link guest has no gallery to go back to.
+  const guest = useGuestAccess(bridge?.slug) !== null
 
   const onPointerDown = useCallback(() => {
     if (!window.matchMedia(MOBILE_QUERY).matches) return
@@ -113,12 +116,14 @@ export function TripleTapExit({
               <DialogStates states={states} onApplied={() => setOpen(false)} />
             ) : null}
             <div className="flex flex-col gap-8">
-              <Link
-                href="/"
-                className="rounded-full bg-primary-500 px-20 py-12 text-center text-14 font-bold text-neutral-white"
-              >
-                Back to gallery
-              </Link>
+              {guest ? null : (
+                <Link
+                  href="/"
+                  className="rounded-full bg-primary-500 px-20 py-12 text-center text-14 font-bold text-neutral-white"
+                >
+                  Back to gallery
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={() => setOpen(false)}

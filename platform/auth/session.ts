@@ -11,7 +11,7 @@ import type { MeResponse } from './protocol'
 
 type State = MeResponse & { loaded: boolean }
 
-let state: State = { loaded: false, configured: false, user: null }
+let state: State = { loaded: false, configured: false, required: false, user: null, shares: {} }
 let started = false
 const listeners = new Set<() => void>()
 
@@ -39,10 +39,21 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener)
 }
 
-const SERVER: State = { loaded: false, configured: false, user: null }
+const SERVER: State = { loaded: false, configured: false, required: false, user: null, shares: {} }
 
 export function useStudioUser(): State {
   return useSyncExternalStore(subscribe, () => state, () => SERVER)
+}
+
+/**
+ * Opened through a share link and not signed in: the link's access to this
+ * prototype. Null for everyone else — a signed-in person, or, while the
+ * studio is still open to view, a visitor who came by the plain URL.
+ */
+export function useGuestAccess(slug: string | null | undefined): 'view' | 'comment' | null {
+  const { loaded, user, shares } = useStudioUser()
+  if (!loaded || user || !slug) return null
+  return shares[slug] ?? null
 }
 
 /** Off to Google, back to this page. */
