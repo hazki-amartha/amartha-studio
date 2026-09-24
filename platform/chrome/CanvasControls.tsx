@@ -15,6 +15,7 @@
 import Link from 'next/link'
 import { setBareMode } from '@/platform/runtime/presentBridge'
 import { CommentIcon, DeviceIcon, EditIcon, ExpandIcon, FlowIcon } from './icons'
+import { withKey } from './shortcuts'
 
 const ROUND =
   'flex size-40 flex-none items-center justify-center rounded-full border border-default bg-neutral-white text-caption shadow-sm hover:bg-neutral-50 hover:text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:shadow-none dark:hover:bg-ink-800 dark:hover:text-neutral-50'
@@ -52,7 +53,7 @@ export function CanvasControls({
         <button
           type="button"
           onClick={onComment}
-          title="Comment — click anywhere on the screen to leave feedback"
+          title={withKey('Comment — click anywhere on the screen to leave feedback', 'comment')}
           className={PILL}
         >
           <CommentIcon className="size-16" />
@@ -67,7 +68,7 @@ export function CanvasControls({
         <button
           type="button"
           onClick={onEdit}
-          title="Edit — click elements to select them"
+          title={withKey('Edit — click elements to select them', 'edit')}
           className="flex h-40 flex-none items-center gap-8 rounded-full bg-ink-900 px-16 text-14 font-bold text-neutral-white shadow-sm hover:bg-ink-800 dark:bg-neutral-white dark:text-ink-900 dark:shadow-none dark:hover:bg-neutral-200"
         >
           <EditIcon className="size-16" />
@@ -89,7 +90,7 @@ export function FullScreenButton({ className }: { className?: string }) {
       type="button"
       onClick={() => setBareMode(true)}
       aria-label="Full screen"
-      title="Full screen"
+      title={withKey('Full screen', 'fullscreen')}
       className={`${ROUND} ${className ?? ''}`}
     >
       <ExpandIcon className="size-20" />

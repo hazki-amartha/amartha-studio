@@ -42,6 +42,8 @@ interface RuntimeState {
    *  stack beneath the current screen stays intact for useFlow().back().
    *  Deliberately NOT on FlowApi: screens navigate, the viewer steps. */
   jump: (id: string) => void
+  /** Back to the entry screen with an empty history — the R shortcut. */
+  restart: () => void
 }
 
 const RuntimeContext = createContext<RuntimeState | null>(null)
@@ -113,10 +115,15 @@ export function PrototypeProvider({ screens, initialScreenId, children }: Protot
     [screens, current],
   )
 
+  const restart = useCallback(() => {
+    setDirection('back')
+    setStack([resolveStartScreen(screens)])
+  }, [screens])
+
   const flow = useMemo<FlowApi>(() => ({ go, back, current }), [go, back, current])
   const runtime = useMemo<RuntimeState>(
-    () => ({ screens, current, direction, jump }),
-    [screens, current, direction, jump],
+    () => ({ screens, current, direction, jump, restart }),
+    [screens, current, direction, jump, restart],
   )
 
   return (
@@ -130,6 +137,11 @@ export function PrototypeProvider({ screens, initialScreenId, children }: Protot
  *  top of the visit stack like the stepper arrows do — never used by screens. */
 export function useScreenJump(): (id: string) => void {
   return useRuntime().jump
+}
+
+/** Back to the entry screen, history cleared — viewer chrome only. */
+export function useRestart(): () => void {
+  return useRuntime().restart
 }
 
 /** Steps through screens in the order the project declares them, independent of
