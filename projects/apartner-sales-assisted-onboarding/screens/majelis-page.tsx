@@ -33,7 +33,7 @@ import { AppScreen, VisitTitle } from '../lib/ui'
 /** A member's status on the majelis page — the survey stage, or, once approved,
  *  whether she is still waiting to be accepted or is already a Mitra. */
 function memberStatus(status: LeadStatus): { label: string; intent: BadgeIntent } {
-  if (status === 'approved') return { label: 'Waiting for disbursement', intent: 'green' }
+  if (status === 'approved') return { label: 'Waiting for group formation', intent: 'green' }
   if (status === 'survey-submitted') return { label: 'Survey submitted', intent: 'blue' }
   return { label: 'Survey ongoing', intent: 'orange' }
 }

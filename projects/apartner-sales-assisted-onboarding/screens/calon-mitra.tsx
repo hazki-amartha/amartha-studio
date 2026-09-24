@@ -107,11 +107,11 @@ export function CalonMitraScreen() {
   const canDisburse = isExisting || activatedNew
 
   // Once approved: "Ready for disbursement" if her majelis is settled, else
-  // "Waiting for disbursement". Before that, the badge follows the survey stage.
+  // "Waiting for group formation". Before that, the badge follows the survey stage.
   const statusLabel = approved
     ? canDisburse
       ? 'Ready for disbursement'
-      : 'Waiting for disbursement'
+      : 'Waiting for group formation'
     : surveyStatusLabel(lead.status)
   const statusIntent: BadgeIntent = approved ? 'green' : submitted ? 'blue' : 'orange'
 

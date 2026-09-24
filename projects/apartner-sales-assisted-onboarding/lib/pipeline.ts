@@ -660,7 +660,7 @@ export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
   // Approved and the majelis is settled — the disbursement can start now.
   'ready-for-disbursement': 'Ready for disbursement',
   // Approved but the (new) majelis is not formed yet — still waiting.
-  'survey-approved': 'Waiting for disbursement',
+  'survey-approved': 'Waiting for group formation',
   'survey-submitted': 'Survey submitted',
   'survey-ongoing': 'Survey ongoing',
   'follow-up': 'Follow up',
