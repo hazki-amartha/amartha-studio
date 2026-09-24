@@ -3,7 +3,8 @@
 // content region with a breadcrumb top bar and collapse toggle. Inside a
 // project there is no top bar: the sidebar is its Screens · Layers · Notes
 // panel, and the view switch floats on the canvas (CanvasControls).
-// Wraps every tool route except /unlock and /auth/* (which render bare). Built only from
+// Wraps every tool route except /unlock, /auth/* and the share-link pages
+// (which render bare). Built only from
 // FunDS tokens; the single non-token width lives in chrome.module.css.
 // =============================================================================
 
@@ -34,6 +35,7 @@ import { MobileTopNav } from './MobileTopNav'
 import { NavRail, type RailSection } from './NavRail'
 import { ScreenSidebar } from './ScreenSidebar'
 import { StudioSidebar } from './StudioSidebar'
+import { useGuestAccess } from '@/platform/auth/session'
 import { TripleTapExit } from './TripleTapExit'
 import { SystemSidebar } from './SystemSidebar'
 import type { ProjectIndexEntry } from './loadProjectIndex'
@@ -202,10 +204,14 @@ function AppShellInner({
     })
   }, [])
 
-  // The unlock gate and the sign-in hand-off render without any chrome.
-  if (pathname.startsWith('/unlock') || pathname.startsWith('/auth/')) return <>{children}</>
-
   const { active, currentSlug, isFlow, crumbs } = resolveRoute(pathname, projects)
+  // Opened from a share link: the prototype and its screens, and no way out
+  // to the rest of the studio (platform/share).
+  const guest = useGuestAccess(currentSlug) !== null
+
+  // The unlock gate, the sign-in hand-off and share-link pages render without
+  // any chrome.
+  if (['/unlock', '/auth/', '/s/', '/share-ended'].some((p) => pathname.startsWith(p))) return <>{children}</>
 
   // Below md the rail and sidebar never render: prototype routes go fullscreen
   // (TripleTapExit is the way back), every other route gets MobileTopNav.
@@ -230,7 +236,7 @@ function AppShellInner({
 
   return (
     <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-ink-950">
-      <NavRail active={active} className={bareProto ? 'hidden' : 'hidden md:flex'} />
+      <NavRail active={active} className={bareProto || guest ? 'hidden' : 'hidden md:flex'} />
 
       {/* Inside a project the sidebar holds Screens · Layers · Notes, which the
           prototype can't do without — so it stays, and only elsewhere folds. */}

@@ -100,6 +100,11 @@ export function canEditAs(user: StudioUser | null): user is StudioUser & { displ
   return Boolean(user && user.displayName && (user.role === 'editor' || user.role === 'admin'))
 }
 
+/** A signed-in editor or admin — who may make and revoke share links. */
+export function canShare(user: StudioUser | null): user is StudioUser {
+  return Boolean(user && (user.role === 'editor' || user.role === 'admin'))
+}
+
 /**
  * A cookie-authenticated write must come from the studio's own pages. The
  * Supabase cookie is SameSite=Lax, which already stops a cross-site POST from

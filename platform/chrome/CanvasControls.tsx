@@ -30,6 +30,7 @@ export function CanvasControls({
   status,
   onEdit,
   onComment,
+  share,
   className,
 }: {
   slug: string
@@ -43,11 +44,14 @@ export function CanvasControls({
    *  the Comments panel, and clicks on the device drop pins. Like Edit, the
    *  panel's ✕ is the way back. */
   onComment?: () => void
+  /** The Share control (platform/share), where this viewer may share. */
+  share?: React.ReactNode
   className?: string
 }) {
   return (
     <div className={`flex items-center gap-8 ${className ?? ''}`}>
       {status}
+      {share}
 
       {onComment ? (
         <button

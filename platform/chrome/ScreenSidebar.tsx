@@ -14,6 +14,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useGuestAccess } from '@/platform/auth/session'
 import { Fragment, useCallback, useState, useSyncExternalStore } from 'react'
 import { getScreenBridge, screenBridgeJump, subscribeScreenBridge } from '@/platform/runtime/bridge'
 import { ChevronLeftIcon, LayersIcon, NotesIcon, ScreensIcon } from './icons'
@@ -53,6 +54,8 @@ export function ScreenSidebar({ project }: { project: ProjectIndexEntry }) {
     getSidebarSlots,
     getSidebarSlotsServerSnapshot,
   )
+  // A share-link guest has nowhere else in the studio to go back to.
+  const guest = useGuestAccess(project.slug) !== null
   const [chosen, setTab] = useState<Tab>('screens')
   const tab: Tab = running ? chosen : 'screens'
   const layersRef = useCallback((el: HTMLElement | null) => setSidebarSlot('layers', el), [])
@@ -65,14 +68,16 @@ export function ScreenSidebar({ project }: { project: ProjectIndexEntry }) {
           Sticky, like that one, so the way out survives a long layer tree. */}
       <div className="sticky top-0 z-10 flex flex-col bg-neutral-white pb-8 dark:bg-ink-900">
         <div className="flex h-48 items-center gap-4">
-          <Link
-            href="/"
-            aria-label="All projects"
-            title="All projects"
-            className="flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
-          >
-            <ChevronLeftIcon className="size-16" />
-          </Link>
+          {guest ? null : (
+            <Link
+              href="/"
+              aria-label="All projects"
+              title="All projects"
+              className="flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+            >
+              <ChevronLeftIcon className="size-16" />
+            </Link>
+          )}
           <span className="truncate text-14 font-bold text-default dark:text-neutral-50">{project.name}</span>
         </div>
         {running ? <PanelTabs tabs={TABS} active={tab} onChange={setTab} /> : null}

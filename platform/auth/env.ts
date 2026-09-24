@@ -41,3 +41,13 @@ export function safeNext(next: string | null | undefined): string {
   if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return '/'
   return next
 }
+
+/**
+ * The whole studio needs sign-in, as in Vocus — except a prototype opened
+ * through a share link (platform/share). Off until STUDIO_REQUIRE_SIGN_IN=1,
+ * so share links can go out before the old open URLs stop working. Needs
+ * Supabase; without it this is always off.
+ */
+export function isSignInRequired(): boolean {
+  return isAuthConfigured() && (process.env.STUDIO_REQUIRE_SIGN_IN ?? '').trim() === '1'
+}
