@@ -34,6 +34,7 @@ import {
   type PipelineLead,
 } from './pipeline'
 import { pipelineStore, setAddLeadEntry, usePipeline } from './pipeline-store'
+import { canDisburse, useFormation } from './formation'
 import { usePois } from './poi-store'
 import { store, useApp } from './store'
 import { SourceSheet } from './pipeline-ui'
@@ -118,6 +119,7 @@ export function SalesList({ scope }: { scope: Scope }) {
   const flow = useFlow()
   const { leads, order } = usePipeline()
   const { completedPois } = useApp()
+  const formation = useFormation()
   const pois = usePois()
   const [mainTab, setMainTab] = useState<MainTab>('leads')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -133,6 +135,11 @@ export function SalesList({ scope }: { scope: Scope }) {
 
   const leadsAll = order.map((id) => leads[id]).filter(onLeadsList)
   const allPoiTasks = buildTasks([], pois).filter((t): t is PoiTask => t.kind === 'poi')
+
+  // The section a lead shows in — approved splits into "Ready for disbursement"
+  // (majelis settled) and "Waiting for disbursement" (new majelis not formed).
+  const displaySection = (l: PipelineLead): LeadsSection =>
+    l.status === 'approved' && canDisburse(formation, l) ? 'ready-for-disbursement' : leadsSection(l)
 
   function toggle(key: string) {
     setExpanded((prev) => {
@@ -196,7 +203,7 @@ export function SalesList({ scope }: { scope: Scope }) {
 
     const leadRows = (sec: LeadsSection) =>
       leadsToday
-        .filter((l) => leadsSection(l) === sec && matchesQuery(l))
+        .filter((l) => displaySection(l) === sec && matchesQuery(l))
         .sort((a, b) => (a.agenda?.dueDays ?? 0) - (b.agenda?.dueDays ?? 0))
     const poiRows = poiToday.filter(poiMatchesQuery)
 
@@ -204,6 +211,7 @@ export function SalesList({ scope }: { scope: Scope }) {
       | { key: string; label: string; kind: 'lead'; rows: PipelineLead[] }
       | { key: string; label: string; kind: 'poi'; rows: PoiTask[] }
     const sections: Section[] = [
+      { key: 'ready-for-disbursement', label: LEADS_SECTION_LABEL['ready-for-disbursement'], kind: 'lead', rows: leadRows('ready-for-disbursement') },
       { key: 'survey-approved', label: LEADS_SECTION_LABEL['survey-approved'], kind: 'lead', rows: leadRows('survey-approved') },
       { key: 'survey-ongoing', label: LEADS_SECTION_LABEL['survey-ongoing'], kind: 'lead', rows: leadRows('survey-ongoing') },
       { key: 'poi', label: 'POI visit', kind: 'poi', rows: poiRows },
@@ -279,9 +287,9 @@ export function SalesList({ scope }: { scope: Scope }) {
 
   // ------------------------------------------------------------------ all ---
   const poiVisible = allPoiTasks.filter(poiMatchesQuery)
-  const sectionRank = (l: PipelineLead) => LEADS_SECTION_ORDER.indexOf(leadsSection(l))
+  const sectionRank = (l: PipelineLead) => LEADS_SECTION_ORDER.indexOf(displaySection(l))
   const flatLeads = leadsAll
-    .filter((l) => (filter === 'all' || leadsSection(l) === filter) && matchesQuery(l))
+    .filter((l) => (filter === 'all' || displaySection(l) === filter) && matchesQuery(l))
     .sort((a, b) => sectionRank(a) - sectionRank(b) || (a.agenda?.dueDays ?? 0) - (b.agenda?.dueDays ?? 0))
 
   return (

@@ -14,11 +14,19 @@
 import { useState } from 'react'
 import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
 import type { BadgeIntent } from '@/design-system/components/Badge'
-import { ArrowLeft, CalendarDots, CheckCircle, Hourglass, MapPin, WhatsappLogo } from '@/design-system/icons'
+import {
+  ArrowLeft,
+  CalendarDots,
+  CheckCircle,
+  ChevronDown,
+  Hourglass,
+  MapPin,
+  WhatsappLogo,
+} from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { dateFromToday, majelisLine, surveyStatusLabel, type SurveyMode } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { OnboardingModeSheet } from '../lib/pipeline-ui'
+import { OnboardingModeSheet, PickSheet } from '../lib/pipeline-ui'
 import {
   APPLICATION_SECTIONS,
   RITUAL_POINTS,
@@ -33,6 +41,13 @@ import { DRAFT_SCHEDULE, MAJELIS_DIRECTORY, MIN_MEMBERS } from '../lib/schedule'
 import { store } from '../lib/store'
 import { AppScreen, ContactButton, StickyBar } from '../lib/ui'
 
+const TUJUAN_OPTIONS = [
+  'Pembelian bahan baku produksi',
+  'Modal kerja harian',
+  'Pengembangan usaha',
+  'Pembelian peralatan usaha',
+]
+
 export function CalonMitraScreen() {
   const flow = useFlow()
   const { leads, openId } = usePipeline()
@@ -45,6 +60,9 @@ export function CalonMitraScreen() {
   // After Submit Onboarding the page shows a loading state until the BP taps the
   // control that finishes the (simulated) underwriting.
   const [submitting, setSubmitting] = useState(false)
+  // The disbursement purpose, on the Ready-for-disbursement view.
+  const [tujuan, setTujuan] = useState(TUJUAN_OPTIONS[0])
+  const [tujuanSheet, setTujuanSheet] = useState(false)
 
   if (!lead) {
     return (
@@ -88,9 +106,13 @@ export function CalonMitraScreen() {
   const readyToForm = isNewMajelis && !activatedNew && newApprovedCount >= MIN_MEMBERS
   const canDisburse = isExisting || activatedNew
 
-  // Once approved she is Ready for disbursement — the same status for everyone,
-  // whatever her majelis state. Before that, the badge follows the survey stage.
-  const statusLabel = approved ? 'Waiting for disbursement' : surveyStatusLabel(lead.status)
+  // Once approved: "Ready for disbursement" if her majelis is settled, else
+  // "Waiting for disbursement". Before that, the badge follows the survey stage.
+  const statusLabel = approved
+    ? canDisburse
+      ? 'Ready for disbursement'
+      : 'Waiting for disbursement'
+    : surveyStatusLabel(lead.status)
   const statusIntent: BadgeIntent = approved ? 'green' : submitted ? 'blue' : 'orange'
 
   // Once the survey is submitted or approved it is read-only — nothing to fill in.
@@ -160,9 +182,6 @@ export function CalonMitraScreen() {
     flow.go('group-formation')
   }
 
-  function startDisbursement() {
-    flow.go('disbursement')
-  }
 
   // Start the KM (Ketua Majelis) acceptance for this lead into her existing
   // group — the member-acceptance flow (Perjanjian).
@@ -237,11 +256,9 @@ export function CalonMitraScreen() {
 
   return (
     <AppScreen topBar={header}>
-      {/* Majelis card — name, place + kumpulan slot, then the stage. A new
-          (draft) majelis shows its approved / in-progress counts; an existing
-          group shows the KM-acceptance state and its Start button. Both can open
-          the Majelis page. */}
-      {isExisting || isNewMajelis ? (
+      {/* Majelis card — hidden on the Ready-for-disbursement view (which shows the
+          pencairan detail instead). */}
+      {(isExisting || isNewMajelis) && !(approved && canDisburse) ? (
         <Card>
           <div className="flex flex-col gap-8">
             <div className="flex items-start gap-8">
@@ -307,6 +324,53 @@ export function CalonMitraScreen() {
         <Button size="lg" className="w-full" onClick={startGroupFormation}>
           Start group formation
         </Button>
+      ) : null}
+
+      {/* Ready for disbursement — her limit and the pencairan detail. */}
+      {approved && canDisburse ? (
+        <>
+          <Card>
+            <div className="flex flex-col gap-4">
+              <span className="text-14 font-bold text-default">Nominal</span>
+              <span className="text-24 font-bold text-default">{lead.amount || 'Rp7.000.000'}</span>
+              <span className="text-12 text-caption">
+                Limit yang disetujui underwriting — sesuaikan dengan kebutuhan usaha.
+              </span>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex flex-col gap-12">
+              <div className="flex items-start justify-between gap-8">
+                <span className="text-14 text-default">Jangka waktu angsuran</span>
+                <span className="flex flex-col items-end">
+                  <span className="text-14 font-bold text-default">12 bulan</span>
+                  <span className="text-12 text-caption">48x pembayaran</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-8">
+                <span className="text-14 text-default">Angsuran per minggu</span>
+                <span className="text-14 font-bold text-default">Rp 135.000</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex flex-col gap-8">
+              <span className="text-14 font-bold text-default">Tujuan pencairan</span>
+              <button
+                type="button"
+                onClick={() => setTujuanSheet(true)}
+                className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-left text-14"
+              >
+                <span className="min-w-0 truncate text-default">{tujuan}</span>
+                <span className="shrink-0 text-disabled">
+                  <ChevronDown size={20} />
+                </span>
+              </button>
+            </div>
+          </Card>
+        </>
       ) : null}
 
       {/* Survey + ritual cards — hidden once approved (Ready for disbursement). */}
@@ -420,15 +484,15 @@ export function CalonMitraScreen() {
               Menunggu anggota lain — majelis belum cukup untuk dibentuk.
             </span>
           ) : null}
-          {/* The disbursement button always shows; it is disabled until the
-              majelis is settled (existing, or a new one already formed). */}
+          {/* Enabled only when the majelis is settled — then it goes to the
+              pencairan confirmation; disabled while still waiting for the group. */}
           <Button
             size="lg"
             className="w-full"
             disabled={!canDisburse}
-            onClick={startDisbursement}
+            onClick={() => flow.go('disbursement-confirm')}
           >
-            Start disbursement
+            Lanjut
           </Button>
         </StickyBar>
       ) : readOnly ? null : (
@@ -451,6 +515,19 @@ export function CalonMitraScreen() {
 
       {/* Survey mode — chosen at the first Uji Kelayakan tap. */}
       <OnboardingModeSheet open={modeOpen} onClose={() => setModeOpen(false)} onPick={pickMode} />
+
+      {/* Disbursement purpose. */}
+      <PickSheet
+        open={tujuanSheet}
+        title="Tujuan pencairan"
+        options={TUJUAN_OPTIONS}
+        value={tujuan}
+        onClose={() => setTujuanSheet(false)}
+        onPick={(v) => {
+          setTujuan(v)
+          setTujuanSheet(false)
+        }}
+      />
     </AppScreen>
   )
 }

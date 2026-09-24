@@ -88,6 +88,9 @@ export function inSalesFunnel(lead: PipelineLead): boolean {
  */
 export function onLeadsList(lead: PipelineLead): boolean {
   if (lead.kumpulanStage === 'sosialisasi') return false
+  // Once the disbursement is submitted she leaves Sales — reachable only from
+  // the Majelis / Mitra pages.
+  if (lead.disbursementSubmitted) return false
   return true
 }
 

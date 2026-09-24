@@ -720,6 +720,18 @@ export const pipelineStore = {
     }))
   },
 
+  /** The pencairan request is sent — she leaves Sales for the Majelis/Mitra pages. */
+  submitDisbursement(id: string) {
+    patchLead(id, (lead) => ({
+      disbursementSubmitted: true,
+      log: appendLog(lead, {
+        via: 'manual',
+        status: lead.status,
+        system: 'Pengajuan pencairan dikirim — sedang diproses',
+      }),
+    }))
+  },
+
   /** Underwriting approves her — she moves to Survey approved, awaiting UK. */
   approveSurvey(id: string) {
     patchLead(id, (lead) => ({

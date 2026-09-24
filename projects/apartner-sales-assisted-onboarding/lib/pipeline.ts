@@ -231,6 +231,11 @@ export interface PipelineLead {
   assistedStarted?: boolean
   assistedDone?: string[]
   /**
+   * Her disbursement request has been sent (pencairan diproses). She leaves the
+   * Sales board and is reachable only from the Majelis / Mitra pages after this.
+   */
+  disbursementSubmitted?: boolean
+  /**
    * Continue-application → Modal outcome. `follow-up` (existing majelis): she
    * stays on Sales in the "Follow up for Kumpulan" section, to be reminded to
    * come to the kumpulan day. `sosialisasi` (new majelis): a sosialisasi task is
@@ -637,12 +642,14 @@ export function statusAction(lead: PipelineLead): string {
 // the BP sees what is closest to disbursing first. A lead sits in exactly one
 // section, by where she is in the funnel.
 export type LeadsSection =
+  | 'ready-for-disbursement'
   | 'survey-approved'
   | 'survey-submitted'
   | 'survey-ongoing'
   | 'follow-up'
 
 export const LEADS_SECTION_ORDER: LeadsSection[] = [
+  'ready-for-disbursement',
   'survey-approved',
   'survey-submitted',
   'survey-ongoing',
@@ -650,6 +657,9 @@ export const LEADS_SECTION_ORDER: LeadsSection[] = [
 ]
 
 export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
+  // Approved and the majelis is settled — the disbursement can start now.
+  'ready-for-disbursement': 'Ready for disbursement',
+  // Approved but the (new) majelis is not formed yet — still waiting.
   'survey-approved': 'Waiting for disbursement',
   'survey-submitted': 'Survey submitted',
   'survey-ongoing': 'Survey ongoing',
