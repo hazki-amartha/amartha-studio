@@ -1,110 +1,131 @@
 'use client'
 
-// The WhatsApp preview after a home visit — the payment receipt, made its own
-// step, exactly as the majelis visit's "Kirim Rekap ke Grup".
+// Tugas selesai — after "Selesaikan Tugas" on a home visit. Per the BP APP 2026
+// Figma: the visit is saved, and the BP checks the summary message before
+// sending it to the mitra. The message is editable ("ubah jika belum") and has
+// two variants — money received, or a visit with a janji bayar instead.
 //
-// A doorstep collection leaves no slip, so nothing reaches the mitra's phone
-// unless the BP sends it. This screen shows the receipt the app has already
-// written — what was paid, and what is still owed with the date promised — and
-// hands the BP one trigger: Kirim pesan. The message is a read-back, not a
-// field; everything in it is derived from what she just recorded, so an editable
-// box would only invite a mistake she did not come here to make.
-//
-// "Kirim" opens the share sheet rather than WhatsApp itself — see ShareSheet in
-// lib/ui.tsx for why the sheet is drawn instead of real (CLAUDE.md §3).
-//
-// Reached from Bukti & Kirim, after the visit is already finished — so this is a
-// courtesy she performs, not a gate the task waits on. "Tutup" leaves without
-// sending; the schedule is where the visit ends either way.
+// Nothing leaves the prototype: "Kirim ke WhatsApp" and "Tutup" both return to
+// Tugas, where the snackbar confirms the task was saved.
 
 import { useState } from 'react'
-import { Button, NavigationHeader } from '@/design-system/components'
-import { PaperPlaneTilt } from '@/design-system/icons'
+import { Button } from '@/design-system/components'
+import { CheckCircleFill, Cross, WhatsappLogo } from '@/design-system/icons'
+import { TopBar } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
+import { ptpLabelOf } from '../lib/collect-options'
 import { outstandingOf, rupiah } from '../lib/data'
-import { DAYS } from '../lib/schedule'
-import { openHomeMitra, paidOf, useApp } from '../lib/store'
-import { IconCheck } from '../lib/icons'
-import { AppScreen, SectionTitle, ShareSheet, StickyBar } from '../lib/ui'
+import { BP, DAYS } from '../lib/schedule'
+import { openHomeMitra, paidOf, store, useApp } from '../lib/store'
+import { AppScreen, StickyBar } from '../lib/ui'
+
+const YEAR = '2026'
+const BRANCH_MANAGER_PHONE = '081212345678'
+const TASK_ID = 'MV-88213-0727'
+
+const PAY_LABEL: Record<string, string> = {
+  penuh: 'Bayar penuh',
+  sebagian: 'Bayar jumlah lain',
+  dini: 'Pelunasan dini',
+}
 
 export function HomeProofWaScreen() {
   const flow = useFlow()
   const s = useApp()
   const mitra = openHomeMitra(s)
-  const [sent, setSent] = useState(false)
-  const [sharing, setSharing] = useState(false)
 
-  const paid = paidOf(s, mitra)
-  const shortfall = Math.max(0, outstandingOf(mitra).total - paid)
-  const promise = s.partialPtp[mitra.id] ?? s.nonPayments[mitra.id]?.ptp
+  const paid = s.metWith[mitra.id] === 'nobody' ? 0 : paidOf(s, mitra)
+  const owed = outstandingOf(mitra).total
+  const ptp = s.partialPtp[mitra.id] ?? s.nonPayments[mitra.id]?.ptp
+  const ptpLabel = ptp ? ptpLabelOf(ptp)?.replace(' Juli', ` Juli ${YEAR}`) : undefined
+  const today = `${DAYS[0].date} ${YEAR}`
+  const payLabel = PAY_LABEL[s.payMode[mitra.id] ?? ''] ?? 'Bayar'
 
-  const message = [
-    `Halo Ibu ${mitra.name} 🙏`,
-    ``,
+  const initial =
     paid > 0
-      ? `Terima kasih, pembayaran angsuran sebesar ${rupiah(paid)} sudah kami terima hari ini (${DAYS[0].date}).`
-      : `Terima kasih atas waktunya hari ini (${DAYS[0].date}). Belum ada pembayaran yang kami terima.`,
-    ...(shortfall > 0
-      ? [``, `Sisa tagihan ${rupiah(shortfall)}${promise ? `, janji bayar ${promise}` : ''}.`]
-      : []),
-    ``,
-    `Salam,`,
-    `Amartha`,
-  ].join('\n')
+      ? [
+          `Halo Ibu ${mitra.name},`,
+          '',
+          `Terima kasih, ya, pembayaran tunai Ibu sudah diterima petugas ${BP.name}. Berikut detailnya:`,
+          '',
+          `Tanggal bayar: ${today}`,
+          `Jumlah dibayar: ${rupiah(paid)} (${payLabel})`,
+          ...(owed - paid > 0 ? [`Sisa tunggakan: ${rupiah(owed - paid)}`] : []),
+          '',
+          `Jika ada yang tidak sesuai, hubungi manajer cabang di ${BRANCH_MANAGER_PHONE}.`,
+          '',
+          `Task ID: ${TASK_ID}`,
+          '',
+          'Salam,',
+          'Amartha',
+        ]
+      : [
+          `Halo Ibu ${mitra.name},`,
+          '',
+          `Terima kasih atas waktu dan niat baik Ibu menemui petugas ${BP.name} hari ini. Berikut detailnya:`,
+          '',
+          `Tanggal kunjungan: ${today}`,
+          `Tunggakan: ${rupiah(owed)}`,
+          ...(ptpLabel ? [`Janji bayar: ${ptpLabel}`] : []),
+          ...(ptpLabel
+            ? ['', `Petugas akan menghubungi Ibu untuk membantu menepati janji ini, ya.`]
+            : []),
+          '',
+          'Salam,',
+          'Amartha',
+        ]
+  const [message, setMessage] = useState(initial.join('\n'))
+
+  function close() {
+    store.showFlash('Tugas berhasil disimpan.')
+    flow.go('today')
+  }
 
   return (
     <AppScreen
-      topBar={<NavigationHeader title="Kirim bukti bayar" onBack={() => flow.back()} />}
+      className="bg-neutral-white"
+      topBar={
+        <TopBar>
+          <button type="button" aria-label="Tutup" onClick={close} className="text-default">
+            <Cross size={24} />
+          </button>
+        </TopBar>
+      }
     >
-      {/* No "Pesan dikirim ke …" banner: the app no longer does the sending,
-          so naming a destination would promise something this screen does not
-          do. She copies, then picks where it goes herself. */}
-      <SectionTitle>Pratinjau pesan</SectionTitle>
-      <p className="whitespace-pre-line rounded-12 border border-default bg-neutral-white p-12 text-12 text-default">
-        {message}
-      </p>
+      <div className="flex flex-col items-center gap-8 pt-8 text-center">
+        {/* The Figma's celebration artwork is not in the design system. */}
+        <span className="flex h-64 w-64 items-center justify-center rounded-full bg-green-50 text-green-500">
+          <CheckCircleFill size={24} />
+        </span>
+        <span className="text-20 font-bold text-default">Tugas selesai</span>
+        <span className="text-14 text-caption">
+          Bagikan ringkasan kunjungan ke mitra lewat WhatsApp atau SMS.
+        </span>
+      </div>
 
-      {sent ? (
-        <div className="flex items-center gap-8 rounded-12 border border-green-200 bg-green-50 p-12">
-          <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-green-500 text-neutral-white">
-            <IconCheck size={16} />
-          </span>
-          <span className="text-12 font-bold text-green-500">
-            Bukti bayar terkirim ke {mitra.name}
-          </span>
-        </div>
-      ) : null}
+      <div className="flex flex-col gap-4">
+        <span className="text-14 font-bold text-default">Cek isi pesan</span>
+        <span className="text-12 text-caption">Pastikan info sudah sesuai, ubah jika belum.</span>
+      </div>
+      <textarea
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        rows={16}
+        aria-label="Isi pesan"
+        className="w-full resize-none rounded-12 border border-default p-12 text-14 text-default outline-none focus:border-primary-500"
+      />
 
       <StickyBar>
-        {sent ? (
-          <Button size="lg" className="w-full" onClick={() => flow.go('today')}>
-            Selesai
-          </Button>
-        ) : (
-          <>
-            <Button size="lg" className="w-full" onClick={() => setSharing(true)}>
-              <span className="flex items-center justify-center gap-8">
-                <PaperPlaneTilt size={20} />
-                Kirim pesan
-              </span>
-            </Button>
-            <Button size="lg" variant="ghost" className="w-full" onClick={() => flow.go('today')}>
-              Tutup
-            </Button>
-          </>
-        )}
+        <Button size="lg" className="w-full" onClick={close}>
+          <span className="flex items-center justify-center gap-8">
+            <WhatsappLogo size={20} />
+            Kirim ke WhatsApp
+          </span>
+        </Button>
+        <Button size="lg" variant="ghost" className="w-full" onClick={close}>
+          Tutup
+        </Button>
       </StickyBar>
-
-      <ShareSheet
-        open={sharing}
-        onClose={() => setSharing(false)}
-        title="Kirim bukti bayar ke"
-        targets={[{ id: 'mitra', label: mitra.name, hint: 'Chat WhatsApp pribadi' }]}
-        onSend={() => {
-          setSharing(false)
-          setSent(true)
-        }}
-      />
     </AppScreen>
   )
 }

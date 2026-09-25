@@ -156,7 +156,7 @@ export interface Majelis {
 const MONTHS_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 const TODAY = new Date(2026, 6, 21) // Selasa, 21 Juli 2026
 
-function weekDate(weeksBack: number): string {
+export function weekDate(weeksBack: number): string {
   const d = new Date(TODAY)
   d.setDate(d.getDate() - weeksBack * 7)
   return `${d.getDate()} ${MONTHS_ID[d.getMonth()]}`

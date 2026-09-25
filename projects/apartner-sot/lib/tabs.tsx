@@ -1,6 +1,6 @@
 'use client'
 
-// The app's five destinations — the L0 surfaces this direction sits on top of.
+// The app's four destinations — the L0 surfaces this direction sits on top of.
 //
 //   Jadwal  — what to do now. The entry screen, and where a pelayanan starts.
 //   Majelis — every group the BP carries, reachable off-schedule. This is the
@@ -9,36 +9,31 @@
 //   Mitra   — every borrower, across groups. The Majelis tab answers "who is in
 //             this group"; this one answers "where is Ibu Rina", which is the
 //             question you cannot ask a directory of groups.
-//   Sales   — the BP's selling surface. Blank for now; KPI used to hold this
-//             slot and has moved into Profil.
 //   Profil  — her own record, and the settings nobody navigates to twice a day.
 //
-// Five is the ceiling, and this hits it. The two added here are both LOOK-UP
-// surfaces, which is why they sit right of Majelis and left of nothing that
-// starts work: the bar runs from what she does today to what she is.
+// Majelis and Mitra are both LOOK-UP surfaces: the bar runs from what she does
+// today to what she is. (Sales and KPI were removed from the SOT — neither is
+// built yet.)
 //
-// The bar shows on those five screens ONLY. Inside a pelayanan it is hidden: a
+// The bar shows on those four screens ONLY. Inside a pelayanan it is hidden: a
 // visit is a three-stage sequence with its own sticky CTA, and offering "jump to
-// Sales" mid-collection is how focused work turns back into browsing.
+// Mitra" mid-collection is how focused work turns back into browsing.
 
 import type { ReactNode } from 'react'
 import { NavigationBar } from '@/design-system/components'
-// `Contact`, `File` and `User` come from the shared set rather than this
-// project's local icons: a person-card, a document and a single silhouette are
-// exactly the trio that separates a list of borrowers, the Sales pipeline (a
-// stack of lead records the BP works through), and "me", and the local file has
-// none of them.
-import { Contact, File, User } from '@/design-system/icons'
+// `Contact` and `User` come from the shared set: a person-card for the list of
+// borrowers and a single silhouette for "me".
+import { Contact, User } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { IconCalendar, IconUsers } from './icons'
+import { Snackbar } from './snackbar'
 
-export type TabId = 'today' | 'majelis-list' | 'mitra-list' | 'sales' | 'profile'
+export type TabId = 'today' | 'majelis-list' | 'mitra-list' | 'profile'
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'today', label: 'Tugas', icon: <IconCalendar /> },
   { id: 'majelis-list', label: 'Majelis', icon: <IconUsers /> },
   { id: 'mitra-list', label: 'Mitra', icon: <Contact /> },
-  { id: 'sales', label: 'Sales', icon: <File /> },
   { id: 'profile', label: 'Profil', icon: <User /> },
 ]
 
@@ -52,6 +47,9 @@ export function TabBar({ active, action }: { active: TabId; action?: ReactNode }
       {/* A floating action rides just above the nav, right-aligned. The row
           itself is click-through (pointer-events-none) so it never blocks the
           content scrolling behind the gap; only the button inside catches taps. */}
+      {/* The Tugas list's confirmation after a task leaves it — skipped or
+          rescheduled — floating just above the nav, per the BP APP 2026 Figma. */}
+      {active === 'today' ? <Snackbar /> : null}
       {action ? (
         <div className="pointer-events-none flex justify-end px-16 pb-12">
           <span className="pointer-events-auto">{action}</span>

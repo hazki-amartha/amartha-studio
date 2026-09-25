@@ -23,7 +23,7 @@ import {
   NotePencil,
   WhatsappLogo,
 } from '@/design-system/icons'
-import { ringkas, rupiah, type Week } from './data'
+import { ringkas, rupiah, weekDate, type Week } from './data'
 import { agentCodeFor, SETTLE_METHOD_LABEL, taskCode } from './schedule'
 import { IconCheck, IconChevronDown, IconChevronUp, IconX } from './icons'
 import {
@@ -140,23 +140,37 @@ export function AppScreen({ className, ...props }: ScreenProps) {
 export function StageBar({
   current,
   labels = STAGE_LABELS,
+  skipped = [],
+  complete = false,
 }: {
   /** 1-based. One past the last label means every stage is cleared. */
   current: number
   labels?: string[]
+  /** 1-based stages that were skipped — drawn "–" and labelled "Dilewati". */
+  skipped?: number[]
+  /**
+   * The task is already finished: every stage carries a tick, the one being
+   * viewed in brand colour — per the BP APP 2026 Figma's reopened task.
+   */
+  complete?: boolean
 }) {
   return (
     <div className="flex items-start">
       {labels.map((label, i) => {
         const no = i + 1
-        const done = no < current
+        const skip = skipped.includes(no)
+        const done = (complete || no < current) && !skip
         const active = no === current
         // A cleared stage goes GREY, not green, and an upcoming one is a ring
         // around its number rather than a filled disc. Only one thing on this
         // bar is coloured — where she is standing — because that is the single
         // fact the bar exists to state; green ticks behind her competed with it
         // and made a four-step bar look like three results and a question.
-        const circle = done
+        const circle = skip
+          ? 'border-neutral-400 bg-neutral-white text-caption'
+          : complete && active
+          ? 'border-primary-500 bg-primary-500 text-neutral-white'
+          : done
           ? 'border-neutral-400 bg-neutral-400 text-neutral-white'
           : active
             ? 'border-primary-500 bg-primary-500 text-neutral-white'
@@ -177,7 +191,7 @@ export function StageBar({
               <span
                 className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full border text-12 font-bold ${circle}`}
               >
-                {done ? <IconCheck size={16} /> : no}
+                {skip ? '–' : done ? <IconCheck size={16} /> : no}
               </span>
               <span
                 className={`h-2 flex-1 rounded-full ${i === labels.length - 1 ? 'bg-transparent' : active ? 'bg-primary-200' : 'bg-neutral-200'}`}
@@ -190,9 +204,9 @@ export function StageBar({
                 A cleared stage's name greys out — it is behind her — while the
                 ones ahead stay dark: they are still work. */}
             <span
-              className={`text-12 ${active ? 'font-bold text-default' : done ? 'font-regular text-disabled' : 'font-regular text-default'}`}
+              className={`text-12 ${active ? 'font-bold text-default' : done || skip ? 'font-regular text-disabled' : 'font-regular text-default'}`}
             >
-              {label}
+              {skip ? 'Dilewati' : label}
             </span>
           </div>
         )
@@ -382,10 +396,14 @@ export function WeekGrid({ weeks }: { weeks: Week[] }) {
         <div key={page[0]?.no} className="flex w-full shrink-0 snap-start gap-8">
           {/* A short page is always the OLDEST one, and its empty slots sit at
               the left — before its earliest week — so the six columns line up
-              page to page and the dates still run left-to-right unbroken. */}
-          {Array.from({ length: GRID_WEEKS - page.length }).map((_, i) => (
-            <div key={`pad-${i}`} className="flex-1" />
-          ))}
+              page to page and the dates still run left-to-right unbroken. A
+              loan still in its first weeks has only the one page; per the BP
+              APP 2026 Figma it fills to the right with the weeks still ahead. */}
+          {pages.length > 1
+            ? Array.from({ length: GRID_WEEKS - page.length }).map((_, i) => (
+                <div key={`pad-${i}`} className="flex-1" />
+              ))
+            : null}
           {page.map((w) => {
             const current = w.status === 'jatuh-tempo'
             return (
@@ -417,6 +435,18 @@ export function WeekGrid({ weeks }: { weeks: Week[] }) {
               </div>
             )
           })}
+          {pages.length === 1
+            ? Array.from({ length: GRID_WEEKS - page.length }).map((_, i) => (
+                <div
+                  key={`ahead-${i}`}
+                  className="flex flex-1 flex-col items-center gap-8 rounded-8 bg-canvas-blue px-4 py-8"
+                >
+                  <span className="text-10 text-caption">{weekDate(-(i + 1))}</span>
+                  <span className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-neutral-400" />
+                  <span className="text-10 font-bold text-disabled">Rp0</span>
+                </div>
+              ))
+            : null}
         </div>
       ))}
     </div>
@@ -960,24 +990,65 @@ export function PickRow({
   title,
   description,
   detail,
+  note,
   selected,
   onSelect,
+  disabled = false,
 }: {
+  /** Read-only — a sent task reopened for reference. */
+  disabled?: boolean
   title: string
   /** What the option means, or the figure it commits to. */
   description?: string
   /** A read-back of what the option's follow-up captured, once it has. */
   detail?: string | null
+  /**
+   * Interactive content under the row, inside the same card — e.g. the
+   * "Alasan" note with its pencil, per the BP APP 2026 Figma.
+   */
+  note?: ReactNode
   selected: boolean
   onSelect: () => void
 }) {
+  if (note) {
+    return (
+      <div
+        className={`flex flex-col gap-12 rounded-12 border p-16 ${
+          selected ? 'border-primary-500 bg-primary-50' : 'border-default bg-neutral-white'
+        }`}
+      >
+        <button
+          type="button"
+          role="radio"
+          aria-checked={selected}
+          onClick={onSelect}
+          disabled={disabled}
+          className="flex items-center gap-12 text-left disabled:opacity-50"
+        >
+          <span className="flex min-w-0 flex-1 flex-col gap-2">
+            <span className="text-14 font-bold text-default">{title}</span>
+            {description ? <span className="text-14 text-caption">{description}</span> : null}
+          </span>
+          <span
+            className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 ${
+              selected ? 'border-primary-500' : 'border-neutral-400'
+            }`}
+          >
+            {selected ? <span className="h-12 w-12 rounded-full bg-primary-500" /> : null}
+          </span>
+        </button>
+        <div className="border-t border-primary-200 pt-12">{note}</div>
+      </div>
+    )
+  }
   return (
     <button
       type="button"
       role="radio"
       aria-checked={selected}
       onClick={onSelect}
-      className={`flex items-center gap-12 rounded-12 border p-16 text-left ${
+      disabled={disabled}
+      className={`flex items-center gap-12 rounded-12 border p-16 text-left disabled:opacity-50 ${
         selected ? 'border-primary-500 bg-primary-50' : 'border-default bg-neutral-white'
       }`}
     >
@@ -2044,6 +2115,7 @@ export function RescheduleSheet({
   onConfirm,
   onReject,
   hideReason = false,
+  description,
 }: {
   open: boolean
   onClose: () => void
@@ -2062,6 +2134,8 @@ export function RescheduleSheet({
    * the only question left is when to try again.
    */
   hideReason?: boolean
+  /** Overrides the default "<noun> <subject> dijadwalkan di waktu lain." */
+  description?: string
 }) {
   const [reason, setReason] = useState('')
   const [date, setDate] = useState('')
@@ -2096,7 +2170,9 @@ export function RescheduleSheet({
       onClose={onClose}
       title={rejecting ? 'Tolak tugas' : 'Jadwalkan ulang tugas'}
       description={
-        rejecting
+        !rejecting && description
+          ? description
+          : rejecting
           ? `${subjectNoun} ${subject} ditutup dan tidak dijadwalkan lagi.`
           : `${subjectNoun} ${subject} dijadwalkan di waktu lain.`
       }

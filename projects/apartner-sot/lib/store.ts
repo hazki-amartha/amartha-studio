@@ -43,7 +43,7 @@ import {
  * not taken from her hand — kept as separate values only so the three rows
  * can be selected apart; nothing downstream tells them apart otherwise.
  */
-export type MetWith = 'mitra' | 'pj' | 'tetangga' | 'kepalaRt' | 'nobody'
+export type MetWith = 'mitra' | 'pj' | 'keluarga' | 'tetangga' | 'kepalaRt' | 'nobody'
 
 /**
  * The outcome picked inline on a home visit.
@@ -393,6 +393,13 @@ export interface AppState {
    * channel the card reports; `amount` is what goes back to her.
    */
   refunds: Record<string, { via: 'Poket' | 'metode lain'; amount: number }>
+  /**
+   * A one-line confirmation the Tugas list shows once, as a snackbar — "Tugas
+   * ditandai dilewati.", "Tugas berhasil dijadwal ulang". Cleared on "Oke".
+   */
+  flash: string | null
+  /** Demo switch: today is Friday — home visits cannot be rescheduled. */
+  rescheduleFriday: boolean
   /** Demo switch: the majelis has no offers this visit — the empty state. */
   offersEmpty: boolean
   /**
@@ -478,12 +485,6 @@ export interface AppState {
   comms: Comm[]
   /** Which message the detail page renders. Null before anything is opened. */
   openComm: string | null
-  /**
-   * Which month's numbers the KPI page scores. A BP only ever sees the running
-   * month — this exists so the demo controls can reach the conditions she
-   * cannot tap her way to, above all the two different ways to arrive at Rp0.
-   */
-  kpiPeriod: string
 }
 
 /** What the BP is recording about one call, before she saves it. */
@@ -574,6 +575,8 @@ const initial: AppState = {
   offline: false,
   refunds: {},
   offersEmpty: false,
+  rescheduleFriday: false,
+  flash: null,
   growthCarried: [],
   deposits: {},
   settlements: [],
@@ -593,11 +596,6 @@ const initial: AppState = {
   followUp: emptyFollowUp('l1'),
   comms: COMMS_SEED,
   openComm: null,
-  // The month opens with nothing banked yet, which is where a BP actually
-  // finds the tab on the 1st: Rp0, every parameter still to win, and no
-  // incentive earned. A default that already pays shows the scoreboard only in
-  // its settled state and hides the work the page exists to prompt.
-  kpiPeriod: 'nothing-yet',
 }
 
 let state: AppState = initial
@@ -874,6 +872,7 @@ export const store = {
     store.set({
       reschedules: { ...state.reschedules, [taskId]: { reason, date, count } },
       startedTasks: state.startedTasks.filter((id) => id !== taskId),
+      flash: 'Tugas berhasil dijadwal ulang',
     })
   },
   /**
@@ -898,7 +897,14 @@ export const store = {
       skips: { ...state.skips, [taskId]: true },
       skipReasons: { ...state.skipReasons, [taskId]: reason },
       startedTasks: state.startedTasks.filter((id) => id !== taskId),
+      flash: 'Tugas ditandai dilewati.',
     })
+  },
+  showFlash(message: string) {
+    store.set({ flash: message })
+  },
+  clearFlash() {
+    store.set({ flash: null })
   },
   setOffline(offline: boolean) {
     store.set({ offline })

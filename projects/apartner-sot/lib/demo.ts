@@ -20,6 +20,7 @@ import {
   findMitra,
   growthMembers,
   isSelfServe,
+  outstandingBalanceOf,
   outstandingOf,
 } from './data'
 import { INTEREST_ORDER, SEED_LEADS, type Lead } from './leads'
@@ -155,11 +156,11 @@ export const queueDone = () => {
   store.set({
     payments,
     nonPayments: {
-      [refuser.id]: { reason: 'Usaha sedang sepi', ptp: 'Sabtu, 25 Juli' },
+      [refuser.id]: { reason: 'Usaha sedang sepi', ptp: '24 Juli' },
     },
     // A part-payment carries its reason exactly as a refusal does — the balance
     // it leaves behind has to be chaseable by whoever reads the visit later.
-    shortfallReasons: { [partial.id]: 'Uang belum terkumpul semua' },
+    shortfallReasons: { [partial.id]: 'Usaha sedang sepi' },
     lastCollect: null,
     ...noOutcomes,
     payMode: { [refuser.id]: 'tidak', [partial.id]: 'sebagian' },
@@ -183,48 +184,39 @@ export const queueRefund = () => {
 }
 
 /**
- * Every result a mitra card can carry, on one screen, in roster order.
- *
- * The eight states of the card are the thing under review, and most of them
- * cost a full pass through the collect menu to reach — some of them twice, on
- * two different mitra, because a card can only be in one state at a time. This
- * seeds one of each: a cash lunas and a part-payment, the same two through
- * Poket, a bill the group covered, a refusal, a mitra leaving the program, and
- * the fifteen who had already settled before the BP arrived.
+ * Every result a mitra card can carry, on one screen, in roster order — the
+ * outcomes the BP APP 2026 Figma's Tagih menu can record: bayar penuh, bayar
+ * jumlah lain (with its reason and janji), pelunasan dini, and the refusals
+ * that each leave something different behind — a janji bayar, a photo of a
+ * receipt she already paid, or the date she died.
  */
 export const queueEveryOutcome = () => {
   const payments = freshPayments()
-  const [sebagian, tanggung, poketLunas, poketSebagian, lunas, tidak, keluar] = collectible
+  const [penuh, sebagian, dini, tidak, sendiri, meninggal] = collectible
 
-  payments[lunas.id] = outstandingOf(lunas).total
-  payments[tanggung.id] = outstandingOf(tanggung).total
-  payments[poketLunas.id] = outstandingOf(poketLunas).total
+  payments[penuh.id] = outstandingOf(penuh).total
   payments[sebagian.id] = Math.round(outstandingOf(sebagian).total / 2)
-  payments[poketSebagian.id] = Math.round(outstandingOf(poketSebagian).total / 2)
+  payments[dini.id] = outstandingBalanceOf(dini)
 
   store.set({
     payments,
     payMode: {
-      [lunas.id]: 'penuh',
+      [penuh.id]: 'penuh',
       [sebagian.id]: 'sebagian',
-      [tanggung.id]: 'tanggung',
-      [poketLunas.id]: 'poket',
-      [poketSebagian.id]: 'poket',
+      [dini.id]: 'dini',
       [tidak.id]: 'tidak',
-      [keluar.id]: 'keluar',
+      [sendiri.id]: 'tidak',
+      [meninggal.id]: 'tidak',
     },
-    // The screenshot behind each Poket claim — without it the card has a state
-    // the flow would never have let the BP save.
-    poketProof: { [poketLunas.id]: true, [poketSebagian.id]: true },
+    poketProof: { [sendiri.id]: true },
     nonPayments: {
-      [tidak.id]: { reason: 'Usaha sedang sepi', ptp: '25 Juli' },
+      [tidak.id]: { reason: 'Usaha sedang sepi', ptp: '24 Juli' },
+      [sendiri.id]: { reason: 'Sudah bayar sendiri via Poket/metode lain', ptp: null },
+      [meninggal.id]: { reason: 'Meninggal dunia', ptp: null, deathDate: '3 Maret 2026' },
     },
-    dropOut: { [keluar.id]: 'Pindah tanpa kabar' },
-    shortfallReasons: {
-      [sebagian.id]: 'Uang belum terkumpul semua',
-      [poketSebagian.id]: 'Usaha sedang sepi',
-    },
-    partialPtp: { [sebagian.id]: '23 Juli', [poketSebagian.id]: null },
+    dropOut: {},
+    shortfallReasons: { [sebagian.id]: 'Usaha sedang sepi' },
+    partialPtp: { [sebagian.id]: '23 Juli' },
     refunds: {},
     lastCollect: null,
   })
@@ -792,12 +784,6 @@ export const visitProofCaptured = () => {
   store.set({ openMajelis: 'mawar', photo: true, geo: true })
 }
 
-/** Submittable, but seven mitra never got an outcome — the warning, not a block. */
-export const visitProofGaps = () => {
-  queueFull()
-  store.set({ openMajelis: 'mawar', photo: true, geo: true })
-}
-
 // --- The home visit --------------------------------------------------------
 //
 // Every branch of a door in one panel. Most of them are unreachable by tapping:
@@ -828,6 +814,11 @@ const atDoor = (taskId: string, patch: Partial<AppState> = {}) =>
     payments: freshPayments(),
     reschedules: {},
     rejects: {},
+    rescheduleFriday: false,
+    // A door state starts on an unfinished task, so a previous "sent" state
+    // cannot leave this one read-only.
+    doneTasks: [],
+    sentTasks: [],
     photo: false,
     geo: false,
     ...patch,
@@ -840,25 +831,27 @@ export const doorMetMitra = () => atDoor('t3', { metWith: { [WATI.id]: 'mitra' }
 export const doorMetPj = () =>
   atDoor('t3', {
     metWith: { [WATI.id]: 'pj' },
-    mitraAbsence: { [WATI.id]: 'Sedang berdagang' },
+    mitraAbsence: { [WATI.id]: 'Sedang bekerja/berdagang' },
   })
 
 /** A locked door: the visit takes its note here and skips the Tagih step. */
 export const doorNobody = () =>
   atDoor('t3', {
     metWith: { [WATI.id]: 'nobody' },
-    nonPayments: { [WATI.id]: { reason: 'Pergi tanpa kabar', ptp: '23 Juli' } },
+    mitraAbsence: { [WATI.id]: 'Pindah rumah' },
   })
 
 /**
- * Moved three times already. Only at this count does "Jadwal ulang" also offer
- * to close the visit for good — a state no amount of tapping reaches, because
- * the first two moves happened on days that are not today.
+ * Moved twice already, so "Jadwal ulang" is blocked — a state no amount of
+ * tapping reaches, because the first two moves happened on other days.
  */
 export const doorStuck = () =>
   atDoor('t3', {
-    reschedules: { t3: { reason: 'Mitra tidak di tempat', date: '23 Juli', count: 3 } },
+    reschedules: { t3: { reason: 'Tidak cukup waktu', date: '23 Juli', count: 2 } },
   })
+
+/** A Friday: home visits cannot be rescheduled at all. */
+export const doorFriday = () => atDoor('t3', { rescheduleFriday: true })
 
 // --- The home visit's money step -------------------------------------------
 
@@ -890,24 +883,6 @@ export const payRefused = () =>
     nonPayments: { [WATI.id]: { reason: 'Usaha sedang sepi', ptp: '28 Juli' } },
   })
 
-/** She is leaving the programme — neither a payment nor a promise, so it carries
- *  only a reason, and recording it retracts anything else on her. */
-export const payDropOut = () =>
-  atDoor('t3', {
-    metWith: { [WATI.id]: 'mitra' },
-    payMode: { [WATI.id]: 'keluar' },
-    dropOut: { [WATI.id]: 'Pindah tanpa kabar' },
-  })
-
-/** The GL door, where the group can cover her — a full settlement nobody in the
- *  household funded. Modal loans never see this option. */
-export const payGroupCovered = () =>
-  atDoor('t4', {
-    metWith: { [ELIN.id]: 'mitra' },
-    payMode: { [ELIN.id]: 'tanggung' },
-    payments: { ...freshPayments(), [ELIN.id]: ELIN_OWED },
-  })
-
 // --- Closing a home visit --------------------------------------------------
 
 export const doorProofEmpty = () =>
@@ -915,6 +890,37 @@ export const doorProofEmpty = () =>
     metWith: { [WATI.id]: 'mitra' },
     payMode: { [WATI.id]: 'penuh' },
     payments: { ...freshPayments(), [WATI.id]: WATI_OWED },
+  })
+
+/** Finished and saved, not yet sent — reopened from Tugas it is still editable. */
+export const doorSaved = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'mitra' },
+    payMode: { [WATI.id]: 'penuh' },
+    payments: { ...freshPayments(), [WATI.id]: WATI_OWED },
+    photo: true,
+    geo: true,
+    doneTasks: ['t3'],
+    sentTasks: [],
+  })
+
+/** Sent — reopened from Tugas it is read-only, and Kirim bukti ends on Tutup. */
+export const doorSent = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'mitra' },
+    payMode: { [WATI.id]: 'penuh' },
+    payments: { ...freshPayments(), [WATI.id]: WATI_OWED },
+    photo: true,
+    geo: true,
+    doneTasks: ['t3'],
+    sentTasks: ['t3'],
+  })
+
+/** Nobody home: Tagih was skipped, so Kirim bukti marks it Dilewati at Rp0. */
+export const doorProofNobody = () =>
+  atDoor('t3', {
+    metWith: { [WATI.id]: 'nobody' },
+    mitraAbsence: { [WATI.id]: 'Pindah rumah' },
   })
 
 /** Photo taken and cash in her bag — submitting goes on to the WhatsApp receipt. */
@@ -1055,48 +1061,16 @@ export const collectFresh = () => atCollect('m1')
 export const collectPartial = () =>
   atCollect('m1', {
     payments: { ...freshPayments(), m1: Math.round(outstandingOf(findMitra('m1')).total / 2) },
-    shortfallReasons: { m1: 'Uang belum terkumpul semua' },
+    shortfallReasons: { m1: 'Usaha sedang sepi' },
     payMode: { m1: 'sebagian' },
-    partialPtp: { m1: '25 Juli' },
+    partialPtp: { m1: '24 Juli' },
   })
 
 /** Reopened on a recorded no — the refusal sheet, prefilled. */
 export const collectRefused = () =>
   atCollect('m1', {
-    nonPayments: { m1: { reason: 'Usaha sedang sepi', ptp: 'Sabtu, 25 Juli' } },
+    nonPayments: { m1: { reason: 'Usaha sedang sepi', ptp: '24 Juli' } },
     payMode: { m1: 'tidak' },
   })
 
-/** A GL mitra covered by her group. The option exists on GL only, so a Modal
- *  card can never show it. */
-export const collectGroupCovered = () =>
-  atCollect('m2', {
-    payments: { ...freshPayments(), m2: outstandingOf(findMitra('m2')).total },
-    payMode: { m2: 'tanggung' },
-  })
 
-// --- KPI: the four conditions the scoreboard has to tell apart -------------
-//
-// Every one of these turns on the gate — collection has to be clear before a
-// single growth rupiah is payable — and the page's whole job is that two of
-// them show Rp0 for opposite reasons. A BP who reads "sudah kerja tapi Rp0" the
-// same way she reads "belum ada capaian" is a BP who stops trying.
-
-/** The running month: DPD 31–90 missed, so the Celengan she won is held. */
-export const kpiRunning = () => store.set({ kpiPeriod: 'Juli 2026' })
-
-/** The gate's worst case — every growth target won, every DPD missed. Rp0, and
- *  all of it recoverable if she clears collection before the month closes. */
-export const kpiAllHeld = () => store.set({ kpiPeriod: 'gate-zero' })
-
-/** Rp0 with nothing behind it: no target met anywhere, nothing held. */
-export const kpiNothingYet = () => store.set({ kpiPeriod: 'nothing-yet' })
-
-/** Everything met — collection clear, so growth pays and the gate is invisible. */
-export const kpiAllClear = () => store.set({ kpiPeriod: 'Juni 2026' })
-
-/** Version B's own wipe-out: a score that pays, voided by the boom factor. */
-export const kpiBoom = () => store.set({ kpiPeriod: 'boom' })
-
-/** Version B's ceiling: past 100% AND both boosts — Rp600rb + Rp100rb. */
-export const kpiBoosted = () => store.set({ kpiPeriod: 'boosted' })
