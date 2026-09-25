@@ -13,31 +13,67 @@
 
 import { useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Card, NavigationHeader } from '@/design-system/components'
-import { ArrowRight, CalendarDots, ChevronRight, MapPin, User, Users } from '@/design-system/icons'
+import { ArrowRight, CalendarDots, ChevronRight, MapPin, Sort, User, Users } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { DRAFT_SCHEDULE, MAJELIS_DIRECTORY, MIN_MEMBERS, type MajelisEntry } from '../lib/schedule'
 import { isOnboardingLead, majelisLine, type PipelineLead } from '../lib/pipeline'
 import type { BadgeIntent } from '@/design-system/components/Badge'
 import { useApp } from '../lib/store'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { isMajelisActivated, isMemberAccepted, setFormation, useFormation } from '../lib/formation'
+import {
+  canDisburse,
+  isMajelisActivated,
+  isMemberAccepted,
+  setFormation,
+  useFormation,
+} from '../lib/formation'
 import {
   draftApprovedCount,
   draftPotential,
   MAJELIS_ROSTER,
   MitraRosterCard,
   PotentialMemberRow,
+  type PotentialMitra,
+  type RosterMitra,
 } from '../lib/roster'
-import { AppScreen, VisitTitle } from '../lib/ui'
+import { AppScreen, FilterBar, FilterChip, OptionSheet, SearchField, VisitTitle } from '../lib/ui'
 
 /** A member's status on the majelis page — the survey stage, then once her
  *  pencairan is submitted she is a Mitra. */
-function memberStatus(lead: PipelineLead): { label: string; intent: BadgeIntent } {
+function memberStatus(lead: PipelineLead, canDisburseLead: boolean): { label: string; intent: BadgeIntent } {
   if (lead.disbursementSubmitted) return { label: 'Lancar', intent: 'green' }
-  if (lead.status === 'approved') return { label: 'Waiting for group formation', intent: 'green' }
+  if (lead.status === 'approved')
+    return canDisburseLead
+      ? { label: 'Ready for disbursement', intent: 'green' }
+      : { label: 'Waiting for group formation', intent: 'green' }
   if (lead.status === 'survey-submitted') return { label: 'Survey submitted', intent: 'blue' }
   return { label: 'Survey ongoing', intent: 'orange' }
 }
+
+// A row in the Anggota Majelis list — an active mitra (roster), an onboarding
+// lead, or a draft stand-in. `kind` drives the Mitra / Calon mitra filter; a
+// lead is Mitra once her disbursement is submitted, otherwise Calon mitra.
+interface Member {
+  key: string
+  name: string
+  kind: 'mitra' | 'calon'
+  /** For the tunggakan sort — arrears in days; 0 for calon mitra. */
+  dpd: number
+  roster?: RosterMitra
+  lead?: PipelineLead
+  draft?: PotentialMitra
+}
+
+const MEMBER_FILTERS: { label: string; value: 'all' | 'mitra' | 'calon' }[] = [
+  { label: 'Semua', value: 'all' },
+  { label: 'Mitra', value: 'mitra' },
+  { label: 'Calon mitra', value: 'calon' },
+]
+
+const SORT_OPTIONS: { label: string; value: 'tunggakan' | 'nama' }[] = [
+  { label: 'Tunggakan terbanyak', value: 'tunggakan' },
+  { label: 'Nama A–Z', value: 'nama' },
+]
 
 /** Edit — affordance-only routes for a group's schedule, ketua and members. */
 function EditSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -80,6 +116,11 @@ export function MajelisPageScreen() {
   const { leads, openId, order } = usePipeline()
   const lead = leads[openId]
   const [editOpen, setEditOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<'tunggakan' | 'nama'>('tunggakan')
+  const [filter, setFilter] = useState<'all' | 'mitra' | 'calon'>('all')
+  const [sortOpen, setSortOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
 
   // Resolve the target: an existing directory group, or a new (draft) majelis
   // by name. Falls back to the open lead's own majelis.
@@ -165,6 +206,36 @@ export function MajelisPageScreen() {
     flow.go('group-formation')
   }
 
+  // The Anggota Majelis list — active roster mitra, draft stand-ins, and pipeline
+  // onboarding leads, unified so search / sort / filter apply across all of them.
+  const allMembers: Member[] = [
+    ...(showRoster
+      ? MAJELIS_ROSTER.map((m): Member => ({ key: m.id, name: m.name, kind: 'mitra', dpd: m.dpd, roster: m }))
+      : []),
+    ...(isDirectoryDraft && existing
+      ? draftPotential(existing.id).map((m): Member => ({ key: m.id, name: m.name, kind: 'calon', dpd: 0, draft: m }))
+      : []),
+    ...(!isDirectoryDraft
+      ? potential.map(
+          (l): Member => ({
+            key: l.id,
+            name: l.name,
+            kind: l.disbursementSubmitted ? 'mitra' : 'calon',
+            dpd: 0,
+            lead: l,
+          }),
+        )
+      : []),
+  ]
+  const memberQuery = query.trim().toLowerCase()
+  const shownMembers = allMembers
+    .filter((m) => (filter === 'all' || m.kind === filter) && (!memberQuery || m.name.toLowerCase().includes(memberQuery)))
+    .sort((a, b) =>
+      sort === 'nama' ? a.name.localeCompare(b.name) : b.dpd - a.dpd || a.name.localeCompare(b.name),
+    )
+  const showTails = !memberQuery && filter === 'all'
+  const hasMembers = allMembers.length > 0
+
   return (
     <AppScreen
       topBar={
@@ -244,9 +315,9 @@ export function MajelisPageScreen() {
         )
       ) : null}
 
-      {/* Anggota Majelis — active mitra and onboarding members in one list, each
-          with its status under the name. */}
-      {showRoster || (isDirectoryDraft && existing) || potential.length > 0 ? (
+      {/* Anggota Majelis — active mitra and onboarding members in one searchable,
+          sortable, filterable list. */}
+      {hasMembers ? (
         <>
           <span className="flex items-center gap-8 pt-4 text-14 font-bold text-default">
             <Users size={20} />
@@ -257,50 +328,79 @@ export function MajelisPageScreen() {
               {approvedCount} dari {existing.members} anggota sudah survey approved
             </span>
           ) : null}
+
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            placeholder="Cari nama anggota"
+            label="Cari anggota majelis"
+          />
+          <div className="flex items-center gap-8">
+            <FilterBar>
+              <FilterChip
+                label={MEMBER_FILTERS.find((f) => f.value === filter)?.label ?? 'Semua'}
+                active={filter !== 'all'}
+                open={filterOpen}
+                onClick={() => setFilterOpen(true)}
+              />
+            </FilterBar>
+            <span className="flex-1" />
+            <button
+              type="button"
+              onClick={() => setSortOpen(true)}
+              aria-label="Urutkan anggota"
+              className="flex shrink-0 items-center gap-4 rounded-full border border-default bg-neutral-white px-12 py-4 text-12 font-bold text-default"
+            >
+              <Sort size={16} />
+              {sort === 'tunggakan' ? 'Tunggakan' : 'Nama'}
+            </button>
+          </div>
+
           <div className="flex flex-col gap-8">
-            {/* Active mitra roster (active group only). */}
-            {showRoster ? MAJELIS_ROSTER.map((m) => <MitraRosterCard key={m.id} mitra={m} />) : null}
+            {shownMembers.length === 0 ? (
+              <span className="text-12 text-caption">Anggota tidak ditemukan.</span>
+            ) : null}
+            {shownMembers.map((m) => {
+              if (m.roster) return <MitraRosterCard key={m.key} mitra={m.roster} />
+              if (m.draft) return <PotentialMemberRow key={m.key} member={m.draft} />
+              const l = m.lead!
+              const st = memberStatus(l, canDisburse(formation, l))
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={() => openPotential(l)}
+                  className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left active:bg-neutral-50"
+                >
+                  <span
+                    className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500"
+                    aria-hidden
+                  >
+                    <User size={20} />
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col gap-2">
+                    <span className="truncate text-14 font-bold text-default">{l.name}</span>
+                    <span className="flex flex-wrap items-center gap-4">
+                      <Badge intent={st.intent} size="sm">
+                        {st.label}
+                      </Badge>
+                      {/* An active majelis' calon mitra not yet accepted by the KM. */}
+                      {existing?.status === 'aktif' && !isMemberAccepted(formation, l) ? (
+                        <Badge intent="orange" size="sm" variant="outline">
+                          Belum diterima
+                        </Badge>
+                      ) : null}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-disabled">
+                    <ChevronRight size={20} />
+                  </span>
+                </button>
+              )
+            })}
 
-            {/* Draft directory majelis — its stand-in potential members. */}
-            {isDirectoryDraft && existing
-              ? draftPotential(existing.id).map((m) => <PotentialMemberRow key={m.id} member={m} />)
-              : null}
-
-            {/* Onboarding members from the pipeline (active group + synthesized draft). */}
-            {!isDirectoryDraft
-              ? potential.map((l) => {
-                  const st = memberStatus(l)
-                  return (
-                    <button
-                      key={l.id}
-                      type="button"
-                      onClick={() => openPotential(l)}
-                      className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left active:bg-neutral-50"
-                    >
-                      <span
-                        className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500"
-                        aria-hidden
-                      >
-                        <User size={20} />
-                      </span>
-                      <span className="flex min-w-0 flex-1 flex-col gap-2">
-                        <span className="truncate text-14 font-bold text-default">{l.name}</span>
-                        <span className="flex">
-                          <Badge intent={st.intent} size="sm">
-                            {st.label}
-                          </Badge>
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-disabled">
-                        <ChevronRight size={20} />
-                      </span>
-                    </button>
-                  )
-                })
-              : null}
-
-            {/* "and N more" tail. */}
-            {showRoster && more > 0 ? (
+            {/* "and N more" tails — only in the unfiltered, unsearched view. */}
+            {showTails && showRoster && more > 0 ? (
               <div className="flex items-center gap-4">
                 <span className="text-12 text-caption">dan {more} anggota lainnya</span>
                 <button type="button" className="text-12 font-bold text-link">
@@ -308,7 +408,7 @@ export function MajelisPageScreen() {
                 </button>
               </div>
             ) : null}
-            {isDirectoryDraft && existing && existing.members > draftPotential(existing.id).length ? (
+            {showTails && isDirectoryDraft && existing && existing.members > draftPotential(existing.id).length ? (
               <span className="text-12 text-caption">
                 dan {existing.members - draftPotential(existing.id).length} calon mitra lainnya
               </span>
@@ -318,6 +418,30 @@ export function MajelisPageScreen() {
       ) : null}
 
       <EditSheet open={editOpen} onClose={() => setEditOpen(false)} />
+      <OptionSheet
+        open={sortOpen}
+        title="Urutkan anggota"
+        name="urutan-anggota"
+        options={SORT_OPTIONS}
+        value={sort}
+        onPick={(v) => {
+          setSort(v)
+          setSortOpen(false)
+        }}
+        onClose={() => setSortOpen(false)}
+      />
+      <OptionSheet
+        open={filterOpen}
+        title="Filter anggota"
+        name="filter-anggota"
+        options={MEMBER_FILTERS}
+        value={filter}
+        onPick={(v) => {
+          setFilter(v)
+          setFilterOpen(false)
+        }}
+        onClose={() => setFilterOpen(false)}
+      />
     </AppScreen>
   )
 }
