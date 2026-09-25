@@ -1,0 +1,583 @@
+'use client'
+
+// The one mitra card, shared by the roster, the attendance stage and the
+// collection stage. The LAYOUT is fixed here — avatar, name, the two standing
+// facts, a status badge, then an optional action row — so the three surfaces
+// cannot drift apart: a mitra sits in the same shape everywhere and the BP
+// re-reads nothing as she moves between stages.
+//
+// The two standing facts are the direction's own requirement: the reference is
+// explicit that a member card should carry her loan and her weekly instalment
+// alongside her DPD, because those are the numbers she asks about ("berapa sisa
+// saya, Bu?") and a BP who has to leave the queue to answer has left the queue.
+
+import type { ReactNode } from 'react'
+import { Badge, Card } from '@/design-system/components'
+import { ArrowRight, User } from '@/design-system/icons'
+import { isKetua, lastPaymentOf, outstandingOf, rupiah, type Mitra } from './data'
+import { IconCalendar, IconChevronRight, IconHome, IconStore } from './icons'
+import { ProductBadge, WeekGrid } from './ui'
+
+/**
+ * What she owes, and what it is made of. ONE component, used by the mitra page
+ * and by the home visit, because they are the same facts read at the same
+ * moment — before the BP asks for money — and two drawings of one card is how a
+ * prototype ends up arguing with itself in a review.
+ *
+ * The total leads at full size with its parts under a rule, because the total
+ * is what gets said first and the lines under it are what gets said when it is
+ * argued with: "seratus lima puluh minggu ini, sisanya sembilan minggu yang
+ * belum kebayar."
+ *
+ * The tunggakan line carries everything overdue — the missed weeks AND whatever
+ * is left of a week she part-paid. Two different failures, but the BP does not
+ * collect them separately. The week count in its label counts MISSED weeks
+ * only, so on a mitra with a part-payment behind her the label is a slight
+ * understatement of the amount beside it; the week strip above is where the two
+ * are actually told apart.
+ */
+export function TagihanBreakdown({ mitra, bare }: { mitra: Mitra; bare?: boolean }) {
+  const owed = outstandingOf(mitra)
+  const overdue = owed.missed + owed.partial
+
+  const body = (
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <span className="text-12 text-caption">Total tagihan</span>
+        <span className="text-24 font-bold text-default">{rupiah(owed.total)}</span>
+      </div>
+      <div className="flex flex-col gap-4 border-t border-default pt-8">
+        <TagihanLine label="Angsuran minggu ini" value={rupiah(owed.thisWeek)} />
+        {overdue > 0 ? (
+          <TagihanLine
+            label={owed.missedWeeks > 0 ? `Tunggakan ${owed.missedWeeks} minggu` : 'Tunggakan'}
+            value={rupiah(overdue)}
+            red
+          />
+        ) : null}
+      </div>
+    </div>
+  )
+
+  // `bare` drops the Card so the breakdown can sit UNDER an identity block in
+  // one card — which is how the collect page opens: who she is and what she
+  // owes, read as one object rather than as two cards that happen to be stacked.
+  return bare ? body : <Card>{body}</Card>
+}
+
+function TagihanLine({
+  label,
+  value,
+  red,
+  /**
+   * The parts of a bill are set regular where a total sits beneath them — bold
+   * on every line leaves nothing for the total to be louder than. `TagihanBreakdown`
+   * keeps them bold, because there the total LEADS and the lines are its detail.
+   */
+  bold = true,
+}: {
+  label: string
+  value: string
+  red?: boolean
+  bold?: boolean
+}) {
+  return (
+    <div className="flex items-center gap-12">
+      <span className="flex-1 text-14 text-caption">{label}</span>
+      <span
+        className={`text-14 ${bold ? 'font-bold' : 'font-regular'} ${red ? 'text-red-500' : 'text-default'}`}
+      >
+        {value}
+      </span>
+    </div>
+  )
+}
+
+/**
+ * The one payment card the mitra page and the collect page both open on: the
+ * recent cycle as a bordered week-grid, then what she owes, in one card. It
+ * merges the week history and the tagihan breakdown that used to be two stacked
+ * cards — they are read together, in one glance, before the BP asks for money,
+ * so they are one card.
+ *
+ * The history is a `WeekGrid` — a bordered row of cells, each carrying its date,
+ * its outcome and the amount received that week — rather than a bare mark strip,
+ * because the amount under a cell is what tells a shortfall apart from a miss.
+ *
+ * `onSeeAll` renders the "Lihat semua" link into the full ledger, beside the
+ * heading. Every surface that shows the grid now offers it: the five weeks on
+ * screen are a summary, and the mitra arguing about a week off the left edge is
+ * exactly when the BP needs the rest.
+ *
+ * `flat` strips the card — no border, no padding — so the grid and the
+ * breakdown sit straight on the page. The heading stays either way: a section
+ * with no edge needs its name more, not less.
+ */
+export function AngsuranCard({
+  mitra,
+  onSeeAll,
+  flat,
+}: {
+  mitra: Mitra
+  onSeeAll?: () => void
+  flat?: boolean
+}) {
+  const owed = outstandingOf(mitra)
+  const overdue = owed.missed + owed.partial
+
+  const last = lastPaymentOf(mitra)
+
+  const inner = (
+    <>
+      {/* The heading and its way out to the full ledger, on the same line —
+          including in flat mode, where the section still needs naming even
+          though it has no card edge to be named inside. */}
+      <div className="flex items-center gap-8">
+        <span className="min-w-0 flex-1 truncate text-14 font-bold text-default">
+          Riwayat angsuran
+        </span>
+        {onSeeAll ? (
+          <button
+            type="button"
+            onClick={onSeeAll}
+            className="flex shrink-0 items-center gap-4 text-12 font-bold text-link"
+          >
+            Lihat semua
+            <ArrowRight size={16} />
+          </button>
+        ) : null}
+      </div>
+
+      <WeekGrid weeks={mitra.weeks} />
+
+      {/* The last instalment that actually landed, as one quiet line under the
+          grid rather than a card of its own. It answers the question the grid
+          raises — "when did she last pay anything?" — and a mitra whose recent
+          weeks are all empty is exactly the one where the answer is off the
+          left edge of the strip. */}
+      {last ? (
+        <span className="text-12 text-caption">
+          Pembayaran terakhir: {last.date} · {rupiah(last.amount)}
+        </span>
+      ) : null}
+
+
+      <div className="flex flex-col gap-8">
+        {/* Always shown, even at Rp0: a mitra reads "Tunggakan Rp0" as the good
+            news it is, and a line that appears only when she is behind makes its
+            absence do the talking — which a BP scanning the card can't rely on.
+            Red only when there is something to be red about. */}
+        <TagihanLine
+          label={owed.missedWeeks > 0 ? `Tunggakan ${owed.missedWeeks} minggu` : 'Tunggakan'}
+          value={rupiah(overdue)}
+          red={overdue > 0}
+          bold={false}
+        />
+        <TagihanLine label="Angsuran minggu ini" value={rupiah(owed.thisWeek)} bold={false} />
+        {/* The total is the only bold figure here, and it is ruled off from the
+            two parts above it: they are what it is MADE of, not three items in a
+            list. Its label goes bold with it — a grey caption beside a 20px
+            figure read as the amount having escaped its own row. */}
+        <div className="flex items-center gap-12 border-t border-default pt-12">
+          <span className="flex-1 text-16 font-bold text-default">Total tagihan</span>
+          <span className="text-20 font-bold text-default">{rupiah(owed.total)}</span>
+        </div>
+      </div>
+    </>
+  )
+
+  return flat ? (
+    <div className="flex flex-col gap-12">{inner}</div>
+  ) : (
+    <div className="flex flex-col gap-12 rounded-12 border border-default bg-neutral-white p-12">
+      {inner}
+    </div>
+  )
+}
+
+/**
+ * Her bucket, as the badge the reference puts top-right of every card.
+ *
+ * Two wordings, same fact. `long` — "Menunggak 34 hari" — is for the stages,
+ * where the card is being read one at a time and the sentence is what the BP
+ * says out loud. `short` — "DPD 34" — is for the roster and her page, where the
+ * badge is being SCANNED down a column of 22 and the ops term is the shortest
+ * thing that still sorts.
+ */
+/**
+ * The chair, badged wherever her card is drawn. Neutral, not coloured: it is a
+ * ROLE, not a status, and it sits in a row that already spends colour on the
+ * two things that change (her product, her bucket). Renders nothing for
+ * everyone else, so it can be dropped into any label row unconditionally.
+ */
+export function KetuaBadge({ mitra }: { mitra: Mitra }) {
+  if (!isKetua(mitra)) return null
+  return (
+    <Badge intent="neutral" variant="outline">
+      Ketua Majelis
+    </Badge>
+  )
+}
+
+/**
+ * The 7-day bucket a DPD falls in: 34 days late is "DPD 31-37".
+ *
+ * The reference badges the BUCKET, not the day count, and it is right to — the
+ * bucket is what ops acts on, what the BP is measured against, and what makes
+ * two mitra comparable at a glance down a roster of 22. "DPD 34" beside "DPD 31"
+ * invites a distinction that means nothing; both are the same collection.
+ */
+function dpdBucket(dpd: number): string {
+  const band = Math.ceil(dpd / 7)
+  return `DPD ${(band - 1) * 7 + 1}-${band * 7}`
+}
+
+export function DpdBadge({ dpd, format = 'long' }: { dpd: number; format?: 'long' | 'short' }) {
+  if (dpd === 0) {
+    return (
+      <Badge intent="green" variant="outline">
+        Lancar
+      </Badge>
+    )
+  }
+  // Three bands, not two: a mitra one week late and a mitra a month late were
+  // both wearing the same orange, which is the whole colour spent on "behind"
+  // and none left for "behind enough to matter".
+  const intent = dpd > 37 ? 'red' : dpd <= 7 ? 'yellow' : 'orange'
+  return (
+    <Badge intent={intent} variant="outline">
+      {format === 'short' ? dpdBucket(dpd) : `Menunggak ${dpd} hari`}
+    </Badge>
+  )
+}
+
+/**
+ * Her standing facts as a wrapping row: the product she is on, her DPD bucket,
+ * and whichever exception applies — approved relief, or a loan approved but not
+ * yet disbursed. New labels drop in here rather than crowding the top bar, which
+ * is why the name and badges moved off the nav and onto the page.
+ *
+ * These are the SAME badges the majelis visit puts on every mitra card —
+ * `ProductBadge` and `DpdBadge`, filled, from the design system's `Badge`. They
+ * used to be a second family: outlined, icon-led chips built only for this page.
+ * Two drawings of "Modal" and "DPD 34" is how a mitra reads as a different
+ * person on her own page than she did in the queue that opened it, so the page
+ * gives up its own set and takes the one every other surface already uses.
+ *
+ * A pre-disbursement mitra has no bucket to show, so her DPD badge is replaced
+ * by the disbursement she is waiting on rather than sitting beside it.
+ */
+export function MitraBadges({ mitra }: { mitra: Mitra }) {
+  return (
+    <>
+      <ProductBadge product={mitra.product} />
+
+      {mitra.predisburse ? (
+        <Badge intent="blue">Ready to Disburse</Badge>
+      ) : (
+        <DpdBadge dpd={mitra.dpd} format="short" />
+      )}
+
+      {mitra.keringanan ? <Badge intent="neutral">Dapat Keringanan</Badge> : null}
+
+      {mitra.pelunasanDini ? <Badge intent="neutral">Dapat Pelunasan Dini</Badge> : null}
+    </>
+  )
+}
+
+/**
+ * Her photo, or the slot where one will go. A silhouette rather than initials:
+ * a BP standing in a room of 22 women recognises a face, and "SH" is something
+ * she has to decode into a name and then match to a person. Initials were the
+ * placeholder for a photo the prototype does not have; this one at least says
+ * what the real thing is.
+ */
+export function MitraPhoto({
+  size = 40,
+  src,
+  onClick,
+}: {
+  size?: 32 | 40
+  src?: string
+  /** When set (with a photo), the photo becomes a button that enlarges it. */
+  onClick?: () => void
+}) {
+  const box = size === 32 ? 'h-32 w-32' : 'h-40 w-40'
+  if (src) {
+    const img = (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt="" className="h-full w-full rounded-full object-cover" />
+    )
+    return onClick ? (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Perbesar foto"
+        className={`shrink-0 overflow-hidden rounded-full bg-neutral-200 ${box}`}
+      >
+        {img}
+      </button>
+    ) : (
+      <span className={`block shrink-0 overflow-hidden rounded-full bg-neutral-200 ${box}`}>
+        {img}
+      </span>
+    )
+  }
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500 ${box}`}
+      aria-hidden
+    >
+      <User size={size === 32 ? 16 : 20} />
+    </span>
+  )
+}
+
+/**
+ * A stand-in for the photo of the house. Real prototypes have no image asset,
+ * so this is the same honest placeholder as MitraPhoto — a tinted tile with a
+ * house glyph — rather than a stock picture pretending to be her door.
+ */
+export function HousePhoto({
+  size = 40,
+  src,
+  onClick,
+}: {
+  size?: 24 | 32 | 40 | 48
+  src?: string
+  /** When set (with a photo), the photo becomes a button that enlarges it. */
+  onClick?: () => void
+}) {
+  const box =
+    size === 48 ? 'h-48 w-48' : size === 32 ? 'h-32 w-32' : size === 24 ? 'h-24 w-24' : 'h-40 w-40'
+  if (src) {
+    const img = (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt="Foto rumah" className="h-full w-full rounded-8 object-cover" />
+    )
+    return onClick ? (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Perbesar foto rumah"
+        className={`shrink-0 overflow-hidden rounded-8 bg-neutral-200 ${box}`}
+      >
+        {img}
+      </button>
+    ) : (
+      <span className={`block shrink-0 overflow-hidden rounded-8 bg-neutral-200 ${box}`}>{img}</span>
+    )
+  }
+  const glyph = size === 48 ? 24 : size === 24 ? 16 : 20
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-8 bg-neutral-200 text-neutral-500 ${box}`}
+      aria-label="Foto rumah"
+    >
+      <IconHome size={glyph} />
+    </span>
+  )
+}
+
+/**
+ * The same honest placeholder as HousePhoto, for her tempat usaha — a tinted
+ * tile with a storefront glyph. A home visit shows both places, because the
+ * house and the warung are rarely the same door.
+ */
+export function BusinessPhoto({ size = 40 }: { size?: 24 | 32 | 40 | 48 }) {
+  const box =
+    size === 48 ? 'h-48 w-48' : size === 32 ? 'h-32 w-32' : size === 24 ? 'h-24 w-24' : 'h-40 w-40'
+  const glyph = size === 48 ? 24 : size === 24 ? 16 : 20
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-8 bg-neutral-200 text-neutral-500 ${box}`}
+      aria-label="Foto tempat usaha"
+    >
+      <IconStore size={glyph} />
+    </span>
+  )
+}
+
+/** A Google Maps search link for an address string. */
+export function mapsUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+}
+
+/**
+ * The house, its address, and a route out to maps — one tappable block. The
+ * photo says which door before she reads the words, and the "Lihat di peta"
+ * link plus the whole tile being an anchor is what makes the address something
+ * she taps rather than reads. Used at the doorstep and on the mitra page.
+ */
+export function HouseLocation({ address }: { address: string }) {
+  return (
+    <a
+      href={mapsUrl(address)}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white p-8"
+    >
+      <HousePhoto />
+      <span className="min-w-0 flex-1 break-words text-12 text-default">{address}</span>
+      <span className="shrink-0 text-link">
+        <IconChevronRight size={20} />
+      </span>
+    </a>
+  )
+}
+
+/**
+ * The promise already on file — the reason the door is on today's list. Renders
+ * only when the mitra carries both a date and an amount, so it stays a home-visit
+ * fact rather than a badge on every card. Reads the visit day for the date,
+ * because "janji bayar" on a home visit means the promise falls due today.
+ */
+export function JanjiBayarCard({
+  mitra,
+  date,
+  flat,
+}: {
+  mitra: Mitra
+  date: string
+  /** Drop the card chrome — stacked flat on the page, for screens that reserve
+   * cards for selections. */
+  flat?: boolean
+}) {
+  if (!mitra.ptp || mitra.ptpAmount === undefined) return null
+  return (
+    <div
+      className={`flex items-center gap-12 ${
+        flat ? '' : 'rounded-12 border border-orange-200 bg-orange-50 p-12'
+      }`}
+    >
+      {/* Orange, and a disc rather than a rounded square: a promise is a date
+          with a deadline attached, and in a page that spends purple on what the
+          BP can DO, a purple glyph on a standing fact read as a control. */}
+      <span
+        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-full text-orange-500 ${
+          flat ? 'bg-orange-50' : 'bg-neutral-white'
+        }`}
+      >
+        <IconCalendar size={20} />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="text-12 text-caption">Janji bayar</span>
+        <span className="break-words text-14 font-bold text-default">
+          {date} · {rupiah(mitra.ptpAmount)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+export function MitraCard({
+  mitra,
+  meta,
+  titleBadge,
+  labels,
+  trailing,
+  action,
+  onOpen,
+  flat,
+}: {
+  mitra: Mitra
+  /**
+   * Replaces the standing facts when a stage has something more relevant to
+   * say in that slot — the collection stage puts what she owes here, because at
+   * that moment the bill outranks the contract it came from. Pass `null` for a
+   * stage that wants no second line at all; only `undefined` falls back.
+   */
+  meta?: ReactNode
+  /**
+   * Rides at the END of the name row, pinned to the card's right edge. For a
+   * standing fact about her — her product, her chair — rather than how she is
+   * doing on this visit, which belongs in `labels` under it.
+   */
+  titleBadge?: ReactNode
+  /**
+   * A wrapping row of small labels under the meta. Kept as a slot rather than
+   * derived here so a stage only pays for the ones it needs: the roster wants
+   * her product and any standing arrangement, the collection queue does not
+   * want a second row of chips on 22 cards it is trying to drain.
+   */
+  labels?: ReactNode
+  /** Control pinned right of the identity row. */
+  trailing?: ReactNode
+  /** The row under the rule. Omitted renders no rule and no row. */
+  action?: ReactNode
+  /**
+   * Opens her page. This is the identity BLOCK, not an added button: a separate
+   * control would cost a row on every one of 22 cards. The chevron is the tell.
+   */
+  onOpen?: () => void
+  /**
+   * Drops the Card so the identity row sits straight on the page. The collect
+   * flow uses it to make the header, the history and the bill read as one
+   * unified block; the rosters keep the card, where each mitra is a tappable
+   * object in a list and needs its own edge.
+   */
+  flat?: boolean
+}) {
+  const identity = (
+    <>
+      <MitraPhoto />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        {/* The name takes the row and whatever rides with it is pushed to the
+            far edge — which is where the reference puts the product, level with
+            her name rather than floating between it and her badges. */}
+        <span className="flex items-center gap-8">
+          <span className="min-w-0 flex-1 truncate text-16 font-bold text-default">
+            {mitra.name}
+          </span>
+          {titleBadge}
+        </span>
+        {meta === undefined ? (
+          <>
+            <span className="truncate text-12 text-caption">Pinjaman {rupiah(mitra.loan)}</span>
+            <span className="truncate text-12 text-caption">
+              Angsuran {rupiah(mitra.weekly)}/minggu
+            </span>
+          </>
+        ) : (
+          meta
+        )}
+        {labels ? <span className="flex flex-wrap items-center gap-4">{labels}</span> : null}
+      </div>
+    </>
+  )
+
+  const body = (
+    <div className="flex flex-col gap-12">
+      {/* Centred, not top-aligned: the identity block is now a name over its
+            two badges and nothing taller, so hanging the photo and the chevron
+            off the top edge left both sitting high of everything beside them. */}
+      <div className="flex items-center gap-12">
+        {onOpen ? (
+          <button
+            type="button"
+            onClick={onOpen}
+            aria-label={`Buka halaman ${mitra.name}`}
+            className="flex min-w-0 flex-1 items-center gap-12 text-left"
+          >
+            {identity}
+          </button>
+        ) : (
+          identity
+        )}
+        {trailing ? <div className="shrink-0">{trailing}</div> : null}
+        {/* The chevron only in flat mode — the collect page's identity row
+            opens her page and wants the tell, per the flat header design. The
+            carded rosters dropped it, so a chevron here would put one back on
+            every one of 22 cards. */}
+        {flat && onOpen ? (
+          <span className="shrink-0 text-disabled">
+            <IconChevronRight size={20} />
+          </span>
+        ) : null}
+      </div>
+      {action ? <div className="border-t border-default pt-12">{action}</div> : null}
+    </div>
+  )
+
+  return flat ? body : <Card>{body}</Card>
+}
