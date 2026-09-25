@@ -10,7 +10,7 @@ import { ChevronDown, ChevronRight, File, Headset } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import { DISB } from '../lib/disbursement'
-import { AppScreen } from '../lib/ui'
+import { AppScreen, StickyBar } from '../lib/ui'
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -41,10 +41,13 @@ export function DisbursementSuccessScreen() {
   const lead = leads[openId]
   const [detailOpen, setDetailOpen] = useState(true)
 
-  // Closing lands on Sales with the "sedang diproses" snackbar; the mitra has
-  // already left the board.
+  // Closing lands on Sales with a green success snackbar whose "see here" opens
+  // the mitra's Majelis page; the mitra has already left the board.
   function close() {
-    pipelineStore.setFlash('Pengajuan sedang diproses. Mitra kini hanya bisa diakses dari halaman Majelis.')
+    pipelineStore.setFlashSuccess(`${lead?.name ?? 'Mitra'} disbursement is on progress.`, {
+      label: 'see here',
+      leadId: openId,
+    })
     flow.go('sales')
   }
 
@@ -135,6 +138,12 @@ export function DisbursementSuccessScreen() {
           <ChevronRight size={20} />
         </span>
       </button>
+
+      <StickyBar>
+        <Button size="lg" className="w-full" onClick={close}>
+          Tutup
+        </Button>
+      </StickyBar>
     </AppScreen>
   )
 }

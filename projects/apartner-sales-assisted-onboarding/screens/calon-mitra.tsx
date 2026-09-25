@@ -256,74 +256,98 @@ export function CalonMitraScreen() {
 
   return (
     <AppScreen topBar={header}>
-      {/* Majelis card — hidden on the Ready-for-disbursement view (which shows the
-          pencairan detail instead). */}
+      {/* Ready for disbursement — a minimal Majelis card at the top (name +
+          place + slot only), then a divider before the pencairan detail. */}
+      {approved && canDisburse ? (
+        <>
+          <Card>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={openMajelis}
+                className="min-w-0 truncate text-left text-16 font-bold text-link underline"
+              >
+                {isExisting ? existingEntry?.name ?? majelisLine(lead) : newMajelisName}
+              </button>
+              <span className="flex items-center gap-4 text-12 text-caption">
+                <MapPin size={16} />
+                <span className="min-w-0 truncate">
+                  {isExisting ? existingEntry?.place ?? 'Wilayah BP' : newLocation ?? 'Belum ada lokasi'}
+                </span>
+              </span>
+              <span className="flex items-center gap-4 text-12 text-caption">
+                <CalendarDots size={16} />
+                <span className="min-w-0 truncate">
+                  {isExisting
+                    ? `Kumpulan ${existingEntry?.day}, ${existingEntry?.time}`
+                    : newDay && newTime
+                      ? `Kumpulan ${newDay}, ${newTime}`
+                      : 'Belum ada jadwal'}
+                </span>
+              </span>
+            </div>
+          </Card>
+          <div className="-mx-16 border-t border-default" />
+        </>
+      ) : null}
+
+      {/* Majelis card — its group-formation context. Hidden only on the
+          Ready-for-disbursement view (which leads with the pencairan detail). */}
       {(isExisting || isNewMajelis) && !(approved && canDisburse) ? (
         <Card>
-          <div className="flex flex-col gap-8">
-            <div className="flex items-start gap-8">
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                {/* The name opens the Majelis page. */}
-                <button
-                  type="button"
-                  onClick={openMajelis}
-                  className="min-w-0 truncate text-left text-16 font-bold text-link underline"
-                >
-                  {isExisting ? existingEntry?.name ?? majelisLine(lead) : newMajelisName}
-                </button>
-                <span className="flex items-center gap-4 text-12 text-caption">
-                  <MapPin size={16} />
-                  <span className="min-w-0 truncate">
-                    {isExisting
-                      ? existingEntry?.place ?? 'Wilayah BP'
-                      : newLocation ?? 'Belum ada lokasi'}
-                  </span>
+          <div className="flex flex-col gap-12">
+            <div className="flex flex-col gap-2">
+              {/* The name opens the Majelis page. */}
+              <button
+                type="button"
+                onClick={openMajelis}
+                className="min-w-0 truncate text-left text-16 font-bold text-link underline"
+              >
+                {isExisting ? existingEntry?.name ?? majelisLine(lead) : newMajelisName}
+              </button>
+              <span className="flex items-center gap-4 text-12 text-caption">
+                <MapPin size={16} />
+                <span className="min-w-0 truncate">
+                  {isExisting ? existingEntry?.place ?? 'Wilayah BP' : newLocation ?? 'Belum ada lokasi'}
                 </span>
-                <span className="flex items-center gap-4 text-12 text-caption">
-                  <CalendarDots size={16} />
-                  <span className="min-w-0 truncate">
-                    {isExisting
-                      ? `Kumpulan ${existingEntry?.day}, ${existingEntry?.time}`
-                      : newDay && newTime
-                        ? `Kumpulan ${newDay}, ${newTime}`
-                        : 'Belum ada jadwal'}
-                  </span>
+              </span>
+              <span className="flex items-center gap-4 text-12 text-caption">
+                <CalendarDots size={16} />
+                <span className="min-w-0 truncate">
+                  {isExisting
+                    ? `Kumpulan ${existingEntry?.day}, ${existingEntry?.time}`
+                    : newDay && newTime
+                      ? `Kumpulan ${newDay}, ${newTime}`
+                      : 'Belum ada jadwal'}
                 </span>
-              </div>
-              {/* Existing group: a Start CTA runs KM acceptance while pending; a
-                  green check once she is accepted. */}
-              {isExisting ? (
-                accepted ? (
+              </span>
+            </div>
+
+            {/* Footer — the majelis stage grouped with its action (KM acceptance
+                for an existing group; the member counts for a new one). */}
+            <div className="flex items-center justify-between gap-8 border-t border-default pt-12">
+              {isNewMajelis ? (
+                <span className="text-12 font-bold text-blue-600">
+                  {newApprovedCount} mitra approved · {newInProgressCount} dalam proses
+                </span>
+              ) : accepted ? (
+                <>
+                  <span className="text-12 font-bold text-green-600">Sudah diterima majelis</span>
                   <span className="shrink-0 text-green-500">
                     <CheckCircle size={24} />
                   </span>
-                ) : (
+                </>
+              ) : (
+                <>
+                  <span className="text-12 font-bold text-orange-500">Pending KM Acceptance</span>
                   <Button size="sm" variant="outline" onClick={startKmAcceptance}>
                     Start
                   </Button>
-                )
-              ) : null}
+                </>
+              )}
             </div>
-
-            {isNewMajelis ? (
-              <span className="text-12 font-bold text-blue-600">
-                {newApprovedCount} mitra approved · {newInProgressCount} dalam proses
-              </span>
-            ) : accepted ? (
-              <span className="text-12 font-bold text-green-600">Sudah diterima majelis</span>
-            ) : (
-              <span className="text-12 font-bold text-orange-500">Pending KM Acceptance</span>
-            )}
           </div>
         </Card>
-      ) : null}
-
-      {/* Group formation sits right below the Majelis card (the disbursement
-          button stays pinned at the bottom). */}
-      {approved && readyToForm ? (
-        <Button size="lg" className="w-full" onClick={startGroupFormation}>
-          Start group formation
-        </Button>
       ) : null}
 
       {/* Ready for disbursement — her limit and the pencairan detail. */}
@@ -479,21 +503,28 @@ export function CalonMitraScreen() {
           otherwise the survey submit bar. */}
       {approved ? (
         <StickyBar>
-          {!canDisburse && !readyToForm ? (
-            <span className="text-center text-12 text-caption">
-              Menunggu anggota lain — majelis belum cukup untuk dibentuk.
-            </span>
-          ) : null}
-          {/* Enabled only when the majelis is settled — then it goes to the
-              pencairan confirmation; disabled while still waiting for the group. */}
-          <Button
-            size="lg"
-            className="w-full"
-            disabled={!canDisburse}
-            onClick={() => flow.go('disbursement-confirm')}
-          >
-            Lanjut
-          </Button>
+          {canDisburse ? (
+            <Button size="lg" className="w-full" onClick={() => flow.go('disbursement-confirm')}>
+              Lanjut
+            </Button>
+          ) : (
+            <>
+              {!readyToForm ? (
+                <span className="text-center text-12 text-caption">
+                  Menunggu anggota lain — majelis belum cukup untuk dibentuk.
+                </span>
+              ) : null}
+              {/* Disabled until enough members are survey approved. */}
+              <Button
+                size="lg"
+                className="w-full"
+                disabled={!readyToForm}
+                onClick={startGroupFormation}
+              >
+                Start group formation
+              </Button>
+            </>
+          )}
         </StickyBar>
       ) : readOnly ? null : (
         <StickyBar>

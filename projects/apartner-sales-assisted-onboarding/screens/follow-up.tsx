@@ -31,18 +31,28 @@ import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import { PickSheet } from '../lib/pipeline-ui'
 import { store, useApp } from '../lib/store'
 import { agendaDueDays, leadScheduleLabel, overdueDays } from '../lib/tasks'
-import { AppScreen, ContactButton } from '../lib/ui'
+import { AppScreen, ChoiceList, ContactButton } from '../lib/ui'
 
 type SheetId = 'reschedule-why' | 'drop' | null
 
 const RESCHEDULE_REASONS = [
-  'Lead butuh waktu',
-  'Lead perlu diskusi dengan keluarga',
+  'Tidak sempat dikunjungi hari ini',
+  'Calon mitra butuh waktu',
+  'Calon mitra perlu diskusi dengan keluarga',
   'Belum bisa dihubungi',
+  'Lainnya',
 ]
 
-// A survey-ongoing lead asking for more time has its own, shorter reason list.
-const SURVEY_RESCHEDULE_REASONS = ['Lead butuh waktu', 'Belum bisa dihubungi']
+// The new schedule options — tomorrow through next week, each with how many days
+// from today it is (today is 21 Juli 2026; see pipeline.ts).
+const RESCHEDULE_DATES: { label: string; days: number }[] = [
+  { label: 'Rabu, 22 Juli (besok)', days: 1 },
+  { label: 'Kamis, 23 Juli', days: 2 },
+  { label: 'Jumat, 24 Juli', days: 3 },
+  { label: 'Sabtu, 25 Juli', days: 4 },
+  { label: 'Senin, 27 Juli', days: 6 },
+  { label: 'Selasa, 28 Juli (minggu depan)', days: 7 },
+]
 
 const DROP_REASONS = [
   'Belum diizinkan suami / keluarga',
@@ -197,6 +207,7 @@ export function FollowUpScreen() {
   const [foOpen, setFoOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
+  const [rescheduleDate, setRescheduleDate] = useState<{ label: string; days: number } | null>(null)
 
   if (!lead) {
     return (
@@ -236,15 +247,14 @@ export function FollowUpScreen() {
     flow.go('sales')
   }
 
-  // Reschedule always sets the next follow-up to one day later.
+  // Reschedule to the picked date, with the chosen reason (free text for "Lainnya").
+  const effReason = reason === 'Lainnya' ? note.trim() : reason
+  const canReschedule = Boolean(rescheduleDate) && Boolean(effReason)
+
   function reschedule() {
-    pipelineStore.rescheduleFollowUp(
-      lead.id,
-      1,
-      dateFromToday(1),
-      [reason, note].filter(Boolean).join(' — '),
-    )
-    pipelineStore.setFlash(`Follow up ${lead.name} dijadwalkan ulang ke ${dateFromToday(1)}`)
+    if (!rescheduleDate) return
+    pipelineStore.rescheduleFollowUp(lead.id, rescheduleDate.days, rescheduleDate.label, effReason)
+    pipelineStore.setFlash(`Follow up ${lead.name} dijadwalkan ulang ke ${rescheduleDate.label}`)
     flow.go('sales')
   }
 
@@ -348,7 +358,7 @@ export function FollowUpScreen() {
                 disabled={!canAct}
                 onClick={() => flow.go('calon-mitra')}
               >
-                Lanjutkan survey
+                Mulai pendaftaran
               </Button>
               {lead.surveyMode === 'self' ? (
                 <span className="text-center text-12 text-caption">
@@ -363,10 +373,11 @@ export function FollowUpScreen() {
                 onClick={() => {
                   setReason('')
                   setNote('')
+                  setRescheduleDate(null)
                   setSheet('reschedule-why')
                 }}
               >
-                Butuh waktu lebih
+                Jadwalkan nanti
               </Button>
               <button
                 type="button"
@@ -436,10 +447,11 @@ export function FollowUpScreen() {
               onClick={() => {
                 setReason('')
                 setNote('')
+                setRescheduleDate(null)
                 setSheet('reschedule-why')
               }}
             >
-              Butuh waktu lebih
+              Jadwalkan nanti
             </Button>
             <button
               type="button"
@@ -460,26 +472,49 @@ export function FollowUpScreen() {
 
 
 
-      {/* Reschedule — why; the next follow-up is set to one day later. */}
-      <BottomSheet open={sheet === 'reschedule-why'} onClose={() => setSheet(null)} title="Alasan">
-        <div className="flex flex-col gap-8">
-          {(lead.status === 'survey-created' ? SURVEY_RESCHEDULE_REASONS : RESCHEDULE_REASONS).map((r) => (
-            <SelectableCard
-              key={r}
-              name="reschedule-why"
-              inputType="radio"
-              title={r}
-              checked={reason === r}
-              onChange={() => setReason(r)}
-            />
-          ))}
-          <label className="flex flex-col gap-4 pt-4">
-            <span className="text-12 text-caption">Catatan (opsional)</span>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Tambahkan catatan…" />
-          </label>
-          <Button size="lg" className="w-full" disabled={!reason} onClick={reschedule}>
-            Submit
+      {/* Reschedule — a reason and a new date. */}
+      <BottomSheet
+        open={sheet === 'reschedule-why'}
+        onClose={() => setSheet(null)}
+        title="Jadwalkan ulang tugas"
+        primaryAction={
+          <Button size="lg" className="w-full" disabled={!canReschedule} onClick={reschedule}>
+            Jadwal Ulang
           </Button>
+        }
+      >
+        <div className="flex flex-col gap-16">
+          <div className="flex flex-col gap-2">
+            <span className="text-16 font-bold text-default">{lead.name}</span>
+            <span className="text-12 text-caption">Sumber: {sourceDetail(lead)}</span>
+          </div>
+
+          <div className="flex flex-col gap-8">
+            <ChoiceList
+              plain
+              label="Alasan"
+              options={RESCHEDULE_REASONS}
+              value={reason || undefined}
+              onPick={setReason}
+            />
+            {reason === 'Lainnya' ? (
+              <Input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Isi alasan lainnya"
+              />
+            ) : null}
+          </div>
+
+          <ChoiceList
+            plain
+            label="Jadwal baru"
+            options={RESCHEDULE_DATES.map((d) => d.label)}
+            value={rescheduleDate?.label}
+            onPick={(label) =>
+              setRescheduleDate(RESCHEDULE_DATES.find((d) => d.label === label) ?? null)
+            }
+          />
         </div>
       </BottomSheet>
 

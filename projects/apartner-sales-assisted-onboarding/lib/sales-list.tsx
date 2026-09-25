@@ -11,9 +11,9 @@
 //   "Lihat semua" (`all`) — the full roster, on every date, behind a Leads ↔ POI
 //     visit switch, with the Leads list filtered by funnel section (chips).
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Button, NavigationHeader } from '@/design-system/components'
-import { Plus } from '@/design-system/icons'
+import { CheckCircle, Plus } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   LeadBoardCard,
@@ -117,10 +117,57 @@ function SectionPanel({
 
 export function SalesList({ scope }: { scope: Scope }) {
   const flow = useFlow()
-  const { leads, order } = usePipeline()
+  const { leads, order, flash } = usePipeline()
   const { completedPois } = useApp()
   const formation = useFormation()
   const pois = usePois()
+
+  // The Sales snackbar auto-dismisses; tapping its action opens the mitra's
+  // Majelis page.
+  useEffect(() => {
+    if (!flash) return
+    const t = setTimeout(() => pipelineStore.clearFlash(), 8000)
+    return () => clearTimeout(t)
+  }, [flash])
+
+  function openMajelisFromFlash(leadId: string) {
+    const lead = leads[leadId]
+    pipelineStore.open(leadId)
+    if (lead?.majelis.kind === 'existing') store.openMajelisPage({ kind: 'existing', id: lead.majelis.id })
+    else if (lead?.majelis.kind === 'new') store.openMajelisPage({ kind: 'draft', name: lead.majelis.name })
+    else store.openMajelisPage(null)
+    pipelineStore.clearFlash()
+    flow.go('majelis-page')
+  }
+
+  const snackbar = flash ? (
+    <div
+      className={`sticky bottom-16 z-10 mx-4 flex items-center gap-8 rounded-12 px-12 py-12 shadow-lg ${
+        flash.tone === 'success' ? 'bg-green-500 text-neutral-white' : 'bg-neutral-800 text-neutral-white'
+      }`}
+    >
+      {flash.tone === 'success' ? (
+        <span className="shrink-0">
+          <CheckCircle size={20} />
+        </span>
+      ) : null}
+      <span className="min-w-0 flex-1 text-12">
+        {flash.text}
+        {flash.action ? (
+          <>
+            {' '}
+            <button
+              type="button"
+              onClick={() => flash.action && openMajelisFromFlash(flash.action.leadId)}
+              className="font-bold underline"
+            >
+              {flash.action.label}
+            </button>
+          </>
+        ) : null}
+      </span>
+    </div>
+  ) : null
   const [mainTab, setMainTab] = useState<MainTab>('leads')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<LeadsSection | 'all'>('all')
@@ -279,6 +326,7 @@ export function SalesList({ scope }: { scope: Scope }) {
           )}
         </div>
 
+        {snackbar}
         <TabBar active="sales" action={addLead} />
         {sourceSheet}
       </AppScreen>
