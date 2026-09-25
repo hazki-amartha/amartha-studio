@@ -13,7 +13,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, Card, NavigationHeader, SelectableCard } from '@/design-system/components'
-import { Camera, CheckCircle, File, MagnifyingGlass, MapPin, Users } from '@/design-system/icons'
+import { Camera, CheckCircle, ChevronDown, File, MagnifyingGlass, MapPin, User, Users } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { pipelineStore } from '../lib/pipeline-store'
 import {
@@ -59,6 +59,45 @@ function UploadRow({
       ) : (
         <span className="shrink-0 text-12 font-bold text-link">Upload</span>
       )}
+    </button>
+  )
+}
+
+/** A picker drawn like UploadRow, so the two sit together as one style. */
+function PickerRow({
+  icon,
+  label,
+  value,
+  placeholder,
+  onClick,
+}: {
+  icon: ReactNode
+  label: string
+  value: string
+  placeholder: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-12 rounded-8 border border-default bg-neutral-white p-12 text-left active:bg-neutral-50"
+    >
+      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-500">
+        {icon}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="text-14 font-bold text-default">
+          {label}
+          <span className="text-red-500"> *</span>
+        </span>
+        <span className={`truncate text-12 ${value ? 'text-default' : 'text-placeholder'}`}>
+          {value || placeholder}
+        </span>
+      </span>
+      <span className="shrink-0 text-disabled">
+        <ChevronDown size={20} />
+      </span>
     </button>
   )
 }
@@ -167,10 +206,10 @@ export function GroupFormationScreen() {
       {current === 'ketua' ? (
         <div className="flex flex-col gap-12">
           <StepHeading title="Ketua Majelis" sub="Pilih ketua hasil voting dan lampirkan buktinya." />
-          <SelectField
+          <PickerRow
+            icon={<User size={20} />}
             label="Ketua Majelis"
-            required
-            value={ketua || undefined}
+            value={ketua}
             placeholder="Pilih ketua majelis"
             onClick={() => setSheet('ketua')}
           />

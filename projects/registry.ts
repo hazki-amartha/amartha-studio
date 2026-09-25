@@ -32,5 +32,6 @@ export const registry: Registry = {
   'apartner-sales-assisted-onboarding': () =>
     import('./apartner-sales-assisted-onboarding').then((m) => m.project),
   'bm-poi-ngmis': () => import('./bm-poi-ngmis').then((m) => m.project),
+  'apartner-sot': () => import('./apartner-sot').then((m) => m.project),
   // <append new projects above this line — one line per project>
 }

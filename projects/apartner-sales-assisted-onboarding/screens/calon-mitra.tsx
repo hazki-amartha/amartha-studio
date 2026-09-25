@@ -327,9 +327,18 @@ export function CalonMitraScreen() {
                 for an existing group; the member counts for a new one). */}
             <div className="flex items-center justify-between gap-8 border-t border-default pt-12">
               {isNewMajelis ? (
-                <span className="text-12 font-bold text-blue-600">
-                  {newApprovedCount} mitra approved · {newInProgressCount} dalam proses
-                </span>
+                <>
+                  <span className="text-12 font-bold text-blue-600">
+                    {newApprovedCount} mitra approved · {newInProgressCount} dalam proses
+                  </span>
+                  {/* Enough members approved — formation can start in parallel
+                      with this lead's own survey. */}
+                  {readyToForm ? (
+                    <Button size="sm" variant="outline" onClick={startGroupFormation}>
+                      Start
+                    </Button>
+                  ) : null}
+                </>
               ) : accepted ? (
                 <>
                   <span className="text-12 font-bold text-green-600">Sudah diterima majelis</span>
