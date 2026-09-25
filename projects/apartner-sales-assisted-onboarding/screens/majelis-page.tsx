@@ -13,10 +13,10 @@
 
 import { useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Card, NavigationHeader } from '@/design-system/components'
-import { ArrowRight, CalendarDots, ChevronRight, MapPin, Users } from '@/design-system/icons'
+import { ArrowRight, CalendarDots, ChevronRight, MapPin, User, Users } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { DRAFT_SCHEDULE, MAJELIS_DIRECTORY, MIN_MEMBERS, type MajelisEntry } from '../lib/schedule'
-import { isOnboardingLead, majelisLine, type LeadStatus, type PipelineLead } from '../lib/pipeline'
+import { isOnboardingLead, majelisLine, type PipelineLead } from '../lib/pipeline'
 import type { BadgeIntent } from '@/design-system/components/Badge'
 import { useApp } from '../lib/store'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
@@ -30,11 +30,12 @@ import {
 } from '../lib/roster'
 import { AppScreen, VisitTitle } from '../lib/ui'
 
-/** A member's status on the majelis page — the survey stage, or, once approved,
- *  whether she is still waiting to be accepted or is already a Mitra. */
-function memberStatus(status: LeadStatus): { label: string; intent: BadgeIntent } {
-  if (status === 'approved') return { label: 'Waiting for group formation', intent: 'green' }
-  if (status === 'survey-submitted') return { label: 'Survey submitted', intent: 'blue' }
+/** A member's status on the majelis page — the survey stage, then once her
+ *  pencairan is submitted she is a Mitra. */
+function memberStatus(lead: PipelineLead): { label: string; intent: BadgeIntent } {
+  if (lead.disbursementSubmitted) return { label: 'Lancar', intent: 'green' }
+  if (lead.status === 'approved') return { label: 'Waiting for group formation', intent: 'green' }
+  if (lead.status === 'survey-submitted') return { label: 'Survey submitted', intent: 'blue' }
   return { label: 'Survey ongoing', intent: 'orange' }
 }
 
@@ -268,7 +269,7 @@ export function MajelisPageScreen() {
             {/* Onboarding members from the pipeline (active group + synthesized draft). */}
             {!isDirectoryDraft
               ? potential.map((l) => {
-                  const st = memberStatus(l.status)
+                  const st = memberStatus(l)
                   return (
                     <button
                       key={l.id}
@@ -276,8 +277,11 @@ export function MajelisPageScreen() {
                       onClick={() => openPotential(l)}
                       className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12 text-left active:bg-neutral-50"
                     >
-                      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-50 text-14 font-bold text-primary-500">
-                        {l.name.charAt(0)}
+                      <span
+                        className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500"
+                        aria-hidden
+                      >
+                        <User size={20} />
                       </span>
                       <span className="flex min-w-0 flex-1 flex-col gap-2">
                         <span className="truncate text-14 font-bold text-default">{l.name}</span>

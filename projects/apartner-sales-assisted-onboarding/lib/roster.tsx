@@ -115,8 +115,11 @@ export function PotentialMemberRow({ member }: { member: PotentialMitra }) {
   const b = POTENTIAL_BADGE[member.status]
   return (
     <div className="flex items-center gap-12 rounded-12 border border-default bg-neutral-white p-12">
-      <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-primary-50 text-14 font-bold text-primary-500">
-        {member.name.charAt(0)}
+      <span
+        className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500"
+        aria-hidden
+      >
+        <User size={20} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="truncate text-14 font-bold text-default">{member.name}</span>

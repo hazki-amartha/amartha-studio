@@ -29,6 +29,14 @@ import {
 import { leadCategory } from './tasks'
 import { APPLICATION_SECTIONS } from './survey'
 
+/** A one-shot Sales-page snackbar. `tone` styles it; `action` makes part of it
+ *  tappable (e.g. "see here" → the mitra's Majelis page). */
+export interface Flash {
+  text: string
+  tone?: 'default' | 'success'
+  action?: { label: string; leadId: string }
+}
+
 interface PipelineState {
   leads: Record<string, PipelineLead>
   order: string[]
@@ -46,7 +54,7 @@ interface PipelineState {
   followUpVariant: 'default' | 'alt'
   /** A one-shot confirmation banner for the Sales page — set on a submit/drop,
    *  cleared the next time Sales mounts. */
-  flash: string | null
+  flash: Flash | null
   /**
    * How many of today's tasks the BP has finished, per task category. A finished
    * task leaves today's board (rescheduled forward, dropped, or submitted to
@@ -147,7 +155,13 @@ export const pipelineStore = {
 
   /** Raise a one-shot confirmation banner for the Sales page. */
   setFlash(message: string) {
-    state = { ...state, flash: message }
+    state = { ...state, flash: { text: message, tone: 'default' } }
+    emit()
+  },
+
+  /** A green success banner with a tappable action (e.g. "see here" → Majelis). */
+  setFlashSuccess(text: string, action?: { label: string; leadId: string }) {
+    state = { ...state, flash: { text, tone: 'success', action } }
     emit()
   },
 

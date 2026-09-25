@@ -1192,6 +1192,37 @@ export const SEED_PIPELINE: PipelineLead[] = [
     ],
   },
   {
+    // Survey ongoing, joining an existing majelis (Melati), with the uji kelayakan
+    // filled assisted by the BP.
+    id: 'p26',
+    name: 'Nurlaela',
+    phone: '0857-3321-9087',
+    address: { kecamatan: 'Ciseeng', desa: 'Putat Nutug', detail: 'Kp. Putat RT 02/RW 03', mapsCoord: 'pinned' },
+    source: 'referral',
+    referredBy: 'Bu Yanti (Majelis Melati)',
+    fo: 'Nurhayati',
+    photo: true,
+    status: 'survey-created',
+    surveyMode: 'assisted',
+    ageDays: 4,
+    agenda: { day: 'today', kind: 'Diproses', when: '11.00', order: 3 },
+    majelis: { kind: 'existing', id: 'melati' },
+    nik: '3201095504930031',
+    ktp: true,
+    product: 'GL',
+    amount: '',
+    disburseDate: '',
+    log: [
+      { at: '15 Juli', via: 'poi', status: 'interested' },
+      {
+        at: '17 Juli',
+        via: 'manual',
+        status: 'survey-created',
+        system: 'Onboarding dimulai (assisted) — gabung Majelis Melati',
+      },
+    ],
+  },
+  {
     id: 'p8',
     name: 'Siti Aisyah',
     phone: '0856-1123-8842',
