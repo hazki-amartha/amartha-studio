@@ -1,117 +1,146 @@
 'use client'
 
-// Home visit, step 3 of 3 — Bukti & Kirim.
-//
-// The close of a home visit, and — like the majelis visit's Summary & Bukti — it
-// now carries a RECAP of what the door paid before the photo that proves the
-// visit. What she recorded on Tagih lands here as one figure and its status, so
-// she confirms what she is submitting rather than re-entering it.
-//
-// The photo carries the mitra's house location: a doorstep is the visit that
-// gets questioned later, and "she was at the house" is exactly the claim a photo
-// alone cannot make. So the confirmation reads back the geotag — where the shot
-// was taken — rather than a filename.
-//
-// One CTA: Selesaikan Tugas. It finishes the visit and hands straight to the
-// WhatsApp preview, where the mitra's payment receipt is sent — the same shape
-// as the majelis visit, where the group's recap is its own next step rather than
-// an optional second button competing with "finish".
+// Home visit, step 3 of 3 — Kirim bukti. Per the BP APP 2026 Figma, the same
+// shape as the majelis Bukti: "Jumlah dibayar" (the cash from this door), then
+// "Bukti foto tugas", then Kembali / Selesaikan Tugas. When nobody was home, Tagih never
+// happened, so the stage bar marks it Dilewati and the amount reads Rp0.
 
-import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
+import { useState } from 'react'
+import { Button, Card } from '@/design-system/components'
+import { Camera, ChevronRight, MoneyBag, NotePencil } from '@/design-system/icons'
+import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { outstandingOf, rupiah } from '../lib/data'
+import { rupiah } from '../lib/data'
+import { HomeReschedule, HomeTopBar, homeTaskState } from '../lib/home-visit-ui'
+import { PhotoPreviewSheet } from '../lib/visit-sheets'
 import { profileOf } from '../lib/profile'
 import { openHomeMitra, openHomeTask, paidOf, store, useApp } from '../lib/store'
-import { AppScreen, HOME_STAGE_LABELS, IconTile, PinMark, ProofTile, SectionTitle, StageBar, StickyBar } from '../lib/ui'
-import { IconCamera, IconWallet } from '../lib/icons'
+import { HOME_STAGE_LABELS, IconTile, SectionTitle, StageBar, StickyBar } from '../lib/ui'
+
+// What the shot carries with it. Fixed, like the rest of the prototype's clock.
+const PHOTO_TAKEN_AT = 'Selasa 21/07/26, 10.24 WIB'
+const PHOTO_COORDS = 'Lat -6.4521398 Long 106.6710254'
 
 export function HomeProofScreen() {
   const flow = useFlow()
   const s = useApp()
   const mitra = openHomeMitra(s)
   const task = openHomeTask(s)
-  const profile = profileOf(mitra)
-  const houseLocation = task?.place ?? profile.address
+  const place = task?.place ?? profileOf(mitra).address
+  const [rescheduling, setRescheduling] = useState(false)
+  // The camera's preview — "Gunakan foto ini?" — before the shot lands here.
+  const [previewing, setPreviewing] = useState(false)
+  const { done, sent } = homeTaskState(s)
 
-  // What the door paid, and where that leaves the bill — the recap the WhatsApp
-  // receipt on the next step is built from.
-  const paid = paidOf(s, mitra)
-  const total = outstandingOf(mitra).total
-  const shortfall = Math.max(0, total - paid)
-  const promise = s.partialPtp[mitra.id] ?? s.nonPayments[mitra.id]?.ptp
-  const status = paid >= total && paid > 0 ? 'lunas' : paid > 0 ? 'sebagian' : 'belum'
-  const statusLabel = status === 'lunas' ? 'Lunas' : status === 'sebagian' ? 'Sebagian' : 'Belum bayar'
-  const statusIntent = status === 'lunas' ? 'green' : status === 'sebagian' ? 'orange' : 'neutral'
+  const nobody = s.metWith[mitra.id] === 'nobody'
+  const paid = nobody ? 0 : paidOf(s, mitra)
 
+  // Selesaikan Tugas saves the visit and opens "Tugas selesai", where the
+  // summary goes to the mitra. A sent task reopened for reference just closes.
   function submit() {
-    // Finishing the visit is what "Selesaikan Tugas" does; the WhatsApp preview
-    // that follows is the send, not a second confirmation of the finish.
-    store.finishTask()
+    if (sent) {
+      flow.go('today')
+      return
+    }
+    store.finishTask(s.openHome)
     flow.go('home-proof-wa')
   }
 
   return (
-    <AppScreen
-      topBar={<NavigationHeader title="Bukti & Kirim" onBack={() => flow.back()} />}
-    >
-      <StageBar current={3} labels={HOME_STAGE_LABELS} />
+    <Screen className="bg-canvas-blue" topBar={<HomeTopBar onReschedule={() => setRescheduling(true)} />}>
+      <div className="-mx-16 -mt-16 flex flex-col gap-12 rounded-b-16 border-b border-default bg-neutral-white px-16 pb-12 pt-16">
+        <StageBar current={3} labels={HOME_STAGE_LABELS} skipped={nobody ? [2] : []} complete={done} />
+      </div>
 
-      {/* --- Summary: what the door paid, and where the bill stands. */}
-      <SectionTitle>Ringkasan pembayaran</SectionTitle>
+      <SectionTitle>Jumlah dibayar</SectionTitle>
       <Card>
         <div className="flex items-center gap-12">
           <IconTile tint="green">
-            <IconWallet size={20} />
+            <MoneyBag size={20} />
           </IconTile>
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-12 text-caption">Pembayaran diterima dari kunjungan ini</span>
+            <span className="text-12 text-caption">Tunai</span>
             <span className="text-24 font-bold text-default">{rupiah(paid)}</span>
           </div>
-          <Badge intent={statusIntent}>{statusLabel}</Badge>
         </div>
-        {shortfall > 0 || promise ? (
-          <div className="mt-12 flex flex-col gap-2 border-t border-default pt-12 text-12 text-caption">
-            {shortfall > 0 ? <span>Sisa tagihan {rupiah(shortfall)}</span> : null}
-            {promise ? <span>Janji bayar {promise}</span> : null}
-          </div>
-        ) : null}
       </Card>
 
-      {/* --- Bukti: the geotagged photo that closes the visit. */}
-      <SectionTitle>Bukti kunjungan</SectionTitle>
-      <div className="flex">
-        <ProofTile
-          done={s.photo}
-          label="Ambil foto"
-          doneLabel="Foto tersimpan"
-          icon={<IconCamera size={24} />}
-          onClick={() => store.setPhoto(!s.photo)}
-        />
-      </div>
-      {s.photo ? (
-        <Card>
-          <div className="flex items-center gap-8">
-            <span className="shrink-0 text-caption">
-              <PinMark size={16} />
-            </span>
-            <span className="flex-1 text-12 text-caption">
-              Rumah {mitra.name} · {houseLocation}
-            </span>
-            <span className="shrink-0 text-12 text-caption">±8 m</span>
-          </div>
-        </Card>
-      ) : null}
+      <SectionTitle>Bukti foto tugas</SectionTitle>
+      <Card>
+        <div className="flex flex-col gap-12">
+          <span className="text-12 text-caption">
+            Pastikan GPS aktif dan Anda berada di lokasi mitra/kumpulan, lalu ambil foto bersama
+            mitra jika ada.
+          </span>
+          {s.photo ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setPreviewing(true)}
+                disabled={sent}
+                className="flex w-full items-center gap-12 rounded-12 border border-default p-4 pr-12 text-left"
+              >
+                <span className="flex h-64 w-64 shrink-0 items-center justify-center rounded-8 bg-neutral-200 text-neutral-500">
+                  <Camera size={20} />
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-2">
+                  <span className="truncate text-14 font-bold text-default">{place}</span>
+                  <span className="truncate text-12 text-caption">{PHOTO_TAKEN_AT}</span>
+                  <span className="truncate text-12 text-caption">{PHOTO_COORDS}</span>
+                </span>
+                <span className="shrink-0 text-primary-500">
+                  <ChevronRight size={20} />
+                </span>
+              </button>
+              <Button
+                variant={sent ? 'secondary' : 'outline'}
+                className="w-full"
+                disabled={sent}
+                onClick={() => setPreviewing(true)}
+              >
+                <span className="flex items-center justify-center gap-8">
+                  <NotePencil size={16} />
+                  Ubah
+                </span>
+              </Button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPreviewing(true)}
+              className="flex w-full flex-col items-center gap-4 rounded-12 border border-dashed border-default bg-neutral-50 p-16 text-default"
+            >
+              <Camera size={24} />
+              <span className="text-12 text-caption">Ambil foto</span>
+            </button>
+          )}
+        </div>
+      </Card>
 
       <StickyBar>
-        {!s.photo ? (
-          <span className="text-center text-12 text-caption">Ambil foto dulu untuk mengirim</span>
-        ) : null}
-        {/* One button now. Finishing hands straight to the WhatsApp preview,
-            where the mitra's payment receipt is sent. */}
-        <Button size="lg" className="w-full" disabled={!s.photo} onClick={submit}>
-          Selesaikan Tugas
-        </Button>
+        <div className="flex gap-12">
+          <Button size="lg" variant="outline" className="flex-1" onClick={() => flow.back()}>
+            Kembali
+          </Button>
+          <Button size="lg" className="flex-1" disabled={!s.photo} onClick={submit}>
+            {sent ? 'Tutup' : 'Selesaikan Tugas'}
+          </Button>
+        </div>
       </StickyBar>
-    </AppScreen>
+
+      <PhotoPreviewSheet
+        open={previewing}
+        place={place}
+        locationLabel="Lokasi rumah mitra"
+        onClose={() => setPreviewing(false)}
+        onRetake={() => store.setPhoto(false)}
+        onUse={() => {
+          store.setPhoto(true)
+          setPreviewing(false)
+        }}
+      />
+
+      <HomeReschedule open={rescheduling} onClose={() => setRescheduling(false)} />
+    </Screen>
   )
 }

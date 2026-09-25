@@ -185,3 +185,4 @@ and the BP had to subtract two of them to reach the only one she can act on.
    is either the best argument for the flow or a distraction from it — worth a
    decision, not worth guessing.
 - `OfflineSheet` (lib/visit-sheets.tsx) — "internet terputus" sheet from the BP APP 2026 Figma; no illustration asset in FunDS, used on Kehadiran.
+- `Snackbar` (lib/snackbar.tsx) — green one-line confirmation above the tab bar from the BP APP 2026 Figma; FunDS has none. Used on Tugas after skip/reschedule.

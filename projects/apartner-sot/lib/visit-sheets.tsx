@@ -124,62 +124,18 @@ export function SkipVisitSheet({
 
   if (step === 'preview') {
     return (
-      <BottomSheet
+      <PhotoPreviewSheet
         open={open}
-        size="fullscreen"
+        place={place}
+        locationLabel="Lokasi kumpulan"
         onClose={onClose}
         onBack={() => setStep('form')}
-        secondaryAction={
-          <Button variant="outline" size="lg" className="w-full" onClick={() => setPhoto(false)}>
-            Foto Ulang
-          </Button>
-        }
-        primaryAction={
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={() => {
-              setPhoto(true)
-              setStep('form')
-            }}
-          >
-            Ya, Gunakan Foto
-          </Button>
-        }
-      >
-        <div className="flex flex-col gap-16">
-          <PhotoFrame place={place} />
-          <div className="flex gap-8">
-            <Button variant="outline" className="flex-1">
-              <span className="flex items-center gap-8">
-                <ArrowClockwise size={16} className="-scale-x-100" />
-                Putar ke Kiri
-              </span>
-            </Button>
-            <Button variant="outline" className="flex-1">
-              <span className="flex items-center gap-8">
-                <ArrowClockwise size={16} />
-                Putar ke Kanan
-              </span>
-            </Button>
-          </div>
-          <div className="flex items-center gap-12 rounded-12 border border-default p-12">
-            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-primary-500">
-              <MapPin size={20} />
-            </span>
-            <span className="flex min-w-0 flex-1 flex-col gap-2">
-              <span className="text-14 font-bold text-default">Lokasi kumpulan</span>
-              <span className="truncate text-12 text-caption">-7.345678856763, 110.345465786797</span>
-            </span>
-            <span className="shrink-0 text-caption">
-              <ChevronRight size={20} />
-            </span>
-          </div>
-          <p className="text-center text-14 text-default">
-            Pastikan wajah jelas dan lokasi sudah sesuai. Gunakan foto ini?
-          </p>
-        </div>
-      </BottomSheet>
+        onRetake={() => setPhoto(false)}
+        onUse={() => {
+          setPhoto(true)
+          setStep('form')
+        }}
+      />
     )
   }
 
@@ -280,6 +236,82 @@ export function SkipVisitSheet({
             </div>
           ) : null}
         </div>
+      </div>
+    </BottomSheet>
+  )
+}
+
+/**
+ * The camera's "Gunakan foto ini?" — the geotagged shot, rotate controls, the
+ * location it was taken at, and Foto Ulang / Ya, Gunakan Foto. Shared by the
+ * skip sheet and the home visit's Kirim bukti.
+ */
+export function PhotoPreviewSheet({
+  open,
+  place,
+  locationLabel,
+  onClose,
+  onBack,
+  onRetake,
+  onUse,
+}: {
+  open: boolean
+  place: string
+  /** "Lokasi kumpulan", "Lokasi rumah mitra". */
+  locationLabel: string
+  onClose: () => void
+  onBack?: () => void
+  onRetake: () => void
+  onUse: () => void
+}) {
+  return (
+    <BottomSheet
+      open={open}
+      size="fullscreen"
+      onClose={onClose}
+      onBack={onBack}
+      secondaryAction={
+        <Button variant="outline" size="lg" className="w-full" onClick={onRetake}>
+          Foto Ulang
+        </Button>
+      }
+      primaryAction={
+        <Button size="lg" className="w-full" onClick={onUse}>
+          Ya, Gunakan Foto
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-16">
+        <PhotoFrame place={place} />
+        <div className="flex gap-8">
+          <Button variant="outline" className="flex-1">
+            <span className="flex items-center gap-8">
+              <ArrowClockwise size={16} className="-scale-x-100" />
+              Putar ke Kiri
+            </span>
+          </Button>
+          <Button variant="outline" className="flex-1">
+            <span className="flex items-center gap-8">
+              <ArrowClockwise size={16} />
+              Putar ke Kanan
+            </span>
+          </Button>
+        </div>
+        <div className="flex items-center gap-12 rounded-12 border border-default p-12">
+          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-primary-50 text-primary-500">
+            <MapPin size={20} />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-2">
+            <span className="text-14 font-bold text-default">{locationLabel}</span>
+            <span className="truncate text-12 text-caption">-7.345678856763, 110.345465786797</span>
+          </span>
+          <span className="shrink-0 text-caption">
+            <ChevronRight size={20} />
+          </span>
+        </div>
+        <p className="text-center text-14 text-default">
+          Pastikan wajah jelas dan lokasi sudah sesuai. Gunakan foto ini?
+        </p>
       </div>
     </BottomSheet>
   )
