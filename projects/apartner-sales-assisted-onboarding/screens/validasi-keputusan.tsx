@@ -7,12 +7,11 @@
 // fixed list doesn't cover.
 
 import { useState, type ReactNode } from 'react'
-import { Button, Card, Input, NavigationHeader } from '@/design-system/components'
+import { BottomSheet, Button, Card, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { CheckCircle, ChevronDown, CrossCircleFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { DECISION_REASON_OTHER, DECISION_REASONS, SOFT_REJECT_CASE, VALIDASI_STEPS } from '../lib/validasi'
 import { finalReason, useValidasi, validasiStore } from '../lib/validasi-store'
-import { PickSheet } from '../lib/pipeline-ui'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 // Neutral by default, same selected treatment as the design system's own
@@ -52,7 +51,6 @@ export function ValidasiKeputusanScreen() {
   const [reasonSheet, setReasonSheet] = useState(false)
 
   const reasonOptions = s.decision ? DECISION_REASONS[s.decision] : []
-  const needsCustom = s.reason === DECISION_REASON_OTHER
   const reasonValue = finalReason(s)
   const canSubmit = Boolean(s.decision) && reasonValue.length > 0
 
@@ -102,22 +100,13 @@ export function ValidasiKeputusanScreen() {
                 onClick={() => setReasonSheet(true)}
                 className="flex items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-left text-14"
               >
-                <span className={`min-w-0 truncate ${s.reason ? 'text-default' : 'text-disabled'}`}>
-                  {s.reason || 'Pilih alasan'}
+                <span className={`min-w-0 truncate ${reasonValue ? 'text-default' : 'text-disabled'}`}>
+                  {reasonValue || 'Pilih alasan'}
                 </span>
                 <span className="shrink-0 text-disabled">
                   <ChevronDown size={20} />
                 </span>
               </button>
-
-              {needsCustom ? (
-                <Input
-                  label="Jelaskan alasan Anda"
-                  placeholder="Tulis alasan di sini"
-                  value={s.customReason}
-                  onChange={(e) => validasiStore.setCustomReason(e.target.value)}
-                />
-              ) : null}
             </div>
           ) : null}
         </div>
@@ -130,17 +119,46 @@ export function ValidasiKeputusanScreen() {
       </StickyBar>
 
       {s.decision ? (
-        <PickSheet
+        <BottomSheet
           open={reasonSheet}
-          title="Pilih alasan"
-          options={reasonOptions}
-          value={s.reason}
           onClose={() => setReasonSheet(false)}
-          onPick={(v) => {
-            validasiStore.setReason(v)
-            setReasonSheet(false)
-          }}
-        />
+          title="Pilih alasan"
+          primaryAction={
+            <Button
+              size="lg"
+              className="w-full"
+              disabled={reasonValue.length === 0}
+              onClick={() => setReasonSheet(false)}
+            >
+              Simpan
+            </Button>
+          }
+        >
+          <div className="flex flex-col gap-8">
+            {reasonOptions.map((o) => (
+              <div key={o} className="flex flex-col gap-8">
+                <SelectableCard
+                  name="validasi-reason"
+                  inputType="radio"
+                  title={o}
+                  checked={s.reason === o}
+                  onChange={() => validasiStore.setReason(o)}
+                />
+                {/* "Lainnya" opens its free-text field right under itself, not
+                    lower on the page — the field belongs to the option that
+                    asked for it. */}
+                {o === DECISION_REASON_OTHER && s.reason === DECISION_REASON_OTHER ? (
+                  <textarea
+                    className="ds-inp min-h-80 resize-none"
+                    placeholder="Masukkan alasan lainnya"
+                    value={s.customReason}
+                    onChange={(e) => validasiStore.setCustomReason(e.target.value)}
+                  />
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </BottomSheet>
       ) : null}
     </AppScreen>
   )
