@@ -7,7 +7,7 @@
 import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { CheckCircleFill, CrossCircleFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { SOFT_REJECT_CASE } from '../lib/validasi'
+import { SOFT_REJECT_CASE, formatRupiah } from '../lib/validasi'
 import { finalReason, useValidasi } from '../lib/validasi-store'
 import { AppScreen, StickyBar } from '../lib/ui'
 
@@ -39,6 +39,15 @@ export function ValidasiSelesaiScreen() {
           <span className="text-14 text-default">{finalReason(s)}</span>
         </div>
       </Card>
+
+      {approved && s.proposedLimit ? (
+        <Card>
+          <div className="flex flex-col gap-8">
+            <span className="text-14 font-bold text-default">Usulan limit</span>
+            <span className="text-14 text-default">{formatRupiah(s.proposedLimit)}</span>
+          </div>
+        </Card>
+      ) : null}
 
       <StickyBar>
         <Button size="lg" className="w-full" onClick={() => flow.go('tugas')}>

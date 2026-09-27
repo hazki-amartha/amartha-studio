@@ -12,19 +12,29 @@ interface ValidasiState {
   reason: string
   /** Only used when reason === "Lainnya". */
   customReason: string
+  /** Raw digits, only asked when decision === "approve" — the limit SHE's
+   *  proposing in place of the system's soft-reject read. */
+  proposedLimit: string
   submitted: boolean
 }
 
-let state: ValidasiState = { decision: null, reason: '', customReason: '', submitted: false }
+let state: ValidasiState = {
+  decision: null,
+  reason: '',
+  customReason: '',
+  proposedLimit: '',
+  submitted: false,
+}
 
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
 
 export const validasiStore = {
-  /** Switching Setujui/Tolak clears the reason — the two lists don't share
-   *  answers, so a reason picked for one would silently carry into the other. */
+  /** Switching Setujui/Tolak clears the reason and the proposed limit — the
+   *  two lists don't share answers, and a limit only makes sense once she's
+   *  said yes. */
   setDecision(decision: ValidasiDecision) {
-    state = { ...state, decision, reason: '', customReason: '' }
+    state = { ...state, decision, reason: '', customReason: '', proposedLimit: '' }
     emit()
   },
   setReason(reason: string) {
@@ -33,6 +43,10 @@ export const validasiStore = {
   },
   setCustomReason(customReason: string) {
     state = { ...state, customReason }
+    emit()
+  },
+  setProposedLimit(digits: string) {
+    state = { ...state, proposedLimit: digits.replace(/\D/g, '') }
     emit()
   },
   submit() {

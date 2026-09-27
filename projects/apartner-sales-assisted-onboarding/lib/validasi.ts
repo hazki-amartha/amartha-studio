@@ -119,3 +119,9 @@ export const DECISION_REASONS: Record<ValidasiDecision, string[]> = {
 }
 
 export const DECISION_REASON_OTHER = 'Lainnya'
+
+/** "2000000" → "Rp2.000.000" — same grouping InputNominal shows while typing,
+ *  for reading the proposed limit back on the closing screen. */
+export function formatRupiah(digits: string): string {
+  return `Rp${digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`
+}
