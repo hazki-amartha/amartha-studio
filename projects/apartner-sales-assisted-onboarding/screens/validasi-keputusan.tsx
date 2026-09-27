@@ -7,7 +7,14 @@
 // fixed list doesn't cover.
 
 import { useState, type ReactNode } from 'react'
-import { BottomSheet, Button, Card, NavigationHeader, SelectableCard } from '@/design-system/components'
+import {
+  BottomSheet,
+  Button,
+  Card,
+  InputNominal,
+  NavigationHeader,
+  SelectableCard,
+} from '@/design-system/components'
 import { CheckCircle, ChevronDown, CrossCircleFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
@@ -58,7 +65,9 @@ export function ValidasiKeputusanScreen() {
 
   const reasonOptions = s.decision ? DECISION_REASONS[s.decision] : []
   const reasonValue = finalReason(s)
-  const canSubmit = Boolean(s.decision) && reasonValue.length > 0
+  const needsLimit = s.decision === 'approve'
+  const canSubmit =
+    Boolean(s.decision) && reasonValue.length > 0 && (!needsLimit || s.proposedLimit.length > 0)
 
   function submit() {
     validasiStore.submit()
@@ -121,6 +130,21 @@ export function ValidasiKeputusanScreen() {
           ) : null}
         </div>
       </Card>
+
+      {/* Only asked once she's said yes — a limit is meaningless attached to a
+          rejection, and asking for it before Setujui is chosen would read as
+          the form assuming her answer. */}
+      {needsLimit ? (
+        <Card>
+          <InputNominal
+            label="Usulan limit"
+            value={s.proposedLimit}
+            onValueChange={validasiStore.setProposedLimit}
+            currency="Rp"
+            helperText="Limit yang Anda usulkan untuk menggantikan hasil sistem"
+          />
+        </Card>
+      ) : null}
 
       <StickyBar>
         <Button size="lg" className="w-full" disabled={!canSubmit} onClick={submit}>
