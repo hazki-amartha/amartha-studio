@@ -16,6 +16,7 @@ import { Button, NavigationHeader } from '@/design-system/components'
 import { CheckCircle, Plus } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
+  BmValidationCard,
   LeadBoardCard,
   PoiBoardCard,
   PoiTaskCard,
@@ -37,6 +38,8 @@ import { pipelineStore, setAddLeadEntry, usePipeline } from './pipeline-store'
 import { canDisburse, useFormation } from './formation'
 import { usePois } from './poi-store'
 import { store, useApp } from './store'
+import { SOFT_REJECT_CASE } from './validasi'
+import { useValidasi } from './validasi-store'
 import { SourceSheet } from './pipeline-ui'
 import { TabBar } from './tabs'
 import { AppScreen, Chip, EmptyState, FilterBar, SearchField, VisitTitle } from './ui'
@@ -118,7 +121,8 @@ function SectionPanel({
 export function SalesList({ scope }: { scope: Scope }) {
   const flow = useFlow()
   const { leads, order, flash } = usePipeline()
-  const { completedPois } = useApp()
+  const { completedPois, role } = useApp()
+  const validasiDecision = useValidasi()
   const formation = useFormation()
   const pois = usePois()
 
@@ -212,6 +216,10 @@ export function SalesList({ scope }: { scope: Scope }) {
     flow.go('sosialisasi')
   }
 
+  function openBmValidation() {
+    flow.go('validasi-mitra')
+  }
+
   const addLead = (
     <Button size="sm" className="shadow-lg" onClick={() => setAddSourceOpen(true)}>
       <span className="flex items-center gap-4">
@@ -253,11 +261,19 @@ export function SalesList({ scope }: { scope: Scope }) {
         .filter((l) => displaySection(l) === sec && matchesQuery(l))
         .sort((a, b) => (a.agenda?.dueDays ?? 0) - (b.agenda?.dueDays ?? 0))
     const poiRows = poiToday.filter(poiMatchesQuery)
+    // BM only, and only until she's decided — a second entry point onto the
+    // same 3-step flow the Tugas card opens (see validasi.ts / validasi-store).
+    const bmRows =
+      role === 'BM' && !validasiDecision.submitted && (!q || SOFT_REJECT_CASE.name.toLowerCase().includes(q))
+        ? [SOFT_REJECT_CASE]
+        : []
 
     type Section =
       | { key: string; label: string; kind: 'lead'; rows: PipelineLead[] }
       | { key: string; label: string; kind: 'poi'; rows: PoiTask[] }
+      | { key: string; label: string; kind: 'bm-validation'; rows: typeof bmRows }
     const sections: Section[] = [
+      { key: 'bm-validation', label: 'BM Validation', kind: 'bm-validation', rows: bmRows },
       { key: 'ready-for-disbursement', label: LEADS_SECTION_LABEL['ready-for-disbursement'], kind: 'lead', rows: leadRows('ready-for-disbursement') },
       { key: 'survey-approved', label: LEADS_SECTION_LABEL['survey-approved'], kind: 'lead', rows: leadRows('survey-approved') },
       { key: 'survey-ongoing', label: LEADS_SECTION_LABEL['survey-ongoing'], kind: 'lead', rows: leadRows('survey-ongoing') },
@@ -265,7 +281,7 @@ export function SalesList({ scope }: { scope: Scope }) {
       { key: 'follow-up', label: LEADS_SECTION_LABEL['follow-up'], kind: 'lead', rows: leadRows('follow-up') },
     ]
     const visible = sections.filter((s) => s.rows.length > 0)
-    const total = leadsToday.length + poiToday.length
+    const total = leadsToday.length + poiToday.length + bmRows.length
 
     return (
       <AppScreen
@@ -311,15 +327,24 @@ export function SalesList({ scope }: { scope: Scope }) {
                           onOpen={() => openLead(lead)}
                         />
                       ))
-                    : (isOpen ? s.rows : s.rows.slice(0, 1)).map((t, i) => (
-                        <PoiBoardCard
-                          key={t.id}
-                          event={t.event}
-                          completed={completedPois.includes(t.id)}
-                          divider={i > 0}
-                          onOpen={() => openPoi(t)}
-                        />
-                      ))}
+                    : s.kind === 'poi'
+                      ? (isOpen ? s.rows : s.rows.slice(0, 1)).map((t, i) => (
+                          <PoiBoardCard
+                            key={t.id}
+                            event={t.event}
+                            completed={completedPois.includes(t.id)}
+                            divider={i > 0}
+                            onOpen={() => openPoi(t)}
+                          />
+                        ))
+                      : (isOpen ? s.rows : s.rows.slice(0, 1)).map((c, i) => (
+                          <BmValidationCard
+                            key={c.name}
+                            case={c}
+                            divider={i > 0}
+                            onOpen={openBmValidation}
+                          />
+                        ))}
                 </SectionPanel>
               )
             })

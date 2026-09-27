@@ -23,8 +23,10 @@
 // its own screen.
 
 import type { ReactNode } from 'react'
+import { Badge } from '@/design-system/components'
 import { MapPin } from '@/design-system/icons'
 import { type SosialisasiEvent } from './events'
+import type { SoftRejectCase } from './validasi'
 import {
   addressLine,
   dateFromToday,
@@ -499,6 +501,40 @@ export function PoiBoardCard({
         <span className="flex items-center gap-4 text-12 text-caption">
           <MapPin size={16} />
           <span className="truncate">{event.place}</span>
+        </span>
+      </div>
+    </button>
+  )
+}
+
+/** BM only — the Sales-page card for the "BM Validation" category (a
+ *  soft-rejected pengajuan waiting on her own review). Same shape as
+ *  LeadBoardCard/PoiBoardCard so the three categories read as one board;
+ *  a Badge stands in for the date pills, since this task isn't agenda-driven. */
+export function BmValidationCard({
+  case: c,
+  onOpen,
+  divider,
+}: {
+  case: SoftRejectCase
+  onOpen: () => void
+  divider?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`flex w-full flex-col gap-8 px-12 py-12 text-left active:bg-neutral-50 ${
+        divider ? 'border-t border-default' : ''
+      }`}
+    >
+      <div className="flex">
+        <Badge intent="orange">Soft Reject</Badge>
+      </div>
+      <div className="flex min-w-0 flex-col gap-2">
+        <span className="truncate text-16 font-bold text-default">{c.name}</span>
+        <span className="truncate text-12 text-caption">
+          {c.majelisName} · {c.product} · {c.amount}
         </span>
       </div>
     </button>

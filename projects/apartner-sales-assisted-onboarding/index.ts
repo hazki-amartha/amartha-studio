@@ -20,6 +20,7 @@ export const project: ProjectModule = {
         { to: 'sosialisasi', label: 'buka POI' },
         { to: 'all-tasks', label: 'Lihat semua' },
         { to: 'poi-select', label: 'Sumber POI Visit' },
+        { to: 'validasi-mitra', label: 'BM Validation card' },
       ],
     },
     {

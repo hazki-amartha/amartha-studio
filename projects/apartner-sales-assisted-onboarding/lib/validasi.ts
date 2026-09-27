@@ -23,7 +23,15 @@ export interface DataSection {
   rows: DataRow[]
 }
 
-export const SOFT_REJECT_CASE = {
+export interface SoftRejectCase {
+  name: string
+  majelisName: string
+  product: 'GL'
+  amount: string
+  reason: string
+}
+
+export const SOFT_REJECT_CASE: SoftRejectCase = {
   name: 'Anik Susilowati',
   majelisName: 'Majelis Melati',
   product: 'GL' as const,
