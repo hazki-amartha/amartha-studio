@@ -12,11 +12,13 @@
 // Nothing here leaves the prototype (CLAUDE.md §3) — the "sudah bayar" controls
 // draw their result on the row rather than reaching for a bank.
 
-import type { ReactNode } from 'react'
-import { Badge, Button, Card } from '@/design-system/components'
+import { useState, type ReactNode } from 'react'
+import { Badge, BottomSheet, Button, Card } from '@/design-system/components'
 import {
+  ArrowClockwise,
+  CalendarDots,
   Check,
-  CheckCircleFill,
+  NotePencil,
   ChevronDown,
   ChevronUp,
   Copy,
@@ -57,19 +59,22 @@ export const setorLegs = (no: number, amount: number): SetorLeg[] => {
 
 // --- SetorSummary ----------------------------------------------------------
 // What this handover is worth and where it came from, as the one card that
-// opens every screen in the journey. "Setoran 1 dari 3" is the pacing fact —
-// the day carries three handovers and no more — so it leads, above the figure.
+// opens the journey. "Setoran 1 dari 3" is the pacing fact — the day carries
+// three handovers and no more — so it leads, above the figure. "Ubah" is the
+// way into setting part of the bag aside: it sits on the figure it changes.
 
 export function SetorSummary({
   no,
   amount,
   pelayanan,
   homeVisit,
+  onEdit,
 }: {
   no: number
   amount: number
   pelayanan: number
   homeVisit: number
+  onEdit?: () => void
 }) {
   return (
     <Card>
@@ -82,73 +87,74 @@ export function SetorSummary({
             Setoran {no} dari {DEPOSIT.maxPerDay}
           </span>
           <span className="text-20 font-bold text-default">{rupiah(amount)}</span>
-          {/* What the figure is made of, in the two words she counts her day
-              in. Kept to counts: the breakdown itself is a screen away. */}
-          <span className="flex items-center gap-8 text-12 text-caption">
-            <span className="flex items-center gap-4">
-              <IconUsers size={16} />
-              {pelayanan} Pelayanan
-            </span>
-            <span className="flex items-center gap-4">
-              <IconHome size={16} />
-              {homeVisit} Home Visit
-            </span>
-          </span>
         </div>
+        {onEdit ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="flex shrink-0 items-center gap-4 text-12 font-bold text-link"
+          >
+            <NotePencil size={16} />
+            Ubah
+          </button>
+        ) : null}
       </div>
+      {/* What the figure is made of, in the two words she counts her day in. */}
+      <span className="mt-12 flex items-center gap-8 border-t border-light pt-8 text-12 text-caption">
+        <span className="flex items-center gap-4">
+          <IconUsers size={16} />
+          {pelayanan} Pelayanan
+        </span>
+        <span>•</span>
+        <span className="flex items-center gap-4">
+          <IconHome size={16} />
+          {homeVisit} Home Visit
+        </span>
+      </span>
     </Card>
   )
 }
 
 // --- LegCard ---------------------------------------------------------------
 // The two legs under one heading: the road's name and the total across the top,
-// then a row per entity carrying its number, its share and where it has got to.
+// then a row per code carrying its number, its share and where it has got to.
 //
-// A paid leg goes green and stops offering anything; an unpaid one carries the
-// only control on the page — "Saya sudah bayar" — because the transfer itself
-// happens outside this app and the app can only be told about it afterwards.
+// There is no "sudah bayar" button any more: the transfer happens outside this
+// app and the BRANCH is what knows it landed, so the page asks — "Perbarui
+// Halaman" — rather than taking her word for it.
 
 export function LegCard({
   title,
   amount,
   legs,
   paid,
-  onPaid,
-  prefix,
-  action,
+  onRefresh,
 }: {
   title: ReactNode
   amount: number
   legs: SetorLeg[]
-  /** One flag per leg, same order. */
-  paid: boolean[]
-  onPaid: (i: number) => void
-  /** "VA " on the virtual-account road; nothing at the counter. */
-  prefix?: string
-  /** What the unpaid row's button says. */
-  action: string
+  /** How many legs have landed, in order. */
+  paid: number
+  onRefresh: () => void
 }) {
   return (
-    <div className="flex flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12">
+    <div className="flex flex-col gap-12 rounded-16 bg-neutral-white p-12">
       <div className="flex flex-col items-center gap-2">
-        <span className="flex items-center gap-4 text-14 text-default">{title}</span>
+        <span className="flex items-center gap-4 text-12 text-default">{title}</span>
         <span className="text-20 font-bold text-default">{rupiah(amount)}</span>
       </div>
 
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col">
         {legs.map((leg, i) => (
-          <div key={leg.number} className="flex flex-col gap-8 rounded-8 border border-default p-12">
+          <div key={leg.number} className="flex flex-col gap-4 border-t border-light py-12">
             <div className="flex items-center gap-8">
-              <span className="min-w-0 flex-1 truncate text-12 text-caption">
-                {prefix ?? ''}
-                {leg.name}
-              </span>
-              {paid[i] ? (
-                <Badge intent="green" leadingIcon={<CheckCircleFill size={16} />}>
+              <span className="min-w-0 flex-1 truncate text-12 text-caption">Kode Amartha {i + 1}</span>
+              {i < paid ? (
+                <Badge intent="green" size="sm" leadingIcon={<Check size={16} />}>
                   Berhasil
                 </Badge>
               ) : (
-                <Badge intent="orange" leadingIcon={<Hourglass size={16} />}>
+                <Badge intent="yellow" size="sm" leadingIcon={<Hourglass size={16} />}>
                   Menunggu
                 </Badge>
               )}
@@ -162,15 +168,67 @@ export function LegCard({
               </span>
               <span className="shrink-0 text-14 font-bold text-default">{rupiah(leg.amount)}</span>
             </div>
-            {!paid[i] ? (
-              <Button variant="outline" size="xs" onClick={() => onPaid(i)}>
-                {action}
-              </Button>
-            ) : null}
           </div>
         ))}
       </div>
+
+      <Button variant="outline" size="sm" className="w-full" onClick={onRefresh}>
+        <span className="flex items-center justify-center gap-4">
+          <ArrowClockwise size={16} />
+          Perbarui Halaman
+        </span>
+      </Button>
     </div>
+  )
+}
+
+// --- CancelSetor -----------------------------------------------------------
+// "Batalkan setoran" at the foot of both roads, and the sheet behind it. Once a
+// leg has landed there is nothing left to cancel — the money is at the branch —
+// so the link greys out rather than offering to undo a transfer.
+
+export function CancelSetor({ disabled, onCancelled }: { disabled: boolean; onCancelled: () => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        className={`py-8 text-center text-12 font-bold ${disabled ? 'text-disabled' : 'text-link'}`}
+      >
+        Batalkan setoran
+      </button>
+      <BottomSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        hideClose
+        slotPosition="above"
+        slot={
+          <span className="flex h-120 items-center justify-center rounded-16 bg-primary-50 text-primary-500">
+            <CalendarDots size={24} />
+          </span>
+        }
+        title="Batal setor sekarang?"
+        description="Jika dibatalkan, Anda perlu ulangi penyetoran dari awal."
+        primaryAction={
+          <Button
+            className="w-full"
+            onClick={() => {
+              setOpen(false)
+              onCancelled()
+            }}
+          >
+            Ya, Batalkan Setoran
+          </Button>
+        }
+        secondaryAction={
+          <Button variant="outline" className="w-full" onClick={() => setOpen(false)}>
+            Lanjutkan Setoran
+          </Button>
+        }
+      />
+    </>
   )
 }
 

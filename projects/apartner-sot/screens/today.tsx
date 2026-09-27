@@ -31,6 +31,7 @@ import { rupiah } from '../lib/data'
 import {
   CLOSING_TASK,
   DAYS,
+  AGENT,
   DEPOSIT,
   TASKS,
   TOMORROW_TASKS,
@@ -40,11 +41,13 @@ import {
   withScheduled,
   type Task,
 } from '../lib/schedule'
-import { IconCheck, IconChevronDown, IconInbox, IconWallet } from '../lib/icons'
-import { CloudArrowUp } from '@/design-system/icons'
+import { IconCheck, IconChevronDown, IconInbox } from '../lib/icons'
+import { ArrowRight, CloudArrowUp, HourglassLow } from '@/design-system/icons'
 import { SkipVisitSheet, VisitGateSheet } from '../lib/visit-sheets'
+import { DeadlineNote, SETOR_DEADLINE } from '../lib/setor'
 import {
   canSettle,
+  unsettledEntries,
   settlementsLeft,
   depositExpected,
   pendingSync,
@@ -333,8 +336,6 @@ const KIND_OPTIONS: { label: string; value: Task['kind'] | null }[] = [
   { label: 'Semua tipe', value: null },
   { label: 'Pelayanan Majelis (MV)', value: 'majelis' },
   { label: 'Home Visit (HV)', value: 'home-visit' },
-  { label: 'Sosialisasi (Sos)', value: 'sosialisasi' },
-  { label: 'Follow Up (FU)', value: 'follow-up' },
 ]
 
 
@@ -405,7 +406,10 @@ export function TodayScreen() {
   // false, so the Setor button waits on her sending the tasks first.
   const canSetorNow = canSettle(s)
   const underCap = settlementsLeft(s) > 0
-  const showSetor = underCap && inBag > 0
+  // Alt 2's handover in flight: the numbers are made and the transfer is still
+  // outstanding, so the widget stops offering a new Setor and points back at it.
+  const inFlight = s.setorInFlight && s.setorInFlight.paid < 2 ? s.setorInFlight : null
+  const showSetor = !inFlight && underCap && inBag > 0
 
   // A filter replaces the whole agenda with one flat list. Sekarang/Berikutnya/
   // Selesai is a shape built around WHEN, and a BP filtering by type has
@@ -594,44 +598,65 @@ export function TodayScreen() {
 
           Closing is no longer up here as a widget — it is a task ROW at the
           foot of the list (Tutup Hari Ini), tapped like any other. */}
-      {showSetor ? (
-        // Same shape as the sync widget below it: tile, two lines, one small
-        // button pinned right. They are the two things on this page that are
-        // not tasks, and giving them one shape says so — a full-width button
-        // made this the loudest object on a page whose subject is the day.
-        //
-        // The amount is what she has COLLECTED, shown the moment cash is in the
-        // bag. But she cannot hand it over until the tasks are sent — the branch
-        // settles against the report — so when nothing is synced yet the button
-        // is disabled and the second line tells her the one thing that unblocks
-        // it: send the tasks.
-        <div className="flex items-center gap-12 rounded-12 bg-neutral-white p-12">
-          <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 bg-green-50 text-green-500">
-            <IconWallet size={20} />
-          </span>
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-16 font-bold text-default">{rupiah(inBag)}</span>
-            <span className="truncate text-12 text-caption">
-              {canSetorNow
-                ? `Belum disetor · sisa ${settlementsLeft(s)}x setoran hari ini`
-                : 'Kirim tugas untuk lanjut setor'}
+      {/* Setor pembayaran Modal — the whole card is the way into the setoran
+          flow. While a handover is in flight it carries the "segera setor"
+          warning and reopens that road instead of starting a new one. Cash
+          that hasn't synced yet can't be put down (the branch settles against
+          the report), so until then the card says so and does nothing. */}
+      {inFlight || showSetor ? (
+        <button
+          type="button"
+          disabled={!inFlight && !canSetorNow}
+          onClick={() => {
+            if (inFlight) {
+              flow.go(inFlight.method === 'agent' ? 'setor-agen' : 'setor-va')
+              return
+            }
+            store.openSettlement()
+            flow.go(s.setorAlt)
+          }}
+          className="flex flex-col gap-8 rounded-12 bg-neutral-white p-12 text-left"
+        >
+          <span className="flex w-full items-center gap-4">
+            <span className="shrink-0 text-orange-500">
+              <HourglassLow size={16} />
             </span>
-          </div>
-          <Button
-            size="sm"
-            className="h-40 shrink-0 px-16"
-            disabled={!canSetorNow}
-            onClick={() => {
-              store.openSettlement()
-              // Which of the two setoran alternatives this opens is a
-              // presentation setting, flipped from the state controls beside
-              // the device — never a menu drawn inside the prototype.
-              flow.go(s.setorAlt)
-            }}
-          >
-            Setor
-          </Button>
-        </div>
+            <span className="min-w-0 flex-1 truncate text-14 font-bold text-default">
+              Setor pembayaran Modal
+            </span>
+            <span className="shrink-0 text-primary-500">
+              <ArrowRight size={16} />
+            </span>
+          </span>
+          <span className="flex flex-col gap-4">
+            <span className="text-12 text-caption">
+              {inFlight || canSetorNow ? (
+                <>
+                  Pembayaran <b className="font-bold text-default">{unsettledEntries(s).length} tugas</b> belum
+                  disetor.
+                </>
+              ) : (
+                'Kirim tugas untuk lanjut setor.'
+              )}
+            </span>
+            <span className="text-16 font-bold text-primary-500">
+              {rupiah(inFlight ? inFlight.amount : inBag)}
+            </span>
+          </span>
+          {inFlight ? (
+            <DeadlineNote>
+              <span className="flex flex-col gap-2">
+                <b className="font-bold text-orange-500">
+                  Segera setor ke {inFlight.method === 'agent' ? `Agen ${AGENT.name}` : 'VA Amartha'}
+                </b>
+                <span className="text-orange-500">
+                  Setor sebelum <b className="font-bold">{SETOR_DEADLINE}, 23:59</b> supaya mitra tidak telat
+                  bayar.
+                </span>
+              </span>
+            </DeadlineNote>
+          ) : null}
+        </button>
       ) : null}
 
       {/* Nothing left to hand over, but something went. The card stays and

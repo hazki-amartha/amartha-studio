@@ -28,6 +28,7 @@ import { pipelineStore } from './pipeline-store'
 import { vaFor, type SettleMethod } from './schedule'
 import {
   store,
+  unsettledTotal,
   type AppState,
   type Attendance,
   type DepositEntry,
@@ -257,6 +258,7 @@ export const scheduleHomeVisit = () =>
     // seeded so the settlement can pick per mitra from it.
     payments: mawarPaid(),
     deposits: depositsFor(['t1', 't2']),
+    setorInFlight: null,
     settlements: [],
     depositAmount: null,
     depositMethod: null,
@@ -274,6 +276,7 @@ export const scheduleClosing = () =>
     // Mawar's roster seeded so the settlement opens it per mitra.
     payments: mawarPaid(),
     deposits: bankedDay,
+    setorInFlight: null,
     settlements: [],
     depositAmount: null,
     depositMethod: null,
@@ -293,6 +296,7 @@ export const scheduleCloseable = () =>
     remindedTasks: REMINDED,
     sentTasks: CLOSING_DONE,
     deposits: bankedDay,
+    setorInFlight: null,
     settlements: [
       settlement(1, ['t1'], '11.40'),
       // The second handover went to an agent counter — the two roads, side by
@@ -332,6 +336,7 @@ export const scheduleCapped = () =>
         digital: 700_000,
       },
     },
+    setorInFlight: null,
     settlements: [
       settlement(1, ['t1'], '11.40'),
       settlement(2, ['t2'], '15.10', undefined, 'agent'),
@@ -353,6 +358,7 @@ export const scheduleClosed = () =>
     remindedTasks: REMINDED,
     sentTasks: CLOSING_DONE,
     deposits: bankedDay,
+    setorInFlight: null,
     settlements: [
       settlement(1, ['t1'], '11.40'),
       settlement(2, ['t2', 't4'], '16.20', undefined, 'agent'),
@@ -1025,6 +1031,41 @@ export const setorAltOne = () => store.set({ setorAlt: 'settlement' })
 
 /** Setor opens the new concept: pick how, with setor sebagian a page away. */
 export const setorAltTwo = () => store.set({ setorAlt: 'setor-payment' })
+
+// --- Alt 2's handover, mid-flight -------------------------------------------
+// The day's cash is banked and sent, and "Ya, Setor Sekarang" has made the
+// numbers. `paid` is how many of the two legs the branch has seen.
+
+const setorAt = (method: SettleMethod, paid: 0 | 1) => {
+  scheduleClosing()
+  store.set({ setorAlt: 'setor-payment', setorFail: false })
+  store.startSetor(method, unsettledTotal(store.get()))
+  if (paid) store.refreshSetor()
+}
+
+export const setorVaWaiting = () => setorAt('va', 0)
+export const setorVaHalf = () => setorAt('va', 1)
+export const setorVaDone = () => {
+  setorAt('va', 1)
+  store.refreshSetor()
+}
+export const setorAgenWaiting = () => setorAt('agent', 0)
+export const setorAgenHalf = () => setorAt('agent', 1)
+export const setorAgenDone = () => {
+  setorAt('agent', 1)
+  store.refreshSetor()
+}
+
+/** Setor pembayaran, fresh — the next "Ya, Setor Sekarang" goes through. */
+export const setorReady = () => {
+  scheduleClosing()
+  store.set({ setorAlt: 'setor-payment', setorFail: false, depositMethod: 'va' })
+}
+/** Same page, but making the numbers fails onto the error page once. */
+export const setorFails = () => {
+  scheduleClosing()
+  store.set({ setorAlt: 'setor-payment', setorFail: true, depositMethod: 'va' })
+}
 
 // --- One mitra's record ----------------------------------------------------
 

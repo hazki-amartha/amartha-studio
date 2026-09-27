@@ -7,21 +7,18 @@
 // one. What changes is everything under them — how the errand works, and WHERE
 // the counters are, because this road ends at a desk she has to ride to.
 //
-// The agent list is `AgentList`, shared with the Agen Terdekat page so a
-// counter reads identically wherever she meets it. Nothing in it leaves the
-// prototype (CLAUDE.md §3): Whatsapp draws a sent state on the row, Buka Peta
-// opens the drawn map page.
+// The counters are a page away, behind "Cari Agen Terdekat" — the list is the
+// Agen Terdekat page's, so a counter reads identically wherever she meets it.
+// Status, Perbarui Halaman, Batalkan setoran and Back work as on the VA road.
 
-import { useState } from 'react'
 import { Button, NavigationHeader } from '@/design-system/components'
 import { Wordmark } from '@/design-system/assets'
-import { RpHistory } from '@/design-system/icons'
+import { MapPin, RpHistory } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { AGENT } from '../lib/schedule'
-import { AgentList } from '../lib/agent-list'
-import { SETOR_DEADLINE, DeadlineNote, HowList, LegCard, setorLegs } from '../lib/setor'
+import { SETOR_DEADLINE, CancelSetor, DeadlineNote, HowList, LegCard, setorLegs } from '../lib/setor'
 import { store, unsettledTotal, useApp } from '../lib/store'
-import { AppScreen, Collapsible, SectionTitle, StickyBar } from '../lib/ui'
+import { AppScreen, Collapsible } from '../lib/ui'
 
 /** What the desk actually does, in her order of operations. */
 const HOW_TO_PAY = [
@@ -35,20 +32,19 @@ export function SetorAgenScreen() {
   const flow = useFlow()
   const s = useApp()
 
-  const amount = s.depositAmount ?? unsettledTotal(s)
-  const no = s.settlements.length + 1
-  const legs = setorLegs(no, amount)
-
-  const [paid, setPaid] = useState<boolean[]>(() => legs.map(() => false))
-  const markPaid = (i: number) => setPaid((prev) => prev.map((p, j) => (j === i ? true : p)))
-  const allPaid = paid.every(Boolean)
+  const f = s.setorInFlight ?? {
+    no: s.settlements.length + 1,
+    amount: s.depositAmount ?? unsettledTotal(s),
+    paid: 0,
+  }
+  const legs = setorLegs(f.no, f.amount)
 
   return (
     <AppScreen
       topBar={
         <NavigationHeader
-          title="Setor tunai"
-          onBack={() => flow.back()}
+          title="Setor pembayaran"
+          onBack={() => flow.go('today')}
           trailingIcons={[
             <button
               key="riwayat"
@@ -69,37 +65,34 @@ export function SetorAgenScreen() {
             <Wordmark name="amartha-link" height={12} />
           </>
         }
-        amount={amount}
+        amount={f.amount}
         legs={legs}
-        paid={paid}
-        onPaid={markPaid}
-        action="Saya sudah setor"
+        paid={f.paid}
+        onRefresh={() => store.refreshSetor()}
       />
 
-      <DeadlineNote>Setor sebelum {SETOR_DEADLINE} ke VA yang sesuai.</DeadlineNote>
+      {f.paid < legs.length ? (
+        <DeadlineNote>Setor sebelum {SETOR_DEADLINE} ke kedua VA di atas.</DeadlineNote>
+      ) : null}
 
       <Collapsible title={`Cara setor tunai di Agen ${AGENT.name}`} defaultOpen>
         <HowList steps={HOW_TO_PAY} />
       </Collapsible>
 
-      {/* The counters she can actually reach, nearest first. */}
-      <SectionTitle>Agen terdekat</SectionTitle>
-      <AgentList onMap={() => flow.go('agent-map')} />
+      <Button variant="outline" className="w-full" onClick={() => flow.go('agent-locator')}>
+        <span className="flex items-center justify-center gap-4">
+          <MapPin size={16} />
+          Cari Agen Terdekat
+        </span>
+      </Button>
 
-      {allPaid ? (
-        <StickyBar>
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={() => {
-              store.settle(false)
-              flow.go('setor-riwayat')
-            }}
-          >
-            Konfirmasi Setoran
-          </Button>
-        </StickyBar>
-      ) : null}
+      <CancelSetor
+        disabled={f.paid > 0}
+        onCancelled={() => {
+          store.cancelSetor()
+          flow.go('today')
+        }}
+      />
     </AppScreen>
   )
 }

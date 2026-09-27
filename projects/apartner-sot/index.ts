@@ -69,6 +69,12 @@ export const project: ProjectModule = {
         // prototypes. Sets the road and nothing else, so flipping it never
         // disturbs whichever day is on screen.
         {
+          id: 'setor-in-flight',
+          label: 'Setoran menunggu (Alt 2)',
+          description: 'Numbers made, transfer outstanding — the widget says segera setor',
+          apply: demo.setorVaWaiting,
+        },
+        {
           id: 'setor-alt-1',
           label: 'Setor → Alt 1',
           description: 'Setor opens the first concept: pick what to settle, then how',
@@ -588,38 +594,61 @@ export const project: ProjectModule = {
       id: 'setor-payment',
       title: 'Setor Pembayaran (Alt 2)',
       component: lazyScreen(() => import('./screens/setor-payment'), 'SetorPaymentScreen'),
+      states: [
+        {
+          id: 'ready',
+          label: 'Siap setor',
+          description: 'VA picked — Setor asks, loads, then opens the VA road',
+          apply: demo.setorReady,
+        },
+        {
+          id: 'error',
+          label: 'Gagal membuat data',
+          description: 'Ya, Setor Sekarang lands on the error page once; Coba Lagi goes through',
+          apply: demo.setorFails,
+        },
+      ],
       flowsTo: [
-        { to: 'setor-partial', label: 'Setor sebagian' },
+        { to: 'setor-partial', label: 'Ubah — nominal setoran' },
         { to: 'agent-locator', label: 'Cari Agen Terdekat — dari metode agen' },
-        { to: 'setor-agen', label: 'Setor — dengan metode agen dipilih' },
-        { to: 'setor-va', label: 'Setor — dengan Virtual Account dipilih' },
+        { to: 'setor-agen', label: 'Ya, Setor Sekarang — metode agen' },
+        { to: 'setor-va', label: 'Ya, Setor Sekarang — Virtual Account' },
         { to: 'setor-riwayat', label: 'Riwayat — dari header' },
       ],
     },
     {
       id: 'setor-partial',
-      title: 'Setor Sebagian',
+      title: 'Ubah Nominal Setoran',
       component: lazyScreen(() => import('./screens/setor-partial'), 'SetorPartialScreen'),
-      flowsTo: [
-        { to: 'agent-locator', label: 'Cari Agen Terdekat — dari metode agen' },
-        { to: 'setor-agen', label: 'Setor — dengan metode agen dipilih' },
-        { to: 'setor-va', label: 'Setor — dengan Virtual Account dipilih' },
-        { to: 'setor-riwayat', label: 'Riwayat — dari header' },
-      ],
+      flowsTo: [{ to: 'setor-payment', label: 'Simpan Total' }],
     },
     {
       id: 'setor-va',
       title: 'Setor via Virtual Account',
       component: lazyScreen(() => import('./screens/setor-va'), 'SetorVaScreen'),
-      flowsTo: [{ to: 'setor-riwayat', label: 'Konfirmasi Setoran — ke riwayat' }],
+      states: [
+        { id: 'waiting', label: 'Menunggu', description: 'Both VAs waiting on her transfer', apply: demo.setorVaWaiting },
+        { id: 'half', label: 'Setengah dibayar', description: 'Kode Amartha 1 landed, 2 still waiting', apply: demo.setorVaHalf },
+        { id: 'done', label: 'Berhasil', description: 'Both landed — the settlement is recorded', apply: demo.setorVaDone },
+      ],
+      flowsTo: [
+        { to: 'today', label: 'Kembali / Ya, Batalkan Setoran' },
+        { to: 'setor-riwayat', label: 'Riwayat — dari header' },
+      ],
     },
     {
       id: 'setor-agen',
-      title: 'Setor Tunai (New Concept)',
+      title: 'Setor Tunai via Agen (Alt 2)',
       component: lazyScreen(() => import('./screens/setor-agen'), 'SetorAgenScreen'),
+      states: [
+        { id: 'waiting', label: 'Menunggu', description: 'Both codes waiting at the counter', apply: demo.setorAgenWaiting },
+        { id: 'half', label: 'Setengah dibayar', description: 'Kode Amartha 1 landed, 2 still waiting', apply: demo.setorAgenHalf },
+        { id: 'done', label: 'Berhasil', description: 'Both landed — the settlement is recorded', apply: demo.setorAgenDone },
+      ],
       flowsTo: [
-        { to: 'agent-map', label: 'Buka Peta — dari baris agen' },
-        { to: 'setor-riwayat', label: 'Konfirmasi Setoran — ke riwayat' },
+        { to: 'agent-locator', label: 'Cari Agen Terdekat' },
+        { to: 'today', label: 'Kembali / Ya, Batalkan Setoran' },
+        { to: 'setor-riwayat', label: 'Riwayat — dari header' },
       ],
     },
     {
