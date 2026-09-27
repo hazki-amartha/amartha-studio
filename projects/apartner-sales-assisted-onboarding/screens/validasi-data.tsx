@@ -8,8 +8,8 @@ import type { ReactNode } from 'react'
 import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { House, IdentificationCard, Storefront } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { SOFT_REJECT_CASE, UNDERWRITING_SECTIONS, type DataSection } from '../lib/validasi'
-import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
+import { SOFT_REJECT_CASE, UNDERWRITING_SECTIONS, VALIDASI_STEPS, type DataSection } from '../lib/validasi'
+import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 function DataRow({ label, value }: { label: string; value: string }) {
   return (
@@ -55,6 +55,8 @@ export function ValidasiDataScreen() {
     <AppScreen
       topBar={<NavigationHeader title="Data Underwriting" onBack={() => flow.go('validasi-mitra')} />}
     >
+      <StageBar current={2} labels={VALIDASI_STEPS} />
+
       <Card>
         <div className="flex flex-col gap-12">
           <SectionTitle>KTP {c.name}</SectionTitle>

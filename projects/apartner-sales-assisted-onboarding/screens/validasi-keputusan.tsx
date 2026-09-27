@@ -10,35 +10,34 @@ import { useState, type ReactNode } from 'react'
 import { Button, Card, Input, NavigationHeader } from '@/design-system/components'
 import { CheckCircle, ChevronDown, CrossCircleFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { DECISION_REASON_OTHER, DECISION_REASONS, SOFT_REJECT_CASE } from '../lib/validasi'
+import { DECISION_REASON_OTHER, DECISION_REASONS, SOFT_REJECT_CASE, VALIDASI_STEPS } from '../lib/validasi'
 import { finalReason, useValidasi, validasiStore } from '../lib/validasi-store'
 import { PickSheet } from '../lib/pipeline-ui'
-import { AppScreen, SectionTitle, StickyBar } from '../lib/ui'
+import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
+// Neutral by default, same selected treatment as the design system's own
+// SelectableCard (border-primary-500 + primary-50 tint) — Setujui/Tolak read
+// as one flat choice, not a red/green verdict flashing before she's picked.
 function DecisionChoice({
-  tone,
   selected,
   icon,
   label,
   onClick,
 }: {
-  tone: 'green' | 'red'
   selected: boolean
   icon: ReactNode
   label: string
   onClick: () => void
 }) {
   const classes = selected
-    ? tone === 'green'
-      ? 'border-green-500 bg-green-50 text-green-500'
-      : 'border-red-500 bg-red-50 text-red-500'
+    ? 'border-primary-500 bg-primary-50 text-primary-500'
     : 'border-default bg-neutral-white text-default'
   return (
     <button
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`flex flex-1 flex-col items-center gap-4 rounded-12 border px-12 py-16 text-14 font-bold ${classes}`}
+      className={`flex flex-1 flex-col items-center gap-8 rounded-12 border px-12 py-16 text-14 font-bold ${classes}`}
     >
       {icon}
       {label}
@@ -66,6 +65,8 @@ export function ValidasiKeputusanScreen() {
     <AppScreen
       topBar={<NavigationHeader title="Keputusan BM" onBack={() => flow.go('validasi-data')} />}
     >
+      <StageBar current={3} labels={VALIDASI_STEPS} />
+
       <Card>
         <div className="flex flex-col gap-4">
           <span className="text-16 font-bold text-default">{c.name}</span>
@@ -80,14 +81,12 @@ export function ValidasiKeputusanScreen() {
           <SectionTitle>Keputusan Anda</SectionTitle>
           <div className="flex gap-8">
             <DecisionChoice
-              tone="green"
               selected={s.decision === 'approve'}
               icon={<CheckCircle size={24} />}
               label="Setujui"
               onClick={() => validasiStore.setDecision('approve')}
             />
             <DecisionChoice
-              tone="red"
               selected={s.decision === 'reject'}
               icon={<CrossCircleFill size={24} />}
               label="Tolak"

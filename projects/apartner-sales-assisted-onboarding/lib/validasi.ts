@@ -81,6 +81,9 @@ export const UNDERWRITING_SECTIONS: DataSection[] = [
   },
 ]
 
+/** The 3-step flow's own StageBar labels — same order as the screens. */
+export const VALIDASI_STEPS = ['Hasil Underwriting', 'Data Underwriting', 'Keputusan']
+
 export type ValidasiDecision = 'approve' | 'reject'
 
 /** Reasons differ by decision — an approval says why the flag doesn't apply
