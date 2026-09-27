@@ -20,6 +20,7 @@ export const project: ProjectModule = {
         { to: 'sosialisasi', label: 'buka POI' },
         { to: 'all-tasks', label: 'Lihat semua' },
         { to: 'poi-select', label: 'Sumber POI Visit' },
+        { to: 'validasi-mitra', label: 'BM Validation card' },
       ],
     },
     {
@@ -182,7 +183,34 @@ export const project: ProjectModule = {
       id: 'tugas',
       title: 'Tugas',
       component: lazyScreen(() => import('./screens/tugas'), 'TugasScreen'),
-      flowsTo: [{ to: 'group-formation', label: 'Group Formation' }],
+      flowsTo: [
+        { to: 'group-formation', label: 'Group Formation' },
+        { to: 'validasi-mitra', label: 'Validasi Mitra (BM)' },
+      ],
+    },
+    {
+      id: 'validasi-mitra',
+      title: 'Validasi Mitra',
+      component: lazyScreen(() => import('./screens/validasi-mitra'), 'ValidasiMitraScreen'),
+      flowsTo: [{ to: 'validasi-data', label: 'Lihat Data Underwriting' }],
+    },
+    {
+      id: 'validasi-data',
+      title: 'Data Underwriting',
+      component: lazyScreen(() => import('./screens/validasi-data'), 'ValidasiDataScreen'),
+      flowsTo: [{ to: 'validasi-keputusan', label: 'Lanjutkan ke Keputusan' }],
+    },
+    {
+      id: 'validasi-keputusan',
+      title: 'Keputusan BM',
+      component: lazyScreen(() => import('./screens/validasi-keputusan'), 'ValidasiKeputusanScreen'),
+      flowsTo: [{ to: 'validasi-selesai', label: 'Kirim Keputusan' }],
+    },
+    {
+      id: 'validasi-selesai',
+      title: 'Keputusan Terkirim',
+      component: lazyScreen(() => import('./screens/validasi-selesai'), 'ValidasiSelesaiScreen'),
+      flowsTo: [{ to: 'tugas', label: 'Kembali ke Tugas' }],
     },
     {
       id: 'group-formation',

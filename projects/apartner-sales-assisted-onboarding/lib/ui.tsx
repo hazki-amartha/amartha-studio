@@ -42,10 +42,15 @@ export function AppScreen({ className, ...props }: ScreenProps) {
 export function StageBar({
   current,
   labels,
+  onStepClick,
 }: {
   /** 1-based. One past the last label means every stage is cleared. */
   current: number
   labels: string[]
+  /** Lets the viewer jump straight to any step (a review flow with nothing to
+   *  gate) — omit for a bar that only reports progress and can't be skipped
+   *  ahead of (Group Formation: a step isn't done until its own work is). */
+  onStepClick?: (step: number) => void
 }) {
   return (
     <div className="flex items-start">
@@ -63,6 +68,8 @@ export function StageBar({
           : active
             ? 'border-primary-500 bg-primary-500 text-neutral-white'
             : 'border-default bg-neutral-white text-default'
+        const circleClasses = `flex h-20 w-20 shrink-0 items-center justify-center rounded-full border text-12 font-bold ${circle}`
+        const labelClasses = `text-12 ${active ? 'font-bold text-default' : done ? 'font-regular text-disabled' : 'font-regular text-default'}`
         return (
           <div key={label} className="flex flex-1 flex-col items-center gap-4">
             <div className="flex w-full items-center gap-4">
@@ -76,11 +83,18 @@ export function StageBar({
               <span
                 className={`h-2 flex-1 rounded-full ${i === 0 ? 'bg-transparent' : no === current + 1 ? 'bg-primary-200' : 'bg-neutral-200'}`}
               />
-              <span
-                className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full border text-12 font-bold ${circle}`}
-              >
-                {done ? <Check size={16} /> : no}
-              </span>
+              {onStepClick ? (
+                <button
+                  type="button"
+                  aria-label={`Ke ${label}`}
+                  onClick={() => onStepClick(no)}
+                  className={circleClasses}
+                >
+                  {done ? <Check size={16} /> : no}
+                </button>
+              ) : (
+                <span className={circleClasses}>{done ? <Check size={16} /> : no}</span>
+              )}
               <span
                 className={`h-2 flex-1 rounded-full ${i === labels.length - 1 ? 'bg-transparent' : active ? 'bg-primary-200' : 'bg-neutral-200'}`}
               />
@@ -91,11 +105,13 @@ export function StageBar({
                 of the visit rather than the place she is standing in it.
                 A cleared stage's name greys out — it is behind her — while the
                 ones ahead stay dark: they are still work. */}
-            <span
-              className={`text-12 ${active ? 'font-bold text-default' : done ? 'font-regular text-disabled' : 'font-regular text-default'}`}
-            >
-              {label}
-            </span>
+            {onStepClick ? (
+              <button type="button" onClick={() => onStepClick(no)} className={labelClasses}>
+                {label}
+              </button>
+            ) : (
+              <span className={labelClasses}>{label}</span>
+            )}
           </div>
         )
       })}
