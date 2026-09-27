@@ -25,8 +25,8 @@ import {
 } from '../lib/group-tasks'
 import { isMajelisActivated, isMemberAccepted, setFormation, useFormation } from '../lib/formation'
 import { draftApprovedCount } from '../lib/roster'
-import { usePipeline } from '../lib/pipeline-store'
-import { store } from '../lib/store'
+import { pipelineStore, usePipeline } from '../lib/pipeline-store'
+import { store, useApp } from '../lib/store'
 import { TabBar } from '../lib/tabs'
 import { AppScreen, EmptyState, FilterBar, FilterChip, OptionSheet } from '../lib/ui'
 
@@ -104,6 +104,7 @@ export function TugasScreen() {
   const { rescheduled } = useGroupTasks()
   const formation = useFormation()
   const { leads, order } = usePipeline()
+  const { role } = useApp()
   const [gate, setGate] = useState<GroupFormationTask | null>(null)
   const [paGate, setPaGate] = useState<PenerimaanTask | null>(null)
   const [filter, setFilter] = useState<'type' | 'status' | null>(null)
@@ -215,6 +216,26 @@ export function TugasScreen() {
         onOpen: movedTo ? undefined : () => setPaGate(task),
       }
     }),
+    // BM only — validate an approved mitra before disbursement.
+    ...(role === 'BM' && leads.p7
+      ? [
+          {
+            id: 'vm-p7',
+            code: 'VM',
+            kind: 'Validasi Mitra',
+            kindLine: 'Validasi mitra · 13.00',
+            title: `Validasi mitra ${leads.p7.name}`,
+            subtitle: `Majelis Mawar · ${leads.p7.amount}`,
+            status: 'Belum mulai',
+            statusIntent: 'orange',
+            done: false,
+            onOpen: () => {
+              pipelineStore.open('p7')
+              flow.go('calon-mitra')
+            },
+          } satisfies TaskRow,
+        ]
+      : []),
   ]
 
   const doneCount = rows.filter((r) => r.done).length
@@ -227,6 +248,7 @@ export function TugasScreen() {
     { label: 'Semua tipe', value: 'all' },
     { label: 'Pembentukan Majelis', value: 'Pembentukan Majelis' },
     { label: 'Penerimaan Anggota', value: 'Penerimaan Anggota' },
+    ...(role === 'BM' ? [{ label: 'Validasi Mitra', value: 'Validasi Mitra' }] : []),
   ]
   const STATUS_OPTIONS = [
     { label: 'Semua status', value: 'all' },
