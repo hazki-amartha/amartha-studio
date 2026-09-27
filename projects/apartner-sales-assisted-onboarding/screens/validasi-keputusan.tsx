@@ -10,7 +10,13 @@ import { useState, type ReactNode } from 'react'
 import { BottomSheet, Button, Card, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { CheckCircle, ChevronDown, CrossCircleFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { DECISION_REASON_OTHER, DECISION_REASONS, SOFT_REJECT_CASE, VALIDASI_STEPS } from '../lib/validasi'
+import {
+  DECISION_REASON_OTHER,
+  DECISION_REASONS,
+  SOFT_REJECT_CASE,
+  VALIDASI_STEP_SCREENS,
+  VALIDASI_STEPS,
+} from '../lib/validasi'
 import { finalReason, useValidasi, validasiStore } from '../lib/validasi-store'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
@@ -63,7 +69,11 @@ export function ValidasiKeputusanScreen() {
     <AppScreen
       topBar={<NavigationHeader title="Keputusan BM" onBack={() => flow.go('validasi-data')} />}
     >
-      <StageBar current={3} labels={VALIDASI_STEPS} />
+      <StageBar
+        current={3}
+        labels={VALIDASI_STEPS}
+        onStepClick={(step) => flow.go(VALIDASI_STEP_SCREENS[step - 1])}
+      />
 
       <Card>
         <div className="flex flex-col gap-4">

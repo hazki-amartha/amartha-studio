@@ -84,6 +84,11 @@ export const UNDERWRITING_SECTIONS: DataSection[] = [
 /** The 3-step flow's own StageBar labels — same order as the screens. */
 export const VALIDASI_STEPS = ['Hasil Underwriting', 'Data Underwriting', 'Keputusan']
 
+/** The screen id each step's StageBar circle jumps to, 1-indexed to match
+ *  StageBar's own numbering — the BM can move freely between all three, there
+ *  is nothing here that gates going back or skipping ahead. */
+export const VALIDASI_STEP_SCREENS = ['validasi-mitra', 'validasi-data', 'validasi-keputusan'] as const
+
 export type ValidasiDecision = 'approve' | 'reject'
 
 /** Reasons differ by decision — an approval says why the flag doesn't apply

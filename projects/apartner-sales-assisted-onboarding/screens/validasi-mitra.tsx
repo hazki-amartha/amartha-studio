@@ -8,7 +8,7 @@
 import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
 import { WarningFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { SOFT_REJECT_CASE, VALIDASI_STEPS } from '../lib/validasi'
+import { SOFT_REJECT_CASE, VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
 import { AppScreen, StageBar, StickyBar } from '../lib/ui'
 
 export function ValidasiMitraScreen() {
@@ -17,7 +17,11 @@ export function ValidasiMitraScreen() {
 
   return (
     <AppScreen topBar={<NavigationHeader title="Validasi Mitra" onBack={() => flow.go('tugas')} />}>
-      <StageBar current={1} labels={VALIDASI_STEPS} />
+      <StageBar
+        current={1}
+        labels={VALIDASI_STEPS}
+        onStepClick={(step) => flow.go(VALIDASI_STEP_SCREENS[step - 1])}
+      />
 
       <Card>
         <div className="flex flex-col gap-4">
