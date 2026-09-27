@@ -11,16 +11,21 @@
 // paying — mobile banking open, the rest folded — since a BP on her tenth
 // handover never reads them and a BP on her first cannot do this without them.
 //
-// Nothing leaves the prototype (CLAUDE.md §3): "Saya sudah transfer" draws the
-// result on the row rather than opening a bank app.
+// Status is the branch's to report, not hers: "Perbarui Halaman" asks, and
+// each leg flips Menunggu → Berhasil as it lands (in the prototype, one per
+// tap). The second landing records the settlement. Until the first one lands
+// she can still call the whole thing off — "Batalkan setoran".
+//
+// Back always returns to the schedule: the numbers are made, so stepping back
+// into the method page would offer to make them again. The schedule's widget
+// carries her back here while it is open.
 
-import { useState } from 'react'
-import { Button, NavigationHeader } from '@/design-system/components'
+import { NavigationHeader } from '@/design-system/components'
 import { RpHistory } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { SETOR_DEADLINE, DeadlineNote, HowList, LegCard, setorLegs } from '../lib/setor'
+import { SETOR_DEADLINE, CancelSetor, DeadlineNote, HowList, LegCard, setorLegs } from '../lib/setor'
 import { store, unsettledTotal, useApp } from '../lib/store'
-import { AppScreen, Collapsible, SectionTitle, StickyBar } from '../lib/ui'
+import { AppScreen, Collapsible, SectionTitle } from '../lib/ui'
 
 /** How the transfer actually gets made, per channel BRI offers. */
 const CHANNELS: { title: string; steps: string[]; open?: boolean }[] = [
@@ -82,22 +87,20 @@ export function SetorVaScreen() {
   const flow = useFlow()
   const s = useApp()
 
-  const amount = s.depositAmount ?? unsettledTotal(s)
-  const no = s.settlements.length + 1
-  const legs = setorLegs(no, amount)
-
-  // One flag per leg. Local: both are answered minutes before the bag settles
-  // and the screen navigates away, so neither needs to survive a trip.
-  const [paid, setPaid] = useState<boolean[]>(() => legs.map(() => false))
-  const markPaid = (i: number) => setPaid((prev) => prev.map((p, j) => (j === i ? true : p)))
-  const allPaid = paid.every(Boolean)
+  // Straight from the gallery there is no handover in flight; draw a fresh one.
+  const f = s.setorInFlight ?? {
+    no: s.settlements.length + 1,
+    amount: s.depositAmount ?? unsettledTotal(s),
+    paid: 0,
+  }
+  const legs = setorLegs(f.no, f.amount)
 
   return (
     <AppScreen
       topBar={
         <NavigationHeader
           title="Setor pembayaran"
-          onBack={() => flow.back()}
+          onBack={() => flow.go('today')}
           trailingIcons={[
             <button
               key="riwayat"
@@ -113,15 +116,13 @@ export function SetorVaScreen() {
     >
       <LegCard
         title="Bayar via BRI Virtual Account"
-        amount={amount}
+        amount={f.amount}
         legs={legs}
-        paid={paid}
-        onPaid={markPaid}
-        prefix="VA "
-        action="Saya sudah transfer"
+        paid={f.paid}
+        onRefresh={() => store.refreshSetor()}
       />
 
-      <DeadlineNote>Setor sebelum {SETOR_DEADLINE} ke VA yang sesuai.</DeadlineNote>
+      <DeadlineNote>Setor sebelum {SETOR_DEADLINE} ke kedua VA di atas.</DeadlineNote>
 
       <SectionTitle>Cara bayar via BRI Virtual Account:</SectionTitle>
       <div className="flex flex-col gap-8">
@@ -132,23 +133,13 @@ export function SetorVaScreen() {
         ))}
       </div>
 
-      {/* Only once BOTH legs are in. Before that the handover is half-made, and
-          a confirm here would record a settlement the branch can only match one
-          side of. */}
-      {allPaid ? (
-        <StickyBar>
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={() => {
-              store.settle(false)
-              flow.go('setor-riwayat')
-            }}
-          >
-            Konfirmasi Setoran
-          </Button>
-        </StickyBar>
-      ) : null}
+      <CancelSetor
+        disabled={f.paid > 0}
+        onCancelled={() => {
+          store.cancelSetor()
+          flow.go('today')
+        }}
+      />
     </AppScreen>
   )
 }

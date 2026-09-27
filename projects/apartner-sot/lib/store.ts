@@ -444,6 +444,16 @@ export interface AppState {
    * picks between two versions of her own app.
    */
   setorAlt: 'settlement' | 'setor-payment'
+  /**
+   * Alt 2's handover once she has said "Ya, Setor Sekarang": the numbers exist
+   * and the two legs are waiting on a transfer that happens outside the app.
+   * It outlives the page — the schedule's widget turns into "segera setor"
+   * while it is open — and `paid` counts legs the branch has seen (0–2).
+   * At 2 the settlement is recorded and the widget goes back to the bag.
+   */
+  setorInFlight: { method: SettleMethod; no: number; amount: number; paid: number } | null
+  /** Demo switch: the next "Ya, Setor Sekarang" fails onto the error page. */
+  setorFail: boolean
 
   // --- NTB: prospects ------------------------------------------------------
 
@@ -585,9 +595,11 @@ const initial: AppState = {
   depositMethod: null,
   depositProof: false,
   depositDone: false,
-  // Alt 1 by default: the first concept is the one already under review, and
-  // the new one is the thing being shown against it.
-  setorAlt: 'settlement',
+  // The Figma setoran flow (Alt 2) by default; Alt 1 stays one state control
+  // away for comparison.
+  setorAlt: 'setor-payment',
+  setorInFlight: null,
+  setorFail: false,
   leads: seedLeads,
   leadOrder: SEED_LEADS.map((l) => l.id),
   openLead: 'l1',
@@ -1286,6 +1298,35 @@ export const store = {
   setSetorAlt(setorAlt: AppState['setorAlt']) {
     store.set({ setorAlt })
   },
+  /** Alt 2: the numbers are made — the two legs now wait on her transfer. */
+  startSetor(method: SettleMethod, amount: number) {
+    store.set({
+      setorInFlight: { method, no: state.settlements.length + 1, amount, paid: 0 },
+      depositMethod: method,
+      depositAmount: amount,
+    })
+  },
+  /**
+   * "Perbarui Halaman": the app asks the branch what has landed. In the
+   * prototype each tap lands one more leg; the second records the settlement.
+   */
+  refreshSetor() {
+    const f = state.setorInFlight
+    if (!f || f.paid >= 2) return
+    const paid = f.paid + 1
+    if (paid === 2) {
+      store.set({ depositMethod: f.method, depositAmount: f.amount })
+      store.settle(false)
+    }
+    store.set({ setorInFlight: { ...f, paid } })
+  },
+  /** "Ya, Batalkan Setoran" — the numbers are void; the bag is untouched. */
+  cancelSetor() {
+    store.set({ setorInFlight: null, depositMethod: null, depositAmount: null })
+  },
+  setSetorFail(setorFail: boolean) {
+    store.set({ setorFail })
+  },
   /**
    * Hands over everything outstanding. There is no amount argument on purpose:
    * a settlement takes the whole bag, and the only thing the BP chooses is
@@ -1728,6 +1769,10 @@ export const todayTasks = (s: AppState): Task[] =>
       !s.reschedules[t.id] &&
       !s.rejects[t.id] &&
       !s.skips[t.id] &&
+      // Follow-ups and sosialisasi are off the BP's list for now; their
+      // screens stay in the gallery.
+      t.kind !== 'follow-up' &&
+      t.kind !== 'sosialisasi' &&
       // The bukti re-send tasks are off the day until a dashboard correction has
       // actually landed — every other kind is always on the plate.
       (t.kind !== 'bukti' || s.showBukti),
