@@ -25,8 +25,10 @@ import {
 } from '../lib/group-tasks'
 import { isMajelisActivated, isMemberAccepted, setFormation, useFormation } from '../lib/formation'
 import { draftApprovedCount } from '../lib/roster'
-import { pipelineStore, usePipeline } from '../lib/pipeline-store'
+import { usePipeline } from '../lib/pipeline-store'
 import { store, useApp } from '../lib/store'
+import { SOFT_REJECT_CASE } from '../lib/validasi'
+import { useValidasi } from '../lib/validasi-store'
 import { TabBar } from '../lib/tabs'
 import { AppScreen, EmptyState, FilterBar, FilterChip, OptionSheet } from '../lib/ui'
 
@@ -105,6 +107,8 @@ export function TugasScreen() {
   const formation = useFormation()
   const { leads, order } = usePipeline()
   const { role } = useApp()
+  const validasiDecision = useValidasi()
+  const validasi = SOFT_REJECT_CASE
   const [gate, setGate] = useState<GroupFormationTask | null>(null)
   const [paGate, setPaGate] = useState<PenerimaanTask | null>(null)
   const [filter, setFilter] = useState<'type' | 'status' | null>(null)
@@ -216,23 +220,23 @@ export function TugasScreen() {
         onOpen: movedTo ? undefined : () => setPaGate(task),
       }
     }),
-    // BM only — validate an approved mitra before disbursement.
-    ...(role === 'BM' && leads.p7
+    // BM only — review a soft-rejected pengajuan (underwriting flagged it, not
+    // a final no) and decide herself. See lib/validasi.ts + the 3-step flow.
+    ...(role === 'BM'
       ? [
           {
-            id: 'vm-p7',
+            id: 'vm-soft-reject',
             code: 'VM',
             kind: 'Validasi Mitra',
             kindLine: 'Validasi mitra · 13.00',
-            title: `Validasi mitra ${leads.p7.name}`,
-            subtitle: `Majelis Mawar · ${leads.p7.amount}`,
+            title: `Validasi mitra ${validasi.name}`,
+            subtitle: validasiDecision.submitted
+              ? `${validasi.majelisName} · ${validasiDecision.decision === 'approve' ? 'Disetujui' : 'Ditolak'}`
+              : `${validasi.majelisName} · Soft reject underwriting`,
             status: 'Belum mulai',
             statusIntent: 'orange',
-            done: false,
-            onOpen: () => {
-              pipelineStore.open('p7')
-              flow.go('calon-mitra')
-            },
+            done: validasiDecision.submitted,
+            onOpen: validasiDecision.submitted ? undefined : () => flow.go('validasi-mitra'),
           } satisfies TaskRow,
         ]
       : []),
