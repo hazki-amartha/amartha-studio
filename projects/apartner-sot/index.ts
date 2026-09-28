@@ -50,21 +50,9 @@ const DAY_STATES: ScreenState[] = [
   // disturbs whichever day is on screen.
   {
     id: 'setor-in-flight',
-    label: 'Setoran menunggu (Alt 2)',
+    label: 'Setoran menunggu',
     description: 'Numbers made, transfer outstanding — the widget says segera setor',
     apply: demo.setorVaWaiting,
-  },
-  {
-    id: 'setor-alt-1',
-    label: 'Setor → Alt 1',
-    description: 'Setor opens the first concept: pick what to settle, then how',
-    apply: demo.setorAltOne,
-  },
-  {
-    id: 'setor-alt-2',
-    label: 'Setor → Alt 2',
-    description: 'Setor opens the new concept: pick how, setor sebagian a page away',
-    apply: demo.setorAltTwo,
   },
   {
     id: 'bukti-baru',
@@ -88,7 +76,6 @@ export const project: ProjectModule = {
         { to: 'today', label: 'Tugas Anda hari ini' },
         { to: 'setor-payment', label: 'Setor pembayaran Modal' },
         { to: 'comms', label: 'Update hari ini' },
-        { to: 'banner-detail', label: 'Banner' },
       ],
     },
     {
@@ -98,7 +85,6 @@ export const project: ProjectModule = {
       states: DAY_STATES,
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Majelis Visit 1' },
-        { to: 'lead-new', label: 'Tugas Baru' },
         { to: 'kirim-tugas', label: 'Kirim Tugas (tombol mengambang)' },
         { to: 'home-brief', label: 'Mulai Kunjungan (home visit)' },
         { to: 'deposit', label: 'Tutup Hari Ini — baris tugas terakhir' },
@@ -193,17 +179,6 @@ export const project: ProjectModule = {
       title: 'Log in — ID Karyawan',
       component: lazyScreen(() => import('./screens/login'), 'LoginScreen'),
       flowsTo: [{ to: 'home', label: 'Lanjut' }],
-    },
-    {
-      id: 'lead-detail',
-      title: 'Detail Lead',
-      component: lazyScreen(() => import('./screens/lead-detail'), 'LeadDetailScreen'),
-    },
-    {
-      id: 'lead-new',
-      title: 'Tambah Lead',
-      component: lazyScreen(() => import('./screens/lead-new'), 'LeadNewScreen'),
-      flowsTo: [{ to: 'lead-detail', label: 'simpan → buka record' }],
     },
     {
       id: 'bukti-rekap',
@@ -562,55 +537,10 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/home-proof-wa'), 'HomeProofWaScreen'),
       flowsTo: [{ to: 'today', label: 'Kirim / Tutup — kembali ke jadwal' }],
     },
-    {
-      id: 'settlement',
-      title: 'Setoran (Alt 1)',
-      component: lazyScreen(() => import('./screens/settlement'), 'SettlementScreen'),
-      notes: [
-        'Where the cash leaves her hands — separate from Closing, which is the checklist that ends the DAY. This screen is about the BAG: the money she is carrying right now and the transfer that gets it to the branch.',
-        'One stepped page, in the order the act happens: what is in the bag, then WHICH of it to put down now, then which ROAD — a VA she transfers to, or an AmarthaLink agent she hands the notes to — then the photo that proves it went.',
-        'She picks what goes in this handover: she ticks the tasks, and the individual mitra inside a majelis she has a roster for, and the amount is the sum of what she ticks. Everything starts ticked (settling the whole bag is the common case); unticking leaves that cash recorded as unsettled for a later drop.',
-        'A day carries at most THREE handovers — that is the only limit, there is no clock on it. The cap is the balance between two risks: cash on a motorbike wants to be put down often, but every settlement is a reconciliation the branch has to clear. The banner names how many she has left, and once all three are used the remainder rides to closing.',
-        'The agent road needs one thing the VA road does not: a counter to walk to. So under the kode unik sits “Cari agen terdekat”, onto a short list of the AmarthaLink desks near today’s route, each with its distance and closing time.',
-        'The receipt number lives INSIDE the road she picks: a VA number for a transfer, a kode unik for the agent. A code with no chosen destination is a number she cannot use yet, so nothing shows until she picks — and the proof step only appears once there is a method for it to be proof OF.',
-        'Cash settles by the RUPIAH, not by the task. What is outstanding is everything banked minus everything handed over, so a short handover leaves a remainder and the widget comes straight back with it — the breakdown attributes it to the pelayanan it came from, with the covered part drained off.',
-        'Each settlement gets its own VA or kode unik, because that identifier is what the branch reconciles against, and several handovers keyed to one number are deposits nobody can tell apart at the other end.',
-        'The header carries a Riwayat link onto the day’s cash story — what came in, what went out, and by which road — because a BP mid-settlement is exactly the person who wants to check what she already put down. The same sheet is reachable from the schedule’s settled line.',
-      ],
-      states: [
-        {
-          id: 'first',
-          label: 'First handover of the day',
-          description: 'Two majelis in the bag by midday — one of the day’s three drops',
-          apply: demo.bagFirstHandover,
-        },
-        {
-          id: 'capped',
-          label: 'All three handovers used',
-          description: 'Three settlements already made and cash still in the bag — no fourth drop',
-          apply: demo.scheduleCapped,
-        },
-        {
-          id: 'empty',
-          label: 'Nothing left to hand over',
-          description: 'Everything already settled — an honest empty state, not a form',
-          apply: demo.scheduleCloseable,
-        },
-      ],
-      flowsTo: [
-        { to: 'agent-locator', label: 'Cari agen terdekat — dari metode agen' },
-        { to: 'agent-payment', label: 'Lanjut — dengan metode agen dipilih' },
-        { to: 'today', label: 'Selesai — kembali ke jadwal' },
-      ],
-    },
-    // --- New Concept setor journey. Alt 2 to `settlement`'s Alt 1, and BOTH
-    // are live: the Setor button (and Closing's titipan check) opens a sheet
-    // naming the two, so a demo can walk either without going to look for it.
-    // Alt 2 assumes the whole bag, makes the road the only question, and moves
-    // splitting the handover onto its own page.
+    // --- Setoran: pick how, Ubah a page away, then the road.
     {
       id: 'setor-payment',
-      title: 'Setor Pembayaran (Alt 2)',
+      title: 'Setor Pembayaran',
       component: lazyScreen(() => import('./screens/setor-payment'), 'SetorPaymentScreen'),
       states: [
         {
@@ -656,7 +586,7 @@ export const project: ProjectModule = {
     },
     {
       id: 'setor-agen',
-      title: 'Setor Tunai via Agen (Alt 2)',
+      title: 'Setor Tunai via Agen',
       component: lazyScreen(() => import('./screens/setor-agen'), 'SetorAgenScreen'),
       states: [
         { id: 'waiting', label: 'Menunggu', description: 'Both codes waiting at the counter', apply: demo.setorAgenWaiting },
@@ -676,21 +606,12 @@ export const project: ProjectModule = {
       flowsTo: [{ to: 'today', label: 'Selesai — kembali ke jadwal' }],
     },
     {
-      id: 'agent-payment',
-      title: 'Setor Tunai via Agen',
-      component: lazyScreen(() => import('./screens/agent-payment'), 'AgentPaymentScreen'),
-      flowsTo: [
-        { to: 'agent-map', label: 'Buka Peta — dari baris agen' },
-        { to: 'today', label: 'Konfirmasi Setoran — kembali ke jadwal' },
-      ],
-    },
-    {
       id: 'agent-locator',
       title: 'Agen Terdekat',
       component: lazyScreen(() => import('./screens/agent-locator'), 'AgentLocatorScreen'),
       flowsTo: [
         { to: 'agent-map', label: 'Buka Peta — dari baris agen' },
-        { to: 'settlement', label: 'kembali' },
+        { to: 'setor-payment', label: 'kembali' },
       ],
     },
     {
@@ -739,88 +660,10 @@ export const project: ProjectModule = {
           description: 'Closing submitted — waiting on branch verification',
           apply: demo.closingSent,
         },
-        // The same off-screen setting the schedule carries: Setor Sekarang on
-        // the titipan check opens whichever alternative is selected.
-        {
-          id: 'setor-alt-1',
-          label: 'Setor → Alt 1',
-          description: 'Setor Sekarang opens the first concept',
-          apply: demo.setorAltOne,
-        },
-        {
-          id: 'setor-alt-2',
-          label: 'Setor → Alt 2',
-          description: 'Setor Sekarang opens the new concept',
-          apply: demo.setorAltTwo,
-        },
       ],
       flowsTo: [
-        { to: 'settlement', label: 'Setor Sekarang → Alt 1' },
-        { to: 'setor-payment', label: 'Setor Sekarang → Alt 2' },
+        { to: 'setor-payment', label: 'Setor Sekarang' },
         { to: 'today', label: 'Selesai — setelah closing terkirim' },
-      ],
-    },
-    {
-      id: 'sosialisasi',
-      title: 'Sosialisasi',
-      component: lazyScreen(() => import('./screens/sosialisasi'), 'SosialisasiScreen'),
-      notes: [
-        'The first task on this day that is not about a woman who already borrows. A BP carries an NTB target out of the same seven KPI parameters as her collection target, so prospecting sits on the same schedule rather than in a tab she visits when there is time — which is how it stops happening.',
-        'The page is a counter, a button, and the names taken so far. The target is on screen DURING the event and not on a report afterwards: “4 dari 10” at 14.30 is a BP who works the room for another hour; the same fact at 17.00 is a BP who went home short.',
-        'Capture is the quick tier only — nama, WA, sumber, minat, kapan dihubungi lagi. Address, competing loans and destination majelis all need the prospect to think, and asking them in a crowded warung is how a BP comes back with four leads instead of ten. They become named blanks on her record instead.',
-      ],
-      states: [
-        {
-          id: 'awal',
-          label: 'Just started',
-          description: 'No prospects captured yet — the empty screen',
-          apply: demo.eventEmpty,
-        },
-        {
-          id: 'separuh',
-          label: 'Half the target',
-          description: '5 of 10, a mix of walk-ups and referrals',
-          apply: demo.eventHalf,
-        },
-        {
-          id: 'penuh',
-          label: 'Target reached',
-          description: '10 prospects, including one refusal with her reason',
-          apply: demo.eventFull,
-        },
-      ],
-      flowsTo: [
-        { to: 'lead-detail', label: 'ketuk prospek' },
-        { to: 'today', label: 'Selesaikan Sosialisasi' },
-      ],
-    },
-    {
-      id: 'follow-up',
-      title: 'Follow Up Prospek',
-      component: lazyScreen(() => import('./screens/follow-up'), 'FollowUpScreen'),
-      notes: [
-        'The same shape as a home visit, for the same reason: one person, a branch on whether you reached her at all, and worthless unless the outcome carries a date.',
-        '“Did the call land” is asked BEFORE minat. Most follow-ups do not connect, and a form that opens on how interested she is makes an unanswered phone look like a lead who went cold — two completely different facts, only one of them about her.',
-        '“Siap diajukan” is the one outcome the record can veto. Handing onboarding a prospect with no address and no majelis is how a qualified lead becomes a ticket, so the gate names the gap and offers the jump to fill it — which is why the half-finished call lives in the store and survives the trip.',
-      ],
-      states: [
-        {
-          id: 'default',
-          label: 'Default',
-          description: 'The default two-step follow-up on a connected lead',
-          apply: demo.followUpDefault,
-        },
-        {
-          id: 'alt',
-          label: 'Alt · Tawarkan pengajuan',
-          description:
-            'Two steps — Hubungi, then Tawarkan pengajuan (Ajukan sekarang / Belum siap → catat minat & jadwal)',
-          apply: demo.followUpAlt,
-        },
-      ],
-      flowsTo: [
-        { to: 'lead-new', label: 'Lengkapi Data Prospek' },
-        { to: 'today', label: 'Simpan & Selesai — dari jadwal' },
       ],
     },
     {

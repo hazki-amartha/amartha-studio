@@ -1026,19 +1026,14 @@ export const bagShort = () =>
 // between the alternatives never disturbs whichever day the demo is standing
 // in, and the two can be walked back to back from the same tap.
 
-/** Setor opens the first concept: pick what to settle, then how. */
-export const setorAltOne = () => store.set({ setorAlt: 'settlement' })
 
-/** Setor opens the new concept: pick how, with setor sebagian a page away. */
-export const setorAltTwo = () => store.set({ setorAlt: 'setor-payment' })
-
-// --- Alt 2's handover, mid-flight -------------------------------------------
+// --- Setoran handover, mid-flight --------------------------------------------
 // The day's cash is banked and sent, and "Ya, Setor Sekarang" has made the
 // numbers. `paid` is how many of the two legs the branch has seen.
 
 const setorAt = (method: SettleMethod, paid: 0 | 1) => {
   scheduleClosing()
-  store.set({ setorAlt: 'setor-payment', setorFail: false })
+  store.set({ setorFail: false })
   store.startSetor(method, unsettledTotal(store.get()))
   if (paid) store.refreshSetor()
 }
@@ -1059,12 +1054,12 @@ export const setorAgenDone = () => {
 /** Setor pembayaran, fresh — the next "Ya, Setor Sekarang" goes through. */
 export const setorReady = () => {
   scheduleClosing()
-  store.set({ setorAlt: 'setor-payment', setorFail: false, depositMethod: 'va' })
+  store.set({ setorFail: false, depositMethod: 'va' })
 }
 /** Same page, but making the numbers fails onto the error page once. */
 export const setorFails = () => {
   scheduleClosing()
-  store.set({ setorAlt: 'setor-payment', setorFail: true, depositMethod: 'va' })
+  store.set({ setorFail: true, depositMethod: 'va' })
 }
 
 // --- One mitra's record ----------------------------------------------------

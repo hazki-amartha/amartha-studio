@@ -173,9 +173,7 @@ export function DepositScreen() {
                     className="w-full"
                     onClick={() => {
                       store.openSettlement()
-                      // Same setting as the schedule's Setor button — which
-                      // alternative opens is chosen off screen.
-                      flow.go(s.setorAlt)
+                      flow.go('setor-payment')
                     }}
                   >
                     Setor Sekarang
