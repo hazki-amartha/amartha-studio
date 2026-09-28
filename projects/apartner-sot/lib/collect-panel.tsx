@@ -112,9 +112,12 @@ export function CollectPanel({
   onDone,
   onBack,
   locked = false,
+  noToday = false,
 }: {
   /** Read-only — a sent task reopened for reference; Lanjut just moves on. */
   locked?: boolean
+  /** Drops "Hari ini" from the janji bayar dates — a home visit can't promise another visit today. */
+  noToday?: boolean
   mitra: Mitra
   /** Rendered at the top of the white panel — the home visit's stage bar. */
   header?: ReactNode
@@ -624,7 +627,7 @@ export function CollectPanel({
         {step === 2 && second === 'ptp' ? (
           <ChoiceList
             label="Pilih tanggal"
-            options={PTP_OPTIONS.map((o) => o.label)}
+            options={PTP_OPTIONS.filter((o) => !noToday || o.value !== 'hari ini').map((o) => o.label)}
             value={ptpLabelOf(ptp)}
             onPick={(label) => setPtp(ptpValueOf(label))}
           />
