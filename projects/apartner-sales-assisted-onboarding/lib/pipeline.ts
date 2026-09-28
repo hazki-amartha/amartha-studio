@@ -1393,7 +1393,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     amount: '',
     disburseDate: '',
     onboardingIssue: 'resubmit',
-    onboardingIssueReason: 'Foto KTP buram di Survey Uji Kelayakan — perlu diambil ulang.',
+    onboardingIssueReason: 'Ada masalah di input survey',
     log: [
       { at: '15 Juli', via: 'manual', status: 'interested', system: 'Referral dari Bu Yanti (Majelis Melati)' },
       { at: '18 Juli', via: 'manual', status: 'survey-created', system: 'Produk GL' },
