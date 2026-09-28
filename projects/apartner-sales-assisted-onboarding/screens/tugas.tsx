@@ -27,8 +27,8 @@ import { isMajelisActivated, isMemberAccepted, setFormation, useFormation } from
 import { draftApprovedCount } from '../lib/roster'
 import { usePipeline } from '../lib/pipeline-store'
 import { store, useApp } from '../lib/store'
-import { SOFT_REJECT_CASE } from '../lib/validasi'
-import { useValidasi } from '../lib/validasi-store'
+import { SOFT_REJECT_CASES } from '../lib/validasi'
+import { validasiStore, useValidasiAll } from '../lib/validasi-store'
 import { TabBar } from '../lib/tabs'
 import { AppScreen, EmptyState, FilterBar, FilterChip, OptionSheet } from '../lib/ui'
 
@@ -107,8 +107,7 @@ export function TugasScreen() {
   const formation = useFormation()
   const { leads, order } = usePipeline()
   const { role } = useApp()
-  const validasiDecision = useValidasi()
-  const validasi = SOFT_REJECT_CASE
+  const validasiAll = useValidasiAll()
   const [gate, setGate] = useState<GroupFormationTask | null>(null)
   const [paGate, setPaGate] = useState<PenerimaanTask | null>(null)
   const [filter, setFilter] = useState<'type' | 'status' | null>(null)
@@ -220,25 +219,32 @@ export function TugasScreen() {
         onOpen: movedTo ? undefined : () => setPaGate(task),
       }
     }),
-    // BM only — review a soft-rejected pengajuan (underwriting flagged it, not
-    // a final no) and decide herself. See lib/validasi.ts + the 3-step flow.
+    // BM only — one row per soft-rejected pengajuan (underwriting flagged it,
+    // not a final no) waiting on her own review. See lib/validasi.ts + the
+    // 3-step flow; each case carries its own decision, keyed by id.
     ...(role === 'BM'
-      ? [
-          {
-            id: 'vm-soft-reject',
+      ? SOFT_REJECT_CASES.map((c): TaskRow => {
+          const decision = validasiAll[c.id]
+          return {
+            id: `vm-${c.id}`,
             code: 'VM',
             kind: 'Validasi Mitra',
             kindLine: 'Validasi mitra · 13.00',
-            title: `Validasi mitra ${validasi.name}`,
-            subtitle: validasiDecision.submitted
-              ? `${validasi.majelisName} · ${validasiDecision.decision === 'approve' ? 'Disetujui' : 'Ditolak'}`
-              : `${validasi.majelisName} · Soft reject underwriting`,
+            title: `Validasi mitra ${c.name}`,
+            subtitle: decision?.submitted
+              ? `${c.majelisName} · ${decision.decision === 'approve' ? 'Disetujui' : 'Ditolak'}`
+              : `${c.majelisName} · Soft reject underwriting`,
             status: 'Belum mulai',
             statusIntent: 'orange',
-            done: validasiDecision.submitted,
-            onOpen: validasiDecision.submitted ? undefined : () => flow.go('validasi-mitra'),
-          } satisfies TaskRow,
-        ]
+            done: Boolean(decision?.submitted),
+            onOpen: decision?.submitted
+              ? undefined
+              : () => {
+                  validasiStore.open(c.id)
+                  flow.go('validasi-mitra')
+                },
+          }
+        })
       : []),
   ]
 

@@ -13,6 +13,8 @@ Project-local components (§4), all built from tokens + design-system components
 - `lib/survey.ts` — the assisted-survey model + progress store: the three boxes (BP Feedback / Survey Uji Kelayakan / Ritual), their step questions, and per-lead completion read by the survey-form / ritual pages.
 - `lib/ui.tsx` (added) — ProductBadge, the colour-coded majelis product chip, ported from the BP New Concept directory. Used by the Majelis list + page.
 - `lib/roster.tsx` — MAJELIS_ROSTER (stand-in active-majelis mitra) + MitraRosterCard + DpdBadge, ported from the BP New Concept mitra card: product, arrangement (keringanan / janji bayar) and DPD bucket. Used by the Majelis page roster.
+- `lib/snackbar.tsx` — Snackbar, a one-line confirmation floating above the tab bar (FunDS has no snackbar yet), ported from `apartner-sot`'s own. Used by `lib/tabs.tsx` on the Tugas tab, after Validasi Mitra's Kirim Keputusan.
+- `lib/tasks.tsx` (added) — BmValidationCard, the Sales-page "BM Validation" category card (mitra name only). Used by `lib/sales-list.tsx`.
 
 The Majelis module (`screens/majelis-list.tsx` directory + `screens/majelis-page.tsx` detail) is ported from `apartner-majelis-view` (A-Partner BP New Concept), adapted to this project's `MAJELIS_DIRECTORY`; the field-day roster (collection / DPD) is out of scope here.
 

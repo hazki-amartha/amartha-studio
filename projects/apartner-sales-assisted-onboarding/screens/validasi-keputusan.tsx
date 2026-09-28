@@ -17,14 +17,9 @@ import {
 } from '@/design-system/components'
 import { CheckCircle, ChevronDown, CrossCircleFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import {
-  DECISION_REASON_OTHER,
-  DECISION_REASONS,
-  SOFT_REJECT_CASE,
-  VALIDASI_STEP_SCREENS,
-  VALIDASI_STEPS,
-} from '../lib/validasi'
-import { finalReason, useValidasi, validasiStore } from '../lib/validasi-store'
+import { DECISION_REASON_OTHER, DECISION_REASONS, VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
+import { finalReason, useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
+import { store } from '../lib/store'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 // Neutral by default, same selected treatment as the design system's own
@@ -60,7 +55,7 @@ function DecisionChoice({
 export function ValidasiKeputusanScreen() {
   const flow = useFlow()
   const s = useValidasi()
-  const c = SOFT_REJECT_CASE
+  const c = useOpenCase()
   const [reasonSheet, setReasonSheet] = useState(false)
 
   const reasonOptions = s.decision ? DECISION_REASONS[s.decision] : []
@@ -71,7 +66,8 @@ export function ValidasiKeputusanScreen() {
 
   function submit() {
     validasiStore.submit()
-    flow.go('validasi-selesai')
+    store.setFlash('Your validation has been submitted.')
+    flow.go('tugas')
   }
 
   return (
@@ -141,7 +137,7 @@ export function ValidasiKeputusanScreen() {
             value={s.proposedLimit}
             onValueChange={validasiStore.setProposedLimit}
             currency="Rp"
-            helperText="Limit yang Anda usulkan untuk menggantikan hasil sistem"
+            helperText="Limit yang Anda usulkan untuk menjadi konsiderasi untuk limit ibu mitra"
           />
         </Card>
       ) : null}

@@ -31,6 +31,7 @@ import { NavigationBar } from '@/design-system/components'
 import { Contact, File } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { CalendarDots, Majelis } from '@/design-system/icons'
+import { Snackbar } from './snackbar'
 import { store, useApp } from './store'
 
 export type TabId = 'today' | 'majelis-list' | 'mitra-list' | 'sales' | 'profile'
@@ -64,6 +65,9 @@ export function TabBar({ active, action }: { active: TabId; action?: ReactNode }
       {/* A floating action rides just above the nav, right-aligned. The row
           itself is click-through (pointer-events-none) so it never blocks the
           content scrolling behind the gap; only the button inside catches taps. */}
+      {/* The Tugas list's confirmation after an action returns there — e.g.
+          Validasi Mitra's Kirim Keputusan — floating just above the nav. */}
+      {active === 'today' ? <Snackbar /> : null}
       {action ? (
         <div className="pointer-events-none flex justify-end px-16 pb-12">
           <span className="pointer-events-auto">{action}</span>
