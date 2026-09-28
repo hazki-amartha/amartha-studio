@@ -66,6 +66,11 @@ export const formationStore = {
     listeners.add(listener)
     return () => listeners.delete(listener)
   },
+  /** Clear acceptances / activations — used by the "start of the survey" state. */
+  reset() {
+    state = { acceptedLeads: [], activatedMajelis: [] }
+    emit()
+  },
   acceptLead(id: string) {
     if (state.acceptedLeads.includes(id)) return
     state = { ...state, acceptedLeads: [...state.acceptedLeads, id] }

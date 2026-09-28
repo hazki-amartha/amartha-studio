@@ -54,6 +54,14 @@ export type LeadStatus =
   | 'not-interested'
   | 'rejected'
 
+/**
+ * A negative underwriting outcome that overrides where the lead sits on the
+ * Leads board. `resubmit` — a data problem the BP fixes and sends again (e.g. a
+ * blurry KTP on the Uji Kelayakan); `soft-reject` — the system flagged her, a BM
+ * has to validate; `hard-reject` — underwriting rejected the survey outright.
+ */
+export type OnboardingIssue = 'resubmit' | 'soft-reject' | 'hard-reject'
+
 /** Who raised the survey — the BP sitting with her, or the mitra on her own phone. */
 export type SurveyMode = 'assisted' | 'self'
 
@@ -293,6 +301,15 @@ export interface PipelineLead {
   disburseDate: string
   /** The next follow-up date, set when a call is recorded. */
   nextFollowUp?: string
+
+  /**
+   * A negative underwriting outcome, set once the survey is submitted. It moves
+   * her into a negative Leads section (Need to resubmit / Pending BM Validation /
+   * Survey rejected) regardless of `status`. `onboardingIssueReason` is the
+   * one-line why, shown on the card and detail (e.g. "Foto KTP buram").
+   */
+  onboardingIssue?: OnboardingIssue
+  onboardingIssueReason?: string
 
   log: PipelineLog[]
 }
@@ -644,15 +661,21 @@ export function statusAction(lead: PipelineLead): string {
 export type LeadsSection =
   | 'ready-for-disbursement'
   | 'survey-approved'
+  | 'need-resubmit'
   | 'survey-submitted'
   | 'survey-ongoing'
+  | 'pending-bm-validation'
+  | 'survey-rejected'
   | 'follow-up'
 
 export const LEADS_SECTION_ORDER: LeadsSection[] = [
   'ready-for-disbursement',
   'survey-approved',
+  'need-resubmit',
   'survey-submitted',
   'survey-ongoing',
+  'pending-bm-validation',
+  'survey-rejected',
   'follow-up',
 ]
 
@@ -661,9 +684,22 @@ export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
   'ready-for-disbursement': 'Ready for disbursement',
   // Approved but the (new) majelis is not formed yet — still waiting.
   'survey-approved': 'Waiting for group formation',
+  // Submitted but sent back — a data problem to fix and resubmit.
+  'need-resubmit': 'Need to resubmit onboarding',
   'survey-submitted': 'Survey submitted',
   'survey-ongoing': 'Survey ongoing',
+  // Soft reject — a BM has to validate before it can proceed.
+  'pending-bm-validation': 'Pending BM Validation',
+  // Hard reject — underwriting rejected the survey.
+  'survey-rejected': 'Survey rejected',
   'follow-up': 'Follow up',
+}
+
+/** The Leads section a negative onboarding outcome maps to. */
+export const ISSUE_SECTION: Record<OnboardingIssue, LeadsSection> = {
+  resubmit: 'need-resubmit',
+  'soft-reject': 'pending-bm-validation',
+  'hard-reject': 'survey-rejected',
 }
 
 /**
@@ -694,6 +730,8 @@ export function surveyStatusLabel(status: LeadStatus): string {
 }
 
 export function leadsSection(lead: PipelineLead): LeadsSection {
+  // A negative underwriting outcome overrides the status-derived section.
+  if (lead.onboardingIssue) return ISSUE_SECTION[lead.onboardingIssue]
   switch (lead.status) {
     case 'approved':
       return 'survey-approved'
@@ -705,6 +743,23 @@ export function leadsSection(lead: PipelineLead): LeadsSection {
       return 'follow-up'
   }
 }
+
+/** The status label a negative-outcome lead reads as, on the card and detail. */
+export const ISSUE_LABEL: Record<OnboardingIssue, string> = {
+  resubmit: 'Need to resubmit onboarding',
+  'soft-reject': 'Pending BM Validation',
+  'hard-reject': 'Survey rejected',
+}
+
+/**
+ * Which Calon Mitra detail screen a lead opens. Both render the same component,
+ * but they carry different demo "states" selectors: `calon-mitra` for a survey
+ * still ongoing (start / all filled), `onboarding-outcome` for a post-survey
+ * result (waiting formation, resubmit, pending BM, rejected) that can be switched
+ * between from one another's page.
+ */
+export const detailScreen = (lead: PipelineLead): string =>
+  lead.status === 'survey-created' ? 'calon-mitra' : 'onboarding-outcome'
 
 /**
  * The card's onboarding-mode line — "Assisted onboarding" / "Self-service
@@ -1294,20 +1349,110 @@ export const SEED_PIPELINE: PipelineLead[] = [
     referredBy: 'Bu Sari (Majelis Melati)',
     fo: 'Nurhayati',
     photo: true,
-    status: 'survey-submitted',
+    // Submit → approve is instant now, so she is already approved. Existing
+    // majelis → Ready for disbursement.
+    status: 'approved',
     ageDays: 9,
-    agenda: { day: 'upcoming', kind: 'Diproses', when: 'Kamis, 09.00', order: 3 },
+    agenda: { day: 'today', kind: 'Kumpulan', when: 'Hari ini · Melati', order: 28, dueDays: 0 },
     majelis: { kind: 'existing', id: 'melati' },
     nik: '3201094601910005',
     ktp: true,
     product: 'GL',
-    amount: '',
-    disburseDate: '',
+    amount: 'Rp2.000.000',
+    disburseDate: '24 Juli',
     log: [
       { at: '13 Juli', via: 'manual', status: 'interested', system: 'Referral dari Bu Sari (Majelis Melati)' },
       { at: '17 Juli', via: 'telepon', status: 'interested', system: 'KTP dilengkapi' },
       { at: '19 Juli', via: 'manual', status: 'survey-created', system: 'Produk GL' },
       { at: '21 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '21 Juli', via: 'system', status: 'approved', system: 'Lolos underwriting, cair Rp2.000.000 pada 24 Juli' },
+    ],
+  },
+  // --- Negative onboarding outcomes -----------------------------------------
+  // Three post-survey outcomes that sit in their own Leads sections. Resubmit
+  // shows on Sales hari ini too (an action for the BP today); the two rejects
+  // wait on Lihat semua.
+  {
+    id: 'pr1',
+    name: 'Yuni Astuti',
+    phone: '0813-5567-2210',
+    address: { kecamatan: 'Ciseeng', desa: 'Putat Nutug', detail: 'Kp. Putat RT 01/RW 04', mapsCoord: 'pinned' },
+    source: 'referral',
+    referredBy: 'Bu Yanti (Majelis Melati)',
+    fo: 'Nurhayati',
+    photo: true,
+    status: 'survey-submitted',
+    surveyMode: 'assisted',
+    ageDays: 4,
+    // A resubmit is today's work — she is due on the board now.
+    agenda: { day: 'today', kind: 'Resubmit', when: 'Hari ini', order: 30, dueDays: 0 },
+    majelis: { kind: 'existing', id: 'melati' },
+    nik: '3201094702920014',
+    ktp: true,
+    product: 'GL',
+    amount: '',
+    disburseDate: '',
+    onboardingIssue: 'resubmit',
+    onboardingIssueReason: 'Foto KTP buram di Survey Uji Kelayakan — perlu diambil ulang.',
+    log: [
+      { at: '15 Juli', via: 'manual', status: 'interested', system: 'Referral dari Bu Yanti (Majelis Melati)' },
+      { at: '18 Juli', via: 'manual', status: 'survey-created', system: 'Produk GL' },
+      { at: '20 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '21 Juli', via: 'system', status: 'survey-submitted', system: 'Dikembalikan: foto KTP buram, perlu resubmit' },
+    ],
+  },
+  {
+    id: 'pr2',
+    name: 'Dewi Lestari',
+    phone: '0857-8834-5521',
+    address: { kecamatan: 'Ciseeng', desa: 'Cibeuteung Udik', detail: 'Kp. Cibeuteung RT 02/RW 04', mapsCoord: 'pinned' },
+    source: 'referral',
+    referredBy: 'Ibu Rina (Majelis Mawar)',
+    fo: 'Siti Aminah',
+    photo: true,
+    status: 'survey-submitted',
+    ageDays: 6,
+    agenda: { day: 'upcoming', kind: 'Diproses', when: 'Menunggu BM', order: 31, dueDays: 3 },
+    majelis: { kind: 'existing', id: 'mawar' },
+    nik: '3201095503910019',
+    ktp: true,
+    product: 'Modal',
+    amount: '',
+    disburseDate: '',
+    onboardingIssue: 'soft-reject',
+    onboardingIssueReason: 'Rasio utang (DTI) 66% di atas ambang otomatis — perlu validasi BM.',
+    log: [
+      { at: '13 Juli', via: 'manual', status: 'interested', system: 'Referral dari Ibu Rina (Majelis Mawar)' },
+      { at: '16 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
+      { at: '18 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '20 Juli', via: 'system', status: 'survey-submitted', system: 'Soft reject: DTI 66%, menunggu validasi BM' },
+    ],
+  },
+  {
+    id: 'pr3',
+    name: 'Sri Wahyuni',
+    phone: '0819-3390-7742',
+    address: { kecamatan: 'Gunung Sindur', desa: 'Curug', detail: 'Kp. Curug RT 03/RW 02', mapsCoord: 'pinned' },
+    source: 'poi',
+    referredBy: '',
+    fo: 'Nurhayati',
+    photo: true,
+    status: 'survey-submitted',
+    ageDays: 8,
+    agenda: { day: 'upcoming', kind: 'Ditolak', when: 'Selesai', order: 32, dueDays: 5 },
+    majelis: { kind: 'existing', id: 'melati' },
+    nik: '3201094409900027',
+    ktp: true,
+    product: 'GL',
+    amount: '',
+    disburseDate: '',
+    onboardingIssue: 'hard-reject',
+    onboardingIssueReason: 'Ditolak underwriting: riwayat tunggakan aktif di lembaga lain.',
+    log: [
+      { at: '11 Juli', via: 'poi', status: 'interested', system: 'Diajak di POI Warung' },
+      { at: '14 Juli', via: 'manual', status: 'survey-created', system: 'Produk GL' },
+      { at: '17 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+      { at: '19 Juli', via: 'system', status: 'survey-submitted', system: 'Hard reject: tunggakan aktif di lembaga lain' },
     ],
   },
   // 2nd Follow-up — a self-service application already sent, due for a check today.

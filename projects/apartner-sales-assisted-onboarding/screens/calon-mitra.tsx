@@ -24,7 +24,7 @@ import {
   WhatsappLogo,
 } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { dateFromToday, majelisLine, surveyStatusLabel, type SurveyMode } from '../lib/pipeline'
+import { ISSUE_LABEL, detailScreen, majelisLine, surveyStatusLabel, type SurveyMode } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import { DropLeadSheet, OnboardingModeSheet, PickSheet, RescheduleTaskSheet } from '../lib/pipeline-ui'
 import {
@@ -108,22 +108,43 @@ export function CalonMitraScreen() {
   const readyToForm = isNewMajelis && !activatedNew && newApprovedCount >= MIN_MEMBERS
   const canDisburse = isExisting || activatedNew
 
+  // A negative underwriting outcome overrides the badge with its own label.
+  const issue = lead.onboardingIssue
+  // Need-to-resubmit: the Uji Kelayakan (blurry KTP) is re-editable, and once
+  // it is redone she can resubmit the onboarding.
+  const isResubmit = issue === 'resubmit'
+
   // Once approved: "Ready for disbursement" if her majelis is settled, else
   // "Waiting for group formation". Before that, the badge follows the survey stage.
-  const statusLabel = approved
-    ? canDisburse
-      ? 'Ready for disbursement'
-      : 'Waiting for group formation'
-    : surveyStatusLabel(lead.status)
-  const statusIntent: BadgeIntent = approved ? 'green' : submitted ? 'blue' : 'orange'
+  const statusLabel = issue
+    ? ISSUE_LABEL[issue]
+    : approved
+      ? canDisburse
+        ? 'Ready for disbursement'
+        : 'Waiting for group formation'
+      : surveyStatusLabel(lead.status)
+  const statusIntent: BadgeIntent = issue
+    ? issue === 'hard-reject'
+      ? 'red'
+      : 'orange'
+    : approved
+      ? 'green'
+      : submitted
+        ? 'blue'
+        : 'orange'
 
   // Once the survey is submitted or approved it is read-only — nothing to fill in.
   const readOnly = submitted || approved
 
   // A submitted / approved survey reads complete regardless of session progress;
-  // self-serve uji-kelayakan is the mitra's own AFin form, not the BP's.
+  // self-serve uji-kelayakan is the mitra's own AFin form, not the BP's. A
+  // resubmit is the exception: its Uji Kelayakan must be redone, so it follows
+  // the live survey progress rather than reading complete.
   const complete = (id: (typeof APPLICATION_SECTIONS)[number]['id']) =>
-    readOnly || sectionComplete(survey, lead.id, id)
+    isResubmit && id === 'uji-kelayakan'
+      ? sectionComplete(survey, lead.id, id)
+      : readOnly || sectionComplete(survey, lead.id, id)
+  const ujiRedone = sectionComplete(survey, lead.id, 'uji-kelayakan')
   const required = APPLICATION_SECTIONS.filter((s) => !(isSelf && s.id === 'uji-kelayakan'))
   const ritualDone = readOnly || doneStepIds(survey, lead.id, 'ritual').length >= RITUAL_POINTS.length
   const allDone = required.every((s) => complete(s.id)) && ritualDone
@@ -163,6 +184,13 @@ export function CalonMitraScreen() {
     setSubmitting(false)
   }
 
+  // Resubmit after fixing the Uji Kelayakan — clears the issue and runs the same
+  // (instant) underwriting flow as a first submit.
+  function resubmit() {
+    pipelineStore.resubmitOnboarding(lead.id)
+    setSubmitting(true)
+  }
+
   // Survey ongoing — "Simpan untuk nanti" reschedules her follow-up to a picked
   // date; "Drop lead" ends the lead. Both leave the survey progress saved.
   function reschedule(reason: string, date: { label: string; days: number }) {
@@ -200,7 +228,7 @@ export function CalonMitraScreen() {
       mode: 'form',
       majelisName: newMajelisName,
       memberCount: newApprovedCount,
-      returnTo: 'calon-mitra',
+      returnTo: detailScreen(lead),
     })
     flow.go('group-formation')
   }
@@ -214,7 +242,7 @@ export function CalonMitraScreen() {
       majelisName: existingEntry?.name ?? majelisLine(lead),
       memberIds: [lead.id],
       memberNames: [lead.name],
-      returnTo: 'calon-mitra',
+      returnTo: detailScreen(lead),
     })
     flow.go('group-formation')
   }
@@ -236,11 +264,6 @@ export function CalonMitraScreen() {
             {statusLabel}
           </Badge>
         </span>
-        {submitted ? (
-          <span className="text-10 text-caption">
-            Waiting for underwriting results · ETA: {dateFromToday(3)}
-          </span>
-        ) : null}
       </div>
       <ContactButton label={`Chat WhatsApp ${lead.name}`} tone="green" onClick={() => {}}>
         <WhatsappLogo size={20} />
@@ -280,6 +303,27 @@ export function CalonMitraScreen() {
 
   return (
     <AppScreen topBar={header}>
+      {/* Negative underwriting outcome — a tinted box (red for a hard reject,
+          orange otherwise) so it reads apart from the plain cards below. */}
+      {issue ? (
+        <div
+          className={`flex flex-col gap-4 rounded-16 border p-12 ${
+            issue === 'hard-reject' ? 'border-red-200 bg-red-50' : 'border-orange-200 bg-orange-50'
+          }`}
+        >
+          <span
+            className={`text-14 font-bold ${
+              issue === 'hard-reject' ? 'text-red-500' : 'text-orange-500'
+            }`}
+          >
+            {ISSUE_LABEL[issue]}
+          </span>
+          {lead.onboardingIssueReason ? (
+            <span className="text-12 text-default">{lead.onboardingIssueReason}</span>
+          ) : null}
+        </div>
+      ) : null}
+
       {/* Ready for disbursement — a minimal Majelis card at the top (name +
           place + slot only), then a divider before the pencairan detail. */}
       {approved && canDisburse ? (
@@ -462,13 +506,17 @@ export function CalonMitraScreen() {
         const count = doneCount(survey, lead.id, sec.id)
         // Uji Kelayakan with no mode chosen yet prompts the choice first.
         const needsMode = sec.id === 'uji-kelayakan' && !lead.surveyMode
-        const sub = done
-          ? 'Selesai'
-          : needsMode
-            ? 'Pilih cara pengisian'
-            : count === 0
-              ? 'Belum diisi'
-              : `${count}/${sec.total} selesai`
+        // Resubmit: the Uji Kelayakan is flagged for a re-do until it is redone.
+        const resubmitUji = isResubmit && sec.id === 'uji-kelayakan' && !done
+        const sub = resubmitUji
+          ? 'Perlu diisi ulang'
+          : done
+            ? 'Selesai'
+            : needsMode
+              ? 'Pilih cara pengisian'
+              : count === 0
+                ? 'Belum diisi'
+                : `${count}/${sec.total} selesai`
         return (
           <Card key={sec.id}>
             <div className="flex items-center gap-8">
@@ -481,7 +529,17 @@ export function CalonMitraScreen() {
                     </Badge>
                   ) : null}
                 </span>
-                <span className={`text-12 ${done ? 'text-green-600' : 'text-caption'}`}>{sub}</span>
+                <span
+                  className={`text-12 ${
+                    resubmitUji
+                      ? 'font-bold text-orange-500'
+                      : done
+                        ? 'text-green-600'
+                        : 'text-caption'
+                  }`}
+                >
+                  {sub}
+                </span>
               </span>
               {done ? (
                 <span className="shrink-0 text-green-500">
@@ -560,6 +618,17 @@ export function CalonMitraScreen() {
           )}
           <Button variant="outline" size="lg" className="w-full" onClick={rescheduleKumpulan}>
             Reschedule ke kumpulan selanjutnya
+          </Button>
+        </StickyBar>
+      ) : isResubmit ? (
+        <StickyBar>
+          {!ujiRedone ? (
+            <span className="text-center text-12 text-caption">
+              Perbaiki Survey Uji Kelayakan untuk resubmit onboarding.
+            </span>
+          ) : null}
+          <Button size="lg" className="w-full" disabled={!ujiRedone} onClick={resubmit}>
+            Resubmit onboarding
           </Button>
         </StickyBar>
       ) : readOnly ? null : (

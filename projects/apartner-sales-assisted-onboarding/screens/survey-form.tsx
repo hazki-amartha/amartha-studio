@@ -11,6 +11,7 @@ import { BottomSheet, Button, Input, NavigationHeader, SelectableCard } from '@/
 import { Camera, Check, FileCheck } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { usePipeline } from '../lib/pipeline-store'
+import { detailScreen } from '../lib/pipeline'
 import {
   APPLICATION_SECTIONS,
   doneStepIds,
@@ -59,10 +60,12 @@ export function SurveyFormScreen() {
   const current = steps[step]
   const isLast = step === steps.length - 1
   const done = doneStepIds(survey, lead.id, section)
+  // Return to whichever Calon Mitra detail she came from.
+  const detail = detailScreen(lead)
 
   function next() {
     surveyStore.markStep(lead.id, section, current.id)
-    if (isLast) flow.go('calon-mitra')
+    if (isLast) flow.go(detail)
     else setStep(step + 1)
   }
 
@@ -136,7 +139,7 @@ export function SurveyFormScreen() {
   }
 
   return (
-    <AppScreen topBar={<NavigationHeader title={label} onBack={() => flow.go('calon-mitra')} />}>
+    <AppScreen topBar={<NavigationHeader title={label} onBack={() => flow.go(detail)} />}>
       {/* Step tabs — jump between steps; a check marks a completed one. */}
       <div className="flex gap-8 overflow-x-auto pb-2">
         {steps.map((s, i) => {

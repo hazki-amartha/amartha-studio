@@ -9,6 +9,7 @@ import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { CheckCircle } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { usePipeline } from '../lib/pipeline-store'
+import { detailScreen } from '../lib/pipeline'
 import { RITUAL_POINTS, doneStepIds, surveyStore, useSurvey } from '../lib/survey'
 import { AppScreen, StickyBar } from '../lib/ui'
 
@@ -29,10 +30,11 @@ export function RitualScreen() {
   }
 
   const done = doneStepIds(survey, lead.id, 'ritual')
+  const detail = detailScreen(lead)
 
   return (
     <AppScreen
-      topBar={<NavigationHeader title="Ritual explanation" onBack={() => flow.go('calon-mitra')} />}
+      topBar={<NavigationHeader title="Ritual explanation" onBack={() => flow.go(detail)} />}
     >
       <span className="text-14 text-caption">
         Jalankan dan centang ketiga ritual berikut bersama calon anggota majelis.
@@ -66,7 +68,7 @@ export function RitualScreen() {
       </Card>
 
       <StickyBar>
-        <Button size="lg" className="w-full" onClick={() => flow.go('calon-mitra')}>
+        <Button size="lg" className="w-full" onClick={() => flow.go(detail)}>
           Selesai
         </Button>
       </StickyBar>
