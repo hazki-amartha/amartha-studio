@@ -709,23 +709,27 @@ function addMinutes(time: string, minutes: number): string {
 }
 
 /**
- * Today's home visits for the given mitra, slotted after the majelis they came
- * from — an hour after it ends, then every 30 minutes. One per mitra: a mitra
- * already on today's list is not booked twice.
+ * Today's home visits for the given mitra, slotted after the task they came
+ * from — an hour after it ends, then every 30 minutes. A mitra with an open
+ * visit on today's list is not booked twice.
  */
-function visitsAfter(majelisTask: Task, mitra: Mitra[], reason: string): Task[] {
-  const booked = new Set(state.addedVisits.map((t) => t.mitraId))
+function visitsAfter(source: Task, mitra: Mitra[], reason: string): Task[] {
+  const booked = new Set(
+    state.addedVisits
+      .filter((t) => t.id !== source.id && !state.doneTasks.includes(t.id))
+      .map((t) => t.mitraId),
+  )
   return mitra
     .filter((m) => !booked.has(m.id))
     .map((m, i) => {
-      const time = addMinutes(majelisTask.until, 60 + i * 30)
+      const time = addMinutes(source.until, 60 + i * 30)
       return {
-        id: `hv-${majelisTask.id}-${m.id}`,
+        id: `hv-${source.id}-${m.id}`,
         kind: 'home-visit' as const,
         time,
         until: addMinutes(time, 30),
         title: `Ibu ${m.name}`,
-        place: findMajelisEntry(majelisTask.majelisId ?? 'mawar').place,
+        place: findMajelisEntry(source.majelisId ?? 'mawar').place,
         reason,
         mitraId: m.id,
       }
@@ -1001,26 +1005,36 @@ export const store = {
     // roster. The closing task adds these up rather than re-reading a roster
     // that has moved on.
     const entry = snapshotDeposit(id)
-    // A mitra who didn't pay in full and promised "hari ini" gets her home
-    // visit on today's list. Any other date isn't today's work.
-    const task = findTask(id)
-    const addedVisits =
+    // A mitra who didn't pay in full and promised "hari ini" gets a home visit
+    // on today's list — after a majelis, or again after a home visit. Any
+    // other date isn't today's work.
+    const task = findAnyTask(id)
+    const promisedToday = (m: Mitra) => {
+      const status = collectStatus(state, m)
+      const ptp =
+        status === 'tidak'
+          ? state.nonPayments[m.id]?.ptp
+          : status === 'sebagian'
+            ? state.partialPtp[m.id]
+            : null
+      return ptp === 'hari ini'
+    }
+    const owedToday =
       task?.kind === 'majelis'
+        ? MAJELIS.members.filter(promisedToday)
+        : task?.kind === 'home-visit'
+          ? [findMitra(task.mitraId ?? 'h1')].filter(promisedToday)
+          : []
+    const addedVisits =
+      task && owedToday.length
         ? [
             ...state.addedVisits,
             ...visitsAfter(
               task,
-              MAJELIS.members.filter((m) => {
-                const status = collectStatus(state, m)
-                const ptp =
-                  status === 'tidak'
-                    ? state.nonPayments[m.id]?.ptp
-                    : status === 'sebagian'
-                      ? state.partialPtp[m.id]
-                      : null
-                return ptp === 'hari ini'
-              }),
-              'Janji bayar hari ini · belum bayar penuh',
+              owedToday,
+              task.kind === 'majelis'
+                ? 'Janji bayar hari ini · belum bayar penuh'
+                : 'Janji bayar hari ini · kunjungi lagi',
             ),
           ]
         : state.addedVisits
