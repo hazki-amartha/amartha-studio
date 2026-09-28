@@ -58,37 +58,19 @@ const BU_LABEL: Record<BusinessUnit, string> = {
 // an empty BU still shows a folder, so the org's shape reads the same each time.
 const BU_ORDER: BusinessUnit[] = ['Lending', 'Funding', 'Core', 'Payments']
 
-// One hue per business unit — Lending purple (the brand, and the bulk of the
-// work), Funding blue, Core orange, Payments green — carried by both the folder
-// and the card, so a card's colour tells you which BU it belongs to before you
-// read a word of it. Tab is the lighter tint: the fold reads as a flap catching
-// the light.
-const BU_COLOR: Record<BusinessUnit, { tab: string; body: string; card: string }> = {
-  Lending: {
-    tab: 'bg-primary-400',
-    body: 'bg-primary-500',
-    card: 'from-primary-700 to-primary-900',
-  },
-  Funding: {
-    tab: 'bg-blue-400',
-    body: 'bg-blue-500',
-    card: 'from-blue-600 to-blue-800',
-  },
-  Core: {
-    tab: 'bg-orange-400',
-    body: 'bg-orange-500',
-    card: 'from-orange-600 to-orange-800',
-  },
-  Payments: {
-    tab: 'bg-green-400',
-    body: 'bg-green-500',
-    card: 'from-green-600 to-green-800',
-  },
+// One hue per platform — AFIN purple (the brand's consumer app), A-Partner
+// blue, NGMIS green — so a card's colour tells you which product it belongs to
+// before you read a word of it. The platform chips carry the same swatch, which
+// makes the filter row the legend.
+const PLATFORM_COLOR: Record<Platform, { card: string; dot: string }> = {
+  AFIN: { card: 'from-primary-700 to-primary-900', dot: 'bg-primary-500' },
+  APartner: { card: 'from-blue-600 to-blue-800', dot: 'bg-blue-500' },
+  NGMIS: { card: 'from-green-600 to-green-800', dot: 'bg-green-500' },
 }
 
-// Studio-internal work carries no business unit — it gets the neutral ramp
-// rather than borrowing a BU's colour.
-const NO_BU_CARD = 'from-neutral-700 to-neutral-900'
+// Studio-internal work carries no platform — it gets the neutral ramp rather
+// than borrowing a platform's colour.
+const NO_PLATFORM_CARD = 'from-neutral-700 to-neutral-900'
 
 type GalleryEntry = {
   config: ProjectConfig
@@ -126,7 +108,7 @@ async function loadEntries(): Promise<GalleryEntry[]> {
 // prototype, and go straight to it when scanning for what changed recently.
 function ProjectCard({ config }: GalleryEntry) {
   const owners = Array.isArray(config.owner) ? config.owner.join(', ') : config.owner
-  const fill = config.businessUnit ? BU_COLOR[config.businessUnit].card : NO_BU_CARD
+  const fill = config.platform ? PLATFORM_COLOR[config.platform].card : NO_PLATFORM_CARD
   return (
     <Link href={`/p/${config.slug}`} className="group flex rounded-16">
       <Card flush className="gallery-card flex flex-1 flex-col group-hover:opacity-90 dark:border-ink-700 dark:bg-ink-900">
@@ -146,7 +128,7 @@ function ProjectCard({ config }: GalleryEntry) {
             </div>
           )}
           <h2 className="text-20 font-bold text-neutral-white">{config.name}</h2>
-          <p className="line-clamp-3 flex-1 text-14 text-neutral-white">{config.description}</p>
+          <p className="line-clamp-2 flex-1 text-14 text-neutral-white">{config.description}</p>
         </div>
         {/* Footer band. ink-900 is the studio's own chrome surface, so the
             bookkeeping reads as the studio talking, not as part of the product
@@ -167,15 +149,15 @@ function ProjectCard({ config }: GalleryEntry) {
 // Opening a folder goes *into* it — ?bu=… is a place, and that page drops the
 // sibling folders and offers a breadcrumb back. Folders are the business units;
 // platform and status are the chip rows (below), which filter wherever you
-// happen to be.
+// happen to be. Folders stay neutral: colour means platform, and a BU folder
+// holds several platforms.
 function BusinessUnitFolder({ bu, count }: { bu: BusinessUnit; count: number }) {
-  const fill = BU_COLOR[bu]
   return (
     <Link href={`/?bu=${bu}`} className="group flex flex-col rounded-12">
       {/* The tab — a short flap that makes the block below read as a folder. */}
-      <span className={`h-8 w-40 rounded-t-4 ${fill.tab}`} />
+      <span className="h-8 w-40 rounded-t-4 bg-neutral-500" />
       <span
-        className={`flex flex-col gap-4 rounded-12 rounded-tl-none p-12 group-hover:opacity-90 ${fill.body}`}
+        className="flex flex-col gap-4 rounded-12 rounded-tl-none bg-neutral-700 p-12 group-hover:opacity-90"
       >
         <span className="text-12 font-regular text-neutral-white opacity-90">
           {count === 1 ? '1 prototype' : `${count} prototypes`}
@@ -207,9 +189,10 @@ function visible<T extends string>(
 }
 
 // Platform and status are filters, not destinations: the chips toggle the grid
-// in place and keep whatever folder you are standing in. Two rows, one per axis,
-// each labelled — a merged row would hide that they combine rather than replace
-// each other. Pill shape, per the button rule.
+// in place and keep whatever folder you are standing in. One line, two labelled
+// groups — the labels keep it clear that the axes combine rather than replace
+// each other. Wraps onto a second line when the width runs out. Pill shape, per
+// the button rule.
 function FilterChips({
   bu,
   platform,
@@ -238,7 +221,7 @@ function FilterChips({
   const statuses = visible(STATUS_ORDER, statusCounts, status)
 
   return (
-    <div className="flex flex-col gap-16">
+    <div className="flex flex-wrap items-start gap-x-32 gap-y-16">
       {/* A single remaining option is not a choice — the row goes away with it. */}
       {platforms.length > 1 && (
         <div className="flex flex-col gap-8">
@@ -249,7 +232,10 @@ function FilterChips({
             </Link>
             {platforms.map((p) => (
               <Link key={p} href={href({ platform: p })} className={chipClass(platform === p)}>
-                {PLATFORM_LABEL[p]} · {platformCounts[p]}
+                <span className="flex items-center gap-4">
+                  <span className={`size-8 shrink-0 rounded-full ${PLATFORM_COLOR[p].dot}`} />
+                  {PLATFORM_LABEL[p]} · {platformCounts[p]}
+                </span>
               </Link>
             ))}
           </div>
