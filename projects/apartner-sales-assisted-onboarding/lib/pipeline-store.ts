@@ -783,6 +783,26 @@ export const pipelineStore = {
       }),
     }))
   },
+
+  /**
+   * Resubmit an onboarding that was sent back (e.g. a blurry KTP fixed on the Uji
+   * Kelayakan). Clears the issue and puts her back into underwriting; the
+   * (instant) approval then follows via `approveSurvey`.
+   */
+  resubmitOnboarding(id: string) {
+    patchLead(id, (lead) => ({
+      onboardingIssue: undefined,
+      onboardingIssueReason: undefined,
+      status: 'survey-submitted',
+      amount: lead.amount || 'Rp2.000.000',
+      disburseDate: lead.disburseDate || '24 Juli',
+      log: appendLog(lead, {
+        via: 'manual',
+        status: 'survey-submitted',
+        system: 'Onboarding di-resubmit setelah perbaikan data',
+      }),
+    }))
+  },
 }
 
 export function usePipeline(): PipelineState {

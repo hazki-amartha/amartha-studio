@@ -208,6 +208,11 @@ export const surveyStore = {
     listeners.add(listener)
     return () => listeners.delete(listener)
   },
+  /** Clear all recorded progress — used by the "start of the survey" demo state. */
+  reset() {
+    state = { done: {} }
+    emit()
+  },
   markStep(leadId: string, section: SectionId, stepId: string) {
     const k = key(leadId, section)
     const current = state.done[k] ?? []

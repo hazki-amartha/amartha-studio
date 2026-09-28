@@ -27,6 +27,7 @@ import { MapPin } from '@/design-system/icons'
 import { type SosialisasiEvent } from './events'
 import type { SoftRejectCase } from './validasi'
 import {
+  ISSUE_LABEL,
   addressLine,
   dateFromToday,
   dateWithWeekday,
@@ -418,6 +419,15 @@ export function LeadBoardCard({
           <span className="flex items-center gap-4 text-12 text-caption">
             <MapPin size={16} />
             <span className="truncate">{loc}</span>
+          </span>
+        ) : null}
+        {lead.onboardingIssue ? (
+          <span
+            className={`text-12 font-bold ${
+              lead.onboardingIssue === 'hard-reject' ? 'text-red-500' : 'text-orange-500'
+            }`}
+          >
+            {lead.onboardingIssueReason ?? ISSUE_LABEL[lead.onboardingIssue]}
           </span>
         ) : null}
       </div>

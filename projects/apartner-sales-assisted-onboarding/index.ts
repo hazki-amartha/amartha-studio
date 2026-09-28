@@ -116,6 +116,21 @@ export const project: ProjectModule = {
       id: 'calon-mitra',
       title: 'Calon Mitra',
       component: lazyScreen(() => import('./screens/calon-mitra'), 'CalonMitraScreen'),
+      // Survey ongoing — the two states of one calon mitra's survey.
+      states: [
+        {
+          id: 'start-survey',
+          label: 'Start of the survey',
+          description: 'Calon mitra dibuka dengan survey masih kosong',
+          apply: demo.surveyStart,
+        },
+        {
+          id: 'all-filled',
+          label: 'All items filled',
+          description: 'BP Feedback, Uji Kelayakan, ritual & penerimaan KM — Submit Onboarding aktif',
+          apply: demo.surveyAllDone,
+        },
+      ],
       flowsTo: [
         { to: 'survey-form', label: 'BP Feedback / Uji Kelayakan' },
         { to: 'ritual', label: 'Ritual explanation' },
@@ -123,6 +138,45 @@ export const project: ProjectModule = {
         { to: 'group-formation', label: 'Start group formation' },
         { to: 'disbursement-confirm', label: 'Lanjut → pencairan' },
         { to: 'sales', label: 'Submit onboarding' },
+      ],
+    },
+    {
+      // The same Calon Mitra detail, reached once the survey has a result — its
+      // own states selector switches between the four post-survey outcomes.
+      id: 'onboarding-outcome',
+      title: 'Calon Mitra — hasil',
+      component: lazyScreen(() => import('./screens/calon-mitra'), 'CalonMitraScreen'),
+      states: [
+        {
+          id: 'waiting-formation',
+          label: 'Waiting for group formation',
+          description: 'Approved, tapi majelis barunya belum terbentuk',
+          apply: demo.waitingFormation,
+        },
+        {
+          id: 'need-resubmit',
+          label: 'Need to resubmit onboarding',
+          description: 'Foto KTP buram di Uji Kelayakan — muncul di Sales hari ini & Lihat semua',
+          apply: demo.issueResubmit,
+        },
+        {
+          id: 'pending-bm-validation',
+          label: 'Pending BM Validation',
+          description: 'Soft reject — menunggu validasi BM. Muncul di Lihat semua',
+          apply: demo.issueSoftReject,
+        },
+        {
+          id: 'survey-rejected',
+          label: 'Survey rejected',
+          description: 'Hard reject — ditolak underwriting. Muncul di Lihat semua',
+          apply: demo.issueHardReject,
+        },
+      ],
+      flowsTo: [
+        { to: 'survey-form', label: 'Perbaiki Uji Kelayakan' },
+        { to: 'disbursement-confirm', label: 'Lanjut → pencairan' },
+        { to: 'group-formation', label: 'Start group formation' },
+        { to: 'sales', label: 'Kembali ke Sales' },
       ],
     },
     {

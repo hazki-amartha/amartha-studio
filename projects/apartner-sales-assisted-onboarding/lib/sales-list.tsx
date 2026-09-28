@@ -29,6 +29,7 @@ import {
 import {
   LEADS_SECTION_LABEL,
   LEADS_SECTION_ORDER,
+  detailScreen,
   leadsSection,
   sourceDetail,
   type LeadsSection,
@@ -204,14 +205,13 @@ export function SalesList({ scope }: { scope: Scope }) {
   function openLead(lead: PipelineLead) {
     pipelineStore.open(lead.id)
     // A survey-ongoing lead (survey-created, -submitted) or an approved one opens
-    // the Calon Mitra detail directly — that page carries its own "Jadwalkan
-    // nanti" / "Drop lead" actions, so no separate follow-up triage page. Only a
-    // pre-survey lead still goes through follow-up triage.
-    const direct =
+    // the Calon Mitra detail directly (survey ongoing → 'calon-mitra', a result →
+    // 'onboarding-outcome'); only a pre-survey lead goes through follow-up triage.
+    const inDetail =
       lead.status === 'survey-created' ||
       lead.status === 'survey-submitted' ||
       lead.status === 'approved'
-    flow.go(direct ? 'calon-mitra' : 'follow-up')
+    flow.go(inDetail ? detailScreen(lead) : 'follow-up')
   }
 
   function openPoi(t: PoiTask) {
@@ -252,10 +252,13 @@ export function SalesList({ scope }: { scope: Scope }) {
       const sec = leadsSection(l)
       // Submitted surveys are in underwriting — no BP action, so not on the board.
       if (sec === 'survey-submitted') return false
+      // Soft/hard rejects are not today's work — they wait on "Lihat semua".
+      if (sec === 'pending-bm-validation' || sec === 'survey-rejected') return false
       // Survey ongoing is follow-up-managed too: only the ones due now show
       // today, so a "Butuh waktu lebih" reschedule moves her off the board.
       if (sec === 'follow-up' || sec === 'survey-ongoing') return agendaDueDays(l.agenda) <= 0
-      // Survey approved (Ready for disbursement) is always an open task.
+      // Ready for disbursement, waiting for formation, and a resubmit-needed
+      // survey are all open tasks for today.
       return true
     })
     const poiToday = dueTasks(allPoiTasks) as PoiTask[]
@@ -283,6 +286,7 @@ export function SalesList({ scope }: { scope: Scope }) {
       { key: 'bm-validation', label: 'BM Validation', kind: 'bm-validation', rows: bmRows },
       { key: 'ready-for-disbursement', label: LEADS_SECTION_LABEL['ready-for-disbursement'], kind: 'lead', rows: leadRows('ready-for-disbursement') },
       { key: 'survey-approved', label: LEADS_SECTION_LABEL['survey-approved'], kind: 'lead', rows: leadRows('survey-approved') },
+      { key: 'need-resubmit', label: LEADS_SECTION_LABEL['need-resubmit'], kind: 'lead', rows: leadRows('need-resubmit') },
       { key: 'survey-ongoing', label: LEADS_SECTION_LABEL['survey-ongoing'], kind: 'lead', rows: leadRows('survey-ongoing') },
       { key: 'poi', label: 'POI visit', kind: 'poi', rows: poiRows },
       { key: 'follow-up', label: LEADS_SECTION_LABEL['follow-up'], kind: 'lead', rows: leadRows('follow-up') },

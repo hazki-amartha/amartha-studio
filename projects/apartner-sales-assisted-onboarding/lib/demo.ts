@@ -4,9 +4,11 @@
 // never learns that a demo exists. Kept here, out of the screens, per §3.
 
 import { EVENTS } from './events'
+import { formationStore } from './formation'
 import { pipelineStore } from './pipeline-store'
 import { poiStore } from './poi-store'
 import { store } from './store'
+import { BP_FEEDBACK_STEPS, RITUAL_POINTS, UJI_KELAYAKAN_STEPS, surveyStore } from './survey'
 
 // --- Sosialisasi -----------------------------------------------------------
 //
@@ -91,3 +93,56 @@ export const followUpSelfService = () => {
   store.startFollowUp(FOLLOW_UP_TASK)
   pipelineStore.openFollowUp('p5', FOLLOW_UP_TASK)
 }
+
+// --- Calon Mitra (Survey Ongoing) ------------------------------------------
+
+// The survey-ongoing states walk one assisted lead joining an existing majelis
+// (Nurlaela, p26): an empty survey vs. every box filled.
+const SURVEY_LEAD = 'p26'
+
+/** A clean slate — clears survey progress and any acceptance. */
+function resetAll() {
+  pipelineStore.reset()
+  surveyStore.reset()
+  formationStore.reset()
+}
+
+/** Start of the survey — the calon mitra opened with nothing filled in yet. */
+export const surveyStart = () => {
+  resetAll()
+  pipelineStore.open(SURVEY_LEAD)
+}
+
+/**
+ * All items filled — every BP Feedback and Uji Kelayakan step, all ritual
+ * points, and KM acceptance done, so the page reads complete with Submit
+ * Onboarding enabled.
+ */
+export const surveyAllDone = () => {
+  resetAll()
+  pipelineStore.open(SURVEY_LEAD)
+  BP_FEEDBACK_STEPS.forEach((s) => surveyStore.markStep(SURVEY_LEAD, 'bp-feedback', s.id))
+  UJI_KELAYAKAN_STEPS.forEach((s) => surveyStore.markStep(SURVEY_LEAD, 'uji-kelayakan', s.id))
+  RITUAL_POINTS.forEach((_, i) => surveyStore.markStep(SURVEY_LEAD, 'ritual', `r${i}`))
+  formationStore.acceptLead(SURVEY_LEAD)
+}
+
+// The post-survey outcomes each open their own seeded lead so the Calon Mitra
+// page shows that outcome; because they share this one selector they switch
+// from one another's page. They also sit in their own Leads sections.
+const openLeadState = (id: string) => () => {
+  resetAll()
+  pipelineStore.open(id)
+}
+
+/** Approved, but her new majelis is not formed yet. */
+export const waitingFormation = openLeadState('p20')
+
+/** Need to resubmit — a blurry KTP on the Uji Kelayakan, sent back to the BP. */
+export const issueResubmit = openLeadState('pr1')
+
+/** Soft reject — waiting on the BM to validate before it can proceed. */
+export const issueSoftReject = openLeadState('pr2')
+
+/** Hard reject — underwriting rejected the survey. */
+export const issueHardReject = openLeadState('pr3')
