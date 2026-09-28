@@ -1005,38 +1005,25 @@ export const store = {
     // roster. The closing task adds these up rather than re-reading a roster
     // that has moved on.
     const entry = snapshotDeposit(id)
-    // A mitra who didn't pay in full and promised "hari ini" gets a home visit
-    // on today's list — after a majelis, or again after a home visit. Any
-    // other date isn't today's work.
-    const task = findAnyTask(id)
-    const promisedToday = (m: Mitra) => {
-      const status = collectStatus(state, m)
-      const ptp =
-        status === 'tidak'
-          ? state.nonPayments[m.id]?.ptp
-          : status === 'sebagian'
-            ? state.partialPtp[m.id]
-            : null
-      return ptp === 'hari ini'
-    }
+    // A mitra who didn't pay in full at the majelis and promised "hari ini"
+    // gets a home visit on today's list. Any other date isn't today's work.
+    const task = findTask(id)
     const owedToday =
       task?.kind === 'majelis'
-        ? MAJELIS.members.filter(promisedToday)
-        : task?.kind === 'home-visit'
-          ? [findMitra(task.mitraId ?? 'h1')].filter(promisedToday)
-          : []
+        ? MAJELIS.members.filter((m) => {
+            const status = collectStatus(state, m)
+            const ptp =
+              status === 'tidak'
+                ? state.nonPayments[m.id]?.ptp
+                : status === 'sebagian'
+                  ? state.partialPtp[m.id]
+                  : null
+            return ptp === 'hari ini'
+          })
+        : []
     const addedVisits =
       task && owedToday.length
-        ? [
-            ...state.addedVisits,
-            ...visitsAfter(
-              task,
-              owedToday,
-              task.kind === 'majelis'
-                ? 'Janji bayar hari ini · belum bayar penuh'
-                : 'Janji bayar hari ini · kunjungi lagi',
-            ),
-          ]
+        ? [...state.addedVisits, ...visitsAfter(task, owedToday, 'Janji bayar hari ini · belum bayar penuh')]
         : state.addedVisits
     store.set({
       addedVisits,

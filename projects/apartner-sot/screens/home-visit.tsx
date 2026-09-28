@@ -27,6 +27,7 @@ export function HomeVisitScreen() {
         mitra={mitra}
         header={<StageBar current={2} labels={HOME_STAGE_LABELS} complete={done} />}
         locked={sent}
+        noToday
         janjiDate={DAYS[0].date}
         onSeeAll={() => {
           store.openMitraPage(mitra.id)
