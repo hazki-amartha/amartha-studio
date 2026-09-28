@@ -26,7 +26,7 @@ import {
 import { useFlow } from '@/platform/runtime'
 import { ISSUE_LABEL, detailScreen, majelisLine, surveyStatusLabel, type SurveyMode } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { DropLeadSheet, OnboardingModeSheet, PickSheet, RescheduleTaskSheet } from '../lib/pipeline-ui'
+import { DropLeadSheet, OnboardingModeSheet, PickSheet } from '../lib/pipeline-ui'
 import {
   APPLICATION_SECTIONS,
   RITUAL_POINTS,
@@ -37,7 +37,7 @@ import {
   useSurvey,
 } from '../lib/survey'
 import { isMajelisActivated, isMemberAccepted, setFormation, useFormation } from '../lib/formation'
-import { DRAFT_SCHEDULE, MAJELIS_DIRECTORY, MIN_MEMBERS } from '../lib/schedule'
+import { DRAFT_SCHEDULE, MAJELIS_DIRECTORY } from '../lib/schedule'
 import { store } from '../lib/store'
 import { AppScreen, ContactButton, StickyBar } from '../lib/ui'
 
@@ -47,6 +47,18 @@ const TUJUAN_OPTIONS = [
   'Pengembangan usaha',
   'Pembelian peralatan usaha',
 ]
+
+// The left-hand status marker on the onboarding cards — a green check once the
+// item is done, an empty ring before, so the card doesn't shift left↔right.
+function StatusDot({ done }: { done: boolean }) {
+  return done ? (
+    <span className="shrink-0 text-green-500">
+      <CheckCircle size={24} />
+    </span>
+  ) : (
+    <span className="h-24 w-24 shrink-0 rounded-full border-2 border-neutral-200" aria-hidden />
+  )
+}
 
 export function CalonMitraScreen() {
   const flow = useFlow()
@@ -64,7 +76,7 @@ export function CalonMitraScreen() {
   const [tujuan, setTujuan] = useState(TUJUAN_OPTIONS[0])
   const [tujuanSheet, setTujuanSheet] = useState(false)
   // Survey-ongoing "save for later" / drop actions — which sheet is open.
-  const [taskSheet, setTaskSheet] = useState<'reschedule' | 'drop' | null>(null)
+  const [taskSheet, setTaskSheet] = useState<'drop' | null>(null)
 
   if (!lead) {
     return (
@@ -102,10 +114,10 @@ export function CalonMitraScreen() {
   ).length
 
   // Ready-for-disbursement (approved) routing: an existing majelis or an already-
-  // formed new majelis can disburse; a new majelis with enough approved members
-  // can be formed; otherwise it waits for more members.
+  // formed new majelis can disburse. A new (draft) majelis can be formed at any
+  // time — group formation no longer waits for a minimum of approved members.
   const activatedNew = isNewMajelis && isMajelisActivated(formation, newMajelisName)
-  const readyToForm = isNewMajelis && !activatedNew && newApprovedCount >= MIN_MEMBERS
+  const readyToForm = isNewMajelis && !activatedNew
   const canDisburse = isExisting || activatedNew
 
   // A negative underwriting outcome overrides the badge with its own label.
@@ -191,11 +203,10 @@ export function CalonMitraScreen() {
     setSubmitting(true)
   }
 
-  // Survey ongoing — "Simpan untuk nanti" reschedules her follow-up to a picked
-  // date; "Drop lead" ends the lead. Both leave the survey progress saved.
-  function reschedule(reason: string, date: { label: string; days: number }) {
-    pipelineStore.rescheduleFollowUp(lead.id, date.days, date.label, reason)
-    pipelineStore.setFlash(`Follow up ${lead.name} dijadwalkan ulang ke ${date.label}`)
+  // Survey ongoing — "Simpan untuk nanti" just saves the latest survey progress
+  // (already written on every toggle) and returns to Sales; "Drop lead" ends her.
+  function saveForLater() {
+    pipelineStore.setFlash(`Progress onboarding ${lead.name} disimpan`)
     flow.go('sales')
   }
 
@@ -203,14 +214,6 @@ export function CalonMitraScreen() {
     // Dropping a survey-ongoing lead ends her onboarding (status → rejected).
     pipelineStore.dropLead(lead.id, reason || 'Lead di-drop', lead.status === 'survey-created')
     pipelineStore.setFlash(`${lead.name} di-drop`)
-    flow.go('sales')
-  }
-
-  // Approved leads (Ready for disbursement / Waiting for group formation) can be
-  // pushed to the next kumpulan day if the mitra can't make this one.
-  function rescheduleKumpulan() {
-    pipelineStore.rescheduleToNextKumpulan(lead.id)
-    pipelineStore.setFlash(`${lead.name} dijadwalkan ke kumpulan berikutnya`)
     flow.go('sales')
   }
 
@@ -274,8 +277,10 @@ export function CalonMitraScreen() {
     </header>
   )
 
-  // Loading state after Submit — held until the BP taps the control below.
-  if (submitting) {
+  // Underwriting in progress — shown right after Submit, and whenever a plain
+  // survey-submitted lead (no negative outcome yet) is opened. Held until the BP
+  // taps the control below (the prototype stand-in for underwriting finishing).
+  if (submitting || (submitted && !issue)) {
     return (
       <AppScreen topBar={header}>
         <div className="flex flex-1 flex-col items-center justify-center gap-12 py-48 text-center">
@@ -292,6 +297,7 @@ export function CalonMitraScreen() {
           <button
             type="button"
             onClick={finishUnderwriting}
+            style={{ fontFamily: '"Comic Sans MS", "Comic Sans", cursive' }}
             className="rounded-full border border-orange-500 bg-orange-50 px-16 py-8 text-14 font-bold text-orange-500"
           >
             Tandai underwriting selesai
@@ -409,14 +415,20 @@ export function CalonMitraScreen() {
                 </>
               ) : accepted ? (
                 <>
-                  <span className="text-12 font-bold text-green-600">Sudah diterima majelis</span>
-                  <span className="shrink-0 text-green-500">
-                    <CheckCircle size={24} />
+                  <span className="flex min-w-0 items-center gap-8">
+                    <StatusDot done />
+                    <span className="text-12 font-bold text-green-600">Sudah diterima majelis</span>
                   </span>
+                  <Button size="sm" variant="outline" onClick={startKmAcceptance}>
+                    Edit
+                  </Button>
                 </>
               ) : (
                 <>
-                  <span className="text-12 font-bold text-orange-500">Pending KM Acceptance</span>
+                  <span className="flex min-w-0 items-center gap-8">
+                    <StatusDot done={false} />
+                    <span className="text-12 font-bold text-orange-500">Pending KM Acceptance</span>
+                  </span>
                   <Button size="sm" variant="outline" onClick={startKmAcceptance}>
                     Start
                   </Button>
@@ -482,6 +494,7 @@ export function CalonMitraScreen() {
           return (
             <Card key={sec.id}>
               <div className="flex items-center gap-8">
+                <StatusDot done={readOnly} />
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
                   <span className="flex items-center gap-8">
                     <span className="text-14 font-bold text-disabled">{sec.label}</span>
@@ -493,11 +506,6 @@ export function CalonMitraScreen() {
                     {readOnly ? 'Selesai' : 'Belum selesai'}
                   </span>
                 </div>
-                {readOnly ? (
-                  <span className="shrink-0 text-green-500">
-                    <CheckCircle size={24} />
-                  </span>
-                ) : null}
               </div>
             </Card>
           )
@@ -519,7 +527,9 @@ export function CalonMitraScreen() {
                 : `${count}/${sec.total} selesai`
         return (
           <Card key={sec.id}>
+            {/* Status dot on the left (check / empty ring); Start / Edit on the right. */}
             <div className="flex items-center gap-8">
+              <StatusDot done={done} />
               <span className="flex min-w-0 flex-1 flex-col gap-2">
                 <span className="flex items-center gap-8">
                   <span className="text-14 font-bold text-default">{sec.label}</span>
@@ -541,19 +551,13 @@ export function CalonMitraScreen() {
                   {sub}
                 </span>
               </span>
-              {done ? (
-                <span className="shrink-0 text-green-500">
-                  <CheckCircle size={24} />
-                </span>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => (needsMode ? setModeOpen(true) : openSection(sec.id))}
-                >
-                  Start
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => (!done && needsMode ? setModeOpen(true) : openSection(sec.id))}
+              >
+                {done ? 'Edit' : 'Start'}
+              </Button>
             </div>
           </Card>
         )
@@ -570,19 +574,14 @@ export function CalonMitraScreen() {
         return (
           <Card>
             <div className="flex items-center gap-8">
+              <StatusDot done={ritualDone} />
               <span className="flex min-w-0 flex-1 flex-col gap-2">
                 <span className="text-14 font-bold text-default">Ritual explanation</span>
                 <span className={`text-12 ${ritualDone ? 'text-green-600' : 'text-caption'}`}>{rSub}</span>
               </span>
-              {ritualDone ? (
-                <span className="shrink-0 text-green-500">
-                  <CheckCircle size={24} />
-                </span>
-              ) : (
-                <Button size="sm" variant="outline" onClick={() => flow.go('ritual')}>
-                  Start
-                </Button>
-              )}
+              <Button size="sm" variant="outline" onClick={() => flow.go('ritual')}>
+                {ritualDone ? 'Edit' : 'Start'}
+              </Button>
             </div>
           </Card>
         )
@@ -599,25 +598,12 @@ export function CalonMitraScreen() {
               Lanjut
             </Button>
           ) : (
-            <>
-              {!readyToForm ? (
-                <span className="text-center text-12 text-caption">
-                  Menunggu anggota lain — majelis belum cukup untuk dibentuk.
-                </span>
-              ) : null}
-              {/* Disabled until enough members are survey approved. */}
-              <Button
-                size="lg"
-                className="w-full"
-                disabled={!readyToForm}
-                onClick={startGroupFormation}
-              >
-                Start group formation
-              </Button>
-            </>
+            <Button size="lg" className="w-full" onClick={startGroupFormation}>
+              Start group formation
+            </Button>
           )}
-          <Button variant="outline" size="lg" className="w-full" onClick={rescheduleKumpulan}>
-            Reschedule ke kumpulan selanjutnya
+          <Button variant="outline" size="lg" className="w-full" onClick={saveForLater}>
+            Simpan untuk nanti
           </Button>
         </StickyBar>
       ) : isResubmit ? (
@@ -643,7 +629,7 @@ export function CalonMitraScreen() {
           <Button size="lg" className="w-full" disabled={!canSubmit} onClick={submit}>
             Submit Onboarding
           </Button>
-          <Button variant="outline" size="lg" className="w-full" onClick={() => setTaskSheet('reschedule')}>
+          <Button variant="outline" size="lg" className="w-full" onClick={saveForLater}>
             Simpan untuk nanti
           </Button>
           <button
@@ -672,13 +658,7 @@ export function CalonMitraScreen() {
         }}
       />
 
-      {/* Survey ongoing — save for later (reschedule) or drop the lead. */}
-      <RescheduleTaskSheet
-        open={taskSheet === 'reschedule'}
-        lead={lead}
-        onClose={() => setTaskSheet(null)}
-        onSubmit={reschedule}
-      />
+      {/* Survey ongoing — drop the lead. */}
       <DropLeadSheet open={taskSheet === 'drop'} onClose={() => setTaskSheet(null)} onDrop={dropLead} />
     </AppScreen>
   )

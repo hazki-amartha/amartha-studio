@@ -114,6 +114,16 @@ export const surveyStart = () => {
 }
 
 /**
+ * Majelis / group formation done — she has been accepted into her majelis, but
+ * the survey itself is still to be filled.
+ */
+export const surveyMajelisDone = () => {
+  resetAll()
+  pipelineStore.open(SURVEY_LEAD)
+  formationStore.acceptLead(SURVEY_LEAD)
+}
+
+/**
  * All items filled — every BP Feedback and Uji Kelayakan step, all ritual
  * points, and KM acceptance done, so the page reads complete with Submit
  * Onboarding enabled.

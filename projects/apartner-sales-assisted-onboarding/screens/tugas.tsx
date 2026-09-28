@@ -16,7 +16,7 @@ import { Badge, BottomSheet, Button } from '@/design-system/components'
 import { ChevronDown } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { dateFromToday, isOnboardingLead } from '../lib/pipeline'
-import { MAJELIS_DIRECTORY, MIN_MEMBERS } from '../lib/schedule'
+import { MAJELIS_DIRECTORY } from '../lib/schedule'
 import {
   groupTaskStore,
   useGroupTasks,
@@ -118,11 +118,10 @@ export function TugasScreen() {
   // point at a majelis that exists, by its status.
   const onboardingLeads = order.map((id) => leads[id]).filter(isOnboardingLead)
 
-  // Group Formation — a draft majelis can form only once at least MIN_MEMBERS of
-  // its members are survey approved. Teratai (6 approved) qualifies; Kenari (4)
-  // does not yet.
+  // Group Formation — every draft majelis is formable now (no minimum of
+  // approved members required); the count is shown for context only.
   const gfTasks: GroupFormationTask[] = MAJELIS_DIRECTORY.filter(
-    (m) => m.status === 'draft' && draftApprovedCount(m.id) >= MIN_MEMBERS,
+    (m) => m.status === 'draft',
   ).map((m) => ({
     id: `gf-${m.id}`,
     majelisId: m.id,

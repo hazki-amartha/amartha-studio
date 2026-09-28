@@ -385,24 +385,38 @@ function DatePills({ agenda, dateOnly }: { agenda?: Agenda; dateOnly?: boolean }
  * Rendered as a row inside a section panel, so it takes a `divider` for the
  * hairline above every row but the first.
  */
+/** A short status note under a board card — differentiates the sub-types that
+ *  share one Sales hari ini group (e.g. "Waiting for group formation"). */
+export type CardNote = { text: string; tone: 'orange' | 'blue' | 'green' }
+
+const NOTE_TONE: Record<CardNote['tone'], string> = {
+  orange: 'text-orange-500',
+  blue: 'text-blue-600',
+  green: 'text-green-600',
+}
+
 export function LeadBoardCard({
   lead,
   onOpen,
   divider,
+  note,
 }: {
   lead: PipelineLead
   onOpen: () => void
   divider?: boolean
+  note?: CardNote
 }) {
   const cold = lead.status === 'not-interested' || lead.status === 'rejected'
   const source = cold ? `Reaktivasi — eks ${majelisLine(lead)}` : sourceDetail(lead)
   const loc = lead.address?.kecamatan
     ? [lead.address.kecamatan, lead.address.desa].filter(Boolean).join(', ')
     : ''
-  // Submitted surveys are in underwriting — no BP schedule. Approved leads DO
-  // carry a schedule: their kumpulan (group) day, when they disburse or form
-  // the majelis, and can be pushed to the next kumpulan.
-  const noSchedule = lead.status === 'survey-submitted'
+  // Onboarding leads (survey ongoing / submitted / approved) carry no date on
+  // the board; only the follow-up / reactivation leads still show a schedule.
+  const noSchedule =
+    lead.status === 'survey-submitted' ||
+    lead.status === 'survey-created' ||
+    lead.status === 'approved'
   return (
     <button
       type="button"
@@ -421,7 +435,9 @@ export function LeadBoardCard({
             <span className="truncate">{loc}</span>
           </span>
         ) : null}
-        {lead.onboardingIssue ? (
+        {note ? (
+          <span className={`text-12 font-bold ${NOTE_TONE[note.tone]}`}>{note.text}</span>
+        ) : lead.onboardingIssue ? (
           <span
             className={`text-12 font-bold ${
               lead.onboardingIssue === 'hard-reject' ? 'text-red-500' : 'text-orange-500'
