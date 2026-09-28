@@ -75,7 +75,6 @@ export const project: ProjectModule = {
       flowsTo: [
         { to: 'today', label: 'Tugas Anda hari ini' },
         { to: 'setor-payment', label: 'Setor pembayaran Modal' },
-        { to: 'comms', label: 'Update hari ini' },
       ],
     },
     {
