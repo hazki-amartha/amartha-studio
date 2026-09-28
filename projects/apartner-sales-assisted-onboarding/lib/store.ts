@@ -47,6 +47,10 @@ export interface AppState {
   majelisStatus: MajelisStatus | null
   /** Which majelis the Majelis page is showing (null = the open lead's own). */
   openMajelis: MajelisRef | null
+  /** A one-shot confirmation banner on the Tugas page — set on an action that
+   *  returns there (e.g. Validasi Mitra's Kirim Keputusan), cleared on "Oke"
+   *  or after a few seconds. See lib/snackbar.tsx. */
+  flash: string | null
 }
 
 const initial: AppState = {
@@ -61,6 +65,7 @@ const initial: AppState = {
   majelisDay: null,
   majelisStatus: null,
   openMajelis: null,
+  flash: null,
 }
 
 let state: AppState = initial
@@ -133,6 +138,12 @@ export const store = {
   },
   rejectTask(taskId: string, reason: string) {
     store.set({ rejects: { ...state.rejects, [taskId]: reason }, activeTask: null })
+  },
+  setFlash(message: string) {
+    store.set({ flash: message })
+  },
+  clearFlash() {
+    store.set({ flash: null })
   },
 }
 

@@ -204,13 +204,7 @@ export const project: ProjectModule = {
       id: 'validasi-keputusan',
       title: 'Keputusan BM',
       component: lazyScreen(() => import('./screens/validasi-keputusan'), 'ValidasiKeputusanScreen'),
-      flowsTo: [{ to: 'validasi-selesai', label: 'Kirim Keputusan' }],
-    },
-    {
-      id: 'validasi-selesai',
-      title: 'Keputusan Terkirim',
-      component: lazyScreen(() => import('./screens/validasi-selesai'), 'ValidasiSelesaiScreen'),
-      flowsTo: [{ to: 'tugas', label: 'Kembali ke Tugas' }],
+      flowsTo: [{ to: 'tugas', label: 'Kirim Keputusan' }],
     },
     {
       id: 'group-formation',
