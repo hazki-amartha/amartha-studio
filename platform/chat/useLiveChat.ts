@@ -15,9 +15,16 @@
 // The CLI session id comes back on the first turn and is sent with every later
 // one, so a conversation continues rather than starting over (and the cached
 // contract is reused rather than paid for again — B6's $0.16 per fresh context).
+//
+// It also outlives a reload of the tab: every change is copied to
+// sessionStorage and read back when the project is selected. A reload used to
+// be the price of seeing an edit the preview missed, and it cost the whole
+// conversation. The session id comes back with it, so the next message still
+// continues the same agent session.
 // =============================================================================
 
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import { refreshProjectSoon } from '@/platform/runtime/projectRefresh'
 import type { ChatEvent, ChatState } from './ChatPanel'
 
 interface Done {
@@ -78,7 +85,43 @@ const listeners = new Set<() => void>()
 
 function set(patch: Partial<Conversation>) {
   convo = { ...convo, ...patch }
+  save()
   listeners.forEach((l) => l())
+}
+
+// --- kept across a reload ----------------------------------------------------
+// sessionStorage, not localStorage: one conversation per tab, gone when the tab
+// is. Every access is guarded — private windows and blocked storage throw, and
+// chat must work without it.
+
+const key = (slug: string) => `studio-chat:${slug}`
+
+function save() {
+  if (!slugNow) return
+  try {
+    sessionStorage.setItem(key(slugNow), JSON.stringify(convo))
+  } catch {}
+}
+
+function restore(slug: string): Conversation {
+  try {
+    const raw = sessionStorage.getItem(key(slug))
+    if (!raw) return fresh()
+    const saved = { ...fresh(), ...(JSON.parse(raw) as Partial<Conversation>) }
+    // The reload cut the stream, and the route stops the agent when its
+    // request goes away — so a turn that was running is over, not paused.
+    if (saved.status === 'running') {
+      const at = Math.max(0, Date.now() - saved.startedAt)
+      return {
+        ...saved,
+        status: 'done',
+        events: [...saved.events, { at, kind: 'error', text: 'Stopped — the page reloaded mid-turn.' }],
+      }
+    }
+    return saved
+  } catch {
+    return fresh()
+  }
 }
 
 function setGate(next: Gate) {
@@ -97,7 +140,7 @@ function selectProject(slug: string) {
     abort?.abort()
     abort = null
     slugNow = slug
-    convo = fresh()
+    convo = restore(slug)
   }
 }
 
@@ -116,9 +159,12 @@ function handle(event: ServerEvent) {
       break
     case 'tool':
       push({ kind: 'tool', tool: event.tool, detail: event.detail })
+      // A new screen only reaches the device if the view re-reads the list.
+      if (WRITES.has(event.tool)) refreshProjectSoon()
       break
     case 'done':
       set({ sessionId: event.sessionId ?? convo.sessionId, spendUsd: convo.spendUsd + event.costUsd, last: event })
+      if (event.changed.length > 0) refreshProjectSoon()
       if (event.error) push({ kind: 'error', text: event.error })
       if (event.outside.length > 0) {
         push({
@@ -129,6 +175,9 @@ function handle(event: ServerEvent) {
       break
   }
 }
+
+/** Tools that write files, as the route names them. */
+const WRITES = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 
 async function send(prompt: string, shown?: string) {
   const text = prompt.trim()
@@ -192,6 +241,7 @@ function newChat() {
   abort?.abort()
   abort = null
   convo = fresh()
+  save()
   listeners.forEach((l) => l())
 }
 
