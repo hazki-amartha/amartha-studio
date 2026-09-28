@@ -203,11 +203,14 @@ export function SalesList({ scope }: { scope: Scope }) {
 
   function openLead(lead: PipelineLead) {
     pipelineStore.open(lead.id)
-    // Submitted / approved surveys are past follow-up management — they open the
-    // Calon Mitra detail directly. Everyone else (including a Survey ongoing
-    // lead) goes through the follow-up triage first: continue survey, ask for
-    // more time, or drop.
-    const direct = lead.status === 'survey-submitted' || lead.status === 'approved'
+    // A survey-ongoing lead (survey-created, -submitted) or an approved one opens
+    // the Calon Mitra detail directly — that page carries its own "Jadwalkan
+    // nanti" / "Drop lead" actions, so no separate follow-up triage page. Only a
+    // pre-survey lead still goes through follow-up triage.
+    const direct =
+      lead.status === 'survey-created' ||
+      lead.status === 'survey-submitted' ||
+      lead.status === 'approved'
     flow.go(direct ? 'calon-mitra' : 'follow-up')
   }
 
