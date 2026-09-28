@@ -1,110 +1,110 @@
 // Project module — exports config + the screens array.
 
-import type { ProjectModule } from '@/platform/types'
+import type { ProjectModule, ScreenState } from '@/platform/types'
 import { lazyScreen } from '@/platform/lazyScreen'
 import { config } from './project.config'
 import * as demo from './lib/demo'
+
+// The day's demo states — shared by Beranda and Tugas, which read the same day.
+const DAY_STATES: ScreenState[] = [
+  {
+    id: 'majelis',
+    label: 'Start of day',
+    description: 'Nothing done yet — the first majelis visit is the open task',
+    apply: demo.scheduleMajelis,
+  },
+  {
+    id: 'home-visit',
+    label: 'Midday — a home visit next',
+    description: 'Two majelis done and banked, so the cash handover widget is live',
+    apply: demo.scheduleHomeVisit,
+  },
+  {
+    id: 'closing',
+    label: 'Every visit finished',
+    description: 'All work submitted, the day’s cash still in her bag',
+    apply: demo.scheduleClosing,
+  },
+  {
+    id: 'capped',
+    label: 'All three handovers used',
+    description: 'Three settlements made — the widget goes quiet, cash rides to closing',
+    apply: demo.scheduleCapped,
+  },
+  {
+    id: 'closeable',
+    label: 'Ready to close the day',
+    description: 'Everything sent and every rupiah handed over',
+    apply: demo.scheduleCloseable,
+  },
+  {
+    id: 'closed',
+    label: 'Day already closed',
+    description: 'Closing submitted — the Tutup Hari Ini row now reads Terkirim in Selesai',
+    apply: demo.scheduleClosed,
+  },
+  // Which setoran direction the Setor button opens. Off screen on
+  // purpose: both alternatives are live, and a chooser drawn inside the
+  // app would be the one screen that exists only because there are two
+  // prototypes. Sets the road and nothing else, so flipping it never
+  // disturbs whichever day is on screen.
+  {
+    id: 'setor-in-flight',
+    label: 'Setoran menunggu (Alt 2)',
+    description: 'Numbers made, transfer outstanding — the widget says segera setor',
+    apply: demo.setorVaWaiting,
+  },
+  {
+    id: 'setor-alt-1',
+    label: 'Setor → Alt 1',
+    description: 'Setor opens the first concept: pick what to settle, then how',
+    apply: demo.setorAltOne,
+  },
+  {
+    id: 'setor-alt-2',
+    label: 'Setor → Alt 2',
+    description: 'Setor opens the new concept: pick how, setor sebagian a page away',
+    apply: demo.setorAltTwo,
+  },
+  {
+    id: 'bukti-baru',
+    label: 'Nominal berubah — kirim bukti baru',
+    description:
+      'Ops mengubah nominal dari dashboard setelah setoran, jadi dua tugas kirim ulang muncul: rekap ke Majelis Mawar dan bukti bayar ke Ibu Wati',
+    apply: demo.buktiBaru,
+  },
+]
 
 export const project: ProjectModule = {
   config,
   screens: [
     {
+      id: 'home',
+      title: 'Beranda',
+      component: lazyScreen(() => import('./screens/home'), 'HomeScreen'),
+      entry: true,
+      states: DAY_STATES,
+      flowsTo: [
+        { to: 'today', label: 'Tugas Anda hari ini' },
+        { to: 'setor-payment', label: 'Setor pembayaran Modal' },
+        { to: 'comms', label: 'Update hari ini' },
+        { to: 'banner-detail', label: 'Banner' },
+      ],
+    },
+    {
       id: 'today',
       title: 'Tugas',
       component: lazyScreen(() => import('./screens/today'), 'TodayScreen'),
-      entry: true,
-      notes: [
-        'The BP opens her day here, as one list of equal cards under two headings: Belum selesai and Selesai. Every row starts its task on tap. Nothing is singled out as “now” — a day does not run in clock order, so the schedule stays a list of things she can begin rather than a queue that only hands her the top row.',
-        'The split is on the only line that matters when she looks at her day: is there still something to do here. Dikerjakan sits with Belum mulai, because a half-finished visit is unfinished work.',
-        'Every row wears its kind as a short code — MV, HV, Sos, FU — the shorthand she and her BM already speak. The title has the first line to itself, since that is the line she scans to find a row. The time sits on the address line in front of the pin: when and where are one fact in two parts, and reading them together is how a stop gets planned.',
-        'A card reads top to bottom in one order: name, address, distance, and — on a home visit only — “Kemungkinan bayar tinggi”. Distance sits directly under the address it qualifies, because “where, and how far” is one thought. The order of a day is decided by geography as much as by the clock: two stops in one kampung get done together whatever their slots say.',
-        'The propensity label is the only badge on the card, and it goes on home visits only — a majelis is 22 women with 22 answers, so one flag on a group describes nobody in it. It stays a small label rather than a headline, because a BP who reads a prediction as a promise and finds an empty house twice stops believing the next one.',
-        'Setoran sits at the top: the cash she is carrying right now, phrased as a decision rather than as progress against a target. The risk being managed is money on a motorbike. It names the amount, says how many handovers she has used, and offers one button.',
-'From the widget she picks WHEN to settle; the Setoran screen is where she picks how much and by which road. She can put the whole bag down or part of it — a short handover leaves the remainder recorded as still in the bag, and the widget comes straight back with it.',
-        'She can settle up to THREE times a day — that is the only limit, there is no clock on it. The widget names how many drops she has left so she paces them; once all three are used it goes quiet, and any cash still in the bag rides to closing.',
-        'Belum terkirim sits directly above the task list, because that is what it is about: those rows, and the fact that finishing them was not the last step. A BP closes a visit standing in a balai with no signal; without this she finds out on Friday that Tuesday never landed. It disappears the moment nothing is pending.',
-        'Closing — Tutup Hari Ini — is a task ROW at the foot of the list, tapped like any other task. The "every visit done, bag empty" gate lives inside the closing screen, not on the row, so it stays tappable throughout: an early tap just shows her what is still left to do. Once the day is closed the same row moves to Selesai reading Terkirim — a day has one end, and this is it.',
-        'One filter, Tipe tugas, and one inbox in the header. Filtering replaces the agenda with a flat list, because the two headings are a shape built around whether work is left, and a BP filtering by type has stopped asking that.',
-      ],
-      states: [
-        {
-          id: 'majelis',
-          label: 'Start of day',
-          description: 'Nothing done yet — the first majelis visit is the open task',
-          apply: demo.scheduleMajelis,
-        },
-        {
-          id: 'home-visit',
-          label: 'Midday — a home visit next',
-          description: 'Two majelis done and banked, so the cash handover widget is live',
-          apply: demo.scheduleHomeVisit,
-        },
-        {
-          id: 'closing',
-          label: 'Every visit finished',
-          description: 'All work submitted, the day’s cash still in her bag',
-          apply: demo.scheduleClosing,
-        },
-        {
-          id: 'capped',
-          label: 'All three handovers used',
-          description: 'Three settlements made — the widget goes quiet, cash rides to closing',
-          apply: demo.scheduleCapped,
-        },
-        {
-          id: 'closeable',
-          label: 'Ready to close the day',
-          description: 'Everything sent and every rupiah handed over',
-          apply: demo.scheduleCloseable,
-        },
-        {
-          id: 'closed',
-          label: 'Day already closed',
-          description: 'Closing submitted — the Tutup Hari Ini row now reads Terkirim in Selesai',
-          apply: demo.scheduleClosed,
-        },
-        // Which setoran direction the Setor button opens. Off screen on
-        // purpose: both alternatives are live, and a chooser drawn inside the
-        // app would be the one screen that exists only because there are two
-        // prototypes. Sets the road and nothing else, so flipping it never
-        // disturbs whichever day is on screen.
-        {
-          id: 'setor-in-flight',
-          label: 'Setoran menunggu (Alt 2)',
-          description: 'Numbers made, transfer outstanding — the widget says segera setor',
-          apply: demo.setorVaWaiting,
-        },
-        {
-          id: 'setor-alt-1',
-          label: 'Setor → Alt 1',
-          description: 'Setor opens the first concept: pick what to settle, then how',
-          apply: demo.setorAltOne,
-        },
-        {
-          id: 'setor-alt-2',
-          label: 'Setor → Alt 2',
-          description: 'Setor opens the new concept: pick how, setor sebagian a page away',
-          apply: demo.setorAltTwo,
-        },
-        {
-          id: 'bukti-baru',
-          label: 'Nominal berubah — kirim bukti baru',
-          description:
-            'Ops mengubah nominal dari dashboard setelah setoran, jadi dua tugas kirim ulang muncul: rekap ke Majelis Mawar dan bukti bayar ke Ibu Wati',
-          apply: demo.buktiBaru,
-        },
-      ],
+      states: DAY_STATES,
       flowsTo: [
         { to: 'attendance', label: 'Mulai Pelayanan — langsung ke Majelis Visit 1' },
-        { to: 'comms', label: 'kotak masuk di header' },
+        { to: 'lead-new', label: 'Tugas Baru' },
+        { to: 'kirim-tugas', label: 'Kirim Tugas (tombol mengambang)' },
         { to: 'home-brief', label: 'Mulai Kunjungan (home visit)' },
-        { to: 'sosialisasi', label: 'Mulai Sosialisasi — cari prospek baru' },
-        { to: 'follow-up', label: 'Mulai Follow Up — telepon prospek' },
-        { to: 'settlement', label: 'Setor → Alt 1 — dari widget setoran' },
-        { to: 'setor-payment', label: 'Setor → Alt 2 — dari widget setoran' },
         { to: 'deposit', label: 'Tutup Hari Ini — baris tugas terakhir' },
         { to: 'bukti-rekap', label: 'Kirim Bukti Bayar Baru (Majelis) — state Nominal berubah' },
         { to: 'bukti-bayar', label: 'Kirim Bukti Bayar Baru (Mitra) — state Nominal berubah' },
+        { to: 'home', label: 'tab Beranda' },
         { to: 'majelis-list', label: 'tab Majelis' },
         { to: 'mitra-list', label: 'tab Mitra' },
         { to: 'profile', label: 'tab Profil' },
@@ -167,14 +167,32 @@ export const project: ProjectModule = {
       id: 'profile',
       title: 'Profil',
       component: lazyScreen(() => import('./screens/profile'), 'ProfileScreen'),
-      notes: [
-        'The BP’s own account and settings — the standard shelf every app has, and deliberately unremarkable.',
-      ],
       flowsTo: [
-        { to: 'today', label: 'tab Jadwal' },
+        { to: 'sync', label: 'Log Out → perbarui data → Sinkronisasi Sekarang' },
+        { to: 'login', label: 'Log Out → konfirmasi' },
+        { to: 'home', label: 'tab Beranda' },
+        { to: 'today', label: 'tab Tugas' },
         { to: 'majelis-list', label: 'tab Majelis' },
         { to: 'mitra-list', label: 'tab Mitra' },
       ],
+    },
+    {
+      id: 'kirim-tugas',
+      title: 'Kirim Tugas',
+      component: lazyScreen(() => import('./screens/kirim-tugas'), 'KirimTugasScreen'),
+      flowsTo: [{ to: 'today', label: 'selesai mengirim — kembali ke Tugas' }],
+    },
+    {
+      id: 'sync',
+      title: 'Sinkronisasi',
+      component: lazyScreen(() => import('./screens/sync'), 'SyncScreen'),
+      flowsTo: [{ to: 'profile', label: 'selesai — kembali ke Profil' }],
+    },
+    {
+      id: 'login',
+      title: 'Log in — ID Karyawan',
+      component: lazyScreen(() => import('./screens/login'), 'LoginScreen'),
+      flowsTo: [{ to: 'home', label: 'Lanjut' }],
     },
     {
       id: 'lead-detail',
