@@ -23,7 +23,6 @@ import { DeadlineNote, SETOR_DEADLINE } from '../lib/setor'
 import {
   store,
   todayTasks,
-  unreadComms,
   unsettledTotal,
   unsettledEntries,
   useApp,
@@ -50,8 +49,6 @@ export function HomeScreen() {
   // report — so the card shows (and counts) that and nothing else.
   const setorAmount = unsettledTotal(s)
   const inFlight = s.setorInFlight && s.setorInFlight.paid < 2 ? s.setorInFlight : null
-
-  const updates = s.comms.filter((c) => !c.read).slice(0, 2)
 
   const header = (
     <header className="flex shrink-0 items-center gap-12 bg-neutral-white px-16 py-8">
@@ -82,34 +79,6 @@ export function HomeScreen() {
           </div>
         ))}
       </div>
-
-      {/* --- Update hari ini: the unread inbox, two lines deep */}
-      {updates.length > 0 ? (
-        <div className="flex flex-col gap-8 rounded-12 bg-neutral-white p-16">
-          <button type="button" onClick={() => flow.go('comms')} className="flex items-start gap-8 text-left">
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="text-16 font-bold text-default">Update hari ini</span>
-              <span className="text-12 text-default">
-                <b className="font-bold">{unreadComms(s)} update</b> belum dibaca
-              </span>
-            </span>
-            <span className="shrink-0 text-primary-500">
-              <ArrowRight size={16} />
-            </span>
-          </button>
-          {updates.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => flow.go('comms')}
-              className="flex items-center gap-8 text-left"
-            >
-              <span className="min-w-0 flex-1 truncate text-12 text-default">{c.title}</span>
-              <span className="shrink-0 text-12 font-bold text-link">Lihat</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
 
       {/* --- Tugas Anda */}
       <span className="pt-4 text-16 font-bold text-default">Tugas Anda</span>
