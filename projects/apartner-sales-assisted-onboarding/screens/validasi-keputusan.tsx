@@ -17,14 +17,8 @@ import {
 } from '@/design-system/components'
 import { CheckCircle, ChevronDown, CrossCircleFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import {
-  DECISION_REASON_OTHER,
-  DECISION_REASONS,
-  SOFT_REJECT_CASE,
-  VALIDASI_STEP_SCREENS,
-  VALIDASI_STEPS,
-} from '../lib/validasi'
-import { finalReason, useValidasi, validasiStore } from '../lib/validasi-store'
+import { DECISION_REASON_OTHER, DECISION_REASONS, VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
+import { finalReason, useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
 import { store } from '../lib/store'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
@@ -61,7 +55,7 @@ function DecisionChoice({
 export function ValidasiKeputusanScreen() {
   const flow = useFlow()
   const s = useValidasi()
-  const c = SOFT_REJECT_CASE
+  const c = useOpenCase()
   const [reasonSheet, setReasonSheet] = useState(false)
 
   const reasonOptions = s.decision ? DECISION_REASONS[s.decision] : []

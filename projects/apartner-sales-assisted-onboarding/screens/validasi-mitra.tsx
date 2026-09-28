@@ -8,12 +8,13 @@
 import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
 import { WarningFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { SOFT_REJECT_CASE, VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
+import { VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
+import { useOpenCase } from '../lib/validasi-store'
 import { AppScreen, StageBar, StickyBar } from '../lib/ui'
 
 export function ValidasiMitraScreen() {
   const flow = useFlow()
-  const c = SOFT_REJECT_CASE
+  const c = useOpenCase()
 
   return (
     <AppScreen topBar={<NavigationHeader title="Validasi Mitra" onBack={() => flow.go('tugas')} />}>
@@ -55,8 +56,8 @@ export function ValidasiMitraScreen() {
           </div>
 
           <span className="text-12 text-caption">
-            Sebagai BM, Anda bisa meninjau data lengkap pengajuannya dan memutuskan sendiri
-            berdasarkan kondisi lapangan yang Anda ketahui.
+            Sebagai BM, Anda bisa meninjau data lengkap pengajuannya dan membantu memberi
+            keputusan berdasarkan kondisi lapangan yang Anda selidiki.
           </span>
         </div>
       </Card>

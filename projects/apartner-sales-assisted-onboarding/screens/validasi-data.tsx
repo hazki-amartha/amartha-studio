@@ -8,13 +8,8 @@ import type { ReactNode } from 'react'
 import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { House, IdentificationCard, Storefront } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import {
-  SOFT_REJECT_CASE,
-  UNDERWRITING_SECTIONS,
-  VALIDASI_STEP_SCREENS,
-  VALIDASI_STEPS,
-  type DataSection,
-} from '../lib/validasi'
+import { VALIDASI_STEP_SCREENS, VALIDASI_STEPS, type DataSection } from '../lib/validasi'
+import { useOpenCase } from '../lib/validasi-store'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 function DataRow({ label, value }: { label: string; value: string }) {
@@ -55,7 +50,7 @@ function PhotoPlaceholder({ icon, label }: { icon: ReactNode; label: string }) {
 
 export function ValidasiDataScreen() {
   const flow = useFlow()
-  const c = SOFT_REJECT_CASE
+  const c = useOpenCase()
 
   return (
     <AppScreen
@@ -72,11 +67,11 @@ export function ValidasiDataScreen() {
           <SectionTitle>KTP {c.name}</SectionTitle>
           <PhotoPlaceholder icon={<IdentificationCard size={24} />} label="Foto KTP" />
           <DataRow label="Nama sesuai KTP" value={c.name.toUpperCase()} />
-          <DataRow label="NIK" value="3578071234560003" />
+          <DataRow label="NIK" value={c.nik} />
         </div>
       </Card>
 
-      {UNDERWRITING_SECTIONS.map((section) => (
+      {c.sections.map((section) => (
         <Section key={section.title} section={section} />
       ))}
 

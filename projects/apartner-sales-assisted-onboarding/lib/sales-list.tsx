@@ -38,8 +38,8 @@ import { pipelineStore, setAddLeadEntry, usePipeline } from './pipeline-store'
 import { canDisburse, useFormation } from './formation'
 import { usePois } from './poi-store'
 import { store, useApp } from './store'
-import { SOFT_REJECT_CASE } from './validasi'
-import { useValidasi } from './validasi-store'
+import { SOFT_REJECT_CASES, type SoftRejectCase } from './validasi'
+import { useValidasiAll, validasiStore } from './validasi-store'
 import { SourceSheet } from './pipeline-ui'
 import { TabBar } from './tabs'
 import { AppScreen, Chip, EmptyState, FilterBar, SearchField, VisitTitle } from './ui'
@@ -122,7 +122,7 @@ export function SalesList({ scope }: { scope: Scope }) {
   const flow = useFlow()
   const { leads, order, flash } = usePipeline()
   const { completedPois, role } = useApp()
-  const validasiDecision = useValidasi()
+  const validasiAll = useValidasiAll()
   const formation = useFormation()
   const pois = usePois()
 
@@ -219,7 +219,8 @@ export function SalesList({ scope }: { scope: Scope }) {
     flow.go('sosialisasi')
   }
 
-  function openBmValidation() {
+  function openBmValidation(c: SoftRejectCase) {
+    validasiStore.open(c.id)
     flow.go('validasi-mitra')
   }
 
@@ -264,11 +265,14 @@ export function SalesList({ scope }: { scope: Scope }) {
         .filter((l) => displaySection(l) === sec && matchesQuery(l))
         .sort((a, b) => (a.agenda?.dueDays ?? 0) - (b.agenda?.dueDays ?? 0))
     const poiRows = poiToday.filter(poiMatchesQuery)
-    // BM only, and only until she's decided — a second entry point onto the
-    // same 3-step flow the Tugas card opens (see validasi.ts / validasi-store).
+    // BM only, and only the ones she hasn't decided yet — a second entry point
+    // onto the same 3-step flow the Tugas card opens (see validasi.ts /
+    // validasi-store). Each case leaves the board independently once decided.
     const bmRows =
-      role === 'BM' && !validasiDecision.submitted && (!q || SOFT_REJECT_CASE.name.toLowerCase().includes(q))
-        ? [SOFT_REJECT_CASE]
+      role === 'BM'
+        ? SOFT_REJECT_CASES.filter(
+            (c) => !validasiAll[c.id]?.submitted && (!q || c.name.toLowerCase().includes(q)),
+          )
         : []
 
     type Section =
@@ -342,10 +346,10 @@ export function SalesList({ scope }: { scope: Scope }) {
                         ))
                       : (isOpen ? s.rows : s.rows.slice(0, 1)).map((c, i) => (
                           <BmValidationCard
-                            key={c.name}
+                            key={c.id}
                             case={c}
                             divider={i > 0}
-                            onOpen={openBmValidation}
+                            onOpen={() => openBmValidation(c)}
                           />
                         ))}
                 </SectionPanel>
