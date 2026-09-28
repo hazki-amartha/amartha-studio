@@ -3,13 +3,14 @@
 // The assisted survey — two boxes on the Calon Mitra detail page, each its own
 // multi-step page:
 //
-//   BP Feedback        3 steps, 3 questions each
+//   BP Feedback        5 steps (Validasi … Penilaian BP), typed fields
 //   Survey Uji Kelayakan  6 steps (Data pribadi … Foto tempat usaha), 3 each
 //
 // (The majelis ritual is no longer part of the survey — it moved into the group
-// formation / acceptance flow.) The questions are placeholders for now. Progress
-// is held in a module store so each box shows how far its sub-page got, and
-// survives navigating in and out (screens remount).
+// formation / acceptance flow.) BP Feedback is built from the Assisted
+// Onboarding field list (typed fields); Uji Kelayakan questions are placeholders
+// for now. Progress is held in a module store so each box shows how far its
+// sub-page got, and survives navigating in and out (screens remount).
 
 import { useSyncExternalStore } from 'react'
 
@@ -31,42 +32,137 @@ export interface AppSection {
 }
 
 export const APPLICATION_SECTIONS: AppSection[] = [
-  { id: 'bp-feedback', label: 'BP Feedback', total: 3 },
+  { id: 'bp-feedback', label: 'BP Feedback', total: 5 },
   { id: 'uji-kelayakan', label: 'Survey Uji Kelayakan', total: 6 },
 ]
+
+/** A BP Feedback field. `foto` captures a selfie + lat/long (stand-in); `dropdown`
+ *  picks one option; `dropdown-notes` adds a free-text note; `multiselect` allows
+ *  several. Uji Kelayakan still uses plain `questions`. */
+export type FieldType = 'foto' | 'dropdown' | 'dropdown-notes' | 'multiselect'
+
+export interface Field {
+  label: string
+  type: FieldType
+  options?: string[]
+}
 
 export interface SurveyStep {
   id: string
   title: string
-  questions: string[]
+  /** Uji Kelayakan — plain text questions. */
+  questions?: string[]
+  /** BP Feedback — typed fields (from the Assisted Onboarding field list). */
+  fields?: Field[]
 }
 
+// BP Feedback — the Assisted Onboarding field list, grouped by category.
 export const BP_FEEDBACK_STEPS: SurveyStep[] = [
   {
-    id: 'kesan',
-    title: 'Kesan & profil',
-    questions: [
-      'Bagaimana kesan awal terhadap calon mitra?',
-      'Sudah berapa lama calon mitra menjalankan usaha?',
-      'Apakah calon mitra kooperatif saat kunjungan?',
-    ],
+    id: 'validasi',
+    title: 'Validasi',
+    fields: [{ label: 'Selfie BP & Mitra', type: 'foto' }],
   },
   {
     id: 'usaha',
-    title: 'Penilaian usaha',
-    questions: [
-      'Bagaimana kondisi tempat usaha calon mitra?',
-      'Apakah usaha berjalan setiap hari?',
-      'Berapa perkiraan omzet harian usaha?',
+    title: 'Kondisi usaha',
+    fields: [
+      {
+        label: 'Apakah usaha mitra saat ini berjalan aktif?',
+        type: 'dropdown',
+        options: ['Aktif normal', 'Aktif tapi menurun', 'Tutup sementara', 'Tidak ada usaha'],
+      },
+      {
+        label: 'Sudah berapa lama usaha mitra berjalan?',
+        type: 'dropdown',
+        options: ['< 6 bulan', '6-12 bulan', '1-3 tahun', '> 3 tahun'],
+      },
     ],
   },
   {
-    id: 'rekomendasi',
-    title: 'Rekomendasi BP',
-    questions: [
-      'Apakah BP merekomendasikan calon mitra?',
-      'Apa risiko yang perlu diperhatikan komite?',
-      'Catatan tambahan untuk komite?',
+    id: 'profil',
+    title: 'Profil mitra',
+    fields: [
+      {
+        label: 'Status kepemilikan rumah yang ditempati mitra?',
+        type: 'dropdown',
+        options: ['Milik sendiri', 'Milik keluarga', 'Sewa / kontrak', 'Menumpang'],
+      },
+      {
+        label: 'Sudah berapa lama mitra tinggal di alamat saat ini?',
+        type: 'dropdown',
+        options: ['< 1 tahun', '1-3 tahun', '3-5 tahun', '> 5 tahun'],
+      },
+    ],
+  },
+  {
+    id: 'lingkungan',
+    title: 'Cek lingkungan',
+    fields: [
+      { label: 'Selfie BP & narasumber lingkungan', type: 'foto' },
+      {
+        label: 'Bagaimana pengakuan warga / Ketua Majelis terhadap mitra?',
+        type: 'dropdown-notes',
+        options: ['Dikenal baik', 'Dikenal, netral', 'Kurang dikenal', 'Ada catatan negatif'],
+      },
+      {
+        label: 'Sumber informasi lingkungan yang ditemui BP',
+        type: 'dropdown',
+        options: ['Ketua Majelis', 'Tetangga', 'Ketua RT / RW', 'Tokoh setempat'],
+      },
+      {
+        label: 'Verifikasi domisili: apakah alamat sekarang sesuai dengan data domisili?',
+        type: 'dropdown',
+        options: ['Sesuai', 'Tidak sesuai'],
+      },
+      {
+        label: 'Lama tinggal menurut lingkungan',
+        type: 'dropdown',
+        options: ['< 1 tahun', '1-3 tahun', '3-5 tahun', '> 5 tahun'],
+      },
+      {
+        label: 'Apakah usaha mitra sesuai dengan data pengajuan dan masih berjalan?',
+        type: 'dropdown',
+        options: [
+          'Sesuai & berjalan',
+          'Sesuai & tidak berjalan',
+          'Tidak sesuai & berjalan',
+          'Tidak sesuai & tidak berjalan',
+        ],
+      },
+      {
+        label: 'Pernah didatangi atau dihubungi debt collector?',
+        type: 'dropdown',
+        options: ['Pernah', 'Tidak pernah'],
+      },
+    ],
+  },
+  {
+    id: 'penilaian',
+    title: 'Penilaian BP',
+    fields: [
+      {
+        label: 'Kesanggupan pembayaran mitra per minggu',
+        type: 'dropdown',
+        options: [
+          'Rp50.000 - Rp100.000',
+          'Rp100.000 - Rp150.000',
+          'Rp150.000 - Rp200.000',
+          'Rp200.000 - Rp250.000',
+          '> Rp250.000',
+        ],
+      },
+      {
+        label: 'Apakah ada indikasi buruk terhadap mitra ini?',
+        type: 'multiselect',
+        options: [
+          'Karakter tidak baik (sulit ditemui / ditagih)',
+          'Mitra pindah domisili',
+          'Isu majelis (tidak akur / KM tidak setuju cair)',
+          'Umur lebih dari 64 tahun',
+          'Indikasi fraud (joki / atas nama)',
+        ],
+      },
     ],
   },
 ]
