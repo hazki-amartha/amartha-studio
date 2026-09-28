@@ -436,16 +436,7 @@ export interface AppState {
   /** Submitted. Not "verified" — the branch confirms that, and it isn't today. */
   depositDone: boolean
   /**
-   * Which setoran ALTERNATIVE the Setor buttons open — the first concept
-   * (`settlement`) or the new one (`setor-payment`). Both directions are live
-   * and neither has replaced the other, so the choice is a presentation
-   * setting: it is flipped from the state controls beside the device, off
-   * screen, rather than by a menu inside the prototype. The BP herself never
-   * picks between two versions of her own app.
-   */
-  setorAlt: 'settlement' | 'setor-payment'
-  /**
-   * Alt 2's handover once she has said "Ya, Setor Sekarang": the numbers exist
+   * The handover once she has said "Ya, Setor Sekarang": the numbers exist
    * and the two legs are waiting on a transfer that happens outside the app.
    * It outlives the page — the schedule's widget turns into "segera setor"
    * while it is open — and `paid` counts legs the branch has seen (0–2).
@@ -595,9 +586,6 @@ const initial: AppState = {
   depositMethod: null,
   depositProof: false,
   depositDone: false,
-  // The Figma setoran flow (Alt 2) by default; Alt 1 stays one state control
-  // away for comparison.
-  setorAlt: 'setor-payment',
   setorInFlight: null,
   setorFail: false,
   leads: seedLeads,
@@ -1299,11 +1287,7 @@ export const store = {
   setDepositProof(depositProof: boolean) {
     store.set({ depositProof })
   },
-  /** Which setoran alternative the Setor buttons open. Presentation only. */
-  setSetorAlt(setorAlt: AppState['setorAlt']) {
-    store.set({ setorAlt })
-  },
-  /** Alt 2: the numbers are made — the two legs now wait on her transfer. */
+  /** The numbers are made — the two legs now wait on her transfer. */
   startSetor(method: SettleMethod, amount: number) {
     store.set({
       setorInFlight: { method, no: state.settlements.length + 1, amount, paid: 0 },

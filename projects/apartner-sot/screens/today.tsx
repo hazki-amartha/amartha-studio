@@ -18,7 +18,6 @@ import {
   Bell,
   Door,
   File,
-  FileAdd,
   HandCoins,
   PaperPlaneTilt,
   Sliders,
@@ -49,12 +48,8 @@ import {
   useApp,
   type TaskStatus,
 } from '../lib/store'
-import { pipelineStore } from '../lib/pipeline-store'
 import { TabBar } from '../lib/tabs'
 import { AppScreen, EmptyState, OptionSheet, SearchField } from '../lib/ui'
-
-// Which pipeline lead a scheduled Follow-Up task works.
-const FU_PIPELINE_LEAD: Record<string, string> = { l1: 'p4', l2: 'p2' }
 
 const KIND_NAME: Record<Task['kind'], string> = {
   majelis: 'Pelayanan',
@@ -219,20 +214,6 @@ export function TodayScreen() {
       flow.go('home-brief')
       return
     }
-    if (task.kind === 'sosialisasi') {
-      store.startSosialisasi(task.id)
-      flow.go('sosialisasi')
-      return
-    }
-    if (task.kind === 'follow-up') {
-      // The Follow-Up task now works a PIPELINE lead, on the same record the
-      // Sales detail uses. `startFollowUp` still does the schedule-side
-      // bookkeeping (marks the row started, sets the active task).
-      store.startFollowUp(task.id)
-      pipelineStore.openFollowUp(FU_PIPELINE_LEAD[task.leadId ?? ''] ?? 'p4', task.id)
-      flow.go('follow-up')
-      return
-    }
     if (task.kind === 'reminder') {
       store.startReminder(task.id)
       flow.go('reminder')
@@ -274,14 +255,6 @@ export function TodayScreen() {
     <header className="flex shrink-0 flex-col bg-neutral-white">
       <div className="flex items-center gap-8 px-16 py-12">
         <span className="min-w-0 flex-1 text-20 font-bold text-default">Tugas</span>
-        <button
-          type="button"
-          onClick={() => flow.go('lead-new')}
-          className="flex shrink-0 items-center gap-4 text-14 font-bold text-link"
-        >
-          <FileAdd size={16} />
-          Tugas Baru
-        </button>
       </div>
       <div className="flex border-b border-default px-8">
         {TABS.map((t) => (
