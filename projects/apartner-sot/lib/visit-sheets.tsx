@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react'
 import { BottomSheet, Button } from '@/design-system/components'
 import { ArrowClockwise, Camera, ChevronRight, CloudSlash, MapPin, NotePencil } from '@/design-system/icons'
+import { PTP_OPTIONS } from './collect-options'
 import { ChoiceList } from './ui'
 
 // Why the visit is being skipped, per the Figma. "Lainnya" opens a free-text
@@ -94,9 +95,11 @@ export function SkipVisitSheet({
   /** Where the shot was taken — the balai, read back off the geotag. */
   place: string
   onClose: () => void
-  onConfirm: (reason: string) => void
+  /** The reason, and when the owed mitra get their home visit ('hari ini' puts them on today's list). */
+  onConfirm: (reason: string, visitDate: string | null) => void
 }) {
   const [step, setStep] = useState<Step>('form')
+  const [visitDate, setVisitDate] = useState<string | undefined>(undefined)
   const [photo, setPhoto] = useState(false)
   const [reason, setReason] = useState<string | null>(null)
   const [other, setOther] = useState('')
@@ -109,10 +112,12 @@ export function SkipVisitSheet({
       setReason(null)
       setOther('')
       setDraft('')
+      setVisitDate(undefined)
     }
   }, [open])
 
-  const ready = photo && reason !== null && (reason !== OTHER || other.trim() !== '')
+  const ready =
+    photo && reason !== null && (reason !== OTHER || other.trim() !== '') && visitDate !== undefined
 
   function pick(option: string) {
     setReason(option)
@@ -192,7 +197,9 @@ export function SkipVisitSheet({
           size="lg"
           className="w-full"
           disabled={!ready}
-          onClick={() => reason && onConfirm(reason === OTHER ? `${OTHER}: ${other}` : reason)}
+          onClick={() =>
+            reason && onConfirm(reason === OTHER ? `${OTHER}: ${other}` : reason, visitDate ?? null)
+          }
         >
           Lewati Tugas
         </Button>
@@ -236,10 +243,22 @@ export function SkipVisitSheet({
             </div>
           ) : null}
         </div>
+
+        {/* The group still owes this week — when does the BP go to their doors?
+            "Hari ini" puts a home visit per owing mitra on today's list. */}
+        <ChoiceList
+          label="Jadwal home visit"
+          options={HV_DATES.map((o) => o.label)}
+          value={HV_DATES.find((o) => o.value === visitDate)?.label}
+          onPick={(label) => setVisitDate(HV_DATES.find((o) => o.label === label)?.value)}
+        />
       </div>
     </BottomSheet>
   )
 }
+
+/** When the skipped group's home visits happen — the janji bayar dates, minus "no promise". */
+const HV_DATES = PTP_OPTIONS.filter((o): o is { label: string; value: string } => o.value !== null)
 
 /**
  * The camera's "Gunakan foto ini?" — the geotagged shot, rotate controls, the

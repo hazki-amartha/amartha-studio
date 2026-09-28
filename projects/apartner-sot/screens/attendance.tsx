@@ -110,8 +110,8 @@ export function AttendanceScreen() {
   // from the group when the roster opened it. Skipping records against it.
   const taskId = s.activeTask ?? taskForMajelis(group.id)?.id ?? null
 
-  function skip(reason: string) {
-    if (taskId) store.skipVisit(taskId, reason)
+  function skip(reason: string, visitDate: string | null) {
+    if (taskId) store.skipVisit(taskId, reason, visitDate)
     setSkipping(false)
     flow.go('today')
   }

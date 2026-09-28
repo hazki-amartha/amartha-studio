@@ -468,6 +468,12 @@ export interface AppState {
    */
   scheduled: Task[]
   /**
+   * Home visits created by a submitted or skipped majelis, scheduled for
+   * "hari ini" — so they join today's list. A visit scheduled for any other
+   * day is not created here: it belongs to that day's list, not this one.
+   */
+  addedVisits: Task[]
+  /**
    * The follow-up being filled in. In the store rather than `useState` for the
    * usual reason plus a specific one: the screen offers a jump to "Lengkapi
    * data" on the lead's record — a BP who discovers mid-call that she never
@@ -593,6 +599,7 @@ const initial: AppState = {
   openLead: 'l1',
   openEvent: 'e1',
   scheduled: [],
+  addedVisits: [],
   followUp: emptyFollowUp('l1'),
   comms: COMMS_SEED,
   openComm: null,
@@ -615,7 +622,7 @@ function emit() {
  * deposit is how a BP ends up short at the counter with nothing to show for it.
  */
 function snapshotDeposit(taskId: string): DepositEntry | null {
-  const task = findTask(taskId)
+  const task = findAnyTask(taskId)
   if (!task) return null
 
   if (task.kind === 'home-visit') {
@@ -688,6 +695,45 @@ function scheduleFollowUp(current: Task[], lead: Lead, tomorrow: boolean): Task[
       leadId: lead.id,
     },
   ]
+}
+
+/** A rostered task, or a home visit a majelis created today. */
+const findAnyTask = (id: string | null): Task | undefined =>
+  findTask(id) ?? (id ? state.addedVisits.find((t) => t.id === id) : undefined)
+
+/** "HH.MM" plus minutes. */
+function addMinutes(time: string, minutes: number): string {
+  const [h, m] = time.split('.').map(Number)
+  const total = h * 60 + m + minutes
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}.${String(total % 60).padStart(2, '0')}`
+}
+
+/**
+ * Today's home visits for the given mitra, slotted after the task they came
+ * from — an hour after it ends, then every 30 minutes. A mitra with an open
+ * visit on today's list is not booked twice.
+ */
+function visitsAfter(source: Task, mitra: Mitra[], reason: string): Task[] {
+  const booked = new Set(
+    state.addedVisits
+      .filter((t) => t.id !== source.id && !state.doneTasks.includes(t.id))
+      .map((t) => t.mitraId),
+  )
+  return mitra
+    .filter((m) => !booked.has(m.id))
+    .map((m, i) => {
+      const time = addMinutes(source.until, 60 + i * 30)
+      return {
+        id: `hv-${source.id}-${m.id}`,
+        kind: 'home-visit' as const,
+        time,
+        until: addMinutes(time, 30),
+        title: `Ibu ${m.name}`,
+        place: findMajelisEntry(source.majelisId ?? 'mawar').place,
+        reason,
+        mitraId: m.id,
+      }
+    })
 }
 
 /** Adds a task to the started list once, ignoring a null id. */
@@ -793,6 +839,24 @@ export const store = {
   },
   /** Opens a home visit from the schedule. */
   startHomeVisit(taskId: string) {
+    // A visit a majelis created reuses the roster's mitra id; clear what the
+    // majelis recorded for her so the door asks afresh.
+    const added = state.addedVisits.find((t) => t.id === taskId)
+    if (added?.mitraId) {
+      const id = added.mitraId
+      const drop = <T,>(r: Record<string, T>) => {
+        const next = { ...r }
+        delete next[id]
+        return next
+      }
+      store.set({
+        payments: drop(state.payments),
+        nonPayments: drop(state.nonPayments),
+        partialPtp: drop(state.partialPtp),
+        payMode: drop(state.payMode),
+        shortfallReasons: drop(state.shortfallReasons),
+      })
+    }
     store.set({
       openHome: taskId,
       activeTask: taskId,
@@ -892,7 +956,14 @@ export const store = {
    * is captured. Like a reschedule it leaves `doneTasks` untouched — a skipped
    * visit is not finished work — and clears any half-started state.
    */
-  skipVisit(taskId: string, reason: string) {
+  skipVisit(taskId: string, reason: string, visitDate: string | null = null) {
+    // The skipped group still owes this week: a home visit for every mitra
+    // with a bill — on today's list only when it is scheduled for today.
+    const task = findTask(taskId)
+    if (task?.kind === 'majelis' && visitDate === 'hari ini') {
+      const owing = MAJELIS.members.filter((m) => outstandingOf(m).total > 0 && !PREPAID.includes(m))
+      store.set({ addedVisits: [...state.addedVisits, ...visitsAfter(task, owing, 'Majelis dilewati · tagih di rumah')] })
+    }
     store.set({
       skips: { ...state.skips, [taskId]: true },
       skipReasons: { ...state.skipReasons, [taskId]: reason },
@@ -934,7 +1005,41 @@ export const store = {
     // roster. The closing task adds these up rather than re-reading a roster
     // that has moved on.
     const entry = snapshotDeposit(id)
+    // A mitra who didn't pay in full and promised "hari ini" gets a home visit
+    // on today's list — after a majelis, or again after a home visit. Any
+    // other date isn't today's work.
+    const task = findAnyTask(id)
+    const promisedToday = (m: Mitra) => {
+      const status = collectStatus(state, m)
+      const ptp =
+        status === 'tidak'
+          ? state.nonPayments[m.id]?.ptp
+          : status === 'sebagian'
+            ? state.partialPtp[m.id]
+            : null
+      return ptp === 'hari ini'
+    }
+    const owedToday =
+      task?.kind === 'majelis'
+        ? MAJELIS.members.filter(promisedToday)
+        : task?.kind === 'home-visit'
+          ? [findMitra(task.mitraId ?? 'h1')].filter(promisedToday)
+          : []
+    const addedVisits =
+      task && owedToday.length
+        ? [
+            ...state.addedVisits,
+            ...visitsAfter(
+              task,
+              owedToday,
+              task.kind === 'majelis'
+                ? 'Janji bayar hari ini · belum bayar penuh'
+                : 'Janji bayar hari ini · kunjungi lagi',
+            ),
+          ]
+        : state.addedVisits
     store.set({
+      addedVisits,
       doneTasks: [...state.doneTasks, id],
       activeTask: null,
       deposits: entry ? { ...state.deposits, [id]: entry } : state.deposits,
@@ -1730,19 +1835,22 @@ export function taskStatus(s: AppState, taskId: string): TaskStatus {
 
 /** Finished today, still on the handset — what the sync widget counts. */
 export const pendingSync = (s: AppState): Task[] =>
-  TASKS.filter((t) => s.doneTasks.includes(t.id) && !s.sentTasks.includes(t.id))
+  [...TASKS, ...s.addedVisits].filter((t) => s.doneTasks.includes(t.id) && !s.sentTasks.includes(t.id))
 
 export const doneTaskList = (s: AppState): Task[] =>
-  TASKS.filter((t) => s.doneTasks.includes(t.id))
+  [...TASKS, ...s.addedVisits].filter((t) => s.doneTasks.includes(t.id))
 
 /** The group every majelis screen is currently naming itself after. */
 export const openMajelisEntry = (s: AppState): MajelisEntry => findMajelisEntry(s.openMajelis)
 
 /** The mitra whose door the home visit is standing at. */
 export const openHomeMitra = (s: AppState): Mitra =>
-  findMitra(findTask(s.openHome)?.mitraId ?? 'h1')
+  findMitra(
+    (findTask(s.openHome) ?? s.addedVisits.find((t) => t.id === s.openHome))?.mitraId ?? 'h1',
+  )
 
-export const openHomeTask = (s: AppState): Task | undefined => findTask(s.openHome)
+export const openHomeTask = (s: AppState): Task | undefined =>
+  findTask(s.openHome) ?? s.addedVisits.find((t) => t.id === s.openHome)
 
 /**
  * The day's actual plate: everything rostered, minus what she moved, rejected
@@ -1753,7 +1861,7 @@ export const openHomeTask = (s: AppState): Task | undefined => findTask(s.openHo
  * in front of a closing it has nothing to do with.
  */
 export const todayTasks = (s: AppState): Task[] =>
-  TASKS.filter(
+  [...TASKS, ...s.addedVisits].filter(
     (t) =>
       !s.reschedules[t.id] &&
       !s.rejects[t.id] &&
@@ -1766,6 +1874,7 @@ export const todayTasks = (s: AppState): Task[] =>
       // actually landed — every other kind is always on the plate.
       (t.kind !== 'bukti' || s.showBukti),
   )
+  .sort((a, b) => a.time.localeCompare(b.time))
 
 /** Visits the BP moved to another day — off today's plate, not done. */
 export const rescheduledTasks = (s: AppState): Task[] =>

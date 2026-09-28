@@ -259,6 +259,7 @@ export const scheduleHomeVisit = () =>
     payments: mawarPaid(),
     deposits: depositsFor(['t1', 't2']),
     setorInFlight: null,
+    addedVisits: [],
     settlements: [],
     depositAmount: null,
     depositMethod: null,
@@ -277,6 +278,7 @@ export const scheduleClosing = () =>
     payments: mawarPaid(),
     deposits: bankedDay,
     setorInFlight: null,
+    addedVisits: [],
     settlements: [],
     depositAmount: null,
     depositMethod: null,
@@ -297,6 +299,7 @@ export const scheduleCloseable = () =>
     sentTasks: CLOSING_DONE,
     deposits: bankedDay,
     setorInFlight: null,
+    addedVisits: [],
     settlements: [
       settlement(1, ['t1'], '11.40'),
       // The second handover went to an agent counter — the two roads, side by
@@ -337,6 +340,7 @@ export const scheduleCapped = () =>
       },
     },
     setorInFlight: null,
+    addedVisits: [],
     settlements: [
       settlement(1, ['t1'], '11.40'),
       settlement(2, ['t2'], '15.10', undefined, 'agent'),
@@ -359,6 +363,7 @@ export const scheduleClosed = () =>
     sentTasks: CLOSING_DONE,
     deposits: bankedDay,
     setorInFlight: null,
+    addedVisits: [],
     settlements: [
       settlement(1, ['t1'], '11.40'),
       settlement(2, ['t2', 't4'], '16.20', undefined, 'agent'),
