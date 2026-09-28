@@ -1092,6 +1092,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
     product: 'GL',
     amount: 'Rp2.000.000',
     disburseDate: '24 Juli',
+    // Kumpulan Mawar is today — she disburses at the group day.
+    agenda: { day: 'today', kind: 'Kumpulan', when: 'Hari ini · Mawar', order: 20, dueDays: 0 },
     log: [
       { at: '12 Juli', via: 'manual', status: 'interested', system: 'Referral dari Ibu Rina Marlina (Majelis Mawar)' },
       { at: '15 Juli', via: 'manual', status: 'survey-created', system: 'Produk GL' },
@@ -1118,6 +1120,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
     product: 'Modal',
     amount: 'Rp2.500.000',
     disburseDate: '25 Juli',
+    // Batu Sangkar's group-formation day is tomorrow.
+    agenda: { day: 'upcoming', kind: 'Kumpulan', when: 'Besok · Batu Sangkar', order: 21, dueDays: 1 },
     log: [
       { at: '14 Juli', via: 'poi', status: 'interested', system: 'Diajak Ibu Ipah bikin majelis baru' },
       { at: '16 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
@@ -1151,6 +1155,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
       product: 'Modal',
       amount: 'Rp2.000.000',
       disburseDate: '25 Juli',
+      // Same Batu Sangkar group-formation day as Wulan Sari.
+      agenda: { day: 'upcoming', kind: 'Kumpulan', when: 'Besok · Batu Sangkar', order: 22 + i, dueDays: 1 },
       log: [
         { at: '14 Juli', via: 'poi', status: 'interested', system: 'Diajak Ibu Ipah bikin majelis baru' },
         { at: '16 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
@@ -1184,6 +1190,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
     product: 'Modal',
     amount: 'Rp2.000.000',
     disburseDate: '26 Juli',
+    // Ciseeng Wetan meets Selasa 09.00 — she waits on the next group day.
+    agenda: { day: 'upcoming', kind: 'Kumpulan', when: 'Selasa, 09.00 · Ciseeng Wetan', order: 26, dueDays: 2 },
     log: [
       { at: '13 Juli', via: 'poi', status: 'interested' },
       { at: '15 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
@@ -1239,6 +1247,8 @@ export const SEED_PIPELINE: PipelineLead[] = [
     product: 'GL',
     amount: 'Rp2.500.000',
     disburseDate: '18 Juli',
+    // Kumpulan Melati is today — she disburses at the group day.
+    agenda: { day: 'today', kind: 'Kumpulan', when: 'Hari ini · Melati', order: 27, dueDays: 0 },
     log: [
       { at: '5 Juli', via: 'manual', status: 'interested', system: 'Referral dari Bu Yanti (Majelis Melati)' },
       { at: '10 Juli', via: 'manual', status: 'survey-created', system: 'Produk GL' },

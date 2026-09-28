@@ -202,6 +202,32 @@ export const pipelineStore = {
   },
 
   /**
+   * Push an approved lead's kumpulan to the next cycle — she waits for the next
+   * group day to disburse or form her majelis. Moves the schedule one week out
+   * and keeps her on the board (the approved sections always show), so the card
+   * reads the new kumpulan date.
+   */
+  rescheduleToNextKumpulan(id: string) {
+    patchLead(id, (lead) => {
+      const dueDays = (lead.agenda?.dueDays ?? 0) + 7
+      return {
+        agenda: {
+          day: 'upcoming',
+          kind: 'Kumpulan',
+          when: `Kumpulan berikutnya · ${dateFromToday(dueDays)}`,
+          order: lead.agenda?.order ?? 0,
+          dueDays,
+        },
+        log: appendLog(lead, {
+          via: 'manual',
+          status: lead.status,
+          system: 'Dijadwalkan ke kumpulan berikutnya',
+        }),
+      }
+    })
+  },
+
+  /**
    * Drops a lead — deferred 90 days, not reactivated. Her status (and so her
    * category) is left as-is; she simply falls off today's board and reopens in
    * 90 days where she was.

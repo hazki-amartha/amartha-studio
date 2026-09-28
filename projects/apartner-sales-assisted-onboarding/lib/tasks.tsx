@@ -398,8 +398,10 @@ export function LeadBoardCard({
   const loc = lead.address?.kecamatan
     ? [lead.address.kecamatan, lead.address.desa].filter(Boolean).join(', ')
     : ''
-  // Submitted and approved surveys carry no follow-up, so they show no schedule.
-  const noSchedule = lead.status === 'survey-submitted' || lead.status === 'approved'
+  // Submitted surveys are in underwriting — no BP schedule. Approved leads DO
+  // carry a schedule: their kumpulan (group) day, when they disburse or form
+  // the majelis, and can be pushed to the next kumpulan.
+  const noSchedule = lead.status === 'survey-submitted'
   return (
     <button
       type="button"

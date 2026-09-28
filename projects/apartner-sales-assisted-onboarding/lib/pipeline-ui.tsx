@@ -21,6 +21,7 @@ import {
   addressComplete,
   historyActivity,
   historyStatusLabel,
+  sourceDetail,
   statusReasons,
   type Interest,
   type LeadAddress,
@@ -32,7 +33,7 @@ import {
   type SurveyMode,
 } from './pipeline'
 import { pipelineStore } from './pipeline-store'
-import { SearchField } from './ui'
+import { ChoiceList, SearchField } from './ui'
 
 /**
  * The onboarding-mode choice (Phase 2): after the majelis step the BP picks how
@@ -126,6 +127,143 @@ export function OnboardingTimingSheet({
             <span className="text-14 font-bold text-default">{o.title}</span>
             <span className="text-12 text-caption">{o.description}</span>
           </button>
+        ))}
+      </div>
+    </BottomSheet>
+  )
+}
+
+// --- Reschedule / Drop (shared by the Follow-up and Calon Mitra pages) ------
+
+const RESCHEDULE_REASONS = [
+  'Tidak sempat dikunjungi hari ini',
+  'Calon mitra butuh waktu',
+  'Calon mitra perlu diskusi dengan keluarga',
+  'Belum bisa dihubungi',
+  'Lainnya',
+]
+
+// Tomorrow through next week, each with how many days from today (today is
+// 21 Juli 2026 — see pipeline.ts).
+const RESCHEDULE_DATES: { label: string; days: number }[] = [
+  { label: 'Rabu, 22 Juli (besok)', days: 1 },
+  { label: 'Kamis, 23 Juli', days: 2 },
+  { label: 'Jumat, 24 Juli', days: 3 },
+  { label: 'Sabtu, 25 Juli', days: 4 },
+  { label: 'Senin, 27 Juli', days: 6 },
+  { label: 'Selasa, 28 Juli (minggu depan)', days: 7 },
+]
+
+const DROP_REASONS = [
+  'Belum diizinkan suami / keluarga',
+  'Belum butuh pinjaman saat ini',
+  'Keberatan biaya / angsuran',
+  'Masih ada pinjaman di tempat lain',
+  'Tidak cocok dengan skema pinjaman',
+  'Takut, ragu, atau trauma',
+  'Lainnya',
+]
+
+/** Reschedule a lead's follow-up — a reason and a new date. `onSubmit` gets the
+ *  resolved reason (free text for "Lainnya") and the chosen date. */
+export function RescheduleTaskSheet({
+  open,
+  lead,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean
+  lead: PipelineLead
+  onClose: () => void
+  onSubmit: (reason: string, date: { label: string; days: number }) => void
+}) {
+  const [reason, setReason] = useState('')
+  const [note, setNote] = useState('')
+  const [date, setDate] = useState<{ label: string; days: number } | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      setReason('')
+      setNote('')
+      setDate(null)
+    }
+  }, [open])
+
+  const effReason = reason === 'Lainnya' ? note.trim() : reason
+  const canGo = Boolean(date) && Boolean(effReason)
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="Jadwalkan ulang tugas"
+      primaryAction={
+        <Button size="lg" className="w-full" disabled={!canGo} onClick={() => date && onSubmit(effReason, date)}>
+          Jadwal Ulang
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-16">
+        <div className="flex flex-col gap-2">
+          <span className="text-16 font-bold text-default">{lead.name}</span>
+          <span className="text-12 text-caption">Sumber: {sourceDetail(lead)}</span>
+        </div>
+
+        <div className="flex flex-col gap-8">
+          <ChoiceList plain label="Alasan" options={RESCHEDULE_REASONS} value={reason || undefined} onPick={setReason} />
+          {reason === 'Lainnya' ? (
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Isi alasan lainnya" />
+          ) : null}
+        </div>
+
+        <ChoiceList
+          plain
+          label="Jadwal baru"
+          options={RESCHEDULE_DATES.map((d) => d.label)}
+          value={date?.label}
+          onPick={(l) => setDate(RESCHEDULE_DATES.find((d) => d.label === l) ?? null)}
+        />
+      </div>
+    </BottomSheet>
+  )
+}
+
+/** Drop a lead — the reason she is not interested. */
+export function DropLeadSheet({
+  open,
+  onClose,
+  onDrop,
+}: {
+  open: boolean
+  onClose: () => void
+  onDrop: (reason: string) => void
+}) {
+  const [reason, setReason] = useState('')
+  useEffect(() => {
+    if (open) setReason('')
+  }, [open])
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="Kenapa tidak berminat?"
+      primaryAction={
+        <Button size="lg" className="w-full" disabled={!reason} onClick={() => onDrop(reason)}>
+          Drop lead
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-8">
+        {DROP_REASONS.map((r) => (
+          <SelectableCard
+            key={r}
+            name="drop-why"
+            inputType="radio"
+            title={r}
+            checked={reason === r}
+            onChange={() => setReason(r)}
+          />
         ))}
       </div>
     </BottomSheet>

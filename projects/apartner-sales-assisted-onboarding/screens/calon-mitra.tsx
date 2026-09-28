@@ -26,7 +26,7 @@ import {
 import { useFlow } from '@/platform/runtime'
 import { dateFromToday, majelisLine, surveyStatusLabel, type SurveyMode } from '../lib/pipeline'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { OnboardingModeSheet, PickSheet } from '../lib/pipeline-ui'
+import { DropLeadSheet, OnboardingModeSheet, PickSheet, RescheduleTaskSheet } from '../lib/pipeline-ui'
 import {
   APPLICATION_SECTIONS,
   RITUAL_POINTS,
@@ -63,6 +63,8 @@ export function CalonMitraScreen() {
   // The disbursement purpose, on the Ready-for-disbursement view.
   const [tujuan, setTujuan] = useState(TUJUAN_OPTIONS[0])
   const [tujuanSheet, setTujuanSheet] = useState(false)
+  // Survey-ongoing "save for later" / drop actions — which sheet is open.
+  const [taskSheet, setTaskSheet] = useState<'reschedule' | 'drop' | null>(null)
 
   if (!lead) {
     return (
@@ -161,10 +163,26 @@ export function CalonMitraScreen() {
     setSubmitting(false)
   }
 
-  // Survey progress is already saved to the survey store on every toggle, so
-  // "save for later" just leaves the onboarding open and returns to Sales.
-  function saveForLater() {
-    pipelineStore.setFlash(`Progress onboarding ${lead.name} disimpan`)
+  // Survey ongoing — "Simpan untuk nanti" reschedules her follow-up to a picked
+  // date; "Drop lead" ends the lead. Both leave the survey progress saved.
+  function reschedule(reason: string, date: { label: string; days: number }) {
+    pipelineStore.rescheduleFollowUp(lead.id, date.days, date.label, reason)
+    pipelineStore.setFlash(`Follow up ${lead.name} dijadwalkan ulang ke ${date.label}`)
+    flow.go('sales')
+  }
+
+  function dropLead(reason: string) {
+    // Dropping a survey-ongoing lead ends her onboarding (status → rejected).
+    pipelineStore.dropLead(lead.id, reason || 'Lead di-drop', lead.status === 'survey-created')
+    pipelineStore.setFlash(`${lead.name} di-drop`)
+    flow.go('sales')
+  }
+
+  // Approved leads (Ready for disbursement / Waiting for group formation) can be
+  // pushed to the next kumpulan day if the mitra can't make this one.
+  function rescheduleKumpulan() {
+    pipelineStore.rescheduleToNextKumpulan(lead.id)
+    pipelineStore.setFlash(`${lead.name} dijadwalkan ke kumpulan berikutnya`)
     flow.go('sales')
   }
 
@@ -534,6 +552,9 @@ export function CalonMitraScreen() {
               </Button>
             </>
           )}
+          <Button variant="outline" size="lg" className="w-full" onClick={rescheduleKumpulan}>
+            Reschedule ke kumpulan selanjutnya
+          </Button>
         </StickyBar>
       ) : readOnly ? null : (
         <StickyBar>
@@ -547,9 +568,16 @@ export function CalonMitraScreen() {
           <Button size="lg" className="w-full" disabled={!canSubmit} onClick={submit}>
             Submit Onboarding
           </Button>
-          <Button variant="outline" size="lg" className="w-full" onClick={saveForLater}>
+          <Button variant="outline" size="lg" className="w-full" onClick={() => setTaskSheet('reschedule')}>
             Simpan untuk nanti
           </Button>
+          <button
+            type="button"
+            onClick={() => setTaskSheet('drop')}
+            className="mt-8 self-center py-4 text-12 font-bold text-link underline"
+          >
+            Drop lead
+          </button>
         </StickyBar>
       )}
 
@@ -568,6 +596,15 @@ export function CalonMitraScreen() {
           setTujuanSheet(false)
         }}
       />
+
+      {/* Survey ongoing — save for later (reschedule) or drop the lead. */}
+      <RescheduleTaskSheet
+        open={taskSheet === 'reschedule'}
+        lead={lead}
+        onClose={() => setTaskSheet(null)}
+        onSubmit={reschedule}
+      />
+      <DropLeadSheet open={taskSheet === 'drop'} onClose={() => setTaskSheet(null)} onDrop={dropLead} />
     </AppScreen>
   )
 }

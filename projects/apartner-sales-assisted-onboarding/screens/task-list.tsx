@@ -46,7 +46,12 @@ export function TaskListScreen() {
   function openTask(task: SalesTask) {
     if (task.kind === 'lead') {
       pipelineStore.open(task.id)
-      flow.go('follow-up')
+      // A survey-ongoing / approved lead opens the Calon Mitra detail directly
+      // (it carries its own "Jadwalkan nanti" / "Drop lead" actions); a
+      // pre-survey lead still goes through follow-up triage.
+      const s = task.lead.status
+      const direct = s === 'survey-created' || s === 'survey-submitted' || s === 'approved'
+      flow.go(direct ? 'calon-mitra' : 'follow-up')
     } else {
       store.openSosialisasi(task.id)
       flow.go('sosialisasi')
