@@ -1455,6 +1455,31 @@ export const SEED_PIPELINE: PipelineLead[] = [
       { at: '19 Juli', via: 'system', status: 'survey-submitted', system: 'Hard reject: tunggakan aktif di lembaga lain' },
     ],
   },
+  {
+    // Underwriting in progress — survey submitted, no result yet.
+    id: 'pr4',
+    name: 'Rina Wati',
+    phone: '0857-2214-6690',
+    address: { kecamatan: 'Ciseeng', desa: 'Putat Nutug', detail: 'Kp. Putat RT 03/RW 03', mapsCoord: 'pinned' },
+    source: 'referral',
+    referredBy: 'Bu Yanti (Majelis Melati)',
+    fo: 'Nurhayati',
+    photo: true,
+    status: 'survey-submitted',
+    ageDays: 3,
+    agenda: { day: 'today', kind: 'Diproses', when: 'Hari ini', order: 33, dueDays: 0 },
+    majelis: { kind: 'existing', id: 'melati' },
+    nik: '3201094803920031',
+    ktp: true,
+    product: 'Modal',
+    amount: '',
+    disburseDate: '',
+    log: [
+      { at: '17 Juli', via: 'manual', status: 'interested', system: 'Referral dari Bu Yanti (Majelis Melati)' },
+      { at: '19 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
+      { at: '21 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
+    ],
+  },
   // 2nd Follow-up — a self-service application already sent, due for a check today.
   {
     id: 'p11',

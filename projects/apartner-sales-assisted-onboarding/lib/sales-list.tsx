@@ -24,6 +24,7 @@ import {
   buildTasks,
   dueTasks,
   onLeadsList,
+  type CardNote,
   type SalesTask,
 } from './tasks'
 import {
@@ -48,6 +49,30 @@ import { AppScreen, Chip, EmptyState, FilterBar, SearchField, VisitTitle } from 
 type MainTab = 'leads' | 'poi'
 type Scope = 'today' | 'all'
 type PoiTask = Extract<SalesTask, { kind: 'poi' }>
+
+// Sales hari ini regroups the detailed sections into a few groups; a per-lead
+// note differentiates the sub-types that share one group.
+const TODAY_GROUPS: { key: string; label: string; secs: LeadsSection[] }[] = [
+  {
+    key: 'ready-to-disburse',
+    label: 'Ready to disburse',
+    secs: ['ready-for-disbursement', 'survey-approved'],
+  },
+  {
+    key: 'waiting-approval',
+    label: 'Waiting for approval',
+    secs: ['need-resubmit', 'pending-bm-validation', 'survey-submitted'],
+  },
+  { key: 'survey-ongoing', label: 'Survey ongoing', secs: ['survey-ongoing'] },
+  { key: 'follow-up', label: 'Follow up', secs: ['follow-up'] },
+]
+
+const CARD_NOTE: Partial<Record<LeadsSection, CardNote>> = {
+  'survey-approved': { text: 'Waiting for group formation', tone: 'orange' },
+  'need-resubmit': { text: 'Need to resubmit UK', tone: 'orange' },
+  'pending-bm-validation': { text: 'Need BM Action', tone: 'orange' },
+  'survey-submitted': { text: 'Application in process', tone: 'blue' },
+}
 
 /** The Leads ↔ POI visit segmented switch — "Lihat semua" only. */
 function SegmentedTabs({
@@ -249,24 +274,26 @@ export function SalesList({ scope }: { scope: Scope }) {
     // Only the active stages appear today; submitted and approved surveys have
     // no follow-up to do, so they wait on "Lihat semua". A follow-up must be due.
     const leadsToday = leadsAll.filter((l) => {
-      const sec = leadsSection(l)
-      // Submitted surveys are in underwriting — no BP action, so not on the board.
-      if (sec === 'survey-submitted') return false
-      // Soft/hard rejects are not today's work — they wait on "Lihat semua".
-      if (sec === 'pending-bm-validation' || sec === 'survey-rejected') return false
-      // Survey ongoing is follow-up-managed too: only the ones due now show
-      // today, so a "Butuh waktu lebih" reschedule moves her off the board.
+      const sec = displaySection(l)
+      // A hard reject is not today's work — it waits on "Lihat semua".
+      if (sec === 'survey-rejected') return false
+      // Survey ongoing / follow-up are date-managed: only the ones due now show.
       if (sec === 'follow-up' || sec === 'survey-ongoing') return agendaDueDays(l.agenda) <= 0
-      // Ready for disbursement, waiting for formation, and a resubmit-needed
-      // survey are all open tasks for today.
+      // Everything else (Ready to disburse + Waiting for approval groups) is an
+      // open task for today.
       return true
     })
     const poiToday = dueTasks(allPoiTasks) as PoiTask[]
 
-    const leadRows = (sec: LeadsSection) =>
+    // Rows for a group — all its sub-sections, kept in the group's own order.
+    const groupRows = (secs: LeadsSection[]) =>
       leadsToday
-        .filter((l) => displaySection(l) === sec && matchesQuery(l))
-        .sort((a, b) => (a.agenda?.dueDays ?? 0) - (b.agenda?.dueDays ?? 0))
+        .filter((l) => secs.includes(displaySection(l)) && matchesQuery(l))
+        .sort(
+          (a, b) =>
+            secs.indexOf(displaySection(a)) - secs.indexOf(displaySection(b)) ||
+            (a.agenda?.dueDays ?? 0) - (b.agenda?.dueDays ?? 0),
+        )
     const poiRows = poiToday.filter(poiMatchesQuery)
     // BM only, and only the ones she hasn't decided yet — a second entry point
     // onto the same 3-step flow the Tugas card opens (see validasi.ts /
@@ -282,14 +309,17 @@ export function SalesList({ scope }: { scope: Scope }) {
       | { key: string; label: string; kind: 'lead'; rows: PipelineLead[] }
       | { key: string; label: string; kind: 'poi'; rows: PoiTask[] }
       | { key: string; label: string; kind: 'bm-validation'; rows: typeof bmRows }
+    const readyGroup = TODAY_GROUPS.find((g) => g.key === 'ready-to-disburse')!
+    const waitingGroup = TODAY_GROUPS.find((g) => g.key === 'waiting-approval')!
+    const surveyGroup = TODAY_GROUPS.find((g) => g.key === 'survey-ongoing')!
+    const followGroup = TODAY_GROUPS.find((g) => g.key === 'follow-up')!
     const sections: Section[] = [
       { key: 'bm-validation', label: 'BM Validation', kind: 'bm-validation', rows: bmRows },
-      { key: 'ready-for-disbursement', label: LEADS_SECTION_LABEL['ready-for-disbursement'], kind: 'lead', rows: leadRows('ready-for-disbursement') },
-      { key: 'survey-approved', label: LEADS_SECTION_LABEL['survey-approved'], kind: 'lead', rows: leadRows('survey-approved') },
-      { key: 'need-resubmit', label: LEADS_SECTION_LABEL['need-resubmit'], kind: 'lead', rows: leadRows('need-resubmit') },
-      { key: 'survey-ongoing', label: LEADS_SECTION_LABEL['survey-ongoing'], kind: 'lead', rows: leadRows('survey-ongoing') },
+      { key: readyGroup.key, label: readyGroup.label, kind: 'lead', rows: groupRows(readyGroup.secs) },
+      { key: waitingGroup.key, label: waitingGroup.label, kind: 'lead', rows: groupRows(waitingGroup.secs) },
+      { key: surveyGroup.key, label: surveyGroup.label, kind: 'lead', rows: groupRows(surveyGroup.secs) },
       { key: 'poi', label: 'POI visit', kind: 'poi', rows: poiRows },
-      { key: 'follow-up', label: LEADS_SECTION_LABEL['follow-up'], kind: 'lead', rows: leadRows('follow-up') },
+      { key: followGroup.key, label: followGroup.label, kind: 'lead', rows: groupRows(followGroup.secs) },
     ]
     const visible = sections.filter((s) => s.rows.length > 0)
     const total = leadsToday.length + poiToday.length + bmRows.length
@@ -335,6 +365,7 @@ export function SalesList({ scope }: { scope: Scope }) {
                           key={lead.id}
                           lead={lead}
                           divider={i > 0}
+                          note={CARD_NOTE[displaySection(lead)]}
                           onOpen={() => openLead(lead)}
                         />
                       ))

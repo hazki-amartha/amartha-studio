@@ -58,7 +58,8 @@ export const project: ProjectModule = {
       title: 'Tambah Lead',
       component: lazyScreen(() => import('./screens/lead-new'), 'LeadNewScreen'),
       flowsTo: [
-        { to: 'sales', label: 'Submit → Sales' },
+        { to: 'pendaftaran', label: 'Mulai pendaftaran' },
+        { to: 'sales', label: 'Simpan prospek → Sales' },
         { to: 'sosialisasi', label: 'POI Visit → POI page' },
       ],
     },
@@ -99,9 +100,14 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/pendaftaran'), 'PendaftaranScreen'),
       flowsTo: [
         { to: 'kumpulan-jadwal', label: 'Majelis baru → buat majelis' },
-        { to: 'calon-mitra', label: 'Existing → onboarding' },
-        { to: 'survey-started', label: 'Existing → survey self-service' },
+        { to: 'onboarding-start', label: 'Existing → cara onboarding' },
       ],
+    },
+    {
+      id: 'onboarding-start',
+      title: 'Cara Onboarding',
+      component: lazyScreen(() => import('./screens/onboarding-start'), 'OnboardingStartScreen'),
+      flowsTo: [{ to: 'calon-mitra', label: 'Lanjut ke survey' }],
     },
     {
       id: 'kumpulan-jadwal',
@@ -123,6 +129,12 @@ export const project: ProjectModule = {
           label: 'Start of the survey',
           description: 'Calon mitra dibuka dengan survey masih kosong',
           apply: demo.surveyStart,
+        },
+        {
+          id: 'majelis-done',
+          label: 'Majelis / group formation selesai',
+          description: 'Sudah diterima majelis; survey masih perlu diisi',
+          apply: demo.surveyMajelisDone,
         },
         {
           id: 'all-filled',

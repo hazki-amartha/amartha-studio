@@ -15,7 +15,7 @@ import { useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Card, NavigationHeader } from '@/design-system/components'
 import { ArrowRight, CalendarDots, ChevronRight, MapPin, Sort, User, Users } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { DRAFT_SCHEDULE, MAJELIS_DIRECTORY, MIN_MEMBERS, type MajelisEntry } from '../lib/schedule'
+import { DRAFT_SCHEDULE, MAJELIS_DIRECTORY, type MajelisEntry } from '../lib/schedule'
 import { isOnboardingLead, majelisLine, type PipelineLead } from '../lib/pipeline'
 import type { BadgeIntent } from '@/design-system/components/Badge'
 import { useApp } from '../lib/store'
@@ -160,16 +160,14 @@ export function MajelisPageScreen() {
   const isDirectoryDraft = existing?.status === 'draft'
   const showRoster = existing?.status === 'aktif'
   const more = existing ? Math.max(0, existing.members - MAJELIS_ROSTER.length) : 0
-  // A majelis activates only once at least MIN_MEMBERS of its members are
-  // "survey approved" (cleared underwriting) — not merely gathered. That count
-  // comes from a directory draft's stand-in roster, or a synthesized draft's
-  // pipeline leads.
+  // A draft majelis can be activated at any time now — group formation no longer
+  // waits for a minimum of survey-approved members. The count is shown for
+  // context (from a directory draft's stand-in roster, or a synthesized draft's
+  // pipeline leads).
   const approvedCount =
     isDirectoryDraft && existing
       ? draftApprovedCount(existing.id)
       : potential.filter((l) => l.status === 'approved').length
-  const readyToActivate = approvedCount >= MIN_MEMBERS
-  const shortApproved = Math.max(0, MIN_MEMBERS - approvedCount)
 
   // Calon mitra pending KM acceptance — survey-ongoing members not yet accepted.
   // (KM acceptance precedes survey submission, so these are the ones to bring in.)
@@ -288,30 +286,22 @@ export function MajelisPageScreen() {
           <div className="rounded-12 border border-green-500 bg-green-50 px-12 py-12 text-12 font-bold text-green-600">
             Majelis sudah dibentuk & aktif
           </div>
-        ) : readyToActivate ? (
+        ) : (
           <button
             type="button"
             onClick={formMajelis}
             className="flex items-center justify-between gap-8 rounded-12 border border-green-500 bg-green-50 px-12 py-12 text-left active:bg-neutral-50"
           >
             <span className="flex min-w-0 flex-col gap-2">
-              <span className="text-14 font-bold text-green-600">Majelis siap diaktivasi</span>
+              <span className="text-14 font-bold text-green-600">Majelis siap dibentuk</span>
               <span className="text-12 text-caption">
-                {approvedCount} anggota sudah survey approved — jalankan pembentukan majelis.
+                {approvedCount} anggota survey approved — jalankan pembentukan majelis kapan saja.
               </span>
             </span>
             <span className="shrink-0 text-green-600">
               <ChevronRight size={20} />
             </span>
           </button>
-        ) : (
-          <div className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-50 px-12 py-12">
-            <span className="text-14 font-bold text-orange-500">Majelis ini belum aktif</span>
-            <span className="text-12 text-caption">
-              Butuh {MIN_MEMBERS} anggota survey approved untuk aktivasi — baru {approvedCount} approved,
-              kurang {shortApproved} lagi.
-            </span>
-          </div>
         )
       ) : null}
 

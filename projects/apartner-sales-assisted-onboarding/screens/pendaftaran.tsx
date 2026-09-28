@@ -87,7 +87,6 @@ export function PendaftaranScreen() {
     setTimingOpen(true)
   }
 
-  // The mode (assisted / self) is chosen later, on the Calon Mitra page.
   function startOnboarding(when: 'now' | 'later') {
     setTimingOpen(false)
     // New majelis: carry the timing into the "Buat Majelis Baru" step.
@@ -98,8 +97,9 @@ export function PendaftaranScreen() {
     }
     // Existing majelis: assign her to the group and start the survey.
     pipelineStore.beginOnboarding(lead.id, undefined, { kind: 'existing', id: majelisChoice })
+    // Now → the "Cara onboarding" page (mode + its gate). Later → save her.
     if (when === 'now') {
-      flow.go('calon-mitra')
+      flow.go('onboarding-start')
     } else {
       pipelineStore.setFlash(`${lead.name} disimpan sebagai calon mitra`)
       flow.go('sales')
