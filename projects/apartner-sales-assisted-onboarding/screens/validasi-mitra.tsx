@@ -38,16 +38,11 @@ export function ValidasiMitraScreen() {
 
       <Card>
         <div className="flex flex-col gap-12">
-          <div className="flex items-start gap-8">
+          <div className="flex items-center gap-8">
             <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-orange-50 text-orange-500">
               <WarningFill size={20} />
             </span>
-            <div className="flex flex-col gap-2">
-              <span className="text-14 font-bold text-default">Status underwriting: Soft Reject</span>
-              <span className="text-12 text-caption">
-                Sistem underwriting menahan pengajuan {c.name} secara otomatis — belum ditolak final.
-              </span>
-            </div>
+            <span className="text-14 font-bold text-default">Status underwriting: Soft Reject</span>
           </div>
 
           <div className="flex flex-col gap-4 rounded-r-8 border-l-2 border-orange-500 bg-orange-50 p-8">
