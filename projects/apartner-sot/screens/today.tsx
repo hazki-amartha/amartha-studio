@@ -29,7 +29,6 @@ import {
 import { useFlow } from '@/platform/runtime'
 import {
   CLOSING_TASK,
-  TASKS,
   TOMORROW_TASKS,
   findMajelisEntry,
   withScheduled,
@@ -180,7 +179,7 @@ export function TodayScreen() {
   const matches = (t: Task) =>
     (!kind || t.kind === kind) && (!q || t.title.toLowerCase().includes(q))
 
-  const today = [...TASKS.filter((t) => plate.includes(t)), CLOSING_TASK].filter(
+  const today = [...plate, CLOSING_TASK].filter(
     (t) => matches(t) && (!status || statusOf(t) === status),
   )
   const tomorrow = withScheduled(TOMORROW_TASKS, scheduledFor(s, 'tomorrow')).filter(matches)
@@ -246,8 +245,8 @@ export function TodayScreen() {
     setSkipping(task)
   }
 
-  function confirmSkip(task: Task, reason: string) {
-    store.skipVisit(task.id, reason)
+  function confirmSkip(task: Task, reason: string, visitDate: string | null) {
+    store.skipVisit(task.id, reason, visitDate)
     setSkipping(null)
   }
 
@@ -364,7 +363,7 @@ export function TodayScreen() {
         open={Boolean(skipping)}
         place={findMajelisEntry(skipping?.majelisId ?? 'mawar').place}
         onClose={() => setSkipping(null)}
-        onConfirm={(reason) => skipping && confirmSkip(skipping, reason)}
+        onConfirm={(reason, visitDate) => skipping && confirmSkip(skipping, reason, visitDate)}
       />
       <OptionSheet
         open={statusOpen}
