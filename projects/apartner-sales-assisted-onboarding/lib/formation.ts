@@ -31,8 +31,8 @@ const ACCEPT_STEPS: FormationStepId[] = ['perjanjian']
 
 export type FormationContext =
   // Accept newly-approved members into an existing majelis (batch).
-  | { mode: 'accept'; majelisName: string; memberIds: string[]; memberNames: string[] }
-  | { mode: 'form'; majelisName: string; memberCount: number }
+  | { mode: 'accept'; majelisName: string; memberIds: string[]; memberNames: string[]; returnTo?: string }
+  | { mode: 'form'; majelisName: string; memberCount: number; returnTo?: string }
 
 export function stepsForContext(ctx: FormationContext): FormationStepId[] {
   return ctx.mode === 'accept' ? ACCEPT_STEPS : FORMATION_STEP_ORDER

@@ -153,16 +153,19 @@ export function GroupFormationScreen() {
   }
 
   function finish() {
+    // Return to whoever launched the flow (`returnTo`) — the Survey Ongoing page
+    // when it was started from there, otherwise the default per mode.
     if (ctx.mode === 'accept') {
       ctx.memberIds.forEach((id) => formationStore.acceptLead(id))
       pipelineStore.setFlash(`${ctx.memberIds.length} anggota baru diterima di ${ctx.majelisName}`)
-      flow.go('majelis-page')
+      flow.go(ctx.returnTo ?? 'majelis-page')
     } else {
       formationStore.activateMajelis(ctx.majelisName)
       pipelineStore.setFlash(`${ctx.majelisName} terbentuk`)
       // Return to where the formation was started — from a lead, that's her
       // page, now showing "Ready for disbursement".
-      flow.back()
+      if (ctx.returnTo) flow.go(ctx.returnTo)
+      else flow.back()
     }
   }
 

@@ -196,7 +196,12 @@ export function CalonMitraScreen() {
   }
 
   function startGroupFormation() {
-    setFormation({ mode: 'form', majelisName: newMajelisName, memberCount: newApprovedCount })
+    setFormation({
+      mode: 'form',
+      majelisName: newMajelisName,
+      memberCount: newApprovedCount,
+      returnTo: 'calon-mitra',
+    })
     flow.go('group-formation')
   }
 
@@ -209,6 +214,7 @@ export function CalonMitraScreen() {
       majelisName: existingEntry?.name ?? majelisLine(lead),
       memberIds: [lead.id],
       memberNames: [lead.name],
+      returnTo: 'calon-mitra',
     })
     flow.go('group-formation')
   }
