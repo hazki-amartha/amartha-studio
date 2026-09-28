@@ -1,6 +1,6 @@
 'use client'
 
-// The app's four destinations — the L0 surfaces this direction sits on top of.
+// The app's five destinations (Beranda added from the BP APP 2026 homepage) — the L0 surfaces this direction sits on top of.
 //
 //   Jadwal  — what to do now. The entry screen, and where a pelayanan starts.
 //   Majelis — every group the BP carries, reachable off-schedule. This is the
@@ -23,17 +23,18 @@ import type { ReactNode } from 'react'
 import { NavigationBar } from '@/design-system/components'
 // `Contact` and `User` come from the shared set: a person-card for the list of
 // borrowers and a single silhouette for "me".
-import { Contact, User } from '@/design-system/icons'
+import { Contact, House, User } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { IconCalendar, IconUsers } from './icons'
 import { Snackbar } from './snackbar'
 
-export type TabId = 'today' | 'majelis-list' | 'mitra-list' | 'profile'
+export type TabId = 'home' | 'today' | 'majelis-list' | 'mitra-list' | 'profile'
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  { id: 'home', label: 'Beranda', icon: <House /> },
   { id: 'today', label: 'Tugas', icon: <IconCalendar /> },
-  { id: 'majelis-list', label: 'Majelis', icon: <IconUsers /> },
   { id: 'mitra-list', label: 'Mitra', icon: <Contact /> },
+  { id: 'majelis-list', label: 'Majelis', icon: <IconUsers /> },
   { id: 'profile', label: 'Profil', icon: <User /> },
 ]
 

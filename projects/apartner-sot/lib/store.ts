@@ -1272,6 +1272,11 @@ export const store = {
    * rather than a send per row: they queued because there was no signal, and
    * signal returns for all of them at once.
    */
+  /** Kirim Tugas: sends the finished tasks she ticked. */
+  sendTasks(ids: string[]) {
+    const fresh = ids.filter((id) => !state.sentTasks.includes(id))
+    if (fresh.length) store.set({ sentTasks: [...state.sentTasks, ...fresh] })
+  },
   sendPending() {
     const pending = state.doneTasks.filter((id) => !state.sentTasks.includes(id))
     if (pending.length === 0) return
