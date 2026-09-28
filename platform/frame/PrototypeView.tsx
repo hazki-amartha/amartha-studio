@@ -97,6 +97,7 @@ import {
   setSidebarLive,
   subscribeSidebarSlots,
 } from '@/platform/chrome/sidebarSlots'
+import { useProjectVersion } from '@/platform/runtime/projectRefresh'
 import { DeviceFrame } from './DeviceFrame'
 import { DEVICE_SPECS, outerSize } from './device'
 import styles from './prototype.module.css'
@@ -894,6 +895,9 @@ export interface PrototypeViewProps {
  *  boundary, so the loader runs here — the same thing FlowCanvas does. */
 function useScreens(slug: string): ScreenDef[] | null {
   const [screens, setScreens] = useState<ScreenDef[] | null>(null)
+  // Bumped when something edits the project (see projectRefresh), so a screen
+  // added by chat shows up without a reload.
+  const version = useProjectVersion()
 
   useEffect(() => {
     let alive = true
@@ -909,7 +913,7 @@ function useScreens(slug: string): ScreenDef[] | null {
     return () => {
       alive = false
     }
-  }, [slug])
+  }, [slug, version])
 
   return screens
 }
