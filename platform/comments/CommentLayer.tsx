@@ -25,11 +25,14 @@ import {
   numberOf,
   openComment,
   postComment,
+  postReply,
   removeComment,
+  repliesOf,
   resolveComment,
   setCommenterName,
   setCommentMode,
   startDraft,
+  threadsOf,
   useComments,
   type Draft,
 } from './store'
@@ -124,7 +127,9 @@ export function CommentLayer() {
     scrollerIn(ref.current)?.scrollBy({ left: e.deltaX, top: e.deltaY })
   }
 
-  const visible = comments.filter((c) => c.screenId === current && (showResolved || !c.resolved || c.id === openId))
+  const visible = threadsOf(comments).filter(
+    (c) => c.screenId === current && (showResolved || !c.resolved || c.id === openId),
+  )
   const counter = 1 / frame.scale
   // A pin grows up and to the right of its spot; near the screen's right or
   // top edge it would be clipped, so it grows the other way there instead.
@@ -152,7 +157,7 @@ export function CommentLayer() {
             active={openId === c.id}
             muted={c.resolved}
             label={initials(c.author)}
-            title={`#${numberOf(comments, c.id)} · ${c.author}`}
+            title={pinTitle(comments, c)}
             onOpen={() => openComment(openId === c.id ? null : c.id)}
           >
             {openId === c.id ? <Thread comment={c} number={numberOf(comments, c.id)} /> : null}
@@ -166,6 +171,11 @@ export function CommentLayer() {
       </div>
     </div>
   )
+}
+
+function pinTitle(comments: Comment[], c: Comment): string {
+  const n = repliesOf(comments, c.id).length
+  return `#${numberOf(comments, c.id)} · ${c.author}${n ? ` · ${n} ${n === 1 ? 'reply' : 'replies'}` : ''}`
 }
 
 /** A pin whose bottom-left corner is the spot it points at — the Figma shape —
@@ -303,13 +313,22 @@ function ErrorLine() {
   return error ? <p className="text-12 text-red-500">{error}</p> : null
 }
 
-function Composer({ draft }: { draft: Draft }) {
-  // Signed in, the account names the comment (the route does the same).
+/** Who a new comment or reply goes out as. Signed in, the account names it
+ *  (the route does the same); otherwise the name typed once and remembered. */
+function useAuthor() {
   const account = useStudioUser().user?.label ?? null
   const [typed, setName] = useState(getCommenterName)
   const [asking, setAskName] = useState(() => !getCommenterName())
   const name = account ?? typed
-  const askName = asking && !account
+  const remember = () => {
+    if (!account) setCommenterName(name)
+    setAskName(false)
+  }
+  return { account, name, setName, askName: asking && !account, setAskName, remember }
+}
+
+function Composer({ draft }: { draft: Draft }) {
+  const { account, name, setName, askName, setAskName, remember } = useAuthor()
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
   const ready = body.trim() && name.trim() && !busy
@@ -317,7 +336,7 @@ function Composer({ draft }: { draft: Draft }) {
   const send = async () => {
     if (!ready) return
     setBusy(true)
-    if (!account) setCommenterName(name)
+    remember()
     await postComment({ ...draft, body, author: name.trim() })
     setBusy(false)
   }
@@ -375,66 +394,25 @@ function Composer({ draft }: { draft: Draft }) {
 }
 
 function Thread({ comment, number }: { comment: Comment; number: number }) {
-  const [editing, setEditing] = useState(false)
-  const [menu, setMenu] = useState(false)
-  const [confirming, setConfirming] = useState(false)
-  const [body, setBody] = useState(comment.body)
-  const [busy, setBusy] = useState(false)
+  const { comments } = useComments()
+  const replies = repliesOf(comments, comment.id)
+  const list = useRef<HTMLDivElement>(null)
 
-  const save = async () => {
-    if (!body.trim() || busy) return
-    setBusy(true)
-    if (await editComment(comment.id, body)) setEditing(false)
-    setBusy(false)
-  }
+  // A new reply lands at the bottom, where the reply box is — keep it in view.
+  useLayoutEffect(() => {
+    const el = list.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [replies.length])
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Number and time, then ··· · resolve · close — with a rule under it,
-          full width. */}
+      {/* Number and time, then resolve · close — with a rule under it, full
+          width. */}
       <div className="-mx-12 flex items-center gap-4 border-b border-default px-12 pb-8 dark:border-ink-700">
         <span className="min-w-0 flex-1 truncate text-12 text-caption dark:text-neutral-400">
-          #{number} · {ago(comment.createdAt)}
-          {comment.editedAt ? ' · edited' : ''}
+          #{number}
+          {replies.length ? ` · ${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}` : ''}
         </span>
-        {comment.mine ? (
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setMenu((m) => !m)}
-              title="More"
-              aria-label="More"
-              className={ICON_BTN}
-            >
-              <MoreIcon className="size-16" />
-            </button>
-            {menu ? (
-              <div className="absolute right-0 top-24 z-10 flex w-120 flex-col rounded-8 border border-default bg-neutral-white p-4 shadow-lg dark:border-ink-700 dark:bg-ink-900">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenu(false)
-                    setBody(comment.body)
-                    setEditing(true)
-                  }}
-                  className="rounded-4 px-8 py-4 text-left text-14 text-default hover:bg-neutral-50 dark:text-neutral-50 dark:hover:bg-ink-800"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenu(false)
-                    setConfirming(true)
-                  }}
-                  className="rounded-4 px-8 py-4 text-left text-14 text-red-500 hover:bg-red-50 dark:hover:bg-ink-800"
-                >
-                  Delete
-                </button>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
         <button
           type="button"
           onClick={() => resolveComment(comment.id, !comment.resolved)}
@@ -449,57 +427,206 @@ function Thread({ comment, number }: { comment: Comment; number: number }) {
         </button>
       </div>
 
-      {editing ? (
-        <>
-          <textarea
-            autoFocus
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.preventDefault()
-                setEditing(false)
-              } else submitOn(save)(e)
-            }}
-            rows={3}
-            maxLength={2000}
-            className={`${FIELD} resize-none`}
-          />
-          <ErrorLine />
-          <div className="flex justify-end gap-4">
-            <button type="button" onClick={() => setEditing(false)} className={GHOST}>
-              Cancel
-            </button>
-            <button type="button" onClick={save} disabled={!body.trim() || busy} className={PRIMARY}>
-              Save
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className="flex flex-col gap-4">
-          <p className="whitespace-pre-wrap break-words text-14 text-default dark:text-neutral-50">{comment.body}</p>
-          <span className="truncate text-12 font-bold text-caption dark:text-neutral-400">{comment.author}</span>
-        </div>
-      )}
+      <div ref={list} className="-mx-12 flex max-h-360 flex-col gap-12 overflow-y-auto px-12">
+        <Message comment={comment} replies={replies.length} />
+        {replies.map((r) => (
+          <Message key={r.id} comment={r} replies={0} />
+        ))}
+      </div>
 
-      {confirming ? (
-        <div className="flex items-center justify-between gap-8 rounded-8 bg-red-50 px-8 py-4 dark:bg-ink-800">
-          <span className="text-12 text-red-500">Delete this comment?</span>
-          <div className="flex gap-4">
-            <button type="button" onClick={() => setConfirming(false)} className={GHOST}>
-              Keep
-            </button>
+      <ReplyBox parentId={comment.id} />
+    </div>
+  )
+}
+
+/** One message in a thread — the first comment or a reply — Figma's shape:
+ *  avatar, name and time, the words; ··· for whoever wrote it. */
+function Message({ comment, replies }: { comment: Comment; replies: number }) {
+  const [editing, setEditing] = useState(false)
+  const [menu, setMenu] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [body, setBody] = useState(comment.body)
+  const [busy, setBusy] = useState(false)
+  const first = !comment.parentId
+
+  const save = async () => {
+    if (!body.trim() || busy) return
+    setBusy(true)
+    if (await editComment(comment.id, body)) setEditing(false)
+    setBusy(false)
+  }
+
+  return (
+    <div className="flex gap-8">
+      <span className="flex size-24 flex-none items-center justify-center rounded-full bg-ink-900 text-10 font-bold text-neutral-white dark:bg-ink-700">
+        {initials(comment.author)}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="flex items-center gap-4">
+          <span className="min-w-0 truncate text-12 font-bold text-default dark:text-neutral-50">{comment.author}</span>
+          <span className="flex-none text-12 text-caption dark:text-neutral-400">
+            {ago(comment.createdAt)}
+            {comment.editedAt ? ' · edited' : ''}
+          </span>
+          <span className="flex-1" />
+          {comment.mine && !editing ? (
+            <div className="relative">
+              <button type="button" onClick={() => setMenu((m) => !m)} title="More" aria-label="More" className={ICON_BTN}>
+                <MoreIcon className="size-16" />
+              </button>
+              {menu ? (
+                <div className="absolute right-0 top-24 z-10 flex w-120 flex-col rounded-8 border border-default bg-neutral-white p-4 shadow-lg dark:border-ink-700 dark:bg-ink-900">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenu(false)
+                      setBody(comment.body)
+                      setEditing(true)
+                    }}
+                    className="rounded-4 px-8 py-4 text-left text-14 text-default hover:bg-neutral-50 dark:text-neutral-50 dark:hover:bg-ink-800"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenu(false)
+                      setConfirming(true)
+                    }}
+                    className="rounded-4 px-8 py-4 text-left text-14 text-red-500 hover:bg-red-50 dark:hover:bg-ink-800"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        {editing ? (
+          <>
+            <textarea
+              autoFocus
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setEditing(false)
+                } else submitOn(save)(e)
+              }}
+              rows={3}
+              maxLength={2000}
+              className={`${FIELD} resize-none`}
+            />
+            <ErrorLine />
+            <div className="flex justify-end gap-4">
+              <button type="button" onClick={() => setEditing(false)} className={GHOST}>
+                Cancel
+              </button>
+              <button type="button" onClick={save} disabled={!body.trim() || busy} className={PRIMARY}>
+                Save
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="whitespace-pre-wrap break-words text-14 text-default dark:text-neutral-50">{comment.body}</p>
+        )}
+
+        {confirming ? (
+          <div className="flex items-center justify-between gap-8 rounded-8 bg-red-50 px-8 py-4 dark:bg-ink-800">
+            <span className="text-12 text-red-500">
+              {first && replies > 0 ? 'Delete the whole thread?' : first ? 'Delete this comment?' : 'Delete this reply?'}
+            </span>
+            <div className="flex gap-4">
+              <button type="button" onClick={() => setConfirming(false)} className={GHOST}>
+                Keep
+              </button>
+              <button
+                type="button"
+                onClick={() => removeComment(comment.id)}
+                className="rounded-full bg-red-500 px-12 py-4 text-12 font-bold text-neutral-white hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+/** The reply field under a thread. Enter sends and Shift-Enter breaks the
+ *  line, as in Figma; ⌘/Ctrl-Enter still works. */
+function ReplyBox({ parentId }: { parentId: string }) {
+  const { account, name, setName, askName, setAskName, remember } = useAuthor()
+  const [body, setBody] = useState('')
+  const [busy, setBusy] = useState(false)
+  const ready = Boolean(body.trim() && name.trim() && !busy)
+
+  const send = async () => {
+    if (!ready) return
+    setBusy(true)
+    remember()
+    if (await postReply({ parentId, body, author: name.trim() })) setBody('')
+    setBusy(false)
+  }
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      void send()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      openComment(null)
+    }
+  }
+
+  return (
+    <div className="-mx-12 flex flex-col gap-8 border-t border-default px-12 pt-8 dark:border-ink-700">
+      {askName ? (
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={onKey}
+          placeholder="Your name"
+          maxLength={60}
+          className={FIELD}
+        />
+      ) : null}
+      <textarea
+        autoFocus
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        onKeyDown={onKey}
+        placeholder="Reply"
+        rows={body.includes('\n') ? 3 : 1}
+        maxLength={2000}
+        className={`${FIELD} resize-none`}
+      />
+      <ErrorLine />
+      {body.trim() || askName ? (
+        <div className="flex items-center justify-between gap-8">
+          {account ? (
+            <span className="min-w-0 truncate text-12 text-caption dark:text-neutral-400">As {account}</span>
+          ) : askName ? (
+            <span className="truncate text-12 text-caption dark:text-neutral-400">Shown with your replies</span>
+          ) : (
             <button
               type="button"
-              onClick={() => removeComment(comment.id)}
-              className="rounded-full bg-red-500 px-12 py-4 text-12 font-bold text-neutral-white hover:bg-red-600"
+              onClick={() => setAskName(true)}
+              title="Change your name"
+              className="min-w-0 truncate text-left text-12 text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50"
             >
-              Delete
+              As {name} · <span className="underline">Change</span>
             </button>
-          </div>
+          )}
+          <button type="button" onClick={send} disabled={!ready} className={PRIMARY}>
+            Reply
+          </button>
         </div>
       ) : null}
-      {!editing ? <ErrorLine /> : null}
     </div>
   )
 }

@@ -12,6 +12,8 @@ import '@/design-system/components/styles.css'
 import { Badge, type BadgeIntent } from '@/design-system/components/Badge'
 import { Card } from '@/design-system/components/Card'
 import { PageHeader } from '@/platform/chrome'
+import { getStudioUser } from '@/platform/auth/server'
+import { NewProjectButton } from '@/platform/projects/NewProjectButton'
 import { ChevronLeftIcon } from '@/platform/chrome/icons'
 import type { BusinessUnit, Platform, ProjectConfig, ProjectStatus } from '@/platform/types'
 import { configs as projectConfigs } from '@/projects/configs'
@@ -303,6 +305,10 @@ export default async function Home({
   }
 }) {
   const entries = await loadEntries()
+  // A project is files in this checkout, so it can only be started on the
+  // laptop running the studio — the deployed gallery has no button.
+  const canCreate = process.env.NODE_ENV === 'development'
+  const account = canCreate ? ((await getStudioUser())?.label ?? null) : null
 
   const rawStatus = first(searchParams?.status)
   const rawPlatform = first(searchParams?.platform)
@@ -345,6 +351,10 @@ export default async function Home({
       </section>
     )
 
+  const newProject = canCreate ? (
+    <NewProjectButton account={account} businessUnit={bu} />
+  ) : undefined
+
   const chips = (
     <FilterChips
       bu={bu}
@@ -378,6 +388,7 @@ export default async function Home({
           <PageHeader
             title={BU_LABEL[bu]}
             subtitle={shown.length === 1 ? '1 prototype' : `${shown.length} prototypes`}
+            actions={newProject}
           />
         </div>
 
@@ -389,7 +400,7 @@ export default async function Home({
 
   return (
     <div className="mx-auto flex max-w-screen-lg flex-col gap-24 px-16 py-32">
-      <PageHeader title="Prototype Studio" />
+      <PageHeader title="Prototype Studio" actions={newProject} />
 
       {entries.length === 0 ? (
         <EmptyState />

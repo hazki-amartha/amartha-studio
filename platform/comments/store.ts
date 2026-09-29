@@ -192,6 +192,13 @@ export async function postComment(input: Rest<'create'>): Promise<boolean> {
   return true
 }
 
+export async function postReply(input: Rest<'reply'>): Promise<boolean> {
+  if (!state.slug) return false
+  const data = await send({ action: 'reply', slug: state.slug, ...input })
+  if (data?.comment) upsert(data.comment)
+  return Boolean(data?.comment)
+}
+
 export async function editComment(id: string, body: string): Promise<boolean> {
   if (!state.slug) return false
   const data = await send({ action: 'edit', slug: state.slug, id, body })
@@ -214,10 +221,20 @@ export async function removeComment(id: string) {
   if (!state.slug) return
   const data = await send({ action: 'delete', slug: state.slug, id })
   if (!data?.deleted) return
-  set({ comments: state.comments.filter((c) => c.id !== id), openId: state.openId === id ? null : state.openId })
+  // A thread's first comment takes its replies with it, as the route does.
+  set({
+    comments: state.comments.filter((c) => c.id !== id && c.parentId !== id),
+    openId: state.openId === id ? null : state.openId,
+  })
 }
 
-/** Figma-style pin numbers: the order comments were made in, project-wide. */
+/** The first comment of each thread — what draws a pin and lists in the panel. */
+export const threadsOf = (comments: Comment[]) => comments.filter((c) => !c.parentId)
+
+/** A thread's replies, oldest first (the list already comes sorted). */
+export const repliesOf = (comments: Comment[], id: string) => comments.filter((c) => c.parentId === id)
+
+/** Figma-style pin numbers: the order threads were started in, project-wide. */
 export function numberOf(comments: Comment[], id: string): number {
-  return comments.findIndex((c) => c.id === id) + 1
+  return threadsOf(comments).findIndex((c) => c.id === id) + 1
 }

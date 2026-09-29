@@ -12,12 +12,27 @@ import type { ScreenDef } from '@/platform/types'
 import { CloseIcon } from '@/platform/chrome/icons'
 import { ago, initials } from './CommentLayer'
 import type { Comment } from './protocol'
-import { numberOf, openComment, setCommentMode, setShowResolved, useComments } from './store'
+import { numberOf, openComment, repliesOf, setCommentMode, setShowResolved, threadsOf, useComments } from './store'
 
 const ROW =
   'flex w-full gap-8 rounded-8 px-8 py-8 text-left hover:bg-neutral-50 dark:hover:bg-ink-800'
 
-function Row({ comment, number, active, onClick }: { comment: Comment; number: number; active: boolean; onClick: () => void }) {
+/** One thread: its first comment, then every reply under it in order — the
+ *  whole row opens the thread on its pin. */
+function Row({
+  comment,
+  number,
+  replies,
+  active,
+  onClick,
+}: {
+  comment: Comment
+  number: number
+  replies: Comment[]
+  active: boolean
+  onClick: () => void
+}) {
+  const muted = comment.resolved ? 'text-disabled line-through' : 'text-caption dark:text-neutral-400'
   return (
     <button type="button" onClick={onClick} className={`${ROW} ${active ? 'bg-neutral-50 dark:bg-ink-800' : ''}`}>
       <span
@@ -25,18 +40,32 @@ function Row({ comment, number, active, onClick }: { comment: Comment; number: n
       >
         {initials(comment.author)}
       </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="flex items-baseline gap-4">
-          <span className="truncate text-12 font-bold text-default dark:text-neutral-50">{comment.author}</span>
-          <span className="flex-none text-12 text-caption dark:text-neutral-400">
-            #{number} · {ago(comment.createdAt)}
+      <span className="flex min-w-0 flex-1 flex-col gap-8">
+        <span className="flex flex-col">
+          <span className="flex items-baseline gap-4">
+            <span className="truncate text-12 font-bold text-default dark:text-neutral-50">{comment.author}</span>
+            <span className="flex-none text-12 text-caption dark:text-neutral-400">
+              #{number} · {ago(comment.createdAt)}
+            </span>
           </span>
+          <span className={`line-clamp-2 text-12 ${muted}`}>{comment.body}</span>
         </span>
-        <span
-          className={`line-clamp-2 text-12 ${comment.resolved ? 'text-disabled line-through' : 'text-caption dark:text-neutral-400'}`}
-        >
-          {comment.body}
-        </span>
+        {replies.map((r) => (
+          <span key={r.id} className="flex gap-8">
+            <span
+              className={`flex size-20 flex-none items-center justify-center rounded-full text-10 font-bold text-neutral-white ${comment.resolved ? 'bg-neutral-500' : 'bg-ink-900 dark:bg-ink-700'}`}
+            >
+              {initials(r.author)}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="flex items-baseline gap-4">
+                <span className="truncate text-12 font-bold text-default dark:text-neutral-50">{r.author}</span>
+                <span className="flex-none text-12 text-caption dark:text-neutral-400">{ago(r.createdAt)}</span>
+              </span>
+              <span className={`line-clamp-2 text-12 ${muted}`}>{r.body}</span>
+            </span>
+          </span>
+        ))}
       </span>
     </button>
   )
@@ -57,9 +86,10 @@ export function CommentsPanel({
   const { comments, openId, showResolved } = useComments()
 
   const shown = (c: Comment) => showResolved || !c.resolved
-  const here = comments.filter((c) => c.screenId === current && shown(c))
-  const elsewhere = comments.filter((c) => c.screenId !== current && shown(c))
-  const resolvedCount = comments.filter((c) => c.resolved).length
+  const threads = threadsOf(comments)
+  const here = threads.filter((c) => c.screenId === current && shown(c))
+  const elsewhere = threads.filter((c) => c.screenId !== current && shown(c))
+  const resolvedCount = threads.filter((c) => c.resolved).length
   const titleOf = (id: string) => screens.find((s) => s.id === id)?.title ?? id
 
   const open = (c: Comment) => {
@@ -104,7 +134,7 @@ export function CommentsPanel({
         {here.length > 0 ? (
           <div className="-mx-8 flex flex-col">
             {here.map((c) => (
-              <Row key={c.id} comment={c} number={numberOf(comments, c.id)} active={openId === c.id} onClick={() => open(c)} />
+              <Row key={c.id} comment={c} number={numberOf(comments, c.id)} replies={repliesOf(comments, c.id)} active={openId === c.id} onClick={() => open(c)} />
             ))}
           </div>
         ) : (
@@ -119,7 +149,7 @@ export function CommentsPanel({
               {elsewhere.map((c) => (
                 <div key={c.id} className="flex flex-col">
                   <span className="px-8 pt-4 text-10 text-caption dark:text-neutral-400">{titleOf(c.screenId)}</span>
-                  <Row comment={c} number={numberOf(comments, c.id)} active={false} onClick={() => open(c)} />
+                  <Row comment={c} number={numberOf(comments, c.id)} replies={repliesOf(comments, c.id)} active={false} onClick={() => open(c)} />
                 </div>
               ))}
             </div>

@@ -10,6 +10,7 @@
 // Bundles the registry with esbuild (CSS stubbed) so it runs in plain Node.
 
 import { build } from 'esbuild'
+import { readFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -22,8 +23,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 // up owning projects. That was harmless while ownership was a convention read by
 // humans. It stops being harmless the moment anything checks it automatically:
 // one stray spelling reads as a different person and locks the real owner out of
-// their own project. Add a name here when a designer joins.
-const OWNERS = ['Hazki', 'Chandra', 'Patricia', 'Nugraha', 'Yori']
+// their own project. Add a name to platform/projects/owners.json when a designer
+// joins — the gallery's New Project form offers the same list.
+const OWNERS = JSON.parse(readFileSync(join(root, 'platform/projects/owners.json'), 'utf8'))
 
 const cssStub = {
   name: 'css-stub',
@@ -107,7 +109,7 @@ export { mergeProject } from './platform/runtime/resolveProject'`,
       if (!OWNERS.includes(owner)) {
         errors.push(
           `${slug}: owner "${owner}" is not a known designer — ` +
-            `use one of ${OWNERS.join(', ')}, or add them to OWNERS in scripts/check-flows.mjs`,
+            `use one of ${OWNERS.join(', ')}, or add them to platform/projects/owners.json`,
         )
       }
     }
