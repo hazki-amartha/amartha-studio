@@ -153,6 +153,7 @@ export function ValidasiKeputusanScreen() {
   const [statusRumahSheet, setStatusRumahSheet] = useState(false)
   const [usahaSheet, setUsahaSheet] = useState(false)
   const [majelisSheet, setMajelisSheet] = useState(false)
+  const [asetSheet, setAsetSheet] = useState(false)
 
   const reasonOptions = s.decision ? DECISION_REASONS[s.decision] : []
   const reasonValue = finalReason(s)
@@ -222,21 +223,11 @@ export function ValidasiKeputusanScreen() {
             onClick={() => setUsahaSheet(true)}
           />
 
-          <div className="flex flex-col gap-8">
-            <span className="text-14 font-bold text-default">Aset yang dimiliki mitra</span>
-            <div className="flex flex-col gap-8">
-              {ASET_OPTIONS.map((o) => (
-                <SelectableCard
-                  key={o}
-                  name={`aset-${o}`}
-                  inputType="checkbox"
-                  title={o}
-                  checked={s.asetBM.includes(o)}
-                  onChange={() => validasiStore.toggleAset(o)}
-                />
-              ))}
-            </div>
-          </div>
+          <PickerField
+            label="Aset yang dimiliki mitra"
+            value={s.asetBM.join(', ')}
+            onClick={() => setAsetSheet(true)}
+          />
 
           <PickerField
             label="Pengecekan majelis — apakah anggota mengenal mitra ini?"
@@ -402,6 +393,32 @@ export function ValidasiKeputusanScreen() {
           setMajelisSheet(false)
         }}
       />
+
+      {/* Multi-select — stays open across picks (unlike PickSheet's single
+          radio) so she can check more than one box before closing it. */}
+      <BottomSheet
+        open={asetSheet}
+        onClose={() => setAsetSheet(false)}
+        title="Aset yang dimiliki mitra"
+        primaryAction={
+          <Button size="lg" className="w-full" onClick={() => setAsetSheet(false)}>
+            Simpan
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-8">
+          {ASET_OPTIONS.map((o) => (
+            <SelectableCard
+              key={o}
+              name={`aset-${o}`}
+              inputType="checkbox"
+              title={o}
+              checked={s.asetBM.includes(o)}
+              onChange={() => validasiStore.toggleAset(o)}
+            />
+          ))}
+        </div>
+      </BottomSheet>
     </AppScreen>
   )
 }
