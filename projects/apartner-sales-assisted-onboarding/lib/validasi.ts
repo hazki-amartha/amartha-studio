@@ -265,7 +265,7 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
 ]
 
 /** The 4-step flow's own StageBar labels — same order as the screens. */
-export const VALIDASI_STEPS = ['Hasil Underwriting', 'Data Underwriting', 'BP Feedback', 'Keputusan']
+export const VALIDASI_STEPS = ['Hasil Underwriting', 'Data Underwriting', 'BP Feedback', 'Verifikasi & Keputusan']
 
 /** The screen id each step's StageBar circle jumps to, 1-indexed to match
  *  StageBar's own numbering — the BM can move freely between all four, there
