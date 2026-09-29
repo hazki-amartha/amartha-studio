@@ -887,19 +887,23 @@ export interface PrototypeViewProps {
   /** Deep-link from ?full=1 — opens straight into bare presentation, so a link
    *  handed round before a demo needs no click to get there. */
   initialBare?: boolean
+  /** Screens supplied by the caller instead of loaded from the registry —
+   *  /db/<slug>, whose project lives in the database (platform/dbProjects). */
+  screens?: ScreenDef[]
 }
 
 /** The project's screen list — its own plus any inherited from a base
  *  (`extends`) — loaded client-side from the registry.
  *  Screen components are lazyScreen() handles and can't cross the server
  *  boundary, so the loader runs here — the same thing FlowCanvas does. */
-function useScreens(slug: string): ScreenDef[] | null {
+function useScreens(slug: string, enabled: boolean): ScreenDef[] | null {
   const [screens, setScreens] = useState<ScreenDef[] | null>(null)
   // Bumped when something edits the project (see projectRefresh), so a screen
   // added by chat shows up without a reload.
   const version = useProjectVersion()
 
   useEffect(() => {
+    if (!enabled) return
     let alive = true
     // The registry is imported dynamically, not at the top of the file: a
     // static import would put every project's index — and the demo/store libs
@@ -913,14 +917,15 @@ function useScreens(slug: string): ScreenDef[] | null {
     return () => {
       alive = false
     }
-  }, [slug, version])
+  }, [slug, version, enabled])
 
   return screens
 }
 
-export function PrototypeView({ config, initialScreenId, initialBare }: PrototypeViewProps) {
+export function PrototypeView({ config, initialScreenId, initialBare, screens: supplied }: PrototypeViewProps) {
   const isDesktop = useIsDesktop()
-  const screens = useScreens(config.slug)
+  const loaded = useScreens(config.slug, !supplied)
+  const screens = supplied ?? loaded
 
   const explicitBare = useSyncExternalStore(
     subscribeBareMode,
