@@ -24,9 +24,7 @@ export function ValidasiHeader({ case: c, onBack }: { case: SoftRejectCase; onBa
       </button>
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-16 font-bold text-default">{c.name}</span>
-        <span className="truncate text-12 text-caption">
-          {c.majelisName} · {c.amount}
-        </span>
+        <span className="truncate text-12 text-caption">{c.majelisName}</span>
         <span className="flex pt-2">
           <Badge intent="orange" size="sm">
             Soft Reject
@@ -56,7 +54,9 @@ export function PickerField({
 }) {
   return (
     <div className="flex flex-col gap-8">
-      <span className="text-14 font-bold text-default">{label}</span>
+      <span className="text-14 font-bold text-default">
+        {label} <span className="text-red-500">*</span>
+      </span>
       <button
         type="button"
         onClick={onClick}
@@ -123,7 +123,9 @@ export function PhotoCapture({
 }) {
   return (
     <div className="flex flex-col gap-8">
-      <span className="text-14 font-bold text-default">{label}</span>
+      <span className="text-14 font-bold text-default">
+        {label} <span className="text-red-500">*</span>
+      </span>
       {captured ? (
         <div className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12">
           <span className="text-green-500">

@@ -17,15 +17,16 @@ import { useFlow } from '@/platform/runtime'
 import { DECISION_REASON_OTHER, DECISION_REASONS, VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
 import {
   canGoToValidasiStep,
-  finalReason,
   isVerifikasiKetuaDone,
   isVerifikasiMitraDone,
+  reasonSummary,
+  reasonsValid,
   useOpenCase,
   useValidasi,
   validasiStore,
 } from '../lib/validasi-store'
 import { store } from '../lib/store'
-import { ValidasiHeader } from '../lib/validasi-ui'
+import { CheckboxRow, ValidasiHeader } from '../lib/validasi-ui'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 // Neutral by default, same selected treatment as the design system's own
@@ -65,7 +66,7 @@ export function ValidasiKeputusanScreen() {
   const [reasonSheet, setReasonSheet] = useState(false)
 
   const reasonOptions = s.decision ? DECISION_REASONS[s.decision] : []
-  const reasonValue = finalReason(s)
+  const reasonValue = reasonSummary(s)
   const needsLimit = s.decision === 'approve'
 
   // Set on steps 2 (Validasi ke Mitra) and 3 (Validasi ke Ketua Majelis) —
@@ -77,7 +78,7 @@ export function ValidasiKeputusanScreen() {
   const canSubmit =
     verificationDone &&
     Boolean(s.decision) &&
-    reasonValue.length > 0 &&
+    reasonsValid(s) &&
     (!needsLimit || s.proposedLimit.length > 0)
 
   function submit() {
@@ -174,7 +175,7 @@ export function ValidasiKeputusanScreen() {
             <Button
               size="lg"
               className="w-full"
-              disabled={reasonValue.length === 0}
+              disabled={!reasonsValid(s)}
               onClick={() => setReasonSheet(false)}
             >
               Simpan
@@ -184,17 +185,28 @@ export function ValidasiKeputusanScreen() {
           <div className="flex flex-col gap-8">
             {reasonOptions.map((o) => (
               <div key={o} className="flex flex-col gap-8">
-                <SelectableCard
-                  name="validasi-reason"
-                  inputType="radio"
-                  title={o}
-                  checked={s.reason === o}
-                  onChange={() => validasiStore.setReason(o)}
-                />
+                {/* Setujui allows more than one reason at once (a checkbox
+                    list) — an approval is usually several things going right
+                    together. Tolak stays single-select. */}
+                {s.decision === 'approve' ? (
+                  <CheckboxRow
+                    label={o}
+                    checked={s.reasons.includes(o)}
+                    onToggle={() => validasiStore.toggleReason(o)}
+                  />
+                ) : (
+                  <SelectableCard
+                    name="validasi-reason"
+                    inputType="radio"
+                    title={o}
+                    checked={s.reasons.includes(o)}
+                    onChange={() => validasiStore.toggleReason(o)}
+                  />
+                )}
                 {/* "Lainnya" opens its free-text field right under itself, not
                     lower on the page — the field belongs to the option that
                     asked for it. */}
-                {o === DECISION_REASON_OTHER && s.reason === DECISION_REASON_OTHER ? (
+                {o === DECISION_REASON_OTHER && s.reasons.includes(DECISION_REASON_OTHER) ? (
                   <textarea
                     className="ds-inp min-h-80 resize-none"
                     placeholder="Masukkan alasan lainnya"
