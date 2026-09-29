@@ -1,14 +1,15 @@
 'use client'
 
-// Validasi Mitra — step 2 of 4: the BM's own visit to the mitra herself. She
-// re-checks two of the BP's own answers rather than trusting BP Feedback
-// alone (each PickerField shows the BP's answer as a hint, so she's
-// comparing, not guessing), notes what the mitra owns, and photographs/
-// geotags her own visit. Kirim Keputusan (step 4) stays locked until this,
-// and step 3, are both whole.
+// Validasi Mitra — step 2 of 4: the BM's own visit to the mitra herself,
+// grouped by the three things she's actually checking — the house, the
+// business, what's owned — rather than one long list of pickers followed by
+// one long list of photos. Each of the first two pairs a question with the
+// photo that backs it up; each PickerField shows the BP's own answer as a
+// hint, so she's comparing, not guessing. Kirim Keputusan (step 4) stays
+// locked until this, and step 3, are both whole.
 
 import { useState } from 'react'
-import { BottomSheet, Button, Card, NavigationHeader, SelectableCard } from '@/design-system/components'
+import { BottomSheet, Button, Card, NavigationHeader } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
 import {
   ASET_OPTIONS,
@@ -19,7 +20,7 @@ import {
 } from '../lib/validasi'
 import { useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
 import { PickSheet } from '../lib/pipeline-ui'
-import { MitraCard, PickerField, PhotoCapture } from '../lib/validasi-ui'
+import { CheckboxRow, MitraCard, PickerField, PhotoCapture } from '../lib/validasi-ui'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 export function ValidasiVerifikasiMitraScreen() {
@@ -45,38 +46,52 @@ export function ValidasiVerifikasiMitraScreen() {
 
       <Card>
         <div className="flex flex-col gap-16">
-          <SectionTitle>Kunjungan ke rumah mitra</SectionTitle>
-
+          <SectionTitle>Rumah</SectionTitle>
           <PickerField
             label="Status kepemilikan rumah"
             value={s.statusRumahBM}
             hint={a.statusRumah}
             onClick={() => setStatusRumahSheet(true)}
           />
+          <PhotoCapture
+            label="Foto rumah mitra"
+            captured={s.fotoRumah}
+            onToggle={validasiStore.toggleFotoRumah}
+          />
+        </div>
+      </Card>
 
+      <Card>
+        <div className="flex flex-col gap-16">
+          <SectionTitle>Usaha</SectionTitle>
           <PickerField
             label="Apakah usaha masih berjalan?"
             value={s.usahaBerjalanBM}
             hint={a.usahaAktif}
             onClick={() => setUsahaSheet(true)}
           />
-
-          <PickerField
-            label="Aset yang dimiliki mitra"
-            value={s.asetBM.join(', ')}
-            onClick={() => setAsetSheet(true)}
-          />
-
-          <PhotoCapture
-            label="Foto rumah mitra"
-            captured={s.fotoRumah}
-            onToggle={validasiStore.toggleFotoRumah}
-          />
           <PhotoCapture
             label="Foto usaha mitra"
             captured={s.fotoUsaha}
             onToggle={validasiStore.toggleFotoUsaha}
           />
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex flex-col gap-16">
+          <SectionTitle>Aset</SectionTitle>
+          <PickerField
+            label="Aset yang dimiliki mitra"
+            value={s.asetBM.join(', ')}
+            onClick={() => setAsetSheet(true)}
+          />
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex flex-col gap-16">
+          <SectionTitle>Selfie &amp; geotag</SectionTitle>
           <PhotoCapture
             label="Selfie & geotag BM bersama mitra"
             captured={s.selfieMitra}
@@ -128,13 +143,11 @@ export function ValidasiVerifikasiMitraScreen() {
       >
         <div className="flex flex-col gap-8">
           {ASET_OPTIONS.map((o) => (
-            <SelectableCard
+            <CheckboxRow
               key={o}
-              name={`aset-${o}`}
-              inputType="checkbox"
-              title={o}
+              label={o}
               checked={s.asetBM.includes(o)}
-              onChange={() => validasiStore.toggleAset(o)}
+              onToggle={() => validasiStore.toggleAset(o)}
             />
           ))}
         </div>

@@ -4,7 +4,7 @@
 // needed on more than one screen (§4).
 
 import { Card } from '@/design-system/components'
-import { Camera, ChevronDown, FileCheck } from '@/design-system/icons'
+import { Camera, Check, ChevronDown, FileCheck } from '@/design-system/icons'
 import type { SoftRejectCase } from './validasi'
 
 /** Who this review is about — kept on every screen of the flow (not just
@@ -16,7 +16,7 @@ export function MitraCard({ case: c }: { case: SoftRejectCase }) {
       <div className="flex flex-col gap-4">
         <span className="text-16 font-bold text-default">{c.name}</span>
         <span className="text-12 text-caption">
-          {c.majelisName} · {c.product} · {c.amount}
+          {c.majelisName} · {c.amount}
         </span>
       </div>
     </Card>
@@ -57,6 +57,41 @@ export function PickerField({
       </button>
       {hint ? <span className="text-12 text-caption">Menurut BP Feedback: {hint}</span> : null}
     </div>
+  )
+}
+
+/** A square box, not SelectableCard's round radio dot — the design system's
+ *  SelectableCard draws the same circular indicator for `inputType="radio"`
+ *  and `"checkbox"` alike, which reads as "pick one" even when several can be
+ *  picked. Used for the one genuinely multi-select field in this flow (Aset
+ *  yang dimiliki mitra), so ticking two doesn't look like it un-ticks one. */
+export function CheckboxRow({
+  label,
+  checked,
+  onToggle,
+}: {
+  label: string
+  checked: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={checked}
+      onClick={onToggle}
+      className={`flex items-center gap-8 rounded-8 border px-12 py-8 text-left text-14 font-bold ${
+        checked ? 'border-primary-500 bg-primary-50 text-primary-500' : 'border-default bg-neutral-white text-default'
+      }`}
+    >
+      <span
+        className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-4 border ${
+          checked ? 'border-primary-500 bg-primary-500 text-neutral-white' : 'border-default bg-neutral-white'
+        }`}
+      >
+        {checked ? <Check size={16} /> : null}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+    </button>
   )
 }
 

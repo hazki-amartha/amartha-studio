@@ -304,6 +304,22 @@ export const MAJELIS_CHECKING_OPTIONS = [
   'Cukup dikenal',
   'Tidak dikenal / Ketua Majelis tidak mengenali',
 ]
+export const LAMA_KENAL_OPTIONS = [
+  'Kurang dari 6 bulan',
+  '6 bulan - 1 tahun',
+  '1 - 2 tahun',
+  'Lebih dari 2 tahun',
+]
+export const PERNAH_KELOMPOK_OPTIONS = [
+  'Ya, pernah satu kelompok sebelumnya',
+  'Tidak, baru pertama kali',
+]
+/** Only asked when PERNAH_KELOMPOK_OPTIONS[0] ("Ya") is picked — which
+ *  pinjaman that previous group was. */
+export const RIWAYAT_PINJAMAN_OPTIONS = [
+  'Pinjaman sebelumnya di Amartha',
+  'Pinjaman lain di kompetitor',
+]
 
 export type ValidasiDecision = 'approve' | 'reject'
 

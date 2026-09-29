@@ -559,7 +559,7 @@ export function BmValidationCard({
       <div className="flex min-w-0 flex-col gap-2">
         <span className="truncate text-16 font-bold text-default">{c.name}</span>
         <span className="truncate text-12 text-caption">
-          {c.majelisName} · {c.product} · {c.amount}
+          {c.majelisName} · {c.amount}
         </span>
       </div>
     </button>

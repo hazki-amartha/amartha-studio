@@ -15,6 +15,7 @@
 import { useSyncExternalStore } from 'react'
 import {
   DECISION_REASON_OTHER,
+  PERNAH_KELOMPOK_OPTIONS,
   SOFT_REJECT_CASES,
   type SoftRejectCase,
   type ValidasiDecision,
@@ -39,6 +40,15 @@ interface ValidasiState {
   /** Multi-select — a mitra can own more than one. */
   asetBM: string[]
   majelisChecking: string
+  /** How long the Ketua Majelis has known her, and whether they've already
+   *  been in a group loan together — the two things only the Ketua Majelis
+   *  visit can answer. */
+  lamaKenalKM: string
+  pernahKelompokKM: string
+  /** Only meaningful when pernahKelompokKM is the "Ya" answer — which
+   *  pinjaman that previous group was. Cleared the moment she switches
+   *  pernahKelompokKM away from "Ya". */
+  riwayatPinjamanKM: string
   /** Tap-to-capture booleans — the prototype doesn't take real photos
    *  (§3), only records that the BM did. */
   fotoRumah: boolean
@@ -57,6 +67,9 @@ const EMPTY_CASE: ValidasiState = {
   usahaBerjalanBM: '',
   asetBM: [],
   majelisChecking: '',
+  lamaKenalKM: '',
+  pernahKelompokKM: '',
+  riwayatPinjamanKM: '',
   fotoRumah: false,
   fotoUsaha: false,
   selfieMitra: false,
@@ -117,6 +130,18 @@ export const validasiStore = {
   },
   setMajelisChecking(v: string) {
     patch(state.open, () => ({ majelisChecking: v }))
+  },
+  setLamaKenalKM(v: string) {
+    patch(state.open, () => ({ lamaKenalKM: v }))
+  },
+  setPernahKelompokKM(v: string) {
+    patch(state.open, (s) => ({
+      pernahKelompokKM: v,
+      riwayatPinjamanKM: v === PERNAH_KELOMPOK_OPTIONS[0] ? s.riwayatPinjamanKM : '',
+    }))
+  },
+  setRiwayatPinjamanKM(v: string) {
+    patch(state.open, () => ({ riwayatPinjamanKM: v }))
   },
   toggleFotoRumah() {
     patch(state.open, (s) => ({ fotoRumah: !s.fotoRumah }))

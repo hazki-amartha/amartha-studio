@@ -1,12 +1,21 @@
 'use client'
 
 // Validasi Mitra — step 3 of 4: the BM's own visit to the Ketua Majelis —
-// the one read on this mitra that only the majelis itself can give.
+// the read on this mitra that only the majelis itself can give: whether she's
+// known and trusted, how long, and whether she's already proven herself in a
+// group loan before.
 
 import { useState } from 'react'
 import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
-import { MAJELIS_CHECKING_OPTIONS, VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
+import {
+  LAMA_KENAL_OPTIONS,
+  MAJELIS_CHECKING_OPTIONS,
+  PERNAH_KELOMPOK_OPTIONS,
+  RIWAYAT_PINJAMAN_OPTIONS,
+  VALIDASI_STEP_SCREENS,
+  VALIDASI_STEPS,
+} from '../lib/validasi'
 import { useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
 import { PickSheet } from '../lib/pipeline-ui'
 import { MitraCard, PickerField, PhotoCapture } from '../lib/validasi-ui'
@@ -17,6 +26,10 @@ export function ValidasiVerifikasiKetuaScreen() {
   const s = useValidasi()
   const c = useOpenCase()
   const [majelisSheet, setMajelisSheet] = useState(false)
+  const [lamaKenalSheet, setLamaKenalSheet] = useState(false)
+  const [pernahKelompokSheet, setPernahKelompokSheet] = useState(false)
+  const [riwayatPinjamanSheet, setRiwayatPinjamanSheet] = useState(false)
+  const pernahKelompok = s.pernahKelompokKM === PERNAH_KELOMPOK_OPTIONS[0]
 
   return (
     <AppScreen
@@ -45,6 +58,28 @@ export function ValidasiVerifikasiKetuaScreen() {
             onClick={() => setMajelisSheet(true)}
           />
 
+          <PickerField
+            label="Sudah berapa lama Ketua Majelis mengenal mitra ini?"
+            value={s.lamaKenalKM}
+            onClick={() => setLamaKenalSheet(true)}
+          />
+
+          <PickerField
+            label="Apakah mitra ini pernah tergabung dalam kelompok pinjaman bersama sebelumnya?"
+            value={s.pernahKelompokKM}
+            onClick={() => setPernahKelompokSheet(true)}
+          />
+
+          {/* Only makes sense once she's said yes — asking "pinjaman yang
+              mana?" before that would assume the answer. */}
+          {pernahKelompok ? (
+            <PickerField
+              label="Pinjaman sebelumnya itu di mana?"
+              value={s.riwayatPinjamanKM}
+              onClick={() => setRiwayatPinjamanSheet(true)}
+            />
+          ) : null}
+
           <PhotoCapture
             label="Selfie & geotag BM bersama Ketua Majelis"
             captured={s.selfieKetua}
@@ -68,6 +103,39 @@ export function ValidasiVerifikasiKetuaScreen() {
         onPick={(v) => {
           validasiStore.setMajelisChecking(v)
           setMajelisSheet(false)
+        }}
+      />
+      <PickSheet
+        open={lamaKenalSheet}
+        title="Lama mengenal mitra"
+        options={LAMA_KENAL_OPTIONS}
+        value={s.lamaKenalKM}
+        onClose={() => setLamaKenalSheet(false)}
+        onPick={(v) => {
+          validasiStore.setLamaKenalKM(v)
+          setLamaKenalSheet(false)
+        }}
+      />
+      <PickSheet
+        open={pernahKelompokSheet}
+        title="Riwayat kelompok pinjaman"
+        options={PERNAH_KELOMPOK_OPTIONS}
+        value={s.pernahKelompokKM}
+        onClose={() => setPernahKelompokSheet(false)}
+        onPick={(v) => {
+          validasiStore.setPernahKelompokKM(v)
+          setPernahKelompokSheet(false)
+        }}
+      />
+      <PickSheet
+        open={riwayatPinjamanSheet}
+        title="Pinjaman sebelumnya"
+        options={RIWAYAT_PINJAMAN_OPTIONS}
+        value={s.riwayatPinjamanKM}
+        onClose={() => setRiwayatPinjamanSheet(false)}
+        onPick={(v) => {
+          validasiStore.setRiwayatPinjamanKM(v)
+          setRiwayatPinjamanSheet(false)
         }}
       />
     </AppScreen>
