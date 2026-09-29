@@ -70,7 +70,7 @@ const TODAY_GROUPS: { key: string; label: string; secs: LeadsSection[] }[] = [
 const CARD_NOTE: Partial<Record<LeadsSection, CardNote>> = {
   'survey-approved': { text: 'Waiting for group formation', tone: 'orange' },
   'need-resubmit': { text: 'Need to resubmit UK', tone: 'orange' },
-  'pending-bm-validation': { text: 'Need BM Action', tone: 'orange' },
+  'pending-bm-validation': { text: 'Need BM Review', tone: 'orange' },
   'survey-submitted': { text: 'Application in process', tone: 'blue' },
 }
 

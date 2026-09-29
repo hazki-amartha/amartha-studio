@@ -16,6 +16,7 @@ import {
   APPLICATION_SECTIONS,
   doneStepIds,
   getActiveSection,
+  markProcessed,
   stepsFor,
   surveyStore,
   useSurvey,
@@ -65,8 +66,11 @@ export function SurveyFormScreen() {
 
   function next() {
     surveyStore.markStep(lead.id, section, current.id)
-    if (isLast) flow.go(detail)
-    else setStep(step + 1)
+    if (isLast) {
+      // Section just completed — start its brief "Diproses" window.
+      markProcessed(lead.id, section)
+      flow.go(detail)
+    } else setStep(step + 1)
   }
 
   function renderField(f: Field, i: number) {

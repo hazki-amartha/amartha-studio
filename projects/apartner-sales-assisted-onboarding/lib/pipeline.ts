@@ -304,7 +304,7 @@ export interface PipelineLead {
 
   /**
    * A negative underwriting outcome, set once the survey is submitted. It moves
-   * her into a negative Leads section (Need to resubmit / Pending BM Validation /
+   * her into a negative Leads section (Need to resubmit / Need BM Review /
    * Survey rejected) regardless of `status`. `onboardingIssueReason` is the
    * one-line why, shown on the card and detail (e.g. "Foto KTP buram").
    */
@@ -685,11 +685,11 @@ export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
   // Approved but the (new) majelis is not formed yet — still waiting.
   'survey-approved': 'Waiting for group formation',
   // Submitted but sent back — a data problem to fix and resubmit.
-  'need-resubmit': 'Need to resubmit onboarding',
+  'need-resubmit': 'Need to resubmit UK',
   'survey-submitted': 'Survey submitted',
   'survey-ongoing': 'Survey ongoing',
   // Soft reject — a BM has to validate before it can proceed.
-  'pending-bm-validation': 'Pending BM Validation',
+  'pending-bm-validation': 'Need BM Review',
   // Hard reject — underwriting rejected the survey.
   'survey-rejected': 'Survey rejected',
   'follow-up': 'Follow up',
@@ -746,8 +746,8 @@ export function leadsSection(lead: PipelineLead): LeadsSection {
 
 /** The status label a negative-outcome lead reads as, on the card and detail. */
 export const ISSUE_LABEL: Record<OnboardingIssue, string> = {
-  resubmit: 'Need to resubmit onboarding',
-  'soft-reject': 'Pending BM Validation',
+  resubmit: 'Need to resubmit UK',
+  'soft-reject': 'Need BM Review',
   'hard-reject': 'Survey rejected',
 }
 

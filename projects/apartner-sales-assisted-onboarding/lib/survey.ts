@@ -260,3 +260,15 @@ export function setActiveSection(section: SectionId) {
 export function getActiveSection(): SectionId {
   return activeSection
 }
+
+// When a section was last completed — used to show a short "Diproses" state on
+// the card before it settles to "Selesai".
+const processedAt: Record<string, number> = {}
+export function markProcessed(leadId: string, section: SectionId) {
+  processedAt[key(leadId, section)] = Date.now()
+}
+/** Milliseconds since the section was last completed (Infinity if never). */
+export function processedSince(leadId: string, section: SectionId): number {
+  const at = processedAt[key(leadId, section)]
+  return at ? Date.now() - at : Infinity
+}

@@ -11,7 +11,7 @@
 //   - New (draft) majelis → no box here; the draft majelis is activated from its
 //     own page (see majelis-page / majelis-list).
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
 import type { BadgeIntent } from '@/design-system/components/Badge'
 import {
@@ -32,6 +32,7 @@ import {
   RITUAL_POINTS,
   doneCount,
   doneStepIds,
+  processedSince,
   sectionComplete,
   setActiveSection,
   useSurvey,
@@ -77,6 +78,22 @@ export function CalonMitraScreen() {
   const [tujuanSheet, setTujuanSheet] = useState(false)
   // Survey-ongoing "save for later" / drop actions — which sheet is open.
   const [taskSheet, setTaskSheet] = useState<'drop' | null>(null)
+  // Uji Kelayakan shows "Diproses" for ~5s right after it is filled, then settles
+  // to "Selesai".
+  const [ujiProcessing, setUjiProcessing] = useState(
+    () => Boolean(lead) && processedSince(lead.id, 'uji-kelayakan') < 5000,
+  )
+  useEffect(() => {
+    if (!lead) return
+    const since = processedSince(lead.id, 'uji-kelayakan')
+    if (since >= 5000) {
+      setUjiProcessing(false)
+      return
+    }
+    setUjiProcessing(true)
+    const t = setTimeout(() => setUjiProcessing(false), 5000 - since)
+    return () => clearTimeout(t)
+  }, [lead])
 
   if (!lead) {
     return (
@@ -516,15 +533,19 @@ export function CalonMitraScreen() {
         const needsMode = sec.id === 'uji-kelayakan' && !lead.surveyMode
         // Resubmit: the Uji Kelayakan is flagged for a re-do until it is redone.
         const resubmitUji = isResubmit && sec.id === 'uji-kelayakan' && !done
-        const sub = resubmitUji
-          ? 'Perlu diisi ulang'
-          : done
-            ? 'Selesai'
-            : needsMode
-              ? 'Pilih cara pengisian'
-              : count === 0
-                ? 'Belum diisi'
-                : `${count}/${sec.total} selesai`
+        // Uji Kelayakan reads "Diproses" for a few seconds after it is filled.
+        const processingUji = sec.id === 'uji-kelayakan' && done && ujiProcessing
+        const sub = processingUji
+          ? 'Diproses'
+          : resubmitUji
+            ? 'Perlu diisi ulang'
+            : done
+              ? 'Selesai'
+              : needsMode
+                ? 'Pilih cara pengisian'
+                : count === 0
+                  ? 'Belum diisi'
+                  : `${count}/${sec.total} selesai`
         return (
           <Card key={sec.id}>
             {/* Status dot on the left (check / empty ring); Start / Edit on the right. */}
@@ -541,11 +562,13 @@ export function CalonMitraScreen() {
                 </span>
                 <span
                   className={`text-12 ${
-                    resubmitUji
-                      ? 'font-bold text-orange-500'
-                      : done
-                        ? 'text-green-600'
-                        : 'text-caption'
+                    processingUji
+                      ? 'font-bold text-blue-600'
+                      : resubmitUji
+                        ? 'font-bold text-orange-500'
+                        : done
+                          ? 'text-green-600'
+                          : 'text-caption'
                   }`}
                 >
                   {sub}
@@ -594,17 +617,20 @@ export function CalonMitraScreen() {
       {approved ? (
         <StickyBar>
           {canDisburse ? (
+            // Ready to disburse — only "Lanjut" (no save-for-later here).
             <Button size="lg" className="w-full" onClick={() => flow.go('disbursement-confirm')}>
               Lanjut
             </Button>
           ) : (
-            <Button size="lg" className="w-full" onClick={startGroupFormation}>
-              Start group formation
-            </Button>
+            <>
+              <Button size="lg" className="w-full" onClick={startGroupFormation}>
+                Start group formation
+              </Button>
+              <Button variant="outline" size="lg" className="w-full" onClick={saveForLater}>
+                Simpan untuk nanti
+              </Button>
+            </>
           )}
-          <Button variant="outline" size="lg" className="w-full" onClick={saveForLater}>
-            Simpan untuk nanti
-          </Button>
         </StickyBar>
       ) : isResubmit ? (
         <StickyBar>
