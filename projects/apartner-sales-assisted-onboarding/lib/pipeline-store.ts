@@ -705,6 +705,15 @@ export const pipelineStore = {
   },
 
   /**
+   * Mark whether the lead is still on the registration-approval step (BP closed
+   * the Finalisasi persetujuan pendaftaran to wait). Puts her in / out of the
+   * "Starting onboarding" section.
+   */
+  setStartingOnboarding(id: string, v: boolean) {
+    patchLead(id, () => ({ startingOnboarding: v }))
+  },
+
+  /**
    * Choose the survey mode after onboarding has begun — set on the Calon Mitra
    * page when the BP first opens Survey Uji Kelayakan. `assisted` = BP fills it
    * beside her; `self` = she fills it on AFin. Her status is unchanged.

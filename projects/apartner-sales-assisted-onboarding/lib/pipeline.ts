@@ -311,6 +311,13 @@ export interface PipelineLead {
   onboardingIssue?: OnboardingIssue
   onboardingIssueReason?: string
 
+  /**
+   * Onboarding has begun but the registration approval (Finalisasi persetujuan
+   * pendaftaran) is not finished — the BP closed that step to wait. She sits in
+   * the "Starting onboarding" section until the persetujuan is completed.
+   */
+  startingOnboarding?: boolean
+
   log: PipelineLog[]
 }
 
@@ -664,6 +671,7 @@ export type LeadsSection =
   | 'need-resubmit'
   | 'survey-submitted'
   | 'survey-ongoing'
+  | 'starting-onboarding'
   | 'pending-bm-validation'
   | 'survey-rejected'
   | 'follow-up'
@@ -674,6 +682,7 @@ export const LEADS_SECTION_ORDER: LeadsSection[] = [
   'need-resubmit',
   'survey-submitted',
   'survey-ongoing',
+  'starting-onboarding',
   'pending-bm-validation',
   'survey-rejected',
   'follow-up',
@@ -688,6 +697,8 @@ export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
   'need-resubmit': 'Need to resubmit UK',
   'survey-submitted': 'Survey submitted',
   'survey-ongoing': 'Survey ongoing',
+  // Onboarding begun but the registration approval is not finished yet.
+  'starting-onboarding': 'Starting onboarding',
   // Soft reject — a BM has to validate before it can proceed.
   'pending-bm-validation': 'Need BM Review',
   // Hard reject — underwriting rejected the survey.
@@ -732,6 +743,8 @@ export function surveyStatusLabel(status: LeadStatus): string {
 export function leadsSection(lead: PipelineLead): LeadsSection {
   // A negative underwriting outcome overrides the status-derived section.
   if (lead.onboardingIssue) return ISSUE_SECTION[lead.onboardingIssue]
+  // Onboarding begun but the persetujuan is not finalised yet.
+  if (lead.startingOnboarding) return 'starting-onboarding'
   switch (lead.status) {
     case 'approved':
       return 'survey-approved'
