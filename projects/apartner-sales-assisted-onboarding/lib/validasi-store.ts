@@ -1,15 +1,16 @@
 'use client'
 
 // The Validasi Mitra flow's own state. Two things it has to hold across the
-// three screens the BM moves between (§3: screens remount on every
+// four screens the BM moves between (§3: screens remount on every
 // navigation):
 //
 //   - which case is open right now (`open`, like pipelineStore's `openId`) —
 //     set from wherever a card is tapped (Tugas, the BM Validation category
-//     on Sales), read by all three screens.
-//   - each case's own decision, independently — a BM sitting on more than one
-//     soft reject at once must be able to work on one without losing progress
-//     on the other, so decisions are keyed by case id, not one shared blob.
+//     on Sales), read by all four screens.
+//   - each case's own decision + verification, independently — a BM sitting
+//     on more than one soft reject at once must be able to work on one
+//     without losing progress on the other, so everything is keyed by case
+//     id, not one shared blob.
 
 import { useSyncExternalStore } from 'react'
 import {
@@ -28,6 +29,22 @@ interface ValidasiState {
    *  proposing in place of the system's soft-reject read. */
   proposedLimit: string
   submitted: boolean
+
+  // The BM's own field verification — step 4, before Setujui/Tolak. She
+  // re-checks two of the BP's own answers (status rumah, usaha berjalan)
+  // rather than trusting the BP Feedback step alone, plus what only she can
+  // attest to.
+  statusRumahBM: string
+  usahaBerjalanBM: string
+  /** Multi-select — a mitra can own more than one. */
+  asetBM: string[]
+  majelisChecking: string
+  /** Tap-to-capture booleans — the prototype doesn't take real photos
+   *  (§3), only records that the BM did. */
+  fotoRumah: boolean
+  fotoUsaha: boolean
+  selfieMitra: boolean
+  selfieKetua: boolean
 }
 
 const EMPTY_CASE: ValidasiState = {
@@ -36,6 +53,14 @@ const EMPTY_CASE: ValidasiState = {
   customReason: '',
   proposedLimit: '',
   submitted: false,
+  statusRumahBM: '',
+  usahaBerjalanBM: '',
+  asetBM: [],
+  majelisChecking: '',
+  fotoRumah: false,
+  fotoUsaha: false,
+  selfieMitra: false,
+  selfieKetua: false,
 }
 
 interface State {
@@ -78,6 +103,32 @@ export const validasiStore = {
   },
   setProposedLimit(digits: string) {
     patch(state.open, () => ({ proposedLimit: digits.replace(/\D/g, '') }))
+  },
+  setStatusRumahBM(v: string) {
+    patch(state.open, () => ({ statusRumahBM: v }))
+  },
+  setUsahaBerjalanBM(v: string) {
+    patch(state.open, () => ({ usahaBerjalanBM: v }))
+  },
+  toggleAset(v: string) {
+    patch(state.open, (s) => ({
+      asetBM: s.asetBM.includes(v) ? s.asetBM.filter((a) => a !== v) : [...s.asetBM, v],
+    }))
+  },
+  setMajelisChecking(v: string) {
+    patch(state.open, () => ({ majelisChecking: v }))
+  },
+  toggleFotoRumah() {
+    patch(state.open, (s) => ({ fotoRumah: !s.fotoRumah }))
+  },
+  toggleFotoUsaha() {
+    patch(state.open, (s) => ({ fotoUsaha: !s.fotoUsaha }))
+  },
+  toggleSelfieMitra() {
+    patch(state.open, (s) => ({ selfieMitra: !s.selfieMitra }))
+  },
+  toggleSelfieKetua() {
+    patch(state.open, (s) => ({ selfieKetua: !s.selfieKetua }))
   },
   submit() {
     patch(state.open, () => ({ submitted: true }))

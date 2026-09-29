@@ -1,6 +1,7 @@
 'use client'
 
-// Validasi Mitra — step 3 of 4: the BP's field read, condensed onto one page.
+// Validasi Mitra — reference material off step 1 (Hasil Underwriting), not a
+// numbered step of its own: the BP's field read, condensed onto one page.
 //
 // The real BP Feedback form the BP fills is five steps on her own app —
 // Validasi (selfie), Kondisi usaha, Profil mitra, Verifikasi lingkungan
@@ -8,14 +9,15 @@
 // it afterward doesn't need to page through all five: she needs the answers.
 // So this screen is that whole form collapsed into the handful of facts that
 // actually change her decision, grouped the same way the source steps were,
-// plus the BP's own note verbatim at the bottom.
+// plus the BP's own note verbatim at the bottom. Opened from, and closed
+// back to, validasi-mitra.tsx.
 
-import { Card, NavigationHeader, Button } from '@/design-system/components'
+import { Card, NavigationHeader } from '@/design-system/components'
 import { Camera } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
 import { useOpenCase } from '../lib/validasi-store'
-import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
+import { MitraCard } from '../lib/validasi-ui'
+import { AppScreen, SectionTitle } from '../lib/ui'
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -45,13 +47,9 @@ export function ValidasiBpFeedbackScreen() {
 
   return (
     <AppScreen
-      topBar={<NavigationHeader title="BP Feedback" onBack={() => flow.go('validasi-data')} />}
+      topBar={<NavigationHeader title="BP Feedback" onBack={() => flow.go('validasi-mitra')} />}
     >
-      <StageBar
-        current={3}
-        labels={VALIDASI_STEPS}
-        onStepClick={(step) => flow.go(VALIDASI_STEP_SCREENS[step - 1])}
-      />
+      <MitraCard case={c} />
 
       {/* Stands in for the form's own selfie-verification step — the BM
           doesn't need the photo, only that the visit actually happened. */}
@@ -102,12 +100,6 @@ export function ValidasiBpFeedbackScreen() {
           <span className="text-14 text-default">{a.catatan}</span>
         </div>
       </Card>
-
-      <StickyBar>
-        <Button size="lg" className="w-full" onClick={() => flow.go('validasi-keputusan')}>
-          Lanjutkan ke Keputusan
-        </Button>
-      </StickyBar>
     </AppScreen>
   )
 }

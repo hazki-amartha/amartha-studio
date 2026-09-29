@@ -1,16 +1,19 @@
 'use client'
 
-// Validasi Mitra — step 2 of 4: the full underwriting data behind the soft
+// Validasi Mitra — reference material off step 1 (Hasil Underwriting), not a
+// numbered step of its own: the full underwriting data behind the soft
 // reject — the same "Data pengajuan" a mitra sees on her own AFin app, laid
 // out for the BM to actually read (no "Ubah" — she's reviewing, not editing).
+// Opened from, and closed back to, validasi-mitra.tsx.
 
 import type { ReactNode } from 'react'
-import { Button, Card, NavigationHeader } from '@/design-system/components'
+import { Card, NavigationHeader } from '@/design-system/components'
 import { House, IdentificationCard, Storefront } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { VALIDASI_STEP_SCREENS, VALIDASI_STEPS, type DataSection } from '../lib/validasi'
+import { type DataSection } from '../lib/validasi'
 import { useOpenCase } from '../lib/validasi-store'
-import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
+import { MitraCard } from '../lib/validasi-ui'
+import { AppScreen, SectionTitle } from '../lib/ui'
 
 function DataRow({ label, value }: { label: string; value: string }) {
   return (
@@ -56,11 +59,7 @@ export function ValidasiDataScreen() {
     <AppScreen
       topBar={<NavigationHeader title="Data Underwriting" onBack={() => flow.go('validasi-mitra')} />}
     >
-      <StageBar
-        current={2}
-        labels={VALIDASI_STEPS}
-        onStepClick={(step) => flow.go(VALIDASI_STEP_SCREENS[step - 1])}
-      />
+      <MitraCard case={c} />
 
       <Card>
         <div className="flex flex-col gap-12">
@@ -88,12 +87,6 @@ export function ValidasiDataScreen() {
           <PhotoPlaceholder icon={<Storefront size={24} />} label="Foto dengan dagangan/alat usaha" />
         </div>
       </Card>
-
-      <StickyBar>
-        <Button size="lg" className="w-full" onClick={() => flow.go('validasi-bp-feedback')}>
-          Lanjutkan ke BP Feedback
-        </Button>
-      </StickyBar>
     </AppScreen>
   )
 }

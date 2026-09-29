@@ -9,10 +9,12 @@
 //
 // A handful of demo cases (fixed, not tied to the Sales pipeline's own leads —
 // a soft reject is a system/underwriting concern, not a Sales funnel status)
-// each carry all four steps: the soft-reject notice, the full underwriting
-// data, the BP's own field feedback, then the decision. A BM can be sitting
-// on more than one at once, so each case is its own row on Tugas / Sales,
-// keyed by `id` — see validasi-store.ts.
+// each carry the same 4-step review: the soft-reject notice (which links out
+// to the full underwriting data and the BP's own field feedback — reference
+// material, not steps of their own), the BM's own visit to the mitra, her
+// visit to the Ketua Majelis, then the decision. A BM can be sitting on more
+// than one case at once, so each is its own row on Tugas / Sales, keyed by
+// `id` — see validasi-store.ts.
 
 /** One "label — value" pair inside a data section. */
 export interface DataRow {
@@ -264,18 +266,49 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
   },
 ]
 
-/** The 4-step flow's own StageBar labels — same order as the screens. */
-export const VALIDASI_STEPS = ['Hasil Underwriting', 'Data Underwriting', 'BP Feedback', 'Keputusan']
+/** The 4-step flow's own StageBar labels — same order as the screens.
+ *  Data Underwriting and BP Feedback are no longer steps of their own: step 1
+ *  links out to them (see validasi-mitra.tsx), and they link back to it —
+ *  they're reference material for the review, not stages of it. */
+export const VALIDASI_STEPS = [
+  'Hasil Underwriting',
+  'Validasi ke Mitra',
+  'Validasi ke Ketua Majelis',
+  'Keputusan BM',
+]
 
 /** The screen id each step's StageBar circle jumps to, 1-indexed to match
  *  StageBar's own numbering — the BM can move freely between all four, there
  *  is nothing here that gates going back or skipping ahead. */
 export const VALIDASI_STEP_SCREENS = [
   'validasi-mitra',
-  'validasi-data',
-  'validasi-bp-feedback',
+  'validasi-verifikasi-mitra',
+  'validasi-verifikasi-ketua',
   'validasi-keputusan',
 ] as const
+
+// BM's own verification (step 4, before Keputusan) — she re-checks a few of
+// the same facts the BP already reported (see bpAssessment), plus what only
+// she can attest to: majelis members vouching for the mitra, and her own
+// selfie+geotag with the majelis and its Ketua.
+export const STATUS_RUMAH_OPTIONS = ['Milik sendiri', 'Sewa', 'Menumpang']
+export const USAHA_BERJALAN_OPTIONS = ['Ya', 'Tidak']
+export const ASET_OPTIONS = [
+  'Rumah',
+  'Tanah',
+  'Motor',
+  'Sepeda',
+  'Ternak',
+  'Emas / perhiasan',
+  'Alat usaha',
+  'Perabot rumah tangga',
+  'Tidak ada aset',
+]
+export const MAJELIS_CHECKING_OPTIONS = [
+  'Ya, dikenal baik oleh Ketua Majelis',
+  'Cukup dikenal',
+  'Tidak dikenal / Ketua Majelis tidak mengenali',
+]
 
 export type ValidasiDecision = 'approve' | 'reject'
 

@@ -1,25 +1,23 @@
 'use client'
 
-// Validasi Mitra — step 4 of 4: the BM's call. Setujui/Tolak first (it decides
-// which reason list applies), then a reason — required either way, because
-// overriding underwriting's own read needs a reason on file whichever
-// direction it goes. "Lainnya" opens a free-text line for the one case the
-// fixed list doesn't cover.
+// Validasi Mitra — step 4 of 4: the BM's call, once her own verification
+// (steps 2 and 3 — the mitra visit, the Ketua Majelis visit) is whole.
+// Kirim Keputusan stays locked until it is (`verificationDone`, below) —
+// this screen only reads that state, it doesn't collect it.
+//
+// Setujui/Tolak first (it decides which reason list applies), then a
+// reason — required either way, because overriding underwriting's own read
+// needs a reason on file whichever direction it goes. "Lainnya" opens a
+// free-text line for the one case the fixed list doesn't cover.
 
 import { useState, type ReactNode } from 'react'
-import {
-  BottomSheet,
-  Button,
-  Card,
-  InputNominal,
-  NavigationHeader,
-  SelectableCard,
-} from '@/design-system/components'
+import { BottomSheet, Button, Card, InputNominal, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { CheckCircle, ChevronDown, CrossCircleFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { DECISION_REASON_OTHER, DECISION_REASONS, VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
 import { finalReason, useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
 import { store } from '../lib/store'
+import { MitraCard } from '../lib/validasi-ui'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 // Neutral by default, same selected treatment as the design system's own
@@ -61,8 +59,23 @@ export function ValidasiKeputusanScreen() {
   const reasonOptions = s.decision ? DECISION_REASONS[s.decision] : []
   const reasonValue = finalReason(s)
   const needsLimit = s.decision === 'approve'
+
+  // Set on steps 2 (Validasi ke Mitra) and 3 (Validasi ke Ketua Majelis) —
+  // see lib/validasi-store.ts for what each field is.
+  const verificationDone =
+    s.statusRumahBM.length > 0 &&
+    s.usahaBerjalanBM.length > 0 &&
+    s.majelisChecking.length > 0 &&
+    s.fotoRumah &&
+    s.fotoUsaha &&
+    s.selfieMitra &&
+    s.selfieKetua
+
   const canSubmit =
-    Boolean(s.decision) && reasonValue.length > 0 && (!needsLimit || s.proposedLimit.length > 0)
+    verificationDone &&
+    Boolean(s.decision) &&
+    reasonValue.length > 0 &&
+    (!needsLimit || s.proposedLimit.length > 0)
 
   function submit() {
     validasiStore.submit()
@@ -72,7 +85,7 @@ export function ValidasiKeputusanScreen() {
 
   return (
     <AppScreen
-      topBar={<NavigationHeader title="Keputusan BM" onBack={() => flow.go('validasi-bp-feedback')} />}
+      topBar={<NavigationHeader title="Keputusan BM" onBack={() => flow.go('validasi-verifikasi-ketua')} />}
     >
       <StageBar
         current={4}
@@ -80,14 +93,16 @@ export function ValidasiKeputusanScreen() {
         onStepClick={(step) => flow.go(VALIDASI_STEP_SCREENS[step - 1])}
       />
 
-      <Card>
-        <div className="flex flex-col gap-4">
-          <span className="text-16 font-bold text-default">{c.name}</span>
+      <MitraCard case={c} />
+
+      {!verificationDone ? (
+        <Card>
           <span className="text-12 text-caption">
-            {c.majelisName} · {c.product} · {c.amount}
+            Lengkapi Validasi ke Mitra dan Validasi ke Ketua Majelis terlebih dahulu sebelum
+            mengirim keputusan.
           </span>
-        </div>
-      </Card>
+        </Card>
+      ) : null}
 
       <Card>
         <div className="flex flex-col gap-12">
