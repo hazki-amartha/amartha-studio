@@ -283,7 +283,17 @@ export const VALIDASI_STEP_SCREENS = [
 // selfie+geotag with the majelis and its Ketua.
 export const STATUS_RUMAH_OPTIONS = ['Milik sendiri', 'Sewa', 'Menumpang']
 export const USAHA_BERJALAN_OPTIONS = ['Ya', 'Tidak']
-export const ASET_OPTIONS = ['Rumah', 'Motor']
+export const ASET_OPTIONS = [
+  'Rumah',
+  'Tanah',
+  'Motor',
+  'Sepeda',
+  'Ternak',
+  'Emas / perhiasan',
+  'Alat usaha',
+  'Perabot rumah tangga',
+  'Tidak ada aset',
+]
 export const MAJELIS_CHECKING_OPTIONS = [
   'Ya, dikenal baik oleh anggota majelis',
   'Cukup dikenal, belum lama bergabung',

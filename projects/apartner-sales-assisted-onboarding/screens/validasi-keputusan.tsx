@@ -168,7 +168,7 @@ export function ValidasiKeputusanScreen() {
     s.majelisChecking.length > 0 &&
     s.fotoRumah &&
     s.fotoUsaha &&
-    s.selfieMajelis &&
+    s.selfieMitra &&
     s.selfieKetua
 
   const canSubmit =
@@ -240,6 +240,11 @@ export function ValidasiKeputusanScreen() {
             captured={s.fotoUsaha}
             onToggle={validasiStore.toggleFotoUsaha}
           />
+          <PhotoCapture
+            label="Selfie & geotag BM bersama mitra"
+            captured={s.selfieMitra}
+            onToggle={validasiStore.toggleSelfieMitra}
+          />
         </div>
       </Card>
 
@@ -253,11 +258,6 @@ export function ValidasiKeputusanScreen() {
             onClick={() => setMajelisSheet(true)}
           />
 
-          <PhotoCapture
-            label="Selfie & geotag BM bersama majelis"
-            captured={s.selfieMajelis}
-            onToggle={validasiStore.toggleSelfieMajelis}
-          />
           <PhotoCapture
             label="Selfie & geotag BM bersama Ketua Majelis"
             captured={s.selfieKetua}

@@ -43,7 +43,7 @@ interface ValidasiState {
    *  (§3), only records that the BM did. */
   fotoRumah: boolean
   fotoUsaha: boolean
-  selfieMajelis: boolean
+  selfieMitra: boolean
   selfieKetua: boolean
 }
 
@@ -59,7 +59,7 @@ const EMPTY_CASE: ValidasiState = {
   majelisChecking: '',
   fotoRumah: false,
   fotoUsaha: false,
-  selfieMajelis: false,
+  selfieMitra: false,
   selfieKetua: false,
 }
 
@@ -124,8 +124,8 @@ export const validasiStore = {
   toggleFotoUsaha() {
     patch(state.open, (s) => ({ fotoUsaha: !s.fotoUsaha }))
   },
-  toggleSelfieMajelis() {
-    patch(state.open, (s) => ({ selfieMajelis: !s.selfieMajelis }))
+  toggleSelfieMitra() {
+    patch(state.open, (s) => ({ selfieMitra: !s.selfieMitra }))
   },
   toggleSelfieKetua() {
     patch(state.open, (s) => ({ selfieKetua: !s.selfieKetua }))
