@@ -855,3 +855,15 @@ export function setOnboardingTiming(when: 'now' | 'later') {
 export function getOnboardingTiming(): 'now' | 'later' {
   return onboardingTiming
 }
+
+// Whether the calon mitra has WhatsApp — chosen on the Cara Onboarding page and
+// carried to its finalize step (assisted+WA → link; assisted no-WA → upload).
+let onboardingHasWa: 'yes' | 'no' = 'yes'
+
+export function setOnboardingHasWa(v: 'yes' | 'no') {
+  onboardingHasWa = v
+}
+
+export function getOnboardingHasWa(): 'yes' | 'no' {
+  return onboardingHasWa
+}

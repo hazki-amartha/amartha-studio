@@ -60,9 +60,9 @@ export function KumpulanJadwalScreen() {
     setLokasi(desa ? `Kp. ${desa} RT 02/RW 05` : 'Balai RW setempat')
   }
 
-  // Name the new majelis on her record and start the survey. The now/later choice
-  // was made back on the Lengkapi data page; the mode (assisted / self) comes
-  // later, on the Calon Mitra page.
+  // Name the new majelis on her record. The now/later choice was made back on
+  // the Lengkapi data page; "now" continues to the Cara Onboarding flow (mode +
+  // its finalize gate), same as an existing majelis.
   function save() {
     pipelineStore.beginOnboarding(lead.id, undefined, {
       kind: 'new',
@@ -72,7 +72,7 @@ export function KumpulanJadwalScreen() {
       time: jam,
     })
     if (getOnboardingTiming() === 'now') {
-      flow.go('calon-mitra')
+      flow.go('onboarding-start')
     } else {
       pipelineStore.setFlash(`${lead.name} disimpan sebagai calon mitra`)
       flow.go('sales')

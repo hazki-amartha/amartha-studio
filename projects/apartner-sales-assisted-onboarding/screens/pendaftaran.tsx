@@ -20,12 +20,12 @@ import {
   KECAMATAN_LIST,
   WILAYAH,
   addressComplete,
+  sourceDetail,
   type LeadAddress,
 } from '../lib/pipeline'
 
 type SheetId = 'kecamatan' | 'desa' | 'majelis' | null
 
-const NEW_MAJELIS = 'Majelis baru'
 // A stand-in for OCR — uploading the KTP reads a NIK the BP can still edit.
 const READ_NIK = '3201094507910023'
 
@@ -36,9 +36,12 @@ export function PendaftaranScreen() {
   const [sheet, setSheet] = useState<SheetId>(null)
   const [ktp, setKtp] = useState(lead?.ktp ?? false)
   const [nik, setNik] = useState(lead?.nik ?? '')
+  const [nama, setNama] = useState(lead?.name ?? '')
   const [address, setAddress] = useState<LeadAddress>(lead?.address ?? EMPTY_ADDRESS)
-  // '' = none, 'baru' = new majelis, otherwise an existing majelis id.
-  const [majelisChoice, setMajelisChoice] = useState('')
+  // Majelis is chosen in two steps: kind (new / existing), then — for an existing
+  // one — which majelis.
+  const [majelisKind, setMajelisKind] = useState<'' | 'baru' | 'lama'>('')
+  const [majelisId, setMajelisId] = useState('')
   const [majelisQuery, setMajelisQuery] = useState('')
   // The onboarding-timing sheet (existing majelis) — opened once the data is
   // filled: onboard now, or save as a calon mitra and continue later.
@@ -46,7 +49,7 @@ export function PendaftaranScreen() {
 
   if (!lead) {
     return (
-      <AppScreen topBar={<NavigationHeader title="Lengkapi data" onBack={() => flow.back()} />}>
+      <AppScreen topBar={<NavigationHeader title="Mulai pendaftaran" onBack={() => flow.back()} />}>
         <span className="text-14 text-caption">Lead tidak ditemukan.</span>
       </AppScreen>
     )
@@ -55,16 +58,20 @@ export function PendaftaranScreen() {
   const active = MAJELIS_DIRECTORY.filter((g) => g.status === 'aktif')
   const desaOptions = address.kecamatan ? WILAYAH[address.kecamatan] ?? [] : []
   const pinned = Boolean(address.mapsCoord)
-  const majelisLabel =
-    majelisChoice === 'baru'
-      ? NEW_MAJELIS
-      : active.find((g) => g.id === majelisChoice)?.name
+  const majelisLabel = active.find((g) => g.id === majelisId)?.name
   const majelisResults = active.filter((g) =>
     g.name.toLowerCase().includes(majelisQuery.trim().toLowerCase()),
   )
+  // '' = none, 'baru' = new majelis, otherwise the picked existing majelis id.
+  const majelisChoice = majelisKind === 'baru' ? 'baru' : majelisKind === 'lama' ? majelisId : ''
   const nikValid = nik.replace(/\D/g, '').length === 16
   const ready =
-    ktp && nikValid && addressComplete(address) && address.detail.trim() !== '' && majelisChoice !== ''
+    ktp &&
+    nikValid &&
+    nama.trim() !== '' &&
+    addressComplete(address) &&
+    address.detail.trim() !== '' &&
+    majelisChoice !== ''
 
   function uploadKtp() {
     setKtp(true)
@@ -107,8 +114,15 @@ export function PendaftaranScreen() {
   }
 
   return (
-    <AppScreen topBar={<NavigationHeader title="Lengkapi data" onBack={() => flow.back()} />}>
+    <AppScreen topBar={<NavigationHeader title="Mulai pendaftaran" onBack={() => flow.back()} />}>
       <div className="flex flex-col gap-12">
+        {/* Who this registration is for. */}
+        <div className="flex flex-col gap-2">
+          <span className="text-12 text-caption">Calon mitra</span>
+          <span className="text-18 font-bold text-default">{lead.name}</span>
+          <span className="text-12 text-caption">Sumber: {sourceDetail(lead)}</span>
+        </div>
+
         {/* KTP — photo and NIK exposed inline, no sheet. */}
         <div className="flex flex-col gap-8">
           <span className="text-12 font-regular text-default">
@@ -146,16 +160,23 @@ export function PendaftaranScreen() {
           state={nik && !nikValid ? 'error' : 'default'}
           helperText={nik && !nikValid ? 'NIK harus 16 digit' : undefined}
         />
+        <Input
+          label="Nama di KTP"
+          required
+          value={nama}
+          onChange={(e) => setNama(e.target.value)}
+          placeholder="Nama sesuai KTP"
+        />
 
         <SelectField
-          label="Kecamatan"
+          label="Kecamatan rumah calon mitra"
           required
           value={address.kecamatan || undefined}
           placeholder="Pilih kecamatan"
           onClick={() => setSheet('kecamatan')}
         />
         <SelectField
-          label="Desa"
+          label="Kelurahan/desa rumah calon mitra"
           required
           value={address.desa || undefined}
           placeholder={address.kecamatan ? 'Pilih desa' : 'Pilih kecamatan dulu'}
@@ -197,20 +218,51 @@ export function PendaftaranScreen() {
           )}
         </div>
         <Input
-          label="Detail alamat"
+          label="Alamat rumah calon mitra"
           required
           value={address.detail}
           onChange={(e) => setAddress({ ...address, detail: e.target.value })}
           placeholder="Kampung / RT / RW"
         />
 
-        <SelectField
-          label="Majelis"
-          required
-          value={majelisLabel}
-          placeholder="Pilih majelis"
-          onClick={() => setSheet('majelis')}
-        />
+        {/* Majelis — step 1: new or existing; step 2 (existing): which one. */}
+        <div className="flex flex-col gap-8">
+          <span className="text-12 font-regular text-default">
+            Majelis<span className="text-red-500"> *</span>
+          </span>
+          <div className="flex gap-8">
+            {(['baru', 'lama'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => {
+                  setMajelisKind(k)
+                  setMajelisId('')
+                }}
+                className={`flex-1 rounded-12 border py-12 text-14 font-bold ${
+                  majelisKind === k
+                    ? 'border-primary-500 bg-primary-50 text-primary-500'
+                    : 'border-default text-caption'
+                }`}
+              >
+                {k === 'baru' ? 'Majelis baru' : 'Majelis lama'}
+              </button>
+            ))}
+          </div>
+          {majelisKind === 'lama' ? (
+            <span className="text-12 text-caption">Pilih dari majelis yang sudah ada.</span>
+          ) : null}
+        </div>
+
+        {majelisKind === 'lama' ? (
+          <SelectField
+            label="Pilih majelis lama"
+            required
+            value={majelisLabel}
+            placeholder="Pilih majelis lama"
+            onClick={() => setSheet('majelis')}
+          />
+        ) : null}
       </div>
 
       <StickyBar>
@@ -241,24 +293,13 @@ export function PendaftaranScreen() {
           setSheet(null)
         }}
       />
-      <BottomSheet open={sheet === 'majelis'} onClose={() => setSheet(null)} title="Pilih majelis">
+      <BottomSheet open={sheet === 'majelis'} onClose={() => setSheet(null)} title="Pilih majelis lama">
         <div className="flex flex-col gap-8">
           <SearchField
             value={majelisQuery}
             onChange={setMajelisQuery}
             placeholder="Cari majelis"
             label="Cari majelis"
-          />
-          <SelectableCard
-            name="majelis"
-            inputType="radio"
-            title={NEW_MAJELIS}
-            description="Atur jadwal sosialisasi majelis baru"
-            checked={majelisChoice === 'baru'}
-            onChange={() => {
-              setMajelisChoice('baru')
-              setSheet(null)
-            }}
           />
           {majelisResults.map((g) => (
             <SelectableCard
@@ -267,9 +308,9 @@ export function PendaftaranScreen() {
               inputType="radio"
               title={g.name}
               description={`${majelisDistanceKm(g.id)} km dari lokasi · ${g.members} mitra aktif`}
-              checked={majelisChoice === g.id}
+              checked={majelisId === g.id}
               onChange={() => {
-                setMajelisChoice(g.id)
+                setMajelisId(g.id)
                 setSheet(null)
               }}
             />

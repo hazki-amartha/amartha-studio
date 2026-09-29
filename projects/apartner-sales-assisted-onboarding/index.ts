@@ -105,8 +105,14 @@ export const project: ProjectModule = {
     },
     {
       id: 'onboarding-start',
-      title: 'Cara Onboarding',
+      title: 'Persetujuan pendaftaran',
       component: lazyScreen(() => import('./screens/onboarding-start'), 'OnboardingStartScreen'),
+      flowsTo: [{ to: 'onboarding-finalize', label: 'Lanjut → finalisasi' }],
+    },
+    {
+      id: 'onboarding-finalize',
+      title: 'Finalisasi persetujuan pendaftaran',
+      component: lazyScreen(() => import('./screens/onboarding-finalize'), 'OnboardingFinalizeScreen'),
       flowsTo: [{ to: 'calon-mitra', label: 'Lanjut ke survey' }],
     },
     {
@@ -114,8 +120,8 @@ export const project: ProjectModule = {
       title: 'Buat Majelis Baru',
       component: lazyScreen(() => import('./screens/kumpulan-jadwal'), 'KumpulanJadwalScreen'),
       flowsTo: [
-        { to: 'calon-mitra', label: 'Onboarding assisted' },
-        { to: 'survey-started', label: 'Survey self-service' },
+        { to: 'onboarding-start', label: 'Simpan → cara onboarding' },
+        { to: 'sales', label: 'Simpan sebagai calon mitra' },
       ],
     },
     {
@@ -167,13 +173,13 @@ export const project: ProjectModule = {
         },
         {
           id: 'need-resubmit',
-          label: 'Need to resubmit onboarding',
+          label: 'Need to resubmit UK',
           description: 'Foto KTP buram di Uji Kelayakan — muncul di Sales hari ini & Lihat semua',
           apply: demo.issueResubmit,
         },
         {
           id: 'pending-bm-validation',
-          label: 'Pending BM Validation',
+          label: 'Need BM Review',
           description: 'Soft reject — menunggu validasi BM. Muncul di Lihat semua',
           apply: demo.issueSoftReject,
         },
