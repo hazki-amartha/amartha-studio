@@ -12,6 +12,7 @@ import {
   LAMA_KENAL_OPTIONS,
   MAJELIS_CHECKING_OPTIONS,
   PERNAH_KELOMPOK_OPTIONS,
+  RIWAYAT_PINJAMAN_OPTIONS,
   VALIDASI_STEP_SCREENS,
   VALIDASI_STEPS,
 } from '../lib/validasi'
@@ -27,6 +28,8 @@ export function ValidasiVerifikasiKetuaScreen() {
   const [majelisSheet, setMajelisSheet] = useState(false)
   const [lamaKenalSheet, setLamaKenalSheet] = useState(false)
   const [pernahKelompokSheet, setPernahKelompokSheet] = useState(false)
+  const [riwayatPinjamanSheet, setRiwayatPinjamanSheet] = useState(false)
+  const pernahKelompok = s.pernahKelompokKM === PERNAH_KELOMPOK_OPTIONS[0]
 
   return (
     <AppScreen
@@ -66,6 +69,16 @@ export function ValidasiVerifikasiKetuaScreen() {
             value={s.pernahKelompokKM}
             onClick={() => setPernahKelompokSheet(true)}
           />
+
+          {/* Only makes sense once she's said yes — asking "pinjaman yang
+              mana?" before that would assume the answer. */}
+          {pernahKelompok ? (
+            <PickerField
+              label="Pinjaman sebelumnya itu di mana?"
+              value={s.riwayatPinjamanKM}
+              onClick={() => setRiwayatPinjamanSheet(true)}
+            />
+          ) : null}
 
           <PhotoCapture
             label="Selfie & geotag BM bersama Ketua Majelis"
@@ -112,6 +125,17 @@ export function ValidasiVerifikasiKetuaScreen() {
         onPick={(v) => {
           validasiStore.setPernahKelompokKM(v)
           setPernahKelompokSheet(false)
+        }}
+      />
+      <PickSheet
+        open={riwayatPinjamanSheet}
+        title="Pinjaman sebelumnya"
+        options={RIWAYAT_PINJAMAN_OPTIONS}
+        value={s.riwayatPinjamanKM}
+        onClose={() => setRiwayatPinjamanSheet(false)}
+        onPick={(v) => {
+          validasiStore.setRiwayatPinjamanKM(v)
+          setRiwayatPinjamanSheet(false)
         }}
       />
     </AppScreen>

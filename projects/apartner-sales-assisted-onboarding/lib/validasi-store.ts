@@ -15,6 +15,7 @@
 import { useSyncExternalStore } from 'react'
 import {
   DECISION_REASON_OTHER,
+  PERNAH_KELOMPOK_OPTIONS,
   SOFT_REJECT_CASES,
   type SoftRejectCase,
   type ValidasiDecision,
@@ -44,6 +45,10 @@ interface ValidasiState {
    *  visit can answer. */
   lamaKenalKM: string
   pernahKelompokKM: string
+  /** Only meaningful when pernahKelompokKM is the "Ya" answer — which
+   *  pinjaman that previous group was. Cleared the moment she switches
+   *  pernahKelompokKM away from "Ya". */
+  riwayatPinjamanKM: string
   /** Tap-to-capture booleans — the prototype doesn't take real photos
    *  (§3), only records that the BM did. */
   fotoRumah: boolean
@@ -64,6 +69,7 @@ const EMPTY_CASE: ValidasiState = {
   majelisChecking: '',
   lamaKenalKM: '',
   pernahKelompokKM: '',
+  riwayatPinjamanKM: '',
   fotoRumah: false,
   fotoUsaha: false,
   selfieMitra: false,
@@ -129,7 +135,13 @@ export const validasiStore = {
     patch(state.open, () => ({ lamaKenalKM: v }))
   },
   setPernahKelompokKM(v: string) {
-    patch(state.open, () => ({ pernahKelompokKM: v }))
+    patch(state.open, (s) => ({
+      pernahKelompokKM: v,
+      riwayatPinjamanKM: v === PERNAH_KELOMPOK_OPTIONS[0] ? s.riwayatPinjamanKM : '',
+    }))
+  },
+  setRiwayatPinjamanKM(v: string) {
+    patch(state.open, () => ({ riwayatPinjamanKM: v }))
   },
   toggleFotoRumah() {
     patch(state.open, (s) => ({ fotoRumah: !s.fotoRumah }))

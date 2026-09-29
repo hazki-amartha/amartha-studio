@@ -314,6 +314,12 @@ export const PERNAH_KELOMPOK_OPTIONS = [
   'Ya, pernah satu kelompok sebelumnya',
   'Tidak, baru pertama kali',
 ]
+/** Only asked when PERNAH_KELOMPOK_OPTIONS[0] ("Ya") is picked — which
+ *  pinjaman that previous group was. */
+export const RIWAYAT_PINJAMAN_OPTIONS = [
+  'Pinjaman sebelumnya di Amartha',
+  'Pinjaman lain di kompetitor',
+]
 
 export type ValidasiDecision = 'approve' | 'reject'
 

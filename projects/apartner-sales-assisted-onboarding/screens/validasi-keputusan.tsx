@@ -14,7 +14,13 @@ import { useState, type ReactNode } from 'react'
 import { BottomSheet, Button, Card, InputNominal, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { CheckCircle, ChevronDown, CrossCircleFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { DECISION_REASON_OTHER, DECISION_REASONS, VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
+import {
+  DECISION_REASON_OTHER,
+  DECISION_REASONS,
+  PERNAH_KELOMPOK_OPTIONS,
+  VALIDASI_STEP_SCREENS,
+  VALIDASI_STEPS,
+} from '../lib/validasi'
 import { finalReason, useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
 import { store } from '../lib/store'
 import { MitraCard } from '../lib/validasi-ui'
@@ -68,6 +74,7 @@ export function ValidasiKeputusanScreen() {
     s.majelisChecking.length > 0 &&
     s.lamaKenalKM.length > 0 &&
     s.pernahKelompokKM.length > 0 &&
+    (s.pernahKelompokKM !== PERNAH_KELOMPOK_OPTIONS[0] || s.riwayatPinjamanKM.length > 0) &&
     s.fotoRumah &&
     s.fotoUsaha &&
     s.selfieMitra &&
