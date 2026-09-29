@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "check:flows": "node scripts/check-flows.mjs",
-    "test:design": "node --test scripts/test-design.mjs"
+    "test:design": "node --test scripts/test-design.mjs",
+    "db:sync": "node scripts/db-sync.mjs"
   },
   "dependencies": {
     "@babel/parser": "^7.29.8",
@@ -20,7 +21,8 @@
     "next": "^14.2.30",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "recast": "^0.24.0"
+    "recast": "^0.24.0",
+    "sucrase": "^3.35.1"
   },
   "devDependencies": {
     "@types/node": "^20",

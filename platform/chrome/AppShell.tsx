@@ -75,7 +75,8 @@ function resolveRoute(pathname: string, projects: ProjectIndexEntry[]): RouteInf
     }
   }
 
-  const proto = pathname.match(/^\/p\/([^/]+)(\/flow)?/)
+  // /db/<slug> is the same view with its source in the database (platform/dbProjects).
+  const proto = pathname.match(/^\/(?:p|db)\/([^/]+)(\/flow)?/)
   if (proto) {
     const slug = proto[1]
     const isFlow = Boolean(proto[2])
