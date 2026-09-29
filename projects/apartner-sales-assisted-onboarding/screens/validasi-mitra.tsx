@@ -43,7 +43,7 @@ export function ValidasiMitraScreen() {
           </div>
 
           <div className="flex flex-col gap-4 rounded-r-8 border-l-2 border-orange-500 bg-orange-50 p-8">
-            <span className="text-12 font-bold text-orange-500">Alasan sistem</span>
+            <span className="text-12 font-bold text-orange-500">Rejection reason</span>
             <span className="text-12 text-default">{c.reason}</span>
           </div>
         </div>
