@@ -264,18 +264,40 @@ export const project: ProjectModule = {
       id: 'validasi-mitra',
       title: 'Validasi Mitra',
       component: lazyScreen(() => import('./screens/validasi-mitra'), 'ValidasiMitraScreen'),
-      flowsTo: [{ to: 'validasi-data', label: 'Lihat Data Underwriting' }],
+      flowsTo: [
+        { to: 'validasi-data', label: 'Lihat Data Underwriting' },
+        { to: 'validasi-bp-feedback', label: 'Lihat BP Feedback' },
+        { to: 'validasi-verifikasi-mitra', label: 'Lanjutkan ke Validasi Mitra' },
+      ],
     },
     {
       id: 'validasi-data',
       title: 'Data Underwriting',
       component: lazyScreen(() => import('./screens/validasi-data'), 'ValidasiDataScreen'),
-      flowsTo: [{ to: 'validasi-bp-feedback', label: 'Lanjutkan ke BP Feedback' }],
+      flowsTo: [{ to: 'validasi-mitra', label: 'Kembali' }],
     },
     {
       id: 'validasi-bp-feedback',
       title: 'BP Feedback',
       component: lazyScreen(() => import('./screens/validasi-bp-feedback'), 'ValidasiBpFeedbackScreen'),
+      flowsTo: [{ to: 'validasi-mitra', label: 'Kembali' }],
+    },
+    {
+      id: 'validasi-verifikasi-mitra',
+      title: 'Validasi ke Mitra',
+      component: lazyScreen(
+        () => import('./screens/validasi-verifikasi-mitra'),
+        'ValidasiVerifikasiMitraScreen',
+      ),
+      flowsTo: [{ to: 'validasi-verifikasi-ketua', label: 'Lanjutkan ke Validasi Ketua Majelis' }],
+    },
+    {
+      id: 'validasi-verifikasi-ketua',
+      title: 'Validasi ke Ketua Majelis',
+      component: lazyScreen(
+        () => import('./screens/validasi-verifikasi-ketua'),
+        'ValidasiVerifikasiKetuaScreen',
+      ),
       flowsTo: [{ to: 'validasi-keputusan', label: 'Lanjutkan ke Keputusan' }],
     },
     {

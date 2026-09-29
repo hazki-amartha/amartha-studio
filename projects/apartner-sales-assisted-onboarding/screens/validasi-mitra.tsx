@@ -2,17 +2,21 @@
 
 // Validasi Mitra — step 1 of 4: the underwriting state. A soft reject isn't a
 // final no, so this screen says exactly that before anything else: which
-// mitra, what the system flagged, and why it's worth the BM's own look. Only
-// after reading this does "Lihat Data Underwriting" make sense as the next
-// step. The BP's own field read gets its own step (3) rather than a line
-// here — see validasi-bp-feedback.tsx.
+// mitra, what the system flagged, and why it's worth the BM's own look.
+//
+// The full underwriting data and the BP's own field feedback live one tap
+// away from here (ListRow, below) rather than as steps of their own — they
+// are reference material the BM opens while she's making up her mind, and
+// both come straight back to this page. The 4 numbered steps are what she
+// actually DOES: this notice, her own visit to the mitra, her visit to the
+// Ketua Majelis, then the decision.
 
-import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
+import { Badge, Card, ListRow, NavigationHeader, Button } from '@/design-system/components'
 import { WarningFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
 import { useOpenCase } from '../lib/validasi-store'
-import { AppScreen, StageBar, StickyBar } from '../lib/ui'
+import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 export function ValidasiMitraScreen() {
   const flow = useFlow()
@@ -59,9 +63,25 @@ export function ValidasiMitraScreen() {
         </div>
       </Card>
 
+      <SectionTitle>Referensi</SectionTitle>
+      <Card flush>
+        <ListRow
+          title="Data Underwriting"
+          description="Data lengkap pengajuan, dari KTP sampai data usaha"
+          chevron
+          onClick={() => flow.go('validasi-data')}
+        />
+        <ListRow
+          title="BP Feedback"
+          description="Ringkasan kunjungan lapangan BP"
+          chevron
+          onClick={() => flow.go('validasi-bp-feedback')}
+        />
+      </Card>
+
       <StickyBar>
-        <Button size="lg" className="w-full" onClick={() => flow.go('validasi-data')}>
-          Lihat Data Underwriting
+        <Button size="lg" className="w-full" onClick={() => flow.go('validasi-verifikasi-mitra')}>
+          Lanjutkan ke Validasi Mitra
         </Button>
       </StickyBar>
     </AppScreen>
