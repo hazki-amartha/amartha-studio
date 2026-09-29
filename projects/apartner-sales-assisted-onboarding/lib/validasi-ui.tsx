@@ -16,7 +16,7 @@ export function MitraCard({ case: c }: { case: SoftRejectCase }) {
       <div className="flex flex-col gap-4">
         <span className="text-16 font-bold text-default">{c.name}</span>
         <span className="text-12 text-caption">
-          {c.majelisName} · {c.product} · {c.amount}
+          {c.majelisName} · {c.amount}
         </span>
       </div>
     </Card>
