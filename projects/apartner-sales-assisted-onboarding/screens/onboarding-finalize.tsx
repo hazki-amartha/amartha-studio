@@ -164,7 +164,7 @@ export function OnboardingFinalizeScreen() {
               Kirim link via WhatsApp
             </span>
           </Button>
-          <Button variant="outline" size="lg" className="w-full" onClick={close}>
+          <Button variant="ghost" size="lg" className="w-full" onClick={close}>
             Close
           </Button>
         </StickyBar>
@@ -174,7 +174,7 @@ export function OnboardingFinalizeScreen() {
           <Button variant="outline" size="lg" className="w-full" onClick={() => setSent(false)}>
             Kirim ulang link
           </Button>
-          <Button variant="outline" size="lg" className="w-full" onClick={close}>
+          <Button variant="ghost" size="lg" className="w-full" onClick={close}>
             Close
           </Button>
         </StickyBar>

@@ -115,7 +115,7 @@ export const project: ProjectModule = {
       component: lazyScreen(() => import('./screens/onboarding-finalize'), 'OnboardingFinalizeScreen'),
       flowsTo: [
         { to: 'calon-mitra', label: 'Lanjut ke survey' },
-        { to: 'sales', label: 'Close → Starting onboarding' },
+        { to: 'sales', label: 'Close → Start onboarding' },
       ],
     },
     {

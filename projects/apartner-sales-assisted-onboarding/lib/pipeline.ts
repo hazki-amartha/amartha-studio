@@ -696,9 +696,9 @@ export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
   // Submitted but sent back — a data problem to fix and resubmit.
   'need-resubmit': 'Need to resubmit UK',
   'survey-submitted': 'Survey submitted',
-  'survey-ongoing': 'Survey ongoing',
+  'survey-ongoing': 'Complete onboarding',
   // Onboarding begun but the registration approval is not finished yet.
-  'starting-onboarding': 'Starting onboarding',
+  'starting-onboarding': 'Start onboarding',
   // Soft reject — a BM has to validate before it can proceed.
   'pending-bm-validation': 'Need BM Review',
   // Hard reject — underwriting rejected the survey.
@@ -732,7 +732,7 @@ export const isOnboardingLead = (lead: PipelineLead): boolean =>
  *  members — following the Leads status, not a flat "Calon Mitra". */
 export function surveyStatusLabel(status: LeadStatus): string {
   return status === 'survey-created'
-    ? 'Survey ongoing'
+    ? 'Complete onboarding'
     : status === 'survey-submitted'
       ? 'Survey submitted'
       : status === 'approved'

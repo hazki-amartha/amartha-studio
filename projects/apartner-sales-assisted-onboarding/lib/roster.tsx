@@ -105,7 +105,7 @@ export function draftApprovedCount(id: string): number {
 }
 
 const POTENTIAL_BADGE: Record<PotentialStatus, { label: string; intent: BadgeIntent }> = {
-  ongoing: { label: 'Survey ongoing', intent: 'orange' },
+  ongoing: { label: 'Complete onboarding', intent: 'orange' },
   submitted: { label: 'Survey submitted', intent: 'blue' },
   approved: { label: 'Survey approved', intent: 'green' },
 }
