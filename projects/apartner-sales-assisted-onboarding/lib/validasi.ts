@@ -296,7 +296,7 @@ export const ASET_OPTIONS = [
 ]
 export const MAJELIS_CHECKING_OPTIONS = [
   'Ya, dikenal baik oleh Ketua Majelis',
-  'Cukup dikenal, belum lama bergabung',
+  'Cukup dikenal',
   'Tidak dikenal / Ketua Majelis tidak mengenali',
 ]
 
