@@ -270,12 +270,7 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
  *  Data Underwriting and BP Feedback are no longer steps of their own: step 1
  *  links out to them (see validasi-mitra.tsx), and they link back to it —
  *  they're reference material for the review, not stages of it. */
-export const VALIDASI_STEPS = [
-  'Hasil Underwriting',
-  'Validasi ke Mitra',
-  'Validasi ke Ketua Majelis',
-  'Keputusan BM',
-]
+export const VALIDASI_STEPS = ['Hasil', 'Validasi mitra', 'Validasi KM', 'Keputusan']
 
 /** The screen id each step's StageBar circle jumps to, 1-indexed to match
  *  StageBar's own numbering — the BM can move freely between all four, there
