@@ -47,6 +47,10 @@ export function TaskListScreen() {
   function openTask(task: SalesTask) {
     if (task.kind === 'lead') {
       pipelineStore.open(task.id)
+      if (task.lead.startingOnboarding) {
+        flow.go('onboarding-start')
+        return
+      }
       // A survey-ongoing / approved lead opens the Calon Mitra detail directly
       // (survey ongoing → 'calon-mitra', a result → 'onboarding-outcome'); a
       // pre-survey lead still goes through follow-up triage.

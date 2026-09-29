@@ -12,7 +12,7 @@ import { useState } from 'react'
 import { Button, Card, Input, NavigationHeader } from '@/design-system/components'
 import { CheckCircle, CloudArrowUp, FileCheck, Hourglass, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { getOnboardingHasWa, usePipeline } from '../lib/pipeline-store'
+import { getOnboardingHasWa, pipelineStore, usePipeline } from '../lib/pipeline-store'
 import { AppScreen, StickyBar } from '../lib/ui'
 
 const SIM_FONT = { fontFamily: '"Comic Sans MS", "Comic Sans", cursive' }
@@ -24,6 +24,20 @@ export function OnboardingFinalizeScreen() {
   const [phone, setPhone] = useState(lead?.phone ?? '')
   const [sent, setSent] = useState(false)
   const [uploaded, setUploaded] = useState(false)
+
+  // Persetujuan finished — leave the "Starting onboarding" state and open the
+  // survey. Closing instead parks her in "Starting onboarding" to finish later.
+  function finish() {
+    if (lead) pipelineStore.setStartingOnboarding(lead.id, false)
+    flow.go('calon-mitra')
+  }
+  function close() {
+    if (lead) {
+      pipelineStore.setStartingOnboarding(lead.id, true)
+      pipelineStore.setFlash(`${lead.name} — onboarding dimulai, menunggu persetujuan`)
+    }
+    flow.go('sales')
+  }
 
   if (!lead) {
     return (
@@ -52,7 +66,7 @@ export function OnboardingFinalizeScreen() {
   const simButton = (label: string) => (
     <button
       type="button"
-      onClick={() => flow.go('calon-mitra')}
+      onClick={finish}
       style={SIM_FONT}
       className="flex w-full items-center justify-center gap-8 rounded-full border border-orange-500 bg-orange-50 px-16 py-12 text-14 font-bold text-orange-500"
     >
@@ -150,6 +164,9 @@ export function OnboardingFinalizeScreen() {
               Kirim link via WhatsApp
             </span>
           </Button>
+          <Button variant="outline" size="lg" className="w-full" onClick={close}>
+            Close
+          </Button>
         </StickyBar>
       ) : hasWa === 'yes' && mode === 'assisted' && sent ? (
         <StickyBar>
@@ -157,17 +174,15 @@ export function OnboardingFinalizeScreen() {
           <Button variant="outline" size="lg" className="w-full" onClick={() => setSent(false)}>
             Kirim ulang link
           </Button>
+          <Button variant="outline" size="lg" className="w-full" onClick={close}>
+            Close
+          </Button>
         </StickyBar>
       ) : hasWa === 'yes' && mode === 'self' ? (
         <StickyBar>{simButton('Tandai registrasi dimulai — lanjut ke survey')}</StickyBar>
       ) : hasWa === 'no' ? (
         <StickyBar>
-          <Button
-            size="lg"
-            className="w-full"
-            disabled={!uploaded}
-            onClick={() => flow.go('calon-mitra')}
-          >
+          <Button size="lg" className="w-full" disabled={!uploaded} onClick={finish}>
             Lanjut ke survey
           </Button>
         </StickyBar>

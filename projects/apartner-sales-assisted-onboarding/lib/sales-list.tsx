@@ -64,6 +64,7 @@ const TODAY_GROUPS: { key: string; label: string; secs: LeadsSection[] }[] = [
     secs: ['need-resubmit', 'pending-bm-validation', 'survey-submitted'],
   },
   { key: 'survey-ongoing', label: 'Survey ongoing', secs: ['survey-ongoing'] },
+  { key: 'starting-onboarding', label: 'Starting onboarding', secs: ['starting-onboarding'] },
   { key: 'follow-up', label: 'Follow up', secs: ['follow-up'] },
 ]
 
@@ -229,6 +230,11 @@ export function SalesList({ scope }: { scope: Scope }) {
 
   function openLead(lead: PipelineLead) {
     pipelineStore.open(lead.id)
+    // Still finalising the persetujuan — reopen that flow.
+    if (lead.startingOnboarding) {
+      flow.go('onboarding-start')
+      return
+    }
     // A survey-ongoing lead (survey-created, -submitted) or an approved one opens
     // the Calon Mitra detail directly (survey ongoing → 'calon-mitra', a result →
     // 'onboarding-outcome'); only a pre-survey lead goes through follow-up triage.
@@ -309,15 +315,18 @@ export function SalesList({ scope }: { scope: Scope }) {
       | { key: string; label: string; kind: 'lead'; rows: PipelineLead[] }
       | { key: string; label: string; kind: 'poi'; rows: PoiTask[] }
       | { key: string; label: string; kind: 'bm-validation'; rows: typeof bmRows }
-    const readyGroup = TODAY_GROUPS.find((g) => g.key === 'ready-to-disburse')!
-    const waitingGroup = TODAY_GROUPS.find((g) => g.key === 'waiting-approval')!
-    const surveyGroup = TODAY_GROUPS.find((g) => g.key === 'survey-ongoing')!
-    const followGroup = TODAY_GROUPS.find((g) => g.key === 'follow-up')!
+    const group = (key: string) => TODAY_GROUPS.find((g) => g.key === key)!
+    const readyGroup = group('ready-to-disburse')
+    const waitingGroup = group('waiting-approval')
+    const surveyGroup = group('survey-ongoing')
+    const startingGroup = group('starting-onboarding')
+    const followGroup = group('follow-up')
     const sections: Section[] = [
       { key: 'bm-validation', label: 'BM Validation', kind: 'bm-validation', rows: bmRows },
       { key: readyGroup.key, label: readyGroup.label, kind: 'lead', rows: groupRows(readyGroup.secs) },
       { key: waitingGroup.key, label: waitingGroup.label, kind: 'lead', rows: groupRows(waitingGroup.secs) },
       { key: surveyGroup.key, label: surveyGroup.label, kind: 'lead', rows: groupRows(surveyGroup.secs) },
+      { key: startingGroup.key, label: startingGroup.label, kind: 'lead', rows: groupRows(startingGroup.secs) },
       { key: 'poi', label: 'POI visit', kind: 'poi', rows: poiRows },
       { key: followGroup.key, label: followGroup.label, kind: 'lead', rows: groupRows(followGroup.secs) },
     ]

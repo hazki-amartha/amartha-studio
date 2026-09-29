@@ -113,7 +113,10 @@ export const project: ProjectModule = {
       id: 'onboarding-finalize',
       title: 'Finalisasi persetujuan pendaftaran',
       component: lazyScreen(() => import('./screens/onboarding-finalize'), 'OnboardingFinalizeScreen'),
-      flowsTo: [{ to: 'calon-mitra', label: 'Lanjut ke survey' }],
+      flowsTo: [
+        { to: 'calon-mitra', label: 'Lanjut ke survey' },
+        { to: 'sales', label: 'Close → Starting onboarding' },
+      ],
     },
     {
       id: 'kumpulan-jadwal',
