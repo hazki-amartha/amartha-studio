@@ -9,7 +9,7 @@
 // locked until this, and step 3, are both whole.
 
 import { useState } from 'react'
-import { BottomSheet, Button, Card, NavigationHeader } from '@/design-system/components'
+import { BottomSheet, Button, Card } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
 import {
   ASET_OPTIONS,
@@ -18,9 +18,9 @@ import {
   VALIDASI_STEP_SCREENS,
   VALIDASI_STEPS,
 } from '../lib/validasi'
-import { useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
+import { canGoToValidasiStep, useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
 import { PickSheet } from '../lib/pipeline-ui'
-import { CheckboxRow, MitraCard, PickerField, PhotoCapture } from '../lib/validasi-ui'
+import { CheckboxRow, ValidasiHeader, PickerField, PhotoCapture } from '../lib/validasi-ui'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 export function ValidasiVerifikasiMitraScreen() {
@@ -33,70 +33,66 @@ export function ValidasiVerifikasiMitraScreen() {
   const [asetSheet, setAsetSheet] = useState(false)
 
   return (
-    <AppScreen
-      topBar={<NavigationHeader title="Validasi ke Mitra" onBack={() => flow.go('validasi-mitra')} />}
-    >
+    <AppScreen topBar={<ValidasiHeader case={c} onBack={() => flow.go('validasi-mitra')} />}>
       <StageBar
         current={2}
         labels={VALIDASI_STEPS}
         onStepClick={(step) => flow.go(VALIDASI_STEP_SCREENS[step - 1])}
+        canGoTo={(step) => canGoToValidasiStep(s, step)}
       />
 
-      <MitraCard case={c} />
-
+      {/* One card, four questions — a border-t rule marks where each one
+          starts rather than splitting them into separate cards, so the
+          whole visit reads as one form. */}
       <Card>
         <div className="flex flex-col gap-16">
-          <SectionTitle>Rumah</SectionTitle>
-          <PickerField
-            label="Status kepemilikan rumah"
-            value={s.statusRumahBM}
-            hint={a.statusRumah}
-            onClick={() => setStatusRumahSheet(true)}
-          />
-          <PhotoCapture
-            label="Foto rumah mitra"
-            captured={s.fotoRumah}
-            onToggle={validasiStore.toggleFotoRumah}
-          />
-        </div>
-      </Card>
+          <div className="flex flex-col gap-16">
+            <SectionTitle>Rumah</SectionTitle>
+            <PickerField
+              label="Status kepemilikan rumah"
+              value={s.statusRumahBM}
+              hint={a.statusRumah}
+              onClick={() => setStatusRumahSheet(true)}
+            />
+            <PhotoCapture
+              label="Foto rumah mitra"
+              captured={s.fotoRumah}
+              onToggle={validasiStore.toggleFotoRumah}
+            />
+          </div>
 
-      <Card>
-        <div className="flex flex-col gap-16">
-          <SectionTitle>Usaha</SectionTitle>
-          <PickerField
-            label="Apakah usaha masih berjalan?"
-            value={s.usahaBerjalanBM}
-            hint={a.usahaAktif}
-            onClick={() => setUsahaSheet(true)}
-          />
-          <PhotoCapture
-            label="Foto usaha mitra"
-            captured={s.fotoUsaha}
-            onToggle={validasiStore.toggleFotoUsaha}
-          />
-        </div>
-      </Card>
+          <div className="flex flex-col gap-16 border-t border-default pt-16">
+            <SectionTitle>Usaha</SectionTitle>
+            <PickerField
+              label="Apakah usaha masih berjalan?"
+              value={s.usahaBerjalanBM}
+              hint={a.usahaAktif}
+              onClick={() => setUsahaSheet(true)}
+            />
+            <PhotoCapture
+              label="Foto usaha mitra"
+              captured={s.fotoUsaha}
+              onToggle={validasiStore.toggleFotoUsaha}
+            />
+          </div>
 
-      <Card>
-        <div className="flex flex-col gap-16">
-          <SectionTitle>Aset</SectionTitle>
-          <PickerField
-            label="Aset yang dimiliki mitra"
-            value={s.asetBM.join(', ')}
-            onClick={() => setAsetSheet(true)}
-          />
-        </div>
-      </Card>
+          <div className="flex flex-col gap-16 border-t border-default pt-16">
+            <SectionTitle>Aset</SectionTitle>
+            <PickerField
+              label="Aset yang dimiliki mitra"
+              value={s.asetBM.join(', ')}
+              onClick={() => setAsetSheet(true)}
+            />
+          </div>
 
-      <Card>
-        <div className="flex flex-col gap-16">
-          <SectionTitle>Selfie &amp; geotag</SectionTitle>
-          <PhotoCapture
-            label="Selfie & geotag BM bersama mitra"
-            captured={s.selfieMitra}
-            onToggle={validasiStore.toggleSelfieMitra}
-          />
+          <div className="flex flex-col gap-16 border-t border-default pt-16">
+            <SectionTitle>Selfie &amp; geotag</SectionTitle>
+            <PhotoCapture
+              label="Selfie & geotag BM bersama mitra"
+              captured={s.selfieMitra}
+              onToggle={validasiStore.toggleSelfieMitra}
+            />
+          </div>
         </div>
       </Card>
 

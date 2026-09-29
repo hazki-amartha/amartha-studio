@@ -49,6 +49,10 @@ export interface SoftRejectCase {
   id: string
   name: string
   majelisName: string
+  /** Short kecamatan/kota line — shown on step 1 so the BM knows where she's
+   *  going without opening Data Underwriting for the full address. */
+  location: string
+  phone: string
   product: 'GL' | 'Modal'
   amount: string
   /** Why the system flagged her — shown on step 1. */
@@ -63,6 +67,8 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
     id: 'anik-susilowati',
     name: 'Anik Susilowati',
     majelisName: 'Majelis Melati',
+    location: 'Cilandak Barat, Jakarta Selatan',
+    phone: '+62 812-3456-001',
     product: 'GL',
     amount: 'Rp2.000.000',
     reason:
@@ -132,6 +138,8 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
     id: 'siti-nurjanah',
     name: 'Siti Nurjanah',
     majelisName: 'Majelis Kenanga',
+    location: 'Margahayu, Kabupaten Bandung',
+    phone: '+62 813-9988-002',
     product: 'GL',
     amount: 'Rp1.500.000',
     reason:
@@ -200,6 +208,8 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
     id: 'ratna-dewi',
     name: 'Ratna Dewi',
     majelisName: 'Majelis Anggrek',
+    location: 'Kebon Jeruk, Jakarta Barat',
+    phone: '+62 811-2233-003',
     product: 'Modal',
     amount: 'Rp3.000.000',
     reason:

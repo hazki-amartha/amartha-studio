@@ -6,7 +6,7 @@
 // group loan before.
 
 import { useState } from 'react'
-import { Button, Card, NavigationHeader } from '@/design-system/components'
+import { Button, Card } from '@/design-system/components'
 import { useFlow } from '@/platform/runtime'
 import {
   LAMA_KENAL_OPTIONS,
@@ -16,9 +16,9 @@ import {
   VALIDASI_STEP_SCREENS,
   VALIDASI_STEPS,
 } from '../lib/validasi'
-import { useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
+import { canGoToValidasiStep, useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
 import { PickSheet } from '../lib/pipeline-ui'
-import { MitraCard, PickerField, PhotoCapture } from '../lib/validasi-ui'
+import { ValidasiHeader, PickerField, PhotoCapture } from '../lib/validasi-ui'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 export function ValidasiVerifikasiKetuaScreen() {
@@ -33,20 +33,14 @@ export function ValidasiVerifikasiKetuaScreen() {
 
   return (
     <AppScreen
-      topBar={
-        <NavigationHeader
-          title="Validasi ke Ketua Majelis"
-          onBack={() => flow.go('validasi-verifikasi-mitra')}
-        />
-      }
+      topBar={<ValidasiHeader case={c} onBack={() => flow.go('validasi-verifikasi-mitra')} />}
     >
       <StageBar
         current={3}
         labels={VALIDASI_STEPS}
         onStepClick={(step) => flow.go(VALIDASI_STEP_SCREENS[step - 1])}
+        canGoTo={(step) => canGoToValidasiStep(s, step)}
       />
-
-      <MitraCard case={c} />
 
       <Card>
         <div className="flex flex-col gap-16">
