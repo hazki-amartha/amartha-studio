@@ -17,6 +17,7 @@ import { useFlow } from '@/platform/runtime'
 import { DECISION_REASON_OTHER, DECISION_REASONS, VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
 import { finalReason, useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
 import { store } from '../lib/store'
+import { MitraCard } from '../lib/validasi-ui'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 // Neutral by default, same selected treatment as the design system's own
@@ -92,14 +93,7 @@ export function ValidasiKeputusanScreen() {
         onStepClick={(step) => flow.go(VALIDASI_STEP_SCREENS[step - 1])}
       />
 
-      <Card>
-        <div className="flex flex-col gap-4">
-          <span className="text-16 font-bold text-default">{c.name}</span>
-          <span className="text-12 text-caption">
-            {c.majelisName} · {c.product} · {c.amount}
-          </span>
-        </div>
-      </Card>
+      <MitraCard case={c} />
 
       {!verificationDone ? (
         <Card>

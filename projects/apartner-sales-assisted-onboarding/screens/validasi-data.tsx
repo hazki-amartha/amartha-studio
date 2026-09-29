@@ -12,6 +12,7 @@ import { House, IdentificationCard, Storefront } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { type DataSection } from '../lib/validasi'
 import { useOpenCase } from '../lib/validasi-store'
+import { MitraCard } from '../lib/validasi-ui'
 import { AppScreen, SectionTitle } from '../lib/ui'
 
 function DataRow({ label, value }: { label: string; value: string }) {
@@ -58,6 +59,8 @@ export function ValidasiDataScreen() {
     <AppScreen
       topBar={<NavigationHeader title="Data Underwriting" onBack={() => flow.go('validasi-mitra')} />}
     >
+      <MitraCard case={c} />
+
       <Card>
         <div className="flex flex-col gap-12">
           <SectionTitle>KTP {c.name}</SectionTitle>

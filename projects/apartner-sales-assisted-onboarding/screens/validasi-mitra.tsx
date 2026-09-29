@@ -11,11 +11,12 @@
 // actually DOES: this notice, her own visit to the mitra, her visit to the
 // Ketua Majelis, then the decision.
 
-import { Badge, Card, ListRow, NavigationHeader, Button } from '@/design-system/components'
+import { Card, ListRow, NavigationHeader, Button } from '@/design-system/components'
 import { WarningFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
 import { useOpenCase } from '../lib/validasi-store'
+import { MitraCard } from '../lib/validasi-ui'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 export function ValidasiMitraScreen() {
@@ -30,17 +31,7 @@ export function ValidasiMitraScreen() {
         onStepClick={(step) => flow.go(VALIDASI_STEP_SCREENS[step - 1])}
       />
 
-      <Card>
-        <div className="flex flex-col gap-4">
-          <span className="text-16 font-bold text-default">{c.name}</span>
-          <span className="text-12 text-caption">
-            {c.majelisName} · {c.product} · {c.amount}
-          </span>
-          <span className="flex pt-4">
-            <Badge intent="orange">Soft Reject</Badge>
-          </span>
-        </div>
-      </Card>
+      <MitraCard case={c} />
 
       <Card>
         <div className="flex flex-col gap-12">

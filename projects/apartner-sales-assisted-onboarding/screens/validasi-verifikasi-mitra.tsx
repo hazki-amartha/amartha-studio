@@ -19,7 +19,7 @@ import {
 } from '../lib/validasi'
 import { useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
 import { PickSheet } from '../lib/pipeline-ui'
-import { PickerField, PhotoCapture } from '../lib/validasi-ui'
+import { MitraCard, PickerField, PhotoCapture } from '../lib/validasi-ui'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 export function ValidasiVerifikasiMitraScreen() {
@@ -41,14 +41,7 @@ export function ValidasiVerifikasiMitraScreen() {
         onStepClick={(step) => flow.go(VALIDASI_STEP_SCREENS[step - 1])}
       />
 
-      <Card>
-        <div className="flex flex-col gap-4">
-          <span className="text-16 font-bold text-default">{c.name}</span>
-          <span className="text-12 text-caption">
-            {c.majelisName} · {c.product} · {c.amount}
-          </span>
-        </div>
-      </Card>
+      <MitraCard case={c} />
 
       <Card>
         <div className="flex flex-col gap-16">

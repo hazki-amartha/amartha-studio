@@ -16,6 +16,7 @@ import { Card, NavigationHeader } from '@/design-system/components'
 import { Camera } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { useOpenCase } from '../lib/validasi-store'
+import { MitraCard } from '../lib/validasi-ui'
 import { AppScreen, SectionTitle } from '../lib/ui'
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -48,6 +49,8 @@ export function ValidasiBpFeedbackScreen() {
     <AppScreen
       topBar={<NavigationHeader title="BP Feedback" onBack={() => flow.go('validasi-mitra')} />}
     >
+      <MitraCard case={c} />
+
       {/* Stands in for the form's own selfie-verification step — the BM
           doesn't need the photo, only that the visit actually happened. */}
       <Card>
