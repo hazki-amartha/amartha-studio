@@ -98,15 +98,6 @@ export function ValidasiKeputusanScreen() {
         canGoTo={(step) => canGoToValidasiStep(s, step)}
       />
 
-      {!verificationDone ? (
-        <Card>
-          <span className="text-12 text-caption">
-            Lengkapi Validasi ke Mitra dan Validasi ke Ketua Majelis terlebih dahulu sebelum
-            mengirim keputusan.
-          </span>
-        </Card>
-      ) : null}
-
       <Card>
         <div className="flex flex-col gap-12">
           <SectionTitle>Keputusan Anda</SectionTitle>
