@@ -202,12 +202,13 @@ export function ValidasiKeputusanScreen() {
         </div>
       </Card>
 
-      {/* Her own field check, before she rules on it — two questions cross
-          the BP's own answers (the hint under each), one only the majelis can
-          answer, then the proof she was actually there. */}
+      {/* Her own field check, before she rules on it, in the two places it
+          actually happens — the mitra's own house, then the Ketua Majelis —
+          rather than one flat list that hides which visit each answer
+          belongs to. */}
       <Card>
         <div className="flex flex-col gap-16">
-          <SectionTitle>Verifikasi BM</SectionTitle>
+          <SectionTitle>Verifikasi BM — kunjungan ke rumah mitra</SectionTitle>
 
           <PickerField
             label="Status kepemilikan rumah"
@@ -229,12 +230,6 @@ export function ValidasiKeputusanScreen() {
             onClick={() => setAsetSheet(true)}
           />
 
-          <PickerField
-            label="Pengecekan majelis — apakah anggota mengenal mitra ini?"
-            value={s.majelisChecking}
-            onClick={() => setMajelisSheet(true)}
-          />
-
           <PhotoCapture
             label="Foto rumah mitra"
             captured={s.fotoRumah}
@@ -245,6 +240,19 @@ export function ValidasiKeputusanScreen() {
             captured={s.fotoUsaha}
             onToggle={validasiStore.toggleFotoUsaha}
           />
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex flex-col gap-16">
+          <SectionTitle>Verifikasi BM — kunjungan ke Ketua Majelis</SectionTitle>
+
+          <PickerField
+            label="Pengecekan majelis — apakah anggota mengenal mitra ini?"
+            value={s.majelisChecking}
+            onClick={() => setMajelisSheet(true)}
+          />
+
           <PhotoCapture
             label="Selfie & geotag BM bersama majelis"
             captured={s.selfieMajelis}
