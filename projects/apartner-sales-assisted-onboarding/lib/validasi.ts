@@ -133,7 +133,7 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
       pengakuanLingkungan: 'Kurang dikenal oleh warga sekitar',
       verifikasiDomisili: 'Sesuai',
       kesanggupanBayar: 'Diragukan',
-      indikasiBuruk: 'Ada, riwayat menunda pembayaran cicilan, sulit dihubungi',
+      indikasiBuruk: 'Ada riwayat menunda pembayaran cicilan, sulit dihubungi',
       catatan:
         'Anik beberapa kali menunda pembayaran cicilan pinjaman sebelumnya tanpa pemberitahuan, dan sulit dihubungi saat kunjungan rutin.',
     },
