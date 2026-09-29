@@ -88,6 +88,15 @@ export function DbPrototype({ slug, initialScreenId, initialBare }: Props) {
   )
 }
 
+/**
+ * Add the project's CSS — only the rules the studio's own stylesheet lacks.
+ *
+ * The generated sheet repeats every utility the project names, and most of
+ * those (`hidden`, `bg-neutral-50`) the studio already has. Appended after the
+ * studio's CSS, a repeat moves that utility to the end of the cascade and beats
+ * variants it used to lose to: `hidden` overrode the shell's `md:flex` and hid
+ * the nav rail and sidebar. So only rules for classes new to this page go in.
+ */
 function injectCss(slug: string, css: string) {
   const id = `db-project-css-${slug}`
   let el = document.getElementById(id) as HTMLStyleElement | null
@@ -96,5 +105,33 @@ function injectCss(slug: string, css: string) {
     el.id = id
     document.head.appendChild(el)
   }
-  el.textContent = css
+
+  const existing = new Set<string>()
+  for (const sheet of Array.from(document.styleSheets)) {
+    if (sheet.ownerNode === el) continue
+    try {
+      collectKeys(sheet.cssRules, '', existing)
+    } catch {
+      // A cross-origin sheet (fonts) can't be read, and holds no utilities.
+    }
+  }
+
+  const generated = new CSSStyleSheet()
+  generated.replaceSync(css)
+  const kept: string[] = []
+  for (const rule of Array.from(generated.cssRules)) {
+    const keys = new Set<string>()
+    collectKeys([rule] as unknown as CSSRuleList, '', keys)
+    if (!keys.size || Array.from(keys).some((k) => !existing.has(k))) kept.push(rule.cssText)
+  }
+  el.textContent = kept.join('\n')
+}
+
+/** A key per style rule — its selector, prefixed by any enclosing @media. */
+function collectKeys(rules: CSSRuleList, scope: string, into: Set<string>) {
+  for (const rule of Array.from(rules)) {
+    if (rule instanceof CSSStyleRule) into.add(`${scope}${rule.selectorText}`)
+    else if (rule instanceof CSSMediaRule) collectKeys(rule.cssRules, `${scope}@media ${rule.conditionText}|`, into)
+    else if ('cssRules' in rule) collectKeys((rule as CSSGroupingRule).cssRules, scope, into)
+  }
 }
