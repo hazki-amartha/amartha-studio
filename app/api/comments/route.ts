@@ -3,6 +3,7 @@
 //
 //   GET  ?slug=…                     the project's comments, oldest first
 //   POST { action: 'create', … }     pin a new one
+//   POST { action: 'reply', parentId, body, author }   answer a thread
 //   POST { action: 'edit' | 'delete', id, … }   only the browser that wrote it
 //   POST { action: 'resolve', id, resolved }    anyone, as in Figma
 //
@@ -31,7 +32,7 @@ import { shareAccess } from '@/platform/share/server/access'
 import { KEY_HEADER, LIMITS, type Comment, type CommentRequest, type CommentsResponse } from '@/platform/comments/protocol'
 import {
   countComments,
-  deleteComment,
+  deleteComments,
   getComment,
   hashKey,
   isStoreConfigured,
@@ -127,11 +128,37 @@ export async function POST(request: Request): Promise<Response> {
       return json({ comment: present(comment, me) })
     }
 
+    if (body.action === 'reply') {
+      if (typeof body.parentId !== 'string' || !ID.test(body.parentId)) return refuse('Unknown comment', 404)
+      const parent = await getComment(body.slug, body.parentId)
+      if (!parent || parent.parentId) return refuse('That comment was deleted', 404)
+      const words = text(body.body, LIMITS.body)
+      const author = text(user?.label ?? body.author, LIMITS.author)
+      if (!words) return refuse('Write something first')
+      if (!author) return refuse('Say who you are first')
+      if ((await countComments(body.slug)) >= LIMITS.perProject) return refuse('This project has too many comments')
+      const reply: StoredComment = {
+        id: randomUUID(),
+        parentId: parent.id,
+        screenId: parent.screenId,
+        x: parent.x,
+        y: parent.y,
+        body: words,
+        author,
+        createdAt: now,
+        resolved: false,
+        keyHash: me,
+      }
+      await putComment(body.slug, reply)
+      return json({ comment: present(reply, me) })
+    }
+
     if (typeof body.id !== 'string' || !ID.test(body.id)) return refuse('Unknown comment', 404)
     const found = await getComment(body.slug, body.id)
     if (!found) return refuse('That comment was deleted', 404)
 
     if (body.action === 'resolve') {
+      if (found.parentId) return refuse('Resolve the thread, not a reply')
       if (!user && isSignInRequired()) return refuse('Only Amartha accounts can resolve comments', 403)
       const next = { ...found, resolved: Boolean(body.resolved) }
       await putComment(body.slug, next)
@@ -149,7 +176,11 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (body.action === 'delete') {
-      await deleteComment(body.slug, body.id)
+      // The thread goes with its first comment; a reply goes alone.
+      const replies = found.parentId
+        ? []
+        : (await listComments(body.slug)).filter((c) => c.parentId === found.id).map((c) => c.id)
+      await deleteComments(body.slug, [found.id, ...replies])
       return json({ deleted: body.id })
     }
 

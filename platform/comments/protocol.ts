@@ -10,6 +10,11 @@
 
 export interface Comment {
   id: string
+  /** Set on a reply: the thread's first comment. A reply is its own record
+   *  (so two people replying at once can't overwrite each other) that carries
+   *  its thread's screen and spot; it never draws a pin of its own, and the
+   *  thread's resolved state is the first comment's. */
+  parentId?: string
   screenId: string
   /** Where the pin sits, in the device's own pixels: x from the screen's left
    *  edge, y from the top of the screen's scrolled content — so a pin on a
@@ -34,8 +39,10 @@ export interface CommentsResponse {
 
 export type CommentRequest =
   | { action: 'create'; slug: string; screenId: string; x: number; y: number; body: string; author: string }
+  | { action: 'reply'; slug: string; parentId: string; body: string; author: string }
   | { action: 'edit'; slug: string; id: string; body: string }
   | { action: 'resolve'; slug: string; id: string; resolved: boolean }
+  /** Deleting a thread's first comment deletes its replies with it. */
   | { action: 'delete'; slug: string; id: string }
 
 /** The browser's commenter key travels in this header. It is a random secret

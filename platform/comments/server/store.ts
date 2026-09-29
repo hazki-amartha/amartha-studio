@@ -70,6 +70,6 @@ export async function putComment(slug: string, comment: StoredComment): Promise<
   await redis('HSET', keyOf(slug), comment.id, JSON.stringify(comment))
 }
 
-export async function deleteComment(slug: string, id: string): Promise<void> {
-  await redis('HDEL', keyOf(slug), id)
+export async function deleteComments(slug: string, ids: string[]): Promise<void> {
+  if (ids.length) await redis('HDEL', keyOf(slug), ...ids)
 }

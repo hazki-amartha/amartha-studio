@@ -40,6 +40,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import {
   GitHub,
+  type TreeChange,
   GitHubError,
   githubLocalConfig,
   githubUserConfig,
@@ -47,6 +48,7 @@ import {
   type ChangeState,
 } from '@/platform/design/github'
 import { projectFacts, whyNot } from '@/platform/design/server/common'
+import { appendLine, configsLine, registryLine } from '@/platform/projects/server/create'
 import type { PushFile } from '../protocol'
 
 const run = promisify(execFile)
@@ -283,13 +285,14 @@ export async function push(slug: string, name: string): Promise<{ number: number
   const parent = await gh.branchSha('main')
   if (parent !== (await mainRef())) throw new PushRefused('Something just went live. Push again in a moment.')
 
-  const changes = await Promise.all(
+  const changes: TreeChange[] = await Promise.all(
     files.map(async (f) => ({
       path: f.path,
       mode: modes.get(f.path),
       content: f.change === 'deleted' ? null : await readFile(path.join(ROOT, f.path)),
     })),
   )
+  changes.push(...(await listings(gh, slug, parent)))
   const title = `[${slug}] Changes from the studio (${name})`
   const branch = `${slug}/studio-${kebab(name)}-${Date.now().toString(36)}`
   const blobs = await gh.commitFiles(branch, parent, changes, title)
@@ -301,12 +304,31 @@ export async function push(slug: string, name: string): Promise<{ number: number
       '',
       ...files.map((f) => `- ${f.change} \`${f.path}\``),
       '',
-      `Only \`projects/${slug}/\` is touched; it lands on its own once CI is green.`,
+      `Only \`projects/${slug}/\` is touched${changes.length > files.length ? ', plus its one line in each project map' : ''}; it lands on its own once CI is green.`,
     ].join('\n'),
   )
   await gh.autoMerge(pull, title)
   await remember(slug, { branch, number: pull.number, files: blobs, at: Date.now() })
   return { number: pull.number, files }
+}
+
+/**
+ * A project main hasn't heard of yet — one started from the gallery — also
+ * needs its line in registry.ts and configs.ts, or it lands unreachable. Only
+ * that line goes: it's added to main's copy of each map, never the laptop's,
+ * which may hold other projects that aren't live.
+ */
+async function listings(gh: GitHub, slug: string, ref: string) {
+  const out: TreeChange[] = []
+  for (const [file, line] of [
+    ['projects/registry.ts', registryLine(slug)],
+    ['projects/configs.ts', configsLine(slug)],
+  ] as const) {
+    const onMain = await gh.getFile(file, ref)
+    if (!onMain || onMain.text.includes(`'${slug}':`)) continue
+    out.push({ path: file, content: Buffer.from(appendLine(onMain.text, slug, line)) })
+  }
+  return out
 }
 
 // --- afterwards ------------------------------------------------------------------
