@@ -126,9 +126,6 @@ export function CalonMitraScreen() {
     ? Object.values(leads).filter((l) => l.majelis.kind === 'new' && l.majelis.name === newMajelisName)
     : []
   const newApprovedCount = newMembers.filter((l) => l.status === 'approved').length
-  const newInProgressCount = newMembers.filter(
-    (l) => l.status === 'survey-created' || l.status === 'survey-submitted',
-  ).length
 
   // Ready-for-disbursement (approved) routing: an existing majelis or an already-
   // formed new majelis can disburse. A new (draft) majelis can be formed at any
@@ -415,18 +412,21 @@ export function CalonMitraScreen() {
             </div>
 
             {/* Footer — the majelis stage grouped with its action (KM acceptance
-                for an existing group; the member counts for a new one). */}
+                for an existing group; a new one reads done since group formation
+                is optional during onboarding, with formation still offered). */}
             <div className="flex items-center justify-between gap-8 border-t border-default pt-12">
               {isNewMajelis ? (
                 <>
-                  <span className="text-12 font-bold text-blue-600">
-                    {newApprovedCount} mitra approved · {newInProgressCount} dalam proses
+                  <span className="flex min-w-0 items-center gap-8">
+                    <StatusDot done />
+                    <span className="text-12 font-bold text-green-600">
+                      {activatedNew ? 'Majelis sudah dibentuk' : 'Majelis baru — pembentukan opsional'}
+                    </span>
                   </span>
-                  {/* Enough members approved — formation can start in parallel
-                      with this lead's own survey. */}
+                  {/* Formation stays available, but is not required to onboard. */}
                   {readyToForm ? (
                     <Button size="sm" variant="outline" onClick={startGroupFormation}>
-                      Start
+                      Bentuk
                     </Button>
                   ) : null}
                 </>
