@@ -265,7 +265,7 @@ export function QuickLink({ icon, label }: { icon: ReactNode; label: string }) {
 // (see NOTES.md). A plain filled track, tokens only.
 export function ProgressBar({ percent }: { percent: number }) {
   return (
-    <div className="h-8 w-full overflow-hidden rounded-full bg-neutral-100">
+    <div className="h-8 w-full overflow-hidden rounded-full bg-neutral-200">
       <div className="h-full rounded-full bg-primary-500" style={{ width: `${percent}%` }} />
     </div>
   )
