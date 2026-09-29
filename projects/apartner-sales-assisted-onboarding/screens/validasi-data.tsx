@@ -1,8 +1,8 @@
 'use client'
 
-// Validasi Mitra — step 2: the full underwriting data behind the soft reject —
-// the same "Data pengajuan" a mitra sees on her own AFin app, laid out for the
-// BM to actually read (no "Ubah" — she's reviewing, not editing).
+// Validasi Mitra — step 2 of 4: the full underwriting data behind the soft
+// reject — the same "Data pengajuan" a mitra sees on her own AFin app, laid
+// out for the BM to actually read (no "Ubah" — she's reviewing, not editing).
 
 import type { ReactNode } from 'react'
 import { Button, Card, NavigationHeader } from '@/design-system/components'
@@ -90,8 +90,8 @@ export function ValidasiDataScreen() {
       </Card>
 
       <StickyBar>
-        <Button size="lg" className="w-full" onClick={() => flow.go('validasi-keputusan')}>
-          Lanjutkan ke Keputusan
+        <Button size="lg" className="w-full" onClick={() => flow.go('validasi-bp-feedback')}>
+          Lanjutkan ke BP Feedback
         </Button>
       </StickyBar>
     </AppScreen>

@@ -1,4 +1,4 @@
-// Validasi Mitra — the BM's 3-step review of a soft-rejected pengajuan.
+// Validasi Mitra — the BM's 4-step review of a soft-rejected pengajuan.
 //
 // Underwriting doesn't only say yes/no: some pengajuan come back "soft
 // reject" — the system's automated rules flagged something (usually a debt
@@ -9,9 +9,10 @@
 //
 // A handful of demo cases (fixed, not tied to the Sales pipeline's own leads —
 // a soft reject is a system/underwriting concern, not a Sales funnel status)
-// each carry all three steps: the soft-reject notice, the full data, then the
-// decision. A BM can be sitting on more than one at once, so each case is its
-// own row on Tugas / Sales, keyed by `id` — see validasi-store.ts.
+// each carry all four steps: the soft-reject notice, the full underwriting
+// data, the BP's own field feedback, then the decision. A BM can be sitting
+// on more than one at once, so each case is its own row on Tugas / Sales,
+// keyed by `id` — see validasi-store.ts.
 
 /** One "label — value" pair inside a data section. */
 export interface DataRow {
@@ -25,6 +26,23 @@ export interface DataSection {
   rows: DataRow[]
 }
 
+/** The BP's own field visit — a condensed one-pager of the real BP Feedback
+ *  form (selfie + verification, kondisi usaha, profil mitra, verifikasi
+ *  lingkungan, penilaian BP), shown whole on step 3. The human read next to
+ *  underwriting's, since a debt ratio doesn't see everything. */
+export interface BpAssessment {
+  usahaAktif: 'Ya' | 'Tidak'
+  lamaUsaha: string
+  statusRumah: string
+  lamaTinggal: string
+  pengakuanLingkungan: string
+  verifikasiDomisili: 'Sesuai' | 'Tidak sesuai'
+  kesanggupanBayar: string
+  indikasiBuruk: string
+  /** The BP's own note — what she'd actually say if asked. */
+  catatan: string
+}
+
 export interface SoftRejectCase {
   id: string
   name: string
@@ -35,6 +53,7 @@ export interface SoftRejectCase {
   reason: string
   nik: string
   sections: DataSection[]
+  bpAssessment: BpAssessment
 }
 
 export const SOFT_REJECT_CASES: SoftRejectCase[] = [
@@ -94,6 +113,18 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
         ],
       },
     ],
+    bpAssessment: {
+      usahaAktif: 'Ya',
+      lamaUsaha: '1 tahun',
+      statusRumah: 'Sewa',
+      lamaTinggal: '1 tahun',
+      pengakuanLingkungan: 'Kurang dikenal oleh warga sekitar',
+      verifikasiDomisili: 'Sesuai',
+      kesanggupanBayar: 'Diragukan',
+      indikasiBuruk: 'Ada — riwayat menunda pembayaran cicilan, sulit dihubungi',
+      catatan:
+        'Anik beberapa kali menunda pembayaran cicilan pinjaman sebelumnya tanpa pemberitahuan, dan sulit dihubungi saat kunjungan rutin.',
+    },
   },
   {
     id: 'siti-nurjanah',
@@ -151,6 +182,17 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
         ],
       },
     ],
+    bpAssessment: {
+      usahaAktif: 'Ya',
+      lamaUsaha: '4 bulan',
+      statusRumah: 'Milik sendiri',
+      lamaTinggal: '5 tahun',
+      pengakuanLingkungan: 'Dikenal baik, aktif di pertemuan majelis',
+      verifikasiDomisili: 'Sesuai',
+      kesanggupanBayar: 'Mampu',
+      indikasiBuruk: 'Tidak ada',
+      catatan: 'Warung Siti selalu ramai pembeli setiap kunjungan, dan ia rutin hadir di pertemuan majelis.',
+    },
   },
   {
     id: 'ratna-dewi',
@@ -208,16 +250,32 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
         ],
       },
     ],
+    bpAssessment: {
+      usahaAktif: 'Ya',
+      lamaUsaha: '2 tahun',
+      statusRumah: 'Milik sendiri',
+      lamaTinggal: '3 tahun',
+      pengakuanLingkungan: 'Dikenal cukup baik oleh warga sekitar',
+      verifikasiDomisili: 'Sesuai',
+      kesanggupanBayar: 'Mampu, dengan catatan',
+      indikasiBuruk: 'Tidak ada, namun beberapa kali telat menyerahkan dokumen',
+      catatan: 'Ratna cukup kooperatif, namun beberapa kali telat menyerahkan dokumen usaha yang diminta.',
+    },
   },
 ]
 
-/** The 3-step flow's own StageBar labels — same order as the screens. */
-export const VALIDASI_STEPS = ['Hasil Underwriting', 'Data Underwriting', 'Keputusan']
+/** The 4-step flow's own StageBar labels — same order as the screens. */
+export const VALIDASI_STEPS = ['Hasil Underwriting', 'Data Underwriting', 'BP Feedback', 'Keputusan']
 
 /** The screen id each step's StageBar circle jumps to, 1-indexed to match
- *  StageBar's own numbering — the BM can move freely between all three, there
+ *  StageBar's own numbering — the BM can move freely between all four, there
  *  is nothing here that gates going back or skipping ahead. */
-export const VALIDASI_STEP_SCREENS = ['validasi-mitra', 'validasi-data', 'validasi-keputusan'] as const
+export const VALIDASI_STEP_SCREENS = [
+  'validasi-mitra',
+  'validasi-data',
+  'validasi-bp-feedback',
+  'validasi-keputusan',
+] as const
 
 export type ValidasiDecision = 'approve' | 'reject'
 

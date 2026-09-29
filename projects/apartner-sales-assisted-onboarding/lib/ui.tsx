@@ -63,13 +63,20 @@ export function StageBar({
         // bar is coloured — where she is standing — because that is the single
         // fact the bar exists to state; green ticks behind her competed with it
         // and made a four-step bar look like three results and a question.
-        const circle = done
-          ? 'border-neutral-400 bg-neutral-400 text-neutral-white'
-          : active
-            ? 'border-primary-500 bg-primary-500 text-neutral-white'
-            : 'border-default bg-neutral-white text-default'
+        //
+        // That's the read for a bar nothing can revisit. An interactive one
+        // (onStepClick set) is a different object — every step stays a live
+        // destination, so a cleared step keeps the SAME ring the upcoming ones
+        // get rather than greying into "done, not for you" the moment it's
+        // behind her.
+        const circle =
+          done && !onStepClick
+            ? 'border-neutral-400 bg-neutral-400 text-neutral-white'
+            : active
+              ? 'border-primary-500 bg-primary-500 text-neutral-white'
+              : 'border-default bg-neutral-white text-default'
         const circleClasses = `flex h-20 w-20 shrink-0 items-center justify-center rounded-full border text-12 font-bold ${circle}`
-        const labelClasses = `text-12 ${active ? 'font-bold text-default' : done ? 'font-regular text-disabled' : 'font-regular text-default'}`
+        const labelClasses = `text-12 ${active ? 'font-bold text-default' : done && !onStepClick ? 'font-regular text-disabled' : 'font-regular text-default'}`
         return (
           <div key={label} className="flex flex-1 flex-col items-center gap-4">
             <div className="flex w-full items-center gap-4">

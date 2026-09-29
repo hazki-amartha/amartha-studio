@@ -1,9 +1,11 @@
 'use client'
 
-// Validasi Mitra — step 1: the underwriting state. A soft reject isn't a final
-// no, so this screen says exactly that before anything else: which mitra,
-// what the system flagged, and why it's worth the BM's own look. Only after
-// reading this does "Lihat Data Underwriting" make sense as the next step.
+// Validasi Mitra — step 1 of 4: the underwriting state. A soft reject isn't a
+// final no, so this screen says exactly that before anything else: which
+// mitra, what the system flagged, and why it's worth the BM's own look. Only
+// after reading this does "Lihat Data Underwriting" make sense as the next
+// step. The BP's own field read gets its own step (3) rather than a line
+// here — see validasi-bp-feedback.tsx.
 
 import { Badge, Button, Card, NavigationHeader } from '@/design-system/components'
 import { WarningFill } from '@/design-system/icons'
