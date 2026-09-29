@@ -46,11 +46,6 @@ export function ValidasiMitraScreen() {
             <span className="text-12 font-bold text-orange-500">Alasan sistem</span>
             <span className="text-12 text-default">{c.reason}</span>
           </div>
-
-          <span className="text-12 text-caption">
-            Sebagai BM, Anda bisa meninjau data lengkap pengajuannya dan membantu memberi
-            keputusan berdasarkan kondisi lapangan yang Anda selidiki.
-          </span>
         </div>
       </Card>
 
