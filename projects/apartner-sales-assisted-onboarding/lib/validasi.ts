@@ -49,9 +49,11 @@ export interface SoftRejectCase {
   id: string
   name: string
   majelisName: string
-  /** Short kecamatan/kota line — shown on step 1 so the BM knows where she's
-   *  going without opening Data Underwriting for the full address. */
-  location: string
+  /** Full street address — same facts as the "Alamat saat ini" / "Data usaha"
+   *  rows in `sections` below, surfaced on step 1 so the BM knows exactly
+   *  where she's going without opening Data Underwriting first. */
+  houseAddress: string
+  businessAddress: string
   phone: string
   product: 'GL' | 'Modal'
   amount: string
@@ -67,7 +69,9 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
     id: 'anik-susilowati',
     name: 'Anik Susilowati',
     majelisName: 'Majelis Melati',
-    location: 'Cilandak Barat, Jakarta Selatan',
+    houseAddress: 'Jl. Cilandak No.188, RT 002/RW 001, Cilandak Barat, Kota Jakarta Selatan, DKI Jakarta 12430',
+    businessAddress:
+      'Jl. TB Simatupang No.18, RT 002/RW 001, Cilandak Barat, Kota Jakarta Selatan, DKI Jakarta 12430',
     phone: '+62 812-3456-001',
     product: 'GL',
     amount: 'Rp2.000.000',
@@ -129,7 +133,7 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
       pengakuanLingkungan: 'Kurang dikenal oleh warga sekitar',
       verifikasiDomisili: 'Sesuai',
       kesanggupanBayar: 'Diragukan',
-      indikasiBuruk: 'Ada — riwayat menunda pembayaran cicilan, sulit dihubungi',
+      indikasiBuruk: 'Ada, riwayat menunda pembayaran cicilan, sulit dihubungi',
       catatan:
         'Anik beberapa kali menunda pembayaran cicilan pinjaman sebelumnya tanpa pemberitahuan, dan sulit dihubungi saat kunjungan rutin.',
     },
@@ -138,7 +142,8 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
     id: 'siti-nurjanah',
     name: 'Siti Nurjanah',
     majelisName: 'Majelis Kenanga',
-    location: 'Margahayu, Kabupaten Bandung',
+    houseAddress: 'Jl. Kopo Sayati No.42, RT 005/RW 010, Margahayu, Kabupaten Bandung, Jawa Barat 40228',
+    businessAddress: 'Jl. Kopo Sayati No.42, RT 005/RW 010, Margahayu, Kabupaten Bandung, Jawa Barat 40228',
     phone: '+62 813-9988-002',
     product: 'GL',
     amount: 'Rp1.500.000',
@@ -208,7 +213,9 @@ export const SOFT_REJECT_CASES: SoftRejectCase[] = [
     id: 'ratna-dewi',
     name: 'Ratna Dewi',
     majelisName: 'Majelis Anggrek',
-    location: 'Kebon Jeruk, Jakarta Barat',
+    houseAddress: 'Jl. Kebon Jeruk Raya No.7, RT 003/RW 004, Kebon Jeruk, Kota Jakarta Barat, DKI Jakarta 11530',
+    businessAddress:
+      'Jl. Kebon Jeruk Raya No.7, RT 003/RW 004, Kebon Jeruk, Kota Jakarta Barat, DKI Jakarta 11530',
     phone: '+62 811-2233-003',
     product: 'Modal',
     amount: 'Rp3.000.000',

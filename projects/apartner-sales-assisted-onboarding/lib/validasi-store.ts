@@ -23,8 +23,12 @@ import {
 
 interface ValidasiState {
   decision: ValidasiDecision | null
-  reason: string
-  /** Only used when reason === "Lainnya". */
+  /** Setujui allows more than one reason at once (a checkbox list) — an
+   *  approval is usually a combination of things going right. Tolak stays
+   *  single-select (picking a new one replaces the list) — see
+   *  `toggleReason` below. */
+  reasons: string[]
+  /** Only used when reasons includes "Lainnya". */
   customReason: string
   /** Raw digits, only asked when decision === "approve" — the limit SHE's
    *  proposing in place of the system's soft-reject read. */
@@ -59,7 +63,7 @@ interface ValidasiState {
 
 const EMPTY_CASE: ValidasiState = {
   decision: null,
-  reason: '',
+  reasons: [],
   customReason: '',
   proposedLimit: '',
   submitted: false,
@@ -103,13 +107,24 @@ export const validasiStore = {
    *  two lists don't share answers, and a limit only makes sense once she's
    *  said yes. */
   setDecision(decision: ValidasiDecision) {
-    patch(state.open, () => ({ decision, reason: '', customReason: '', proposedLimit: '' }))
+    patch(state.open, () => ({ decision, reasons: [], customReason: '', proposedLimit: '' }))
   },
-  setReason(reason: string) {
-    patch(state.open, (s) => ({
-      reason,
-      customReason: reason === DECISION_REASON_OTHER ? s.customReason : '',
-    }))
+  /** Setujui: toggles `reason` in/out of the list. Tolak: replaces the list
+   *  with just `reason` — the same handler, because which behavior applies
+   *  depends only on the decision already in state. */
+  toggleReason(reason: string) {
+    patch(state.open, (s) => {
+      const reasons =
+        s.decision === 'approve'
+          ? s.reasons.includes(reason)
+            ? s.reasons.filter((r) => r !== reason)
+            : [...s.reasons, reason]
+          : [reason]
+      return {
+        reasons,
+        customReason: reasons.includes(DECISION_REASON_OTHER) ? s.customReason : '',
+      }
+    })
   },
   setCustomReason(customReason: string) {
     patch(state.open, () => ({ customReason }))
@@ -206,9 +221,22 @@ export function useValidasiAll(): Record<string, ValidasiState> {
   return s.byId
 }
 
-/** The final reason text — the custom note when "Lainnya" was picked. */
-export function finalReason(s: ValidasiState): string {
-  return s.reason === DECISION_REASON_OTHER ? s.customReason.trim() : s.reason
+/** The picked reasons as one line — "Lainnya" is swapped for its own custom
+ *  note, and any reason without text (an empty custom note) is dropped so an
+ *  incomplete "Lainnya" doesn't show up as a blank item in the summary. */
+export function reasonSummary(s: ValidasiState): string {
+  return s.reasons
+    .map((r) => (r === DECISION_REASON_OTHER ? s.customReason.trim() : r))
+    .filter((r) => r.length > 0)
+    .join(', ')
+}
+
+/** At least one reason picked, and — if "Lainnya" is one of them — its own
+ *  note actually filled in. */
+export function reasonsValid(s: ValidasiState): boolean {
+  if (s.reasons.length === 0) return false
+  if (s.reasons.includes(DECISION_REASON_OTHER) && s.customReason.trim().length === 0) return false
+  return true
 }
 
 /** Step 2 (Validasi ke Mitra) is whole. */
@@ -216,6 +244,7 @@ export function isVerifikasiMitraDone(s: ValidasiState): boolean {
   return (
     s.statusRumahBM.length > 0 &&
     s.usahaBerjalanBM.length > 0 &&
+    s.asetBM.length > 0 &&
     s.fotoRumah &&
     s.fotoUsaha &&
     s.selfieMitra

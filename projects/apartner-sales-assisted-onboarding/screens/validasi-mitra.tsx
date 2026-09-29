@@ -18,7 +18,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { Card, Button } from '@/design-system/components'
-import { ChevronDown, MapPin, WhatsappLogo } from '@/design-system/icons'
+import { House, MapPin, Storefront, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
 import { canGoToValidasiStep, useOpenCase, useValidasi } from '../lib/validasi-store'
@@ -51,22 +51,15 @@ function ReferenceItem({
   return (
     <Card>
       <div className="flex flex-col gap-12">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={open}
-          className="flex w-full items-start justify-between gap-8 text-left"
-        >
-          <div className="flex min-w-0 flex-col gap-2">
-            <span className="text-16 font-bold text-default">{title}</span>
-            <span className="text-12 text-caption">{description}</span>
-          </div>
-          <span className={`flex shrink-0 text-disabled ${open ? 'rotate-180' : ''}`}>
-            <ChevronDown size={20} />
-          </span>
-        </button>
+        <div className="flex min-w-0 flex-col gap-2">
+          <span className="text-16 font-bold text-default">{title}</span>
+          <span className="text-12 text-caption">{description}</span>
+        </div>
         {highlight}
         {open ? <div className="border-t border-default pt-12">{children}</div> : null}
+        <Button variant="ghost" size="sm" className="w-full" onClick={onToggle} aria-expanded={open}>
+          {open ? 'Tutup' : 'Lihat lebih banyak'}
+        </Button>
       </div>
     </Card>
   )
@@ -89,24 +82,43 @@ export function ValidasiMitraScreen() {
       />
 
       <Card>
-        <div className="flex flex-col gap-8">
-          <div className="flex items-center gap-8">
+        <div className="flex flex-col gap-12">
+          <SectionTitle>Kontak &amp; alamat</SectionTitle>
+          <div className="flex items-center gap-12">
+            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-14 font-bold text-caption">
+              {c.name.charAt(0)}
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-14 font-bold text-default">{c.name}</span>
+              <span className="truncate text-12 text-caption">Limit diajukan {c.amount}</span>
+            </div>
             <ContactButton label={`Chat WhatsApp ${c.name}`} tone="green" onClick={() => {}}>
               <WhatsappLogo size={20} />
             </ContactButton>
-            <div className="flex min-w-0 flex-col">
-              <span className="text-12 text-caption">Nomor HP</span>
-              <span className="text-14 font-bold text-default">{c.phone}</span>
-            </div>
           </div>
-          <div className="flex items-center gap-8 border-t border-default pt-8">
-            <ContactButton label={`Peta ${c.name}`} tone="red" onClick={() => {}}>
+          <div className="flex items-start gap-12 border-t border-default pt-12">
+            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 border border-default bg-canvas-blue text-caption">
+              <House size={20} />
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="text-14 font-bold text-default">Rumah</span>
+              <span className="text-12 text-caption">{c.houseAddress}</span>
+            </div>
+            <ContactButton label={`Peta rumah ${c.name}`} tone="red" onClick={() => {}}>
               <MapPin size={20} />
             </ContactButton>
-            <div className="flex min-w-0 flex-col">
-              <span className="text-12 text-caption">Lokasi</span>
-              <span className="text-14 font-bold text-default">{c.location}</span>
+          </div>
+          <div className="flex items-start gap-12 border-t border-default pt-12">
+            <span className="flex h-40 w-40 shrink-0 items-center justify-center rounded-8 border border-default bg-canvas-blue text-caption">
+              <Storefront size={20} />
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="text-14 font-bold text-default">Tempat usaha</span>
+              <span className="text-12 text-caption">{c.businessAddress}</span>
             </div>
+            <ContactButton label={`Peta tempat usaha ${c.name}`} tone="red" onClick={() => {}}>
+              <MapPin size={20} />
+            </ContactButton>
           </div>
         </div>
       </Card>

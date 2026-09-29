@@ -20,37 +20,23 @@ function findRow(c: SoftRejectCase, sectionTitle: string, label: string): string
     ?.value ?? ''
 }
 
-/** The tinted callout the old "Alasan sistem" box used — reused for any
- *  single highlighted fact, so a preview reads as "the thing that matters"
- *  the same way whichever card it's on. Orange by default (a flag); `tone`
- *  switches it to green for an answer that's actually reassuring — an
- *  "Indikasi buruk: Tidak ada" painted orange would read backwards. */
-function Highlight({
-  label,
-  value,
-  tone = 'orange',
-}: {
-  label: string
-  value: string
-  tone?: 'orange' | 'green'
-}) {
-  const classes =
-    tone === 'green'
-      ? 'border-green-500 bg-green-50 text-green-500'
-      : 'border-orange-500 bg-orange-50 text-orange-500'
+/** One "Yang perlu diperhatikan" callout, shared by both step-1 reference
+ *  cards — a flat bulleted read of the facts that actually matter, not a
+ *  quote of the system's own formal wording. */
+function ConcernList({ items }: { items: string[] }) {
   return (
-    <div className={`flex flex-col gap-2 rounded-r-8 border-l-2 p-8 ${classes}`}>
-      <span className="text-12 font-bold">{label}</span>
-      <span className="text-12 text-default">{value}</span>
+    <div className="flex flex-col gap-4 rounded-r-8 border-l-2 border-orange-500 bg-orange-50 p-8">
+      <span className="text-12 font-bold text-orange-500">Yang perlu diperhatikan</span>
+      <div className="flex flex-col gap-4">
+        {items.map((item) => (
+          <div key={item} className="flex items-center gap-8">
+            <span className="h-4 w-4 shrink-0 rounded-full bg-neutral-900" />
+            <span className="text-12 text-default">{item}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
-}
-
-/** A quick reassuring/concerning read on a BP answer — starts with "Tidak"
- *  or "Mampu" outright reads as reassuring; anything else (an "Ada ...", a
- *  "Diragukan", a qualified "Mampu, dengan catatan") stays a flag. */
-function toneFor(value: string): 'orange' | 'green' {
-  return value === 'Mampu' || value.startsWith('Tidak') ? 'green' : 'orange'
 }
 
 /** The handful of facts that actually move the needle on Data Underwriting —
@@ -58,21 +44,12 @@ function toneFor(value: string): 'orange' | 'green' {
  *  the whole "Data pengajuan" just to see why underwriting flagged her. */
 export function UnderwritingHighlight({ case: c }: { case: SoftRejectCase }) {
   return (
-    <div className="flex flex-col gap-8">
-      <Highlight label="Alasan sistem" value={c.reason} />
-      <div className="flex gap-8">
-        <div className="flex-1 rounded-8 border border-default p-8">
-          <span className="block text-12 text-caption">Umur usaha</span>
-          <span className="text-14 font-bold text-default">{findRow(c, 'Data usaha', 'Umur usaha')}</span>
-        </div>
-        <div className="flex-1 rounded-8 border border-default p-8">
-          <span className="block text-12 text-caption">Penghasilan/bulan</span>
-          <span className="text-14 font-bold text-default">
-            {findRow(c, 'Data usaha', 'Penghasilan per bulan')}
-          </span>
-        </div>
-      </div>
-    </div>
+    <ConcernList
+      items={[
+        `Umur usaha ${findRow(c, 'Data usaha', 'Umur usaha')}`,
+        `Penghasilan per bulan ${findRow(c, 'Data usaha', 'Penghasilan per bulan')}`,
+      ]}
+    />
   )
 }
 
@@ -81,14 +58,12 @@ export function UnderwritingHighlight({ case: c }: { case: SoftRejectCase }) {
 export function BpFeedbackHighlight({ case: c }: { case: SoftRejectCase }) {
   const a = c.bpAssessment
   return (
-    <div className="flex flex-col gap-8">
-      <Highlight
-        label="Kesanggupan pembayaran"
-        value={a.kesanggupanBayar}
-        tone={toneFor(a.kesanggupanBayar)}
-      />
-      <Highlight label="Indikasi buruk" value={a.indikasiBuruk} tone={toneFor(a.indikasiBuruk)} />
-    </div>
+    <ConcernList
+      items={[
+        `Kesanggupan pembayaran: ${a.kesanggupanBayar}`,
+        `Indikasi buruk: ${a.indikasiBuruk}`,
+      ]}
+    />
   )
 }
 

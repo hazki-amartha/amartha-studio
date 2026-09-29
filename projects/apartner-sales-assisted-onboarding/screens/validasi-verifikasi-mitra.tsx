@@ -18,10 +18,23 @@ import {
   VALIDASI_STEP_SCREENS,
   VALIDASI_STEPS,
 } from '../lib/validasi'
-import { canGoToValidasiStep, useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
+import {
+  canGoToValidasiStep,
+  isVerifikasiMitraDone,
+  useOpenCase,
+  useValidasi,
+  validasiStore,
+} from '../lib/validasi-store'
 import { PickSheet } from '../lib/pipeline-ui'
 import { CheckboxRow, ValidasiHeader, PickerField, PhotoCapture } from '../lib/validasi-ui'
-import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
+import { AppScreen, StageBar, StickyBar } from '../lib/ui'
+
+/** Bigger than the shared SectionTitle (text-14) — these four are the whole
+ *  screen's own top-level groupings, not a subsection label inside a card
+ *  like SectionTitle's other uses, so they read as headings on their own. */
+function GroupTitle({ children }: { children: string }) {
+  return <h2 className="text-16 font-bold text-default">{children}</h2>
+}
 
 export function ValidasiVerifikasiMitraScreen() {
   const flow = useFlow()
@@ -47,7 +60,7 @@ export function ValidasiVerifikasiMitraScreen() {
       <Card>
         <div className="flex flex-col gap-16">
           <div className="flex flex-col gap-16">
-            <SectionTitle>Rumah</SectionTitle>
+            <GroupTitle>Rumah</GroupTitle>
             <PickerField
               label="Status kepemilikan rumah"
               value={s.statusRumahBM}
@@ -62,7 +75,7 @@ export function ValidasiVerifikasiMitraScreen() {
           </div>
 
           <div className="flex flex-col gap-16 border-t border-default pt-16">
-            <SectionTitle>Usaha</SectionTitle>
+            <GroupTitle>Usaha</GroupTitle>
             <PickerField
               label="Apakah usaha masih berjalan?"
               value={s.usahaBerjalanBM}
@@ -77,7 +90,7 @@ export function ValidasiVerifikasiMitraScreen() {
           </div>
 
           <div className="flex flex-col gap-16 border-t border-default pt-16">
-            <SectionTitle>Aset</SectionTitle>
+            <GroupTitle>Aset</GroupTitle>
             <PickerField
               label="Aset yang dimiliki mitra"
               value={s.asetBM.join(', ')}
@@ -86,7 +99,7 @@ export function ValidasiVerifikasiMitraScreen() {
           </div>
 
           <div className="flex flex-col gap-16 border-t border-default pt-16">
-            <SectionTitle>Selfie &amp; geotag</SectionTitle>
+            <GroupTitle>Selfie &amp; geotag</GroupTitle>
             <PhotoCapture
               label="Selfie & geotag BM bersama mitra"
               captured={s.selfieMitra}
@@ -97,7 +110,12 @@ export function ValidasiVerifikasiMitraScreen() {
       </Card>
 
       <StickyBar>
-        <Button size="lg" className="w-full" onClick={() => flow.go('validasi-verifikasi-ketua')}>
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={!isVerifikasiMitraDone(s)}
+          onClick={() => flow.go('validasi-verifikasi-ketua')}
+        >
           Lanjutkan ke Validasi Ketua Majelis
         </Button>
       </StickyBar>

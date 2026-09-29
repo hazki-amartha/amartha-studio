@@ -16,10 +16,24 @@ import {
   VALIDASI_STEP_SCREENS,
   VALIDASI_STEPS,
 } from '../lib/validasi'
-import { canGoToValidasiStep, useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
+import {
+  canGoToValidasiStep,
+  isVerifikasiKetuaDone,
+  useOpenCase,
+  useValidasi,
+  validasiStore,
+} from '../lib/validasi-store'
 import { PickSheet } from '../lib/pipeline-ui'
 import { ValidasiHeader, PickerField, PhotoCapture } from '../lib/validasi-ui'
-import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
+import { AppScreen, StageBar, StickyBar } from '../lib/ui'
+
+/** Bigger than the shared SectionTitle (text-14) — matches the Validasi
+ *  Mitra screen's own group headings (Rumah / Usaha / Aset / Selfie &
+ *  geotag), since this screen's one card is the same kind of top-level
+ *  grouping, not a subsection label inside a bigger card. */
+function GroupTitle({ children }: { children: string }) {
+  return <h2 className="text-16 font-bold text-default">{children}</h2>
+}
 
 export function ValidasiVerifikasiKetuaScreen() {
   const flow = useFlow()
@@ -44,7 +58,7 @@ export function ValidasiVerifikasiKetuaScreen() {
 
       <Card>
         <div className="flex flex-col gap-16">
-          <SectionTitle>Kunjungan ke Ketua Majelis</SectionTitle>
+          <GroupTitle>Kunjungan ke Ketua Majelis</GroupTitle>
 
           <PickerField
             label="Apakah Ketua Majelis mengenal mitra ini dengan baik?"
@@ -83,7 +97,12 @@ export function ValidasiVerifikasiKetuaScreen() {
       </Card>
 
       <StickyBar>
-        <Button size="lg" className="w-full" onClick={() => flow.go('validasi-keputusan')}>
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={!isVerifikasiKetuaDone(s)}
+          onClick={() => flow.go('validasi-keputusan')}
+        >
           Lanjutkan ke Keputusan
         </Button>
       </StickyBar>
