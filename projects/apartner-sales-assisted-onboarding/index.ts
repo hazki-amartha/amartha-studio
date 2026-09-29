@@ -270,6 +270,12 @@ export const project: ProjectModule = {
       id: 'validasi-data',
       title: 'Data Underwriting',
       component: lazyScreen(() => import('./screens/validasi-data'), 'ValidasiDataScreen'),
+      flowsTo: [{ to: 'validasi-bp-feedback', label: 'Lanjutkan ke BP Feedback' }],
+    },
+    {
+      id: 'validasi-bp-feedback',
+      title: 'BP Feedback',
+      component: lazyScreen(() => import('./screens/validasi-bp-feedback'), 'ValidasiBpFeedbackScreen'),
       flowsTo: [{ to: 'validasi-keputusan', label: 'Lanjutkan ke Keputusan' }],
     },
     {

@@ -1,6 +1,6 @@
 'use client'
 
-// Validasi Mitra — step 3: the BM's call. Setujui/Tolak first (it decides
+// Validasi Mitra — step 4 of 4: the BM's call. Setujui/Tolak first (it decides
 // which reason list applies), then a reason — required either way, because
 // overriding underwriting's own read needs a reason on file whichever
 // direction it goes. "Lainnya" opens a free-text line for the one case the
@@ -72,10 +72,10 @@ export function ValidasiKeputusanScreen() {
 
   return (
     <AppScreen
-      topBar={<NavigationHeader title="Keputusan BM" onBack={() => flow.go('validasi-data')} />}
+      topBar={<NavigationHeader title="Keputusan BM" onBack={() => flow.go('validasi-bp-feedback')} />}
     >
       <StageBar
-        current={3}
+        current={4}
         labels={VALIDASI_STEPS}
         onStepClick={(step) => flow.go(VALIDASI_STEP_SCREENS[step - 1])}
       />
