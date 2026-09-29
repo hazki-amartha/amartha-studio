@@ -277,6 +277,19 @@ export const VALIDASI_STEP_SCREENS = [
   'validasi-keputusan',
 ] as const
 
+// BM's own verification (step 4, before Keputusan) — she re-checks a few of
+// the same facts the BP already reported (see bpAssessment), plus what only
+// she can attest to: majelis members vouching for the mitra, and her own
+// selfie+geotag with the majelis and its Ketua.
+export const STATUS_RUMAH_OPTIONS = ['Milik sendiri', 'Sewa', 'Menumpang']
+export const USAHA_BERJALAN_OPTIONS = ['Ya', 'Tidak']
+export const ASET_OPTIONS = ['Rumah', 'Motor']
+export const MAJELIS_CHECKING_OPTIONS = [
+  'Ya, dikenal baik oleh anggota majelis',
+  'Cukup dikenal, belum lama bergabung',
+  'Tidak dikenal / anggota tidak mengenali',
+]
+
 export type ValidasiDecision = 'approve' | 'reject'
 
 /** Reasons differ by decision — an approval says why the flag doesn't apply
