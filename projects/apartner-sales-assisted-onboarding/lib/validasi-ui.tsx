@@ -3,13 +3,13 @@
 // Shared pieces of the Validasi Mitra flow — pulled out once they were
 // needed on more than one screen (§4).
 
-import { Badge, Card } from '@/design-system/components'
+import { Card } from '@/design-system/components'
 import { Camera, ChevronDown, FileCheck } from '@/design-system/icons'
 import type { SoftRejectCase } from './validasi'
 
-/** Who this review is about, and that she's a soft reject — kept on every
- *  screen of the flow (not just step 1) so the BM never loses track of whose
- *  case she's looking at partway through a 4-step review. */
+/** Who this review is about — kept on every screen of the flow (not just
+ *  step 1) so the BM never loses track of whose case she's looking at
+ *  partway through a 4-step review. */
 export function MitraCard({ case: c }: { case: SoftRejectCase }) {
   return (
     <Card>
@@ -17,9 +17,6 @@ export function MitraCard({ case: c }: { case: SoftRejectCase }) {
         <span className="text-16 font-bold text-default">{c.name}</span>
         <span className="text-12 text-caption">
           {c.majelisName} · {c.product} · {c.amount}
-        </span>
-        <span className="flex pt-4">
-          <Badge intent="orange">Soft Reject</Badge>
         </span>
       </div>
     </Card>
