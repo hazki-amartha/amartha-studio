@@ -295,9 +295,9 @@ export const ASET_OPTIONS = [
   'Tidak ada aset',
 ]
 export const MAJELIS_CHECKING_OPTIONS = [
-  'Ya, dikenal baik oleh anggota majelis',
+  'Ya, dikenal baik oleh Ketua Majelis',
   'Cukup dikenal, belum lama bergabung',
-  'Tidak dikenal / anggota tidak mengenali',
+  'Tidak dikenal / Ketua Majelis tidak mengenali',
 ]
 
 export type ValidasiDecision = 'approve' | 'reject'

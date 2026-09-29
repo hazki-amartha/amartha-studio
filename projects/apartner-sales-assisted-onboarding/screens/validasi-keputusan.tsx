@@ -253,7 +253,7 @@ export function ValidasiKeputusanScreen() {
           <SectionTitle>Verifikasi BM — kunjungan ke Ketua Majelis</SectionTitle>
 
           <PickerField
-            label="Pengecekan majelis — apakah anggota mengenal mitra ini?"
+            label="Apakah Ketua Majelis mengenal mitra ini dengan baik?"
             value={s.majelisChecking}
             onClick={() => setMajelisSheet(true)}
           />
@@ -392,7 +392,7 @@ export function ValidasiKeputusanScreen() {
       />
       <PickSheet
         open={majelisSheet}
-        title="Pengecekan majelis"
+        title="Pengecekan Ketua Majelis"
         options={MAJELIS_CHECKING_OPTIONS}
         value={s.majelisChecking}
         onClose={() => setMajelisSheet(false)}
