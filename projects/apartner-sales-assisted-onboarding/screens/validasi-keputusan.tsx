@@ -11,19 +11,21 @@
 // free-text line for the one case the fixed list doesn't cover.
 
 import { useState, type ReactNode } from 'react'
-import { BottomSheet, Button, Card, InputNominal, NavigationHeader, SelectableCard } from '@/design-system/components'
+import { BottomSheet, Button, Card, InputNominal, SelectableCard } from '@/design-system/components'
 import { CheckCircle, ChevronDown, CrossCircleFill } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
+import { DECISION_REASON_OTHER, DECISION_REASONS, VALIDASI_STEP_SCREENS, VALIDASI_STEPS } from '../lib/validasi'
 import {
-  DECISION_REASON_OTHER,
-  DECISION_REASONS,
-  PERNAH_KELOMPOK_OPTIONS,
-  VALIDASI_STEP_SCREENS,
-  VALIDASI_STEPS,
-} from '../lib/validasi'
-import { finalReason, useOpenCase, useValidasi, validasiStore } from '../lib/validasi-store'
+  canGoToValidasiStep,
+  finalReason,
+  isVerifikasiKetuaDone,
+  isVerifikasiMitraDone,
+  useOpenCase,
+  useValidasi,
+  validasiStore,
+} from '../lib/validasi-store'
 import { store } from '../lib/store'
-import { MitraCard } from '../lib/validasi-ui'
+import { ValidasiHeader } from '../lib/validasi-ui'
 import { AppScreen, SectionTitle, StageBar, StickyBar } from '../lib/ui'
 
 // Neutral by default, same selected treatment as the design system's own
@@ -67,18 +69,10 @@ export function ValidasiKeputusanScreen() {
   const needsLimit = s.decision === 'approve'
 
   // Set on steps 2 (Validasi ke Mitra) and 3 (Validasi ke Ketua Majelis) —
-  // see lib/validasi-store.ts for what each field is.
-  const verificationDone =
-    s.statusRumahBM.length > 0 &&
-    s.usahaBerjalanBM.length > 0 &&
-    s.majelisChecking.length > 0 &&
-    s.lamaKenalKM.length > 0 &&
-    s.pernahKelompokKM.length > 0 &&
-    (s.pernahKelompokKM !== PERNAH_KELOMPOK_OPTIONS[0] || s.riwayatPinjamanKM.length > 0) &&
-    s.fotoRumah &&
-    s.fotoUsaha &&
-    s.selfieMitra &&
-    s.selfieKetua
+  // see lib/validasi-store.ts for what each field is. She can't have reached
+  // this screen with either undone (the stepper locks step 4 until both are),
+  // but the check stays here too as the actual submit gate.
+  const verificationDone = isVerifikasiMitraDone(s) && isVerifikasiKetuaDone(s)
 
   const canSubmit =
     verificationDone &&
@@ -94,15 +88,14 @@ export function ValidasiKeputusanScreen() {
 
   return (
     <AppScreen
-      topBar={<NavigationHeader title="Keputusan BM" onBack={() => flow.go('validasi-verifikasi-ketua')} />}
+      topBar={<ValidasiHeader case={c} onBack={() => flow.go('validasi-verifikasi-ketua')} />}
     >
       <StageBar
         current={4}
         labels={VALIDASI_STEPS}
         onStepClick={(step) => flow.go(VALIDASI_STEP_SCREENS[step - 1])}
+        canGoTo={(step) => canGoToValidasiStep(s, step)}
       />
-
-      <MitraCard case={c} />
 
       {!verificationDone ? (
         <Card>

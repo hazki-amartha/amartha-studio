@@ -3,23 +3,37 @@
 // Shared pieces of the Validasi Mitra flow — pulled out once they were
 // needed on more than one screen (§4).
 
-import { Card } from '@/design-system/components'
-import { Camera, Check, ChevronDown, FileCheck } from '@/design-system/icons'
+import { Badge } from '@/design-system/components'
+import { ArrowLeft, Camera, Check, ChevronDown, FileCheck } from '@/design-system/icons'
 import type { SoftRejectCase } from './validasi'
 
-/** Who this review is about — kept on every screen of the flow (not just
- *  step 1) so the BM never loses track of whose case she's looking at
- *  partway through a 4-step review. */
-export function MitraCard({ case: c }: { case: SoftRejectCase }) {
+/** The page header every screen of the flow uses (not just step 1) — same
+ *  shape as calon-mitra.tsx's own (back arrow, name, status badge), so a
+ *  soft-reject review reads like the rest of the app's detail pages instead
+ *  of a generic "Validasi ke Mitra" title floating over a separate card. */
+export function ValidasiHeader({ case: c, onBack }: { case: SoftRejectCase; onBack: () => void }) {
   return (
-    <Card>
-      <div className="flex flex-col gap-4">
-        <span className="text-16 font-bold text-default">{c.name}</span>
-        <span className="text-12 text-caption">
+    <header className="flex shrink-0 items-center gap-8 border-b border-default bg-neutral-white px-16 py-8">
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label="Kembali"
+        className="-ml-4 flex h-32 w-32 shrink-0 items-center justify-center text-default"
+      >
+        <ArrowLeft size={20} />
+      </button>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-16 font-bold text-default">{c.name}</span>
+        <span className="truncate text-12 text-caption">
           {c.majelisName} · {c.amount}
         </span>
+        <span className="flex pt-2">
+          <Badge intent="orange" size="sm">
+            Soft Reject
+          </Badge>
+        </span>
       </div>
-    </Card>
+    </header>
   )
 }
 

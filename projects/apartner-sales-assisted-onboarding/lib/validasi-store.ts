@@ -210,3 +210,35 @@ export function useValidasiAll(): Record<string, ValidasiState> {
 export function finalReason(s: ValidasiState): string {
   return s.reason === DECISION_REASON_OTHER ? s.customReason.trim() : s.reason
 }
+
+/** Step 2 (Validasi ke Mitra) is whole. */
+export function isVerifikasiMitraDone(s: ValidasiState): boolean {
+  return (
+    s.statusRumahBM.length > 0 &&
+    s.usahaBerjalanBM.length > 0 &&
+    s.fotoRumah &&
+    s.fotoUsaha &&
+    s.selfieMitra
+  )
+}
+
+/** Step 3 (Validasi ke Ketua Majelis) is whole. */
+export function isVerifikasiKetuaDone(s: ValidasiState): boolean {
+  return (
+    s.majelisChecking.length > 0 &&
+    s.lamaKenalKM.length > 0 &&
+    s.pernahKelompokKM.length > 0 &&
+    (s.pernahKelompokKM !== PERNAH_KELOMPOK_OPTIONS[0] || s.riwayatPinjamanKM.length > 0) &&
+    s.selfieKetua
+  )
+}
+
+/** Whether the stepper may jump straight to `step` (1-indexed, matching
+ *  VALIDASI_STEP_SCREENS) — she can always go back to a step she's already
+ *  on or past, and step 1 (Hasil Underwriting) is always open, but Validasi
+ *  KM needs Validasi mitra done first, and Keputusan needs both. */
+export function canGoToValidasiStep(s: ValidasiState, step: number): boolean {
+  if (step <= 2) return true
+  if (step === 3) return isVerifikasiMitraDone(s)
+  return isVerifikasiMitraDone(s) && isVerifikasiKetuaDone(s)
+}

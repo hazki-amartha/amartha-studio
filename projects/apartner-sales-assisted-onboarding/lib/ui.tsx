@@ -43,6 +43,7 @@ export function StageBar({
   current,
   labels,
   onStepClick,
+  canGoTo,
 }: {
   /** 1-based. One past the last label means every stage is cleared. */
   current: number
@@ -51,6 +52,12 @@ export function StageBar({
    *  gate) — omit for a bar that only reports progress and can't be skipped
    *  ahead of (Group Formation: a step isn't done until its own work is). */
   onStepClick?: (step: number) => void
+  /** Narrows onStepClick to only the steps this returns true for — a step
+   *  that needs the one before it filled in first (Validasi Mitra: Validasi
+   *  KM needs Validasi mitra done) stays visible but locked rather than
+   *  reachable from anywhere, the way a fully free bar's steps are. Omit
+   *  when every step really is reachable from anywhere. */
+  canGoTo?: (step: number) => boolean
 }) {
   return (
     <div className="flex items-start">
@@ -58,6 +65,8 @@ export function StageBar({
         const no = i + 1
         const done = no < current
         const active = no === current
+        const locked = Boolean(onStepClick) && canGoTo !== undefined && !canGoTo(no)
+        const clickable = Boolean(onStepClick) && !locked
         // A cleared stage goes GREY, not green, and an upcoming one is a ring
         // around its number rather than a filled disc. Only one thing on this
         // bar is coloured — where she is standing — because that is the single
@@ -65,18 +74,19 @@ export function StageBar({
         // and made a four-step bar look like three results and a question.
         //
         // That's the read for a bar nothing can revisit. An interactive one
-        // (onStepClick set) is a different object — every step stays a live
-        // destination, so a cleared step keeps the SAME ring the upcoming ones
-        // get rather than greying into "done, not for you" the moment it's
-        // behind her.
+        // (onStepClick set) is a different object — every REACHABLE step keeps
+        // the same ring the upcoming ones get rather than greying into
+        // "done, not for you" the moment it's behind her. A step that's locked
+        // (canGoTo says no) greys out anyway — that grey now means "not yet
+        // unlocked", not "already behind her".
         const circle =
-          done && !onStepClick
+          (done && !onStepClick) || locked
             ? 'border-neutral-400 bg-neutral-400 text-neutral-white'
             : active
               ? 'border-primary-500 bg-primary-500 text-neutral-white'
               : 'border-default bg-neutral-white text-default'
         const circleClasses = `flex h-20 w-20 shrink-0 items-center justify-center rounded-full border text-12 font-bold ${circle}`
-        const labelClasses = `text-12 ${active ? 'font-bold text-default' : done && !onStepClick ? 'font-regular text-disabled' : 'font-regular text-default'}`
+        const labelClasses = `text-12 ${active ? 'font-bold text-default' : (done && !onStepClick) || locked ? 'font-regular text-disabled' : 'font-regular text-default'}`
         return (
           <div key={label} className="flex flex-1 flex-col items-center gap-4">
             <div className="flex w-full items-center gap-4">
@@ -90,11 +100,11 @@ export function StageBar({
               <span
                 className={`h-2 flex-1 rounded-full ${i === 0 ? 'bg-transparent' : no === current + 1 ? 'bg-primary-200' : 'bg-neutral-200'}`}
               />
-              {onStepClick ? (
+              {clickable ? (
                 <button
                   type="button"
                   aria-label={`Ke ${label}`}
-                  onClick={() => onStepClick(no)}
+                  onClick={() => onStepClick?.(no)}
                   className={circleClasses}
                 >
                   {done ? <Check size={16} /> : no}
@@ -112,8 +122,8 @@ export function StageBar({
                 of the visit rather than the place she is standing in it.
                 A cleared stage's name greys out — it is behind her — while the
                 ones ahead stay dark: they are still work. */}
-            {onStepClick ? (
-              <button type="button" onClick={() => onStepClick(no)} className={labelClasses}>
+            {clickable ? (
+              <button type="button" onClick={() => onStepClick?.(no)} className={labelClasses}>
                 {label}
               </button>
             ) : (
