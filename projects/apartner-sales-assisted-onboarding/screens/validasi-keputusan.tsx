@@ -66,6 +66,8 @@ export function ValidasiKeputusanScreen() {
     s.statusRumahBM.length > 0 &&
     s.usahaBerjalanBM.length > 0 &&
     s.majelisChecking.length > 0 &&
+    s.lamaKenalKM.length > 0 &&
+    s.pernahKelompokKM.length > 0 &&
     s.fotoRumah &&
     s.fotoUsaha &&
     s.selfieMitra &&
