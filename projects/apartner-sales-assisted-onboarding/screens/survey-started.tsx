@@ -49,7 +49,7 @@ export function SurveyStartedScreen() {
             <DeviceMobile size={20} />
           </span>
           <span className="text-12 text-blue-600">
-            {lead.name} ada di daftar Leads pada kolom <span className="font-bold">Survey ongoing</span>.
+            {lead.name} ada di daftar Leads pada kolom <span className="font-bold">Complete onboarding</span>.
             Ia menyelesaikan formulir AFin sendiri; kamu bisa memantau atau mengambil alih kapan saja.
           </span>
         </div>

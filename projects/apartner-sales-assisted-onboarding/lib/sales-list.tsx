@@ -63,8 +63,8 @@ const TODAY_GROUPS: { key: string; label: string; secs: LeadsSection[] }[] = [
     label: 'Waiting for approval',
     secs: ['need-resubmit', 'pending-bm-validation', 'survey-submitted'],
   },
-  { key: 'survey-ongoing', label: 'Survey ongoing', secs: ['survey-ongoing'] },
-  { key: 'starting-onboarding', label: 'Starting onboarding', secs: ['starting-onboarding'] },
+  { key: 'survey-ongoing', label: 'Complete onboarding', secs: ['survey-ongoing'] },
+  { key: 'starting-onboarding', label: 'Start onboarding', secs: ['starting-onboarding'] },
   { key: 'follow-up', label: 'Follow up', secs: ['follow-up'] },
 ]
 

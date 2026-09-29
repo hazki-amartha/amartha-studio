@@ -47,7 +47,7 @@ function memberStatus(lead: PipelineLead, canDisburseLead: boolean): { label: st
       ? { label: 'Ready for disbursement', intent: 'green' }
       : { label: 'Waiting for group formation', intent: 'green' }
   if (lead.status === 'survey-submitted') return { label: 'Survey submitted', intent: 'blue' }
-  return { label: 'Survey ongoing', intent: 'orange' }
+  return { label: 'Complete onboarding', intent: 'orange' }
 }
 
 // A row in the Anggota Majelis list — an active mitra (roster), an onboarding

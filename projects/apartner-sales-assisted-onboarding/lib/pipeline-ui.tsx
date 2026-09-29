@@ -97,37 +97,28 @@ export function OnboardingTimingSheet({
   open,
   onClose,
   onPick,
+  title,
+  description,
 }: {
   open: boolean
   onClose: () => void
   onPick: (when: 'now' | 'later') => void
+  /** Title + body — the copy differs for a new vs existing majelis. */
+  title: string
+  description: string
 }) {
-  const options: { when: 'now' | 'later'; title: string; description: string }[] = [
-    {
-      when: 'now',
-      title: 'Onboarding sekarang',
-      description: 'Langsung mulai survey onboarding bersama calon mitra.',
-    },
-    {
-      when: 'later',
-      title: 'Onboarding nanti',
-      description: 'Simpan sebagai calon mitra; lanjutkan survey lain waktu.',
-    },
-  ]
   return (
-    <BottomSheet open={open} onClose={onClose} title="Lanjutkan onboarding?">
-      <div className="flex flex-col gap-8">
-        {options.map((o) => (
-          <button
-            key={o.when}
-            type="button"
-            onClick={() => onPick(o.when)}
-            className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left active:bg-neutral-50"
-          >
-            <span className="text-14 font-bold text-default">{o.title}</span>
-            <span className="text-12 text-caption">{o.description}</span>
-          </button>
-        ))}
+    <BottomSheet open={open} onClose={onClose} title={title}>
+      <div className="flex flex-col gap-12">
+        <span className="text-14 text-caption">{description}</span>
+        <div className="flex flex-col gap-8">
+          <Button size="lg" className="w-full" onClick={() => onPick('now')}>
+            Ya, Sekarang
+          </Button>
+          <Button variant="outline" size="lg" className="w-full" onClick={() => onPick('later')}>
+            Nanti Saja
+          </Button>
+        </div>
       </div>
     </BottomSheet>
   )

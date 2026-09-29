@@ -321,7 +321,19 @@ export function PendaftaranScreen() {
         </div>
       </BottomSheet>
 
-      <OnboardingTimingSheet open={timingOpen} onClose={() => setTimingOpen(false)} onPick={startOnboarding} />
+      <OnboardingTimingSheet
+        open={timingOpen}
+        onClose={() => setTimingOpen(false)}
+        onPick={startOnboarding}
+        title={
+          majelisKind === 'baru' ? 'Siap buat majelis sekarang?' : 'Lanjutkan onboarding sekarang?'
+        }
+        description={
+          majelisKind === 'baru'
+            ? 'Pastikan Anda tau ketua dan hari kumpulan majelisnya. Jika belum, lanjutkan nanti di daftar follow-up.'
+            : 'Mulai persetujuan pendaftaran & survey sekarang, atau simpan sebagai calon mitra dan lanjutkan nanti.'
+        }
+      />
     </AppScreen>
   )
 }
