@@ -38,7 +38,7 @@ export function RiwayatScreen() {
         </p>
         <p className="mt-2 text-12 text-caption">Limit baru di minggu {TOTAL_WEEKS}</p>
 
-        <div className="mt-12 grid grid-cols-2 gap-8">
+        <div className="mt-12 grid grid-cols-2 flex gap-8">
           <Stat
             icon={<CreditCard size={16} />}
             label="Bayar tepat waktu"
