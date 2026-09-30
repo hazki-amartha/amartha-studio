@@ -153,9 +153,19 @@ type Sink = (
   req: DesignRequest | DesignUndoRequest | DesignPushRequest | DesignCheckRequest | DesignUnlockRequest,
 ) => Promise<DesignResponse>
 
+/**
+ * Where writes go. A project opened at /db/<slug> lives in the database
+ * (platform/dbProjects), and its twin route writes there instead of to files or
+ * GitHub — to the panel it is the `fs` backend all the same.
+ */
+function designRoute(slug: string): string {
+  const onDb = typeof window !== 'undefined' && window.location.pathname.startsWith('/db/')
+  return onDb ? `/api/db-projects/${encodeURIComponent(slug)}/design` : '/api/design'
+}
+
 const sink: Sink = async (req) => {
   try {
-    const res = await fetch('/api/design', {
+    const res = await fetch(designRoute(req.slug), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(req),
@@ -299,7 +309,7 @@ export async function unlockEditing(password: string): Promise<string | null> {
 async function probe(slug: string) {
   let status: DesignStatus | null = null
   try {
-    const res = await fetch(`/api/design?slug=${encodeURIComponent(slug)}`, { cache: 'no-store' })
+    const res = await fetch(`${designRoute(slug)}?slug=${encodeURIComponent(slug)}`, { cache: 'no-store' })
     if (res.ok) status = (await res.json()) as DesignStatus
   } catch {
     // No answer: stay as we are.

@@ -192,7 +192,14 @@ async function send(prompt: string, shown?: string) {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ slug, message: text, sessionId: convo.sessionId }),
+      // On /db/<slug> the project lives in the database (platform/dbProjects):
+      // the route loads it for the agent and saves the turn's changes back.
+      body: JSON.stringify({
+        slug,
+        message: text,
+        sessionId: convo.sessionId,
+        db: window.location.pathname.startsWith('/db/') || undefined,
+      }),
       signal: controller.signal,
     })
     if (res.status === 401) setGate('locked')
