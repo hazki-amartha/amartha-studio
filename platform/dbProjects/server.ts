@@ -20,9 +20,20 @@ import tailwindcss from 'tailwindcss'
 import { transform } from 'sucrase'
 import studioTailwind from '@/tailwind.config'
 import { serviceRoleKey, supabaseEnv } from '@/platform/auth/env'
-import type { DbProjectBuild } from './protocol'
+import { SAVED_EVENT, savedChannel, type DbProjectBuild } from './protocol'
 
 export const FILES_TABLE = 'studio_project_files'
+export const VERSIONS_TABLE = 'studio_project_file_versions'
+
+// Design mode addresses a JSX node by `data-src="projects/<slug>/<file>:line:col"`,
+// which the webpack loader stamps into git projects at build time. A database
+// project never goes through webpack, so the same stamp runs here, before the
+// compile — and Edit mode can address its elements exactly as it does a git
+// project's.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { stampSource } = require('../design/stamp.cjs') as {
+  stampSource: (source: string, file: string) => { code: string } | null
+}
 
 export function createAdminClient() {
   const env = supabaseEnv()
@@ -61,7 +72,8 @@ export async function buildDbProject(slug: string): Promise<DbProjectBuild | { e
     if (!COMPILED.test(path)) continue
     source.push(content)
     try {
-      modules[path] = transform(content, {
+      const stamped = path.endsWith('.tsx') ? stampSource(content, `projects/${slug}/${path}`) : null
+      modules[path] = transform(stamped?.code ?? content, {
         transforms: ['typescript', 'jsx', 'imports'],
         jsxRuntime: 'automatic',
         production: true,
@@ -95,4 +107,100 @@ async function tailwindFor(raw: string): Promise<string> {
     from: undefined,
   })
   return out.css
+}
+
+// --- writing -------------------------------------------------------------------
+
+/** One file's current content, or null when the project has no such file. */
+export async function readDbFile(slug: string, path: string): Promise<string | null> {
+  const db = createAdminClient()
+  if (!db) throw new Error('Supabase is not configured.')
+  const { data, error } = await db.from(FILES_TABLE).select('content').eq('slug', slug).eq('path', path).maybeSingle()
+  if (error) throw new Error(error.message)
+  return data?.content ?? null
+}
+
+/** Every file of a project, path → content. Empty when it isn't in the database. */
+export async function readDbFiles(slug: string): Promise<Map<string, string>> {
+  const db = createAdminClient()
+  if (!db) throw new Error('Supabase is not configured.')
+  const { data, error } = await db.from(FILES_TABLE).select('path, content').eq('slug', slug)
+  if (error) throw new Error(error.message)
+  return new Map(data.map((r) => [r.path as string, r.content as string]))
+}
+
+export async function isDbProject(slug: string): Promise<boolean> {
+  const db = createAdminClient()
+  if (!db) return false
+  const { count } = await db.from(FILES_TABLE).select('path', { count: 'exact', head: true }).eq('slug', slug)
+  return (count ?? 0) > 0
+}
+
+/**
+ * Save files to a project: the new content, one history row per file, and a
+ * Realtime broadcast so every open /db/<slug> reloads. Returns each file's
+ * history row id — the handle undo restores from.
+ */
+export async function saveDbFiles(
+  slug: string,
+  files: { path: string; content: string }[],
+  by: string | null,
+): Promise<Map<string, number>> {
+  const ids = new Map<string, number>()
+  if (!files.length) return ids
+  const db = createAdminClient()
+  if (!db) throw new Error('Supabase is not configured.')
+  const now = new Date().toISOString()
+  const up = await db
+    .from(FILES_TABLE)
+    .upsert(files.map((f) => ({ slug, path: f.path, content: f.content, updated_at: now, updated_by: by })))
+  if (up.error) throw new Error(up.error.message)
+  const ver = await db
+    .from(VERSIONS_TABLE)
+    .insert(files.map((f) => ({ slug, path: f.path, content: f.content, saved_by: by })))
+    .select('id, path')
+  if (ver.error) throw new Error(ver.error.message)
+  for (const row of ver.data) ids.set(row.path as string, row.id as number)
+  await announceSave(slug)
+  return ids
+}
+
+/** The content a file had just before the save recorded as history row `id`. */
+export async function contentBefore(
+  slug: string,
+  id: number,
+): Promise<{ path: string; after: string | null; before: string | null } | null> {
+  const db = createAdminClient()
+  if (!db) throw new Error('Supabase is not configured.')
+  const row = await db.from(VERSIONS_TABLE).select('path, content').eq('slug', slug).eq('id', id).maybeSingle()
+  if (row.error || !row.data) return null
+  const prev = await db
+    .from(VERSIONS_TABLE)
+    .select('content')
+    .eq('slug', slug)
+    .eq('path', row.data.path)
+    .lt('id', id)
+    .order('id', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (prev.error || !prev.data) return null
+  return { path: row.data.path as string, after: row.data.content as string | null, before: prev.data.content as string | null }
+}
+
+/** Tell open viewers a save landed — Realtime broadcast over REST. Best effort:
+ *  a viewer that misses it still picks the save up on focus. */
+export async function announceSave(slug: string): Promise<void> {
+  const env = supabaseEnv()
+  const key = serviceRoleKey()
+  if (!env || !key) return
+  try {
+    await fetch(`${env.url}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ topic: savedChannel(slug), event: SAVED_EVENT, payload: { at: Date.now() } }] }),
+    })
+  } catch {
+    // Viewers fall back to refetching on focus.
+  }
 }

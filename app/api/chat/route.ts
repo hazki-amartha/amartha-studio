@@ -40,6 +40,7 @@ import {
   verifyEditToken,
 } from '@/platform/design/server/editGate'
 import { isLocalRequest } from '@/platform/chat/localRequest'
+import { pullToDisk, pushFromDisk } from '@/platform/dbProjects/disk'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -231,6 +232,9 @@ interface ChatRequest {
   message: string
   /** The CLI session to continue; absent on the first turn. */
   sessionId?: string
+  /** Sent from /db/<slug>: the project lives in the database. The turn starts
+   *  from the database's files and saves what it changed back there. */
+  db?: boolean
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -293,6 +297,19 @@ export async function POST(request: Request): Promise<Response> {
   ]
   if (process.env.CHAT_LOCAL_MODEL) args.push('--model', process.env.CHAT_LOCAL_MODEL)
   if (body.sessionId) args.push('--resume', body.sessionId)
+
+  // A database project: put its files on disk for the agent first.
+  let baseline: Map<string, string> | null = null
+  if (body.db) {
+    try {
+      baseline = await pullToDisk(body.slug)
+    } catch (err) {
+      return Response.json(
+        { error: `Couldn’t load the project from the database: ${err instanceof Error ? err.message : err}` },
+        { status: 502 },
+      )
+    }
+  }
 
   const before = dirtyPaths()
   const child = spawn(CLI, args, {
@@ -358,8 +375,16 @@ export async function POST(request: Request): Promise<Response> {
         stderr = (stderr + chunk.toString()).slice(-2000)
       })
 
-      child.on('close', (code, signal) => {
+      child.on('close', async (code, signal) => {
         clearTimeout(timer)
+        let saveError: string | undefined
+        if (baseline) {
+          try {
+            await pushFromDisk(body.slug, baseline, null)
+          } catch (err) {
+            saveError = `The change is on this laptop but didn’t reach the database: ${err instanceof Error ? err.message : err}`
+          }
+        }
         running = null
         const after = dirtyPaths()
         const changed = [...after].filter((p) => !before.has(p))
@@ -371,7 +396,9 @@ export async function POST(request: Request): Promise<Response> {
           durationMs: (result?.duration_ms as number | undefined) ?? 0,
           changed,
           outside,
-          error: timedOut
+          error: saveError
+            ? saveError
+            : timedOut
             ? `Stopped: a turn can run for ${TURN_TIMEOUT_MS / 60000} minutes at most.`
             : result?.subtype === 'error_max_turns'
               ? `Stopped after ${MAX_TURNS} steps. Ask for a smaller change, or say “continue”.`
