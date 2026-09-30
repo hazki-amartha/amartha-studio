@@ -10,7 +10,8 @@
     "lint": "next lint",
     "check:flows": "node scripts/check-flows.mjs",
     "test:design": "node --test scripts/test-design.mjs",
-    "db:sync": "node scripts/db-sync.mjs"
+    "db:sync": "node scripts/db-sync.mjs",
+    "check:project": "node scripts/check-project.mjs"
   },
   "dependencies": {
     "@babel/parser": "^7.29.8",

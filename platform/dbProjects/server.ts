@@ -97,7 +97,7 @@ export async function buildDbProject(slug: string): Promise<DbProjectBuild | { e
  * nothing. Preflight and the config's safelist are left out: the page already
  * has both.
  */
-async function tailwindFor(raw: string): Promise<string> {
+export async function tailwindFor(raw: string): Promise<string> {
   const config = {
     ...studioTailwind,
     content: [{ raw, extension: 'tsx' }],
