@@ -23,7 +23,7 @@ const root = process.env.CHAT_ROOT ?? process.cwd()
 
 const WRITE_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit'])
 const READ_TOOLS = new Set(['Read', 'Glob', 'Grep'])
-const COMMANDS = new Set(['npm run lint', 'npm run check:flows', 'npx tsc --noEmit'])
+const COMMANDS = new Set(['npm run lint', 'npm run check:flows', 'npx tsc --noEmit', 'npm run check:project'])
 
 // Path segments / basenames that are never readable from chat.
 const SECRET_DIRS = new Set(['.git', '.claude', '.vercel', '.ssh', '.aws'])
