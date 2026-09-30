@@ -12,8 +12,8 @@
 //     visit switch, with the Leads list filtered by funnel section (chips).
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { Button, NavigationHeader } from '@/design-system/components'
-import { CheckCircle, Plus } from '@/design-system/icons'
+import { BottomSheet, Button, NavigationHeader } from '@/design-system/components'
+import { Check, CheckCircle, Plus, Sliders } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   BmValidationCard,
@@ -29,7 +29,6 @@ import {
 } from './tasks'
 import {
   LEADS_SECTION_LABEL,
-  LEADS_SECTION_ORDER,
   detailScreen,
   leadsSection,
   sourceDetail,
@@ -44,7 +43,7 @@ import { SOFT_REJECT_CASES, type SoftRejectCase } from './validasi'
 import { useValidasiAll, validasiStore } from './validasi-store'
 import { SourceSheet } from './pipeline-ui'
 import { TabBar } from './tabs'
-import { AppScreen, Chip, EmptyState, FilterBar, SearchField, VisitTitle } from './ui'
+import { AppScreen, EmptyState, SearchField, VisitTitle } from './ui'
 
 type MainTab = 'leads' | 'poi'
 type Scope = 'today' | 'all'
@@ -73,6 +72,66 @@ const CARD_NOTE: Partial<Record<LeadsSection, CardNote>> = {
   'need-resubmit': { text: 'Need to resubmit UK', tone: 'orange' },
   'pending-bm-validation': { text: 'Need BM Review', tone: 'orange' },
   'survey-submitted': { text: 'Application in process', tone: 'blue' },
+}
+
+// "Jenis tugas" filter order — the lead's journey top-to-bottom, then the
+// needs-attention exceptions grouped at the end (distinct from the board's
+// funnel order, which leads with what's closest to disbursing).
+const JENIS_ORDER: LeadsSection[] = [
+  'follow-up',
+  'starting-onboarding',
+  'survey-ongoing',
+  'survey-submitted',
+  'survey-approved',
+  'ready-for-disbursement',
+  'need-resubmit',
+  'pending-bm-validation',
+  'survey-rejected',
+]
+
+// "Sumber" filter — where the lead came from (a cold reactivation counts too).
+type Sumber = 'sosialisasi' | 'reaktivasi' | 'rujukan' | 'pencarian'
+const SUMBER_OPTIONS: { key: Sumber; label: string }[] = [
+  { key: 'sosialisasi', label: 'Sosialisasi' },
+  { key: 'reaktivasi', label: 'Reaktivasi' },
+  { key: 'rujukan', label: 'Rujukan' },
+  { key: 'pencarian', label: 'Pencarian sendiri' },
+]
+function sumberOf(lead: PipelineLead): Sumber {
+  if (lead.status === 'not-interested' || lead.status === 'rejected') return 'reaktivasi'
+  return lead.source === 'referral' ? 'rujukan' : lead.source === 'canvassing' ? 'pencarian' : 'sosialisasi'
+}
+
+/** A checkbox row for the Filter sheet. */
+function CheckRow({ label, checked, onToggle }: { label: string; checked: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} className="flex items-center gap-12 py-8 text-left">
+      <span
+        className={`flex h-24 w-24 shrink-0 items-center justify-center rounded-8 border-2 ${
+          checked ? 'border-primary-500 bg-primary-500 text-neutral-white' : 'border-neutral-200'
+        }`}
+      >
+        {checked ? <Check size={16} /> : null}
+      </span>
+      <span className="text-16 text-default">{label}</span>
+    </button>
+  )
+}
+
+/** A radio row for the Filter sheet. */
+function RadioRow({ label, checked, onSelect }: { label: string; checked: boolean; onSelect: () => void }) {
+  return (
+    <button type="button" onClick={onSelect} className="flex items-center gap-12 py-8 text-left">
+      <span
+        className={`flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-2 ${
+          checked ? 'border-primary-500' : 'border-neutral-200'
+        }`}
+      >
+        {checked ? <span className="h-12 w-12 rounded-full bg-primary-500" /> : null}
+      </span>
+      <span className="text-16 text-default">{label}</span>
+    </button>
+  )
 }
 
 /** The Leads ↔ POI visit segmented switch — "Lihat semua" only. */
@@ -201,7 +260,14 @@ export function SalesList({ scope }: { scope: Scope }) {
   ) : null
   const [mainTab, setMainTab] = useState<MainTab>('leads')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [filter, setFilter] = useState<LeadsSection | 'all'>('all')
+  // Lihat semua filter/sort — applied values + the sheet's draft.
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [jenis, setJenis] = useState<Set<LeadsSection>>(new Set())
+  const [sumber, setSumber] = useState<Set<Sumber>>(new Set())
+  const [sortDir, setSortDir] = useState<'akhir' | 'awal'>('awal')
+  const [jenisDraft, setJenisDraft] = useState<Set<LeadsSection>>(new Set())
+  const [sumberDraft, setSumberDraft] = useState<Set<Sumber>>(new Set())
+  const [sortDraft, setSortDraft] = useState<'akhir' | 'awal'>('awal')
   const [query, setQuery] = useState('')
   const [addSourceOpen, setAddSourceOpen] = useState(false)
 
@@ -411,10 +477,37 @@ export function SalesList({ scope }: { scope: Scope }) {
 
   // ------------------------------------------------------------------ all ---
   const poiVisible = allPoiTasks.filter(poiMatchesQuery)
-  const sectionRank = (l: PipelineLead) => LEADS_SECTION_ORDER.indexOf(displaySection(l))
+  const filterCount = jenis.size + sumber.size
   const flatLeads = leadsAll
-    .filter((l) => (filter === 'all' || displaySection(l) === filter) && matchesQuery(l))
-    .sort((a, b) => sectionRank(a) - sectionRank(b) || (a.agenda?.dueDays ?? 0) - (b.agenda?.dueDays ?? 0))
+    .filter(
+      (l) =>
+        (jenis.size === 0 || jenis.has(displaySection(l))) &&
+        (sumber.size === 0 || sumber.has(sumberOf(l))) &&
+        matchesQuery(l),
+    )
+    .sort((a, b) => {
+      const d = (a.agenda?.dueDays ?? 0) - (b.agenda?.dueDays ?? 0)
+      return sortDir === 'awal' ? d : -d
+    })
+
+  function openFilter() {
+    setJenisDraft(new Set(jenis))
+    setSumberDraft(new Set(sumber))
+    setSortDraft(sortDir)
+    setFilterOpen(true)
+  }
+  function applyFilter() {
+    setJenis(new Set(jenisDraft))
+    setSumber(new Set(sumberDraft))
+    setSortDir(sortDraft)
+    setFilterOpen(false)
+  }
+  const toggleIn = <T,>(set: Set<T>, v: T) => {
+    const next = new Set(set)
+    if (next.has(v)) next.delete(v)
+    else next.add(v)
+    return next
+  }
 
   return (
     <AppScreen
@@ -432,25 +525,36 @@ export function SalesList({ scope }: { scope: Scope }) {
         poiCount={allPoiTasks.length}
       />
 
-      <SearchField
-        value={query}
-        onChange={setQuery}
-        placeholder={mainTab === 'leads' ? 'Cari nama lead' : 'Cari POI'}
-        label={mainTab === 'leads' ? 'Cari nama lead' : 'Cari POI'}
-      />
+      <div className="flex items-center gap-8">
+        <div className="min-w-0 flex-1">
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            placeholder={mainTab === 'leads' ? 'Cari nama lead' : 'Cari POI'}
+            label={mainTab === 'leads' ? 'Cari nama lead' : 'Cari POI'}
+          />
+        </div>
+        {mainTab === 'leads' ? (
+          <button
+            type="button"
+            onClick={openFilter}
+            className="flex shrink-0 items-center gap-8 rounded-12 border border-default bg-neutral-white px-16 py-12 active:bg-neutral-50"
+          >
+            <span className="flex items-center gap-8 text-14 font-bold text-default">
+              <Sliders size={20} />
+              Filter &amp; Urut
+            </span>
+            {filterCount > 0 ? (
+              <span className="flex h-24 items-center justify-center rounded-full bg-primary-500 px-8 text-12 font-bold text-neutral-white">
+                {filterCount}
+              </span>
+            ) : null}
+          </button>
+        ) : null}
+      </div>
 
       {mainTab === 'leads' ? (
         <>
-          <FilterBar>
-            <Chip selected={filter === 'all'} onClick={() => setFilter('all')}>
-              Semua
-            </Chip>
-            {LEADS_SECTION_ORDER.map((section) => (
-              <Chip key={section} selected={filter === section} onClick={() => setFilter(section)}>
-                {LEADS_SECTION_LABEL[section]}
-              </Chip>
-            ))}
-          </FilterBar>
           <div className="flex flex-col gap-8 pb-16">
             {flatLeads.length === 0 ? (
               <EmptyState
@@ -491,6 +595,52 @@ export function SalesList({ scope }: { scope: Scope }) {
 
       <TabBar active="sales" action={addLead} />
       {sourceSheet}
+
+      <BottomSheet
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        title="Filter"
+        primaryAction={
+          <Button size="lg" className="w-full" onClick={applyFilter}>
+            Terapkan
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-8">
+          <span className="text-14 font-bold text-default">Jenis tugas</span>
+          {JENIS_ORDER.map((section) => (
+            <CheckRow
+              key={section}
+              label={LEADS_SECTION_LABEL[section]}
+              checked={jenisDraft.has(section)}
+              onToggle={() => setJenisDraft((s) => toggleIn(s, section))}
+            />
+          ))}
+
+          <span className="pt-8 text-14 font-bold text-default">Sumber</span>
+          {SUMBER_OPTIONS.map((o) => (
+            <CheckRow
+              key={o.key}
+              label={o.label}
+              checked={sumberDraft.has(o.key)}
+              onToggle={() => setSumberDraft((s) => toggleIn(s, o.key))}
+            />
+          ))}
+
+          <span className="pt-8 text-18 font-bold text-default">Urutkan</span>
+          <span className="text-14 font-bold text-default">Tanggal tugas</span>
+          <RadioRow
+            label="Paling akhir"
+            checked={sortDraft === 'akhir'}
+            onSelect={() => setSortDraft('akhir')}
+          />
+          <RadioRow
+            label="Paling awal"
+            checked={sortDraft === 'awal'}
+            onSelect={() => setSortDraft('awal')}
+          />
+        </div>
+      </BottomSheet>
     </AppScreen>
   )
 }

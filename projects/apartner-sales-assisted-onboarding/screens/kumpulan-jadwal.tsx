@@ -74,7 +74,9 @@ export function KumpulanJadwalScreen() {
     if (getOnboardingTiming() === 'now') {
       flow.go('onboarding-start')
     } else {
-      pipelineStore.setFlash(`${lead.name} disimpan sebagai calon mitra`)
+      // Later → park her in "Start onboarding"; the persetujuan is still to do.
+      pipelineStore.setStartingOnboarding(lead.id, true)
+      pipelineStore.setFlash(`${lead.name} — menunggu mulai persetujuan pendaftaran`)
       flow.go('sales')
     }
   }
