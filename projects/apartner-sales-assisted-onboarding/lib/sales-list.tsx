@@ -268,6 +268,11 @@ export function SalesList({ scope }: { scope: Scope }) {
   const [jenisDraft, setJenisDraft] = useState<Set<LeadsSection>>(new Set())
   const [sumberDraft, setSumberDraft] = useState<Set<Sumber>>(new Set())
   const [sortDraft, setSortDraft] = useState<'akhir' | 'awal'>('awal')
+  // POI tab filter/sort — "Belum ada jadwal" + date sort.
+  const [poiNoSched, setPoiNoSched] = useState(false)
+  const [poiSort, setPoiSort] = useState<'akhir' | 'awal'>('awal')
+  const [poiNoSchedDraft, setPoiNoSchedDraft] = useState(false)
+  const [poiSortDraft, setPoiSortDraft] = useState<'akhir' | 'awal'>('awal')
   const [query, setQuery] = useState('')
   const [addSourceOpen, setAddSourceOpen] = useState(false)
 
@@ -476,8 +481,14 @@ export function SalesList({ scope }: { scope: Scope }) {
   }
 
   // ------------------------------------------------------------------ all ---
-  const poiVisible = allPoiTasks.filter(poiMatchesQuery)
-  const filterCount = jenis.size + sumber.size
+  const poiVisible = allPoiTasks
+    .filter((t) => poiMatchesQuery(t) && (!poiNoSched || !t.event.agenda))
+    .sort((a, b) => {
+      const d = agendaDueDays(a.event.agenda) - agendaDueDays(b.event.agenda)
+      return poiSort === 'awal' ? d : -d
+    })
+  const filterCount =
+    mainTab === 'leads' ? jenis.size + sumber.size : poiNoSched ? 1 : 0
   const flatLeads = leadsAll
     .filter(
       (l) =>
@@ -491,15 +502,25 @@ export function SalesList({ scope }: { scope: Scope }) {
     })
 
   function openFilter() {
-    setJenisDraft(new Set(jenis))
-    setSumberDraft(new Set(sumber))
-    setSortDraft(sortDir)
+    if (mainTab === 'leads') {
+      setJenisDraft(new Set(jenis))
+      setSumberDraft(new Set(sumber))
+      setSortDraft(sortDir)
+    } else {
+      setPoiNoSchedDraft(poiNoSched)
+      setPoiSortDraft(poiSort)
+    }
     setFilterOpen(true)
   }
   function applyFilter() {
-    setJenis(new Set(jenisDraft))
-    setSumber(new Set(sumberDraft))
-    setSortDir(sortDraft)
+    if (mainTab === 'leads') {
+      setJenis(new Set(jenisDraft))
+      setSumber(new Set(sumberDraft))
+      setSortDir(sortDraft)
+    } else {
+      setPoiNoSched(poiNoSchedDraft)
+      setPoiSort(poiSortDraft)
+    }
     setFilterOpen(false)
   }
   const toggleIn = <T,>(set: Set<T>, v: T) => {
@@ -534,24 +555,28 @@ export function SalesList({ scope }: { scope: Scope }) {
             label={mainTab === 'leads' ? 'Cari nama lead' : 'Cari POI'}
           />
         </div>
-        {mainTab === 'leads' ? (
-          <button
-            type="button"
-            onClick={openFilter}
-            className="flex shrink-0 items-center gap-8 rounded-12 border border-default bg-neutral-white px-16 py-12 active:bg-neutral-50"
-          >
-            <span className="flex items-center gap-8 text-14 font-bold text-default">
-              <Sliders size={20} />
-              Filter &amp; Urut
+        <button
+          type="button"
+          onClick={openFilter}
+          className="flex shrink-0 items-center gap-8 rounded-12 border border-default bg-neutral-white px-16 py-12 active:bg-neutral-50"
+        >
+          <span className="flex items-center gap-8 text-14 font-bold text-default">
+            <Sliders size={20} />
+            Filter &amp; Urut
+          </span>
+          {filterCount > 0 ? (
+            <span className="flex h-24 items-center justify-center rounded-full bg-primary-500 px-8 text-12 font-bold text-neutral-white">
+              {filterCount}
             </span>
-            {filterCount > 0 ? (
-              <span className="flex h-24 items-center justify-center rounded-full bg-primary-500 px-8 text-12 font-bold text-neutral-white">
-                {filterCount}
-              </span>
-            ) : null}
-          </button>
-        ) : null}
+          ) : null}
+        </button>
       </div>
+
+      {mainTab === 'poi' ? (
+        <span className="text-12 text-caption">
+          {poiVisible.length} hasil untuk semua lokasi sosialisasi
+        </span>
+      ) : null}
 
       {mainTab === 'leads' ? (
         <>
@@ -606,40 +631,61 @@ export function SalesList({ scope }: { scope: Scope }) {
           </Button>
         }
       >
-        <div className="flex flex-col gap-8">
-          <span className="text-14 font-bold text-default">Jenis tugas</span>
-          {JENIS_ORDER.map((section) => (
-            <CheckRow
-              key={section}
-              label={LEADS_SECTION_LABEL[section]}
-              checked={jenisDraft.has(section)}
-              onToggle={() => setJenisDraft((s) => toggleIn(s, section))}
-            />
-          ))}
+        {mainTab === 'leads' ? (
+          <div className="flex flex-col gap-8">
+            <span className="text-14 font-bold text-default">Jenis tugas</span>
+            {JENIS_ORDER.map((section) => (
+              <CheckRow
+                key={section}
+                label={LEADS_SECTION_LABEL[section]}
+                checked={jenisDraft.has(section)}
+                onToggle={() => setJenisDraft((s) => toggleIn(s, section))}
+              />
+            ))}
 
-          <span className="pt-8 text-14 font-bold text-default">Sumber</span>
-          {SUMBER_OPTIONS.map((o) => (
-            <CheckRow
-              key={o.key}
-              label={o.label}
-              checked={sumberDraft.has(o.key)}
-              onToggle={() => setSumberDraft((s) => toggleIn(s, o.key))}
-            />
-          ))}
+            <span className="pt-8 text-14 font-bold text-default">Sumber</span>
+            {SUMBER_OPTIONS.map((o) => (
+              <CheckRow
+                key={o.key}
+                label={o.label}
+                checked={sumberDraft.has(o.key)}
+                onToggle={() => setSumberDraft((s) => toggleIn(s, o.key))}
+              />
+            ))}
 
-          <span className="pt-8 text-18 font-bold text-default">Urutkan</span>
-          <span className="text-14 font-bold text-default">Tanggal tugas</span>
-          <RadioRow
-            label="Paling akhir"
-            checked={sortDraft === 'akhir'}
-            onSelect={() => setSortDraft('akhir')}
-          />
-          <RadioRow
-            label="Paling awal"
-            checked={sortDraft === 'awal'}
-            onSelect={() => setSortDraft('awal')}
-          />
-        </div>
+            <span className="pt-8 text-18 font-bold text-default">Urutkan</span>
+            <span className="text-14 font-bold text-default">Tanggal tugas</span>
+            <RadioRow
+              label="Paling akhir"
+              checked={sortDraft === 'akhir'}
+              onSelect={() => setSortDraft('akhir')}
+            />
+            <RadioRow
+              label="Paling awal"
+              checked={sortDraft === 'awal'}
+              onSelect={() => setSortDraft('awal')}
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-8">
+            <CheckRow
+              label="Belum ada jadwal"
+              checked={poiNoSchedDraft}
+              onToggle={() => setPoiNoSchedDraft((v) => !v)}
+            />
+            <span className="pt-8 text-18 font-bold text-default">Urutkan</span>
+            <RadioRow
+              label="Paling akhir"
+              checked={poiSortDraft === 'akhir'}
+              onSelect={() => setPoiSortDraft('akhir')}
+            />
+            <RadioRow
+              label="Paling awal"
+              checked={poiSortDraft === 'awal'}
+              onSelect={() => setPoiSortDraft('awal')}
+            />
+          </div>
+        )}
       </BottomSheet>
     </AppScreen>
   )

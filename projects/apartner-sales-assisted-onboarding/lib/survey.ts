@@ -33,18 +33,37 @@ export interface AppSection {
 
 export const APPLICATION_SECTIONS: AppSection[] = [
   { id: 'bp-feedback', label: 'BP Feedback', total: 5 },
-  { id: 'uji-kelayakan', label: 'Survey Uji Kelayakan', total: 6 },
+  { id: 'uji-kelayakan', label: 'Survey Uji Kelayakan', total: 7 },
 ]
 
-/** A BP Feedback field. `foto` captures a selfie + lat/long (stand-in); `dropdown`
- *  picks one option; `dropdown-notes` adds a free-text note; `multiselect` allows
- *  several. Uji Kelayakan still uses plain `questions`. */
-export type FieldType = 'foto' | 'dropdown' | 'dropdown-notes' | 'multiselect'
+/**
+ * A survey field. `foto` captures a photo (stand-in); `dropdown` picks one
+ * option; `dropdown-notes` adds a free-text note; `multiselect` allows several.
+ * The Uji Kelayakan form (from the Survey UK reference) adds plain inputs:
+ * `text`, `numeric`, `date`, `currency` (Rp), `phone` (+62), a `checkbox`
+ * consent, and a `readonly` system value.
+ */
+export type FieldType =
+  | 'foto'
+  | 'dropdown'
+  | 'dropdown-notes'
+  | 'multiselect'
+  | 'text'
+  | 'numeric'
+  | 'date'
+  | 'currency'
+  | 'phone'
+  | 'checkbox'
+  | 'readonly'
 
 export interface Field {
   label: string
   type: FieldType
   options?: string[]
+  required?: boolean
+  placeholder?: string
+  /** For `readonly` — the system-supplied value shown. */
+  value?: string
 }
 
 export interface SurveyStep {
@@ -167,24 +186,223 @@ export const BP_FEEDBACK_STEPS: SurveyStep[] = [
   },
 ]
 
-const KELAYAKAN_TITLES: { id: string; title: string }[] = [
-  { id: 'pribadi', title: 'Data pribadi' },
-  { id: 'bank', title: 'Data bank dan usaha' },
-  { id: 'penanggung', title: 'Data penanggung jawab' },
-  { id: 'keluarga', title: 'Data keluarga' },
-  { id: 'foto-rumah', title: 'Foto rumah tinggal' },
-  { id: 'foto-usaha', title: 'Foto tempat usaha' },
+// Survey Uji Kelayakan — the field list from the Survey UK reference, grouped
+// into its seven steps.
+export const UJI_KELAYAKAN_STEPS: SurveyStep[] = [
+  {
+    id: 'pribadi',
+    title: 'Data pribadi',
+    fields: [
+      { label: 'Foto KTP', type: 'foto', required: true },
+      { label: 'NIK', type: 'numeric', required: true, placeholder: 'Masukkan NIK' },
+      { label: 'Nama sesuai KTP', type: 'text', required: true },
+      {
+        label: 'Jenis kelamin',
+        type: 'dropdown',
+        required: true,
+        options: ['Laki-laki', 'Perempuan'],
+      },
+      { label: 'Tempat lahir', type: 'text', required: true },
+      { label: 'Tanggal lahir', type: 'date', required: true },
+      { label: 'Alamat lengkap', type: 'text', required: true },
+      {
+        label: 'Provinsi',
+        type: 'dropdown',
+        required: true,
+        options: ['Banten', 'Jawa Barat', 'DKI Jakarta', 'Jawa Tengah', 'Jawa Timur'],
+      },
+      {
+        label: 'Kota/Kabupaten',
+        type: 'dropdown',
+        required: true,
+        options: ['Kab. Bogor', 'Kab. Tangerang', 'Kota Bogor', 'Kota Tangerang'],
+      },
+      { label: 'Kecamatan', type: 'text', required: true },
+      { label: 'Kelurahan', type: 'text', required: true },
+      { label: 'RT', type: 'numeric', required: true, placeholder: 'Isi RT' },
+      { label: 'RW', type: 'numeric', required: true, placeholder: 'Isi RW' },
+      {
+        label: 'Agama',
+        type: 'dropdown',
+        placeholder: 'Pilih Agama',
+        options: ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'],
+      },
+      {
+        label: 'Status pernikahan',
+        type: 'dropdown',
+        placeholder: 'Pilih Status Pernikahan',
+        options: ['Belum kawin', 'Kawin', 'Cerai hidup', 'Cerai mati'],
+      },
+      {
+        label: 'Pendidikan terakhir',
+        type: 'dropdown',
+        placeholder: 'Pilih Pendidikan Terakhir',
+        options: ['SD', 'SMP', 'SMA/SMK', 'D1-D3', 'S1', 'S2/S3'],
+      },
+      {
+        label: 'Nama lengkap ibu kandung',
+        type: 'text',
+        placeholder: 'Masukkan Nama lengkap ibu kandung',
+      },
+      { label: 'Selfie mitra', type: 'foto', required: true },
+      { label: 'Saya setuju dengan Syarat & Ketentuan', type: 'checkbox', required: true },
+      { label: 'Alamat saat ini', type: 'text', required: true, placeholder: 'Isi alamat saat ini' },
+      { label: 'RT (alamat saat ini)', type: 'numeric', required: true, placeholder: 'Isi RT' },
+      { label: 'RW (alamat saat ini)', type: 'numeric', required: true, placeholder: 'Isi RW' },
+    ],
+  },
+  {
+    id: 'bank',
+    title: 'Data bank dan usaha',
+    fields: [
+      {
+        label: 'Nama bank',
+        type: 'dropdown',
+        required: true,
+        placeholder: 'Pilih Bank',
+        options: ['BRI', 'BCA', 'BNI', 'Mandiri', 'BTPN Syariah', 'Seabank'],
+      },
+      {
+        label: 'Nomor rekening aktif',
+        type: 'numeric',
+        required: true,
+        placeholder: 'Masukkan Nomor Rekening aktif',
+      },
+      { label: 'Aktifkan Poket Premium dan Autodebit', type: 'checkbox' },
+      { label: 'Pemilik rekening', type: 'readonly', value: 'Sesuai data bank' },
+      {
+        label: 'Sumber pendapatan',
+        type: 'dropdown',
+        required: true,
+        placeholder: 'Pilih sumber pendapatan',
+        options: ['Usaha sendiri', 'Karyawan', 'Petani', 'Pedagang', 'Lainnya'],
+      },
+      {
+        label: 'Bidang usaha',
+        type: 'dropdown',
+        required: true,
+        placeholder: 'Pilih bidang usaha',
+        options: ['Perdagangan', 'Jasa', 'Pertanian', 'Produksi/Kerajinan', 'Peternakan'],
+      },
+      {
+        label: 'Jenis usaha',
+        type: 'dropdown',
+        required: true,
+        placeholder: 'Pilih jenis usaha',
+        options: ['Warung/Toko', 'Kuliner', 'Konveksi', 'Tani/Ternak', 'Lainnya'],
+      },
+      {
+        label: 'Umur usaha',
+        type: 'dropdown',
+        required: true,
+        placeholder: 'Pilih lama usaha',
+        options: ['< 1 tahun', '1-3 tahun', '3-5 tahun', '> 5 tahun'],
+      },
+      {
+        label: 'Pengeluaran per bulan',
+        type: 'currency',
+        required: true,
+        placeholder: 'Isi nominal pengeluaran',
+      },
+      {
+        label: 'Pendapatan per bulan',
+        type: 'currency',
+        required: true,
+        placeholder: 'Isi nominal pendapatan',
+      },
+      { label: 'Pendapatan lainnya per bulan (jika ada)', type: 'currency' },
+      { label: 'Total pendapatan per tahun', type: 'readonly', value: 'Rp60.000.000' },
+    ],
+  },
+  {
+    id: 'penanggung',
+    title: 'Data penanggung jawab',
+    fields: [
+      {
+        label: 'Hubungan dengan Anda',
+        type: 'dropdown',
+        required: true,
+        placeholder: 'Pilih hubungan',
+        options: ['Suami/Istri', 'Anak', 'Orang tua', 'Saudara kandung'],
+      },
+      {
+        label: 'Nomor HP penanggung jawab',
+        type: 'phone',
+        required: true,
+        placeholder: 'Contoh: 8567891298',
+      },
+      { label: 'Penghasilan PJ per bulan', type: 'currency', required: true },
+    ],
+  },
+  {
+    id: 'keluarga',
+    title: 'Data keluarga',
+    fields: [
+      { label: 'Foto Kartu Keluarga', type: 'foto', required: true },
+      {
+        label: 'Nomor Kartu Keluarga',
+        type: 'numeric',
+        required: true,
+        placeholder: 'Isi nomor kartu keluarga',
+      },
+      {
+        label: 'Jumlah tanggungan (orang)',
+        type: 'dropdown',
+        required: true,
+        options: ['1', '2', '3', '> 3'],
+      },
+    ],
+  },
+  {
+    id: 'foto-rumah',
+    title: 'Foto rumah tinggal',
+    fields: [{ label: 'Foto rumah tinggal', type: 'foto', required: true }],
+  },
+  {
+    id: 'foto-usaha',
+    title: 'Foto tempat usaha',
+    fields: [
+      { label: 'Foto tempat usaha', type: 'foto', required: true },
+      { label: 'Alamat tempat usaha', type: 'text', required: true, placeholder: 'Isi alamat' },
+      { label: 'RT', type: 'numeric', required: true, placeholder: 'Isi RT' },
+      { label: 'RW', type: 'numeric', required: true, placeholder: 'Isi RW' },
+    ],
+  },
+  {
+    id: 'pinjaman',
+    title: 'Data pinjaman',
+    fields: [
+      {
+        label: 'Apakah mitra memiliki pinjaman lain di luar Amartha?',
+        type: 'dropdown',
+        required: true,
+        options: ['0', '1', '2', '> 2'],
+      },
+      {
+        label: 'Dari mana Anda mendapatkan pinjaman ini?',
+        type: 'dropdown',
+        options: [
+          'BTPN Syariah',
+          'PNM - Permodalan Nasional Madani',
+          'BRI - Bank Rakyat Indonesia',
+          'Seabank',
+          'MBK - Mitra Bisnis Keluarga',
+          'BPD - Bank Pembangunan Daerah',
+          'AKULAKU',
+          'BINA ARTHA',
+          'KREDIVO',
+          'FIF',
+          'ADIRA',
+          'PEGADAIAN',
+          'Lainnya',
+        ],
+      },
+      { label: 'Berapa jumlah pinjaman yang Anda terima?', type: 'currency' },
+      { label: 'Berapa cicilan yang Anda bayar?', type: 'currency' },
+      { label: 'Kapan pinjaman ini lunas?', type: 'date' },
+    ],
+  },
 ]
-
-export const UJI_KELAYAKAN_STEPS: SurveyStep[] = KELAYAKAN_TITLES.map(({ id, title }) => ({
-  id,
-  title,
-  questions: [
-    `Pertanyaan 1 — ${title}`,
-    `Pertanyaan 2 — ${title}`,
-    `Pertanyaan 3 — ${title}`,
-  ],
-}))
 
 export function stepsFor(section: SectionId): SurveyStep[] {
   return section === 'bp-feedback' ? BP_FEEDBACK_STEPS : UJI_KELAYAKAN_STEPS

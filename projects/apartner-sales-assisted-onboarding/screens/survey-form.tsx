@@ -1,8 +1,9 @@
 'use client'
 
-// The shared survey step-form — BP Feedback (typed fields from the Assisted
-// Onboarding field list) and Survey Uji Kelayakan (plain questions). Which one
-// it shows is set on the survey store before navigating here. "Lanjut" marks the
+// The shared survey step-form — BP Feedback and Survey Uji Kelayakan, both typed
+// field lists (foto, dropdown, text, numeric, date, currency, phone, checkbox,
+// readonly). Which one it shows is set on the survey store before navigating
+// here. "Lanjut" marks the
 // step done and advances; the last step's "Selesai" returns to the survey page.
 // Field values are local (the survey page only tracks step completion).
 
@@ -44,6 +45,7 @@ export function SurveyFormScreen() {
   const [values, setValues] = useState<Record<string, string>>({})
   const [fieldNotes, setFieldNotes] = useState<Record<string, string>>({})
   const [fotos, setFotos] = useState<Record<string, boolean>>({})
+  const [checks, setChecks] = useState<Record<string, boolean>>({})
   const [multi, setMulti] = useState<Record<string, string[]>>({})
   const [sheet, setSheet] = useState<{ key: string; label: string; options: string[] } | null>(null)
   const [multiSheet, setMultiSheet] = useState<{ key: string; label: string; options: string[] } | null>(
@@ -71,6 +73,13 @@ export function SurveyFormScreen() {
       markProcessed(lead.id, section)
       flow.go(detail)
     } else setStep(step + 1)
+  }
+
+  // "Simpan" (non-last steps) — save this step's progress and return without
+  // walking to the end.
+  function save() {
+    surveyStore.markStep(lead.id, section, current.id)
+    flow.go(detail)
   }
 
   function renderField(f: Field, i: number) {
@@ -122,24 +131,87 @@ export function SurveyFormScreen() {
       )
     }
 
-    // dropdown / dropdown-notes
-    return (
-      <div key={k} className="flex flex-col gap-8">
-        <SelectField
-          label={f.label}
-          value={values[k] || undefined}
-          placeholder="Pilih jawaban"
-          onClick={() => setSheet({ key: k, label: f.label, options: f.options ?? [] })}
-        />
-        {f.type === 'dropdown-notes' ? (
-          <Input
-            value={fieldNotes[k] ?? ''}
-            onChange={(e) => setFieldNotes({ ...fieldNotes, [k]: e.target.value })}
-            placeholder="Catatan (opsional)"
+    if (f.type === 'checkbox') {
+      return (
+        <button
+          key={k}
+          type="button"
+          onClick={() => setChecks({ ...checks, [k]: !checks[k] })}
+          className="flex items-center gap-8 py-4 text-left"
+        >
+          <span
+            className={`flex h-24 w-24 shrink-0 items-center justify-center rounded-8 border-2 ${
+              checks[k] ? 'border-primary-500 bg-primary-500 text-neutral-white' : 'border-neutral-200'
+            }`}
+          >
+            {checks[k] ? <Check size={16} /> : null}
+          </span>
+          <span className="text-14 text-default">
+            {f.label}
+            {f.required ? <span className="text-red-500"> *</span> : null}
+          </span>
+        </button>
+      )
+    }
+
+    if (f.type === 'readonly') {
+      return (
+        <div key={k} className="flex flex-col gap-4">
+          <span className="text-12 font-regular text-default">{f.label}</span>
+          <div className="rounded-8 border border-default bg-neutral-50 px-12 py-8 text-14 text-caption">
+            {f.value ?? '—'}
+          </div>
+        </div>
+      )
+    }
+
+    if (f.type === 'dropdown' || f.type === 'dropdown-notes') {
+      return (
+        <div key={k} className="flex flex-col gap-8">
+          <SelectField
+            label={fieldLabel(f)}
+            value={values[k] || undefined}
+            placeholder={f.placeholder ?? 'Pilih jawaban'}
+            onClick={() => setSheet({ key: k, label: f.label, options: f.options ?? [] })}
           />
-        ) : null}
-      </div>
+          {f.type === 'dropdown-notes' ? (
+            <Input
+              value={fieldNotes[k] ?? ''}
+              onChange={(e) => setFieldNotes({ ...fieldNotes, [k]: e.target.value })}
+              placeholder="Catatan (opsional)"
+            />
+          ) : null}
+        </div>
+      )
+    }
+
+    // text / numeric / date / currency / phone → a plain input.
+    const inputMode =
+      f.type === 'numeric' || f.type === 'currency' ? 'numeric' : f.type === 'phone' ? 'tel' : undefined
+    const placeholder =
+      f.placeholder ??
+      (f.type === 'date'
+        ? 'HH/BB/TTTT'
+        : f.type === 'currency'
+          ? 'Rp 0'
+          : f.type === 'phone'
+            ? '+62 8xx-xxxx-xxxx'
+            : '')
+    return (
+      <Input
+        key={k}
+        label={fieldLabel(f)}
+        inputMode={inputMode}
+        value={values[k] ?? ''}
+        onChange={(e) => setValues({ ...values, [k]: e.target.value })}
+        placeholder={placeholder}
+      />
     )
+  }
+
+  // Label with a required asterisk.
+  function fieldLabel(f: Field) {
+    return f.required ? `${f.label} *` : f.label
   }
 
   return (
@@ -186,6 +258,11 @@ export function SurveyFormScreen() {
         <Button size="lg" className="w-full" onClick={next}>
           {isLast ? 'Selesai' : 'Lanjut'}
         </Button>
+        {!isLast ? (
+          <Button variant="outline" size="lg" className="w-full" onClick={save}>
+            Simpan
+          </Button>
+        ) : null}
       </StickyBar>
 
       <PickSheet
