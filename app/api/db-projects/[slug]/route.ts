@@ -9,6 +9,7 @@ import { buildDbProject } from '@/platform/dbProjects/server'
 import type { DbProjectResponse } from '@/platform/dbProjects/protocol'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/
 

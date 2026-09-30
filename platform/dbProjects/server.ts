@@ -28,7 +28,13 @@ export function createAdminClient() {
   const env = supabaseEnv()
   const key = serviceRoleKey()
   if (!env || !key) return null
-  return createClient(env.url, key, { auth: { autoRefreshToken: false, persistSession: false } })
+  return createClient(env.url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    // Next caches server-side fetch() by default, and supabase-js reads over
+    // fetch — so the first read of a project was served forever after and
+    // saves never reached the link. Every read must see the latest save.
+    global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) },
+  })
 }
 
 const COMPILED = /\.(tsx?|jsx?)$/
