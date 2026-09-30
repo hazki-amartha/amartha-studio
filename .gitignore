@@ -36,6 +36,10 @@ next-env.d.ts
 # Keep them locally; they don't travel with the repo.
 /design-system/raw/
 
+# database projects' local copies (scripts/db-live.mjs) — the database holds
+# them, git never does
+/projects/_db/
+
 # agent worktrees
 /.claude/worktrees/
 .vercel

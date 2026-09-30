@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 // =============================================================================
-// db:sync — mirror projects/<slug>/ into the database (proof of concept for
-// /db/<slug>; see platform/dbProjects).
+// db:sync — copy a GIT project (projects/<slug>/) into the database, once: the
+// way a project moves from git to the database (platform/dbProjects). From then
+// on it is served from there, and edited through projects/_db/<slug>/, which
+// the live sync (scripts/db-live.mjs) keeps in step.
 //
-//   npm run db:sync -- <slug>            upload once
-//   npm run db:sync -- <slug> --watch    upload, then on every file save
+//   npm run db:sync -- <slug>
 //
-// A local agent (or anyone with an editor) keeps editing plain files; each save
-// lands in studio_project_files, the old content in studio_project_file_versions,
-// and a Realtime broadcast tells every open /db/<slug> to reload the project.
-// No commit, no push, no deploy.
+// Bypasses the save checks — it is an owner's tool for moving projects, not a
+// way to edit one.
 //
 // Needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (read from the
 // environment, then .env.local).
@@ -21,12 +20,11 @@ import { join, relative, sep } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/%20/g, ' ')
-const [slug, ...flags] = process.argv.slice(2)
-const WATCH = flags.includes('--watch')
+const [slug] = process.argv.slice(2)
 const SYNCED = /\.(tsx?|jsx?|json)$/
 
 if (!slug || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) {
-  console.error('Usage: npm run db:sync -- <slug> [--watch]')
+  console.error('Usage: npm run db:sync -- <slug>')
   process.exit(1)
 }
 const dir = join(ROOT, 'projects', slug)
@@ -113,15 +111,3 @@ async function broadcast() {
 
 const n = await sync()
 console.log(`${slug}: ${n ? `${n} file(s) synced` : 'already in sync'}`)
-
-if (WATCH) {
-  console.log(`Watching projects/${slug}/ — every save goes live on /db/${slug}. Ctrl+C to stop.`)
-  let timer = null
-  let running = Promise.resolve()
-  watch(dir, { recursive: true }, () => {
-    clearTimeout(timer)
-    timer = setTimeout(() => {
-      running = running.then(sync).catch((e) => console.error(`  sync failed: ${e.message}`))
-    }, 250)
-  })
-}

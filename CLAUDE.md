@@ -32,6 +32,9 @@ the runtime. If you truly can't work around it, ask.
 `owner` is a display name, not a GitHub account — and project work auto-merges,
 so a mistake here lands unreviewed.
 
+**Database projects are the exception to all of the above** — see §3b. They
+don't live in git at all, and their work never goes through a PR.
+
 ---
 
 ## 2. Vocabulary — build only from the design system
@@ -259,6 +262,47 @@ in `projects/<slug>/lib/store.ts`, read via `useSyncExternalStore`. The
 template ships an **optional** stub at `projects/_template/lib/store.ts` —
 delete it if the prototype is a plain click-through; see
 `projects/apartner-majelis-view/lib/store.ts` for a full flow using the pattern.
+
+---
+
+## 3b. Database projects — shared live, no commit or push
+
+Some projects live in the studio's **database**, not in git. Every project the
+gallery's **New Project** button makes is one. A database project has **one
+shared copy, and it is live**: a save shows on the link, for everyone, within
+seconds. Everything in §2–§4 still applies to what you build; what changes is
+where the files are and how work lands.
+
+**How to tell.** `projects/_db/<slug>/` exists → it's a database project. That
+folder is this laptop's copy, kept in step by the live sync
+(`scripts/db-live.mjs`, started by `npm run dev`). If `projects/<slug>/` exists
+too, it is a stale git copy — **never edit it**, and never create one.
+
+**Editing.** Edit the files in `projects/_db/<slug>/` exactly as you would a
+git project. Each file you save goes to the database a moment later — **if**
+the project still passes the save checks (compiles, design-system classes only,
+nothing that leaves the prototype, valid flows). Other designers may be working
+on the same project at the same time:
+
+- **Their saves land in your files while you work.** Re-read a file before you
+  edit it; don't trust an old read.
+- **A file you both changed is merged for you** (git's three-way merge). When
+  you both changed the same lines, the file gets `<<<<<<< yours` /
+  `>>>>>>> theirs (just saved)` conflict markers and is not saved until you
+  resolve them — keep both designers' intent, remove the markers.
+- **Before you say you're done,** run `npm run check:project -- <slug>` and fix
+  everything it reports. Changes that fail it are sitting on this laptop, not
+  on the link.
+
+**No git for this work.** Don't commit, push, or open a PR for anything in
+`projects/_db/` — it's ignored by git, and there is nothing to land: it is
+already live. "Commit" and "push" (§5, §7) only apply to git projects and shared
+files. If a designer says "push it" about a database project, tell them it's
+already live — that's the whole point.
+
+**Moving a git project into the database** is an owner decision:
+`npm run db:sync -- <slug>` copies it in once; from then on `/p/<slug>` serves
+the database copy.
 
 ---
 

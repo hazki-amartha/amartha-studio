@@ -26,5 +26,5 @@
     ".next/types/**/*.ts",
     ".next-build/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "projects/_db"]
 }

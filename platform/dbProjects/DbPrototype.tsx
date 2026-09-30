@@ -22,15 +22,18 @@ import { SAVED_EVENT, savedChannel, type DbProjectResponse } from './protocol'
 
 interface Props {
   slug: string
+  /** Who is looking, as others see it in "Also here" — null stays anonymous. */
+  viewer?: string | null
   initialScreenId?: string
   initialBare?: boolean
 }
 
-export function DbPrototype({ slug, initialScreenId, initialBare }: Props) {
+export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Props) {
   const [project, setProject] = useState<{ config: ProjectConfig; screens: ScreenDef[] } | null>(null)
   // Before anything renders: Edit mode and Chat decide where to write by this.
   setActiveDbProject(slug)
   const [problem, setProblem] = useState<string | null>(null)
+  const [others, setOthers] = useState<string[]>([])
   const version = useRef<string | null>(null)
 
   const refresh = useCallback(async () => {
@@ -82,10 +85,21 @@ export function DbPrototype({ slug, initialScreenId, initialBare }: Props) {
       void import('@supabase/supabase-js').then(({ createClient }) => {
         if (!alive) return
         const client = createClient(env.url, env.anonKey, { auth: { persistSession: false } })
-        const channel = client
-          .channel(savedChannel(slug))
+        // Presence on the same channel: who else has this project open, so two
+        // designers see each other before their edits meet.
+        const me = Math.random().toString(36).slice(2)
+        const channel = client.channel(savedChannel(slug), { config: { presence: { key: me } } })
+        channel
           .on('broadcast', { event: SAVED_EVENT }, () => refresh())
-          .subscribe()
+          .on('presence', { event: 'sync' }, () => {
+            const names = Object.entries(channel.presenceState<{ name: string | null }>())
+              .filter(([key]) => key !== me)
+              .flatMap(([, metas]) => metas.map((m) => m.name ?? 'Someone'))
+            setOthers([...new Set(names)])
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') void channel.track({ name: viewer ?? null })
+          })
         stop = () => void client.removeChannel(channel)
       })
     }
@@ -97,7 +111,7 @@ export function DbPrototype({ slug, initialScreenId, initialBare }: Props) {
       setActiveDbProject(null)
       publishDbIndexEntry(null)
     }
-  }, [slug, refresh])
+  }, [slug, refresh, viewer])
 
   if (!project) {
     return (
@@ -116,6 +130,13 @@ export function DbPrototype({ slug, initialScreenId, initialBare }: Props) {
         initialScreenId={initialScreenId}
         initialBare={initialBare}
       />
+      {others.length ? (
+        <div className="pointer-events-none fixed inset-x-0 top-16 z-40 flex justify-center">
+          <span className="rounded-full border border-default bg-neutral-white px-12 py-4 text-12 text-default dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50">
+            Also here: {others.join(', ')}
+          </span>
+        </div>
+      ) : null}
       {problem ? (
         <pre className="fixed bottom-16 left-16 z-50 max-w-screen-sm whitespace-pre-wrap rounded-12 bg-red-50 p-12 text-12 text-red-500">
           {problem}

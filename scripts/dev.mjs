@@ -38,9 +38,13 @@
 //   --warm <path>  also wait until that path answers, so a project page handed
 //                  to a designer is already compiled (e.g. --warm /p/my-slug)
 // Everything else is forwarded to `next dev`.
+//
+// It also makes sure the live sync for database projects is running
+// (scripts/db-live.mjs — one per laptop; a second start exits by itself).
 // =============================================================================
 
 import { spawn } from 'node:child_process'
+import { mkdirSync, openSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -75,6 +79,20 @@ async function warmUp() {
     }
   }
 }
+
+/** Database projects' two-way sync — detached, so it outlives this script and
+ *  keeps going while the designer works. Its log: node_modules/.cache/db-live/log. */
+function startLiveSync() {
+  const dir = join(root, 'node_modules', '.cache', 'db-live')
+  mkdirSync(dir, { recursive: true })
+  const out = openSync(join(dir, 'log'), 'a')
+  spawn(process.execPath, [join(root, 'scripts', 'db-live.mjs')], {
+    cwd: root,
+    detached: true,
+    stdio: ['ignore', out, out],
+  }).unref()
+}
+startLiveSync()
 
 const found = await inspect()
 

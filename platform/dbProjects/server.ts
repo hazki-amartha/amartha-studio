@@ -13,6 +13,7 @@
 // of unchanged files costs one query and no compile.
 // =============================================================================
 
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import postcss from 'postcss'
@@ -130,6 +131,18 @@ export async function readDbFiles(slug: string): Promise<Map<string, string>> {
   return new Map(data.map((r) => [r.path as string, r.content as string]))
 }
 
+/** The name a person shows up under in "Also here": their studio account's,
+ *  or on the laptop running the studio, git's user name. */
+export function viewerName(signedIn: string | null | undefined): string | null {
+  if (signedIn) return signedIn
+  if (process.env.NODE_ENV !== 'development') return null
+  try {
+    return execFileSync('git', ['config', 'user.name'], { encoding: 'utf8' }).trim() || null
+  } catch {
+    return null
+  }
+}
+
 export async function isDbProject(slug: string): Promise<boolean> {
   const db = createAdminClient()
   if (!db) return false
@@ -164,6 +177,70 @@ export async function saveDbFiles(
   for (const row of ver.data) ids.set(row.path as string, row.id as number)
   await announceSave(slug)
   return ids
+}
+
+/** Every file of a project with the moment it was last saved — the token a
+ *  conflict-safe save (saveIfUnchanged) compares against. */
+export async function readDbRows(slug: string): Promise<Map<string, { content: string; at: string }>> {
+  const db = createAdminClient()
+  if (!db) throw new Error('Supabase is not configured.')
+  const { data, error } = await db.from(FILES_TABLE).select('path, content, updated_at').eq('slug', slug)
+  if (error) throw new Error(error.message)
+  return new Map(data.map((r) => [r.path as string, { content: r.content as string, at: r.updated_at as string }]))
+}
+
+export interface GuardedChange {
+  path: string
+  content: string
+  /** `updated_at` of the copy this change was made on; null for a new file. */
+  baseAt: string | null
+}
+
+/**
+ * Save each file only if nobody saved it since `baseAt` — the check and the
+ * write are one statement, so two designers saving the same file at the same
+ * moment can't both win. A file that moved on comes back in `conflicts` for
+ * the caller to merge; the others are saved, recorded and announced.
+ */
+export async function saveIfUnchanged(
+  slug: string,
+  changes: GuardedChange[],
+  by: string | null,
+): Promise<{ saved: Map<string, { at: string; id: number }>; conflicts: string[] }> {
+  const saved = new Map<string, { at: string; id: number }>()
+  const conflicts: string[] = []
+  if (!changes.length) return { saved, conflicts }
+  const db = createAdminClient()
+  if (!db) throw new Error('Supabase is not configured.')
+
+  for (const c of changes) {
+    const now = new Date().toISOString()
+    const row = { slug, path: c.path, content: c.content, updated_at: now, updated_by: by }
+    const res =
+      c.baseAt === null
+        ? await db.from(FILES_TABLE).upsert(row, { onConflict: 'slug,path', ignoreDuplicates: true }).select('updated_at')
+        : await db
+            .from(FILES_TABLE)
+            .update({ content: c.content, updated_at: now, updated_by: by })
+            .eq('slug', slug)
+            .eq('path', c.path)
+            .eq('updated_at', c.baseAt)
+            .select('updated_at')
+    if (res.error) throw new Error(res.error.message)
+    if (!res.data?.length) {
+      conflicts.push(c.path)
+      continue
+    }
+    const ver = await db
+      .from(VERSIONS_TABLE)
+      .insert({ slug, path: c.path, content: c.content, saved_by: by })
+      .select('id')
+      .single()
+    if (ver.error) throw new Error(ver.error.message)
+    saved.set(c.path, { at: res.data[0].updated_at as string, id: ver.data.id as number })
+  }
+  if (saved.size) await announceSave(slug)
+  return { saved, conflicts }
 }
 
 /** The content a file had just before the save recorded as history row `id`. */

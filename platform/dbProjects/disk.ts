@@ -1,43 +1,35 @@
 // =============================================================================
-// DB projects · the laptop's copy, for the Chat agent.
+// DB projects · this laptop's copy.
 //
-// The agent (Claude Code on this laptop) edits files, not rows. So a chat turn
-// on a database project brackets the agent with two steps:
+// Every database project is mirrored to projects/_db/<slug>/ by the live sync
+// (scripts/db-live.mjs), which saves local edits to the database and merges
+// other designers' saves into local files. Claude Code — in the Chat panel or
+// the terminal — edits that folder like any project folder.
 //
-//   before  pullToDisk   the database's files → projects/<slug>/, so the agent
-//                        starts from what every viewer is looking at
-//   after   pushFromDisk what the turn changed → the database, which tells
-//                        every open copy of the link to reload
-//
-// A turn whose changes fail the checks (./checks.ts) is not saved, and its work
-// stays on disk: the next pull keeps a file the agent changed unless someone
-// else has saved that file since, so "fix it" picks up where the turn left off.
-// Dev server only — Chat never runs on a deployment.
+// This file is what the dev server needs from that copy: where it is, that it
+// exists before a Chat turn starts, and what it would change (for
+// `npm run check:project`). Dev server only.
 // =============================================================================
 
-import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { checkDbProject } from './checks'
-import { readDbFiles, saveDbFiles } from './server'
 
 const SYNCED = /\.(tsx?|jsx?|json)$/
 
-/** Per project, the database's content at the last pull or save — what the
- *  disk copy was last in step with. */
-const lastSynced = new Map<string, Map<string, string>>()
-
-export class ChecksFailed extends Error {
-  constructor(readonly problems: string[]) {
-    super(problems.join('; '))
-  }
+/** The folder Claude Code edits, relative to the repo. */
+export function projectFolder(slug: string, db: boolean): string {
+  return db ? `projects/_db/${slug}` : `projects/${slug}`
 }
 
-function projectDir(slug: string): string {
-  return path.join(process.cwd(), 'projects', slug)
+function absFolder(slug: string): string {
+  return path.join(process.cwd(), 'projects', '_db', slug)
 }
 
 export async function diskFiles(slug: string): Promise<Map<string, string>> {
-  const root = projectDir(slug)
+  const root = absFolder(slug)
   const out = new Map<string, string>()
   async function walk(dir: string) {
     let names: string[]
@@ -56,31 +48,23 @@ export async function diskFiles(slug: string): Promise<Map<string, string>> {
   return out
 }
 
-/** Bring the folder up to the database. A file is overwritten when the
- *  database moved since the last sync, or when the disk copy hasn't — never a
- *  local change nobody has saved over. Returns the database's copy: the
- *  baseline pushFromDisk compares the turn's result against. */
-export async function pullToDisk(slug: string): Promise<Map<string, string>> {
-  const files = await readDbFiles(slug)
-  const synced = lastSynced.get(slug)
-  const root = projectDir(slug)
-  const onDisk = await diskFiles(slug)
-  for (const [rel, content] of files) {
-    const local = onDisk.get(rel)
-    if (local === content) continue
-    const dbMoved = !synced || synced.get(rel) !== content
-    const diskMoved = synced !== undefined && local !== undefined && local !== synced.get(rel)
-    if (diskMoved && !dbMoved) continue
-    const full = path.join(root, rel)
-    if (!full.startsWith(root + path.sep)) continue
-    await mkdir(path.dirname(full), { recursive: true })
-    await writeFile(full, content, 'utf8')
-  }
-  lastSynced.set(slug, files)
-  return files
+/**
+ * Make sure the live sync is running and has written this project to disk.
+ * Starting it is safe to repeat — a second copy exits at once. Waits a few
+ * seconds for a project this laptop hasn't seen yet.
+ */
+export async function ensureLocalCopy(slug: string): Promise<boolean> {
+  const index = path.join(absFolder(slug), 'index.ts')
+  spawn(process.execPath, [path.join(process.cwd(), 'scripts', 'db-live.mjs')], {
+    cwd: process.cwd(),
+    detached: true,
+    stdio: 'ignore',
+  }).unref()
+  for (let i = 0; i < 20 && !existsSync(index); i++) await new Promise((r) => setTimeout(r, 500))
+  return existsSync(index)
 }
 
-/** What the folder would change in the database, checked. */
+/** What the local copy would change in the database, checked. */
 export async function diskChanges(
   slug: string,
   baseline: Map<string, string>,
@@ -88,24 +72,17 @@ export async function diskChanges(
   const now = await diskFiles(slug)
   const changed = [...now].filter(([rel, content]) => baseline.get(rel) !== content)
   if (!changed.length) return { changed, problems: [] }
+  const marked = changed.filter(([, content]) => /^(<{7}|>{7}) /m.test(content)).map(([rel]) => rel)
+  if (marked.length) {
+    return {
+      changed,
+      problems: marked.map(
+        (rel) => `${rel} has conflict markers — you and another designer changed the same lines; keep both changes and remove the markers`,
+      ),
+    }
+  }
   const after = new Map(baseline)
   for (const [rel, content] of changed) after.set(rel, content)
   const problems = await checkDbProject(slug, after, baseline, changed.map(([rel]) => rel))
   return { changed, problems }
-}
-
-/** Save to the database every file the turn created or changed, if the result
- *  passes the checks. Returns the paths saved; throws ChecksFailed if not. */
-export async function pushFromDisk(slug: string, baseline: Map<string, string>, by: string | null): Promise<string[]> {
-  const { changed, problems } = await diskChanges(slug, baseline)
-  if (problems.length) throw new ChecksFailed(problems)
-  await saveDbFiles(
-    slug,
-    changed.map(([rel, content]) => ({ path: rel, content })),
-    by,
-  )
-  const synced = new Map(baseline)
-  for (const [rel, content] of changed) synced.set(rel, content)
-  lastSynced.set(slug, synced)
-  return changed.map(([rel]) => rel)
 }
