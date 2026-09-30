@@ -1,30 +1,18 @@
-// =============================================================================
-// /db/<slug> — a prototype whose source lives in the database (proof of
-// concept; platform/dbProjects). Same view as /p/<slug>, same deep links
-// (?screen=<id>, ?full=1), but no registry entry and no deploy: a save shows
-// up on every open copy of this link within seconds.
-// =============================================================================
+// /db/<slug> — where database projects lived during the proof of concept. They
+// are served at /p/<slug> now, like every project; old links land there.
 
-import { DbPrototype } from '@/platform/dbProjects/DbPrototype'
-
-export const dynamic = 'force-dynamic'
+import { redirect } from 'next/navigation'
 
 interface PageProps {
   params: { slug: string }
-  searchParams: { screen?: string | string[]; full?: string | string[] }
+  searchParams: Record<string, string | string[] | undefined>
 }
 
-function firstValue(v?: string | string[]): string | undefined {
-  return Array.isArray(v) ? v[0] : v
-}
-
-export default function DbPrototypePage({ params, searchParams }: PageProps) {
-  const full = firstValue(searchParams.full)
-  return (
-    <DbPrototype
-      slug={params.slug}
-      initialScreenId={firstValue(searchParams.screen)}
-      initialBare={full !== undefined && full !== '0'}
-    />
-  )
+export default function DbPrototypeRedirect({ params, searchParams }: PageProps) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(searchParams)) {
+    for (const v of [value].flat()) if (v !== undefined) query.append(key, v)
+  }
+  const qs = query.toString()
+  redirect(`/p/${params.slug}${qs ? `?${qs}` : ''}`)
 }

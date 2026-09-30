@@ -12,11 +12,12 @@ import '@/design-system/components/styles.css'
 import { Badge, type BadgeIntent } from '@/design-system/components/Badge'
 import { Card } from '@/design-system/components/Card'
 import { PageHeader } from '@/platform/chrome'
-import { getStudioUser } from '@/platform/auth/server'
+import { canEditAs, getStudioUser } from '@/platform/auth/server'
 import { NewProjectButton } from '@/platform/projects/NewProjectButton'
 import { ChevronLeftIcon } from '@/platform/chrome/icons'
 import type { BusinessUnit, Platform, ProjectConfig, ProjectStatus } from '@/platform/types'
 import { configs as projectConfigs } from '@/projects/configs'
+import { listDbConfigs } from '@/platform/dbProjects/server'
 
 // draft = blue, in-review = green, final = green (Badge subtle = 500-on-50 rule).
 // live = primary purple: it is not another shade of "done", it is the shipped
@@ -92,8 +93,14 @@ function lastModified(config: ProjectConfig): string {
 async function loadEntries(): Promise<GalleryEntry[]> {
   // config() only — the gallery draws cards, so pulling each project's screens
   // in here would put the whole studio's screen code on the front door.
-  const configs = await Promise.all(Object.values(projectConfigs).map((load) => load()))
-  const entries: GalleryEntry[] = configs.map((config) => ({ config }))
+  // Git projects and database projects (platform/dbProjects) side by side; a
+  // slug in both is the database copy — that is the one /p/<slug> serves.
+  const [git, db] = await Promise.all([
+    Promise.all(Object.values(projectConfigs).map((load) => load())),
+    listDbConfigs(),
+  ])
+  const inDb = new Set(db.map((c) => c.slug))
+  const entries: GalleryEntry[] = [...db, ...git.filter((c) => !inDb.has(c.slug))].map((config) => ({ config }))
   // Most-recently-modified first.
   return entries.sort((a, b) => lastModified(b.config).localeCompare(lastModified(a.config)))
 }
@@ -295,6 +302,10 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value
 }
 
+// Database projects appear the moment they're created, so the list is read on
+// every visit rather than at build time.
+export const dynamic = 'force-dynamic'
+
 export default async function Home({
   searchParams,
 }: {
@@ -305,10 +316,11 @@ export default async function Home({
   }
 }) {
   const entries = await loadEntries()
-  // A project is files in this checkout, so it can only be started on the
-  // laptop running the studio — the deployed gallery has no button.
-  const canCreate = process.env.NODE_ENV === 'development'
-  const account = canCreate ? ((await getStudioUser())?.label ?? null) : null
+  // A new project lives in the database, so it can be started anywhere: on the
+  // laptop running the studio, or on the link by a signed-in editor.
+  const user = await getStudioUser()
+  const canCreate = process.env.NODE_ENV === 'development' || canEditAs(user)
+  const account = canCreate ? (user?.label ?? null) : null
 
   const rawStatus = first(searchParams?.status)
   const rawPlatform = first(searchParams?.platform)

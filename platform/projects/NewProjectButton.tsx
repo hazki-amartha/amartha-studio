@@ -3,8 +3,9 @@
 // =============================================================================
 // New project · the gallery's button and its form. Asks what the folder needs
 // (name, whose, business unit, platform) and where to start, creates the
-// project on this laptop, and opens it with Chat showing — the designer builds
-// it from there by prompting. The gallery renders this on the dev server only.
+// project in the database, and opens it with Chat showing — the designer builds
+// it from there by prompting. The gallery renders this on the dev server, and
+// on the link for a signed-in editor.
 // =============================================================================
 
 import { useEffect, useState } from 'react'
@@ -149,7 +150,7 @@ function NewProjectDialog({
       setEditTab('chat')
       router.push(`/p/${data.slug}`)
     } catch {
-      setError('Couldn’t reach the studio — is the dev server still running?')
+      setError('Couldn’t reach the studio — check your connection and try again.')
       setBusy(false)
     }
   }

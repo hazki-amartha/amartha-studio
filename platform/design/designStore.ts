@@ -43,6 +43,7 @@
 // project, whichever backend it is headed for.
 // =============================================================================
 
+import { isActiveDbProject } from '@/platform/dbProjects/active'
 import { sameLayout, type Layout } from './layout'
 import {
   addressesOf,
@@ -161,8 +162,7 @@ type Sink = (
  * GitHub — to the panel it is the `fs` backend all the same.
  */
 function designRoute(slug: string): string {
-  const onDb = typeof window !== 'undefined' && window.location.pathname.startsWith('/db/')
-  return onDb ? `/api/db-projects/${encodeURIComponent(slug)}/design` : '/api/design'
+  return isActiveDbProject(slug) ? `/api/db-projects/${encodeURIComponent(slug)}/design` : '/api/design'
 }
 
 const sink: Sink = async (req) => {
@@ -374,10 +374,10 @@ interface StoredList {
   sha?: string
 }
 
-// /db/<slug> keeps its own list: the same slug at /p/ is the git copy, and a
-// list written against one must never be applied to the other.
-const onDbPage = () => typeof window !== 'undefined' && window.location.pathname.startsWith('/db/')
-const storageKey = () => (storageSlug ? `${STORAGE_PREFIX}${onDbPage() ? 'db:' : ''}${storageSlug}` : null)
+// A database project keeps its own list: the same slug may also exist in git,
+// and a list written against one copy must never be applied to the other.
+const storageKey = () =>
+  storageSlug ? `${STORAGE_PREFIX}${isActiveDbProject(storageSlug) ? 'db:' : ''}${storageSlug}` : null
 
 function persist() {
   const key = storageKey()

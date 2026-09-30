@@ -13,11 +13,11 @@
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import { PrototypeView } from '@/platform/frame'
 import { supabaseEnv } from '@/platform/auth/env'
-import type { ProjectModule } from '@/platform/types'
-import { linkDbProject } from './loader'
+import { mergeProject } from '@/platform/runtime/resolveProject'
+import type { ProjectConfig, ScreenDef } from '@/platform/types'
+import { publishDbIndexEntry, setActiveDbProject } from './active'
 import { SAVED_EVENT, savedChannel, type DbProjectResponse } from './protocol'
 
 interface Props {
@@ -27,7 +27,9 @@ interface Props {
 }
 
 export function DbPrototype({ slug, initialScreenId, initialBare }: Props) {
-  const [project, setProject] = useState<ProjectModule | null>(null)
+  const [project, setProject] = useState<{ config: ProjectConfig; screens: ScreenDef[] } | null>(null)
+  // Before anything renders: Edit mode and Chat decide where to write by this.
+  setActiveDbProject(slug)
   const [problem, setProblem] = useState<string | null>(null)
   const version = useRef<string | null>(null)
 
@@ -37,10 +39,29 @@ export function DbPrototype({ slug, initialScreenId, initialBare }: Props) {
       const build = (await res.json()) as DbProjectResponse
       if (!build.ok) return setProblem(build.error)
       if (build.version === version.current) return
-      const next = linkDbProject(build)
+      // Loaded here, not at the top: the linker pulls in the whole design
+      // system and icon set, which a git project's page must not pay for.
+      const { linkDbProject } = await import('./loader')
+      const own = linkDbProject(build)
+      // `extends`: the base is a git project (the live references stay in git),
+      // merged exactly as the runtime merges a git project with its base.
+      const baseSlug = own.config.extends
+      const base = baseSlug
+        ? await import('@/projects/registry').then(({ registry }) => registry[baseSlug]?.())
+        : undefined
+      const resolved = mergeProject(own, base)
       version.current = build.version
       injectCss(slug, build.css)
-      setProject(next)
+      setProject({ config: own.config, screens: resolved.screens })
+      const brief = (s: ScreenDef) => ({ id: s.id, title: s.title })
+      publishDbIndexEntry({
+        slug,
+        name: own.config.name,
+        status: own.config.status,
+        createdAt: own.config.createdAt,
+        screens: resolved.own.map(brief),
+        inherited: resolved.base ? { from: resolved.base.name, screens: resolved.inherited.map(brief) } : undefined,
+      })
       setProblem(build.errors.length ? build.errors.map((e) => `${e.path}: ${e.message}`).join('\n') : null)
     } catch (e) {
       setProblem(e instanceof Error ? e.message : String(e))
@@ -52,13 +73,29 @@ export function DbPrototype({ slug, initialScreenId, initialBare }: Props) {
     const onFocus = () => refresh()
     window.addEventListener('focus', onFocus)
 
+    // Live updates: every save broadcasts on the project's channel. The client
+    // is loaded on demand, like the linker, to keep it off git projects' pages.
+    let stop: (() => void) | null = null
+    let alive = true
     const env = supabaseEnv()
-    const client = env ? createClient(env.url, env.anonKey, { auth: { persistSession: false } }) : null
-    const channel = client?.channel(savedChannel(slug)).on('broadcast', { event: SAVED_EVENT }, () => refresh()).subscribe()
+    if (env) {
+      void import('@supabase/supabase-js').then(({ createClient }) => {
+        if (!alive) return
+        const client = createClient(env.url, env.anonKey, { auth: { persistSession: false } })
+        const channel = client
+          .channel(savedChannel(slug))
+          .on('broadcast', { event: SAVED_EVENT }, () => refresh())
+          .subscribe()
+        stop = () => void client.removeChannel(channel)
+      })
+    }
 
     return () => {
       window.removeEventListener('focus', onFocus)
-      if (channel) client?.removeChannel(channel)
+      alive = false
+      stop?.()
+      setActiveDbProject(null)
+      publishDbIndexEntry(null)
     }
   }, [slug, refresh])
 

@@ -1,18 +1,19 @@
 // =============================================================================
-// New project · the gallery's New Project button, on the dev server.
+// New project · the gallery's New Project button.
 //
 //   POST { name, owner?, businessUnit, platform, start }  → { ok, slug }
 //
-// Dev only — a project is files in this checkout, see
-// platform/projects/server/create.ts. Gated like Push and Chat: open to the
-// designer at this laptop (platform/chat/localRequest.ts), the editing
-// password for anyone else.
+// The project is created in the database (platform/projects/server/create.ts),
+// so this runs on the dev server and on a deployment alike. Who may: on the
+// dev server, the designer at this laptop (platform/chat/localRequest.ts) or
+// the editing password; deployed, a signed-in editor.
 // =============================================================================
 
 import { configs } from '@/projects/configs'
 import { isLocalRequest } from '@/platform/chat/localRequest'
 import { editCookie, verifyEditToken } from '@/platform/design/server/editGate'
-import { getStudioUser } from '@/platform/auth/server'
+import { canEditAs, getStudioUser } from '@/platform/auth/server'
+import { listDbConfigs } from '@/platform/dbProjects/server'
 import { OWNERS, ownerFor, type NewProjectRequest, type NewProjectResponse } from '@/platform/projects/protocol'
 import { createProject, CreateRefused } from '@/platform/projects/server/create'
 import type { BusinessUnit, Platform } from '@/platform/types'
@@ -27,10 +28,10 @@ const answer = (body: NewProjectResponse) => Response.json(body, { headers: { 'c
 const refuse = (reason: string) => answer({ ok: false, reason })
 
 export async function POST(request: Request): Promise<Response> {
-  if (process.env.NODE_ENV !== 'development') return new Response(null, { status: 404 })
-  if (!isLocalRequest(request) && !verifyEditToken(editCookie(request))) {
-    return refuse('New projects can only be started on the laptop running the studio.')
-  }
+  const user = await getStudioUser()
+  const dev = process.env.NODE_ENV === 'development'
+  const allowed = dev ? isLocalRequest(request) || verifyEditToken(editCookie(request)) : canEditAs(user)
+  if (!allowed) return refuse('Sign in with your Amartha Google account to start a project.')
 
   const body = (await request.json().catch(() => null)) as Partial<NewProjectRequest> | null
   const name = typeof body?.name === 'string' ? body.name.trim().slice(0, 60) : ''
@@ -42,7 +43,7 @@ export async function POST(request: Request): Promise<Response> {
   // Signed in as a known designer, the account is the owner; otherwise the
   // name typed in the form, in the one spelling check:flows accepts.
   const typed = typeof body.owner === 'string' ? body.owner.trim() : ''
-  const owner = ownerFor((await getStudioUser())?.label) ?? ownerFor(typed)
+  const owner = ownerFor(user?.label) ?? ownerFor(typed)
   if (!owner) {
     return refuse(
       typed
@@ -58,7 +59,7 @@ export async function POST(request: Request): Promise<Response> {
       businessUnit: body.businessUnit,
       platform: body.platform,
       start: body.start,
-      taken: new Set(Object.keys(configs)),
+      taken: new Set([...Object.keys(configs), ...(await listDbConfigs()).map((c) => c.slug)]),
     })
     return answer({ ok: true, slug, owner })
   } catch (err) {

@@ -14,6 +14,15 @@ const nextConfig = {
   // two never share a directory. Unset (Vercel, `next start`) it stays `.next`.
   distDir: process.env.NEXT_DIST_DIR || '.next',
 
+  // New Project (platform/projects/server/create.ts) can start a project as a
+  // copy of the live AmarthaFin reference, reading its files at runtime. A
+  // deployment only ships files the build traced, so name them here.
+  experimental: {
+    outputFileTracingIncludes: {
+      '/api/projects': ['./projects/amarthafin-live/**/*'],
+    },
+  },
+
   // Assets — the illustration generator is its own app and deployment
   // (repo: amartha-illustration, built with basePath '/assets-app'). Proxying
   // it here puts it on the studio's origin, which is what lets /assets embed it

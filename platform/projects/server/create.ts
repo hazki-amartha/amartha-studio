@@ -1,7 +1,8 @@
 // =============================================================================
-// New project · writes a project into this checkout, exactly as CLAUDE.md §3
-// describes doing it by hand: a folder under projects/<slug>/, and one line
-// in each of registry.ts and configs.ts, above their markers.
+// New project · creates a project in the database (platform/dbProjects): its
+// files are rows, it is served at /p/<slug> the moment it exists, and every
+// save after that is live — no folder, no registry lines, no push. So it works
+// on the deployed link as well as on the laptop.
 //
 //   blank            one empty screen, `home`, as the entry
 //   amarthafin-live  extends the live reference, with its home copied in as
@@ -10,14 +11,14 @@
 //                    exactly as it ships. Anything else the live app gains
 //                    later is inherited.
 //
-// Nothing is committed: the new files are the designer's working copy, like
-// any chat edit, and Push sends them (registry lines included, see
-// platform/push/server/local.ts).
+// The registry-line helpers below stay for platform/push/server/local.ts,
+// which still pushes git projects.
 // =============================================================================
 
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
+import { saveDbFiles } from '@/platform/dbProjects/server'
 import type { BusinessUnit, Platform } from '@/platform/types'
 import type { ProjectStart } from '../protocol'
 
@@ -114,9 +115,22 @@ export function appendLine(text: string, slug: string, line: string): string {
   return text.replace(MARKER, `${line}\n${MARKER}`)
 }
 
-async function appendTo(file: string, slug: string, line: string) {
-  const full = path.join(PROJECTS, file)
-  await writeFile(full, appendLine(await readFile(full, 'utf8'), slug, line))
+/** A git project's files, path → content — the base a live-started project
+ *  copies. Deployed, these are traced into the function (next.config.mjs). */
+async function filesOf(slug: string): Promise<{ path: string; content: string }[]> {
+  const root = path.join(PROJECTS, slug)
+  const out: { path: string; content: string }[] = []
+  async function walk(dir: string) {
+    for (const name of await readdir(dir)) {
+      const full = path.join(dir, name)
+      if ((await stat(full)).isDirectory()) await walk(full)
+      else if (/\.(tsx?|json)$/.test(name)) {
+        out.push({ path: path.relative(root, full).split(path.sep).join('/'), content: await readFile(full, 'utf8') })
+      }
+    }
+  }
+  await walk(root)
+  return out
 }
 
 export async function createProject(input: {
@@ -128,30 +142,16 @@ export async function createProject(input: {
   taken: Set<string>
 }): Promise<string> {
   const slug = freeSlug(input.name, input.taken)
-  const dir = path.join(PROJECTS, slug)
   const live = input.start === BASE
 
-  try {
-    if (live) {
-      // The base's own files, minus what says whose project it is.
-      await cp(path.join(PROJECTS, BASE), dir, {
-        recursive: true,
-        filter: (src) => !/[/\\](project\.config\.ts|NOTES\.md)$/.test(src),
-      })
-    } else {
-      await mkdir(path.join(dir, 'screens'), { recursive: true })
-      await writeFile(path.join(dir, 'index.ts'), BLANK_INDEX)
-      await writeFile(path.join(dir, 'screens', 'home.tsx'), blankScreen(input.name))
-    }
-    await writeFile(
-      path.join(dir, 'project.config.ts'),
-      configSource({ ...input, slug, extendsBase: live }),
-    )
-    await appendTo('registry.ts', slug, registryLine(slug))
-    await appendTo('configs.ts', slug, configsLine(slug))
-  } catch (err) {
-    await rm(dir, { recursive: true, force: true })
-    throw err
-  }
+  const files = live
+    ? // The base's own files, minus what says whose project it is.
+      (await filesOf(BASE)).filter((f) => f.path !== 'project.config.ts')
+    : [
+        { path: 'index.ts', content: BLANK_INDEX },
+        { path: 'screens/home.tsx', content: blankScreen(input.name) },
+      ]
+  files.push({ path: 'project.config.ts', content: configSource({ ...input, slug, extendsBase: live }) })
+  await saveDbFiles(slug, files, input.owner)
   return slug
 }
