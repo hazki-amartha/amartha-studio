@@ -20,6 +20,7 @@ import tailwindcss from 'tailwindcss'
 import { transform } from 'sucrase'
 import studioTailwind from '@/tailwind.config'
 import { serviceRoleKey, supabaseEnv } from '@/platform/auth/env'
+import type { ProjectConfig } from '@/platform/types'
 import { SAVED_EVENT, savedChannel, type DbProjectBuild } from './protocol'
 
 export const FILES_TABLE = 'studio_project_files'
@@ -203,4 +204,39 @@ export async function announceSave(slug: string): Promise<void> {
   } catch {
     // Viewers fall back to refetching on focus.
   }
+}
+
+// --- listing -------------------------------------------------------------------
+
+/**
+ * Run a project.config.ts and return its `config`. The file imports only types
+ * (erased by the compile), so it runs with no module system at all — anything
+ * else it reaches for gets an empty object and the result is checked.
+ */
+function configOf(slug: string, source: string): ProjectConfig | null {
+  try {
+    const code = transform(source, { transforms: ['typescript', 'imports'], production: true }).code
+    const module = { exports: {} as Record<string, unknown> }
+    // eslint-disable-next-line no-new-func
+    new Function('require', 'module', 'exports', code)(() => ({}), module, module.exports)
+    const config = module.exports.config as ProjectConfig | undefined
+    return config && config.slug === slug && typeof config.name === 'string' ? config : null
+  } catch {
+    return null
+  }
+}
+
+/** The config of every project in the database, newest first. */
+export async function listDbConfigs(): Promise<ProjectConfig[]> {
+  const db = createAdminClient()
+  if (!db) return []
+  const { data, error } = await db.from(FILES_TABLE).select('slug, content').eq('path', 'project.config.ts')
+  if (error) {
+    console.error('[dbProjects] listing failed:', error.message)
+    return []
+  }
+  return data
+    .map((r) => configOf(r.slug as string, r.content as string))
+    .filter((c): c is ProjectConfig => c !== null)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }

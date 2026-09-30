@@ -4,7 +4,7 @@
 // explorer needs — no screen components, no heavy gallery entry shape.
 // =============================================================================
 
-import type { ProjectStatus } from '@/platform/types'
+import type { ProjectConfig, ProjectStatus } from '@/platform/types'
 import { registry } from '@/projects/registry'
 import { mergeProject } from '@/platform/runtime/resolveProject'
 
@@ -24,8 +24,29 @@ export interface ProjectIndexEntry {
   inherited?: { from: string; screens: ScreenIndexEntry[] }
 }
 
-/** Every registered project, most-recent-first. */
+/** Projects that live in the database (platform/dbProjects). Their screens
+ *  are only known once the project runs, so the list carries none — the open
+ *  one publishes its own (platform/dbProjects/active.ts). */
+async function loadDbEntries(): Promise<ProjectIndexEntry[]> {
+  try {
+    const res = await fetch('/api/db-projects', { cache: 'no-store' })
+    if (!res.ok) return []
+    const { projects } = (await res.json()) as { projects: ProjectConfig[] }
+    return projects.map((c) => ({ slug: c.slug, name: c.name, status: c.status, createdAt: c.createdAt, screens: [] }))
+  } catch {
+    return []
+  }
+}
+
+/** Every project — registered in git or living in the database, the database
+ *  copy winning when a slug is in both — most-recent-first. */
 export async function loadProjectIndex(): Promise<ProjectIndexEntry[]> {
+  const [git, db] = await Promise.all([loadGitEntries(), loadDbEntries()])
+  const inDb = new Set(db.map((e) => e.slug))
+  return [...db, ...git.filter((e) => !inDb.has(e.slug))].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
+async function loadGitEntries(): Promise<ProjectIndexEntry[]> {
   const modules = await Promise.all(Object.values(registry).map((load) => load()))
   const bySlug = new Map(modules.map((m) => [m.config.slug, m] as const))
   const brief = (s: { id: string; title: string }) => ({ id: s.id, title: s.title })

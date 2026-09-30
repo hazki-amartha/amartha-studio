@@ -1,8 +1,8 @@
 // =============================================================================
 // New project · what crosses the wire between the gallery's New Project button
-// and app/api/projects. Dev server only: a project is files in this checkout,
-// so it can only be started on the laptop that holds them — the designer then
-// builds it by prompting in Chat and sends it live with Push.
+// and app/api/projects. The project is created in the database, so every save
+// after that is live — the designer builds it by prompting in Chat or tweaking
+// in Edit mode, with nothing to push.
 // =============================================================================
 
 import type { BusinessUnit, Platform } from '@/platform/types'

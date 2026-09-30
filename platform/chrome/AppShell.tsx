@@ -38,6 +38,7 @@ import { StudioSidebar } from './StudioSidebar'
 import { useGuestAccess } from '@/platform/auth/session'
 import { TripleTapExit } from './TripleTapExit'
 import { SystemSidebar } from './SystemSidebar'
+import { getDbIndexEntry, subscribeDbIndexEntry } from '@/platform/dbProjects/active'
 import type { ProjectIndexEntry } from './loadProjectIndex'
 
 const STORAGE_KEY = 'db.chrome.sidebarCollapsed'
@@ -192,6 +193,7 @@ function AppShellInner({
   const pathname = usePathname() ?? '/'
   const [collapsed, setCollapsed] = useState(false)
   const bare = useSyncExternalStore(subscribeBareMode, getBareMode, getBareServerSnapshot)
+  const dbEntry = useSyncExternalStore(subscribeDbIndexEntry, getDbIndexEntry, () => null)
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(STORAGE_KEY) === '1')
@@ -231,8 +233,9 @@ function AppShellInner({
 
   // Inside a project the sidebar becomes its page explorer; an unknown slug
   // (the 404 route) falls back to the project list.
+  // A database project's screens come from the running prototype.
   const currentProject = currentSlug
-    ? (projects.find((p) => p.slug === currentSlug) ?? null)
+    ? (dbEntry?.slug === currentSlug ? dbEntry : null) ?? projects.find((p) => p.slug === currentSlug) ?? null
     : null
 
   return (
