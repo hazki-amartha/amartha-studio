@@ -90,6 +90,7 @@ function BonusCard() {
   return (
     <RewardCard
       title="Dapatkan pencairan tambahan"
+      blue
       caption={`${done} dari ${STRETCH} minggu`}
       panel={
         <Checklist
