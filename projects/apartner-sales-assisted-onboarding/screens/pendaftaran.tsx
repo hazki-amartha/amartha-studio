@@ -40,8 +40,8 @@ export function PendaftaranScreen() {
   const [address, setAddress] = useState<LeadAddress>(lead?.address ?? EMPTY_ADDRESS)
   // Majelis is chosen in two steps: kind (new / existing), then — for an existing
   // one — which majelis.
-  const [majelisKind, setMajelisKind] = useState<'' | 'baru' | 'lama'>('')
-  const [majelisId, setMajelisId] = useState('')
+  // '' = none, 'baru' = new majelis, otherwise an existing majelis id.
+  const [majelisChoice, setMajelisChoice] = useState('')
   const [majelisQuery, setMajelisQuery] = useState('')
   // The onboarding-timing sheet (existing majelis) — opened once the data is
   // filled: onboard now, or save as a calon mitra and continue later.
@@ -58,12 +58,11 @@ export function PendaftaranScreen() {
   const active = MAJELIS_DIRECTORY.filter((g) => g.status === 'aktif')
   const desaOptions = address.kecamatan ? WILAYAH[address.kecamatan] ?? [] : []
   const pinned = Boolean(address.mapsCoord)
-  const majelisLabel = active.find((g) => g.id === majelisId)?.name
+  const majelisLabel =
+    majelisChoice === 'baru' ? 'Buat majelis baru' : active.find((g) => g.id === majelisChoice)?.name
   const majelisResults = active.filter((g) =>
     g.name.toLowerCase().includes(majelisQuery.trim().toLowerCase()),
   )
-  // '' = none, 'baru' = new majelis, otherwise the picked existing majelis id.
-  const majelisChoice = majelisKind === 'baru' ? 'baru' : majelisKind === 'lama' ? majelisId : ''
   const nikValid = nik.replace(/\D/g, '').length === 16
   const ready =
     ktp &&
@@ -104,11 +103,13 @@ export function PendaftaranScreen() {
     }
     // Existing majelis: assign her to the group and start the survey.
     pipelineStore.beginOnboarding(lead.id, undefined, { kind: 'existing', id: majelisChoice })
-    // Now → the "Cara onboarding" page (mode + its gate). Later → save her.
+    // Now → the "Cara onboarding" page (mode + its gate). Later → park her in
+    // "Start onboarding" (the persetujuan pendaftaran still needs to be done).
     if (when === 'now') {
       flow.go('onboarding-start')
     } else {
-      pipelineStore.setFlash(`${lead.name} disimpan sebagai calon mitra`)
+      pipelineStore.setStartingOnboarding(lead.id, true)
+      pipelineStore.setFlash(`${lead.name} — menunggu mulai persetujuan pendaftaran`)
       flow.go('sales')
     }
   }
@@ -225,44 +226,13 @@ export function PendaftaranScreen() {
           placeholder="Kampung / RT / RW"
         />
 
-        {/* Majelis — step 1: new or existing; step 2 (existing): which one. */}
-        <div className="flex flex-col gap-8">
-          <span className="text-12 font-regular text-default">
-            Majelis<span className="text-red-500"> *</span>
-          </span>
-          <div className="flex gap-8">
-            {(['baru', 'lama'] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => {
-                  setMajelisKind(k)
-                  setMajelisId('')
-                }}
-                className={`flex-1 rounded-12 border py-12 text-14 font-bold ${
-                  majelisKind === k
-                    ? 'border-primary-500 bg-primary-50 text-primary-500'
-                    : 'border-default text-caption'
-                }`}
-              >
-                {k === 'baru' ? 'Majelis baru' : 'Majelis lama'}
-              </button>
-            ))}
-          </div>
-          {majelisKind === 'lama' ? (
-            <span className="text-12 text-caption">Pilih dari majelis yang sudah ada.</span>
-          ) : null}
-        </div>
-
-        {majelisKind === 'lama' ? (
-          <SelectField
-            label="Pilih majelis lama"
-            required
-            value={majelisLabel}
-            placeholder="Pilih majelis lama"
-            onClick={() => setSheet('majelis')}
-          />
-        ) : null}
+        <SelectField
+          label="Majelis"
+          required
+          value={majelisLabel}
+          placeholder="Pilih majelis"
+          onClick={() => setSheet('majelis')}
+        />
       </div>
 
       <StickyBar>
@@ -293,13 +263,25 @@ export function PendaftaranScreen() {
           setSheet(null)
         }}
       />
-      <BottomSheet open={sheet === 'majelis'} onClose={() => setSheet(null)} title="Pilih majelis lama">
+      <BottomSheet open={sheet === 'majelis'} onClose={() => setSheet(null)} title="Pilih majelis">
         <div className="flex flex-col gap-8">
           <SearchField
             value={majelisQuery}
             onChange={setMajelisQuery}
             placeholder="Cari majelis"
             label="Cari majelis"
+          />
+          {/* New majelis on top, then the existing groups. */}
+          <SelectableCard
+            name="majelis"
+            inputType="radio"
+            title="Buat majelis baru"
+            description="Atur jadwal sosialisasi majelis baru"
+            checked={majelisChoice === 'baru'}
+            onChange={() => {
+              setMajelisChoice('baru')
+              setSheet(null)
+            }}
           />
           {majelisResults.map((g) => (
             <SelectableCard
@@ -308,9 +290,9 @@ export function PendaftaranScreen() {
               inputType="radio"
               title={g.name}
               description={`${majelisDistanceKm(g.id)} km dari lokasi · ${g.members} mitra aktif`}
-              checked={majelisId === g.id}
+              checked={majelisChoice === g.id}
               onChange={() => {
-                setMajelisId(g.id)
+                setMajelisChoice(g.id)
                 setSheet(null)
               }}
             />
@@ -326,10 +308,10 @@ export function PendaftaranScreen() {
         onClose={() => setTimingOpen(false)}
         onPick={startOnboarding}
         title={
-          majelisKind === 'baru' ? 'Siap buat majelis sekarang?' : 'Lanjutkan onboarding sekarang?'
+          majelisChoice === 'baru' ? 'Siap buat majelis sekarang?' : 'Lanjutkan onboarding sekarang?'
         }
         description={
-          majelisKind === 'baru'
+          majelisChoice === 'baru'
             ? 'Pastikan Anda tau ketua dan hari kumpulan majelisnya. Jika belum, lanjutkan nanti di daftar follow-up.'
             : 'Mulai persetujuan pendaftaran & survey sekarang, atau simpan sebagai calon mitra dan lanjutkan nanti.'
         }
