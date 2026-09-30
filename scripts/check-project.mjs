@@ -2,14 +2,17 @@
 // =============================================================================
 // check:project — would the Chat agent's edits to a database project pass the
 // checks a save must pass (platform/dbProjects/checks.ts)? Asks the dev server,
-// which holds the checks, about projects/$CHAT_SLUG/ (set by the chat route).
+// which holds the checks, about the local copy in projects/_db/<slug>/.
 //
-//   npm run check:project        exit 0 = the turn's changes will save
+//   npm run check:project -- <slug>   from a terminal
+//   npm run check:project             in a Chat turn (the route sets CHAT_SLUG)
+//
+// exit 0 = the local changes will save
 // =============================================================================
 
-const slug = process.env.CHAT_SLUG
+const slug = process.argv[2] ?? process.env.CHAT_SLUG
 if (!slug) {
-  console.error('check:project runs inside a Chat turn (CHAT_SLUG is not set).')
+  console.error('Usage: npm run check:project -- <slug>')
   process.exit(1)
 }
 

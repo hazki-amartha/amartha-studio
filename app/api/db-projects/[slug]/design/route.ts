@@ -45,13 +45,15 @@ import {
 } from '@/platform/design/server/editGate'
 import { versionOf } from '@/platform/design/version'
 import { checkDbProject } from '@/platform/dbProjects/checks'
-import { contentBefore, isDbProject, readDbFile, readDbFiles, saveDbFiles } from '@/platform/dbProjects/server'
+import { contentBefore, isDbProject, readDbRows, saveIfUnchanged } from '@/platform/dbProjects/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
 const DEV = process.env.NODE_ENV === 'development'
+const CHANGED =
+  'Someone else just saved this screen. It updates on its own in a moment — then make the change again.'
 const ICONS = new Set(Object.keys(iconModule).filter((name) => /^[A-Z]/.test(name)))
 
 interface Params {
@@ -130,12 +132,12 @@ async function apply(slug: string, body: DesignRequest, by: string | null): Prom
   const { file } = target
   const path = file.slice(`projects/${slug}/`.length)
 
-  const current = await readDbFiles(slug)
-  const source = current.get(path) ?? null
-  if (source === null) return refuse('That screen file isn’t in the database.')
-  if (body.version && versionOf(source) !== body.version) {
-    return refuse('That screen has changed since it loaded. Wait a moment for it to update, then make the change again.')
-  }
+  const rows = await readDbRows(slug)
+  const row = rows.get(path)
+  if (!row) return refuse('That screen file isn’t in the database.')
+  const source = row.content
+  const current = new Map([...rows].map(([p, r]) => [p, r.content]))
+  if (body.version && versionOf(source) !== body.version) return refuse(CHANGED)
 
   const result = applyEdits(source, body.edits, { icons: ICONS })
   if (!result.ok) return refuse(result.refused.reason)
@@ -148,13 +150,16 @@ async function apply(slug: string, body: DesignRequest, by: string | null): Prom
   const problems = await checkDbProject(slug, after, current, [path])
   if (problems.length) return refuse(`That change wasn’t saved — ${problems.join('; ')}`)
 
-  const ids = await saveDbFiles(slug, [{ path, content: result.source }], by)
-  const id = ids.get(path)
+  // Saved only if nobody saved this file since it was read — else refused, not
+  // overwritten; the screen reloads with their change and this one is redone.
+  const { saved } = await saveIfUnchanged(slug, [{ path, content: result.source, baseAt: row.at }], by)
+  const hit = saved.get(path)
+  if (!hit) return refuse(CHANGED)
   return NextResponse.json({
     ok: true,
     file,
     version: versionOf(result.source),
-    undo: id === undefined ? undefined : String(id),
+    undo: String(hit.id),
   } satisfies DesignResponse)
 }
 
@@ -164,11 +169,12 @@ async function undo(slug: string, token: string, by: string | null): Promise<Nex
   const snap = await contentBefore(slug, id)
   if (!snap || snap.after === null || snap.before === null) return refuse('That change can no longer be undone.')
 
-  const current = await readDbFile(slug, snap.path)
-  if (current === null || versionOf(current) !== versionOf(snap.after)) {
+  const row = (await readDbRows(slug)).get(snap.path)
+  if (!row || versionOf(row.content) !== versionOf(snap.after)) {
     return refuse('That screen has changed since, so undoing would overwrite newer work.')
   }
-  await saveDbFiles(slug, [{ path: snap.path, content: snap.before }], by)
+  const { saved } = await saveIfUnchanged(slug, [{ path: snap.path, content: snap.before, baseAt: row.at }], by)
+  if (!saved.size) return refuse('That screen has changed since, so undoing would overwrite newer work.')
   return NextResponse.json({
     ok: true,
     file: `projects/${slug}/${snap.path}`,

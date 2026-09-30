@@ -40,7 +40,7 @@ import {
   verifyEditToken,
 } from '@/platform/design/server/editGate'
 import { isLocalRequest } from '@/platform/chat/localRequest'
-import { ChecksFailed, pullToDisk, pushFromDisk } from '@/platform/dbProjects/disk'
+import { ensureLocalCopy, projectFolder } from '@/platform/dbProjects/disk'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -82,7 +82,7 @@ function studioAppend(slug: string, db: boolean): string {
     'projects, personal tasks — reply in one short sentence that chat is only for',
     'this prototype, and do not answer it.',
     '',
-    `Files. You can change files only inside \`projects/${slug}/\`; writes anywhere`,
+    `Files. You can change files only inside \`${projectFolder(slug, db)}/\`; writes anywhere`,
     'else are blocked by the studio. You cannot delete files or folders, run shell',
     'commands other than the checks below, use git or gh, or start, stop or restart',
     'the dev server — the studio handles commit and push itself. Do not open a browser.',
@@ -97,11 +97,14 @@ function studioAppend(slug: string, db: boolean): string {
     `The only commands you can run are, exactly: ${CHECKS.map((c) => `\`${c}\``).join(', ')}.`,
     ...(db
       ? [
-          'This project lives in the studio database: your edits go live for everyone',
-          'the moment the turn ends — if they pass the checks. Before you finish, run',
-          '`npm run check:project` and fix everything it reports; a turn that fails it',
-          'is not saved. Keep replies short and in plain language — the designer does',
-          'not read code.',
+          'This project lives in the studio database and is shared live: each file you',
+          'save goes live for everyone within seconds, if the project still passes the',
+          'checks, and other designers may be editing it at the same time — their saves',
+          'land in your files as you work. Re-read a file before editing it. If a file',
+          'has <<<<<<< conflict markers, resolve them keeping both changes. Before you',
+          'finish, run `npm run check:project` and fix everything it reports; changes',
+          'that fail it are not saved. Keep replies short and in plain language — the',
+          'designer does not read code.',
         ]
       : [
           'Run `npm run lint` after edits that touch classes. Keep replies short and in',
@@ -166,12 +169,13 @@ function cliEnv(): NodeJS.ProcessEnv {
   return env
 }
 
-function childEnv(slug: string): NodeJS.ProcessEnv {
+function childEnv(slug: string, db: boolean): NodeJS.ProcessEnv {
   const env = cliEnv()
   env.ENABLE_CLAUDEAI_MCP_SERVERS = 'false'
   // Read by scripts/chat-guard.mjs.
   env.CHAT_SLUG = slug
   env.CHAT_ROOT = ROOT
+  env.CHAT_DIR = projectFolder(slug, db)
   return env
 }
 
@@ -308,23 +312,20 @@ export async function POST(request: Request): Promise<Response> {
   if (process.env.CHAT_LOCAL_MODEL) args.push('--model', process.env.CHAT_LOCAL_MODEL)
   if (body.sessionId) args.push('--resume', body.sessionId)
 
-  // A database project: put its files on disk for the agent first.
-  let baseline: Map<string, string> | null = null
-  if (body.db) {
-    try {
-      baseline = await pullToDisk(body.slug)
-    } catch (err) {
-      return Response.json(
-        { error: `Couldn’t load the project from the database: ${err instanceof Error ? err.message : err}` },
-        { status: 502 },
-      )
-    }
+  // A database project: the live sync (scripts/db-live.mjs) keeps its files in
+  // projects/_db/<slug>/ and saves the agent's edits as they land — so the only
+  // job here is to make sure that copy exists before the agent starts.
+  if (body.db && !(await ensureLocalCopy(body.slug))) {
+    return Response.json(
+      { error: 'The project’s files haven’t reached this laptop yet — try again in a few seconds.' },
+      { status: 503 },
+    )
   }
 
   const before = dirtyPaths()
   const child = spawn(CLI, args, {
     cwd: ROOT,
-    env: childEnv(body.slug),
+    env: childEnv(body.slug, Boolean(body.db)),
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   running = child
@@ -387,17 +388,6 @@ export async function POST(request: Request): Promise<Response> {
 
       child.on('close', async (code, signal) => {
         clearTimeout(timer)
-        let saveError: string | undefined
-        if (baseline) {
-          try {
-            await pushFromDisk(body.slug, baseline, null)
-          } catch (err) {
-            saveError =
-              err instanceof ChecksFailed
-                ? `Not saved — this would break the prototype: ${err.problems.join('; ')}. Ask chat to fix it; its work is kept until then.`
-                : `The change is on this laptop but didn’t reach the database: ${err instanceof Error ? err.message : err}`
-          }
-        }
         running = null
         const after = dirtyPaths()
         const changed = [...after].filter((p) => !before.has(p))
@@ -409,9 +399,7 @@ export async function POST(request: Request): Promise<Response> {
           durationMs: (result?.duration_ms as number | undefined) ?? 0,
           changed,
           outside,
-          error: saveError
-            ? saveError
-            : timedOut
+          error: timedOut
             ? `Stopped: a turn can run for ${TURN_TIMEOUT_MS / 60000} minutes at most.`
             : result?.subtype === 'error_max_turns'
               ? `Stopped after ${MAX_TURNS} steps. Ask for a smaller change, or say “continue”.`

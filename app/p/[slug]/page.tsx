@@ -14,7 +14,8 @@ import Link from 'next/link'
 import { configs } from '@/projects/configs'
 import { PrototypeView } from '@/platform/frame'
 import { DbPrototype } from '@/platform/dbProjects/DbPrototype'
-import { isDbProject } from '@/platform/dbProjects/server'
+import { isDbProject, viewerName } from '@/platform/dbProjects/server'
+import { getStudioUser } from '@/platform/auth/server'
 
 interface PageProps {
   params: { slug: string }
@@ -54,7 +55,10 @@ export default async function PrototypePage({ params, searchParams }: PageProps)
     && firstValue(searchParams.full) !== '0'
 
   if (await isDbProject(params.slug)) {
-    return <DbPrototype slug={params.slug} initialScreenId={initialScreenId} initialBare={initialBare} />
+    const viewer = viewerName((await getStudioUser())?.displayName)
+    return (
+      <DbPrototype slug={params.slug} viewer={viewer} initialScreenId={initialScreenId} initialBare={initialBare} />
+    )
   }
 
   const loader = configs[params.slug]

@@ -5,8 +5,9 @@
 // before it happens, not reported after. Prompt injection can talk the agent
 // into anything; it cannot talk this script into anything.
 //
-//   Writes (Edit, Write, …) — only inside projects/<CHAT_SLUG>/, the project
-//     the chat panel is open on.
+//   Writes (Edit, Write, …) — only inside the folder of the project the chat
+//     panel is open on: projects/<CHAT_SLUG>/, or CHAT_DIR when the route sets
+//     it (a database project's copy, projects/_db/<slug>/).
 //   Reads (Read, Glob, Grep) — only inside the repo, and never secrets: .env*,
 //     .git, .claude, .vercel, keys. The editing password and the GitHub App key
 //     live there, and a read secret is one Write away from a pushed file.
@@ -55,8 +56,9 @@ if (tool === 'Bash') {
 if (WRITE_TOOLS.has(tool)) {
   if (!slug) refuse('Chat has no project open, so no files can be changed.')
   const target = resolve(input.file_path ?? input.notebook_path)
-  if (!target || !inside(target, path.join(root, 'projects', slug))) {
-    refuse(`Chat can only change files inside projects/${slug}/; ${shown(target)} is outside it.`)
+  const folder = process.env.CHAT_DIR || path.join('projects', slug)
+  if (!target || !inside(target, path.join(root, folder))) {
+    refuse(`Chat can only change files inside ${folder}/; ${shown(target)} is outside it.`)
   }
   process.exit(0)
 }
