@@ -5,7 +5,7 @@ export const config: ProjectConfig = {
   name: 'AFin Homepage for Borrowers',
   businessUnit: 'Lending',
   platform: 'AFIN',
-  owner: 'Barata Teddy',
+  owner: 'Barata',
   description: 'Borrower homepage with loan-limit and Majelis mission status cards, from Figma.',
   device: 'mobile',
   status: 'draft',
