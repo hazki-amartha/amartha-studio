@@ -106,6 +106,7 @@ import {
   stageTextEdit,
   subscribeDesignStore,
   unstage,
+  undoLast,
 } from './designStore'
 import type { Edit } from './protocol'
 
@@ -480,7 +481,7 @@ export function DesignPanel({
       />
       <StatusFooter
         storeError={store.error}
-        onCopy={copyFallback}
+        onCopy={store.instant ? undefined : copyFallback}
         copied={copied}
         onDiscard={store.pending.length > 0 ? onRevert : undefined}
       />
@@ -1062,6 +1063,24 @@ function ActionsFooter({
     )
   }
 
+  // A database project saves each change as it is made, and a save is already
+  // live: the footer is just where that stands, and Undo.
+  if (store.instant && writable) {
+    const status = store.busy ? 'Saving…' : n > 0 ? 'Saving…' : saved > 0 ? 'Saved — live on the link' : null
+    return (
+      <div className="flex flex-col gap-4">
+        {store.needsSignIn ? <SignInStep onCancel={() => undefined} /> : null}
+        {store.needsPassword ? <PasswordStep onUnlocked={() => undefined} onCancel={() => undefined} /> : null}
+        {status && !store.error ? <p className={NOTE}>{status}</p> : null}
+        {store.undo.length > 0 ? (
+          <button type="button" onClick={() => void undoLast()} disabled={store.busy} className={SECONDARY}>
+            Undo
+          </button>
+        ) : null}
+      </div>
+    )
+  }
+
   const empty = n === 0 && !store.pushed
   const primary = !writable ? (
     <button type="button" onClick={copy} disabled={n === 0 || store.busy} className={PRIMARY}>
@@ -1232,7 +1251,8 @@ function StatusFooter({
   onDiscard,
 }: {
   storeError: { label: string; reason: string; title?: string } | null
-  onCopy: () => void
+  /** Absent on a database project: there is no agent to hand a list to. */
+  onCopy?: () => void
   copied: boolean
   /** Present while refused changes are still staged. */
   onDiscard?: () => void
@@ -1245,13 +1265,15 @@ function StatusFooter({
       </span>
       <span className="text-12 text-red-700">{storeError.reason}</span>
       <div className="flex gap-8">
-        <button
-          type="button"
-          onClick={onCopy}
-          className="rounded-full border border-red-200 bg-neutral-white px-12 py-4 text-12 font-bold text-red-700 hover:bg-red-50"
-        >
-          {copied ? 'Copied' : 'Copy for agent'}
-        </button>
+        {onCopy ? (
+          <button
+            type="button"
+            onClick={onCopy}
+            className="rounded-full border border-red-200 bg-neutral-white px-12 py-4 text-12 font-bold text-red-700 hover:bg-red-50"
+          >
+            {copied ? 'Copied' : 'Copy for agent'}
+          </button>
+        ) : null}
         {onDiscard ? (
           <button
             type="button"

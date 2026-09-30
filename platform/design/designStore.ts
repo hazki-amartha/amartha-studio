@@ -99,6 +99,8 @@ export interface DesignStoreState {
   undo: UndoEntry[]
   /** Where a write goes, once the route has said. */
   backend: Backend
+  /** A database project: each change saves itself (DesignStatus.instant). */
+  instant?: boolean
   /** `github`: the deployment's build commit. */
   sha?: string
   /** The project's owners, for the name prompt. */
@@ -239,6 +241,25 @@ function emit(next: Partial<DesignStoreState>) {
   listeners.forEach((l) => l())
   persist()
   watchPush()
+  saveSoon()
+}
+
+/**
+ * Instant saving (a database project): write whatever is staged a beat after
+ * the last change, so a run of nudges becomes one save and the designer never
+ * presses Save. A refused batch is not retried on its own — the error stays up
+ * until it is dismissed or the change is discarded.
+ */
+const INSTANT_MS = 600
+let instantTimer: ReturnType<typeof setTimeout> | null = null
+function saveSoon() {
+  if (!state.instant || state.busy || state.error || !canWrite()) return
+  if (!ordered().some(([, p]) => !p.applied)) return
+  if (instantTimer) clearTimeout(instantTimer)
+  instantTimer = setTimeout(() => {
+    instantTimer = null
+    void applyPending()
+  }, INSTANT_MS)
 }
 
 export function subscribeDesignStore(cb: () => void): () => void {
@@ -318,6 +339,7 @@ async function probe(slug: string) {
   state = {
     ...state,
     backend: status.backend,
+    instant: status.instant,
     sha: status.sha,
     owners: status.owners,
     locked: status.locked,
@@ -352,7 +374,10 @@ interface StoredList {
   sha?: string
 }
 
-const storageKey = () => (storageSlug ? `${STORAGE_PREFIX}${storageSlug}` : null)
+// /db/<slug> keeps its own list: the same slug at /p/ is the git copy, and a
+// list written against one must never be applied to the other.
+const onDbPage = () => typeof window !== 'undefined' && window.location.pathname.startsWith('/db/')
+const storageKey = () => (storageSlug ? `${STORAGE_PREFIX}${onDbPage() ? 'db:' : ''}${storageSlug}` : null)
 
 function persist() {
   const key = storageKey()
