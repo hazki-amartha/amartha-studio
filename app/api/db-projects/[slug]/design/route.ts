@@ -12,10 +12,10 @@
 // deployed link — within seconds, with no commit and no push. The same code
 // runs in both places.
 //
-// Who may save: on the dev server, the designer at this laptop (as Chat). On a
-// deployment, a signed-in editor who owns the project, or anyone past the site
-// gate or the editing password — the same gates as /api/design's `github`
-// backend.
+// Who may save: any studio editor. On a laptop, the designer at it once the
+// laptop is signed in (the save goes to the deployed studio as them). On a
+// deployment, an editor by browser session or laptop token, or anyone past the
+// site gate or the editing password — the same gates as /api/design.
 // =============================================================================
 
 import { NextResponse } from 'next/server'
@@ -23,7 +23,9 @@ import * as iconModule from '@/design-system/icons'
 import { isGateConfigured } from '@/app/unlock/auth'
 import { isAuthConfigured } from '@/platform/auth/env'
 import type { StudioUser } from '@/platform/auth/protocol'
-import { canEditAs, getStudioUser, isSameOrigin } from '@/platform/auth/server'
+import { getStudioUser, isSameOrigin } from '@/platform/auth/server'
+import { isEditor, laptopUser, nameOf } from '@/platform/auth/laptop'
+import { laptopCredentials, NotSignedIn } from '@/platform/dbProjects/remote'
 import { isLocalRequest } from '@/platform/chat/localRequest'
 import { applyEdits } from '@/platform/design/applyEdits'
 import type {
@@ -45,13 +47,14 @@ import {
 } from '@/platform/design/server/editGate'
 import { versionOf } from '@/platform/design/version'
 import { checkDbProject } from '@/platform/dbProjects/checks'
-import { contentBefore, isDbProject, readDbRows, saveIfUnchanged } from '@/platform/dbProjects/server'
+import { contentBefore, createAdminClient, isDbProject, readDbRows, saveIfUnchanged } from '@/platform/dbProjects/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
 const DEV = process.env.NODE_ENV === 'development'
+const SIGN_IN_FIRST = 'Sign in to the studio on this laptop first — it’s one Google sign-in.'
 const CHANGED =
   'Someone else just saved this screen. It updates on its own in a moment — then make the change again.'
 const ICONS = new Set(Object.keys(iconModule).filter((name) => /^[A-Z]/.test(name)))
@@ -60,22 +63,32 @@ interface Params {
   params: { slug: string }
 }
 
-async function access(request: Request): Promise<{ may: boolean; user: StudioUser | null }> {
-  if (DEV) return { may: isLocalRequest(request) || verifyEditToken(editCookie(request)), user: null }
-  const user = await getStudioUser()
-  if (canEditAs(user) && isSameOrigin(request)) return { may: true, user }
-  if (isGateConfigured()) return { may: true, user }
-  return { may: verifyEditToken(editCookie(request)), user }
+/**
+ * Whether this request may save. On a laptop: the designer at it — and, since
+ * the save goes to the deployed studio as them, only once this laptop is signed
+ * in (`laptopReady`). Deployed: any studio editor, by browser session or laptop
+ * token, else the site gate or the editing password as on /api/design.
+ */
+async function access(request: Request): Promise<{ may: boolean; user: StudioUser | null; laptopReady: boolean }> {
+  if (DEV) {
+    const laptopReady = createAdminClient() !== null || laptopCredentials() !== null
+    return { may: (isLocalRequest(request) || verifyEditToken(editCookie(request))) && laptopReady, user: null, laptopReady }
+  }
+  const session = await getStudioUser()
+  if (isEditor(session) && isSameOrigin(request)) return { may: true, user: session, laptopReady: true }
+  const laptop = await laptopUser(request)
+  if (isEditor(laptop)) return { may: true, user: laptop, laptopReady: true }
+  const user = session ?? laptop
+  if (isGateConfigured()) return { may: true, user, laptopReady: true }
+  return { may: verifyEditToken(editCookie(request)), user, laptopReady: true }
 }
 
-/** Why this person may not write this project — or null. Only a signed-in
- *  editor has a name to check against the owners; past a password, the
- *  password is the boundary, as on the `github` backend. */
-async function locked(slug: string, user: StudioUser | null): Promise<string | undefined> {
+/** Why nobody may write this project — or null. Any studio editor may edit any
+ *  database project; only production documentation (`status: 'live'`) is shut. */
+async function locked(slug: string): Promise<string | undefined> {
   const facts = await projectFacts(slug)
-  if (!facts) return undefined
-  if (facts.status === 'live') return whyNot(facts, 'x') ?? undefined
-  return canEditAs(user) ? (whyNot(facts, user.displayName) ?? undefined) : undefined
+  if (facts?.status === 'live') return whyNot(facts, 'x') ?? undefined
+  return undefined
 }
 
 export async function GET(request: Request, { params }: Params): Promise<NextResponse> {
@@ -83,16 +96,16 @@ export async function GET(request: Request, { params }: Params): Promise<NextRes
   if (!KEBAB.test(slug) || !(await isDbProject(slug))) {
     return NextResponse.json({ backend: 'record', owners: [] } satisfies DesignStatus)
   }
-  const { may, user } = await access(request)
+  const { may, user, laptopReady } = await access(request)
   const facts = await projectFacts(slug)
   const status: DesignStatus = {
     backend: 'fs',
     instant: true,
     owners: facts?.owners ?? [],
-    locked: await locked(slug, user),
-    needsSignIn: !may && !user && isAuthConfigured() ? true : undefined,
-    needsPassword: !may && !isAuthConfigured() ? true : undefined,
-    signedInAs: canEditAs(user) ? user.displayName : undefined,
+    locked: await locked(slug),
+    needsSignIn: (!may && !user && isAuthConfigured()) || !laptopReady ? true : undefined,
+    needsPassword: !may && laptopReady && !isAuthConfigured() ? true : undefined,
+    signedInAs: user && isEditor(user) ? nameOf(user) : undefined,
   }
   return NextResponse.json(status, { headers: { 'cache-control': 'no-store' } })
 }
@@ -108,19 +121,21 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
   if (!KEBAB.test(slug) || body.slug !== slug) return refuse('That is not a project I recognise.')
   if ('unlock' in body) return unlock(body)
 
-  const { may, user } = await access(request)
+  const { may, user, laptopReady } = await access(request)
+  if (!laptopReady) return refuse(SIGN_IN_FIRST)
   if (!may) {
     if (user) return refuse('Your account can’t save from the link yet. Ask the studio owner to set you up as an editor.')
     return refuse(isAuthConfigured() ? 'Sign in with your Amartha Google account first.' : 'Enter the editing password first.')
   }
-  const why = await locked(slug, user)
+  const why = await locked(slug)
   if (why) return refuse(why)
-  const by = canEditAs(user) ? user.displayName : null
+  const by = user && isEditor(user) ? nameOf(user) : null
 
   try {
     if ('undo' in body) return await undo(slug, body.undo, by)
     return await apply(slug, body, by)
   } catch (err) {
+    if (err instanceof NotSignedIn) return refuse(SIGN_IN_FIRST)
     return refuse(err instanceof Error ? `The database didn’t take that: ${err.message}` : 'The database didn’t answer.')
   }
 }

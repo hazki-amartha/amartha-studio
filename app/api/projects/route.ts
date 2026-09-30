@@ -12,7 +12,8 @@
 import { configs } from '@/projects/configs'
 import { isLocalRequest } from '@/platform/chat/localRequest'
 import { editCookie, verifyEditToken } from '@/platform/design/server/editGate'
-import { canEditAs, getStudioUser } from '@/platform/auth/server'
+import { isEditor, requestUser } from '@/platform/auth/laptop'
+import { NotSignedIn } from '@/platform/dbProjects/remote'
 import { listDbConfigs } from '@/platform/dbProjects/server'
 import { OWNERS, ownerFor, type NewProjectRequest, type NewProjectResponse } from '@/platform/projects/protocol'
 import { createProject, CreateRefused } from '@/platform/projects/server/create'
@@ -28,9 +29,9 @@ const answer = (body: NewProjectResponse) => Response.json(body, { headers: { 'c
 const refuse = (reason: string) => answer({ ok: false, reason })
 
 export async function POST(request: Request): Promise<Response> {
-  const user = await getStudioUser()
+  const user = await requestUser(request)
   const dev = process.env.NODE_ENV === 'development'
-  const allowed = dev ? isLocalRequest(request) || verifyEditToken(editCookie(request)) : canEditAs(user)
+  const allowed = dev ? isLocalRequest(request) || verifyEditToken(editCookie(request)) : isEditor(user)
   if (!allowed) return refuse('Sign in with your Amartha Google account to start a project.')
 
   const body = (await request.json().catch(() => null)) as Partial<NewProjectRequest> | null
@@ -63,6 +64,9 @@ export async function POST(request: Request): Promise<Response> {
     })
     return answer({ ok: true, slug, owner })
   } catch (err) {
+    if (err instanceof NotSignedIn) {
+      return refuse('Sign in to the studio on this laptop first — open localhost:4000/auth/laptop/start, then try again.')
+    }
     return refuse(err instanceof CreateRefused ? err.message : 'The project couldn’t be created — try again.')
   }
 }

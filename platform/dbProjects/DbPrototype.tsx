@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { PrototypeView } from '@/platform/frame'
-import { supabaseEnv } from '@/platform/auth/env'
+import { STUDIO_DB_ANON_KEY, STUDIO_DB_URL } from './public'
 import { mergeProject } from '@/platform/runtime/resolveProject'
 import type { ProjectConfig, ScreenDef } from '@/platform/types'
 import { publishDbIndexEntry, setActiveDbProject } from './active'
@@ -80,11 +80,10 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
     // is loaded on demand, like the linker, to keep it off git projects' pages.
     let stop: (() => void) | null = null
     let alive = true
-    const env = supabaseEnv()
-    if (env) {
+    {
       void import('@supabase/supabase-js').then(({ createClient }) => {
         if (!alive) return
-        const client = createClient(env.url, env.anonKey, { auth: { persistSession: false } })
+        const client = createClient(STUDIO_DB_URL, STUDIO_DB_ANON_KEY, { auth: { persistSession: false } })
         // Presence on the same channel: who else has this project open, so two
         // designers see each other before their edits meet.
         const me = Math.random().toString(36).slice(2)

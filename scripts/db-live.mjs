@@ -23,6 +23,11 @@
 // exactly as a merge would, and is not saved until they're resolved. Claude
 // Code knows what to do with those; `npm run check:project` reports them.
 //
+// It holds no database key and no sign-in of its own: it only talks to this
+// laptop's dev server, which reads and saves through the deployed studio as the
+// designer signed in on this laptop (platform/dbProjects/remote.ts). Not signed
+// in, it still brings others' saves down; saving waits for the sign-in.
+//
 // State (the database version each local file was last in step with) lives in
 // node_modules/.cache/db-live/, so a restart picks up where it left off.
 // =============================================================================
@@ -32,7 +37,6 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createClient } from '@supabase/supabase-js'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const DIR = join(ROOT, 'projects', '_db')
@@ -40,7 +44,6 @@ const CACHE = join(ROOT, 'node_modules', '.cache', 'db-live')
 const STATE_FILE = join(CACHE, 'state.json')
 const PID_FILE = join(CACHE, 'pid')
 const API = 'http://127.0.0.1:4000'
-const TABLE = 'studio_project_files'
 const SYNCED = /\.(tsx?|jsx?|json)$/
 const MARKERS = /^(<{7}|>{7}) /m
 const POLL_MS = 2000
@@ -49,21 +52,6 @@ const SETTLE_MS = 400
 const log = (msg) => console.log(`[db-live ${new Date().toLocaleTimeString()}] ${msg}`)
 
 // --- setup ---------------------------------------------------------------------
-
-function env(name) {
-  if (process.env[name]) return process.env[name].trim()
-  const file = join(ROOT, '.env.local')
-  if (!existsSync(file)) return ''
-  const line = readFileSync(file, 'utf8').split('\n').find((l) => l.startsWith(`${name}=`))
-  return line ? line.slice(name.length + 1).trim().replace(/^["']|["']$/g, '') : ''
-}
-
-const url = env('NEXT_PUBLIC_SUPABASE_URL')
-const key = env('SUPABASE_SERVICE_ROLE_KEY')
-if (!url || !key) {
-  log('No Supabase keys in .env.local — database projects stay off this laptop.')
-  process.exit(0)
-}
 
 mkdirSync(CACHE, { recursive: true })
 // One per laptop: a second copy would race the first over the same files.
@@ -87,7 +75,6 @@ const cleanup = () => {
 process.on('exit', cleanup)
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(0))
 
-const db = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
 let who = null
 try {
   who = execFileSync('git', ['config', 'user.name'], { cwd: ROOT, encoding: 'utf8' }).trim() || null
@@ -193,32 +180,38 @@ function applyRemote(slug, rel, content, at) {
   )
 }
 
+async function api(path) {
+  const r = await fetch(`${API}${path}`)
+  if (!r.ok) throw new Error(`HTTP ${r.status}`)
+  return r.json()
+}
+
 let polling = false
+let lastPollError = null
 async function poll() {
   if (polling) return
   polling = true
   try {
-    const { data, error } = await db.from(TABLE).select('slug, path, updated_at')
-    if (error) throw new Error(error.message)
-    const stale = new Map()
-    for (const r of data) {
-      if (known(r.slug, r.path)?.at === r.updated_at && existsSync(local(r.slug, r.path))) continue
-      if (!stale.has(r.slug)) stale.set(r.slug, [])
-      stale.get(r.slug).push(r.path)
+    const { rows } = await api('/api/db-projects/changes')
+    const stale = new Set()
+    for (const r of rows) {
+      if (known(r.slug, r.path)?.at === r.at && existsSync(local(r.slug, r.path))) continue
+      stale.add(r.slug)
     }
-    for (const [slug, paths] of stale) {
-      const { data: rows, error: e2 } = await db
-        .from(TABLE)
-        .select('path, content, updated_at')
-        .eq('slug', slug)
-        .in('path', paths)
-      if (e2) throw new Error(e2.message)
-      for (const r of rows) applyRemote(slug, r.path, r.content, r.updated_at)
+    for (const slug of stale) {
+      const { rows: files } = await api(`/api/db-projects/${encodeURIComponent(slug)}/files`)
+      for (const f of files) {
+        if (known(slug, f.path)?.at === f.at && existsSync(local(slug, f.path))) continue
+        applyRemote(slug, f.path, f.content, f.at)
+      }
     }
+    lastPollError = null
     // Catch edits the watcher missed.
     for (const slug of Object.keys(state)) queue(slug)
   } catch (e) {
-    log(`Couldn't reach the database: ${e.message}`)
+    // Usually the dev server isn't up yet — say so once, not every 2 seconds.
+    if (lastPollError !== e.message) log(`Waiting for the studio (${e.message}).`)
+    lastPollError = e.message
   } finally {
     polling = false
   }
@@ -227,6 +220,7 @@ async function poll() {
 // --- this laptop → the database ------------------------------------------------------
 
 const lastRefused = new Map()
+let askedToSignIn = false
 
 async function push(slug) {
   const changes = []
@@ -247,8 +241,14 @@ async function push(slug) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ changes, by: who }),
     })
+    if (r.status === 401) {
+      if (!askedToSignIn) log('Not saved — this laptop isn’t signed in to the studio. Open http://localhost:4000/auth/laptop/start (one Google sign-in).')
+      askedToSignIn = true
+      return
+    }
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     res = await r.json()
+    askedToSignIn = false
   } catch {
     return // The dev server isn't up yet; the next pass tries again.
   }
@@ -282,7 +282,7 @@ function queue(slug) {
 // --- run -------------------------------------------------------------------------------
 
 mkdirSync(DIR, { recursive: true })
-log(`Live sync on — database projects are in projects/_db/. Saving as ${who ?? 'this laptop'}.`)
+log('Live sync on — database projects are in projects/_db/.')
 await poll()
 watch(DIR, { recursive: true }, (_event, file) => {
   const slug = file ? String(file).split(sep)[0] : null

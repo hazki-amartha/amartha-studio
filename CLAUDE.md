@@ -294,6 +294,13 @@ on the same project at the same time:
   everything it reports. Changes that fail it are sitting on this laptop, not
   on the link.
 
+**Signing in.** Saving needs the laptop signed in to the studio — once, with the
+designer's Amartha Google account, no keys or `.env.local`: they open
+`http://localhost:4000/auth/laptop/start` (Edit mode's panel and `check:project`
+point them there). Viewing works without it. Any studio editor may edit any
+database project. Never ask a designer for keys or to edit `.env.local` for
+this.
+
 **No git for this work.** Don't commit, push, or open a PR for anything in
 `projects/_db/` — it's ignored by git, and there is nothing to land: it is
 already live. "Commit" and "push" (§5, §7) only apply to git projects and shared
