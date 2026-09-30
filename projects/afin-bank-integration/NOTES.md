@@ -1,1 +1,2 @@
 - `StepHeader`, `BottomAction`, `CodeBoxes`, `Keypad`, `KtpArt`, `FaceArt`, `CameraShutter`, `Spinner` (lib/ui.tsx) — no stepper, pinned CTA, OTP/PIN pad, camera or placeholder-photo component in FunDS; used across the onboarding screens.
+- `PinSheet` (lib/pin-sheet.tsx), `OtpStep` (lib/otp-step.tsx) — account-PIN bottom sheet with wrong/locked states, and a stage-less OTP page; used by payment, unlinking, PIN reset.

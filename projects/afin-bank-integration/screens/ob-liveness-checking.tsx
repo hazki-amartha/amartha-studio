@@ -15,7 +15,11 @@ export function ObLivenessCheckingScreen() {
     const t = setTimeout(() => {
       const result = store.get().liveness
       flow.go(
-        result === 'pass' ? 'ob-occupation' : result === 'fail' ? 'ob-liveness-failed' : 'ob-liveness-locked',
+        result === 'pass'
+          ? store.get().journey === 'bind'
+            ? 'bind-success'
+            : 'ob-occupation'
+           : result === 'fail' ? 'ob-liveness-failed' : 'ob-liveness-locked',
       )
     }, 2000)
     return () => clearTimeout(t)

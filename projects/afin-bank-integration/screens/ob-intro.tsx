@@ -6,7 +6,7 @@ import { NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { ACCOUNT_NAME, BottomAction, PageTitle, STAGES } from '../lib/ui'
-import { useBankState } from '../lib/store'
+import { store, useBankState } from '../lib/store'
 
 const BENEFITS = [
   { icon: <Wallet size={20} />, title: 'Simpan saldo tanpa batas', body: 'Tidak ada batas Rp20 juta seperti Poket.' },
@@ -71,7 +71,10 @@ export function ObIntroScreen() {
       </div>
 
       <BottomAction>
-        <Button variant="primary" size="lg" className="w-full" onClick={() => flow.go('ob-contact')}>
+        <Button variant="primary" size="lg" className="w-full" onClick={() => {
+            store.set({ journey: 'open' })
+            flow.go('ob-contact')
+          }}>
           Mulai Buka Rekening
         </Button>
       </BottomAction>

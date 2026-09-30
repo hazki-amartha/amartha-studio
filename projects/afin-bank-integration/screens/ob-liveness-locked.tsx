@@ -4,14 +4,16 @@ import { Button, NavigationHeader } from '@/design-system/components'
 import { LockKey } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { BottomAction } from '../lib/ui'
+import { BottomAction, journeyTitle } from '../lib/ui'
+import { useBankState } from '../lib/store'
 
 // Too many failed attempts. The bank locks the check and hands the user to
 // support (Aladin: "verifikasi lanjutan" via CS) — white-labelled as AmarthaCare.
 export function ObLivenessLockedScreen() {
   const flow = useFlow()
+  const { journey } = useBankState()
   return (
-    <Screen canvas="white" topBar={<NavigationHeader title="Buka Rekening" hideBack />}>
+    <Screen canvas="white" topBar={<NavigationHeader title={journeyTitle(journey)} hideBack />}>
       <div className="flex flex-col items-center pt-40 text-center">
         <span className="flex h-64 w-64 items-center justify-center rounded-full bg-orange-50 text-orange-500">
           <LockKey size={24} />

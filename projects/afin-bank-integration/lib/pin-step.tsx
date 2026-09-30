@@ -10,24 +10,38 @@ import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { CodeBoxes, Keypad, PageTitle, StepHeader } from './ui'
 
-export function PinStep({ title, next }: { title: string; next: string }) {
+export function PinStep({
+  title,
+  next,
+  header = 'Buka Rekening',
+  stage = 4,
+  description = '6 angka untuk setiap transaksi dari rekening ini. PIN ini berbeda dengan PIN AmarthaFin.',
+  onDone,
+}: {
+  title: string
+  next: string
+  header?: string
+  stage?: 1 | 2 | 3 | 4 | null
+  description?: string
+  onDone?: () => void
+}) {
   const flow = useFlow()
   const [pin, setPin] = useState('')
 
   useEffect(() => {
     if (pin.length === 6) {
-      const t = setTimeout(() => flow.go(next), 300)
+      const t = setTimeout(() => {
+        onDone?.()
+        flow.go(next)
+      }, 300)
       return () => clearTimeout(t)
     }
-  }, [pin, next, flow])
+  }, [pin, next, flow, onDone])
 
   return (
-    <Screen canvas="white" topBar={<NavigationHeader title="Buka Rekening" onBack={flow.back} />}>
-      <StepHeader stage={4} />
-      <PageTitle
-        title={title}
-        description="6 angka untuk setiap transaksi dari rekening ini. PIN ini berbeda dengan PIN AmarthaFin."
-      />
+    <Screen canvas="white" topBar={<NavigationHeader title={header} onBack={flow.back} />}>
+      {stage ? <StepHeader stage={stage} /> : null}
+      <PageTitle title={title} description={description} />
       <div className="py-8">
         <CodeBoxes value={pin} masked />
       </div>
