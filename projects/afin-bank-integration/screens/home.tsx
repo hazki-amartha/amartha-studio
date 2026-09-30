@@ -7,7 +7,7 @@
 
 import { useState } from 'react'
 import { Badge, Button, Card, NavigationBar, OfferCard } from '@/design-system/components'
-import { NavIcon } from '@/design-system/assets'
+import { NavIcon, ServiceIcon } from '@/design-system/assets'
 import {
   ArrowRight,
   Bank,
@@ -17,6 +17,7 @@ import {
   Eye,
   Headset,
   Hourglass,
+  Link,
   Plus,
   Star,
   StarFill,
@@ -33,11 +34,13 @@ import {
   PoketWidget,
   QuickLink,
   SectionTitle,
+  Shortcut,
   WalletAction,
 } from '../lib/ui'
 import { useBankState } from '../lib/store'
 
 export function HomeScreen() {
+  const flow = useFlow()
   const { account } = useBankState()
 
   return (
@@ -46,7 +49,10 @@ export function HomeScreen() {
         {account === 'active' ? <UnifiedBalance /> : <PoketWidget balance="Rp160.000" />}
       </BrandBand>
 
+      <ShortcutRow />
+
       {account === 'none' ? <OpenAccountCard /> : null}
+      {account === 'none' ? <BindLink /> : null}
       {account === 'in-progress' ? <InProgressCard /> : null}
       {account === 'failed' ? <FailedCard /> : null}
 
@@ -55,6 +61,7 @@ export function HomeScreen() {
         product="modal"
         title="Modal usaha hingga Rp30 juta"
         description="Syarat ringan, cair cepat, tidak perlu jaminan."
+        onClick={() => flow.go('modal-disbursement')}
       />
       <OfferCard
         product="celengan"
@@ -79,7 +86,12 @@ export function HomeScreen() {
             { id: 'pinjaman', label: 'Pinjaman', icon: <NavIcon name="modal" /> },
             { id: 'scan', label: 'Scan', icon: <NavIcon name="scan" /> },
             { id: 'celengan', label: 'Celengan', icon: <NavIcon name="celengan" /> },
-            { id: 'transaksi', label: 'Transaksi', icon: <NavIcon name="transaction" /> },
+            {
+              id: 'transaksi',
+              label: 'Transaksi',
+              icon: <NavIcon name="transaction" />,
+              onClick: () => flow.go('history'),
+            },
           ]}
         />
       </div>
@@ -91,23 +103,45 @@ export function HomeScreen() {
 // C: "single/combined balance"), with the split one tap away instead of in a
 // tooltip, since the split is the thing a user will want to check.
 function UnifiedBalance() {
+  const flow = useFlow()
+  const { status } = useBankState()
   const [open, setOpen] = useState(false)
   return (
     <div className="rounded-16 border border-default bg-gradient-to-r from-neutral-white to-primary-50 p-12">
       <div className="flex items-center gap-16">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-4 text-14 font-bold text-primary-500">
+          <button
+            type="button"
+            onClick={() => flow.go('balance-detail')}
+            className="flex items-center gap-4 text-14 font-bold text-primary-500"
+          >
             Total Saldo
             <ArrowRight size={16} />
-          </div>
+          </button>
           <div className="mt-4 flex items-center gap-8">
             <span className="text-16 font-bold text-default">Rp24.160.000</span>
             <Eye size={16} className="text-default" />
           </div>
         </div>
-        <WalletAction icon={<Plus size={16} />} label="Isi Saldo" />
+        <WalletAction icon={<Plus size={16} />} label="Isi Saldo" onClick={() => flow.go('topup')} />
         <WalletAction icon={<Transfer size={16} />} label="Transfer" />
       </div>
+
+      {status !== 'active' ? (
+        <button
+          type="button"
+          onClick={() => flow.go('balance-detail')}
+          className={`mt-8 flex w-full items-center gap-8 rounded-8 px-8 py-4 text-left text-12 text-default ${
+            status === 'dormant' ? 'bg-orange-50' : 'bg-red-50'
+          }`}
+        >
+          <WarningCircle size={16} className={status === 'dormant' ? 'text-orange-500' : 'text-red-500'} />
+          <span className="flex-1">
+            {status === 'dormant' ? 'Rekening tidak aktif. Isi saldo untuk mengaktifkan.' : 'Rekening dibekukan sementara.'}
+          </span>
+          <ArrowRight size={16} />
+        </button>
+      ) : null}
 
       <button
         type="button"
@@ -212,5 +246,38 @@ function FailedCard() {
         </Button>
       </div>
     </Card>
+  )
+}
+
+// The live PPOB shortcut row (amarthafin-live, no-agency state). Pulsa leads
+// into the one payment this prototype uses to show the account PIN.
+function ShortcutRow() {
+  const flow = useFlow()
+  return (
+    <div className="-mx-16 flex items-start justify-between p-16">
+      <button type="button" className="flex flex-1" onClick={() => flow.go('ppob-pulsa')}>
+        <Shortcut icon={<ServiceIcon name="pulsa" size={32} />} label="Pulsa" />
+      </button>
+      <Shortcut icon={<ServiceIcon name="paket-data" size={32} />} label="Paket Data" />
+      <Shortcut icon={<ServiceIcon name="pln" size={32} />} label="PLN" />
+      <Shortcut icon={<ServiceIcon name="e-wallet" size={32} />} label="Isi E-Wallet" />
+      <Shortcut icon={<ServiceIcon name="all" size={32} />} label="Lainnya" />
+    </div>
+  )
+}
+
+// Existing Aladin customers link instead of opening a second account (PRD B).
+function BindLink() {
+  const flow = useFlow()
+  return (
+    <button
+      type="button"
+      onClick={() => flow.go('bind-intro')}
+      className="-mt-4 flex items-center justify-center gap-8 text-12 text-caption"
+    >
+      <Link size={16} className="text-link" />
+      Sudah punya rekening Bank Aladin Syariah?
+      <span className="font-bold text-link">Hubungkan</span>
+    </button>
   )
 }

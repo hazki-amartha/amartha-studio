@@ -147,5 +147,124 @@ export const project: ProjectModule = {
       title: 'Rekening gagal',
       component: lazyScreen(() => import('./screens/ob-rejected'), 'ObRejectedScreen'),
     },
+    {
+      id: 'bind-intro',
+      title: 'Hubungkan — Intro',
+      component: lazyScreen(() => import('./screens/bind-intro'), 'BindIntroScreen'),
+    },
+    {
+      id: 'bind-form',
+      title: 'Hubungkan — Nomor HP & rekening',
+      component: lazyScreen(() => import('./screens/bind-form'), 'BindFormScreen'),
+    },
+    {
+      id: 'bind-otp',
+      title: 'Hubungkan — Kode OTP',
+      component: lazyScreen(() => import('./screens/bind-otp'), 'BindOtpScreen'),
+    },
+    {
+      id: 'bind-success',
+      title: 'Hubungkan — Berhasil',
+      component: lazyScreen(() => import('./screens/bind-success'), 'BindSuccessScreen'),
+    },
+    {
+      id: 'balance-detail',
+      title: 'Saldo Saya',
+      component: lazyScreen(() => import('./screens/balance-detail'), 'BalanceDetailScreen'),
+      states: [
+        { id: 'active', label: 'Aktif', apply: demo.statusAktif },
+        { id: 'dormant', label: 'Tidak aktif (dormant)', apply: demo.statusDormant },
+        { id: 'frozen', label: 'Dibekukan', apply: demo.statusBeku },
+      ],
+    },
+    {
+      id: 'unbind',
+      title: 'Putuskan rekening',
+      component: lazyScreen(() => import('./screens/unbind'), 'UnbindScreen'),
+      states: [
+        { id: 'pin-ok', label: 'PIN benar', apply: demo.pinBenar },
+        { id: 'pin-wrong', label: 'PIN salah', description: 'First entry is rejected; the retry goes through.', apply: demo.pinSalah },
+        { id: 'pin-locked', label: 'PIN terkunci', apply: demo.pinTerkunci },
+      ],
+    },
+    {
+      id: 'unbind-success',
+      title: 'Putuskan — Berhasil',
+      component: lazyScreen(() => import('./screens/unbind-success'), 'UnbindSuccessScreen'),
+    },
+    {
+      id: 'topup',
+      title: 'Isi Saldo',
+      component: lazyScreen(() => import('./screens/topup'), 'TopupScreen'),
+    },
+    {
+      id: 'history',
+      title: 'Riwayat Transaksi',
+      component: lazyScreen(() => import('./screens/history'), 'HistoryScreen'),
+    },
+    {
+      id: 'history-detail',
+      title: 'Detail Transaksi',
+      component: lazyScreen(() => import('./screens/history-detail'), 'HistoryDetailScreen'),
+    },
+    {
+      id: 'ppob-pulsa',
+      title: 'Pulsa',
+      component: lazyScreen(() => import('./screens/ppob-pulsa'), 'PpobPulsaScreen'),
+    },
+    {
+      id: 'ppob-confirm',
+      title: 'Pulsa — Konfirmasi & PIN',
+      component: lazyScreen(() => import('./screens/ppob-confirm'), 'PpobConfirmScreen'),
+      states: [
+        { id: 'pin-ok', label: 'PIN benar', apply: demo.pinBenar },
+        { id: 'pin-wrong', label: 'PIN salah', description: 'First entry is rejected; the retry goes through.', apply: demo.pinSalah },
+        { id: 'pin-locked', label: 'PIN terkunci', apply: demo.pinTerkunci },
+      ],
+    },
+    {
+      id: 'ppob-success',
+      title: 'Pulsa — Berhasil',
+      component: lazyScreen(() => import('./screens/ppob-success'), 'PpobSuccessScreen'),
+    },
+    {
+      id: 'pin-reset',
+      title: 'Atur Ulang PIN',
+      component: lazyScreen(() => import('./screens/pin-reset'), 'PinResetScreen'),
+    },
+    {
+      id: 'pin-reset-otp',
+      title: 'Atur Ulang PIN — OTP',
+      component: lazyScreen(() => import('./screens/pin-reset-otp'), 'PinResetOtpScreen'),
+    },
+    {
+      id: 'pin-change-old',
+      title: 'Ubah PIN — PIN lama',
+      component: lazyScreen(() => import('./screens/pin-change-old'), 'PinChangeOldScreen'),
+    },
+    {
+      id: 'pin-new',
+      title: 'PIN baru',
+      component: lazyScreen(() => import('./screens/pin-new'), 'PinNewScreen'),
+    },
+    {
+      id: 'pin-new-confirm',
+      title: 'Ulangi PIN baru',
+      component: lazyScreen(() => import('./screens/pin-new-confirm'), 'PinNewConfirmScreen'),
+    },
+    {
+      id: 'pin-done',
+      title: 'PIN tersimpan',
+      component: lazyScreen(() => import('./screens/pin-done'), 'PinDoneScreen'),
+    },
+    {
+      id: 'modal-disbursement',
+      title: 'Pencairan Modal',
+      component: lazyScreen(() => import('./screens/modal-disbursement'), 'ModalDisbursementScreen'),
+      states: [
+        { id: 'no-account', label: 'Belum punya rekening', apply: demo.tanpaRekening },
+        { id: 'has-account', label: 'Rekening aktif', apply: demo.punyaRekening },
+      ],
+    },
   ],
 }

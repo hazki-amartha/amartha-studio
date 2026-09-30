@@ -153,6 +153,10 @@ export function QuickLink({ icon, label }: { icon: ReactNode; label: string }) {
 /** Working name for the white-labelled account. Change it here, once. */
 export const ACCOUNT_NAME = 'Rekening Amartha'
 
+/** Header title for the screens opening and linking share (liveness). */
+export const journeyTitle = (journey: 'open' | 'bind') =>
+  journey === 'bind' ? 'Hubungkan Rekening' : 'Buka Rekening'
+
 export const STAGES = ['Kontak', 'Identitas', 'Data diri', 'Rekening'] as const
 
 /**

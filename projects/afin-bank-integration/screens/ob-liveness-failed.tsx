@@ -4,14 +4,15 @@ import { Button, NavigationHeader } from '@/design-system/components'
 import { WarningCircle } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { BottomAction, RuleList } from '../lib/ui'
-import { store } from '../lib/store'
+import { BottomAction, journeyTitle, RuleList } from '../lib/ui'
+import { store, useBankState } from '../lib/store'
 
 // Failure copy follows Aladin's own FAQ on why face verification fails.
 export function ObLivenessFailedScreen() {
   const flow = useFlow()
+  const { journey } = useBankState()
   return (
-    <Screen canvas="white" topBar={<NavigationHeader title="Buka Rekening" onBack={flow.back} />}>
+    <Screen canvas="white" topBar={<NavigationHeader title={journeyTitle(journey)} onBack={flow.back} />}>
       <div className="flex flex-col items-center pt-24 text-center">
         <span className="flex h-64 w-64 items-center justify-center rounded-full bg-red-50 text-red-500">
           <WarningCircle size={24} />

@@ -16,3 +16,14 @@ export const kycBasic = () => store.set({ kyc: 'basic' })
 export const livenessLolos = () => store.set({ liveness: 'pass' })
 export const livenessGagal = () => store.set({ liveness: 'fail' })
 export const livenessTerkunci = () => store.set({ liveness: 'locked' })
+
+export const statusAktif = () => store.set({ account: 'active', status: 'active' })
+export const statusDormant = () => store.set({ account: 'active', status: 'dormant' })
+export const statusBeku = () => store.set({ account: 'active', status: 'frozen' })
+
+export const pinBenar = () => store.set({ pin: 'correct' })
+export const pinSalah = () => store.set({ pin: 'wrong' })
+export const pinTerkunci = () => store.set({ pin: 'locked' })
+
+export const punyaRekening = () => store.set({ account: 'active' })
+export const tanpaRekening = () => store.set({ account: 'none' })

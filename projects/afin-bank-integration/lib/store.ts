@@ -8,20 +8,41 @@
 //              rejected, or active. The homepage draws a different widget for each.
 //   liveness — what the next liveness check will return, so a presenter can
 //              show the failure states without faking a bad selfie.
+//   journey  — whether the shared liveness screens are part of opening a new
+//              account or linking one the user already has.
+//   status   — the active account's standing: active, dormant or frozen.
+//   pin      — what the next account-PIN entry returns, for the error states.
+//   pinFlow  — whether the new-PIN screens are a reset or a change.
 
 import { useSyncExternalStore } from 'react'
 
 export type KycTier = 'verified' | 'basic'
 export type AccountStatus = 'none' | 'in-progress' | 'failed' | 'active'
 export type LivenessResult = 'pass' | 'fail' | 'locked'
+export type Journey = 'open' | 'bind'
+export type AccountStanding = 'active' | 'dormant' | 'frozen'
+export type PinResult = 'correct' | 'wrong' | 'locked'
+export type PinFlow = 'reset' | 'change'
 
 export interface BankState {
   kyc: KycTier
   account: AccountStatus
   liveness: LivenessResult
+  journey: Journey
+  status: AccountStanding
+  pin: PinResult
+  pinFlow: PinFlow
 }
 
-const initial: BankState = { kyc: 'verified', account: 'none', liveness: 'pass' }
+const initial: BankState = {
+  kyc: 'verified',
+  account: 'none',
+  liveness: 'pass',
+  journey: 'open',
+  status: 'active',
+  pin: 'correct',
+  pinFlow: 'reset',
+}
 
 let state: BankState = initial
 
