@@ -32,7 +32,7 @@ export const VERSIONS_TABLE = 'studio_project_file_versions'
 // project's.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { stampSource } = require('../design/stamp.cjs') as {
-  stampSource: (source: string, file: string) => string | null
+  stampSource: (source: string, file: string) => { code: string } | null
 }
 
 export function createAdminClient() {
@@ -73,7 +73,7 @@ export async function buildDbProject(slug: string): Promise<DbProjectBuild | { e
     source.push(content)
     try {
       const stamped = path.endsWith('.tsx') ? stampSource(content, `projects/${slug}/${path}`) : null
-      modules[path] = transform(stamped ?? content, {
+      modules[path] = transform(stamped?.code ?? content, {
         transforms: ['typescript', 'jsx', 'imports'],
         jsxRuntime: 'automatic',
         production: true,
