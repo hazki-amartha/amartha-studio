@@ -47,5 +47,7 @@ export const configs: ConfigRegistry = {
   'bm-poi-ngmis': () => import('./bm-poi-ngmis/project.config').then((m) => m.config),
   'apartner-sot': () => import('./apartner-sot/project.config').then((m) => m.config),
   'afin-bank-integration': () => import('./afin-bank-integration/project.config').then((m) => m.config),
+  'afin-homepage-borrowers-v4': () =>
+    import('./afin-homepage-borrowers-v4/project.config').then((m) => m.config),
   // <append new projects above this line — one line per project>
 }
