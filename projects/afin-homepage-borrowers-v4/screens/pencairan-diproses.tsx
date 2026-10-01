@@ -7,7 +7,12 @@ import { Button, NavigationHeader } from '@/design-system/components'
 import { ChevronDown, ChevronRight } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { ASSET, DetailRow } from '../lib/pencairan-ui'
+import { ASSET, DetailRow, PENCAIRAN } from '../lib/pencairan-ui'
+import { usePencairanLanjutan } from '../lib/store'
+
+// Celengan card hidden for now — "Isi Celengan" isn't ticked on Konfirmasi, so
+// nothing was bought. Flip to show it again.
+const SHOW_CELENGAN = false
 
 const CARD_SHADOW = { boxShadow: '0 2px 4px rgba(226, 223, 226, 0.6)' }
 
@@ -55,6 +60,7 @@ function InfoCard({ children }: { children: ReactNode }) {
 
 export function PencairanDiprosesScreen() {
   const flow = useFlow()
+  const p = PENCAIRAN[usePencairanLanjutan() ? 'lanjutan' : 'awal']
 
   return (
     <Screen canvas="white" topBar={<NavigationHeader title="Ajukan pencairan" onBack={() => flow.go('home-var-d')} />}>
@@ -112,7 +118,7 @@ export function PencairanDiprosesScreen() {
             <div className="flex flex-col gap-16">
               <div className="flex flex-col gap-4 text-default">
                 <p className="text-14">Anda akan terima</p>
-                <p className="text-20 font-bold">Rp4.745.000</p>
+                <p className="text-20 font-bold">{p.terima}</p>
               </div>
               <Button variant="outline" size="sm" className="w-full">
                 <span className="flex items-center justify-center gap-4">
@@ -158,14 +164,16 @@ export function PencairanDiprosesScreen() {
             </div>
           </InfoCard>
 
-          <InfoCard>
-            <p className="text-14 font-bold text-default">Celengan [Name]</p>
-            <div className="flex flex-col gap-8">
-              <DetailRow size={12} label="Status pembelian" value="Diproses" />
-              <DetailRow size={12} label="Nominal pembelian" value="RpX" />
-              <DetailRow size={12} label="Dapat dicairkan setelah" value="X time" />
-            </div>
-          </InfoCard>
+          {SHOW_CELENGAN ? (
+            <InfoCard>
+              <p className="text-14 font-bold text-default">Celengan Ibu Siti</p>
+              <div className="flex flex-col gap-8">
+                <DetailRow size={12} label="Status pembelian" value="Diproses" />
+                <DetailRow size={12} label="Nominal pembelian" value="Rp100.000" />
+                <DetailRow size={12} label="Dapat dicairkan setelah" value="1 bulan" />
+              </div>
+            </InfoCard>
+          ) : null}
         </div>
 
         <button type="button" className="flex items-center gap-12 bg-neutral-white px-20 py-16 text-left">

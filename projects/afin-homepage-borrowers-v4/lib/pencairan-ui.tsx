@@ -44,3 +44,35 @@ export function DetailRow({
     </div>
   )
 }
+
+// The two disbursements the Pencairan screens can show. Proteksi Keluarga
+// (Rp200.000) and the admin fee (Rp5.000) are the same for both.
+/** `over`: above the weekly limit — greyed out with "Melebihi batas angsuran per minggu". */
+export type Tenor = { months: number; payments: number; weekly: string; over?: boolean }
+
+export const PENCAIRAN = {
+  awal: {
+    nominal: 'Rp5.000.000',
+    terima: 'Rp4.795.000',
+    batas: 'Rp200.000',
+    tenors: [
+      { months: 12, payments: 48, weekly: 'Rp135.000' },
+      { months: 9, payments: 36, weekly: 'Rp180.000' },
+      { months: 6, payments: 24, weekly: 'Rp270.000' },
+      { months: 3, payments: 12, weekly: 'Rp540.000' },
+      { months: 1, payments: 4, weekly: 'Rp1.620.000', over: true },
+    ] as Tenor[],
+  },
+  lanjutan: {
+    nominal: 'Rp7.200.000',
+    terima: 'Rp6.995.000',
+    batas: 'Rp300.000',
+    tenors: [
+      { months: 12, payments: 48, weekly: 'Rp195.000' },
+      { months: 9, payments: 36, weekly: 'Rp260.000' },
+      { months: 6, payments: 24, weekly: 'Rp390.000', over: true },
+      { months: 3, payments: 12, weekly: 'Rp780.000', over: true },
+      { months: 1, payments: 4, weekly: 'Rp2.335.000', over: true },
+    ] as Tenor[],
+  },
+}

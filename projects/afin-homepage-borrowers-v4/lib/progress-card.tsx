@@ -56,7 +56,7 @@ const CAPSULE_TONE_COLOR: Record<CardTone, string> = {
   alert: '#FFD9D6', // red-200
 }
 
-function TrendCapsule({ tone }: { tone: CardTone }) {
+export function TrendCapsule({ tone }: { tone: CardTone }) {
   const gradientId = `trend-capsule-${useId()}`
   return (
     <svg
@@ -91,7 +91,7 @@ function TrendCapsule({ tone }: { tone: CardTone }) {
   )
 }
 
-function Banner({ tone, title, description }: { tone: CardTone; title: string; description: string }) {
+export function Banner({ tone, title, description }: { tone: CardTone; title: string; description: string }) {
   return (
     <div className={`flex items-start gap-8 rounded-8 p-12 ${TONE_BANNER_BG[tone]}`}>
       <ToneIcon tone={tone} />
@@ -110,7 +110,7 @@ const SEGMENT_CLASS: Record<SegmentTone, string> = {
   upcoming: 'bg-neutral-200',
 }
 
-function ProgressTrack({ segments }: { segments: SegmentTone[] }) {
+export function ProgressTrack({ segments }: { segments: SegmentTone[] }) {
   return (
     <div className="flex h-16 w-full gap-2">
       {segments.map((segment, i) => (
@@ -120,7 +120,7 @@ function ProgressTrack({ segments }: { segments: SegmentTone[] }) {
   )
 }
 
-function LegendRow({ items }: { items: { tone: SegmentTone; label: string }[] }) {
+export function LegendRow({ items }: { items: { tone: SegmentTone; label: string }[] }) {
   if (items.length === 0) return null
   return (
     <div className="flex flex-wrap items-center gap-16">
@@ -148,9 +148,12 @@ function CardHeader({ title, subtitle }: { title: string; subtitle: string }) {
   )
 }
 
-export function LoanProgressCard({ data }: { data: ProgressCardData }) {
+export function LoanProgressCard({ data, onClick }: { data: ProgressCardData; onClick?: () => void }) {
   return (
-    <div className="flex w-full flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12">
+    <div
+      onClick={onClick}
+      className={`flex w-full flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12 ${onClick ? 'cursor-pointer' : ''}`}
+    >
       <CardHeader title={data.cardTitle} subtitle={data.cardSubtitle} />
       <div className="border-t border-default" />
 
@@ -177,7 +180,7 @@ export function LoanProgressCard({ data }: { data: ProgressCardData }) {
       </div>
 
       {data.buttonLabel ? (
-        <Button variant="primary" className="w-full">
+        <Button variant="primary" className="w-full" onClick={(e) => e.stopPropagation()}>
           {data.buttonLabel}
         </Button>
       ) : null}
@@ -188,18 +191,25 @@ export function LoanProgressCard({ data }: { data: ProgressCardData }) {
 export function MajelisProgressCard({
   data,
   rewardLabel,
+  rewardStrike,
+  onClick,
 }: {
   data: ProgressCardData
   rewardLabel: string
+  rewardStrike?: boolean
+  onClick?: () => void
 }) {
   return (
-    <div className="flex w-full flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12">
+    <div
+      onClick={onClick}
+      className={`flex w-full flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12 ${onClick ? 'cursor-pointer' : ''}`}
+    >
       <CardHeader title={data.cardTitle} subtitle={data.cardSubtitle} />
       <div className="border-t border-default" />
 
       <div className="flex items-center gap-4">
         <span className="text-14">🎁</span>
-        <p className="text-14 font-bold text-default">{rewardLabel}</p>
+        <p className={`text-14 font-bold text-default ${rewardStrike ? 'line-through' : ''}`}>{rewardLabel}</p>
       </div>
 
       <Banner tone={data.tone} title={data.bannerTitle} description={data.bannerDescription} />
@@ -213,7 +223,7 @@ export function MajelisProgressCard({
       </div>
 
       {data.buttonLabel ? (
-        <Button variant="outline" size="sm" className="w-full">
+        <Button variant="secondary" size="sm" className="w-full" onClick={(e) => e.stopPropagation()}>
           {data.buttonLabel}
         </Button>
       ) : null}
@@ -232,6 +242,7 @@ export function UnlockedCard({
   nextLabel,
   compact = false,
   onButtonClick,
+  onClick,
 }: {
   title: string
   description: BannerText
@@ -240,9 +251,14 @@ export function UnlockedCard({
   nextLabel?: string
   compact?: boolean
   onButtonClick?: () => void
+  /** Tapping anywhere on the card except its button. */
+  onClick?: () => void
 }) {
   return (
-    <div className="relative flex w-full flex-col gap-12 overflow-hidden rounded-12 border border-default p-12">
+    <div
+      onClick={onClick}
+      className={`relative flex w-full flex-col gap-12 overflow-hidden rounded-12 border border-default p-12 ${onClick ? 'cursor-pointer' : ''}`}
+    >
       <img
         src={BONUS_UNLOCKED_SRC}
         alt=""
@@ -261,7 +277,15 @@ export function UnlockedCard({
         <span aria-hidden className="w-48 shrink-0" />
       </div>
       <p className="relative text-24 font-bold text-default">{amount}</p>
-      <Button variant="primary" size="sm" className="relative w-full" onClick={onButtonClick}>
+      <Button
+        variant="secondary"
+        size="sm"
+        className="relative w-full"
+        onClick={(e) => {
+          e.stopPropagation()
+          onButtonClick?.()
+        }}
+      >
         {buttonLabel}
       </Button>
       {nextLabel ? <p className="relative text-center text-12 font-bold text-primary-500">{nextLabel}</p> : null}
@@ -273,13 +297,18 @@ export function EndedCard({
   title,
   description,
   linkLabel,
+  onClick,
 }: {
   title: string
   description: string
   linkLabel: string
+  onClick?: () => void
 }) {
   return (
-    <div className="relative flex w-full items-center gap-16 overflow-hidden rounded-16 border border-default bg-neutral-white p-12">
+    <div
+      onClick={onClick}
+      className={`relative flex w-full items-center gap-16 overflow-hidden rounded-16 border border-default bg-neutral-white p-12 ${onClick ? 'cursor-pointer' : ''}`}
+    >
       <img
         src={CELEBRATION_SRC}
         alt=""

@@ -7,11 +7,13 @@ import { Button, NavigationHeader } from '@/design-system/components'
 import { CheckCircleFill, ChevronDown } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { ASSET, CheckboxMark, DetailRow } from '../lib/pencairan-ui'
+import { ASSET, CheckboxMark, DetailRow, PENCAIRAN } from '../lib/pencairan-ui'
+import { usePencairanLanjutan } from '../lib/store'
 
 export function PencairanKonfirmasiScreen() {
   const flow = useFlow()
   const [agreed, setAgreed] = useState(true)
+  const p = PENCAIRAN[usePencairanLanjutan() ? 'lanjutan' : 'awal']
 
   return (
     <Screen canvas="white" topBar={<NavigationHeader title="Konfirmasi pencairan" onBack={flow.back} />}>
@@ -85,12 +87,12 @@ export function PencairanKonfirmasiScreen() {
             <p className="text-14 font-bold text-default">Detail pencairan</p>
             <div className="flex flex-col gap-12 rounded-16 border border-default bg-neutral-white p-16">
               <div className="flex flex-col gap-8">
-                <DetailRow label="Pokok pinjaman" value="Rp5.000.000" />
+                <DetailRow label="Pokok pinjaman" value={p.nominal} />
                 <DetailRow label="Proteksi Keluarga 12 Bulan" value="-Rp200.000" />
                 <DetailRow label="Biaya admin" value="-Rp5.000" />
                 <div className="flex items-center gap-8 font-bold">
                   <p className="flex-1 text-14 text-default">Anda terima</p>
-                  <p className="flex-1 text-right text-16 text-link">Rp4.795.000</p>
+                  <p className="flex-1 text-right text-16 text-link">{p.terima}</p>
                 </div>
                 <div className="border-t border-dashed border-default" />
                 <div className="flex items-start gap-8">
@@ -99,7 +101,7 @@ export function PencairanKonfirmasiScreen() {
                     <p className="text-12 text-caption">48x pembayaran</p>
                   </div>
                   <div className="flex flex-1 flex-col text-right">
-                    <p className="text-14 font-bold text-default">Rp135.000</p>
+                    <p className="text-14 font-bold text-default">{p.tenors[0].weekly}</p>
                     <p className="text-12 text-caption">/minggu</p>
                   </div>
                 </div>
