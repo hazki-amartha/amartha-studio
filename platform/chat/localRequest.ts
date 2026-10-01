@@ -45,6 +45,28 @@ function sameOrigin(origin: string, host: string): boolean {
 }
 
 export function isLocalRequest(request: Request): boolean {
+  if (!isLoopbackRequest(request)) return false
+  const h = request.headers
+  const host = h.get('host') ?? ''
+
+  // Browsers send Origin on every POST and on cross-site GETs. A same-page
+  // fetch from the studio carries http://localhost:4000; anything else is a
+  // different site reaching in.
+  const origin = h.get('origin')
+  if (origin !== null && !sameOrigin(origin, host)) return false
+  // "cross-site" catches the same, for browsers that omit Origin on a GET.
+  if (h.get('sec-fetch-site') === 'cross-site') return false
+
+  return true
+}
+
+/**
+ * The socket half of isLocalRequest: no tunnel, no rebinding — but any page may
+ * have sent the browser here. For a route that is *meant* to be reached from
+ * another site, like the laptop sign-in coming back from Google, and so proves
+ * the request is this laptop's own some other way (a state cookie).
+ */
+export function isLoopbackRequest(request: Request): boolean {
   if (process.env.NODE_ENV !== 'development') return false
   const h = request.headers
 
@@ -56,15 +78,5 @@ export function isLocalRequest(request: Request): boolean {
 
   const fwdFor = h.get('x-forwarded-for')
   if (fwdFor === null) return false
-  if (!fwdFor.split(',').every((ip) => LOOPBACK_IPS.has(ip.trim()))) return false
-
-  // Browsers send Origin on every POST and on cross-site GETs. A same-page
-  // fetch from the studio carries http://localhost:4000; anything else is a
-  // different site reaching in.
-  const origin = h.get('origin')
-  if (origin !== null && !sameOrigin(origin, host)) return false
-  // "cross-site" catches the same, for browsers that omit Origin on a GET.
-  if (h.get('sec-fetch-site') === 'cross-site') return false
-
-  return true
+  return fwdFor.split(',').every((ip) => LOOPBACK_IPS.has(ip.trim()))
 }
