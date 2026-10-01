@@ -72,7 +72,7 @@ export function OnboardingStartScreen() {
           name="has-wa"
           inputType="radio"
           title="Tidak punya WhatsApp"
-          description="Onboarding harus assisted (passcode dikirim ke whatsapp)"
+          description="Onboarding harus assisted (passcode dikirim ke SMS)"
           checked={hasWa === 'no'}
           onChange={() => pickWa('no')}
         />
