@@ -269,9 +269,11 @@ export interface PipelineLead {
   contextHistory?: ContextStep[]
   /**
    * Reactivation only — an ex-mitra reopening. Her old ceiling and the one she
-   * could come back at, shown on the reactivation follow-up card.
+   * could come back at, shown on the reactivation follow-up card. `kind`
+   * distinguishes a plain `reaktivasi` (starts at Persetujuan pendaftaran) from a
+   * `renewal` (lands straight on Complete onboarding); it defaults to reaktivasi.
    */
-  reactivation?: { prevLimit: string; potentialLimit: string }
+  reactivation?: { prevLimit: string; potentialLimit: string; kind?: 'reaktivasi' | 'renewal' }
 
   /** Her single, flat status. Type (qualified/unqualified) is derived, not stored. */
   status: LeadStatus
@@ -699,9 +701,10 @@ export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
   'need-resubmit': 'Need to resubmit UK',
   'survey-submitted': 'Survey submitted',
   'survey-ongoing': 'Complete onboarding',
-  // An ex-mitra reopening — like Complete onboarding, but already a known member
-  // of her existing majelis (KM acceptance done), so only the survey remains.
-  reactivation: 'Reactivation',
+  // An ex-mitra reopening (reactivation or renewal) — like Complete onboarding,
+  // but already a known member of her existing majelis (KM acceptance done), so
+  // only the survey remains.
+  reactivation: 'Reaktivasi & lanjutan',
   // Onboarding begun but the registration approval is not finished yet.
   'starting-onboarding': 'Start onboarding',
   // Soft reject — a BM has to validate before it can proceed.
@@ -810,8 +813,12 @@ export function majelisLine(lead: PipelineLead): string {
 // "action selanjutnya" line and the follow-up date a recorded call schedules.
 
 export function sourceDetail(lead: PipelineLead): string {
-  // A reactivating ex-mitra's source is the majelis she is rejoining.
-  if (lead.reactivation) return `Reaktivasi dari ${majelisLine(lead)}`
+  // A reactivating ex-mitra's source is the majelis she is rejoining — a plain
+  // reactivation, or a renewal.
+  if (lead.reactivation) {
+    const word = lead.reactivation.kind === 'renewal' ? 'Lanjutan' : 'Reaktivasi'
+    return `${word} dari ${majelisLine(lead)}`
+  }
   if (lead.source === 'poi') return lead.poi ? `POI ${lead.poi}` : 'POI Visit'
   // Canvassing reuses the `poi` field to hold its free-text location.
   if (lead.source === 'canvassing') return lead.poi ? `Canvassing · ${lead.poi}` : 'Canvassing'
@@ -1610,6 +1617,60 @@ export const SEED_PIPELINE: PipelineLead[] = [
     log: [
       { at: '1 Juli', via: 'poi', status: 'interested', system: 'Reaktivasi mantan mitra — Majelis Melati' },
       { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding reaktivasi dimulai (self-service) — gabung Majelis Melati' },
+    ],
+  },
+  // Renewal — an ex-mitra renewing into her existing majelis. Her registration is
+  // already settled, so she lands straight on Complete onboarding (just the
+  // survey remains), KM acceptance done.
+  {
+    id: 'p16',
+    name: 'Nunung Nurhayati',
+    phone: '0812-5567-9921',
+    source: 'poi',
+    poi: 'Balai Desa Ciseeng',
+    referredBy: '',
+    fo: 'Siti Aminah',
+    photo: true,
+    address: { kecamatan: 'Ciseeng', desa: 'Ciseeng', detail: 'Kp. Kaum RT 03/RW 02', mapsCoord: 'pinned' },
+    status: 'survey-created',
+    surveyMode: 'assisted',
+    ageDays: 20,
+    agenda: { day: 'today', kind: 'Renewal', when: 'Hari ini', order: 8, dueDays: 0 },
+    reactivation: { prevLimit: 'Rp6.000.000', potentialLimit: 'Rp8.000.000', kind: 'renewal' },
+    majelis: { kind: 'existing', id: 'seruni' },
+    nik: '3201094507840016',
+    ktp: true,
+    product: null,
+    amount: '',
+    disburseDate: '',
+    log: [
+      { at: '19 Juli', via: 'manual', status: 'interested', system: 'Renewal mantan mitra — Majelis Seruni' },
+      { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding renewal dimulai (assisted) — gabung Majelis Seruni' },
+    ],
+  },
+  {
+    id: 'p17',
+    name: 'Imas Masitoh',
+    phone: '0857-3312-7764',
+    source: 'referral',
+    referredBy: 'Ibu Kokom (Majelis Anggrek)',
+    fo: 'Rina Marlina',
+    photo: true,
+    address: { kecamatan: 'Ciseeng', desa: 'Putat Nutug', detail: 'Kp. Nutug RT 04/RW 01', mapsCoord: 'pinned' },
+    status: 'survey-created',
+    surveyMode: 'self',
+    ageDays: 22,
+    agenda: { day: 'today', kind: 'Renewal', when: 'Hari ini', order: 9, dueDays: 0 },
+    reactivation: { prevLimit: 'Rp4.500.000', potentialLimit: 'Rp6.500.000', kind: 'renewal' },
+    majelis: { kind: 'existing', id: 'anggrek' },
+    nik: '3201094507860017',
+    ktp: true,
+    product: null,
+    amount: '',
+    disburseDate: '',
+    log: [
+      { at: '18 Juli', via: 'manual', status: 'interested', system: 'Renewal mantan mitra — Majelis Anggrek' },
+      { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding renewal dimulai (self-service) — gabung Majelis Anggrek' },
     ],
   },
   // Perkenalan — an existing-majelis application waiting for the kumpulan day.

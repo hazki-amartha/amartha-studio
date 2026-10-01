@@ -63,7 +63,7 @@ const TODAY_GROUPS: { key: string; label: string; secs: LeadsSection[] }[] = [
     secs: ['need-resubmit', 'pending-bm-validation', 'survey-submitted'],
   },
   { key: 'survey-ongoing', label: 'Complete onboarding', secs: ['survey-ongoing'] },
-  { key: 'reactivation', label: 'Reactivation', secs: ['reactivation'] },
+  { key: 'reactivation', label: 'Reaktivasi & lanjutan', secs: ['reactivation'] },
   { key: 'starting-onboarding', label: 'Start onboarding', secs: ['starting-onboarding'] },
   { key: 'follow-up', label: 'Follow up', secs: ['follow-up'] },
 ]
@@ -251,7 +251,15 @@ export function SalesList({ scope }: { scope: Scope }) {
             {' '}
             <button
               type="button"
-              onClick={() => flash.action && openMajelisFromFlash(flash.action.leadId)}
+              onClick={() => {
+                if (!flash.action) return
+                const { leadId, view } = flash.action
+                if (view === 'lead') {
+                  const l = leads[leadId]
+                  pipelineStore.clearFlash()
+                  if (l) openLead(l)
+                } else openMajelisFromFlash(leadId)
+              }}
               className="font-bold underline"
             >
               {flash.action.label}
@@ -309,10 +317,11 @@ export function SalesList({ scope }: { scope: Scope }) {
       flow.go('onboarding-start')
       return
     }
-    // A reactivating ex-mitra starts at the registration approval (Persetujuan
-    // pendaftaran), then flows into the survey (Complete onboarding).
+    // A reactivating ex-mitra: a plain reactivation starts at the registration
+    // approval (Persetujuan pendaftaran) and then flows into the survey; a renewal
+    // lands straight on Complete onboarding (her majelis is already settled).
     if (lead.reactivation) {
-      flow.go('onboarding-start')
+      flow.go(lead.reactivation.kind === 'renewal' ? detailScreen(lead) : 'onboarding-start')
       return
     }
     // A survey-ongoing lead (survey-created, -submitted) or an approved one opens

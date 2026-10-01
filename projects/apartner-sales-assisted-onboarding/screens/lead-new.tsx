@@ -12,7 +12,7 @@
 // (Sales, or the POI's running leads list).
 
 import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
-import { BottomSheet, Button, Input, NavigationHeader } from '@/design-system/components'
+import { Button, Input, NavigationHeader } from '@/design-system/components'
 import { Camera, FileCheck } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
@@ -93,9 +93,6 @@ function PrefixField({
 
 export function LeadNewScreen() {
   const flow = useFlow()
-  // After a manual/referral capture, ask what to do next with the new lead.
-  const [actionOpen, setActionOpen] = useState(false)
-  const [addedId, setAddedId] = useState('')
   const entry = useRef<AddLeadEntry | null>(null)
   if (entry.current === null) entry.current = getAddLeadEntry()
   const draft = entry.current.draft
@@ -145,20 +142,6 @@ export function LeadNewScreen() {
     else flow.back()
   }
 
-  // "Mulai pendaftaran" — open the new lead's Lengkapi data page directly.
-  function startPendaftaran() {
-    setActionOpen(false)
-    if (addedId) pipelineStore.open(addedId)
-    flow.go('pendaftaran')
-  }
-
-  // "Simpan prospek" — leave her on the list to fill in later.
-  function saveProspek() {
-    setActionOpen(false)
-    pipelineStore.setFlash(`${name.trim()} berhasil ditambahkan sebagai lead`)
-    flow.go('sales')
-  }
-
   function submit() {
     if (!ready || !sumber) return
     const newId = pipelineStore.addLead({
@@ -204,9 +187,13 @@ export function LeadNewScreen() {
       store.startPoiLeads()
       flow.go('sosialisasi')
     } else {
-      // Manual / referral capture from Sales — ask what to do next.
-      setAddedId(newId)
-      setActionOpen(true)
+      // Manual / referral capture from Sales — save her to the prospect list and
+      // return, with a success snackbar to jump straight to her record.
+      pipelineStore.setFlashSuccess(
+        `${name.trim()} berhasil ditambahkan ke daftar prospek untuk dilanjuti.`,
+        { label: 'Lihat di sini', leadId: newId, view: 'lead' },
+      )
+      flow.go('sales')
     }
   }
 
@@ -396,28 +383,6 @@ export function LeadNewScreen() {
           setSheet(null)
         }}
       />
-
-      {/* After capture — start her pendaftaran now, or just save the prospect. */}
-      <BottomSheet open={actionOpen} onClose={saveProspek} title="Pilih aksi">
-        <div className="flex flex-col gap-8">
-          <button
-            type="button"
-            onClick={startPendaftaran}
-            className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left active:bg-neutral-50"
-          >
-            <span className="text-16 font-bold text-default">Mulai pendaftaran</span>
-            <span className="text-14 text-caption">Isi data KTP dan ajukan majelis untuk mitra.</span>
-          </button>
-          <button
-            type="button"
-            onClick={saveProspek}
-            className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white p-16 text-left active:bg-neutral-50"
-          >
-            <span className="text-16 font-bold text-default">Simpan prospek</span>
-            <span className="text-14 text-caption">Simpan ke daftar, lanjutkan isi data nanti.</span>
-          </button>
-        </div>
-      </BottomSheet>
     </AppScreen>
   )
 }
