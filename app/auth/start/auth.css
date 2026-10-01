@@ -1,0 +1,8 @@
+/* The dot-grid ground behind the sign-in card. Tailwind cannot express a
+   radial-gradient background without an arbitrary value, so it lives here —
+   every color still references a token variable (as app/system/system.css). */
+.auth-ground {
+  background-color: var(--ink-950);
+  background-image: radial-gradient(circle, var(--ink-700) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
