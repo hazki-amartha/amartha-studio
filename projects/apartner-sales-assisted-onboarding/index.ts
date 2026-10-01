@@ -204,6 +204,12 @@ export const project: ProjectModule = {
       id: 'disbursement-confirm',
       title: 'Konfirmasi Pencairan',
       component: lazyScreen(() => import('./screens/disbursement-confirm'), 'DisbursementConfirmScreen'),
+      flowsTo: [{ to: 'disbursement-akad', label: 'Lanjut ke Persetujuan' }],
+    },
+    {
+      id: 'disbursement-akad',
+      title: 'Persetujuan Akad',
+      component: lazyScreen(() => import('./screens/disbursement-akad'), 'DisbursementAkadScreen'),
       flowsTo: [{ to: 'disbursement-success', label: 'Kirim Pengajuan' }],
     },
     {
@@ -267,7 +273,23 @@ export const project: ProjectModule = {
       id: 'validasi-mitra',
       title: 'Validasi Mitra',
       component: lazyScreen(() => import('./screens/validasi-mitra'), 'ValidasiMitraScreen'),
-      flowsTo: [{ to: 'validasi-verifikasi-mitra', label: 'Lanjutkan ke Validasi Mitra' }],
+      flowsTo: [
+        { to: 'validasi-verifikasi-mitra', label: 'Lanjutkan ke Validasi Mitra' },
+        { to: 'validasi-data', label: 'Buka Data UK' },
+        { to: 'validasi-bp-feedback', label: 'Buka BP Feedback' },
+      ],
+    },
+    {
+      id: 'validasi-data',
+      title: 'Data UK',
+      component: lazyScreen(() => import('./screens/validasi-data'), 'ValidasiDataScreen'),
+      flowsTo: [{ to: 'validasi-mitra', label: 'Kembali' }],
+    },
+    {
+      id: 'validasi-bp-feedback',
+      title: 'BP Feedback',
+      component: lazyScreen(() => import('./screens/validasi-bp-feedback'), 'ValidasiBpFeedbackScreen'),
+      flowsTo: [{ to: 'validasi-mitra', label: 'Kembali' }],
     },
     {
       id: 'validasi-verifikasi-mitra',

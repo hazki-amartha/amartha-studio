@@ -5,49 +5,18 @@
 //   WhatsApp + Assisted → send the WhatsApp confirmation link, then enter the
 //                         passcode the calon mitra reads back from it
 //   WhatsApp + Self     → wait for her AFin registration
-//   No WhatsApp + Assisted → photograph the signed consent document + the calon
-//                            mitra holding it
+//   No WhatsApp + Assisted → confirm via passcode (typed in, all caps)
 // The orange "Tandai …" control is the prototype stand-in for the step the calon
 // mitra completes herself; the BP's own actions use normal buttons.
 
 import { useState } from 'react'
 import { Button, Card, Input, NavigationHeader } from '@/design-system/components'
-import { Camera, CheckCircle, FileCheck, Hourglass, WhatsappLogo } from '@/design-system/icons'
+import { CheckCircle, Hourglass, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { getOnboardingHasWa, pipelineStore, usePipeline } from '../lib/pipeline-store'
 import { AppScreen, StickyBar } from '../lib/ui'
 
 const SIM_FONT = { fontFamily: '"Comic Sans MS", "Comic Sans", cursive' }
-
-/** A single photo capture — a click-through affordance (flips a badge), never a
- *  real file picker, same as the rest of this prototype. */
-function PhotoCapture({ label, done, onToggle }: { label: string; done: boolean; onToggle: () => void }) {
-  return (
-    <div className="flex flex-col gap-8">
-      <span className="text-14 font-bold text-default">{label}</span>
-      {done ? (
-        <div className="flex items-center gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12">
-          <span className="text-green-500">
-            <FileCheck size={20} />
-          </span>
-          <span className="flex-1 text-default">Foto terlampir</span>
-          <button type="button" onClick={onToggle} className="shrink-0 text-12 font-bold text-link">
-            Ambil ulang
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex w-full flex-col items-center gap-4 rounded-8 border border-dashed border-default bg-canvas-blue p-16 text-caption"
-        >
-          <Camera size={24} />
-          <span className="text-14 text-default">Ambil foto</span>
-        </button>
-      )}
-    </div>
-  )
-}
 
 export function OnboardingFinalizeScreen() {
   const flow = useFlow()
@@ -57,9 +26,8 @@ export function OnboardingFinalizeScreen() {
   const [sent, setSent] = useState(false)
   // Passcode the calon mitra reads back from the WhatsApp link once she agrees.
   const [passcode, setPasscode] = useState('')
-  // No-WhatsApp consent evidence — two photos.
-  const [consentPhoto, setConsentPhoto] = useState(false)
-  const [withMitraPhoto, setWithMitraPhoto] = useState(false)
+  // No-WhatsApp number confirmation — her own typed-in passcode, all caps.
+  const [noWaPasscode, setNoWaPasscode] = useState('')
 
   // Persetujuan finished — leave the "Starting onboarding" state and open the
   // survey. Closing instead parks her in "Starting onboarding" to finish later.
@@ -87,7 +55,6 @@ export function OnboardingFinalizeScreen() {
   const mode = lead.surveyMode
   const phoneValid = phone.replace(/\D/g, '').length >= 9
   const passcodeValid = passcode.replace(/\D/g, '').length >= 4
-  const consentReady = consentPhoto && withMitraPhoto
 
   const infoBox = (title: string, body: string) => (
     <div className="flex items-start gap-8 rounded-16 border border-blue-200 bg-blue-50 p-12">
@@ -171,20 +138,19 @@ export function OnboardingFinalizeScreen() {
           )
         : null}
 
-      {/* No WhatsApp — photograph the signed consent + the calon mitra holding it. */}
+      {/* No WhatsApp — the number is confirmed via a typed passcode instead
+          of a WhatsApp link. Forced uppercase to match how the passcode is
+          actually printed/read out. */}
       {hasWa === 'no' ? (
-        <div className="flex flex-col gap-16">
-          <PhotoCapture
-            label="Foto dokumen consent"
-            done={consentPhoto}
-            onToggle={() => setConsentPhoto((v) => !v)}
-          />
-          <PhotoCapture
-            label="Foto calon mitra dengan dokumen consent"
-            done={withMitraPhoto}
-            onToggle={() => setWithMitraPhoto((v) => !v)}
-          />
-        </div>
+        <Input
+          label="Passcode"
+          required
+          description="Harus diisi dengan huruf besar"
+          value={noWaPasscode}
+          onChange={(e) => setNoWaPasscode(e.target.value.toUpperCase())}
+          placeholder="Masukkan Passcode"
+          helperText="Diterima calon mitra untuk mengonfirmasi nomor telepon"
+        />
       ) : null}
 
       {/* Bottom action per gate. */}
@@ -224,8 +190,11 @@ export function OnboardingFinalizeScreen() {
         <StickyBar>{simButton('Tandai registrasi dimulai — lanjut ke survey')}</StickyBar>
       ) : hasWa === 'no' ? (
         <StickyBar>
-          <Button size="lg" className="w-full" disabled={!consentReady} onClick={finish}>
-            Lanjut ke survey
+          <Button size="lg" className="w-full" disabled={noWaPasscode.trim().length === 0} onClick={finish}>
+            Lanjut ke Survey
+          </Button>
+          <Button variant="ghost" size="lg" className="w-full" onClick={close}>
+            Close
           </Button>
         </StickyBar>
       ) : null}
