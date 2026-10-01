@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BottomSheet, Button, NavigationHeader } from '@/design-system/components'
-import { Check, CheckCircle, ChevronRight, HandCoins, PhoneCall, Plus, Sliders } from '@/design-system/icons'
+import { Check, CheckCircle, ChevronRight, PhoneCall, Plus, Sliders, User } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   BmValidationCard,
@@ -43,12 +43,7 @@ import { SOFT_REJECT_CASES, type SoftRejectCase } from './validasi'
 import { useValidasiAll, validasiStore } from './validasi-store'
 import { SourceSheet } from './pipeline-ui'
 import { TabBar } from './tabs'
-import {
-  FOLLOWUP_TARGET,
-  DISBURSEMENT_TARGET,
-  TODAY_FOLLOWUPS,
-  TODAY_DISBURSEMENTS,
-} from './today-activity'
+import { FOLLOWUP_TARGET, TODAY_FOLLOWUPS, TODAY_PROSPEKS } from './today-activity'
 import { AppScreen, EmptyState, SearchField, VisitTitle } from './ui'
 
 type MainTab = 'leads' | 'poi'
@@ -69,7 +64,7 @@ const TODAY_GROUPS: { key: string; label: string; secs: LeadsSection[] }[] = [
     secs: ['need-resubmit', 'pending-bm-validation', 'survey-submitted'],
   },
   { key: 'survey-ongoing', label: 'Complete onboarding', secs: ['survey-ongoing'] },
-  { key: 'reactivation', label: 'Reaktivasi & lanjutan', secs: ['reactivation'] },
+  { key: 'reactivation', label: 'Reaktivasi', secs: ['reactivation'] },
   { key: 'starting-onboarding', label: 'Start onboarding', secs: ['starting-onboarding'] },
   { key: 'follow-up', label: 'Follow up', secs: ['follow-up'] },
 ]
@@ -147,45 +142,19 @@ function RadioRow({ label, checked, onSelect }: { label: string; checked: boolea
  *  strip with two counters (follow-up selesai, pencairan hari ini) and a chevron
  *  that opens the detail page. */
 function DaySummaryBox({ onOpen }: { onOpen: () => void }) {
-  const Stat = ({
-    done,
-    target,
-    label,
-    border,
-  }: {
-    done: number
-    target: number
-    label: string
-    border?: boolean
-  }) => (
-    <div className={`flex flex-1 flex-col ${border ? 'border-l border-blue-200 pl-12' : ''}`}>
-      <span className="text-12">
-        <span className="font-bold text-default">{done}</span>
-        <span className="text-caption"> dari {target}</span>
-      </span>
-      <span className="text-12 text-caption">{label}</span>
-    </div>
-  )
   return (
-    <div className="-mx-16 -mt-16 flex items-center gap-8 border-b border-blue-200 bg-blue-50 px-16 py-12">
-      <div className="flex min-w-0 flex-1 items-stretch">
-        <Stat done={TODAY_FOLLOWUPS.length} target={FOLLOWUP_TARGET} label="Follow-up selesai" />
-        <Stat
-          done={TODAY_DISBURSEMENTS.length}
-          target={DISBURSEMENT_TARGET}
-          label="Pencairan hari ini"
-          border
-        />
-      </div>
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label="Lihat detail aktivitas hari ini"
-        className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full text-blue-600 active:bg-blue-100"
-      >
+    <button
+      type="button"
+      onClick={onOpen}
+      className="-mx-16 -mt-16 flex items-center gap-8 border-b border-blue-200 bg-blue-50 px-16 py-12 text-left active:bg-blue-100"
+    >
+      <span className="min-w-0 flex-1 text-14 font-bold text-blue-600">
+        Lihat performance hari ini
+      </span>
+      <span className="shrink-0 text-blue-600">
         <ChevronRight size={24} />
-      </button>
-    </div>
+      </span>
+    </button>
   )
 }
 
@@ -237,11 +206,11 @@ function DaySummaryDetails({ open, onClose }: { open: boolean; onClose: () => vo
         </div>
         <div className="flex flex-col gap-8">
           <span className="flex items-center gap-8 text-14 font-bold text-default">
-            <HandCoins size={20} />
-            Pencairan hari ini ({TODAY_DISBURSEMENTS.length} dari {DISBURSEMENT_TARGET})
+            <User size={20} />
+            Prospek baru ditambahkan ({TODAY_PROSPEKS.length})
           </span>
-          {TODAY_DISBURSEMENTS.map((d) => (
-            <Row key={d.name} time={d.time} title={`${d.name} · ${d.majelis}`} sub={d.amount} />
+          {TODAY_PROSPEKS.map((p) => (
+            <Row key={p.name} time={p.time} title={p.name} sub={p.source} />
           ))}
         </div>
       </div>
@@ -435,11 +404,11 @@ export function SalesList({ scope }: { scope: Scope }) {
       flow.go('onboarding-start')
       return
     }
-    // A reactivating ex-mitra: a plain reactivation starts at the registration
-    // approval (Persetujuan pendaftaran) and then flows into the survey; a renewal
-    // lands straight on Complete onboarding (her majelis is already settled).
+    // A reactivating ex-mitra opens the Follow-up record first, so the BP sees her
+    // contact & address before starting onboarding (its primary button). A renewal
+    // is already further along and goes straight to the Persetujuan page.
     if (lead.reactivation) {
-      flow.go(lead.reactivation.kind === 'renewal' ? detailScreen(lead) : 'onboarding-start')
+      flow.go(lead.reactivation.kind === 'renewal' ? 'onboarding-start' : 'follow-up')
       return
     }
     // A survey-ongoing lead (survey-created, -submitted) or an approved one opens
@@ -542,14 +511,13 @@ export function SalesList({ scope }: { scope: Scope }) {
       { key: 'poi', label: 'Sosialisasi', kind: 'poi', rows: poiRows },
     ]
     const visible = sections.filter((s) => s.rows.length > 0)
-    const total = leadsToday.length + poiToday.length + bmRows.length
 
     return (
       <AppScreen
         topBar={
           <NavigationHeader
             hideBack
-            title={<VisitTitle title="Sales hari ini" when={`Total ${total} tugas hari ini`} />}
+            title="Sales hari ini"
             link="Lihat semua"
             onLinkClick={() => flow.go('all-tasks')}
           />
