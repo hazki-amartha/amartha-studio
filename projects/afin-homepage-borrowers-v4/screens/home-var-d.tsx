@@ -10,12 +10,18 @@ import { NavIcon } from '@/design-system/assets'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { EndedCard, LoanProgressCard, MajelisProgressCard, UnlockedCard } from '../lib/progress-card'
-import { stepHomeVarD, useHomeVarD } from '../lib/store'
+import { setBonusGagal, setPencairanLanjutan, stepHomeVarD, useHomeVarD } from '../lib/store'
 import { BAND_FILL, BrandBand, BrandHeader, PoketWidget } from '../lib/ui'
 
 export function HomeVarDScreen() {
   const flow = useFlow()
-  const { main, majelis, majelisRewardLabel } = useHomeVarD()
+  const { main, majelis, majelisRewardLabel, majelisRewardStrike, majelisPage } = useHomeVarD()
+  const openBonus = majelisPage
+    ? () => {
+        setBonusGagal(false)
+        flow.go('bonus-majelis')
+      }
+    : undefined
 
   return (
     <Screen
@@ -32,7 +38,7 @@ export function HomeVarDScreen() {
         />
       </BrandBand>
 
-      {main.kind === 'progress' ? <LoanProgressCard data={main.data} /> : null}
+      {main.kind === 'progress' ? <LoanProgressCard data={main.data} onClick={() => flow.go('progress-limit')} /> : null}
       {main.kind === 'unlocked' ? (
         <UnlockedCard
           title={main.title}
@@ -40,16 +46,25 @@ export function HomeVarDScreen() {
           amount={main.amount}
           buttonLabel={main.buttonLabel}
           nextLabel={main.nextLabel}
-          onButtonClick={() => flow.go('pencairan-form')}
+          onButtonClick={() => {
+            setPencairanLanjutan(true)
+            flow.go('pencairan-form')
+          }}
         />
       ) : null}
 
       {majelis.kind === 'progress' ? (
-        <MajelisProgressCard data={majelis.data} rewardLabel={majelisRewardLabel ?? ''} />
+        <MajelisProgressCard
+          data={majelis.data}
+          rewardLabel={majelisRewardLabel ?? ''}
+          rewardStrike={majelisRewardStrike}
+          onClick={openBonus}
+        />
       ) : null}
       {majelis.kind === 'unlocked' ? (
         <UnlockedCard
           compact
+          onClick={openBonus}
           title={majelis.title}
           description={majelis.description}
           amount={majelis.amount}
@@ -58,7 +73,7 @@ export function HomeVarDScreen() {
         />
       ) : null}
       {majelis.kind === 'ended' ? (
-        <EndedCard title={majelis.title} description={majelis.description} linkLabel={majelis.linkLabel} />
+        <EndedCard title={majelis.title} description={majelis.description} linkLabel={majelis.linkLabel} onClick={openBonus} />
       ) : null}
 
       <div className="border-t border-default" />

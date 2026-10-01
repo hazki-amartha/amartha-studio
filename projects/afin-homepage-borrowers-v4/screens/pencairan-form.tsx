@@ -1,26 +1,22 @@
 'use client'
 
 // Ajukan pencairan — Figma node 2910:142433 ("Disbursement Form"). Reached
-// from "Cairkan Sekarang" on Home Var D's Minggu 48 card.
+// from "Cairkan Sekarang" on Home (Final)'s Minggu 48 card, which opens the
+// Rp7,2 jt disbursement; opened directly it shows the first one (Rp5 jt).
 
 import { useState } from 'react'
 import { Button, NavigationHeader } from '@/design-system/components'
 import { Warning } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
-import { ASSET, RadioMark } from '../lib/pencairan-ui'
-
-const TENORS = [
-  { months: 12, payments: 48, weekly: 'Rp135.000' },
-  { months: 9, payments: 36, weekly: 'Rp180.000' },
-  { months: 6, payments: 24, weekly: 'Rp270.000' },
-  { months: 3, payments: 12, weekly: 'Rp540.000' },
-]
+import { ASSET, PENCAIRAN, RadioMark } from '../lib/pencairan-ui'
+import { usePencairanLanjutan } from '../lib/store'
 
 const PURPOSES = ['Pembelian bahan baku produksi', 'Pembelian alat penunjang usaha', 'Renovasi tempat usaha']
 
 export function PencairanFormScreen() {
   const flow = useFlow()
+  const p = PENCAIRAN[usePencairanLanjutan() ? 'lanjutan' : 'awal']
   const [tenor, setTenor] = useState(12)
   const [purpose, setPurpose] = useState(PURPOSES[0])
 
@@ -34,7 +30,7 @@ export function PencairanFormScreen() {
           <div className="flex flex-col gap-8 rounded-16 border border-default bg-neutral-white p-12">
             <p className="text-14 font-bold text-default">Nominal</p>
             <div className="flex items-center gap-4">
-              <p className="flex-1 text-24 font-bold text-default">Rp5.000.000</p>
+              <p className="flex-1 text-24 font-bold text-default">{p.nominal}</p>
               <span className="flex h-20 w-20 items-center justify-center">
                 <img src={`${ASSET}/edit-icon.svg`} alt="Ubah nominal" />
               </span>
@@ -47,11 +43,11 @@ export function PencairanFormScreen() {
             <div className="flex flex-col gap-4">
               <p className="text-16 font-bold text-default">Pilih jangka waktu angsuran</p>
               <p className="text-12 text-caption">
-                Batas angsuran per minggu: <span className="font-bold">Rp200.000</span>
+                Batas angsuran per minggu: <span className="font-bold">{p.batas}</span>
               </p>
             </div>
             <div className="flex flex-col gap-8">
-              {TENORS.map((t) => {
+              {p.tenors.filter((t) => !t.over).map((t) => {
                 const selected = tenor === t.months
                 return (
                   <button
@@ -77,23 +73,27 @@ export function PencairanFormScreen() {
                 )
               })}
 
-              <div className="overflow-hidden rounded-12 border border-default bg-neutral-50">
-                <div className="flex items-center gap-16 px-16 py-12">
-                  <span className="flex flex-1 flex-col">
-                    <span className="text-14 font-bold text-default">1 bulan</span>
-                    <span className="text-12 text-disabled">4x pembayaran</span>
-                  </span>
-                  <span className="flex flex-col items-end text-right text-disabled">
-                    <span className="text-14 font-bold">Rp1.620.000</span>
-                    <span className="text-12">/minggu</span>
-                  </span>
-                  <RadioMark disabled />
-                </div>
-                <div className="flex items-center gap-4 bg-neutral-200 px-16 py-4">
-                  <Warning size={16} className="text-caption" />
-                  <p className="flex-1 text-12 text-caption">Melebihi batas angsuran per minggu</p>
-                </div>
-              </div>
+              {p.tenors
+                .filter((t) => t.over)
+                .map((t) => (
+                  <div key={t.months} className="overflow-hidden rounded-12 border border-default bg-neutral-50">
+                    <div className="flex items-center gap-16 px-16 py-12">
+                      <span className="flex flex-1 flex-col">
+                        <span className="text-14 font-bold text-default">{t.months} bulan</span>
+                        <span className="text-12 text-disabled">{t.payments}x pembayaran</span>
+                      </span>
+                      <span className="flex flex-col items-end text-right text-disabled">
+                        <span className="text-14 font-bold">{t.weekly}</span>
+                        <span className="text-12">/minggu</span>
+                      </span>
+                      <RadioMark disabled />
+                    </div>
+                    <div className="flex items-center gap-4 bg-neutral-200 px-16 py-4">
+                      <Warning size={16} className="text-caption" />
+                      <p className="flex-1 text-12 text-caption">Melebihi batas angsuran per minggu</p>
+                    </div>
+                  </div>
+                ))}
             </div>
           </section>
 
