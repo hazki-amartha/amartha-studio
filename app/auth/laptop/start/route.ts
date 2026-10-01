@@ -10,14 +10,14 @@
 import { randomBytes } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { safeNext } from '@/platform/auth/env'
-import { isLocalRequest } from '@/platform/chat/localRequest'
+import { isLoopbackRequest } from '@/platform/chat/localRequest'
 import { STUDIO_URL } from '@/platform/dbProjects/public'
 
 export const dynamic = 'force-dynamic'
 const STATE_COOKIE = 'db_laptop_state'
 
 export async function GET(request: Request) {
-  if (process.env.NODE_ENV !== 'development' || !isLocalRequest(request)) return new NextResponse(null, { status: 404 })
+  if (process.env.NODE_ENV !== 'development' || !isLoopbackRequest(request)) return new NextResponse(null, { status: 404 })
   const url = new URL(request.url)
   const state = randomBytes(18).toString('base64url')
   const to = new URL('/auth/laptop', STUDIO_URL)

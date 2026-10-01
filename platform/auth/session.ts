@@ -64,11 +64,18 @@ export function signIn() {
   window.location.assign(`${laptop ? '/auth/laptop/start' : '/auth/start'}?next=${encodeURIComponent(next)}`)
 }
 
-/** Signs out of the studio and of /assets-app, which shares the cookie. */
+/** Signs out of the studio and of /assets-app, which shares the cookie. When
+ *  the studio is members-only, reloading would land on /auth/start, which
+ *  signs straight back in through Google — so land on its signed-out state. */
 export async function signOut() {
   try {
     await fetch('/auth/sign-out', { method: 'POST' })
   } finally {
-    window.location.reload()
+    if (state.required) {
+      const next = `${window.location.pathname}${window.location.search}${window.location.hash}`
+      window.location.assign(`/auth/start?signed-out=1&next=${encodeURIComponent(next)}`)
+    } else {
+      window.location.reload()
+    }
   }
 }

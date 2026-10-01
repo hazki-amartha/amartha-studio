@@ -7,14 +7,14 @@
 
 import { NextResponse } from 'next/server'
 import { safeNext } from '@/platform/auth/env'
-import { isLocalRequest } from '@/platform/chat/localRequest'
+import { isLoopbackRequest } from '@/platform/chat/localRequest'
 import { saveLaptopCredentials } from '@/platform/dbProjects/remote'
 
 export const dynamic = 'force-dynamic'
 const STATE_COOKIE = 'db_laptop_state'
 
 export async function GET(request: Request) {
-  if (process.env.NODE_ENV !== 'development' || !isLocalRequest(request)) return new NextResponse(null, { status: 404 })
+  if (process.env.NODE_ENV !== 'development' || !isLoopbackRequest(request)) return new NextResponse(null, { status: 404 })
   const url = new URL(request.url)
   const token = url.searchParams.get('token') ?? ''
   const state = url.searchParams.get('state') ?? ''
