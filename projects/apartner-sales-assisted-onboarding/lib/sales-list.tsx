@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BottomSheet, Button, NavigationHeader } from '@/design-system/components'
-import { Check, CheckCircle, Plus, Sliders } from '@/design-system/icons'
+import { Check, CheckCircle, ChevronRight, HandCoins, PhoneCall, Plus, Sliders } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   BmValidationCard,
@@ -43,6 +43,12 @@ import { SOFT_REJECT_CASES, type SoftRejectCase } from './validasi'
 import { useValidasiAll, validasiStore } from './validasi-store'
 import { SourceSheet } from './pipeline-ui'
 import { TabBar } from './tabs'
+import {
+  FOLLOWUP_TARGET,
+  DISBURSEMENT_TARGET,
+  TODAY_FOLLOWUPS,
+  TODAY_DISBURSEMENTS,
+} from './today-activity'
 import { AppScreen, EmptyState, SearchField, VisitTitle } from './ui'
 
 type MainTab = 'leads' | 'poi'
@@ -134,6 +140,112 @@ function RadioRow({ label, checked, onSelect }: { label: string; checked: boolea
       </span>
       <span className="text-16 text-default">{label}</span>
     </button>
+  )
+}
+
+/** The day's progress banner above the Sales hari ini search — a full-width blue
+ *  strip with two counters (follow-up selesai, pencairan hari ini) and a chevron
+ *  that opens the detail page. */
+function DaySummaryBox({ onOpen }: { onOpen: () => void }) {
+  const Stat = ({
+    done,
+    target,
+    label,
+    border,
+  }: {
+    done: number
+    target: number
+    label: string
+    border?: boolean
+  }) => (
+    <div className={`flex flex-1 flex-col ${border ? 'border-l border-blue-200 pl-12' : ''}`}>
+      <span className="text-12">
+        <span className="font-bold text-default">{done}</span>
+        <span className="text-caption"> dari {target}</span>
+      </span>
+      <span className="text-12 text-caption">{label}</span>
+    </div>
+  )
+  return (
+    <div className="-mx-16 -mt-16 flex items-center gap-8 border-b border-blue-200 bg-blue-50 px-16 py-12">
+      <div className="flex min-w-0 flex-1 items-stretch">
+        <Stat done={TODAY_FOLLOWUPS.length} target={FOLLOWUP_TARGET} label="Follow-up selesai" />
+        <Stat
+          done={TODAY_DISBURSEMENTS.length}
+          target={DISBURSEMENT_TARGET}
+          label="Pencairan hari ini"
+          border
+        />
+      </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label="Lihat detail aktivitas hari ini"
+        className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full text-blue-600 active:bg-blue-100"
+      >
+        <ChevronRight size={24} />
+      </button>
+    </div>
+  )
+}
+
+/** The detail page behind the day-summary chevron — a full-screen overlay with
+ *  the executed follow-ups and the day's disbursements, closed from the right. */
+function DaySummaryDetails({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const Row = ({ time, title, sub }: { time: string; title: string; sub: string }) => (
+    <div className="flex items-start gap-12 rounded-12 border border-default bg-neutral-white p-12">
+      <span className="shrink-0 text-14 font-bold text-primary-500">{time}</span>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="text-14 font-bold text-default">{title}</span>
+        <span className="text-12 text-caption">{sub}</span>
+      </div>
+    </div>
+  )
+  return (
+    <BottomSheet open={open} size="fullscreen" hideClose onClose={onClose}>
+      <div className="flex items-center justify-between pb-12">
+        <span className="text-18 font-bold text-default">Aktivitas hari ini</span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Tutup"
+          className="-mr-4 flex h-32 w-32 items-center justify-center text-default"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            aria-hidden
+          >
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <div className="flex flex-col gap-16">
+        <div className="flex flex-col gap-8">
+          <span className="flex items-center gap-8 text-14 font-bold text-default">
+            <PhoneCall size={20} />
+            Follow-up selesai ({TODAY_FOLLOWUPS.length} dari {FOLLOWUP_TARGET})
+          </span>
+          {TODAY_FOLLOWUPS.map((f) => (
+            <Row key={f.name} time={f.time} title={f.name} sub={f.outcome} />
+          ))}
+        </div>
+        <div className="flex flex-col gap-8">
+          <span className="flex items-center gap-8 text-14 font-bold text-default">
+            <HandCoins size={20} />
+            Pencairan hari ini ({TODAY_DISBURSEMENTS.length} dari {DISBURSEMENT_TARGET})
+          </span>
+          {TODAY_DISBURSEMENTS.map((d) => (
+            <Row key={d.name} time={d.time} title={`${d.name} · ${d.majelis}`} sub={d.amount} />
+          ))}
+        </div>
+      </div>
+    </BottomSheet>
   )
 }
 
@@ -271,6 +383,8 @@ export function SalesList({ scope }: { scope: Scope }) {
   ) : null
   const [mainTab, setMainTab] = useState<MainTab>('leads')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  // The Sales hari ini day-summary box — collapsed by default.
+  const [summaryOpen, setSummaryOpen] = useState(false)
   // Lihat semua filter/sort — applied values + the sheet's draft.
   const [filterOpen, setFilterOpen] = useState(false)
   const [jenis, setJenis] = useState<Set<LeadsSection>>(new Set())
@@ -441,6 +555,8 @@ export function SalesList({ scope }: { scope: Scope }) {
           />
         }
       >
+        <DaySummaryBox onOpen={() => setSummaryOpen(true)} />
+
         <SearchField
           value={query}
           onChange={setQuery}
@@ -502,6 +618,7 @@ export function SalesList({ scope }: { scope: Scope }) {
         {snackbar}
         <TabBar active="sales" action={addLead} />
         {sourceSheet}
+        <DaySummaryDetails open={summaryOpen} onClose={() => setSummaryOpen(false)} />
       </AppScreen>
     )
   }
