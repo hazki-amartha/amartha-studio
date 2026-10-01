@@ -63,6 +63,7 @@ const TODAY_GROUPS: { key: string; label: string; secs: LeadsSection[] }[] = [
     secs: ['need-resubmit', 'pending-bm-validation', 'survey-submitted'],
   },
   { key: 'survey-ongoing', label: 'Complete onboarding', secs: ['survey-ongoing'] },
+  { key: 'reactivation', label: 'Reactivation', secs: ['reactivation'] },
   { key: 'starting-onboarding', label: 'Start onboarding', secs: ['starting-onboarding'] },
   { key: 'follow-up', label: 'Follow up', secs: ['follow-up'] },
 ]
@@ -81,6 +82,7 @@ const JENIS_ORDER: LeadsSection[] = [
   'follow-up',
   'starting-onboarding',
   'survey-ongoing',
+  'reactivation',
   'survey-submitted',
   'survey-approved',
   'ready-for-disbursement',
@@ -98,7 +100,8 @@ const SUMBER_OPTIONS: { key: Sumber; label: string }[] = [
   { key: 'pencarian', label: 'Pencarian sendiri' },
 ]
 function sumberOf(lead: PipelineLead): Sumber {
-  if (lead.status === 'not-interested' || lead.status === 'rejected') return 'reaktivasi'
+  // A reactivating ex-mitra counts as her own source, whatever brought her back.
+  if (lead.reactivation) return 'reaktivasi'
   return lead.source === 'referral' ? 'rujukan' : lead.source === 'canvassing' ? 'pencarian' : 'sosialisasi'
 }
 
@@ -354,8 +357,10 @@ export function SalesList({ scope }: { scope: Scope }) {
       const sec = displaySection(l)
       // A hard reject is not today's work — it waits on "Lihat semua".
       if (sec === 'survey-rejected') return false
-      // Survey ongoing / follow-up are date-managed: only the ones due now show.
-      if (sec === 'follow-up' || sec === 'survey-ongoing') return agendaDueDays(l.agenda) <= 0
+      // Survey ongoing / reactivation / follow-up are date-managed: only the ones
+      // due now show.
+      if (sec === 'follow-up' || sec === 'survey-ongoing' || sec === 'reactivation')
+        return agendaDueDays(l.agenda) <= 0
       // Everything else (Ready to disburse + Waiting for approval groups) is an
       // open task for today.
       return true
@@ -390,6 +395,7 @@ export function SalesList({ scope }: { scope: Scope }) {
     const readyGroup = group('ready-to-disburse')
     const waitingGroup = group('waiting-approval')
     const surveyGroup = group('survey-ongoing')
+    const reactivationGroup = group('reactivation')
     const startingGroup = group('starting-onboarding')
     const followGroup = group('follow-up')
     const sections: Section[] = [
@@ -397,6 +403,7 @@ export function SalesList({ scope }: { scope: Scope }) {
       { key: readyGroup.key, label: readyGroup.label, kind: 'lead', rows: groupRows(readyGroup.secs) },
       { key: waitingGroup.key, label: waitingGroup.label, kind: 'lead', rows: groupRows(waitingGroup.secs) },
       { key: surveyGroup.key, label: surveyGroup.label, kind: 'lead', rows: groupRows(surveyGroup.secs) },
+      { key: reactivationGroup.key, label: reactivationGroup.label, kind: 'lead', rows: groupRows(reactivationGroup.secs) },
       { key: startingGroup.key, label: startingGroup.label, kind: 'lead', rows: groupRows(startingGroup.secs) },
       { key: 'poi', label: 'POI visit', kind: 'poi', rows: poiRows },
       { key: followGroup.key, label: followGroup.label, kind: 'lead', rows: groupRows(followGroup.secs) },

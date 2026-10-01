@@ -671,6 +671,7 @@ export type LeadsSection =
   | 'need-resubmit'
   | 'survey-submitted'
   | 'survey-ongoing'
+  | 'reactivation'
   | 'starting-onboarding'
   | 'pending-bm-validation'
   | 'survey-rejected'
@@ -682,6 +683,7 @@ export const LEADS_SECTION_ORDER: LeadsSection[] = [
   'need-resubmit',
   'survey-submitted',
   'survey-ongoing',
+  'reactivation',
   'starting-onboarding',
   'pending-bm-validation',
   'survey-rejected',
@@ -697,6 +699,9 @@ export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
   'need-resubmit': 'Need to resubmit UK',
   'survey-submitted': 'Survey submitted',
   'survey-ongoing': 'Complete onboarding',
+  // An ex-mitra reopening — like Complete onboarding, but already a known member
+  // of her existing majelis (KM acceptance done), so only the survey remains.
+  reactivation: 'Reactivation',
   // Onboarding begun but the registration approval is not finished yet.
   'starting-onboarding': 'Start onboarding',
   // Soft reject — a BM has to validate before it can proceed.
@@ -751,7 +756,9 @@ export function leadsSection(lead: PipelineLead): LeadsSection {
     case 'survey-submitted':
       return 'survey-submitted'
     case 'survey-created':
-      return 'survey-ongoing'
+      // A reactivating ex-mitra gets her own section; everyone else onboarding
+      // sits under Complete onboarding.
+      return lead.reactivation ? 'reactivation' : 'survey-ongoing'
     default:
       return 'follow-up'
   }
@@ -1038,6 +1045,10 @@ export const SEED_PIPELINE: PipelineLead[] = [
     ],
   },
   {
+    // A reactivation — an ex-mitra of Majelis Kenanga reopening. Because she is
+    // already a known member there, KM acceptance is done (see isMemberAccepted),
+    // so her onboarding is just the survey: she sits in her own "Reactivation"
+    // section, in the same Complete-onboarding state as a survey-created lead.
     id: 'p3',
     name: 'Halimah',
     phone: '0821-4456-9910',
@@ -1046,21 +1057,21 @@ export const SEED_PIPELINE: PipelineLead[] = [
     fo: 'Dewi Lestari',
     photo: true,
     address: { kecamatan: 'Ciseeng', desa: 'Putat Nutug', detail: 'Kp. Nutug RT 01/RW 02', mapsCoord: 'pinned' },
-    status: 'not-interested',
+    status: 'survey-created',
+    surveyMode: 'assisted',
     ageDays: 21,
-    // Her one-month cool-off has come due today — she reopens as a reactivation.
-    agenda: { day: 'today', kind: 'Reaktivasi', when: 'Hari ini', order: 5 },
+    agenda: { day: 'today', kind: 'Reaktivasi', when: 'Hari ini', order: 5, dueDays: 0 },
     // An ex-mitra: her old ceiling and the one she could reactivate at.
     reactivation: { prevLimit: 'Rp5.000.000', potentialLimit: 'Rp7.000.000' },
     majelis: { kind: 'existing', id: 'kenanga' },
-    nik: '',
-    ktp: false,
+    nik: '3201094507850007',
+    ktp: true,
     product: null,
     amount: '',
     disburseDate: '',
     log: [
-      { at: '13 Juli', via: 'manual', status: 'interested', system: 'Referral dari Ibu Yanti (Majelis Kenanga)' },
-      { at: '17 Juli', via: 'telepon', status: 'not-interested', note: 'Masih ada pinjaman lain, keberatan angsuran mingguan.' },
+      { at: '13 Juli', via: 'manual', status: 'interested', system: 'Reaktivasi mantan mitra — Majelis Kenanga' },
+      { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding reaktivasi dimulai (assisted) — gabung Majelis Kenanga' },
     ],
   },
   {
@@ -1335,22 +1346,20 @@ export const SEED_PIPELINE: PipelineLead[] = [
     referredBy: '',
     fo: 'Dewi Lestari',
     photo: true,
-    status: 'rejected',
+    status: 'survey-created',
+    surveyMode: 'assisted',
     ageDays: 30,
-    // Her cool-off has come due today — she reopens as a reactivation.
     agenda: { day: 'today', kind: 'Reaktivasi', when: 'Hari ini', order: 7, dueDays: 0 },
     reactivation: { prevLimit: 'Rp3.000.000', potentialLimit: 'Rp5.000.000' },
     majelis: { kind: 'existing', id: 'dahlia' },
     nik: '3201096003910004',
     ktp: true,
-    product: 'Modal',
+    product: null,
     amount: '',
     disburseDate: '',
     log: [
-      { at: '4 Juli', via: 'poi', status: 'interested' },
-      { at: '9 Juli', via: 'manual', status: 'survey-created', system: 'Produk Modal' },
-      { at: '11 Juli', via: 'system', status: 'survey-submitted', system: 'KYC calon mitra selesai, masuk proses underwriting' },
-      { at: '15 Juli', via: 'system', status: 'rejected', system: 'Tidak lolos underwriting, skor kredit tidak memenuhi' },
+      { at: '4 Juli', via: 'poi', status: 'interested', system: 'Reaktivasi mantan mitra — Majelis Dahlia' },
+      { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding reaktivasi dimulai (assisted) — gabung Majelis Dahlia' },
     ],
   },
   {
@@ -1558,22 +1567,23 @@ export const SEED_PIPELINE: PipelineLead[] = [
     fo: 'Nurhayati',
     photo: true,
     address: { kecamatan: 'Ciseeng', desa: 'Ciseeng', detail: 'Kp. Kaum RT 02/RW 03', mapsCoord: 'pinned' },
-    status: 'not-interested',
+    status: 'survey-created',
+    surveyMode: 'assisted',
     ageDays: 24,
     agenda: { day: 'today', kind: 'Reaktivasi', when: 'Hari ini', order: 10, dueDays: 0 },
     reactivation: { prevLimit: 'Rp4.000.000', potentialLimit: 'Rp6.000.000' },
     majelis: { kind: 'existing', id: 'mawar' },
-    nik: '',
-    ktp: false,
+    nik: '3201095208870013',
+    ktp: true,
     product: null,
     amount: '',
     disburseDate: '',
     log: [
-      { at: '2 Juli', via: 'manual', status: 'interested', system: 'Referral dari Ibu Rina (Majelis Mawar)' },
-      { at: '6 Juli', via: 'telepon', status: 'not-interested', note: 'Belum butuh, minta dihubungi bulan depan.' },
+      { at: '2 Juli', via: 'manual', status: 'interested', system: 'Reaktivasi mantan mitra — Majelis Mawar' },
+      { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding reaktivasi dimulai (assisted) — gabung Majelis Mawar' },
     ],
   },
-  // Reactivation — a POI lead who declined and is due to reopen today.
+  // Reactivation — an ex-mitra reopening into her existing majelis.
   {
     id: 'p14',
     name: 'Juju Juariah',
@@ -1584,19 +1594,20 @@ export const SEED_PIPELINE: PipelineLead[] = [
     fo: 'Dewi Lestari',
     photo: true,
     address: { kecamatan: 'Parung', desa: 'Waru', detail: 'Kp. Waru RT 03/RW 02', mapsCoord: 'pinned' },
-    status: 'not-interested',
+    status: 'survey-created',
+    surveyMode: 'assisted',
     ageDays: 28,
     agenda: { day: 'today', kind: 'Reaktivasi', when: 'Hari ini', order: 12, dueDays: 0 },
     reactivation: { prevLimit: 'Rp2.500.000', potentialLimit: 'Rp4.000.000' },
     majelis: { kind: 'existing', id: 'melati' },
-    nik: '',
-    ktp: false,
+    nik: '3201094512880014',
+    ktp: true,
     product: null,
     amount: '',
     disburseDate: '',
     log: [
-      { at: '1 Juli', via: 'poi', status: 'interested' },
-      { at: '5 Juli', via: 'telepon', status: 'not-interested', note: 'Ragu dengan angsuran mingguan.' },
+      { at: '1 Juli', via: 'poi', status: 'interested', system: 'Reaktivasi mantan mitra — Majelis Melati' },
+      { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding reaktivasi dimulai (assisted) — gabung Majelis Melati' },
     ],
   },
   // Perkenalan — an existing-majelis application waiting for the kumpulan day.

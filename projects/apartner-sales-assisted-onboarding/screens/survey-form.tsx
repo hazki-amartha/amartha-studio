@@ -12,7 +12,7 @@ import { BottomSheet, Button, Input, NavigationHeader, SelectableCard } from '@/
 import { Camera, Check, FileCheck } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { usePipeline } from '../lib/pipeline-store'
-import { detailScreen } from '../lib/pipeline'
+import { detailScreen, type PipelineLead } from '../lib/pipeline'
 import {
   APPLICATION_SECTIONS,
   doneStepIds,
@@ -25,6 +25,17 @@ import {
 } from '../lib/survey'
 import { PickSheet, SelectField } from '../lib/pipeline-ui'
 import { AppScreen, StickyBar } from '../lib/ui'
+
+// The KTP OCR value for a prefilled field — identity and address come from the
+// live lead (captured at Mulai Pendaftaran), the rest from the field's stand-in.
+function ktpValueFor(f: Field, lead: PipelineLead): string {
+  if (f.label === 'NIK') return lead.nik || f.value || ''
+  if (f.label === 'Nama sesuai KTP') return lead.name
+  if (f.label === 'Alamat lengkap') return lead.address?.detail || f.value || ''
+  if (f.label === 'Kecamatan') return lead.address?.kecamatan || f.value || ''
+  if (f.label === 'Kelurahan') return lead.address?.desa || f.value || ''
+  return f.value || ''
+}
 
 export function SurveyFormScreen() {
   const flow = useFlow()
@@ -41,10 +52,29 @@ export function SurveyFormScreen() {
     const idx = steps.findIndex((s) => !done.includes(s.id))
     return idx === -1 ? steps.length - 1 : idx
   })
-  // Field values — local to this visit.
-  const [values, setValues] = useState<Record<string, string>>({})
+  // Field values — local to this visit. KTP-derived fields start prefilled (the
+  // KTP was captured at Mulai Pendaftaran and OCR'd), the rest empty.
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {}
+    if (lead) {
+      steps.forEach((s) =>
+        s.fields?.forEach((f, i) => {
+          if (f.ktp && f.type !== 'foto') init[`${s.id}-${i}`] = ktpValueFor(f, lead)
+        }),
+      )
+    }
+    return init
+  })
   const [fieldNotes, setFieldNotes] = useState<Record<string, string>>({})
-  const [fotos, setFotos] = useState<Record<string, boolean>>({})
+  const [fotos, setFotos] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {}
+    steps.forEach((s) =>
+      s.fields?.forEach((f, i) => {
+        if (f.ktp && f.type === 'foto') init[`${s.id}-${i}`] = true
+      }),
+    )
+    return init
+  })
   const [checks, setChecks] = useState<Record<string, boolean>>({})
   const [multi, setMulti] = useState<Record<string, string[]>>({})
   const [sheet, setSheet] = useState<{ key: string; label: string; options: string[] } | null>(null)
@@ -94,7 +124,9 @@ export function SurveyFormScreen() {
               <span className="text-green-500">
                 <FileCheck size={20} />
               </span>
-              <span className="flex-1 text-default">Foto + lat/long terlampir</span>
+              <span className="flex-1 text-default">
+                {f.ktp ? 'Foto KTP dari pendaftaran' : 'Foto + lat/long terlampir'}
+              </span>
               <button
                 type="button"
                 onClick={() => setFotos({ ...fotos, [k]: false })}
