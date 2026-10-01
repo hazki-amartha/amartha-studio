@@ -1,11 +1,11 @@
 'use client'
 
-// The two reference bodies step 1 (Hasil Underwriting) expands inline —
-// Data Underwriting and BP Feedback. They used to be their own screens
-// (validasi-data.tsx / validasi-bp-feedback.tsx); now they're accordions on
-// validasi-mitra.tsx itself, so their content lives here instead, shared by
-// nothing else (§4 — project-local, not promoted, since only this one screen
-// opens them).
+// The two reference bodies behind step 1 (Hasil Underwriting) — Data
+// Underwriting and BP Feedback. Their own screens (validasi-data.tsx /
+// validasi-bp-feedback.tsx) show the highlight + full body; validasi-mitra.tsx
+// shows just the highlight on its reference card. Shared here so all three
+// screens read from the same facts (§4 — project-local, not promoted to the
+// design system, since nothing outside this project wants them).
 
 import type { ReactNode } from 'react'
 import { Camera, House, IdentificationCard, Storefront } from '@/design-system/icons'
@@ -39,14 +39,15 @@ function ConcernList({ items }: { items: string[] }) {
   )
 }
 
-/** The handful of facts that actually move the needle on Data Underwriting —
- *  shown whether or not the accordion is open, so she doesn't have to expand
- *  the whole "Data pengajuan" just to see why underwriting flagged her. */
+/** The handful of facts that actually move the needle on Data UK — shown
+ *  whether or not the full page is open, so she doesn't have to leave this
+ *  card just to see why underwriting flagged her. */
 export function UnderwritingHighlight({ case: c }: { case: SoftRejectCase }) {
   return (
     <ConcernList
       items={[
         `Umur usaha ${findRow(c, 'Data usaha', 'Umur usaha')}`,
+        `Pengeluaran per bulan ${findRow(c, 'Data usaha', 'Pengeluaran per bulan')}`,
         `Penghasilan per bulan ${findRow(c, 'Data usaha', 'Penghasilan per bulan')}`,
       ]}
     />

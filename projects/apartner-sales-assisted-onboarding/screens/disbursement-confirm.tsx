@@ -1,14 +1,14 @@
 'use client'
 
 // Konfirmasi pencairan — the disbursement confirmation: optional add-ons
-// (Proteksi Keluarga, Celengan), the pencairan breakdown, and the agreement.
-// "Kirim Pengajuan" submits and lands on the processing page.
+// (Proteksi Keluarga, Celengan) and the pencairan breakdown. "Lanjut ke
+// Persetujuan" moves on to the akad photo upload (disbursement-akad.tsx) —
+// "Kirim Pengajuan" itself lives on that page, once the akad's documented.
 
-import { useState } from 'react'
 import { Button, Card, NavigationHeader } from '@/design-system/components'
 import { Check, ChevronDown, Coins, Plus, ShieldCheck, Warning } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { pipelineStore, usePipeline } from '../lib/pipeline-store'
+import { usePipeline } from '../lib/pipeline-store'
 import { DISB } from '../lib/disbursement'
 import { AppScreen, StickyBar } from '../lib/ui'
 
@@ -37,13 +37,6 @@ export function DisbursementConfirmScreen() {
   const flow = useFlow()
   const { leads, openId } = usePipeline()
   const lead = leads[openId]
-  const [agree, setAgree] = useState(true)
-
-  function submit() {
-    if (!agree) return
-    pipelineStore.submitDisbursement(openId)
-    flow.go('disbursement-success')
-  }
 
   return (
     <AppScreen topBar={<NavigationHeader title="Konfirmasi pencairan" onBack={() => flow.back()} />}>
@@ -136,20 +129,8 @@ export function DisbursementConfirmScreen() {
       </Card>
 
       <StickyBar>
-        <button
-          type="button"
-          onClick={() => setAgree((v) => !v)}
-          className="flex items-start gap-8 text-left"
-        >
-          <CheckBox checked={agree} />
-          <span className="text-12 text-default">
-            Saya menyetujui seluruh ketentuan dan perjanjian pada{' '}
-            <span className="font-bold text-link">Syarat-Syarat Umum Perjanjian Pendanaan</span> dan{' '}
-            <span className="font-bold text-link">Dokumen Akad</span>.
-          </span>
-        </button>
-        <Button size="lg" className="w-full" disabled={!agree} onClick={submit}>
-          Kirim Pengajuan
+        <Button size="lg" className="w-full" onClick={() => flow.go('disbursement-akad')}>
+          Lanjut ke Persetujuan
         </Button>
       </StickyBar>
     </AppScreen>

@@ -55,7 +55,12 @@ export function OnboardingStartScreen() {
 
       {/* 1 — Punya WhatsApp? */}
       <div className="flex flex-col gap-8">
-        <span className="text-14 font-bold text-default">Punya WhatsApp?</span>
+        <div className="flex flex-col gap-2">
+          <span className="text-14 font-bold text-default">Punya WhatsApp?</span>
+          <span className="text-12 text-caption">
+            Digunakan untuk mengirimkan passcode untuk konfirmasi nomor telepon
+          </span>
+        </div>
         <SelectableCard
           name="has-wa"
           inputType="radio"
@@ -67,7 +72,7 @@ export function OnboardingStartScreen() {
           name="has-wa"
           inputType="radio"
           title="Tidak punya WhatsApp"
-          description="Onboarding harus assisted (upload dokumen consent)"
+          description="Onboarding harus assisted (passcode dikirim ke whatsapp)"
           checked={hasWa === 'no'}
           onChange={() => pickWa('no')}
         />
