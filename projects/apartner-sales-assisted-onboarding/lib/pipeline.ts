@@ -701,10 +701,10 @@ export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
   'need-resubmit': 'Need to resubmit UK',
   'survey-submitted': 'Survey submitted',
   'survey-ongoing': 'Complete onboarding',
-  // An ex-mitra reopening (reactivation or renewal) — like Complete onboarding,
-  // but already a known member of her existing majelis (KM acceptance done), so
-  // only the survey remains.
-  reactivation: 'Reaktivasi & lanjutan',
+  // A reactivating ex-mitra — like Complete onboarding, but already a known
+  // member of her existing majelis (KM acceptance done), so only the survey
+  // remains. (Renewals live in the Start-onboarding bucket instead.)
+  reactivation: 'Reaktivasi',
   // Onboarding begun but the registration approval is not finished yet.
   'starting-onboarding': 'Start onboarding',
   // Soft reject — a BM has to validate before it can proceed.
@@ -759,9 +759,12 @@ export function leadsSection(lead: PipelineLead): LeadsSection {
     case 'survey-submitted':
       return 'survey-submitted'
     case 'survey-created':
-      // A reactivating ex-mitra gets her own section; everyone else onboarding
-      // sits under Complete onboarding.
-      return lead.reactivation ? 'reactivation' : 'survey-ongoing'
+      // A renewal joins the Start-onboarding bucket; a plain reactivation gets
+      // its own section; everyone else sits under Complete onboarding.
+      if (lead.reactivation) {
+        return lead.reactivation.kind === 'renewal' ? 'starting-onboarding' : 'reactivation'
+      }
+      return 'survey-ongoing'
     default:
       return 'follow-up'
   }

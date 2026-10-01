@@ -9,16 +9,15 @@ export interface DoneFollowUp {
   time: string
 }
 
-export interface DoneDisbursement {
+export interface NewProspek {
   name: string
-  majelis: string
-  amount: string
+  /** Where she came from — the prospect's source line. */
+  source: string
   time: string
 }
 
-/** The day's targets, for the "N dari M" progress on the summary banner. */
+/** The day's follow-up target, for the "N dari M" progress on the detail page. */
 export const FOLLOWUP_TARGET = 7
-export const DISBURSEMENT_TARGET = 4
 
 export const TODAY_FOLLOWUPS: DoneFollowUp[] = [
   { name: 'Dewi Anggraeni', outcome: 'Tertarik — lanjut ke pendaftaran', time: '09.15' },
@@ -26,7 +25,8 @@ export const TODAY_FOLLOWUPS: DoneFollowUp[] = [
   { name: 'Yuyun Wahyuni', outcome: 'Belum berminat — follow up bulan depan', time: '11.05' },
 ]
 
-export const TODAY_DISBURSEMENTS: DoneDisbursement[] = [
-  { name: 'Rohaya', majelis: 'Majelis Mawar', amount: 'Rp2.000.000', time: '08.30' },
-  { name: 'Imas Kurniasih', majelis: 'Majelis Kenanga', amount: 'Rp3.500.000', time: '13.20' },
+export const TODAY_PROSPEKS: NewProspek[] = [
+  { name: 'Marta Hakim', source: 'Referral · Ibu Yanti (Majelis Kenanga)', time: '08.50' },
+  { name: 'Nenden Sari', source: 'Sosialisasi · Pasar Ciseeng', time: '10.10' },
+  { name: 'Euis Rohaeti', source: 'Canvassing · Parung', time: '12.30' },
 ]

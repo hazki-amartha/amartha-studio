@@ -66,6 +66,7 @@ const DROP_REASONS = [
 
 /** How this detail page reads: survey stage, reactivation, or follow-up. */
 function followUpTitle(lead: PipelineLead): string {
+  if (lead.reactivation && lead.reactivation.kind !== 'renewal') return 'Lead: Reaktivasi'
   if (lead.status === 'survey-created') return 'Lead: Survey berjalan'
   if (lead.status === 'survey-submitted') return 'Lead: Survey submitted'
   if (lead.status === 'approved') return 'Lead: Survey approved'
@@ -218,10 +219,14 @@ export function FollowUpScreen() {
   }
 
   const isReactivation = lead.status === 'not-interested' || lead.status === 'rejected'
+  // A reactivating ex-mitra worked from the Follow-up record — her primary action
+  // is to start onboarding (the Persetujuan flow), not a plain follow-up result.
+  const isReaktivasi = Boolean(lead.reactivation) && lead.reactivation?.kind !== 'renewal'
   const late = overdueDays(lead.agenda)
 
-  // The context stepper: past steps, then the upcoming follow-up node.
-  const past = contextSteps(lead)
+  // The context stepper: past steps, then the upcoming follow-up node. A
+  // reaktivasi lead shows just her creation step before the next follow-up.
+  const past = isReaktivasi ? contextSteps(lead).slice(0, 1) : contextSteps(lead)
   const dueDays = agendaDueDays(lead.agenda)
   const nextDate = lead.nextFollowUp || dateFromToday(dueDays)
   const nextSuffix =
@@ -322,7 +327,7 @@ export function FollowUpScreen() {
         nextLate={late > 0}
         hideNext={lead.status === 'survey-submitted' || lead.status === 'approved'}
         nextExtra={
-          isReactivation && lead.reactivation ? (
+          (isReactivation || isReaktivasi) && lead.reactivation ? (
             <span className="text-14 text-default">
               {lead.name} sebelumnya punya limit {lead.reactivation.prevLimit}, dan bisa
               diaktifkan kembali dengan potensi limit sampai{' '}
@@ -336,20 +341,60 @@ export function FollowUpScreen() {
           background bar at the bottom of the page (not sticky). */}
       <div className="-mx-16 mt-auto flex flex-col gap-12 border-t border-default bg-neutral-white p-16">
         <span className="text-14 font-bold text-default">
-          {isSurvey
-            ? lead.status === 'survey-created'
-              ? 'Survey sedang berjalan'
-              : lead.status === 'survey-submitted'
-                ? 'Survey sudah masuk'
-                : 'Survey disetujui'
-            : 'Follow up result?'}
+          {isReaktivasi
+            ? 'Mitra siap diaktifkan kembali?'
+            : isSurvey
+              ? lead.status === 'survey-created'
+                ? 'Survey sedang berjalan'
+                : lead.status === 'survey-submitted'
+                  ? 'Survey sudah masuk'
+                  : 'Survey disetujui'
+              : 'Follow up result?'}
         </span>
         {!canAct ? (
           <span className="text-12 text-caption">
             Tugas ini milik {lead.fo}. Tugaskan ke dirimu untuk mengerjakannya.
           </span>
         ) : null}
-        {isSurvey ? (
+        {isReaktivasi ? (
+          <>
+            <Button
+              size="lg"
+              className="w-full"
+              disabled={!canAct}
+              onClick={() => flow.go('onboarding-start')}
+            >
+              Start onboarding
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full"
+              disabled={!canAct}
+              onClick={() => {
+                setReason('')
+                setNote('')
+                setRescheduleDate(null)
+                setSheet('reschedule-why')
+              }}
+            >
+              Jadwalkan nanti
+            </Button>
+            <button
+              type="button"
+              disabled={!canAct}
+              onClick={() => {
+                setReason('')
+                setSheet('drop')
+              }}
+              className={`mt-8 self-center py-4 text-12 font-bold underline ${
+                canAct ? 'text-link' : 'text-disabled'
+              }`}
+            >
+              Drop lead
+            </button>
+          </>
+        ) : isSurvey ? (
           lead.status === 'survey-created' ? (
             <>
               <Button
