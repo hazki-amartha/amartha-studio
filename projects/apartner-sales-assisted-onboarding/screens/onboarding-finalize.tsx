@@ -138,19 +138,30 @@ export function OnboardingFinalizeScreen() {
           )
         : null}
 
-      {/* No WhatsApp — the number is confirmed via a typed passcode instead
-          of a WhatsApp link. Forced uppercase to match how the passcode is
-          actually printed/read out. */}
+      {/* No WhatsApp — same phone confirmation as the WhatsApp path (there's
+          no link to send it over, so it's just typed in), then the number is
+          confirmed via a typed passcode. Forced uppercase to match how the
+          passcode is actually printed/read out. */}
       {hasWa === 'no' ? (
-        <Input
-          label="Passcode"
-          required
-          description="Harus diisi dengan huruf besar"
-          value={noWaPasscode}
-          onChange={(e) => setNoWaPasscode(e.target.value.toUpperCase())}
-          placeholder="Masukkan Passcode"
-          helperText="Diterima calon mitra untuk mengonfirmasi nomor telepon"
-        />
+        <div className="flex flex-col gap-16">
+          <Input
+            label="Konfirmasi no. HP calon mitra"
+            required
+            inputMode="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="08xx-xxxx-xxxx"
+          />
+          <Input
+            label="Passcode"
+            required
+            description="Harus diisi dengan huruf besar"
+            value={noWaPasscode}
+            onChange={(e) => setNoWaPasscode(e.target.value.toUpperCase())}
+            placeholder="Masukkan Passcode"
+            helperText="Diterima calon mitra untuk mengonfirmasi nomor telepon"
+          />
+        </div>
       ) : null}
 
       {/* Bottom action per gate. */}
@@ -190,7 +201,12 @@ export function OnboardingFinalizeScreen() {
         <StickyBar>{simButton('Tandai registrasi dimulai — lanjut ke survey')}</StickyBar>
       ) : hasWa === 'no' ? (
         <StickyBar>
-          <Button size="lg" className="w-full" disabled={noWaPasscode.trim().length === 0} onClick={finish}>
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={!phoneValid || noWaPasscode.trim().length === 0}
+            onClick={finish}
+          >
             Lanjut ke Survey
           </Button>
           <Button variant="ghost" size="lg" className="w-full" onClick={close}>
