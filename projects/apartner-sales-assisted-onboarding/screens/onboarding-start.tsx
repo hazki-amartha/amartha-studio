@@ -86,7 +86,7 @@ export function OnboardingStartScreen() {
             name="cara-onboarding"
             inputType="radio"
             title="Assisted"
-            description="BP mengisi survey bersama calon mitra"
+            description="Passcode akan dikirim ke WhatsApp untuk verifikasi"
             checked={sel === 'assisted'}
             onChange={() => setSel('assisted')}
           />
