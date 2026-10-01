@@ -34,7 +34,9 @@ import { APPLICATION_SECTIONS } from './survey'
 export interface Flash {
   text: string
   tone?: 'default' | 'success'
-  action?: { label: string; leadId: string }
+  /** A tappable part of the snackbar. `view` picks where it goes — the mitra's
+   *  Majelis page (default) or her own lead record. */
+  action?: { label: string; leadId: string; view?: 'majelis' | 'lead' }
 }
 
 interface PipelineState {
@@ -160,7 +162,7 @@ export const pipelineStore = {
   },
 
   /** A green success banner with a tappable action (e.g. "see here" → Majelis). */
-  setFlashSuccess(text: string, action?: { label: string; leadId: string }) {
+  setFlashSuccess(text: string, action?: { label: string; leadId: string; view?: 'majelis' | 'lead' }) {
     state = { ...state, flash: { text, tone: 'success', action } }
     emit()
   },
