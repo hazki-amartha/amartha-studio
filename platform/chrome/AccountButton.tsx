@@ -2,13 +2,14 @@
 // AccountButton — the rail's sign-in (platform/auth). Hidden where sign-in
 // isn't configured, so local dev and unconfigured previews look as before.
 // Signed out: a person icon that goes to Google. Signed in: initials, and a
-// card with who you are, what you can do, and Sign out.
+// card with who you are — the name you go by, yours to change — what you can
+// do, and Sign out.
 // =============================================================================
 
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { signIn, signOut, useStudioUser } from '@/platform/auth/session'
+import { rename, signIn, signOut, useStudioUser } from '@/platform/auth/session'
 import { AccountIcon } from './icons'
 
 const ROLE: Record<string, string> = {
@@ -68,14 +69,9 @@ export function AccountButton() {
       </button>
       {open ? (
         <div className="absolute bottom-0 left-48 z-50 flex w-240 flex-col gap-8 rounded-12 border border-default bg-neutral-white p-12 shadow-sm dark:border-ink-700 dark:bg-ink-900">
-          <div className="flex flex-col gap-2">
-            <span className="truncate text-14 font-bold text-default dark:text-neutral-50">{user.label}</span>
-            <span className="truncate text-12 text-caption dark:text-neutral-400">{user.email}</span>
-          </div>
-          <span className="text-12 text-caption dark:text-neutral-400">
-            {ROLE[user.role]}
-            {user.role !== 'viewer' && !user.displayName ? ' · no display name yet, so you own no projects' : ''}
-          </span>
+          <NameRow name={user.label} />
+          <span className="truncate text-12 text-caption dark:text-neutral-400">{user.email}</span>
+          <span className="text-12 text-caption dark:text-neutral-400">{ROLE[user.role]}</span>
           <button
             type="button"
             onClick={() => void signOut()}
@@ -85,6 +81,78 @@ export function AccountButton() {
           </button>
         </div>
       ) : null}
+    </div>
+  )
+}
+
+/** The name you go by: comments go out under it, projects are owned under it. */
+function NameRow({ name }: { name: string }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(name)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const save = async () => {
+    if (busy) return
+    setBusy(true)
+    const failed = await rename(value)
+    setBusy(false)
+    setError(failed)
+    if (!failed) setEditing(false)
+  }
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-8">
+        <span className="min-w-0 flex-1 truncate text-14 font-bold text-default dark:text-neutral-50">{name}</span>
+        <button
+          type="button"
+          onClick={() => {
+            setValue(name)
+            setError(null)
+            setEditing(true)
+          }}
+          className="flex-none text-12 font-bold text-link"
+        >
+          Edit name
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <input
+        autoFocus
+        value={value}
+        maxLength={30}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') void save()
+          if (e.key === 'Escape') setEditing(false)
+        }}
+        aria-label="Your name"
+        className="w-full rounded-8 border border-default bg-neutral-white px-8 py-4 text-14 text-default outline-none focus:border-neutral-600 dark:border-ink-700 dark:bg-ink-950 dark:text-neutral-50 dark:focus:border-neutral-500"
+      />
+      <span className="text-12 text-caption dark:text-neutral-400">Your comments and projects show this name.</span>
+      {error ? <span className="text-12 text-red-500 dark:text-red-400">{error}</span> : null}
+      <div className="flex gap-8">
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={busy || !value.trim()}
+          className="rounded-full bg-primary-500 px-12 py-4 text-12 font-bold text-neutral-white disabled:opacity-60"
+        >
+          {busy ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setEditing(false)}
+          className="rounded-full border border-default px-12 py-4 text-12 font-bold text-default hover:bg-neutral-50 dark:border-ink-700 dark:text-neutral-50 dark:hover:bg-ink-800"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
   )
 }

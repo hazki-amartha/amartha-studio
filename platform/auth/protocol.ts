@@ -5,12 +5,12 @@ export type StudioRole = 'viewer' | 'editor' | 'admin'
 export interface StudioUser {
   email: string
   /**
-   * The name projects are owned under — `owner` in project.config — from
-   * `user_roles.display_name`. Null until the studio owner sets it, and then
-   * this account owns nothing.
+   * The name they go by — comments go out under it, projects are owned under
+   * it (`owner` in project.config). Theirs to change (platform/auth/profiles.ts).
+   * Null only where sign-in can't name anyone.
    */
   displayName: string | null
-  /** What to show when there is no display name yet: Google's name, or the email. */
+  /** What to show for them — the same name. */
   label: string
   role: StudioRole
 }
@@ -24,3 +24,10 @@ export interface MeResponse {
   /** Prototypes this browser holds a share link to (platform/share). */
   shares: Record<string, 'view' | 'comment'>
 }
+
+/** POST /api/me — change the name you go by. */
+export interface RenameRequest {
+  name: string
+}
+
+export type RenameResponse = { ok: true; name: string } | { ok: false; reason: string }

@@ -22,7 +22,7 @@
 
 import { parse } from '@babel/parser'
 import { transform } from 'sucrase'
-import owners from '@/platform/projects/owners.json'
+import { knownNames } from '@/platform/auth/profiles'
 import type { ProjectModule, ScreenDef } from '@/platform/types'
 import { configs } from '@/projects/configs'
 import { tailwindFor } from './server'
@@ -209,8 +209,13 @@ async function flowProblems(slug: string, files: Map<string, string>): Promise<s
   if (config.slug !== slug) errors.push(`project.config.ts: slug is "${config.slug}", but this project is "${slug}"`)
   const named = [config.owner].flat().filter(Boolean)
   if (!named.length) errors.push('project.config.ts: the project has no owner')
-  for (const o of named) {
-    if (!owners.includes(o)) errors.push(`project.config.ts: "${o}" isn’t one of the studio’s designers (${owners.join(', ')})`)
+  // Anyone who has signed in goes by a name they can own projects under
+  // (platform/auth/profiles.ts), beside the git roster in owners.json.
+  if (named.length) {
+    const known = await knownNames()
+    for (const o of named) {
+      if (!known.includes(o)) errors.push(`project.config.ts: "${o}" isn’t a name anyone in the studio goes by (${known.join(', ')})`)
+    }
   }
 
   const ids = new Set<string>()
