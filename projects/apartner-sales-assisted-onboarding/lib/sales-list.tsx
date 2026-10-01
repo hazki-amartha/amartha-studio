@@ -11,7 +11,7 @@
 //   "Lihat semua" (`all`) — the full roster, on every date, behind a Leads ↔ POI
 //     visit switch, with the Leads list filtered by funnel section (chips).
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BottomSheet, Button, NavigationHeader } from '@/design-system/components'
 import { Check, CheckCircle, Plus, Sliders } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
@@ -284,6 +284,10 @@ export function SalesList({ scope }: { scope: Scope }) {
   const [poiSort, setPoiSort] = useState<'akhir' | 'awal'>('awal')
   const [poiNoSchedDraft, setPoiNoSchedDraft] = useState(false)
   const [poiSortDraft, setPoiSortDraft] = useState<'akhir' | 'awal'>('awal')
+  // The filter drawer's active left-rail category (follows the right scroll).
+  const [filterCat, setFilterCat] = useState('jenis')
+  const rightPaneRef = useRef<HTMLDivElement>(null)
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [query, setQuery] = useState('')
   const [addSourceOpen, setAddSourceOpen] = useState(false)
 
@@ -528,9 +532,11 @@ export function SalesList({ scope }: { scope: Scope }) {
       setJenisDraft(new Set(jenis))
       setSumberDraft(new Set(sumber))
       setSortDraft(sortDir)
+      setFilterCat('jenis')
     } else {
       setPoiNoSchedDraft(poiNoSched)
       setPoiSortDraft(poiSort)
+      setFilterCat('jadwal')
     }
     setFilterOpen(true)
   }
@@ -544,6 +550,17 @@ export function SalesList({ scope }: { scope: Scope }) {
       setPoiSort(poiSortDraft)
     }
     setFilterOpen(false)
+  }
+  // Reset — clear the drafts back to defaults; the sheet stays open.
+  function resetFilter() {
+    if (mainTab === 'leads') {
+      setJenisDraft(new Set())
+      setSumberDraft(new Set())
+      setSortDraft('awal')
+    } else {
+      setPoiNoSchedDraft(false)
+      setPoiSortDraft('awal')
+    }
   }
   const toggleIn = <T,>(set: Set<T>, v: T) => {
     const next = new Set(set)
@@ -646,68 +663,153 @@ export function SalesList({ scope }: { scope: Scope }) {
       <BottomSheet
         open={filterOpen}
         onClose={() => setFilterOpen(false)}
-        title="Filter"
+        title="Filter dan urutkan"
+        secondaryAction={
+          <Button variant="outline" size="lg" className="w-full" onClick={resetFilter}>
+            Reset
+          </Button>
+        }
         primaryAction={
           <Button size="lg" className="w-full" onClick={applyFilter}>
             Terapkan
           </Button>
         }
       >
-        {mainTab === 'leads' ? (
-          <div className="flex flex-col gap-8">
-            <span className="text-14 font-bold text-default">Jenis tugas</span>
-            {JENIS_ORDER.map((section) => (
-              <CheckRow
-                key={section}
-                label={LEADS_SECTION_LABEL[section]}
-                checked={jenisDraft.has(section)}
-                onToggle={() => setJenisDraft((s) => toggleIn(s, section))}
-              />
-            ))}
+        {(() => {
+          const cats =
+            mainTab === 'leads'
+              ? [
+                  { id: 'jenis', label: 'Jenis tugas' },
+                  { id: 'sumber', label: 'Sumber' },
+                  { id: 'urut', label: 'Tanggal tugas' },
+                ]
+              : [
+                  { id: 'jadwal', label: 'Jadwal' },
+                  { id: 'urut', label: 'Tanggal tugas' },
+                ]
+          const sortVal = mainTab === 'leads' ? sortDraft : poiSortDraft
+          const setSort = (v: 'akhir' | 'awal') =>
+            mainTab === 'leads' ? setSortDraft(v) : setPoiSortDraft(v)
+          const setSection = (el: HTMLDivElement | null, id: string) => {
+            sectionRefs.current[id] = el
+          }
+          // Left rail jumps the right panel to a section.
+          const jumpTo = (id: string) => {
+            setFilterCat(id)
+            sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+          // Scroll-spy — highlight the rail item whose section is at the top.
+          const onRightScroll = () => {
+            const container = rightPaneRef.current
+            if (!container) return
+            if (container.scrollTop + container.clientHeight >= container.scrollHeight - 4) {
+              setFilterCat(cats[cats.length - 1].id)
+              return
+            }
+            const cTop = container.getBoundingClientRect().top
+            let current = cats[0].id
+            for (const c of cats) {
+              const el = sectionRefs.current[c.id]
+              if (el && el.getBoundingClientRect().top <= cTop + 8) current = c.id
+            }
+            setFilterCat(current)
+          }
+          return (
+            <div className="flex min-h-0 flex-1 gap-12">
+              {/* Left rail — jump between the sections on the right. */}
+              <div className="flex w-1/4 shrink-0 flex-col gap-4 overflow-y-auto border-r border-default pr-8">
+                {cats.map((c) => {
+                  const active = filterCat === c.id
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => jumpTo(c.id)}
+                      className={`rounded-8 border px-12 py-12 text-left text-14 font-bold ${
+                        active
+                          ? 'border-primary-200 bg-primary-50 text-primary-500'
+                          : 'border-transparent text-default'
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  )
+                })}
+              </div>
 
-            <span className="pt-8 text-14 font-bold text-default">Sumber</span>
-            {SUMBER_OPTIONS.map((o) => (
-              <CheckRow
-                key={o.key}
-                label={o.label}
-                checked={sumberDraft.has(o.key)}
-                onToggle={() => setSumberDraft((s) => toggleIn(s, o.key))}
-              />
-            ))}
-
-            <span className="pt-8 text-18 font-bold text-default">Urutkan</span>
-            <span className="text-14 font-bold text-default">Tanggal tugas</span>
-            <RadioRow
-              label="Paling akhir"
-              checked={sortDraft === 'akhir'}
-              onSelect={() => setSortDraft('akhir')}
-            />
-            <RadioRow
-              label="Paling awal"
-              checked={sortDraft === 'awal'}
-              onSelect={() => setSortDraft('awal')}
-            />
-          </div>
-        ) : (
-          <div className="flex flex-col gap-8">
-            <CheckRow
-              label="Belum ada jadwal"
-              checked={poiNoSchedDraft}
-              onToggle={() => setPoiNoSchedDraft((v) => !v)}
-            />
-            <span className="pt-8 text-18 font-bold text-default">Urutkan</span>
-            <RadioRow
-              label="Paling akhir"
-              checked={poiSortDraft === 'akhir'}
-              onSelect={() => setPoiSortDraft('akhir')}
-            />
-            <RadioRow
-              label="Paling awal"
-              checked={poiSortDraft === 'awal'}
-              onSelect={() => setPoiSortDraft('awal')}
-            />
-          </div>
-        )}
+              {/* Right panel — all sections, scrollable; the rail scrolls to each. */}
+              <div
+                ref={rightPaneRef}
+                onScroll={onRightScroll}
+                className="flex min-w-0 flex-1 flex-col gap-16 overflow-y-auto"
+              >
+                {mainTab === 'leads' ? (
+                  <>
+                    <div ref={(el) => setSection(el, 'jenis')} className="flex flex-col gap-8">
+                      <span className="text-14 font-bold text-default">Jenis tugas</span>
+                      {JENIS_ORDER.map((section) => (
+                        <CheckRow
+                          key={section}
+                          label={LEADS_SECTION_LABEL[section]}
+                          checked={jenisDraft.has(section)}
+                          onToggle={() => setJenisDraft((s) => toggleIn(s, section))}
+                        />
+                      ))}
+                    </div>
+                    <div ref={(el) => setSection(el, 'sumber')} className="flex flex-col gap-8">
+                      <span className="text-14 font-bold text-default">Sumber</span>
+                      {SUMBER_OPTIONS.map((o) => (
+                        <CheckRow
+                          key={o.key}
+                          label={o.label}
+                          checked={sumberDraft.has(o.key)}
+                          onToggle={() => setSumberDraft((s) => toggleIn(s, o.key))}
+                        />
+                      ))}
+                    </div>
+                    <div ref={(el) => setSection(el, 'urut')} className="flex flex-col gap-8">
+                      <span className="text-14 font-bold text-default">Urutkan</span>
+                      <RadioRow
+                        label="Paling akhir"
+                        checked={sortVal === 'akhir'}
+                        onSelect={() => setSort('akhir')}
+                      />
+                      <RadioRow
+                        label="Paling awal"
+                        checked={sortVal === 'awal'}
+                        onSelect={() => setSort('awal')}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div ref={(el) => setSection(el, 'jadwal')} className="flex flex-col gap-8">
+                      <span className="text-14 font-bold text-default">Jadwal</span>
+                      <CheckRow
+                        label="Belum ada jadwal"
+                        checked={poiNoSchedDraft}
+                        onToggle={() => setPoiNoSchedDraft((v) => !v)}
+                      />
+                    </div>
+                    <div ref={(el) => setSection(el, 'urut')} className="flex flex-col gap-8">
+                      <span className="text-14 font-bold text-default">Urutkan</span>
+                      <RadioRow
+                        label="Paling akhir"
+                        checked={sortVal === 'akhir'}
+                        onSelect={() => setSort('akhir')}
+                      />
+                      <RadioRow
+                        label="Paling awal"
+                        checked={sortVal === 'awal'}
+                        onSelect={() => setSort('awal')}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )
+        })()}
       </BottomSheet>
     </AppScreen>
   )
