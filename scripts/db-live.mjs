@@ -48,6 +48,9 @@ const SYNCED = /\.(tsx?|jsx?|json)$/
 const MARKERS = /^(<{7}|>{7}) /m
 const POLL_MS = 2000
 const SETTLE_MS = 400
+// A request that never answers (the laptop slept mid-request) must fail, not
+// hang: the next poll and every later push wait on it.
+const TIMEOUT_MS = 30_000
 
 const log = (msg) => console.log(`[db-live ${new Date().toLocaleTimeString()}] ${msg}`)
 
@@ -181,7 +184,7 @@ function applyRemote(slug, rel, content, at) {
 }
 
 async function api(path) {
-  const r = await fetch(`${API}${path}`)
+  const r = await fetch(`${API}${path}`, { signal: AbortSignal.timeout(TIMEOUT_MS) })
   if (!r.ok) throw new Error(`HTTP ${r.status}`)
   return r.json()
 }
@@ -240,6 +243,7 @@ async function push(slug) {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ changes, by: who }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     })
     if (r.status === 401) {
       if (!askedToSignIn) log('Not saved — this laptop isn’t signed in to the studio. Open http://localhost:4000/auth/laptop/start (one Google sign-in).')
