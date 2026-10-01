@@ -151,7 +151,7 @@ function SegmentedTabs({
 }) {
   const items: { id: MainTab; label: string; count: number }[] = [
     { id: 'leads', label: 'Leads', count: leadsCount },
-    { id: 'poi', label: 'POI visit', count: poiCount },
+    { id: 'poi', label: 'Sosialisasi', count: poiCount },
   ]
   return (
     <div className="flex gap-4 rounded-8 bg-neutral-200 p-4">
@@ -309,6 +309,12 @@ export function SalesList({ scope }: { scope: Scope }) {
       flow.go('onboarding-start')
       return
     }
+    // A reactivating ex-mitra starts at the registration approval (Persetujuan
+    // pendaftaran), then flows into the survey (Complete onboarding).
+    if (lead.reactivation) {
+      flow.go('onboarding-start')
+      return
+    }
     // A survey-ongoing lead (survey-created, -submitted) or an approved one opens
     // the Calon Mitra detail directly (survey ongoing → 'calon-mitra', a result →
     // 'onboarding-outcome'); only a pre-survey lead goes through follow-up triage.
@@ -405,8 +411,8 @@ export function SalesList({ scope }: { scope: Scope }) {
       { key: surveyGroup.key, label: surveyGroup.label, kind: 'lead', rows: groupRows(surveyGroup.secs) },
       { key: reactivationGroup.key, label: reactivationGroup.label, kind: 'lead', rows: groupRows(reactivationGroup.secs) },
       { key: startingGroup.key, label: startingGroup.label, kind: 'lead', rows: groupRows(startingGroup.secs) },
-      { key: 'poi', label: 'POI visit', kind: 'poi', rows: poiRows },
       { key: followGroup.key, label: followGroup.label, kind: 'lead', rows: groupRows(followGroup.secs) },
+      { key: 'poi', label: 'Sosialisasi', kind: 'poi', rows: poiRows },
     ]
     const visible = sections.filter((s) => s.rows.length > 0)
     const total = leadsToday.length + poiToday.length + bmRows.length

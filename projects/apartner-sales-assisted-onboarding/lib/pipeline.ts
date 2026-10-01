@@ -810,6 +810,8 @@ export function majelisLine(lead: PipelineLead): string {
 // "action selanjutnya" line and the follow-up date a recorded call schedules.
 
 export function sourceDetail(lead: PipelineLead): string {
+  // A reactivating ex-mitra's source is the majelis she is rejoining.
+  if (lead.reactivation) return `Reaktivasi dari ${majelisLine(lead)}`
   if (lead.source === 'poi') return lead.poi ? `POI ${lead.poi}` : 'POI Visit'
   // Canvassing reuses the `poi` field to hold its free-text location.
   if (lead.source === 'canvassing') return lead.poi ? `Canvassing · ${lead.poi}` : 'Canvassing'
@@ -1568,7 +1570,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     photo: true,
     address: { kecamatan: 'Ciseeng', desa: 'Ciseeng', detail: 'Kp. Kaum RT 02/RW 03', mapsCoord: 'pinned' },
     status: 'survey-created',
-    surveyMode: 'assisted',
+    surveyMode: 'self',
     ageDays: 24,
     agenda: { day: 'today', kind: 'Reaktivasi', when: 'Hari ini', order: 10, dueDays: 0 },
     reactivation: { prevLimit: 'Rp4.000.000', potentialLimit: 'Rp6.000.000' },
@@ -1580,7 +1582,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     disburseDate: '',
     log: [
       { at: '2 Juli', via: 'manual', status: 'interested', system: 'Reaktivasi mantan mitra — Majelis Mawar' },
-      { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding reaktivasi dimulai (assisted) — gabung Majelis Mawar' },
+      { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding reaktivasi dimulai (self-service) — gabung Majelis Mawar' },
     ],
   },
   // Reactivation — an ex-mitra reopening into her existing majelis.
@@ -1595,7 +1597,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     photo: true,
     address: { kecamatan: 'Parung', desa: 'Waru', detail: 'Kp. Waru RT 03/RW 02', mapsCoord: 'pinned' },
     status: 'survey-created',
-    surveyMode: 'assisted',
+    surveyMode: 'self',
     ageDays: 28,
     agenda: { day: 'today', kind: 'Reaktivasi', when: 'Hari ini', order: 12, dueDays: 0 },
     reactivation: { prevLimit: 'Rp2.500.000', potentialLimit: 'Rp4.000.000' },
@@ -1607,7 +1609,7 @@ export const SEED_PIPELINE: PipelineLead[] = [
     disburseDate: '',
     log: [
       { at: '1 Juli', via: 'poi', status: 'interested', system: 'Reaktivasi mantan mitra — Majelis Melati' },
-      { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding reaktivasi dimulai (assisted) — gabung Majelis Melati' },
+      { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding reaktivasi dimulai (self-service) — gabung Majelis Melati' },
     ],
   },
   // Perkenalan — an existing-majelis application waiting for the kumpulan day.
