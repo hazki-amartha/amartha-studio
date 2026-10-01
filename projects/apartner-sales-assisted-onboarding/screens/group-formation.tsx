@@ -38,11 +38,14 @@ function UploadRow({
   label,
   done,
   onToggle,
+  action = 'Upload',
 }: {
   icon: ReactNode
   label: string
   done: boolean
   onToggle: () => void
+  /** The affordance label — "Upload" for documents, "Take photo" for a photo. */
+  action?: string
 }) {
   return (
     <button
@@ -57,7 +60,7 @@ function UploadRow({
       {done ? (
         <Badge intent="green">Terlampir</Badge>
       ) : (
-        <span className="shrink-0 text-12 font-bold text-link">Upload</span>
+        <span className="shrink-0 text-12 font-bold text-link">{action}</span>
       )}
     </button>
   )
@@ -120,6 +123,8 @@ export function GroupFormationScreen() {
   const [idx, setIdx] = useState(0)
   const [sheet, setSheet] = useState<SheetId>(null)
 
+  // Anggota — who goes into the group; everyone is pre-checked, uncheck to drop.
+  const [members, setMembers] = useState<Set<string>>(() => new Set(MEMBERS))
   // Ketua
   const [ketua, setKetua] = useState('')
   const [votingPhoto, setVotingPhoto] = useState(false)
@@ -139,7 +144,9 @@ export function GroupFormationScreen() {
   const isLast = idx === steps.length - 1
 
   const stepDone =
-    current === 'ketua'
+    current === 'anggota'
+      ? members.size >= 1
+      : current === 'ketua'
       ? ketua !== '' && votingPhoto
       : current === 'perjanjian'
         ? pernyataan && tanggungRenteng
@@ -175,6 +182,15 @@ export function GroupFormationScreen() {
     else setIdx(idx + 1)
   }
 
+  function toggleMember(name: string) {
+    setMembers((prev) => {
+      const nextSet = new Set(prev)
+      if (nextSet.has(name)) nextSet.delete(name)
+      else nextSet.add(name)
+      return nextSet
+    })
+  }
+
   function toggleRitual(point: string) {
     setRitual((prev) => {
       const nextSet = new Set(prev)
@@ -206,7 +222,27 @@ export function GroupFormationScreen() {
         </>
       ) : null}
 
-      {current === 'ketua' ? (
+      {current === 'anggota' ? (
+        <div className="flex flex-col gap-12">
+          <StepHeading
+            title="Anggota Majelis"
+            sub="Semua calon tercentang. Hilangkan centang untuk anggota yang tidak masuk majelis ini."
+          />
+          <div className="flex flex-col gap-8">
+            {MEMBERS.map((name) => (
+              <SelectableCard
+                key={name}
+                name="anggota"
+                inputType="checkbox"
+                title={name}
+                checked={members.has(name)}
+                onChange={() => toggleMember(name)}
+              />
+            ))}
+          </div>
+          <span className="text-12 text-caption">{members.size} anggota dipilih</span>
+        </div>
+      ) : current === 'ketua' ? (
         <div className="flex flex-col gap-12">
           <StepHeading title="Ketua Majelis" sub="Pilih ketua hasil voting dan lampirkan buktinya." />
           <PickerRow
@@ -219,6 +255,7 @@ export function GroupFormationScreen() {
           <UploadRow
             icon={<Camera size={20} />}
             label="Foto bukti voting"
+            action="Take photo"
             done={votingPhoto}
             onToggle={() => setVotingPhoto((v) => !v)}
           />
@@ -233,12 +270,14 @@ export function GroupFormationScreen() {
           <UploadRow
             icon={<File size={20} />}
             label="Surat pernyataan majelis"
+            action={ctx.mode === 'accept' ? 'Take photo' : 'Upload'}
             done={pernyataan}
             onToggle={() => setPernyataan((v) => !v)}
           />
           <UploadRow
             icon={<File size={20} />}
             label="Surat tanggung renteng"
+            action={ctx.mode === 'accept' ? 'Take photo' : 'Upload'}
             done={tanggungRenteng}
             onToggle={() => setTanggungRenteng((v) => !v)}
           />

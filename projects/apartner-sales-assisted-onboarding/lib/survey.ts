@@ -64,6 +64,13 @@ export interface Field {
   placeholder?: string
   /** For `readonly` — the system-supplied value shown. */
   value?: string
+  /**
+   * Prefilled from the KTP captured at Mulai Pendaftaran (OCR). The photo carries
+   * over as already attached, and each derived field is filled in — editable, but
+   * marked "Terisi dari KTP". For identity/address fields the live lead value is
+   * used; `value` here is the OCR stand-in for the rest.
+   */
+  ktp?: boolean
 }
 
 export interface SurveyStep {
@@ -193,45 +200,62 @@ export const UJI_KELAYAKAN_STEPS: SurveyStep[] = [
     id: 'pribadi',
     title: 'Data pribadi',
     fields: [
-      { label: 'Foto KTP', type: 'foto', required: true },
-      { label: 'NIK', type: 'numeric', required: true, placeholder: 'Masukkan NIK' },
-      { label: 'Nama sesuai KTP', type: 'text', required: true },
+      { label: 'Foto KTP', type: 'foto', required: true, ktp: true },
+      {
+        label: 'NIK',
+        type: 'numeric',
+        required: true,
+        placeholder: 'Masukkan NIK',
+        ktp: true,
+        value: '3201094507850007',
+      },
+      { label: 'Nama sesuai KTP', type: 'text', required: true, ktp: true },
       {
         label: 'Jenis kelamin',
         type: 'dropdown',
         required: true,
         options: ['Laki-laki', 'Perempuan'],
+        ktp: true,
+        value: 'Perempuan',
       },
-      { label: 'Tempat lahir', type: 'text', required: true },
-      { label: 'Tanggal lahir', type: 'date', required: true },
-      { label: 'Alamat lengkap', type: 'text', required: true },
+      { label: 'Tempat lahir', type: 'text', required: true, ktp: true, value: 'Bogor' },
+      { label: 'Tanggal lahir', type: 'date', required: true, ktp: true, value: '07/05/1985' },
+      { label: 'Alamat lengkap', type: 'text', required: true, ktp: true },
       {
         label: 'Provinsi',
         type: 'dropdown',
         required: true,
         options: ['Banten', 'Jawa Barat', 'DKI Jakarta', 'Jawa Tengah', 'Jawa Timur'],
+        ktp: true,
+        value: 'Jawa Barat',
       },
       {
         label: 'Kota/Kabupaten',
         type: 'dropdown',
         required: true,
         options: ['Kab. Bogor', 'Kab. Tangerang', 'Kota Bogor', 'Kota Tangerang'],
+        ktp: true,
+        value: 'Kab. Bogor',
       },
-      { label: 'Kecamatan', type: 'text', required: true },
-      { label: 'Kelurahan', type: 'text', required: true },
-      { label: 'RT', type: 'numeric', required: true, placeholder: 'Isi RT' },
-      { label: 'RW', type: 'numeric', required: true, placeholder: 'Isi RW' },
+      { label: 'Kecamatan', type: 'text', required: true, ktp: true },
+      { label: 'Kelurahan', type: 'text', required: true, ktp: true },
+      { label: 'RT', type: 'numeric', required: true, placeholder: 'Isi RT', ktp: true, value: '02' },
+      { label: 'RW', type: 'numeric', required: true, placeholder: 'Isi RW', ktp: true, value: '05' },
       {
         label: 'Agama',
         type: 'dropdown',
         placeholder: 'Pilih Agama',
         options: ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'],
+        ktp: true,
+        value: 'Islam',
       },
       {
         label: 'Status pernikahan',
         type: 'dropdown',
         placeholder: 'Pilih Status Pernikahan',
         options: ['Belum kawin', 'Kawin', 'Cerai hidup', 'Cerai mati'],
+        ktp: true,
+        value: 'Kawin',
       },
       {
         label: 'Pendidikan terakhir',

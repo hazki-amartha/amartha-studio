@@ -15,11 +15,12 @@
 import { useSyncExternalStore } from 'react'
 import type { PipelineLead } from './pipeline'
 
-export type FormationStepId = 'ketua' | 'perjanjian' | 'jadwal' | 'ritual'
+export type FormationStepId = 'anggota' | 'ketua' | 'perjanjian' | 'jadwal' | 'ritual'
 
-export const FORMATION_STEP_ORDER: FormationStepId[] = ['ketua', 'perjanjian', 'jadwal']
+export const FORMATION_STEP_ORDER: FormationStepId[] = ['anggota', 'ketua', 'perjanjian', 'jadwal']
 
 export const FORMATION_STEP_LABEL: Record<FormationStepId, string> = {
+  anggota: 'Anggota',
   ketua: 'Ketua',
   perjanjian: 'Perjanjian',
   jadwal: 'Jadwal',
@@ -99,6 +100,9 @@ export function isLeadAccepted(s: FormationState, id: string): boolean {
  */
 export function isMemberAccepted(s: FormationState, lead: PipelineLead): boolean {
   if (isLeadAccepted(s, lead.id)) return true
+  // A reactivating ex-mitra is already a known member of her existing majelis —
+  // KM acceptance was done the first time around, so it is not repeated.
+  if (lead.reactivation && lead.majelis.kind === 'existing') return true
   return (
     lead.majelis.kind === 'existing' &&
     (lead.status === 'approved' || lead.status === 'survey-submitted')
