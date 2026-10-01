@@ -15,6 +15,8 @@
 #                            gating it would put a review on every new project.
 #                            Append-only by convention; `npm run check:flows`
 #                            and the build catch a broken registry in CI.
+#   platform/projects/owners.json — the designer roster; see the carve-out
+#                            under /platform/ below.
 # =============================================================================
 
 # The design system and its guidelines — the shared vocabulary.
@@ -22,6 +24,11 @@
 
 # The runtime, device frame, flow canvas, and studio chrome.
 /platform/            @hazki-amartha
+
+# The roster of names a project's `owner` may use. No owner listed: the last
+# matching line wins, so this path needs no review and adding a designer
+# doesn't park their first project behind one.
+/platform/projects/owners.json
 
 # Next.js routing and the password gate.
 /app/                 @hazki-amartha
