@@ -15,7 +15,7 @@ import { CloseIcon } from '@/platform/chrome/icons'
 import { setDesignMode, setEditTab } from '@/platform/runtime/designBridge'
 import type { BusinessUnit, Platform } from '@/platform/types'
 import { getCommenterName } from '@/platform/comments/store'
-import { ownerFor, type NewProjectResponse, type ProjectStart } from './protocol'
+import { type NewProjectResponse, type ProjectStart } from './protocol'
 
 /** The name Push remembers (platform/push/PushBar.tsx) — shared, so a
  *  designer who has pushed before is never asked, and Push won't ask after. */
@@ -110,8 +110,8 @@ function NewProjectDialog({
   onClose: () => void
 }) {
   const router = useRouter()
-  // Signed in as a known designer, the account is the owner and isn't asked.
-  const accountOwner = ownerFor(account)
+  // Signed in, the account's name is the owner and isn't asked.
+  const accountOwner = account
   const [name, setName] = useState('')
   const [owner, setOwner] = useState(() => accountOwner ?? (remembered() || getCommenterName()))
   const [bu, setBu] = useState<BusinessUnit | null>(businessUnit)

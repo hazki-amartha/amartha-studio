@@ -5,9 +5,9 @@
 // own `role` (supabase/migrations/20260924_studio_roles.sql):
 //
 //   studio_role   viewer (default) · editor · admin
-//   display_name  the name projects are owned under — must equal `owner` in
-//                 project.config, the same strings scripts/check-flows.mjs holds
-//                 to its OWNERS list
+//   display_name  what the studio owner named someone — now only the seed for
+//                 the name they go by, which lives in studio_profiles and they
+//                 can change themselves (./profiles.ts)
 //
 // No row, or no Supabase at all, is a viewer.
 // =============================================================================
@@ -16,6 +16,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { isAllowedEmail, serviceRoleKey, supabaseEnv } from './env'
+import { profileName } from './profiles'
 import type { StudioRole, StudioUser } from './protocol'
 
 const ROLES: StudioRole[] = ['viewer', 'editor', 'admin']
@@ -83,12 +84,8 @@ export async function getStudioUser(): Promise<StudioUser | null> {
     if (!user?.email || !isAllowedEmail(user.email)) return null
     const { role, displayName } = await roleRow(user.id, user.email)
     const google = user.user_metadata?.full_name ?? user.user_metadata?.name
-    return {
-      email: user.email,
-      displayName,
-      label: displayName ?? (typeof google === 'string' && google ? google : user.email.split('@')[0]),
-      role,
-    }
+    const name = await profileName(user.email, displayName, typeof google === 'string' ? google : null)
+    return { email: user.email, displayName: name, label: name, role }
   } catch (error) {
     console.error('[auth] session lookup failed:', error)
     return null

@@ -13,6 +13,7 @@
 import { NextResponse } from 'next/server'
 import { createLaptopToken, isLaptopSignInConfigured } from '@/platform/auth/laptop'
 import { isAllowedEmail, safeNext } from '@/platform/auth/env'
+import { profileName } from '@/platform/auth/profiles'
 import { createSessionClient, roleRow } from '@/platform/auth/server'
 
 export const dynamic = 'force-dynamic'
@@ -49,6 +50,7 @@ export async function GET(request: Request) {
   back.searchParams.set('token', createLaptopToken(user.id, user.email))
   back.searchParams.set('state', state)
   back.searchParams.set('next', next)
-  back.searchParams.set('name', displayName ?? user.email.split('@')[0])
+  const google = user.user_metadata?.full_name ?? user.user_metadata?.name
+  back.searchParams.set('name', await profileName(user.email, displayName, typeof google === 'string' ? google : null))
   return NextResponse.redirect(back, 303)
 }

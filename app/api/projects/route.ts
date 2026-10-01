@@ -15,7 +15,8 @@ import { editCookie, verifyEditToken } from '@/platform/design/server/editGate'
 import { isEditor, requestUser } from '@/platform/auth/laptop'
 import { NotSignedIn } from '@/platform/dbProjects/remote'
 import { listDbConfigs } from '@/platform/dbProjects/server'
-import { OWNERS, ownerFor, type NewProjectRequest, type NewProjectResponse } from '@/platform/projects/protocol'
+import { knownNames } from '@/platform/auth/profiles'
+import { type NewProjectRequest, type NewProjectResponse } from '@/platform/projects/protocol'
 import { createProject, CreateRefused } from '@/platform/projects/server/create'
 import type { BusinessUnit, Platform } from '@/platform/types'
 
@@ -41,14 +42,17 @@ export async function POST(request: Request): Promise<Response> {
   if (!body.platform || !PLATFORMS.includes(body.platform)) return refuse('Pick a platform.')
   if (body.start !== 'blank' && body.start !== 'amarthafin-live') return refuse('Pick how the project starts.')
 
-  // Signed in as a known designer, the account is the owner; otherwise the
-  // name typed in the form, in the one spelling check:flows accepts.
+  // Signed in, the account's name is the owner; otherwise the name typed in
+  // the form (on a laptop, the name it signed in as), spelled the way the
+  // studio knows it (platform/auth/profiles.ts).
   const typed = typeof body.owner === 'string' ? body.owner.trim() : ''
-  const owner = ownerFor(user?.label) ?? ownerFor(typed)
+  const known = await knownNames()
+  const owner =
+    (isEditor(user) && user.displayName) || known.find((n) => n.toLocaleLowerCase() === typed.toLocaleLowerCase()) || null
   if (!owner) {
     return refuse(
       typed
-        ? `“${typed}” isn’t one of the studio’s designers (${OWNERS.join(', ')}). Ask for your name to be added.`
+        ? `“${typed}” isn’t a name anyone in the studio goes by. Sign in, and your account’s name is used.`
         : 'Say who you are first.',
     )
   }

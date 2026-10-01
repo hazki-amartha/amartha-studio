@@ -7,7 +7,7 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
-import type { MeResponse } from './protocol'
+import type { MeResponse, RenameRequest, RenameResponse } from './protocol'
 
 type State = MeResponse & { loaded: boolean }
 
@@ -39,7 +39,24 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener)
 }
 
-const SERVER: State = { loaded: false, configured: false, required: false, user: null, shares: {} }
+/** Change the name you go by. Null when it took, else why not. */
+export async function rename(name: string): Promise<string | null> {
+  try {
+    const res = await fetch('/api/me', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name } satisfies RenameRequest),
+    })
+    const data = (await res.json()) as RenameResponse
+    if (!data.ok) return data.reason
+    if (state.user) set({ ...state, user: { ...state.user, displayName: data.name, label: data.name } })
+    return null
+  } catch {
+    return 'Your name couldn’t be saved — try again.'
+  }
+}
+
+const SERVER: State ={ loaded: false, configured: false, required: false, user: null, shares: {} }
 
 export function useStudioUser(): State {
   return useSyncExternalStore(subscribe, () => state, () => SERVER)

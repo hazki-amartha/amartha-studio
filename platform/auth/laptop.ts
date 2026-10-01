@@ -21,6 +21,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { isAllowedEmail } from './env'
 import type { StudioUser } from './protocol'
+import { profileName } from './profiles'
 import { getStudioUser, roleRow } from './server'
 
 export const LAPTOP_TOKEN_DAYS = 90
@@ -73,7 +74,8 @@ export async function laptopUser(request: Request): Promise<StudioUser | null> {
   const claims = verify(header.slice(7).trim())
   if (!claims) return null
   const { role, displayName } = await roleRow(claims.uid, claims.email)
-  return { email: claims.email, displayName, label: displayName ?? claims.email.split('@')[0], role }
+  const name = await profileName(claims.email, displayName, null)
+  return { email: claims.email, displayName: name, label: name, role }
 }
 
 /** Who is asking: a browser session, or a laptop's token. */
