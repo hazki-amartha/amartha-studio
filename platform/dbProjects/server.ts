@@ -1,9 +1,19 @@
 // =============================================================================
-// DB projects · a project whose source lives in Supabase, not projects/<slug>/.
-// Proof of concept, served at /db/<slug>.
+// DB projects · a project whose source lives in the studio database, not in git.
 //
-// Server-only. Reads the project's files (supabase/migrations/
-// 20260929_studio_project_files.sql) with the service-role key, compiles each
+// Server-only. Two ways to the database, chosen by what this server holds:
+//
+//   the deployed studio   STUDIO_DB_SUPABASE_URL + _SERVICE_ROLE_KEY (put on
+//                         Vercel by the Supabase integration): reads and writes
+//                         the tables directly. The only place that does.
+//   a laptop              neither — every read and save goes through the
+//                         deployed studio's API (./remote.ts), as the designer
+//                         signed in on this laptop. No laptop holds a key.
+//
+// The database is its own Supabase project (amartha-studio); Google sign-in
+// stays on Vocus's. Tables: supabase/migrations/20260929_studio_project_files.sql.
+//
+// Reads a project's files, compiles each
 // .ts/.tsx to a CommonJS module with Sucrase, and generates the Tailwind CSS
 // for exactly the classes the files name. The browser (./loader.ts) links the
 // modules against the studio's own design system and runtime — so a project
@@ -20,9 +30,9 @@ import postcss from 'postcss'
 import tailwindcss from 'tailwindcss'
 import { transform } from 'sucrase'
 import studioTailwind from '@/tailwind.config'
-import { serviceRoleKey, supabaseEnv } from '@/platform/auth/env'
 import type { ProjectConfig } from '@/platform/types'
 import { SAVED_EVENT, savedChannel, type DbProjectBuild } from './protocol'
+import { laptopCredentials, remote } from './remote'
 
 export const FILES_TABLE = 'studio_project_files'
 export const VERSIONS_TABLE = 'studio_project_file_versions'
@@ -37,11 +47,17 @@ const { stampSource } = require('../design/stamp.cjs') as {
   stampSource: (source: string, file: string) => { code: string } | null
 }
 
+function adminEnv(): { url: string; key: string } | null {
+  const url = process.env.STUDIO_DB_SUPABASE_URL?.trim()
+  const key = process.env.STUDIO_DB_SUPABASE_SERVICE_ROLE_KEY?.trim()
+  return url && key ? { url, key } : null
+}
+
+/** Direct access — the deployed studio only. Null on a laptop. */
 export function createAdminClient() {
-  const env = supabaseEnv()
-  const key = serviceRoleKey()
-  if (!env || !key) return null
-  return createClient(env.url, key, {
+  const env = adminEnv()
+  if (!env) return null
+  return createClient(env.url, env.key, {
     auth: { autoRefreshToken: false, persistSession: false },
     // Next caches server-side fetch() by default, and supabase-js reads over
     // fetch — so the first read of a project was served forever after and
@@ -54,11 +70,14 @@ const COMPILED = /\.(tsx?|jsx?)$/
 const cache = new Map<string, DbProjectBuild>()
 
 export async function buildDbProject(slug: string): Promise<DbProjectBuild | { error: string }> {
-  const db = createAdminClient()
-  if (!db) return { error: 'Supabase is not configured (NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY).' }
-
-  const { data, error } = await db.from(FILES_TABLE).select('path, content').eq('slug', slug).order('path')
-  if (error) return { error: error.message }
+  let data: { path: string; content: string }[]
+  try {
+    data = [...(await readDbRows(slug))]
+      .map(([path, r]) => ({ path, content: r.content }))
+      .sort((a, b) => a.path.localeCompare(b.path))
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) }
+  }
   if (!data.length) return { error: `No files for "${slug}" in the database.` }
 
   const hash = createHash('sha1')
@@ -113,29 +132,18 @@ export async function tailwindFor(raw: string): Promise<string> {
 
 // --- writing -------------------------------------------------------------------
 
-/** One file's current content, or null when the project has no such file. */
-export async function readDbFile(slug: string, path: string): Promise<string | null> {
-  const db = createAdminClient()
-  if (!db) throw new Error('Supabase is not configured.')
-  const { data, error } = await db.from(FILES_TABLE).select('content').eq('slug', slug).eq('path', path).maybeSingle()
-  if (error) throw new Error(error.message)
-  return data?.content ?? null
-}
-
 /** Every file of a project, path → content. Empty when it isn't in the database. */
 export async function readDbFiles(slug: string): Promise<Map<string, string>> {
-  const db = createAdminClient()
-  if (!db) throw new Error('Supabase is not configured.')
-  const { data, error } = await db.from(FILES_TABLE).select('path, content').eq('slug', slug)
-  if (error) throw new Error(error.message)
-  return new Map(data.map((r) => [r.path as string, r.content as string]))
+  return new Map([...(await readDbRows(slug))].map(([p, r]) => [p, r.content]))
 }
 
 /** The name a person shows up under in "Also here": their studio account's,
- *  or on the laptop running the studio, git's user name. */
+ *  or on a laptop, the name they signed in with — else git's user name. */
 export function viewerName(signedIn: string | null | undefined): string | null {
   if (signedIn) return signedIn
   if (process.env.NODE_ENV !== 'development') return null
+  const creds = laptopCredentials()
+  if (creds?.name) return creds.name
   try {
     return execFileSync('git', ['config', 'user.name'], { encoding: 'utf8' }).trim() || null
   } catch {
@@ -145,9 +153,19 @@ export function viewerName(signedIn: string | null | undefined): string | null {
 
 export async function isDbProject(slug: string): Promise<boolean> {
   const db = createAdminClient()
-  if (!db) return false
+  if (!db) return (await listDbConfigs()).some((c) => c.slug === slug)
   const { count } = await db.from(FILES_TABLE).select('path', { count: 'exact', head: true }).eq('slug', slug)
   return (count ?? 0) > 0
+}
+
+/** Every file of every project, with when it was last saved — what the live
+ *  sync polls to see what changed. */
+export async function listDbChanges(): Promise<{ slug: string; path: string; at: string }[]> {
+  const db = createAdminClient()
+  if (!db) return (await remote<{ rows: { slug: string; path: string; at: string }[] }>('/api/db-projects/changes')).rows
+  const { data, error } = await db.from(FILES_TABLE).select('slug, path, updated_at')
+  if (error) throw new Error(error.message)
+  return data.map((r) => ({ slug: r.slug as string, path: r.path as string, at: r.updated_at as string }))
 }
 
 /**
@@ -163,7 +181,17 @@ export async function saveDbFiles(
   const ids = new Map<string, number>()
   if (!files.length) return ids
   const db = createAdminClient()
-  if (!db) throw new Error('Supabase is not configured.')
+  if (!db) {
+    // Through the studio, as a laptop: new files only (New Project).
+    const { saved, conflicts } = await saveIfUnchanged(
+      slug,
+      files.map((f) => ({ ...f, baseAt: null })),
+      by,
+    )
+    if (conflicts.length) throw new Error(`${conflicts.join(', ')} already exist.`)
+    for (const [p, s] of saved) ids.set(p, s.id)
+    return ids
+  }
   const now = new Date().toISOString()
   const up = await db
     .from(FILES_TABLE)
@@ -183,7 +211,12 @@ export async function saveDbFiles(
  *  conflict-safe save (saveIfUnchanged) compares against. */
 export async function readDbRows(slug: string): Promise<Map<string, { content: string; at: string }>> {
   const db = createAdminClient()
-  if (!db) throw new Error('Supabase is not configured.')
+  if (!db) {
+    const { rows } = await remote<{ rows: { path: string; content: string; at: string }[] }>(
+      `/api/db-projects/${encodeURIComponent(slug)}/files`,
+    )
+    return new Map(rows.map((r) => [r.path, { content: r.content, at: r.at }]))
+  }
   const { data, error } = await db.from(FILES_TABLE).select('path, content, updated_at').eq('slug', slug)
   if (error) throw new Error(error.message)
   return new Map(data.map((r) => [r.path as string, { content: r.content as string, at: r.updated_at as string }]))
@@ -211,7 +244,23 @@ export async function saveIfUnchanged(
   const conflicts: string[] = []
   if (!changes.length) return { saved, conflicts }
   const db = createAdminClient()
-  if (!db) throw new Error('Supabase is not configured.')
+  if (!db) {
+    // Through the studio, as this laptop's designer — the studio runs the same
+    // checks and the same compare-and-set there.
+    const res = await remote<{
+      saved: Record<string, string>
+      ids: Record<string, number>
+      conflicts: { path: string }[]
+      problems: string[]
+    }>(`/api/db-projects/${encodeURIComponent(slug)}/sync`, {
+      method: 'POST',
+      body: JSON.stringify({ changes, by }),
+      write: true,
+    })
+    if (res.problems.length) throw new Error(res.problems.join('; '))
+    for (const [p, at] of Object.entries(res.saved)) saved.set(p, { at, id: res.ids[p] })
+    return { saved, conflicts: res.conflicts.map((c) => c.path) }
+  }
 
   for (const c of changes) {
     const now = new Date().toISOString()
@@ -249,7 +298,13 @@ export async function contentBefore(
   id: number,
 ): Promise<{ path: string; after: string | null; before: string | null } | null> {
   const db = createAdminClient()
-  if (!db) throw new Error('Supabase is not configured.')
+  if (!db) {
+    const res = await remote<{ snap: { path: string; after: string | null; before: string | null } | null }>(
+      `/api/db-projects/${encodeURIComponent(slug)}/before?id=${id}`,
+      { write: true },
+    )
+    return res.snap
+  }
   const row = await db.from(VERSIONS_TABLE).select('path, content').eq('slug', slug).eq('id', id).maybeSingle()
   if (row.error || !row.data) return null
   const prev = await db
@@ -268,14 +323,13 @@ export async function contentBefore(
 /** Tell open viewers a save landed — Realtime broadcast over REST. Best effort:
  *  a viewer that misses it still picks the save up on focus. */
 export async function announceSave(slug: string): Promise<void> {
-  const env = supabaseEnv()
-  const key = serviceRoleKey()
-  if (!env || !key) return
+  const env = adminEnv()
+  if (!env) return // A laptop saves through the studio, which announces.
   try {
     await fetch(`${env.url}/realtime/v1/api/broadcast`, {
       method: 'POST',
       cache: 'no-store',
-      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      headers: { apikey: env.key, Authorization: `Bearer ${env.key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: [{ topic: savedChannel(slug), event: SAVED_EVENT, payload: { at: Date.now() } }] }),
     })
   } catch {
@@ -304,9 +358,22 @@ function configOf(slug: string, source: string): ProjectConfig | null {
 }
 
 /** The config of every project in the database, newest first. */
+let remoteConfigs: { at: number; list: Promise<ProjectConfig[]> } | null = null
+
 export async function listDbConfigs(): Promise<ProjectConfig[]> {
   const db = createAdminClient()
-  if (!db) return []
+  if (!db) {
+    // A laptop: the studio's list, briefly cached — every page asks.
+    if (!remoteConfigs || Date.now() - remoteConfigs.at > 3000) {
+      remoteConfigs = {
+        at: Date.now(),
+        list: remote<{ projects: ProjectConfig[] }>('/api/db-projects')
+          .then((r) => r.projects)
+          .catch(() => []),
+      }
+    }
+    return remoteConfigs.list
+  }
   const { data, error } = await db.from(FILES_TABLE).select('slug, content').eq('path', 'project.config.ts')
   if (error) {
     console.error('[dbProjects] listing failed:', error.message)

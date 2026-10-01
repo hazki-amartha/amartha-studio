@@ -53,6 +53,11 @@ export async function middleware(request: NextRequest) {
   const { response, signedIn } = await session(request)
   if (!isSignInRequired() || signedIn || OPEN.some((re) => re.test(pathname))) return response
 
+  // A laptop acting as its signed-in designer (platform/auth/laptop.ts) sends
+  // a token, not a cookie. The route checks it — the Edge runtime can't reach
+  // the role table — so here it only has to get through.
+  if (pathname.startsWith('/api/') && request.headers.get('authorization')?.startsWith('Bearer ')) return response
+
   const shared = pathname.match(PROTOTYPE)?.[1]
   if (shared && (await edgeShareOpens(request.cookies.get(shareCookie(shared))?.value, shared))) return response
 

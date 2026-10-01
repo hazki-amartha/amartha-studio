@@ -49,7 +49,7 @@ function createAdminClient() {
   return createSupabaseClient(env.url, key, { auth: { autoRefreshToken: false, persistSession: false } })
 }
 
-async function roleRow(
+export async function roleRow(
   userId: string,
   email: string,
 ): Promise<{ role: StudioRole; displayName: string | null }> {

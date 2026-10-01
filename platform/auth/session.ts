@@ -56,10 +56,12 @@ export function useGuestAccess(slug: string | null | undefined): 'view' | 'comme
   return shares[slug] ?? null
 }
 
-/** Off to Google, back to this page. */
+/** Off to Google, back to this page. On the laptop running the studio, that
+ *  signs the laptop in through the deployed studio (platform/auth/laptop.ts). */
 export function signIn() {
   const next = `${window.location.pathname}${window.location.search}${window.location.hash}`
-  window.location.assign(`/auth/start?next=${encodeURIComponent(next)}`)
+  const laptop = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  window.location.assign(`${laptop ? '/auth/laptop/start' : '/auth/start'}?next=${encodeURIComponent(next)}`)
 }
 
 /** Signs out of the studio and of /assets-app, which shares the cookie. */

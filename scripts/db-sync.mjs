@@ -8,10 +8,10 @@
 //   npm run db:sync -- <slug>
 //
 // Bypasses the save checks — it is an owner's tool for moving projects, not a
-// way to edit one.
+// way to edit one. It writes the studio database directly, so it needs that
+// database's server key (STUDIO_DB_SUPABASE_URL, STUDIO_DB_SUPABASE_SERVICE_ROLE_KEY,
+// from `vercel env pull`), which designers' laptops never have.
 //
-// Needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (read from the
-// environment, then .env.local).
 // =============================================================================
 
 import { execSync } from 'node:child_process'
@@ -41,10 +41,10 @@ function env(name) {
   return line ? line.slice(name.length + 1).trim().replace(/^["']|["']$/g, '') : ''
 }
 
-const url = env('NEXT_PUBLIC_SUPABASE_URL')
-const key = env('SUPABASE_SERVICE_ROLE_KEY')
+const url = env('STUDIO_DB_SUPABASE_URL')
+const key = env('STUDIO_DB_SUPABASE_SERVICE_ROLE_KEY')
 if (!url || !key) {
-  console.error('Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (e.g. in .env.local).')
+  console.error('Set STUDIO_DB_SUPABASE_URL and STUDIO_DB_SUPABASE_SERVICE_ROLE_KEY (the studio database, from Vercel).')
   process.exit(1)
 }
 const db = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
