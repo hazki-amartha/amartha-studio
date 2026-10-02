@@ -12,10 +12,35 @@
 
 import { useState } from 'react'
 import { Badge, BottomSheet, Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
-import { ArrowLeft, ChatCircleQuestion, CheckCircle, MapPin, WhatsappLogo } from '@/design-system/icons'
+import { ArrowLeft, CheckCircle, MapPin, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { pipelineStore, setOnboardingHasWa, usePipeline } from '../lib/pipeline-store'
 import { AppScreen, ContactButton, StickyBar } from '../lib/ui'
+
+// What each AFin answer implies — shown under the options once one is picked.
+const AFIN_YES_INFO = [
+  'Mitra akan melakukan survey mandiri via AFin',
+  'Semua proses verifikasi dan persetujuan akan dilakukan dalam aplikasi AFin',
+]
+const AFIN_NO_INFO = [
+  'Konfirmasi dan persetujuan pendaftaran akan dilakukan via passcode yang dikirimkan ke no. HP calon mitra',
+  'BP akan memandu seluruh proses pendaftaran calon mitra via APartner',
+  'Siapkan dokumen berikut untuk bisa memulai pendaftaran: Form xx, Form yyy, Form xzy, Form xxa',
+]
+
+/** A small bulleted note list, shown under the AFin options. */
+function InfoList({ items }: { items: string[] }) {
+  return (
+    <div className="flex flex-col gap-8 rounded-12 bg-neutral-50 p-12">
+      {items.map((t) => (
+        <div key={t} className="flex gap-8">
+          <span className="mt-8 h-4 w-4 shrink-0 rounded-full bg-neutral-400" />
+          <span className="text-12 text-default">{t}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export function OnboardingStartScreen() {
   const flow = useFlow()
@@ -95,7 +120,12 @@ export function OnboardingStartScreen() {
           for a reactivation (she already has one), a question for a new mitra. */}
       <Card>
         <div className="flex flex-col gap-12">
-          <span className="text-14 font-bold text-default">Akun AFin</span>
+          <div className="flex flex-col gap-2">
+            <span className="text-14 font-bold text-default">Akun AFin</span>
+            {hasAfin ? null : (
+              <span className="text-12 text-caption">Apakah mitra bisa install AFin?</span>
+            )}
+          </div>
           {hasAfin ? (
             <div className="flex items-center gap-8">
               <span className="shrink-0 text-green-600">
@@ -105,12 +135,10 @@ export function OnboardingStartScreen() {
             </div>
           ) : (
             <div className="flex flex-col gap-8">
-              <span className="text-12 text-caption">Apakah mitra bisa install AFin?</span>
               <SelectableCard
                 name="can-afin"
                 inputType="radio"
                 title="Ya, bisa install AFin"
-                description="Mitra registrasi & mengisi survey sendiri di AFin"
                 checked={canInstall === 'yes'}
                 onChange={() => setCanInstall('yes')}
               />
@@ -118,10 +146,14 @@ export function OnboardingStartScreen() {
                 name="can-afin"
                 inputType="radio"
                 title="Tidak bisa install AFin"
-                description="Konfirmasi nomor lewat passcode, dibantu BP"
                 checked={canInstall === 'no'}
                 onChange={() => setCanInstall('no')}
               />
+              {canInstall === 'yes' ? (
+                <InfoList items={AFIN_YES_INFO} />
+              ) : canInstall === 'no' ? (
+                <InfoList items={AFIN_NO_INFO} />
+              ) : null}
             </div>
           )}
         </div>
@@ -131,19 +163,18 @@ export function OnboardingStartScreen() {
           reactivation, with the "?" explaining how. */}
       <Card>
         <div className="flex flex-col gap-8">
-          <span className="flex items-center gap-4 text-14 font-bold text-default">
-            Nomor HP calon mitra
+          <div className="flex items-center justify-between gap-8">
+            <span className="text-14 font-bold text-default">Nomor HP calon mitra</span>
             {hasAfin ? (
               <button
                 type="button"
                 onClick={() => setHelpOpen(true)}
-                aria-label="Cara ubah nomor HP"
-                className="flex h-20 w-20 items-center justify-center rounded-full text-caption"
+                className="shrink-0 text-12 font-bold text-link"
               >
-                <ChatCircleQuestion size={16} />
+                Ubah
               </button>
             ) : null}
-          </span>
+          </div>
           {hasAfin ? (
             <div className="rounded-8 border border-default bg-neutral-50 px-12 py-8 text-14 text-caption">
               {phone}
