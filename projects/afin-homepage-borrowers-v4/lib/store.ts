@@ -465,7 +465,7 @@ const homeVarDScenarios: Record<string, HomeVarDState> = {
     },
   },
 
-  // Week 11 — one recovery payment made; status still recoverable.
+  // Week 11A — one recovery payment made after weeks 6–10; status still recoverable.
   'week-11': {
     majelisStatus: 'tidak',
     majelisPage: 'bonus-majelis-pertama',
@@ -515,10 +515,58 @@ const homeVarDScenarios: Record<string, HomeVarDState> = {
     },
   },
 
-  // Week 12 — loan still recovering, but the Majelis reward just unlocked.
-  'week-12': {
-    majelisStatus: 'lancar',
-    majelisPage: 'bonus-majelis-berhasil',
+  // Week 11B — paid on time throughout; the Majelis card is the same as 11A.
+  'week-11b': {
+    majelisStatus: 'tidak',
+    majelisPage: 'bonus-majelis-pertama',
+    main: {
+      kind: 'progress',
+      data: {
+        tone: 'success',
+        cardTitle: 'Progress limit Anda',
+        cardSubtitle: 'Dapatkan pada 28 Aug 2027',
+        leftLabel: 'Limit saat ini',
+        leftValue: 'Rp5 jt',
+        rightLabel: 'Potensi limit baru',
+        rightValue: 'Rp6 - 8 jt',
+        bannerTitle: 'Anda berpotensi untuk naik limit',
+        bannerDescription: 'Terus jaga kelancaran pembayaran Anda.',
+        progressLabel: '11 dari 48',
+        progressUnit: 'minggu angsuran',
+        segments: segments('PPPPPPPPPPP', 48),
+        legend: [{ tone: 'paid', label: '11x bayar' }],
+        buttonLabel: 'Bayar Angsuran Rp135.000',
+      },
+    },
+    majelisRewardLabel: 'Bonus Cair Tambahan Rp1.5 jt',
+    majelis: {
+      kind: 'progress',
+      data: {
+        tone: 'warning',
+        cardTitle: 'Bonus majelis Anda',
+        cardSubtitle: 'Dapatkan pada 30 Nov 2026',
+        leftLabel: '',
+        leftValue: '',
+        rightLabel: '',
+        rightValue: '',
+        bannerTitle: 'Masih berpotensi dapat bonus',
+        bannerDescription: 'Pertahankan pembayaran 1 minggu lagi untuk bisa dapat bonus.',
+        progressLabel: '11 dari 12',
+        progressUnit: 'minggu majelis bayar lancar',
+        segments: segments('PPPPPMMMMMP', 12),
+        legend: [
+          { tone: 'paid', label: '6x lancar' },
+          { tone: 'missed', label: '5x tidak lancar' },
+        ],
+      },
+    },
+  },
+
+  // Week 12A — recovered in week 11, late again in week 12: the limit
+  // upgrade is at risk again and the first Majelis bonus is lost.
+  'week-12a': {
+    majelisStatus: 'tidak',
+    majelisPage: 'bonus-majelis-gagal',
     main: {
       kind: 'progress',
       data: {
@@ -527,17 +575,66 @@ const homeVarDScenarios: Record<string, HomeVarDState> = {
         cardSubtitle: 'Dapatkan pada 28 Aug 2027',
         leftLabel: 'Limit saat ini',
         leftValue: 'Rp5 jt',
-        rightLabel: 'Potensi limit baru',
+        rightLabel: 'Limit baru hangus',
         rightValue: 'Rp6 - 8 jt',
-        bannerTitle: 'Status masih bisa diperbaiki!',
-        bannerDescription: 'Yuk, jaga kelancaran untuk bisa naik limit 33 minggu lagi.',
+        rightStrike: true,
+        bannerTitle: 'Naik Limit berpotensi gagal',
+        bannerDescription: 'Yah, pembayaran Anda terlambat! Segera bayar, ya, supaya tetap bisa naik limit.',
         progressLabel: '12 dari 48',
         progressUnit: 'minggu angsuran',
-        segments: segments('PPPPPMMMMMPP', 48),
+        segments: segments('PPPPPMMMMMPM', 48),
         legend: [
-          { tone: 'paid', label: '7x bayar' },
-          { tone: 'missed', label: '5x tidak bayar' },
+          { tone: 'paid', label: '6x bayar' },
+          { tone: 'missed', label: '6x tidak bayar' },
         ],
+        buttonLabel: 'Bayar Angsuran Rp270.000',
+      },
+    },
+    majelisRewardLabel: 'Bonus Cair Tambahan Rp1.5 jt',
+    majelisRewardStrike: true,
+    majelis: {
+      kind: 'progress',
+      data: {
+        tone: 'alert',
+        cardTitle: 'Bonus majelis Anda',
+        cardSubtitle: 'Dapatkan pada 30 Nov 2026',
+        leftLabel: '',
+        leftValue: '',
+        rightLabel: '',
+        rightValue: '',
+        bannerTitle: 'Bonus majelis hangus',
+        bannerDescription: 'Karena Anda telat bayar di minggu ke-12, majelis tidak lancar dan bonus tidak bisa didapatkan.',
+        progressLabel: '12 dari 12',
+        progressUnit: 'minggu majelis bayar lancar',
+        segments: segments('PPPPPMMMMMPM', 12),
+        legend: [
+          { tone: 'paid', label: '6x lancar' },
+          { tone: 'missed', label: '6x tidak lancar' },
+        ],
+      },
+    },
+  },
+
+  // Week 12B — paid on time throughout: the first Majelis bonus unlocked.
+  'week-12': {
+    majelisStatus: 'lancar',
+    majelisPage: 'bonus-majelis-berhasil',
+    main: {
+      kind: 'progress',
+      data: {
+        tone: 'success',
+        cardTitle: 'Progress limit Anda',
+        cardSubtitle: 'Dapatkan pada 28 Aug 2027',
+        leftLabel: 'Limit saat ini',
+        leftValue: 'Rp5 jt',
+        rightLabel: 'Potensi limit baru',
+        rightValue: 'Rp6 - 8 jt',
+        bannerTitle: 'Anda berpotensi untuk naik limit',
+        bannerDescription: 'Terus jaga kelancaran pembayaran Anda.',
+        progressLabel: '12 dari 48',
+        progressUnit: 'minggu angsuran',
+        segments: segments('PPPPPPPPPPPP', 48),
+        legend: [{ tone: 'paid', label: '12x bayar' }],
         buttonLabel: 'Bayar Angsuran Rp135.000',
       },
     },
@@ -551,10 +648,10 @@ const homeVarDScenarios: Record<string, HomeVarDState> = {
     },
   },
 
-  // Week 13 — loan still recovering; a fresh Majelis reward cycle just started.
+  // Week 13A — still recovering (weeks 6–10 and 12 missed); Bonus ke-2 just started.
   'week-13': {
     majelisStatus: 'lancar',
-    majelisPage: 'bonus-majelis-berhasil',
+    majelisPage: 'bonus-majelis-gagal',
     main: {
       kind: 'progress',
       data: {
@@ -569,10 +666,10 @@ const homeVarDScenarios: Record<string, HomeVarDState> = {
         bannerDescription: 'Yuk, jaga kelancaran untuk bisa naik limit 33 minggu lagi.',
         progressLabel: '13 dari 48',
         progressUnit: 'minggu angsuran',
-        segments: segments('PPPPPMMMMMPPP', 48),
+        segments: segments('PPPPPMMMMMPMP', 48),
         legend: [
-          { tone: 'paid', label: '8x bayar' },
-          { tone: 'missed', label: '5x tidak bayar' },
+          { tone: 'paid', label: '7x bayar' },
+          { tone: 'missed', label: '6x tidak bayar' },
         ],
         buttonLabel: 'Bayar Angsuran Rp135.000',
       },
@@ -598,7 +695,51 @@ const homeVarDScenarios: Record<string, HomeVarDState> = {
     },
   },
 
-  // Week 47 — one week from the finish line; a mixed payment history.
+  // Week 13B — paid on time throughout; Bonus ke-1 was claimed.
+  'week-13b': {
+    majelisStatus: 'lancar',
+    majelisPage: 'bonus-majelis-berhasil',
+    main: {
+      kind: 'progress',
+      data: {
+        tone: 'success',
+        cardTitle: 'Progress limit Anda',
+        cardSubtitle: 'Dapatkan pada 28 Aug 2027',
+        leftLabel: 'Limit saat ini',
+        leftValue: 'Rp5 jt',
+        rightLabel: 'Potensi limit baru',
+        rightValue: 'Rp6 - 8 jt',
+        bannerTitle: 'Anda berpotensi untuk naik limit',
+        bannerDescription: 'Terus jaga kelancaran pembayaran Anda.',
+        progressLabel: '13 dari 48',
+        progressUnit: 'minggu angsuran',
+        segments: segments('PPPPPPPPPPPPP', 48),
+        legend: [{ tone: 'paid', label: '13x bayar' }],
+        buttonLabel: 'Bayar Angsuran Rp135.000',
+      },
+    },
+    majelisRewardLabel: 'Bonus Minyak Goreng',
+    majelis: {
+      kind: 'progress',
+      data: {
+        tone: 'success',
+        cardTitle: 'Bonus majelis Anda',
+        cardSubtitle: 'Dapatkan pada 30 Nov 2026',
+        leftLabel: '',
+        leftValue: '',
+        rightLabel: '',
+        rightValue: '',
+        bannerTitle: 'Anda berpotensi mendapat hadiah',
+        bannerDescription: 'Pastikan semua anggota membayar dengan lancar.',
+        progressLabel: '13 dari 24',
+        progressUnit: 'minggu majelis bayar lancar',
+        segments: segments('', 12),
+        legend: [],
+      },
+    },
+  },
+
+  // Week 47A — one week from the finish line; a mixed payment history.
   'week-47': {
     majelisStatus: 'lancar',
     majelisPage: 'bonus-majelis-semua-berhasil',
@@ -616,12 +757,43 @@ const homeVarDScenarios: Record<string, HomeVarDState> = {
         bannerDescription: 'Terus jaga kelancaran pembayaran Anda.',
         progressLabel: '47 dari 48',
         progressUnit: 'minggu angsuran',
-        segments: segments('PPPPPMMMMMPPPWWMPPPPMPPPPPWWWPWWPMPPWPMMPPPPPPP', 48),
+        segments: segments('PPPPPMMMMMPMPWWMPPPPMPPPPPWWWPWWPMPPWPMMPPPPPPP', 48),
         legend: [
-          { tone: 'paid', label: '29x bayar' },
-          { tone: 'missed', label: '10x tidak bayar' },
+          { tone: 'paid', label: '28x bayar' },
+          { tone: 'missed', label: '11x tidak bayar' },
           { tone: 'partial', label: '8x sebagian' },
         ],
+        buttonLabel: 'Bayar Angsuran Rp135.000',
+      },
+    },
+    majelis: {
+      kind: 'ended',
+      title: 'Bonus majelis berakhir',
+      description: 'Tidak ada lagi bonus yang tersisa.',
+      linkLabel: 'Lihat riwayat',
+    },
+  },
+
+  // Week 47B — paid on time throughout.
+  'week-47b': {
+    majelisStatus: 'lancar',
+    majelisPage: 'bonus-majelis-semua-berhasil',
+    main: {
+      kind: 'progress',
+      data: {
+        tone: 'success',
+        cardTitle: 'Progress limit Anda',
+        cardSubtitle: 'Dapatkan pada 28 Aug 2027',
+        leftLabel: 'Limit saat ini',
+        leftValue: 'Rp5 jt',
+        rightLabel: 'Potensi limit baru',
+        rightValue: 'Rp6 - 8 jt',
+        bannerTitle: 'Anda berpotensi untuk naik limit',
+        bannerDescription: 'Terus jaga kelancaran pembayaran Anda.',
+        progressLabel: '47 dari 48',
+        progressUnit: 'minggu angsuran',
+        segments: segments('PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP', 48),
+        legend: [{ tone: 'paid', label: '47x bayar' }],
         buttonLabel: 'Bayar Angsuran Rp135.000',
       },
     },
@@ -683,19 +855,43 @@ export const applyWeek6b = () => storeD.set(homeVarDScenarios['week-6b'])
 export const applyWeek10 = () => storeD.set(homeVarDScenarios['week-10'])
 export const applyWeek10b = () => storeD.set(homeVarDScenarios['week-10b'])
 export const applyWeek11 = () => storeD.set(homeVarDScenarios['week-11'])
+export const applyWeek11b = () => storeD.set(homeVarDScenarios['week-11b'])
+export const applyWeek12a = () => storeD.set(homeVarDScenarios['week-12a'])
 export const applyWeek12 = () => storeD.set(homeVarDScenarios['week-12'])
 export const applyWeek13 = () => storeD.set(homeVarDScenarios['week-13'])
+export const applyWeek13b = () => storeD.set(homeVarDScenarios['week-13b'])
 export const applyWeek47 = () => storeD.set(homeVarDScenarios['week-47'])
+export const applyWeek47b = () => storeD.set(homeVarDScenarios['week-47b'])
 export const applyWeek48 = () => storeD.set(homeVarDScenarios['week-48'])
 
-// Hidden UT shortcut: the Poket widget's Transfer / Isi Saldo buttons on Home
-// Var D step forward / back through the milestones above, wrapping 48 ↔ 0, so
-// states can be switched while the prototype is fullscreen.
-const weekOrder = Object.values(homeVarDScenarios)
+// Hidden UT shortcut on Home A / Home B (Final): Poket Transfer = next,
+// Isi Saldo = prev, wrapping 48 ↔ 0, so states can be switched while the
+// prototype is fullscreen. Each Home walks its own user's story:
+//   A — pays late       B — pays on time (other members late)
+export type HomePath = 'a' | 'b'
+export const PATHS: Record<HomePath, string[]> = {
+  a: ['week-0', 'week-1', 'week-5', 'week-6', 'week-10', 'week-11', 'week-12a', 'week-13', 'week-47', 'week-48'],
+  b: ['week-0', 'week-1', 'week-5', 'week-6b', 'week-10b', 'week-11b', 'week-12', 'week-13b', 'week-47b', 'week-48'],
+}
 
-export function stepHomeVarD(delta: 1 | -1) {
-  const i = weekOrder.indexOf(stateD)
-  storeD.set(weekOrder[(i + delta + weekOrder.length) % weekOrder.length])
+function currentKey() {
+  return Object.keys(homeVarDScenarios).find((k) => homeVarDScenarios[k] === stateD) ?? 'week-0'
+}
+
+export function stepHomeVarD(delta: 1 | -1, path: HomePath) {
+  const order = PATHS[path]
+  const i = Math.max(order.indexOf(currentKey()), 0)
+  storeD.set(homeVarDScenarios[order[(i + delta + order.length) % order.length]])
+}
+
+/** Opening Home B on a path-A Minggu (or vice versa) moves to the same Minggu
+ *  on that Home's own path, so every page downstream tells one story. */
+export function alignToPath(path: HomePath) {
+  const key = currentKey()
+  const order = PATHS[path]
+  if (order.includes(key)) return
+  const other = PATHS[path === 'a' ? 'b' : 'a']
+  storeD.set(homeVarDScenarios[order[Math.max(other.indexOf(key), 0)]])
 }
 
 // Two small view switches beside the Minggu, each a tiny store so the state
@@ -736,3 +932,10 @@ export const useBonusGagal = bonusGagal.use
 const pencairanLanjutan = viewStore(false)
 export const setPencairanLanjutan = pencairanLanjutan.set
 export const usePencairanLanjutan = pencairanLanjutan.use
+
+// The Home (A or B) last opened — Pencairan - Diproses goes back to it.
+let homePath: HomePath = 'a'
+export const setHomePath = (path: HomePath) => {
+  homePath = path
+}
+export const getHomePath = () => homePath

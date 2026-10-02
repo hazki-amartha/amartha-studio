@@ -24,9 +24,13 @@ import {
   applyWeek10,
   applyWeek10b,
   applyWeek11,
+  applyWeek11b,
   applyWeek12,
+  applyWeek12a,
   applyWeek13,
+  applyWeek13b,
   applyWeek47,
+  applyWeek47b,
   applyWeek48,
   setBonusGagal,
   setMajelisView,
@@ -37,11 +41,11 @@ export const project: ProjectModule = {
   screens: [
     {
       id: 'home-var-d',
-      title: 'Home (Final)',
+      title: 'Home A (Final) - telat bayar',
       component: lazyScreen(() => import('./screens/home-var-d'), 'HomeVarDScreen'),
       entry: true, // exactly ONE screen per project sets entry: true
-      // Ten loan-week milestones (Figma section 2918:10990), switchable from
-      // the state controls beside the device — see lib/store.ts.
+      // The late payer's ten Minggu — Poket Transfer / Isi Saldo step through
+      // them (PATHS.a in lib/store.ts).
       states: [
         {
           id: 'week-0',
@@ -63,56 +67,112 @@ export const project: ProjectModule = {
         },
         {
           id: 'week-6',
-          label: 'Minggu 6A - telat bayar, majelis berisiko',
+          label: 'Minggu 6 - telat bayar, majelis berisiko',
           description: 'Individual berisiko · Majelis berisiko karena dirinya',
           apply: applyWeek6,
         },
         {
-          id: 'week-6b',
-          label: 'Minggu 6B - tepat waktu, anggota lain telat',
-          description: 'Individual lancar · Majelis berisiko karena anggota lain',
-          apply: applyWeek6b,
-        },
-        {
           id: 'week-10',
-          label: 'Minggu 10A - telat 5 minggu, bonus bisa hilang',
-          description: 'Telat bayar minggu 5–10 · Majelis berisiko karena dirinya',
+          label: 'Minggu 10 - telat 5 minggu, bonus bisa hilang',
+          description: 'Telat bayar minggu 6–10 · Majelis berisiko karena dirinya',
           apply: applyWeek10,
-        },
-        {
-          id: 'week-10b',
-          label: 'Minggu 10B - tepat waktu, majelis makin berisiko',
-          description: 'Individual lancar · Majelis makin berisiko karena anggota lain',
-          apply: applyWeek10b,
         },
         {
           id: 'week-11',
           label: 'Minggu 11 - mulai bayar lagi, status membaik',
-          description: 'Bayar minggu 5–11 · Status membaik jadi lancar',
+          description: 'Bayar lagi setelah telat minggu 6–10',
           apply: applyWeek11,
         },
         {
-          id: 'week-12',
-          label: 'Minggu 12 - bonus majelis ke-1 cair',
-          description: 'Lunas 12 minggu · Tugas Majelis selesai, bonus cair',
-          apply: applyWeek12,
+          id: 'week-12a',
+          label: 'Minggu 12 - telat lagi, bonus majelis hangus',
+          description: 'Pulih di minggu 11, telat lagi di minggu 12',
+          apply: applyWeek12a,
         },
         {
           id: 'week-13',
-          label: 'Minggu 13 - bonus majelis ke-2 dimulai',
-          description: 'Bonus cair, tugas Majelis ke-2 dimulai',
+          label: 'Minggu 13 - masih memperbaiki, bonus ke-2 dimulai',
+          description: 'Bonus ke-1 hangus, bonus ke-2 dimulai',
           apply: applyWeek13,
         },
         {
           id: 'week-47',
-          label: 'Minggu 47 - semua bonus majelis selesai',
-          description: 'Lunas 47 minggu · Semua bonus Majelis sudah cair',
+          label: 'Minggu 47 - hampir lunas, riwayat campuran',
+          description: 'Semua bonus majelis sudah selesai',
           apply: applyWeek47,
         },
         {
           id: 'week-48',
           label: 'Minggu 48 - lunas, limit berhasil naik',
-          description: 'Lunas semua · Limit berhasil naik',
+          description: 'Limit naik ke Rp7,2 jt',
+          apply: applyWeek48,
+        },
+      ],
+    },
+    {
+      id: 'home-b',
+      title: 'Home B (Final) - tepat waktu',
+      component: lazyScreen(() => import('./screens/home-var-d'), 'HomeBScreen'),
+      // Pays on time while other members fall behind (PATHS.b).
+      states: [
+        {
+          id: 'week-0',
+          label: 'Minggu 0 - baru cair, belum bayar',
+          description: 'Pembayaran belum dimulai',
+          apply: applyWeek0,
+        },
+        {
+          id: 'week-1',
+          label: 'Minggu 1 - bayar pertama, semua lancar',
+          description: 'Individual lancar · Majelis lancar',
+          apply: applyWeek1,
+        },
+        {
+          id: 'week-5',
+          label: 'Minggu 5 - semua lancar',
+          description: 'Individual lancar · Majelis lancar',
+          apply: applyWeek5,
+        },
+        {
+          id: 'week-6b',
+          label: 'Minggu 6 - tepat waktu, anggota lain telat',
+          description: 'Individual lancar · Majelis berisiko karena anggota lain',
+          apply: applyWeek6b,
+        },
+        {
+          id: 'week-10b',
+          label: 'Minggu 10 - tepat waktu, majelis makin berisiko',
+          description: 'Individual lancar · Majelis makin berisiko karena anggota lain',
+          apply: applyWeek10b,
+        },
+        {
+          id: 'week-11b',
+          label: 'Minggu 11 - tepat waktu, majelis mulai membaik',
+          description: 'Individual lancar · Majelis masih bisa dapat bonus',
+          apply: applyWeek11b,
+        },
+        {
+          id: 'week-12',
+          label: 'Minggu 12 - bonus majelis ke-1 cair',
+          description: 'Individual lancar · Bonus ke-1 berhasil',
+          apply: applyWeek12,
+        },
+        {
+          id: 'week-13b',
+          label: 'Minggu 13 - bonus majelis ke-2 dimulai',
+          description: 'Individual lancar · Bonus ke-1 sudah cair',
+          apply: applyWeek13b,
+        },
+        {
+          id: 'week-47b',
+          label: 'Minggu 47 - semua lancar, hampir lunas',
+          description: 'Semua bonus majelis sudah selesai',
+          apply: applyWeek47b,
+        },
+        {
+          id: 'week-48',
+          label: 'Minggu 48 - lunas, limit berhasil naik',
+          description: 'Limit naik ke Rp7,2 jt',
           apply: applyWeek48,
         },
       ],
@@ -172,7 +232,7 @@ export const project: ProjectModule = {
         {
           id: 'week-10',
           label: 'Minggu 10A - bonus bisa hilang, Anda telat bayar',
-          description: 'Telat bayar minggu 5–10 · Majelis berisiko karena dirinya',
+          description: 'Telat bayar minggu 6–10 · Majelis berisiko karena dirinya',
           apply: () => {
             setBonusGagal(false)
             applyWeek10()
@@ -189,17 +249,35 @@ export const project: ProjectModule = {
         },
         {
           id: 'week-11',
-          label: 'Minggu 11 - bonus ke-1 masih bisa didapat',
-          description: 'Bayar minggu 5–11 · Status membaik jadi lancar',
+          label: 'Minggu 11A - bonus ke-1 masih bisa didapat',
+          description: 'Bayar lagi setelah telat minggu 6–10',
           apply: () => {
             setBonusGagal(false)
             applyWeek11()
           },
         },
         {
+          id: 'week-11b',
+          label: 'Minggu 11B - bonus ke-1 masih bisa didapat',
+          description: 'Individual lancar · Majelis masih bisa dapat bonus',
+          apply: () => {
+            setBonusGagal(false)
+            applyWeek11b()
+          },
+        },
+        {
+          id: 'week-12a',
+          label: 'Minggu 12A - bonus ke-1 hangus, Anda telat bayar',
+          description: 'Pulih di minggu 11, telat lagi di minggu 12',
+          apply: () => {
+            setBonusGagal(false)
+            applyWeek12a()
+          },
+        },
+        {
           id: 'week-12',
-          label: 'Minggu 12 - bonus ke-1 berhasil didapat',
-          description: 'Lunas 12 minggu · Tugas Majelis selesai, bonus cair',
+          label: 'Minggu 12B - bonus ke-1 berhasil didapat',
+          description: 'Individual lancar · Bonus ke-1 berhasil',
           apply: () => {
             setBonusGagal(false)
             applyWeek12()
@@ -207,26 +285,44 @@ export const project: ProjectModule = {
         },
         {
           id: 'week-13',
-          label: 'Minggu 13 - bonus ke-1 berhasil, ke-2 berjalan',
-          description: 'Bonus cair, tugas Majelis ke-2 dimulai',
+          label: 'Minggu 13A - bonus ke-1 gagal, ke-2 berjalan',
+          description: 'Bonus ke-1 hangus, bonus ke-2 dimulai',
           apply: () => {
             setBonusGagal(false)
             applyWeek13()
           },
         },
         {
+          id: 'week-13b',
+          label: 'Minggu 13B - bonus ke-1 berhasil, ke-2 berjalan',
+          description: 'Individual lancar · Bonus ke-1 sudah cair',
+          apply: () => {
+            setBonusGagal(false)
+            applyWeek13b()
+          },
+        },
+        {
           id: 'week-47',
-          label: 'Minggu 47 - semua bonus berhasil',
-          description: 'Lunas 47 minggu · Semua bonus Majelis sudah cair',
+          label: 'Minggu 47A - semua bonus selesai',
+          description: 'Semua bonus majelis sudah selesai',
           apply: () => {
             setBonusGagal(false)
             applyWeek47()
           },
         },
         {
+          id: 'week-47b',
+          label: 'Minggu 47B - semua bonus berhasil',
+          description: 'Semua bonus majelis sudah selesai',
+          apply: () => {
+            setBonusGagal(false)
+            applyWeek47b()
+          },
+        },
+        {
           id: 'week-48',
-          label: 'Minggu 48 - semua bonus berhasil',
-          description: 'Lunas semua · Limit berhasil naik',
+          label: 'Minggu 48 - semua bonus selesai',
+          description: 'Limit naik ke Rp7,2 jt',
           apply: () => {
             setBonusGagal(false)
             applyWeek48()
@@ -305,7 +401,7 @@ export const project: ProjectModule = {
         {
           id: 'week-10',
           label: 'Minggu 10A - 5x lunas, 5x telat',
-          description: 'Telat bayar minggu 5–10 · Majelis berisiko karena dirinya',
+          description: 'Telat bayar minggu 6–10 · Majelis berisiko karena dirinya',
           apply: applyWeek10,
         },
         {
@@ -316,27 +412,51 @@ export const project: ProjectModule = {
         },
         {
           id: 'week-11',
-          label: 'Minggu 11 - mulai bayar lagi setelah telat',
-          description: 'Bayar minggu 5–11 · Status membaik jadi lancar',
+          label: 'Minggu 11A - mulai bayar lagi setelah telat',
+          description: 'Bayar lagi setelah telat minggu 6–10',
           apply: applyWeek11,
         },
         {
+          id: 'week-11b',
+          label: 'Minggu 11B - 11x bayar lunas',
+          description: 'Individual lancar · Majelis masih bisa dapat bonus',
+          apply: applyWeek11b,
+        },
+        {
+          id: 'week-12a',
+          label: 'Minggu 12A - pulih, lalu telat lagi di minggu 12',
+          description: 'Pulih di minggu 11, telat lagi di minggu 12',
+          apply: applyWeek12a,
+        },
+        {
           id: 'week-12',
-          label: 'Minggu 12 - masih memperbaiki status',
-          description: 'Lunas 12 minggu · Tugas Majelis selesai, bonus cair',
+          label: 'Minggu 12B - 12x bayar lunas',
+          description: 'Individual lancar · Bonus ke-1 berhasil',
           apply: applyWeek12,
         },
         {
           id: 'week-13',
-          label: 'Minggu 13 - masih memperbaiki status',
-          description: 'Bonus cair, tugas Majelis ke-2 dimulai',
+          label: 'Minggu 13A - 7x lunas, 6x telat',
+          description: 'Bonus ke-1 hangus, bonus ke-2 dimulai',
           apply: applyWeek13,
         },
         {
+          id: 'week-13b',
+          label: 'Minggu 13B - 13x bayar lunas',
+          description: 'Individual lancar · Bonus ke-1 sudah cair',
+          apply: applyWeek13b,
+        },
+        {
           id: 'week-47',
-          label: 'Minggu 47 - riwayat campuran, hampir lunas',
-          description: 'Lunas 47 minggu · Semua bonus Majelis sudah cair',
+          label: 'Minggu 47A - riwayat campuran, hampir lunas',
+          description: 'Semua bonus majelis sudah selesai',
           apply: applyWeek47,
+        },
+        {
+          id: 'week-47b',
+          label: 'Minggu 47B - 47x bayar lunas',
+          description: 'Semua bonus majelis sudah selesai',
+          apply: applyWeek47b,
         },
       ],
     },

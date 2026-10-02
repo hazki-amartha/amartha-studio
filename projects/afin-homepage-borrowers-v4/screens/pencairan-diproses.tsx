@@ -8,7 +8,7 @@ import { ChevronDown, ChevronRight } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { ASSET, DetailRow, PENCAIRAN } from '../lib/pencairan-ui'
-import { usePencairanLanjutan } from '../lib/store'
+import { getHomePath, usePencairanLanjutan } from '../lib/store'
 
 // Celengan card hidden for now — "Isi Celengan" isn't ticked on Konfirmasi, so
 // nothing was bought. Flip to show it again.
@@ -63,7 +63,7 @@ export function PencairanDiprosesScreen() {
   const p = PENCAIRAN[usePencairanLanjutan() ? 'lanjutan' : 'awal']
 
   return (
-    <Screen canvas="white" topBar={<NavigationHeader title="Ajukan pencairan" onBack={() => flow.go('home-var-d')} />}>
+    <Screen canvas="white" topBar={<NavigationHeader title="Ajukan pencairan" onBack={() => flow.go(getHomePath() === 'b' ? 'home-b' : 'home-var-d')} />}>
       <div className="-mx-16 -mt-16 flex flex-1 flex-col">
         <div className="flex flex-col items-center gap-12 px-20 pb-20 pt-24">
           <img src={`${ASSET}/pencairan-diproses.svg`} alt="" width={200} height={112} />
