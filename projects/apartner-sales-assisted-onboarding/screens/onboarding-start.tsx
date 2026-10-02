@@ -66,8 +66,10 @@ export function OnboardingStartScreen() {
 
   function verify() {
     if (!canConfirm) return
-    // Already has AFIN — straight into the survey (Onboarding page).
+    // Already has AFIN — she self-serves the Uji Kelayakan survey, then straight
+    // into the Onboarding page.
     if (hasAfin) {
+      pipelineStore.chooseSurveyMode(lead.id, 'self')
       pipelineStore.setStartingOnboarding(lead.id, false)
       flow.go('calon-mitra')
       return
