@@ -431,15 +431,11 @@ export function CalonMitraScreen() {
                   ) : null}
                 </>
               ) : accepted ? (
-                <>
-                  <span className="flex min-w-0 items-center gap-8">
-                    <StatusDot done />
-                    <span className="text-12 font-bold text-green-600">Sudah diterima majelis</span>
-                  </span>
-                  <Button size="sm" variant="outline" onClick={startKmAcceptance}>
-                    Edit
-                  </Button>
-                </>
+                // KM acceptance done — locked, no Edit.
+                <span className="flex min-w-0 items-center gap-8">
+                  <StatusDot done />
+                  <span className="text-12 font-bold text-green-600">Sudah diterima majelis</span>
+                </span>
               ) : (
                 <>
                   <span className="flex min-w-0 items-center gap-8">
