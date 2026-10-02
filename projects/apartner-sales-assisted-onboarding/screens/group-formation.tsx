@@ -24,6 +24,7 @@ import {
   type FormationStepId,
 } from '../lib/formation'
 import { SelectField } from '../lib/pipeline-ui'
+import { store } from '../lib/store'
 import { RITUAL_POINTS } from '../lib/survey'
 import { AppScreen, StageBar, StickyBar } from '../lib/ui'
 
@@ -180,7 +181,7 @@ export function GroupFormationScreen() {
       flow.go(ctx.returnTo ?? 'majelis-page')
     } else {
       formationStore.activateMajelis(ctx.majelisName)
-      pipelineStore.setFlash(`${ctx.majelisName} terbentuk`)
+      store.setFlash(`Majelis ${ctx.majelisName} berhasil dibentuk`)
       // Return to where the formation was started — from a lead, that's her
       // page, now showing "Ready for disbursement".
       if (ctx.returnTo) flow.go(ctx.returnTo)

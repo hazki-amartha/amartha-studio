@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BottomSheet, Button, NavigationHeader } from '@/design-system/components'
-import { Check, CheckCircle, ChevronRight, PhoneCall, Plus, Sliders, User } from '@/design-system/icons'
+import { Check, CheckCircle, ChevronRight, Plus, Sliders } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   BmValidationCard,
@@ -29,7 +29,7 @@ import {
 } from './tasks'
 import {
   LEADS_SECTION_LABEL,
-  detailScreen,
+  leadDetailTarget,
   leadsSection,
   sourceDetail,
   type LeadsSection,
@@ -43,7 +43,6 @@ import { SOFT_REJECT_CASES, type SoftRejectCase } from './validasi'
 import { useValidasiAll, validasiStore } from './validasi-store'
 import { SourceSheet } from './pipeline-ui'
 import { TabBar } from './tabs'
-import { FOLLOWUP_TARGET, TODAY_FOLLOWUPS, TODAY_PROSPEKS } from './today-activity'
 import { AppScreen, EmptyState, SearchField, VisitTitle } from './ui'
 
 type MainTab = 'leads' | 'poi'
@@ -149,7 +148,7 @@ function DaySummaryBox({ onOpen }: { onOpen: () => void }) {
       className="-mx-16 -mt-16 flex items-center gap-8 border-b border-blue-200 bg-blue-50 px-16 py-12 text-left active:bg-blue-100"
     >
       <span className="min-w-0 flex-1 text-14 font-bold text-blue-600">
-        Lihat performance hari ini
+        Lihat capaian hari ini
       </span>
       <span className="shrink-0 text-blue-600">
         <ChevronRight size={24} />
@@ -158,65 +157,6 @@ function DaySummaryBox({ onOpen }: { onOpen: () => void }) {
   )
 }
 
-/** The detail page behind the day-summary chevron — a full-screen overlay with
- *  the executed follow-ups and the day's disbursements, closed from the right. */
-function DaySummaryDetails({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const Row = ({ time, title, sub }: { time: string; title: string; sub: string }) => (
-    <div className="flex items-start gap-12 rounded-12 border border-default bg-neutral-white p-12">
-      <span className="shrink-0 text-14 font-bold text-primary-500">{time}</span>
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="text-14 font-bold text-default">{title}</span>
-        <span className="text-12 text-caption">{sub}</span>
-      </div>
-    </div>
-  )
-  return (
-    <BottomSheet open={open} size="fullscreen" hideClose onClose={onClose}>
-      <div className="flex items-center justify-between pb-12">
-        <span className="text-18 font-bold text-default">Aktivitas hari ini</span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Tutup"
-          className="-mr-4 flex h-32 w-32 items-center justify-center text-default"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="20"
-            height="20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            aria-hidden
-          >
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
-      </div>
-      <div className="flex flex-col gap-16">
-        <div className="flex flex-col gap-8">
-          <span className="flex items-center gap-8 text-14 font-bold text-default">
-            <PhoneCall size={20} />
-            Follow-up selesai ({TODAY_FOLLOWUPS.length} dari {FOLLOWUP_TARGET})
-          </span>
-          {TODAY_FOLLOWUPS.map((f) => (
-            <Row key={f.name} time={f.time} title={f.name} sub={f.outcome} />
-          ))}
-        </div>
-        <div className="flex flex-col gap-8">
-          <span className="flex items-center gap-8 text-14 font-bold text-default">
-            <User size={20} />
-            Prospek baru ditambahkan ({TODAY_PROSPEKS.length})
-          </span>
-          {TODAY_PROSPEKS.map((p) => (
-            <Row key={p.name} time={p.time} title={p.name} sub={p.source} />
-          ))}
-        </div>
-      </div>
-    </BottomSheet>
-  )
-}
 
 /** The Leads ↔ POI visit segmented switch — "Lihat semua" only. */
 function SegmentedTabs({
@@ -352,8 +292,6 @@ export function SalesList({ scope }: { scope: Scope }) {
   ) : null
   const [mainTab, setMainTab] = useState<MainTab>('leads')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  // The Sales hari ini day-summary box — collapsed by default.
-  const [summaryOpen, setSummaryOpen] = useState(false)
   // Lihat semua filter/sort — applied values + the sheet's draft.
   const [filterOpen, setFilterOpen] = useState(false)
   const [jenis, setJenis] = useState<Set<LeadsSection>>(new Set())
@@ -399,31 +337,7 @@ export function SalesList({ scope }: { scope: Scope }) {
 
   function openLead(lead: PipelineLead) {
     pipelineStore.open(lead.id)
-    // Still finalising the persetujuan — reopen that flow.
-    if (lead.startingOnboarding) {
-      flow.go('onboarding-start')
-      return
-    }
-    // A reactivating ex-mitra opens the Follow-up record first, so the BP sees her
-    // contact & address before starting onboarding (its primary button) — but once
-    // the Persetujuan is confirmed she re-opens on Complete onboarding. A renewal
-    // is already further along and goes straight to the Persetujuan page.
-    if (lead.reactivation) {
-      if (lead.onboardingStarted) {
-        flow.go('calon-mitra')
-      } else {
-        flow.go(lead.reactivation.kind === 'renewal' ? 'onboarding-start' : 'follow-up')
-      }
-      return
-    }
-    // A survey-ongoing lead (survey-created, -submitted) or an approved one opens
-    // the Calon Mitra detail directly (survey ongoing → 'calon-mitra', a result →
-    // 'onboarding-outcome'); only a pre-survey lead goes through follow-up triage.
-    const inDetail =
-      lead.status === 'survey-created' ||
-      lead.status === 'survey-submitted' ||
-      lead.status === 'approved'
-    flow.go(inDetail ? detailScreen(lead) : 'follow-up')
+    flow.go(leadDetailTarget(lead))
   }
 
   function openPoi(t: PoiTask) {
@@ -528,7 +442,7 @@ export function SalesList({ scope }: { scope: Scope }) {
           />
         }
       >
-        <DaySummaryBox onOpen={() => setSummaryOpen(true)} />
+        <DaySummaryBox onOpen={() => flow.go('capaian')} />
 
         <SearchField
           value={query}
@@ -591,7 +505,6 @@ export function SalesList({ scope }: { scope: Scope }) {
         {snackbar}
         <TabBar active="sales" action={addLead} />
         {sourceSheet}
-        <DaySummaryDetails open={summaryOpen} onClose={() => setSummaryOpen(false)} />
       </AppScreen>
     )
   }

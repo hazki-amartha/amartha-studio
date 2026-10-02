@@ -19,6 +19,7 @@ import { DRAFT_SCHEDULE, MAJELIS_DIRECTORY, type MajelisEntry } from '../lib/sch
 import { isOnboardingLead, majelisLine, type PipelineLead } from '../lib/pipeline'
 import type { BadgeIntent } from '@/design-system/components/Badge'
 import { useApp } from '../lib/store'
+import { Snackbar } from '../lib/snackbar'
 import { pipelineStore, usePipeline } from '../lib/pipeline-store'
 import {
   canDisburse,
@@ -245,6 +246,9 @@ export function MajelisPageScreen() {
         />
       }
     >
+      {/* Success confirmation — e.g. after a new majelis is formed. */}
+      <Snackbar />
+
       {/* Route out — the one thing the header doesn't carry: a way there. */}
       {existing ? (
         <div className="flex items-center gap-8 rounded-12 bg-neutral-white p-12">

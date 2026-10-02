@@ -1,32 +1,57 @@
-// The day's completed activity — what the BP has already done today, summarised
-// in the context box under the Sales hari ini header. Two short demo lists (a
-// handful of rows each, per §3) standing in for the real activity log.
+// The day's achievement ("capaian") — the categories shown on the "Lihat capaian
+// hari ini" page. Each is a count (some against a target) that expands to the
+// leads behind it; every item links to that lead's record. Short demo lists per
+// §3, pointing at real seed leads so the links navigate.
 
-export interface DoneFollowUp {
+export interface ActivityItem {
+  /** Seed lead id — tapping the item opens this lead; its source is read from it. */
+  leadId: string
   name: string
-  /** The outcome the BP recorded. */
-  outcome: string
-  time: string
 }
 
-export interface NewProspek {
-  name: string
-  /** Where she came from — the prospect's source line. */
-  source: string
-  time: string
+export interface ActivityCategory {
+  key: string
+  label: string
+  /** The day's target for this category, if it has one. */
+  target?: number
+  items: ActivityItem[]
 }
 
-/** The day's follow-up target, for the "N dari M" progress on the detail page. */
-export const FOLLOWUP_TARGET = 7
-
-export const TODAY_FOLLOWUPS: DoneFollowUp[] = [
-  { name: 'Dewi Anggraeni', outcome: 'Tertarik — lanjut ke pendaftaran', time: '09.15' },
-  { name: 'Sri Mulyani', outcome: 'Masih ragu — dijadwalkan ulang', time: '10.40' },
-  { name: 'Yuyun Wahyuni', outcome: 'Belum berminat — follow up bulan depan', time: '11.05' },
-]
-
-export const TODAY_PROSPEKS: NewProspek[] = [
-  { name: 'Marta Hakim', source: 'Referral · Ibu Yanti (Majelis Kenanga)', time: '08.50' },
-  { name: 'Nenden Sari', source: 'Sosialisasi · Pasar Ciseeng', time: '10.10' },
-  { name: 'Euis Rohaeti', source: 'Canvassing · Parung', time: '12.30' },
+export const TODAY_ACTIVITY: ActivityCategory[] = [
+  {
+    key: 'prospek',
+    label: 'Prospek baru ditambahkan',
+    target: 10,
+    items: [
+      { leadId: 'p4', name: 'Nia Kurniasih' },
+      { leadId: 'p1', name: 'Dewi Anggraeni' },
+      { leadId: 'p2', name: 'Sri Mulyani' },
+    ],
+  },
+  {
+    key: 'followup',
+    label: 'Follow-up dikerjakan',
+    target: 7,
+    items: [
+      { leadId: 'p5', name: 'Yuyun Wahyuni' },
+      { leadId: 'p2', name: 'Sri Mulyani' },
+      { leadId: 'p3', name: 'Halimah' },
+    ],
+  },
+  {
+    key: 'onboarding',
+    label: 'Onboarding disubmit',
+    items: [
+      { leadId: 'p6', name: 'Euis Komariah' },
+      { leadId: 'pipah', name: 'Ibu Ipah' },
+    ],
+  },
+  {
+    key: 'disbursement',
+    label: 'Disbursement diajukan',
+    items: [
+      { leadId: 'p7', name: 'Rohaya' },
+      { leadId: 'p20', name: 'Wulan Sari' },
+    ],
+  },
 ]
