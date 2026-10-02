@@ -40,6 +40,7 @@ import {
 import { isMajelisActivated, isMemberAccepted, setFormation, useFormation } from '../lib/formation'
 import { DRAFT_SCHEDULE, MAJELIS_DIRECTORY } from '../lib/schedule'
 import { store } from '../lib/store'
+import { Snackbar } from '../lib/snackbar'
 import { AppScreen, ContactButton, StickyBar } from '../lib/ui'
 
 const TUJUAN_OPTIONS = [
@@ -323,6 +324,9 @@ export function CalonMitraScreen() {
 
   return (
     <AppScreen topBar={header}>
+      {/* Success confirmation — e.g. after a new majelis is formed. */}
+      <Snackbar />
+
       {/* Negative underwriting outcome — a tinted box (red for a hard reject,
           orange otherwise) so it reads apart from the plain cards below. */}
       {issue ? (

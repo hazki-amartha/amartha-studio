@@ -808,6 +808,25 @@ export const detailScreen = (lead: PipelineLead): string =>
   lead.status === 'survey-created' ? 'calon-mitra' : 'onboarding-outcome'
 
 /**
+ * Which screen opening a lead from the board (or the Capaian page) lands on —
+ * the full routing: finalising the persetujuan, a reactivation's entry, or the
+ * survey/follow-up detail. The caller sets `pipelineStore.open` then navigates
+ * here.
+ */
+export function leadDetailTarget(lead: PipelineLead): string {
+  if (lead.startingOnboarding) return 'onboarding-start'
+  if (lead.reactivation) {
+    if (lead.onboardingStarted) return 'calon-mitra'
+    return lead.reactivation.kind === 'renewal' ? 'onboarding-start' : 'follow-up'
+  }
+  const inDetail =
+    lead.status === 'survey-created' ||
+    lead.status === 'survey-submitted' ||
+    lead.status === 'approved'
+  return inDetail ? detailScreen(lead) : 'follow-up'
+}
+
+/**
  * The card's onboarding-mode line — "Assisted onboarding" / "Self-service
  * onboarding" — shown once a survey exists for her, so a glance down the Survey
  * columns says which leads the BP is filling in herself and which are self-serve.

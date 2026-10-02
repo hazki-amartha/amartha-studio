@@ -45,6 +45,11 @@ export const project: ProjectModule = {
       ],
     },
     {
+      id: 'capaian',
+      title: 'Capaian hari ini',
+      component: lazyScreen(() => import('./screens/capaian'), 'CapaianScreen'),
+    },
+    {
       id: 'all-tasks',
       title: 'All task',
       component: lazyScreen(() => import('./screens/all-tasks'), 'AllTasksScreen'),
