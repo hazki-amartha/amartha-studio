@@ -95,10 +95,17 @@ export function PendaftaranScreen() {
 
   function startOnboarding(when: 'now' | 'later') {
     setTimingOpen(false)
-    // New majelis: carry the timing into the "Buat Majelis Baru" step.
+    // New majelis: "now" carries the timing into the "Buat Majelis Baru" step;
+    // "later" closes the registration and leaves her in Follow up — there is no
+    // majelis to form yet, so she just waits to be worked again.
     if (majelisChoice === 'baru') {
-      setOnboardingTiming(when)
-      flow.go('kumpulan-jadwal')
+      if (when === 'now') {
+        setOnboardingTiming(when)
+        flow.go('kumpulan-jadwal')
+      } else {
+        pipelineStore.setFlash(`${lead.name} — disimpan di Follow up`)
+        flow.go('sales')
+      }
       return
     }
     // Existing majelis: assign her to the group and start the survey.
