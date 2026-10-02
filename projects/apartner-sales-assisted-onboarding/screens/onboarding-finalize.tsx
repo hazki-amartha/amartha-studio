@@ -10,11 +10,11 @@
 // mitra completes herself; the BP's own actions use normal buttons.
 
 import { useState } from 'react'
-import { Button, Card, Input, NavigationHeader } from '@/design-system/components'
-import { CheckCircle, Hourglass, WhatsappLogo } from '@/design-system/icons'
+import { Badge, Button, Input, NavigationHeader } from '@/design-system/components'
+import { ArrowLeft, CheckCircle, Hourglass, MapPin, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { getOnboardingHasWa, pipelineStore, usePipeline } from '../lib/pipeline-store'
-import { AppScreen, StickyBar } from '../lib/ui'
+import { AppScreen, ContactButton, StickyBar } from '../lib/ui'
 
 const SIM_FONT = { fontFamily: '"Comic Sans MS", "Comic Sans", cursive' }
 
@@ -80,20 +80,37 @@ export function OnboardingFinalizeScreen() {
     </button>
   )
 
+  // The detail header shared with the Calon Mitra pages — name + status on the
+  // left, call & map on the right.
+  const header = (
+    <header className="flex shrink-0 items-center gap-8 border-b border-default bg-neutral-white px-16 py-8">
+      <button
+        type="button"
+        onClick={() => flow.back()}
+        aria-label="Kembali"
+        className="-ml-4 flex h-32 w-32 shrink-0 items-center justify-center text-default"
+      >
+        <ArrowLeft size={20} />
+      </button>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-16 font-bold text-default">{lead.name}</span>
+        <span className="flex">
+          <Badge intent="blue" size="sm">
+            Start onboarding
+          </Badge>
+        </span>
+      </div>
+      <ContactButton label={`Chat WhatsApp ${lead.name}`} tone="green" onClick={() => {}}>
+        <WhatsappLogo size={20} />
+      </ContactButton>
+      <ContactButton label={`Peta ${lead.name}`} tone="red" onClick={() => {}}>
+        <MapPin size={20} />
+      </ContactButton>
+    </header>
+  )
+
   return (
-    <AppScreen topBar={<NavigationHeader title="Finalisasi persetujuan pendaftaran" onBack={() => flow.back()} />}>
-      <Card>
-        <div className="flex flex-col gap-2">
-          <span className="text-16 font-bold text-default">{lead.name}</span>
-          <span className="text-12 text-caption">
-            {hasWa === 'no'
-              ? 'Assisted · tanpa WhatsApp'
-              : mode === 'self'
-                ? 'Self-service · WhatsApp'
-                : 'Assisted · WhatsApp'}
-          </span>
-        </div>
-      </Card>
+    <AppScreen topBar={header}>
 
       {/* WhatsApp + Assisted — confirm number & send the link. */}
       {hasWa === 'yes' && mode === 'assisted' ? (
@@ -134,7 +151,7 @@ export function OnboardingFinalizeScreen() {
       {hasWa === 'yes' && mode === 'self'
         ? infoBox(
             'Menunggu registrasi AFin',
-            'Menunggu calon mitra memulai registrasi & mengisi survey di aplikasi AFin.',
+            'Pandu calon mitra menyelesaikan registrasi & verifikasi nomor HP di AFin. Saat selesai, otomatis diproses ke halaman onboarding.',
           )
         : null}
 
@@ -144,22 +161,24 @@ export function OnboardingFinalizeScreen() {
           passcode is actually printed/read out. */}
       {hasWa === 'no' ? (
         <div className="flex flex-col gap-16">
+          <div className="flex flex-col gap-8 rounded-16 border border-blue-200 bg-blue-50 p-12">
+            <div className="flex flex-col gap-2">
+              <span className="text-14 font-bold text-default">Passcode terkirim ke calon mitra</span>
+              <span className="text-12 text-default">
+                Dikirim via SMS ke <span className="font-bold">{phone}</span>.
+              </span>
+            </div>
+            <span className="border-t border-blue-200 pt-8 text-12 text-default">
+              Dengan membagikan passcode ke petugas, calon mitra menyetujui syarat &amp; ketentuan
+              pendaftaran Amartha.
+            </span>
+          </div>
           <Input
-            label="Konfirmasi no. HP calon mitra"
+            label="Passcode dari calon mitra"
             required
-            inputMode="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="08xx-xxxx-xxxx"
-          />
-          <Input
-            label="Passcode"
-            required
-            description="Harus diisi dengan huruf besar"
             value={noWaPasscode}
             onChange={(e) => setNoWaPasscode(e.target.value.toUpperCase())}
             placeholder="Masukkan Passcode"
-            helperText="Diterima calon mitra untuk mengonfirmasi nomor telepon"
           />
         </div>
       ) : null}
@@ -204,7 +223,7 @@ export function OnboardingFinalizeScreen() {
           <Button
             size="lg"
             className="w-full"
-            disabled={!phoneValid || noWaPasscode.trim().length === 0}
+            disabled={noWaPasscode.trim().length === 0}
             onClick={finish}
           >
             Lanjut ke Survey

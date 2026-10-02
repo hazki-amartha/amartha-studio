@@ -11,11 +11,11 @@
 // and the button is "Confirm", which goes straight to the survey.
 
 import { useState } from 'react'
-import { BottomSheet, Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
-import { ChatCircleQuestion, CheckCircle } from '@/design-system/icons'
+import { Badge, BottomSheet, Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
+import { ArrowLeft, ChatCircleQuestion, CheckCircle, MapPin, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { pipelineStore, setOnboardingHasWa, usePipeline } from '../lib/pipeline-store'
-import { AppScreen, StickyBar } from '../lib/ui'
+import { AppScreen, ContactButton, StickyBar } from '../lib/ui'
 
 export function OnboardingStartScreen() {
   const flow = useFlow()
@@ -60,73 +60,105 @@ export function OnboardingStartScreen() {
     flow.go('onboarding-finalize')
   }
 
+  // The detail header shared with the Calon Mitra pages — name + status on the
+  // left, call & map on the right.
+  const header = (
+    <header className="flex shrink-0 items-center gap-8 border-b border-default bg-neutral-white px-16 py-8">
+      <button
+        type="button"
+        onClick={() => flow.back()}
+        aria-label="Kembali"
+        className="-ml-4 flex h-32 w-32 shrink-0 items-center justify-center text-default"
+      >
+        <ArrowLeft size={20} />
+      </button>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-16 font-bold text-default">{lead.name}</span>
+        <span className="flex">
+          <Badge intent="blue" size="sm">
+            Start onboarding
+          </Badge>
+        </span>
+      </div>
+      <ContactButton label={`Chat WhatsApp ${lead.name}`} tone="green" onClick={() => {}}>
+        <WhatsappLogo size={20} />
+      </ContactButton>
+      <ContactButton label={`Peta ${lead.name}`} tone="red" onClick={() => {}}>
+        <MapPin size={20} />
+      </ContactButton>
+    </header>
+  )
+
   return (
-    <AppScreen topBar={<NavigationHeader title="Persetujuan pendaftaran" onBack={() => flow.back()} />}>
+    <AppScreen topBar={header}>
+      {/* Card 1 — AFin: whether she owns / can own an AFin account. A statement
+          for a reactivation (she already has one), a question for a new mitra. */}
       <Card>
-        <div className="flex flex-col gap-2">
-          <span className="text-16 font-bold text-default">{lead.name}</span>
-          <span className="text-12 text-caption">Onboarding · {lead.product ?? 'Produk'}</span>
+        <div className="flex flex-col gap-12">
+          <span className="text-14 font-bold text-default">Akun AFin</span>
+          {hasAfin ? (
+            <div className="flex items-center gap-8">
+              <span className="shrink-0 text-green-600">
+                <CheckCircle size={20} />
+              </span>
+              <span className="text-14 text-default">Mitra sudah punya AFin</span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-8">
+              <span className="text-12 text-caption">Apakah mitra bisa install AFin?</span>
+              <SelectableCard
+                name="can-afin"
+                inputType="radio"
+                title="Ya, bisa install AFin"
+                description="Mitra registrasi & mengisi survey sendiri di AFin"
+                checked={canInstall === 'yes'}
+                onChange={() => setCanInstall('yes')}
+              />
+              <SelectableCard
+                name="can-afin"
+                inputType="radio"
+                title="Tidak bisa install AFin"
+                description="Konfirmasi nomor lewat passcode, dibantu BP"
+                checked={canInstall === 'no'}
+                onChange={() => setCanInstall('no')}
+              />
+            </div>
+          )}
         </div>
       </Card>
 
-      {/* 1 — AFIN: a question for a new mitra, a statement for reactivation. */}
-      {hasAfin ? (
-        <div className="flex items-start gap-8 rounded-16 border border-green-200 bg-green-50 p-12">
-          <span className="shrink-0 text-green-600">
-            <CheckCircle size={20} />
-          </span>
-          <span className="text-14 font-bold text-default">Mitra sudah punya AFIN</span>
-        </div>
-      ) : (
+      {/* Card 2 — Phone: editable for a new mitra, locked (change via AFin) for a
+          reactivation, with the "?" explaining how. */}
+      <Card>
         <div className="flex flex-col gap-8">
-          <span className="text-14 font-bold text-default">Apakah mitra bisa install AFIN?</span>
-          <SelectableCard
-            name="can-afin"
-            inputType="radio"
-            title="Ya, bisa install AFIN"
-            description="Mitra registrasi & mengisi survey sendiri di AFin"
-            checked={canInstall === 'yes'}
-            onChange={() => setCanInstall('yes')}
-          />
-          <SelectableCard
-            name="can-afin"
-            inputType="radio"
-            title="Tidak bisa install AFIN"
-            description="Konfirmasi nomor lewat passcode, dibantu BP"
-            checked={canInstall === 'no'}
-            onChange={() => setCanInstall('no')}
-          />
-        </div>
-      )}
-
-      {/* 2 — Phone: editable for a new mitra, locked (change via AFIN) otherwise. */}
-      {hasAfin ? (
-        <div className="flex flex-col gap-4">
-          <span className="flex items-center gap-4 text-12 font-regular text-default">
+          <span className="flex items-center gap-4 text-14 font-bold text-default">
             Nomor HP calon mitra
-            <button
-              type="button"
-              onClick={() => setHelpOpen(true)}
-              aria-label="Cara ubah nomor HP"
-              className="flex h-20 w-20 items-center justify-center rounded-full text-caption"
-            >
-              <ChatCircleQuestion size={16} />
-            </button>
+            {hasAfin ? (
+              <button
+                type="button"
+                onClick={() => setHelpOpen(true)}
+                aria-label="Cara ubah nomor HP"
+                className="flex h-20 w-20 items-center justify-center rounded-full text-caption"
+              >
+                <ChatCircleQuestion size={16} />
+              </button>
+            ) : null}
           </span>
-          <div className="rounded-8 border border-default bg-neutral-50 px-12 py-8 text-14 text-caption">
-            {phone}
-          </div>
+          {hasAfin ? (
+            <div className="rounded-8 border border-default bg-neutral-50 px-12 py-8 text-14 text-caption">
+              {phone}
+            </div>
+          ) : (
+            <Input
+              required
+              inputMode="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="08xx-xxxx-xxxx"
+            />
+          )}
         </div>
-      ) : (
-        <Input
-          label="Nomor HP calon mitra"
-          required
-          inputMode="tel"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="08xx-xxxx-xxxx"
-        />
-      )}
+      </Card>
 
       <StickyBar>
         <Button size="lg" className="w-full" disabled={!canConfirm} onClick={verify}>
