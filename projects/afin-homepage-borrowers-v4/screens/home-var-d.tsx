@@ -1,20 +1,34 @@
 'use client'
 
-// Home Var D — the "Progress limit Anda" / Majelis bonus card pair, sourced
-// from Figma section 2918:10990 (10 loan-week states: week 0, 1, 5, 6, 10, 11,
-// 12, 13, 47, 48). Everything else (header, Poket widget, recommendations,
-// nav) is unchanged from Home. See lib/progress-card.tsx and lib/store.ts.
+// Home A / Home B (Final) — the "Progress limit Anda" / Majelis bonus card
+// pair (Figma sections 2918:10990, 2992:39214). One screen, two stories:
+// A pays late, B pays on time while other members fall behind. Each walks its
+// own ten Minggu (see PATHS in lib/store.ts). Everything else (header, Poket
+// widget, recommendations, nav) is unchanged from Home.
 
+import { useEffect } from 'react'
 import { NavigationBar, OfferCard } from '@/design-system/components'
 import { NavIcon } from '@/design-system/assets'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { EndedCard, LoanProgressCard, MajelisProgressCard, UnlockedCard } from '../lib/progress-card'
-import { setBonusGagal, setPencairanLanjutan, stepHomeVarD, useHomeVarD } from '../lib/store'
+import {
+  alignToPath,
+  setBonusGagal,
+  setHomePath,
+  setPencairanLanjutan,
+  stepHomeVarD,
+  useHomeVarD,
+  type HomePath,
+} from '../lib/store'
 import { BAND_FILL, BrandBand, BrandHeader, PoketWidget } from '../lib/ui'
 
-export function HomeVarDScreen() {
+function HomeFinal({ path }: { path: HomePath }) {
   const flow = useFlow()
+  useEffect(() => {
+    setHomePath(path)
+    alignToPath(path)
+  }, [path])
   const { main, majelis, majelisRewardLabel, majelisRewardStrike, majelisPage } = useHomeVarD()
   const openBonus = majelisPage
     ? () => {
@@ -33,8 +47,8 @@ export function HomeVarDScreen() {
       <BrandBand>
         <PoketWidget
           balance="Rp0"
-          onIsiSaldo={() => stepHomeVarD(-1)}
-          onTransfer={() => stepHomeVarD(1)}
+          onIsiSaldo={() => stepHomeVarD(-1, path)}
+          onTransfer={() => stepHomeVarD(1, path)}
         />
       </BrandBand>
 
@@ -104,4 +118,12 @@ export function HomeVarDScreen() {
       </div>
     </Screen>
   )
+}
+
+export function HomeVarDScreen() {
+  return <HomeFinal path="a" />
+}
+
+export function HomeBScreen() {
+  return <HomeFinal path="b" />
 }

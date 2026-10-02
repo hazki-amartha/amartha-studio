@@ -92,12 +92,12 @@ function BonusMajelisSemuaBerhasil() {
 }
 
 // One screen, four pages: which one follows the Minggu Home (Final) is on
-// (see `majelisPage` in lib/store.ts), unless the "Bonus 1 gagal" state is
-// picked.
+// (see `majelisPage` in lib/store.ts — Minggu 12A opens Bonus 1 gagal), or
+// the "Bonus 1 gagal" state when it's picked.
 export function BonusMajelisScreen() {
   const { majelisPage } = useHomeVarD()
   const gagal = useBonusGagal()
-  if (gagal) return <BonusMajelisGagal />
+  if (gagal || majelisPage === 'bonus-majelis-gagal') return <BonusMajelisGagal />
   if (majelisPage === 'bonus-majelis-berhasil') return <BonusMajelisBerhasil />
   if (majelisPage === 'bonus-majelis-semua-berhasil') return <BonusMajelisSemuaBerhasil />
   return <BonusMajelisPertama />
