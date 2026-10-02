@@ -715,6 +715,12 @@ export const pipelineStore = {
     patchLead(id, () => ({ startingOnboarding: v }))
   },
 
+  /** Mark the registration approval confirmed — the lead now opens on the survey
+   *  (Complete onboarding) rather than her entry flow. */
+  setOnboardingStarted(id: string, v: boolean) {
+    patchLead(id, () => ({ onboardingStarted: v }))
+  },
+
   /**
    * Choose the survey mode after onboarding has begun — set on the Calon Mitra
    * page when the BP first opens Survey Uji Kelayakan. `assisted` = BP fills it

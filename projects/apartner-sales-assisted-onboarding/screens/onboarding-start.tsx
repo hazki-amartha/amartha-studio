@@ -19,13 +19,14 @@ import { AppScreen, ContactButton, StickyBar } from '../lib/ui'
 
 // What each AFin answer implies — shown under the options once one is picked.
 const AFIN_YES_INFO = [
-  'Mitra akan melakukan survey mandiri via AFin',
-  'Semua proses verifikasi dan persetujuan akan dilakukan dalam aplikasi AFin',
+  'Mitra akan melakukan survey uji kelayakan mandiri via AFin',
+  'Verifikasi nomor hp calon mitra akan dilakukan via AFin',
+  'Semua proses verifikasi dan persetujuan mitra akan dilakukan langsung dalam aplikasi AFin calon mitra',
 ]
 const AFIN_NO_INFO = [
-  'Konfirmasi dan persetujuan pendaftaran akan dilakukan via passcode yang dikirimkan ke no. HP calon mitra',
-  'BP akan memandu seluruh proses pendaftaran calon mitra via APartner',
-  'Siapkan dokumen berikut untuk bisa memulai pendaftaran: Form xx, Form yyy, Form xzy, Form xxa',
+  'BP akan memandu seluruh proses onboarding calon mitra via APartner, termasuk survey uji kelayakan calon mitra.',
+  'Verifikasi nomor hp calon mitra dan persetujuan pendaftaran akan dilakukan dengan passcode yang dikirimkan ke no. HP calon mitra',
+  'Pastikan dokumen-dokumen berikut siap untuk bisa memulai proses onboarding: Form A, Form B, Form C, Form D, Form E, Form F',
 ]
 
 /** A small bulleted note list, shown under the AFin options. */
@@ -58,19 +59,21 @@ export function OnboardingStartScreen() {
     )
   }
 
-  // A reactivation / renewal already has AFIN — the question becomes a statement
-  // and her phone is locked.
-  const hasAfin = Boolean(lead.reactivation)
+  // A reactivation / renewal already has AFIN (unless flagged otherwise) — the
+  // question becomes a statement and her phone is locked.
+  const hasAfin = lead.reactivation ? lead.reactivation.hasAfin !== false : false
   const phoneValid = phone.replace(/\D/g, '').length >= 9
   const canConfirm = hasAfin || (canInstall !== '' && phoneValid)
 
   function verify() {
     if (!canConfirm) return
     // Already has AFIN — she self-serves the Uji Kelayakan survey, then straight
-    // into the Onboarding page.
+    // into the Onboarding page. Mark onboarding started so she re-opens here on
+    // Complete onboarding rather than the Follow-up entry.
     if (hasAfin) {
       pipelineStore.chooseSurveyMode(lead.id, 'self')
       pipelineStore.setStartingOnboarding(lead.id, false)
+      pipelineStore.setOnboardingStarted(lead.id, true)
       flow.go('calon-mitra')
       return
     }

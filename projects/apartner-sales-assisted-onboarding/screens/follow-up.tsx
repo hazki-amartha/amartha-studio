@@ -482,7 +482,7 @@ export function FollowUpScreen() {
               disabled={!canAct}
               onClick={() => flow.go('pendaftaran')}
             >
-              Lengkapi KTP
+              Mulai pendaftaran
             </Button>
             <Button
               size="lg"

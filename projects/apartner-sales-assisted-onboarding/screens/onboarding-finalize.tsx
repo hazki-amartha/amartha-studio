@@ -32,7 +32,12 @@ export function OnboardingFinalizeScreen() {
   // Persetujuan finished — leave the "Starting onboarding" state and open the
   // survey. Closing instead parks her in "Starting onboarding" to finish later.
   function finish() {
-    if (lead) pipelineStore.setStartingOnboarding(lead.id, false)
+    if (lead) {
+      pipelineStore.setStartingOnboarding(lead.id, false)
+      // Persetujuan confirmed — a renewal now moves to Complete onboarding and
+      // re-opens there instead of the entry flow.
+      pipelineStore.setOnboardingStarted(lead.id, true)
+    }
     flow.go('calon-mitra')
   }
   function close() {

@@ -405,10 +405,15 @@ export function SalesList({ scope }: { scope: Scope }) {
       return
     }
     // A reactivating ex-mitra opens the Follow-up record first, so the BP sees her
-    // contact & address before starting onboarding (its primary button). A renewal
+    // contact & address before starting onboarding (its primary button) — but once
+    // the Persetujuan is confirmed she re-opens on Complete onboarding. A renewal
     // is already further along and goes straight to the Persetujuan page.
     if (lead.reactivation) {
-      flow.go(lead.reactivation.kind === 'renewal' ? 'onboarding-start' : 'follow-up')
+      if (lead.onboardingStarted) {
+        flow.go('calon-mitra')
+      } else {
+        flow.go(lead.reactivation.kind === 'renewal' ? 'onboarding-start' : 'follow-up')
+      }
       return
     }
     // A survey-ongoing lead (survey-created, -submitted) or an approved one opens

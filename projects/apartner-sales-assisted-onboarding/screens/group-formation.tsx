@@ -13,7 +13,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, Card, NavigationHeader, SelectableCard } from '@/design-system/components'
-import { Camera, CheckCircle, ChevronDown, File, MagnifyingGlass, MapPin, User, Users } from '@/design-system/icons'
+import { Camera, Check, CheckCircle, ChevronDown, File, MagnifyingGlass, MapPin, User } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import { pipelineStore } from '../lib/pipeline-store'
 import {
@@ -27,7 +27,19 @@ import { SelectField } from '../lib/pipeline-ui'
 import { RITUAL_POINTS } from '../lib/survey'
 import { AppScreen, StageBar, StickyBar } from '../lib/ui'
 
-const MEMBERS = ['Rohaya', 'Siti Aisyah', 'Euis Komariah', 'Nia Kurniasih', 'Dewi Anggraeni', 'Sri Mulyani']
+// A majelis needs at least this many members to be formed.
+const MIN_MEMBERS = 5
+
+type MemberIntent = 'green' | 'blue' | 'orange'
+// The candidate members, each with her current sales / application state.
+const MEMBERS: { name: string; state: string; intent: MemberIntent }[] = [
+  { name: 'Rohaya', state: 'Survey approved', intent: 'green' },
+  { name: 'Siti Aisyah', state: 'Survey submitted', intent: 'blue' },
+  { name: 'Euis Komariah', state: 'Complete onboarding', intent: 'orange' },
+  { name: 'Nia Kurniasih', state: 'Survey approved', intent: 'green' },
+  { name: 'Dewi Anggraeni', state: 'Complete onboarding', intent: 'orange' },
+  { name: 'Sri Mulyani', state: 'Survey submitted', intent: 'blue' },
+]
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
 const pad = (n: number) => String(n).padStart(2, '0')
 const TIMES: string[] = []
@@ -124,7 +136,7 @@ export function GroupFormationScreen() {
   const [sheet, setSheet] = useState<SheetId>(null)
 
   // Anggota — who goes into the group; everyone is pre-checked, uncheck to drop.
-  const [members, setMembers] = useState<Set<string>>(() => new Set(MEMBERS))
+  const [members, setMembers] = useState<Set<string>>(() => new Set(MEMBERS.map((m) => m.name)))
   // Ketua
   const [ketua, setKetua] = useState('')
   const [votingPhoto, setVotingPhoto] = useState(false)
@@ -145,7 +157,7 @@ export function GroupFormationScreen() {
 
   const stepDone =
     current === 'anggota'
-      ? members.size >= 1
+      ? members.size >= MIN_MEMBERS
       : current === 'ketua'
       ? ketua !== '' && votingPhoto
       : current === 'perjanjian'
@@ -204,22 +216,10 @@ export function GroupFormationScreen() {
 
   return (
     <AppScreen topBar={<NavigationHeader title={title} onBack={back} />}>
-      {/* The banner + stepper only make sense for the multi-step formation;
-          the single-page acceptance drops both. */}
+      {/* The stepper only makes sense for the multi-step formation; the
+          single-page acceptance drops it. */}
       {ctx.mode === 'form' ? (
-        <>
-          <div className="flex items-start gap-8 rounded-12 border border-primary-200 bg-primary-50 px-12 py-12">
-            <span className="shrink-0 text-primary-500">
-              <Users size={20} />
-            </span>
-            <span className="text-12 text-caption">
-              MV pertama <span className="font-bold text-primary-500">{ctx.majelisName}</span> ·{' '}
-              {ctx.memberCount} anggota disetujui
-            </span>
-          </div>
-
-          <StageBar current={idx + 1} labels={steps.map((s) => FORMATION_STEP_LABEL[s])} />
-        </>
+        <StageBar current={idx + 1} labels={steps.map((s) => FORMATION_STEP_LABEL[s])} />
       ) : null}
 
       {current === 'anggota' ? (
@@ -229,18 +229,39 @@ export function GroupFormationScreen() {
             sub="Semua calon tercentang. Hilangkan centang untuk anggota yang tidak masuk majelis ini."
           />
           <div className="flex flex-col gap-8">
-            {MEMBERS.map((name) => (
-              <SelectableCard
-                key={name}
-                name="anggota"
-                inputType="checkbox"
-                title={name}
-                checked={members.has(name)}
-                onChange={() => toggleMember(name)}
-              />
-            ))}
+            {MEMBERS.map((m) => {
+              const checked = members.has(m.name)
+              return (
+                <button
+                  key={m.name}
+                  type="button"
+                  onClick={() => toggleMember(m.name)}
+                  className="flex items-center gap-12 rounded-8 border border-default bg-neutral-white p-12 text-left active:bg-neutral-50"
+                >
+                  <span
+                    className={`flex h-24 w-24 shrink-0 items-center justify-center rounded-8 border-2 ${
+                      checked ? 'border-primary-500 bg-primary-500 text-neutral-white' : 'border-neutral-200'
+                    }`}
+                  >
+                    {checked ? <Check size={16} /> : null}
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col items-start gap-2">
+                    <span className="text-14 font-bold text-default">{m.name}</span>
+                    <Badge intent={m.intent} size="sm">
+                      {m.state}
+                    </Badge>
+                  </span>
+                </button>
+              )
+            })}
           </div>
-          <span className="text-12 text-caption">{members.size} anggota dipilih</span>
+          <span
+            className={`text-12 ${members.size < MIN_MEMBERS ? 'font-bold text-orange-500' : 'text-caption'}`}
+          >
+            {members.size < MIN_MEMBERS
+              ? `Pilih minimal ${MIN_MEMBERS} anggota (${members.size} dipilih)`
+              : `${members.size} anggota dipilih`}
+          </span>
         </div>
       ) : current === 'ketua' ? (
         <div className="flex flex-col gap-12">
@@ -378,15 +399,15 @@ export function GroupFormationScreen() {
       {/* Pickers */}
       <BottomSheet open={sheet === 'ketua'} onClose={() => setSheet(null)} title="Pilih ketua majelis">
         <div className="flex flex-col gap-8">
-          {MEMBERS.map((m) => (
+          {MEMBERS.filter((m) => members.has(m.name)).map((m) => (
             <SelectableCard
-              key={m}
+              key={m.name}
               name="ketua"
               inputType="radio"
-              title={m}
-              checked={ketua === m}
+              title={m.name}
+              checked={ketua === m.name}
               onChange={() => {
-                setKetua(m)
+                setKetua(m.name)
                 setSheet(null)
               }}
             />

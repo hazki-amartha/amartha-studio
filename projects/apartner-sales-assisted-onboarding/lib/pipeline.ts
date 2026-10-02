@@ -272,8 +272,16 @@ export interface PipelineLead {
    * could come back at, shown on the reactivation follow-up card. `kind`
    * distinguishes a plain `reaktivasi` (starts at Persetujuan pendaftaran) from a
    * `renewal` (lands straight on Complete onboarding); it defaults to reaktivasi.
+   * `hasAfin` is whether she already has an AFin account — defaults to true for a
+   * reactivation/renewal; `false` makes her onboard like a plain new lead (the
+   * "bisa install AFin?" question).
    */
-  reactivation?: { prevLimit: string; potentialLimit: string; kind?: 'reaktivasi' | 'renewal' }
+  reactivation?: {
+    prevLimit: string
+    potentialLimit: string
+    kind?: 'reaktivasi' | 'renewal'
+    hasAfin?: boolean
+  }
 
   /** Her single, flat status. Type (qualified/unqualified) is derived, not stored. */
   status: LeadStatus
@@ -319,6 +327,14 @@ export interface PipelineLead {
    * the "Starting onboarding" section until the persetujuan is completed.
    */
   startingOnboarding?: boolean
+
+  /**
+   * The registration approval (Persetujuan pendaftaran) has been confirmed, so
+   * the lead now opens straight on the survey (Complete onboarding) instead of
+   * the entry flow. Used by reaktivasi leads, who otherwise re-open the Follow-up
+   * record — her board section is unchanged.
+   */
+  onboardingStarted?: boolean
 
   log: PipelineLog[]
 }
@@ -759,10 +775,14 @@ export function leadsSection(lead: PipelineLead): LeadsSection {
     case 'survey-submitted':
       return 'survey-submitted'
     case 'survey-created':
-      // A renewal joins the Start-onboarding bucket; a plain reactivation gets
-      // its own section; everyone else sits under Complete onboarding.
       if (lead.reactivation) {
-        return lead.reactivation.kind === 'renewal' ? 'starting-onboarding' : 'reactivation'
+        // A renewal sits in Start-onboarding until her persetujuan is confirmed,
+        // then moves to Complete onboarding. A plain reactivation keeps its own
+        // section throughout.
+        if (lead.reactivation.kind === 'renewal') {
+          return lead.onboardingStarted ? 'survey-ongoing' : 'starting-onboarding'
+        }
+        return 'reactivation'
       }
       return 'survey-ongoing'
     default:
@@ -1664,7 +1684,14 @@ export const SEED_PIPELINE: PipelineLead[] = [
     surveyMode: 'self',
     ageDays: 22,
     agenda: { day: 'today', kind: 'Renewal', when: 'Hari ini', order: 9, dueDays: 0 },
-    reactivation: { prevLimit: 'Rp4.500.000', potentialLimit: 'Rp6.500.000', kind: 'renewal' },
+    // Imas is a renewal who does not yet have an AFin account — she onboards like
+    // a plain new lead (the "bisa install AFin?" question).
+    reactivation: {
+      prevLimit: 'Rp4.500.000',
+      potentialLimit: 'Rp6.500.000',
+      kind: 'renewal',
+      hasAfin: false,
+    },
     majelis: { kind: 'existing', id: 'anggrek' },
     nik: '3201094507860017',
     ktp: true,
