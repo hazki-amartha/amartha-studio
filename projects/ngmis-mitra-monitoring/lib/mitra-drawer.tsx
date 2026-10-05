@@ -5,24 +5,30 @@
 // previewing her last two tindakan and her follow-up), and one mitra's full
 // tindakan history on the right, the first mitra open by default.
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Badge, Button, Input } from '@/design-system/components'
 import {
   CheckCircleFill,
+  ChecklistDocFill,
+  ChevronRight,
   Cross,
   CrossCircleFill,
   DownloadSimple,
   House,
+  WarningFill,
   Prohibit,
   MagnifyingGlass,
   Phone,
 } from '@/design-system/icons'
 import { Select } from './ui'
 import { BUCKETS, rupiah } from './data'
+import { useRole } from './store'
+import { WriteOffForm, type WriteOffAnswer } from './write-off-dialog'
 import { bucketNow, tunggakanNow, type DrawerMitra, type PaymentStatus, type Tindakan } from './drawer-data'
 
 const LIST_W = 520
 const DETAIL_W = 520
+const TOAST_MS = 3000
 const DRAWER_W = LIST_W + DETAIL_W
 
 const PAYMENT: { id: PaymentStatus; label: string; dot: string }[] = [
@@ -157,7 +163,16 @@ function Stat({ icon, title, sub }: { icon: ReactNode; title: string; sub: strin
   )
 }
 
-function DetailPanel({ m }: { m: DrawerMitra }) {
+function DetailPanel({
+  m,
+  proposed,
+  onSuggest,
+}: {
+  m: DrawerMitra
+  proposed: boolean
+  onSuggest: () => void
+}) {
+  const role = useRole()
   const b = bucketOf(bucketNow(m))
   const calls = m.tindakan.filter((t) => t.jenis === 'Telepon')
   const visits = m.tindakan.filter((t) => t.jenis === 'Home visit')
@@ -177,16 +192,31 @@ function DetailPanel({ m }: { m: DrawerMitra }) {
         <div className="flex flex-col items-end gap-2">
           <span className="text-12 text-caption">Tunggakan</span>
           <span className="text-20 font-bold text-default">Rp{rupiah(tunggakanNow(m))}</span>
+          {/* Only an HMB can suggest, and only for a DPD 90+ mitra. */}
+          {role === 'hmb' && bucketNow(m) === 'dpd90' ? (
+            proposed ? (
+              <span className="pt-8">
+                <button type="button" onClick={onSuggest} aria-label="Lihat usulan write off">
+                  <Badge intent="neutral" variant="subtle" size="sm" trailingIcon={<ChevronRight size={16} />}>
+                    Write off diusulkan
+                  </Badge>
+                </button>
+              </span>
+            ) : (
+              <span className="pt-8">
+                <Button variant="danger" size="sm" onClick={onSuggest}>
+                  <span className="flex items-center gap-8">
+                    <WarningFill size={16} />
+                    Suggest write off
+                  </span>
+                </Button>
+              </span>
+            )
+          ) : null}
         </div>
       </div>
 
       <span className="text-16 font-bold text-default">Riwayat tindakan</span>
-      {m.tindakan.length === 0 ? (
-        <span className="text-14 text-caption">
-          Belum ada tindakan. {m.name} masih membayar tepat waktu.
-        </span>
-      ) : (
-        <>
       <div className="flex gap-16">
         <Stat
           icon={<Phone size={20} />}
@@ -200,6 +230,17 @@ function DetailPanel({ m }: { m: DrawerMitra }) {
         />
       </div>
 
+      {m.tindakan.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-12 py-48">
+          <span className="flex size-48 items-center justify-center rounded-16 bg-neutral-100 text-placeholder">
+            <ChecklistDocFill size={24} />
+          </span>
+          <span className="flex flex-col items-center gap-2">
+            <span className="text-14 font-bold text-default">No history found</span>
+            <span className="text-12 text-caption">No task has been done by FO to this mitra</span>
+          </span>
+        </div>
+      ) : (
       <div className="flex flex-col">
         {m.tindakan.map((t, i) => (
           <div key={i} className="flex gap-12">
@@ -224,7 +265,6 @@ function DetailPanel({ m }: { m: DrawerMitra }) {
           </div>
         ))}
       </div>
-        </>
       )}
     </div>
   )
@@ -244,6 +284,17 @@ export function MitraDrawer({
   const [majelis, setMajelis] = useState('all')
   const [janjiOnly, setJanjiOnly] = useState(false)
   const [selectedId, setSelectedId] = useState(roster[0]?.id)
+  const [writeOffOpen, setWriteOffOpen] = useState(false)
+  // What was sent, by mitra, so the page can be opened again and read back.
+  const [proposals, setProposals] = useState<Record<string, WriteOffAnswer>>({})
+  const [toast, setToast] = useState(false)
+
+  // The confirmation lingers for three seconds, then goes by itself.
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(false), TOAST_MS)
+    return () => clearTimeout(t)
+  }, [toast])
 
   const majelisOptions = Array.from(new Set(roster.map((m) => m.majelis))).map((v) => ({
     value: v,
@@ -280,7 +331,7 @@ export function MitraDrawer({
           </span>
         </div>
 
-        <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-h-0 flex-1">
           <div className="flex shrink-0 flex-col bg-neutral-50" style={{ width: LIST_W }}>
             <div className="flex shrink-0 flex-col gap-12 p-24 pb-0">
               <Input
@@ -295,7 +346,7 @@ export function MitraDrawer({
                   label="Semua DPD"
                   value={dpd}
                   onChange={setDpd}
-                  options={[{ value: 'all', label: 'Semua DPD' }, ...BUCKETS.filter((b) => b.id !== 'dpd0').map((b) => ({ value: b.id, label: b.label }))]}
+                  options={[{ value: 'all', label: 'Semua DPD' }, ...BUCKETS.map((b) => ({ value: b.id, label: b.label }))]}
                 />
                 <Select
                   label="Semua majelis"
@@ -347,7 +398,38 @@ export function MitraDrawer({
               ))}
             </div>
           </div>
-          {selected ? <DetailPanel m={selected} /> : <div className="flex-1" />}
+          {selected && writeOffOpen ? (
+            <WriteOffForm
+              mitra={selected}
+              onClose={() => setWriteOffOpen(false)}
+              submitted={proposals[selected.id]}
+              onSubmit={(answer) => {
+                setProposals((p) => ({ ...p, [selected.id]: answer }))
+                setWriteOffOpen(false)
+                setToast(true)
+              }}
+            />
+          ) : selected ? (
+            <DetailPanel
+              m={selected}
+              proposed={selected.id in proposals}
+              onSuggest={() => setWriteOffOpen(true)}
+            />
+          ) : (
+            <div className="flex-1" />
+          )}
+          {toast ? (
+            <div
+              role="status"
+              className="absolute bottom-16 right-24 flex items-center justify-between gap-12 rounded-8 bg-neutral-900 px-16 py-12 text-14 text-neutral-white"
+              style={{ width: DETAIL_W - 48 }}
+            >
+              Proposal to write off has been sent
+              <button type="button" aria-label="Tutup" onClick={() => setToast(false)}>
+                <Cross size={16} />
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex shrink-0 justify-end border-t border-default px-24 py-16">
