@@ -657,6 +657,7 @@ export function Select({
   onChange,
   label,
   disabled,
+  fullWidth,
 }: {
   value: string
   options?: { value: string; label: string }[]
@@ -668,15 +669,19 @@ export function Select({
   /** A filter that has nothing left to narrow — greyed rather than hidden, so
    *  the control row keeps its shape as you drill down. */
   disabled?: boolean
+  /** Fills its container instead of sizing to its longest option. */
+  fullWidth?: boolean
 }) {
   return (
-    <div className="relative">
+    <div className={fullWidth ? 'relative w-full' : 'relative'}>
       <select
         aria-label={label}
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         className={`appearance-none rounded-8 border border-default bg-neutral-white pl-12 pr-32 text-14 font-regular ${
+          fullWidth ? 'w-full' : ''
+        } ${
           disabled ? 'text-placeholder' : 'text-default'
         }`}
         style={{ height: CONTROL_H }}

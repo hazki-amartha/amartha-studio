@@ -2,7 +2,8 @@
 // Four mitra per BP, cycled from small pools — enough rows to read as a real
 // roster without a dataset nobody scrolls.
 
-import { BUCKETS, MAJELIS, rupiah, type BucketId } from './data'
+import { REPAYMENT_BPS } from './bp-data'
+import { BUCKETS, rupiah, type BucketId } from './data'
 
 export type Pelaku = 'BP' | 'AM' | 'BM' | 'DC'
 
@@ -41,11 +42,14 @@ export interface DrawerMitra {
   followUpNote?: string
 }
 
-export const BP_NAMES = Array.from(new Set(MAJELIS.map((m) => m.bp)))
+export const BP_NAMES = REPAYMENT_BPS.map((b) => b.name)
+
+const MAJELIS_POOL = ['Melati 1', 'Mawar', 'Anggrek', 'Kenanga', 'Dahlia', 'Teratai']
 
 const NAMES = [
   'Sri Wedari', 'Siti Aminah', 'Dewi Lestari', 'Ratna Sari', 'Yuli Astuti', 'Nur Fadilah',
   'Rohmah', 'Ani Marlina', 'Tuti Handayani', 'Nur Hayati', 'Sri Wahyuni', 'Lilis Suryani',
+  'Nining Ningsih', 'Rini Suryaningsih', 'Wati Handayani', 'Endang Sulastri', 'Fitri Rahayu',
 ]
 
 const LOG: Omit<Tindakan, 'dibayar'>[] = [
@@ -81,17 +85,56 @@ const PLAN: { bucket: BucketId; payment: PaymentStatus }[] = [
   { bucket: 'dpd90', payment: 'none' },
   { bucket: 'dpd90', payment: 'none' },
   { bucket: 'dpd90', payment: 'none' },
+  // Clean mitra: current, nothing owed. Nobody has had a reason to visit yet,
+  // except the third, whose BP dropped by anyway.
+  { bucket: 'dpd0', payment: 'full' },
+  { bucket: 'dpd0', payment: 'full' },
+  { bucket: 'dpd0', payment: 'full' },
+  { bucket: 'dpd0', payment: 'full' },
+  { bucket: 'dpd0', payment: 'full' },
 ]
 
-const BASE: Record<string, number> = { dpd130: 300_000, dpd3190: 1_500_000, dpd90: 3_000_000 }
+const BASE: Record<string, number> = { dpd0: 0, dpd130: 300_000, dpd3190: 1_500_000, dpd90: 3_000_000 }
+
+function tindakanOf(i: number, bucket: BucketId, payment: PaymentStatus, tunggakan: number): Tindakan[] {
+  // A clean mitra has no history. The one exception got a visit anyway.
+  if (bucket === 'dpd0') {
+    return i === 13
+      ? [
+          { date: '29 Aug 2026, 10:15', pelaku: 'AM', jenis: 'Home visit', hasil: 'Bertemu mitra', ok: true, dibayar: 1_520_000 },
+          { date: '29 Aug 2026, 10:15', pelaku: 'AM', jenis: 'Home visit', hasil: 'Tidak bertemu mitra', ok: false, dibayar: 0, catatan: 'Tidak ada orang dirumah' },
+        ]
+      : []
+  }
+  // Only a Home visit takes money. A mitra who paid has that visit as her
+  // latest tindakan — all of her tunggakan for full, half for partial — so
+  // the card agrees with the Full / Partial / Not paying counts above it.
+  return [
+    ...(payment === 'none'
+      ? []
+      : [
+          {
+            date: '2 Sept 2026, 10:15',
+            pelaku: 'BP' as const,
+            jenis: 'Home visit' as const,
+            hasil: 'Bertemu mitra',
+            ok: true,
+            dibayar: payment === 'full' ? tunggakan : Math.round(tunggakan / 2 / 1000) * 1000,
+            catatanBayar: payment === 'partial' ? 'Warung sedang sepi pembeli' : undefined,
+          },
+        ]),
+    ...tindakanFor(bucket).map((l) => ({ ...l, dibayar: 0 })),
+  ]
+}
 
 export function drawerMitraFor(bpName: string): DrawerMitra[] {
   const start = Math.max(0, BP_NAMES.indexOf(bpName))
-  const majelisOfBp = MAJELIS.filter((m) => m.bp === bpName).map((m) => m.name)
+  const majelisOfBp = [0, 1, 2].map((k) => MAJELIS_POOL[(start + k) % MAJELIS_POOL.length])
   return PLAN.map(({ bucket, payment }, i) => {
     const name = NAMES[(start + i) % NAMES.length]
     const loans = 1 + ((start + i) % 3)
-    const tunggakan = name === 'Sri Wedari' ? 600_000 : BASE[bucket] + ((start + i) % 5) * 250_000
+    const tunggakan =
+      bucket === 'dpd0' ? 0 : name === 'Sri Wedari' ? 600_000 : BASE[bucket] + ((start + i) % 5) * 250_000
     return {
       id: `${bpName}-${i}`,
       code: String(i + 2).padStart(3, '0'),
@@ -104,22 +147,7 @@ export function drawerMitraFor(bpName: string): DrawerMitra[] {
       // Only a Home visit takes money. A mitra who paid has that visit as her
       // latest tindakan — all of her tunggakan for full, half for partial — so
       // the card agrees with the Full / Partial / Not paying counts above it.
-      tindakan: [
-        ...(payment === 'none'
-          ? []
-          : [
-              {
-                date: '2 Sept 2026, 10:15',
-                pelaku: 'BP' as const,
-                jenis: 'Home visit' as const,
-                hasil: 'Bertemu mitra',
-                ok: true,
-                dibayar: payment === 'full' ? tunggakan : Math.round(tunggakan / 2 / 1000) * 1000,
-                catatanBayar: payment === 'partial' ? 'Warung sedang sepi pembeli' : undefined,
-              },
-            ]),
-        ...tindakanFor(bucket).map((l) => ({ ...l, dibayar: 0 })),
-      ],
+      tindakan: tindakanOf(i, bucket, payment, tunggakan),
       followUp: `Home Visit oleh BP, sebelum ${10 + (i % 10)} Sep 2026`,
       followUpNote: `Janji bayar ${25 - (i % 10)} Des 2026, Rp${rupiah(100_000)}`,
     }

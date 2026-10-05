@@ -26,12 +26,14 @@ export const BRANCHES = [
 ]
 
 export const TABS = [
-  { id: 'majelis', label: 'Per majelis' },
-  { id: 'mitra', label: 'Per mitra' },
+  { id: 'daily', label: 'Progres harian' },
+  { id: 'repayment', label: 'Pembayaran' },
+  { id: 'cash', label: 'Sisa setor tunai' },
+  { id: 'disbursement', label: 'Pencairan' },
 ]
 
 export const UPDATE_BAR = {
-  scope: 'Minggu ini, 22 - 27 Juni 2026',
+  scope: 'Minggu ini, 22 – 27 Juni 2026',
   refreshed: 'Diperbarui 26 Jun 2026, 22:49',
 }
 

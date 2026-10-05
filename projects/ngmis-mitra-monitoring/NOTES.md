@@ -1,0 +1,1 @@
+- `lib/write-off-dialog.tsx` — checkbox rows, textarea and upload dropzone for the write-off suggestion form; FunDS has none of them (the upload is drawn, not wired). Used in the BP drawer.
