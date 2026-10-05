@@ -49,5 +49,7 @@ export const configs: ConfigRegistry = {
   'afin-bank-integration': () => import('./afin-bank-integration/project.config').then((m) => m.config),
   'afin-homepage-borrowers-v4': () =>
     import('./afin-homepage-borrowers-v4/project.config').then((m) => m.config),
+  'ngmis-mitra-monitoring': () =>
+    import('./ngmis-mitra-monitoring/project.config').then((m) => m.config),
   // <append new projects above this line — one line per project>
 }
