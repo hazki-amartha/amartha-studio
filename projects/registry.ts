@@ -36,5 +36,6 @@ export const registry: Registry = {
   'afin-bank-integration': () => import('./afin-bank-integration').then((m) => m.project),
   'afin-homepage-borrowers-v4': () =>
     import('./afin-homepage-borrowers-v4').then((m) => m.project),
+  'ngmis-mitra-monitoring': () => import('./ngmis-mitra-monitoring').then((m) => m.project),
   // <append new projects above this line — one line per project>
 }
