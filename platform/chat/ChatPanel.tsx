@@ -293,7 +293,7 @@ export function LiveChatPanel({
   }
 
   const changed = chat.last?.changed.length ?? 0
-  const subtitle = `Claude ${chat.where === 'cloud' ? 'on the studio' : 'on this laptop'}${chat.model ? ` · ${chat.model}` : ''} — ask for a change to ${slug}.`
+  const subtitle = `Claude on ${chat.where === 'cloud' ? 'studio' : 'this laptop'} - working on ${slug}`
   const shell = (body: ReactNode) => (
     <aside className={`flex min-h-0 min-w-0 flex-1 flex-col ${className ?? ''}`}>
       <PanelHeader title="Chat" tabs={tabs} onMinimize={onMinimize} />
