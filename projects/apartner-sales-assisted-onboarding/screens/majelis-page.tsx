@@ -46,7 +46,7 @@ function memberStatus(lead: PipelineLead, canDisburseLead: boolean): { label: st
   if (lead.status === 'approved')
     return canDisburseLead
       ? { label: 'Ready for disbursement', intent: 'green' }
-      : { label: 'Waiting for group formation', intent: 'green' }
+      : { label: 'Waiting for group activation', intent: 'green' }
   if (lead.status === 'survey-submitted') return { label: 'Survey submitted', intent: 'blue' }
   return { label: 'Complete onboarding', intent: 'orange' }
 }
@@ -191,7 +191,7 @@ export function MajelisPageScreen() {
   }
 
   function formMajelis() {
-    setFormation({ mode: 'form', majelisName: name, memberCount: approvedCount })
+    setFormation({ mode: 'form', phase: 'majelis', majelisName: name, memberCount: approvedCount })
     flow.go('group-formation')
   }
 

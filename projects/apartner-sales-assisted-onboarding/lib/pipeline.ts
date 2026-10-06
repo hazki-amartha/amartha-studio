@@ -712,7 +712,7 @@ export const LEADS_SECTION_LABEL: Record<LeadsSection, string> = {
   // Approved and the majelis is settled — the disbursement can start now.
   'ready-for-disbursement': 'Ready for disbursement',
   // Approved but the (new) majelis is not formed yet — still waiting.
-  'survey-approved': 'Waiting for group formation',
+  'survey-approved': 'Waiting for group activation',
   // Submitted but sent back — a data problem to fix and resubmit.
   'need-resubmit': 'Need to resubmit UK',
   'survey-submitted': 'Survey submitted',
@@ -1754,6 +1754,49 @@ export const SEED_PIPELINE: PipelineLead[] = [
       { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding dimulai (assisted) — Majelis Mekar Jaya (baru)' },
     ],
   },
+  // Waiting for group activation, but her new majelis (Tunas Jaya) only has 3
+  // members — not enough (5) to activate yet. p19 is approved; p27/p28 are still
+  // onboarding. Opening p19 shows the member list + the shortage.
+  ...(
+    [
+      { id: 'p19', name: 'Enok Daryati', status: 'approved' as LeadStatus, amount: 'Rp2.000.000', disburseDate: '26 Juli', nik: '3201094507830019' },
+      { id: 'p27', name: 'Wiwin Kartika', status: 'survey-submitted' as LeadStatus, amount: '', disburseDate: '', nik: '3201094507860027' },
+      { id: 'p28', name: 'Entin Suhaeti', status: 'survey-created' as LeadStatus, amount: '', disburseDate: '', nik: '3201094507880028' },
+    ] as const
+  ).map(
+    (m, i): PipelineLead => ({
+      id: m.id,
+      name: m.name,
+      phone: `0812-5567-90${20 + i}`,
+      source: 'referral',
+      referredBy: 'Bu Imas (tokoh warga)',
+      fo: 'Nurhayati',
+      photo: true,
+      address: { kecamatan: 'Ciseeng', desa: 'Putat Nutug', detail: `Kp. Nutug RT 0${i + 2}/RW 03`, mapsCoord: 'pinned' },
+      status: m.status,
+      surveyMode: 'assisted',
+      ageDays: 5,
+      agenda: m.status === 'approved'
+        ? { day: 'today', kind: 'Kumpulan', when: 'Hari ini · Tunas Jaya', order: 22, dueDays: 0 }
+        : { day: 'today', kind: 'Diproses', when: '15.00', order: 4, dueDays: 0 },
+      majelis: {
+        kind: 'new',
+        name: 'Majelis Tunas Jaya',
+        location: 'Balai RW 03, Putat Nutug',
+        day: 'Rabu',
+        time: '14.00',
+      },
+      nik: m.nik,
+      ktp: true,
+      product: m.status === 'approved' ? 'Modal' : null,
+      amount: m.amount,
+      disburseDate: m.disburseDate,
+      log: [
+        { at: '17 Juli', via: 'manual', status: 'interested', system: 'Referral dari Bu Imas — Majelis Tunas Jaya (baru)' },
+        { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding dimulai (assisted) — Majelis Tunas Jaya (baru)' },
+      ],
+    }),
+  ),
   // Perkenalan — an existing-majelis application waiting for the kumpulan day.
   {
     id: 'p15',

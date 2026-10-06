@@ -175,7 +175,7 @@ export const project: ProjectModule = {
       states: [
         {
           id: 'waiting-formation',
-          label: 'Waiting for group formation',
+          label: 'Waiting for group activation',
           description: 'Approved, tapi majelis barunya belum terbentuk',
           apply: demo.waitingFormation,
         },

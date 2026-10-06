@@ -13,9 +13,11 @@
 
 import { useState, type ReactNode } from 'react'
 import { Badge, BottomSheet, Button, Card, NavigationHeader, SelectableCard } from '@/design-system/components'
-import { Camera, Check, CheckCircle, ChevronDown, File, MagnifyingGlass, MapPin, User } from '@/design-system/icons'
+import { Camera, Check, CheckCircle, ChevronDown, File, MagnifyingGlass, MapPin, User, Users } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { pipelineStore } from '../lib/pipeline-store'
+import { pipelineStore, usePipeline } from '../lib/pipeline-store'
+import { statusBadge } from '../lib/pipeline'
+import { DRAFT_SCHEDULE } from '../lib/schedule'
 import {
   FORMATION_STEP_LABEL,
   formationStore,
@@ -33,6 +35,9 @@ const MIN_MEMBERS = 5
 
 type MemberIntent = 'green' | 'blue' | 'orange'
 // The candidate members, each with her current sales / application state.
+// A new majelis needs this many members before its activation can start.
+const MIN_ACTIVATION_MEMBERS = 5
+
 const MEMBERS: { name: string; state: string; intent: MemberIntent }[] = [
   { name: 'Rohaya', state: 'Survey approved', intent: 'green' },
   { name: 'Siti Aisyah', state: 'Survey submitted', intent: 'blue' },
@@ -133,6 +138,22 @@ export function GroupFormationScreen() {
   const flow = useFlow()
   const ctx = getFormation()
   const steps = stepsForContext(ctx)
+  // Jadwal & lokasi were set on "Buat Majelis Baru" — prefill them here.
+  const { leads, openId } = usePipeline()
+  const newAssign = leads[openId]?.majelis.kind === 'new' ? leads[openId].majelis : undefined
+  const draftSched = DRAFT_SCHEDULE[ctx.majelisName]
+  const prefLocation =
+    (newAssign && 'location' in newAssign ? newAssign.location : undefined) ??
+    draftSched?.location ??
+    ''
+  const prefHari =
+    (newAssign && 'day' in newAssign ? newAssign.day : undefined) ?? draftSched?.day ?? ''
+  const prefJam =
+    (newAssign && 'time' in newAssign ? newAssign.time : undefined) ?? draftSched?.time ?? ''
+  // The majelis' current members (pipeline leads on this new majelis).
+  const majelisMembers = Object.values(leads).filter(
+    (l) => l.majelis.kind === 'new' && l.majelis.name === ctx.majelisName,
+  )
   const [idx, setIdx] = useState(0)
   const [sheet, setSheet] = useState<SheetId>(null)
 
@@ -143,13 +164,12 @@ export function GroupFormationScreen() {
   const [votingPhoto, setVotingPhoto] = useState(false)
   // Perjanjian
   const [pernyataan, setPernyataan] = useState(false)
-  const [tanggungRenteng, setTanggungRenteng] = useState(false)
-  // Jadwal & Lokasi
-  const [locationAddr, setLocationAddr] = useState('')
+  // Jadwal & Lokasi — prefilled from the new majelis' saved schedule.
+  const [locationAddr, setLocationAddr] = useState(prefLocation)
   const [mapOpen, setMapOpen] = useState(false)
   const [addrDraft, setAddrDraft] = useState('')
-  const [hari, setHari] = useState('')
-  const [jam, setJam] = useState('')
+  const [hari, setHari] = useState(prefHari)
+  const [jam, setJam] = useState(prefJam)
   // Ritual
   const [ritual, setRitual] = useState<Set<string>>(new Set())
 
@@ -162,7 +182,7 @@ export function GroupFormationScreen() {
       : current === 'ketua'
       ? ketua !== '' && votingPhoto
       : current === 'perjanjian'
-        ? pernyataan && tanggungRenteng
+        ? pernyataan
         : current === 'jadwal'
           ? locationAddr !== '' && hari !== '' && jam !== ''
           : ritual.size === RITUAL_POINTS.length
@@ -179,6 +199,12 @@ export function GroupFormationScreen() {
       ctx.memberIds.forEach((id) => formationStore.acceptLead(id))
       pipelineStore.setFlash(`${ctx.memberIds.length} anggota baru diterima di ${ctx.majelisName}`)
       flow.go(ctx.returnTo ?? 'majelis-page')
+    } else if (ctx.phase === 'perjanjian') {
+      // Onboarding perjanjian agreed — the actual group is formed after approval.
+      formationStore.agreePerjanjian(ctx.majelisName)
+      store.setFlash(`Perjanjian ${ctx.majelisName} tersimpan`)
+      if (ctx.returnTo) flow.go(ctx.returnTo)
+      else flow.back()
     } else {
       formationStore.activateMajelis(ctx.majelisName)
       store.setFlash(`Majelis ${ctx.majelisName} berhasil dibentuk`)
@@ -213,13 +239,62 @@ export function GroupFormationScreen() {
     })
   }
 
-  const title = ctx.mode === 'accept' ? 'Penerimaan Anggota' : 'Pembentukan Majelis'
+  const title =
+    ctx.mode === 'accept'
+      ? 'Penerimaan Anggota'
+      : ctx.phase === 'perjanjian'
+        ? 'Upload perjanjian majelis'
+        : `Group activation ${ctx.majelisName}`
+
+  // Not enough members to activate yet — show who's in and how many more are
+  // needed, instead of the Ketua / Jadwal steps.
+  if (
+    ctx.mode === 'form' &&
+    ctx.phase === 'majelis' &&
+    majelisMembers.length < MIN_ACTIVATION_MEMBERS
+  ) {
+    const need = MIN_ACTIVATION_MEMBERS - majelisMembers.length
+    return (
+      <AppScreen topBar={<NavigationHeader title={title} onBack={() => flow.back()} />}>
+        <div className="flex items-start gap-8 rounded-16 border border-orange-200 bg-orange-50 p-12">
+          <span className="shrink-0 text-orange-500">
+            <Users size={20} />
+          </span>
+          <div className="flex flex-col gap-2">
+            <span className="text-14 font-bold text-default">Belum bisa aktivasi majelis</span>
+            <span className="text-12 text-default">
+              Butuh {MIN_ACTIVATION_MEMBERS} anggota untuk mulai aktivasi. Baru{' '}
+              {majelisMembers.length} anggota — kurang {need} anggota lagi.
+            </span>
+          </div>
+        </div>
+
+        <span className="pt-2 text-14 font-bold text-default">Anggota majelis</span>
+        <div className="flex flex-col gap-8">
+          {majelisMembers.map((m) => {
+            const b = statusBadge(m)
+            return (
+              <div
+                key={m.id}
+                className="flex items-center gap-8 rounded-12 border border-default bg-neutral-white p-12"
+              >
+                <span className="min-w-0 flex-1 text-14 font-bold text-default">{m.name}</span>
+                <Badge intent={b.intent} size="sm">
+                  {b.label}
+                </Badge>
+              </div>
+            )
+          })}
+        </div>
+      </AppScreen>
+    )
+  }
 
   return (
     <AppScreen topBar={<NavigationHeader title={title} onBack={back} />}>
-      {/* The stepper only makes sense for the multi-step formation; the
-          single-page acceptance drops it. */}
-      {ctx.mode === 'form' ? (
+      {/* The stepper only makes sense for a multi-step flow — not the single-page
+          acceptance, nor the one-step onboarding perjanjian. */}
+      {ctx.mode === 'form' && steps.length > 1 ? (
         <StageBar current={idx + 1} labels={steps.map((s) => FORMATION_STEP_LABEL[s])} />
       ) : null}
 
@@ -284,24 +359,12 @@ export function GroupFormationScreen() {
         </div>
       ) : current === 'perjanjian' ? (
         <div className="flex flex-col gap-12">
-          {/* The heading orients the multi-step formation; the single-page
-              acceptance drops it. */}
-          {ctx.mode === 'form' ? (
-            <StepHeading title="Perjanjian Majelis" sub="Lampirkan dokumen perjanjian majelis." />
-          ) : null}
           <UploadRow
             icon={<File size={20} />}
-            label="Surat pernyataan majelis"
-            action={ctx.mode === 'accept' ? 'Take photo' : 'Upload'}
+            label="Surat pernyataan majelis & tanggung renteng"
+            action="Take photo"
             done={pernyataan}
             onToggle={() => setPernyataan((v) => !v)}
-          />
-          <UploadRow
-            icon={<File size={20} />}
-            label="Surat tanggung renteng"
-            action={ctx.mode === 'accept' ? 'Take photo' : 'Upload'}
-            done={tanggungRenteng}
-            onToggle={() => setTanggungRenteng((v) => !v)}
           />
         </div>
       ) : current === 'jadwal' ? (
@@ -393,7 +456,13 @@ export function GroupFormationScreen() {
 
       <StickyBar>
         <Button size="lg" className="w-full" disabled={!stepDone} onClick={next}>
-          {isLast ? (ctx.mode === 'accept' ? 'Terima anggota' : 'Aktifkan Majelis') : 'Lanjut'}
+          {isLast
+            ? ctx.mode === 'accept'
+              ? 'Terima anggota'
+              : ctx.phase === 'perjanjian'
+                ? 'Submit'
+                : 'Aktifkan Majelis'
+            : 'Lanjut'}
         </Button>
       </StickyBar>
 

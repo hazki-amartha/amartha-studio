@@ -29,18 +29,25 @@ export const FORMATION_STEP_LABEL: Record<FormationStepId, string> = {
 
 /** An existing-majelis acceptance is a single page — just the perjanjian. */
 const ACCEPT_STEPS: FormationStepId[] = ['perjanjian']
+/** During onboarding the new majelis only needs its perjanjian; the actual
+ *  group (ketua + jadwal) is formed after the loan is approved. */
+const PERJANJIAN_STEPS: FormationStepId[] = ['perjanjian']
+const MAJELIS_STEPS: FormationStepId[] = ['ketua', 'jadwal']
 
 export type FormationContext =
   // Accept newly-approved members into an existing majelis (batch).
   | { mode: 'accept'; majelisName: string; memberIds: string[]; memberNames: string[]; returnTo?: string }
-  | { mode: 'form'; majelisName: string; memberCount: number; returnTo?: string }
+  // Form a new majelis, in two phases: `perjanjian` (during onboarding) and
+  // `majelis` (ketua + jadwal, after approval).
+  | { mode: 'form'; phase: 'perjanjian' | 'majelis'; majelisName: string; memberCount: number; returnTo?: string }
 
 export function stepsForContext(ctx: FormationContext): FormationStepId[] {
-  return ctx.mode === 'accept' ? ACCEPT_STEPS : FORMATION_STEP_ORDER
+  if (ctx.mode === 'accept') return ACCEPT_STEPS
+  return ctx.phase === 'perjanjian' ? PERJANJIAN_STEPS : MAJELIS_STEPS
 }
 
 // Which formation the wizard is running — set right before navigating to it.
-let context: FormationContext = { mode: 'form', majelisName: '', memberCount: 0 }
+let context: FormationContext = { mode: 'form', phase: 'majelis', majelisName: '', memberCount: 0 }
 export function setFormation(c: FormationContext) {
   context = c
 }
@@ -53,11 +60,13 @@ export function getFormation(): FormationContext {
 interface FormationState {
   /** lead ids accepted into their existing majelis. */
   acceptedLeads: string[]
-  /** new-majelis names that have been formed (activated). */
+  /** new-majelis names whose onboarding perjanjian has been agreed. */
+  perjanjianMajelis: string[]
+  /** new-majelis names that have been formed (activated, post-approval). */
   activatedMajelis: string[]
 }
 
-let state: FormationState = { acceptedLeads: [], activatedMajelis: [] }
+let state: FormationState = { acceptedLeads: [], perjanjianMajelis: [], activatedMajelis: [] }
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
 
@@ -69,12 +78,18 @@ export const formationStore = {
   },
   /** Clear acceptances / activations — used by the "start of the survey" state. */
   reset() {
-    state = { acceptedLeads: [], activatedMajelis: [] }
+    state = { acceptedLeads: [], perjanjianMajelis: [], activatedMajelis: [] }
     emit()
   },
   acceptLead(id: string) {
     if (state.acceptedLeads.includes(id)) return
     state = { ...state, acceptedLeads: [...state.acceptedLeads, id] }
+    emit()
+  },
+  /** Mark the onboarding perjanjian agreed for a new majelis. */
+  agreePerjanjian(name: string) {
+    if (state.perjanjianMajelis.includes(name)) return
+    state = { ...state, perjanjianMajelis: [...state.perjanjianMajelis, name] }
     emit()
   },
   activateMajelis(name: string) {
@@ -111,6 +126,11 @@ export function isMemberAccepted(s: FormationState, lead: PipelineLead): boolean
 
 export function isMajelisActivated(s: FormationState, name: string): boolean {
   return s.activatedMajelis.includes(name)
+}
+
+/** Whether a new majelis' onboarding perjanjian has been agreed. */
+export function isPerjanjianAgreed(s: FormationState, name: string): boolean {
+  return s.perjanjianMajelis.includes(name)
 }
 
 /**
