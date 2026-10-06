@@ -9,9 +9,9 @@
 // lets Claude Code edit it there, runs the same checks every save passes, and
 // saves what changed. Open viewers reload on the save's broadcast.
 //
-// Who may use it: exactly one account, CHAT_OWNER_EMAIL, by browser session.
-// The token is a personal subscription, so this is never a team feature —
-// anyone else gets `available: false` and the Chat tab never shows.
+// Who may use it: the owner's own accounts, CHAT_OWNER_EMAIL (comma-separated),
+// by browser session. The token is a personal subscription, so this is never a
+// team feature — anyone else gets `available: false` and the Chat tab never shows.
 //
 // What the agent can do is enforced, not asked for: built-in tools are only
 // Read, Edit, Write, Glob and Grep (no Bash, no web), a PreToolUse hook keeps
@@ -50,8 +50,11 @@ const SLASH_COMMAND = /^\/[a-z][\w:-]*(\s|$)/i
 // (next.config.mjs → outputFileTracingIncludes['/api/chat']).
 const REFERENCE = ['design-system', 'platform', 'projects/_template', 'projects/amarthafin-live']
 
-function ownerEmail(): string | null {
-  return process.env.CHAT_OWNER_EMAIL?.trim().toLowerCase() || null
+function ownerEmails(): string[] {
+  return (process.env.CHAT_OWNER_EMAIL ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
 }
 
 function oauthToken(): string | null {
@@ -59,14 +62,14 @@ function oauthToken(): string | null {
 }
 
 function configured(): boolean {
-  return Boolean(ownerEmail() && oauthToken() && isSessionStoreConfigured() && existsSync(BINARY))
+  return Boolean(ownerEmails().length && oauthToken() && isSessionStoreConfigured() && existsSync(BINARY))
 }
 
 async function isOwner(): Promise<boolean> {
-  const owner = ownerEmail()
-  if (!owner) return false
+  const owners = ownerEmails()
+  if (!owners.length) return false
   const user = await getStudioUser()
-  return user?.email.toLowerCase() === owner
+  return Boolean(user && owners.includes(user.email.toLowerCase()))
 }
 
 export async function cloudStatus(): Promise<Response> {
