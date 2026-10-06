@@ -20,7 +20,10 @@ const nextConfig = {
   experimental: {
     outputFileTracingIncludes: {
       '/api/projects': ['./projects/amarthafin-live/**/*'],
+      // SPIKE: the SDK resolves its native binary at runtime, so tracing misses it.
+      '/api/chat-spike': ['./node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/**/*'],
     },
+    serverComponentsExternalPackages: ['@anthropic-ai/claude-agent-sdk'],
   },
 
   // Assets — the illustration generator is its own app and deployment
