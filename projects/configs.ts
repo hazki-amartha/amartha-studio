@@ -46,7 +46,6 @@ export const configs: ConfigRegistry = {
     import('./apartner-sales-assisted-onboarding/project.config').then((m) => m.config),
   'bm-poi-ngmis': () => import('./bm-poi-ngmis/project.config').then((m) => m.config),
   'apartner-sot': () => import('./apartner-sot/project.config').then((m) => m.config),
-  'afin-bank-integration': () => import('./afin-bank-integration/project.config').then((m) => m.config),
   'afin-homepage-borrowers-v4': () =>
     import('./afin-homepage-borrowers-v4/project.config').then((m) => m.config),
   'ngmis-mitra-monitoring': () =>

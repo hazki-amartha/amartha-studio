@@ -33,7 +33,6 @@ export const registry: Registry = {
     import('./apartner-sales-assisted-onboarding').then((m) => m.project),
   'bm-poi-ngmis': () => import('./bm-poi-ngmis').then((m) => m.project),
   'apartner-sot': () => import('./apartner-sot').then((m) => m.project),
-  'afin-bank-integration': () => import('./afin-bank-integration').then((m) => m.project),
   'afin-homepage-borrowers-v4': () =>
     import('./afin-homepage-borrowers-v4').then((m) => m.project),
   'ngmis-mitra-monitoring': () => import('./ngmis-mitra-monitoring').then((m) => m.project),
