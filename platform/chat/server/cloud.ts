@@ -6,8 +6,13 @@
 //
 // Only database projects: their files live in the studio database, so a turn
 // needs no checkout, no dev server and no git — it loads the project into /tmp,
-// lets Claude Code edit it there, runs the same checks every save passes, and
-// saves what changed. Open viewers reload on the save's broadcast.
+// lets Claude Code edit it there, and saves each edit as soon as the project
+// passes the checks every save passes (./liveSave.ts), merging anything someone
+// else saved meanwhile. Open viewers reload on each save's broadcast.
+//
+// Several conversations may run at once, on one project or several — each has
+// its own workspace and its own lock; they meet only in the database, where
+// they merge like any two designers do.
 //
 // Who may use it: the owner's own accounts, CHAT_OWNER_EMAIL (comma-separated),
 // by browser session. The token is a personal subscription, so this is never a
@@ -17,18 +22,20 @@
 // Read, Edit, Write, Glob and Grep (no Bash, no web), a PreToolUse hook keeps
 // writes inside the project's folder and reads inside the workspace, and the
 // CLI's env carries the token and nothing else — none of the deployment's
-// keys. Turns are capped in steps and in time, and one runs at a time.
+// keys. Turns are capped in steps and in time, and a conversation runs one turn
+// at a time.
 // =============================================================================
 
-import { mkdir, readFile, readdir, rm, symlink, writeFile, copyFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { mkdir, rm, symlink, writeFile, copyFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { createSdkMcpServer, query, tool, type HookCallback } from '@anthropic-ai/claude-agent-sdk'
 import { getStudioUser, isSameOrigin } from '@/platform/auth/server'
-import { checkDbProject } from '@/platform/dbProjects/checks'
-import { isDbProject, readDbRows, saveIfUnchanged } from '@/platform/dbProjects/server'
+import { isDbProject, readDbRows } from '@/platform/dbProjects/server'
 import { KEBAB } from '@/platform/design/server/common'
 import { redis } from '@/platform/comments/server/store'
+import { LiveSave } from './liveSave'
 import { isSessionStoreConfigured, redisSessionStore } from './sessionStore'
 
 const ROOT = process.cwd()
@@ -39,7 +46,8 @@ const MAX_TURNS = 40
 // The function stops at 300s (Hobby). Stop the agent first, so whatever it got
 // done is still checked and saved instead of lost with the instance.
 const TURN_MS = 255_000
-const LOCK = 'studio:chat:running'
+const lockOf = (sessionId: string) => `studio:chat:running:${sessionId}`
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const BUILT_IN = ['Read', 'Edit', 'Write', 'Glob', 'Grep']
 const WRITES = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
@@ -82,13 +90,14 @@ export async function cloudStatus(): Promise<Response> {
 
 // --- the workspace -------------------------------------------------------------
 
-const workspace = (slug: string) => path.join(BASE, 'ws', slug)
+const workspace = (slug: string, sessionId: string) => path.join(BASE, 'ws', slug, sessionId)
 const folderOf = (slug: string) => `projects/_db/${slug}`
 
-/** The same stable folder every turn of a project — the SDK keys sessions by
- *  cwd — rebuilt from scratch, so nothing from a previous turn leaks in. */
-async function buildWorkspace(slug: string, rows: Map<string, { content: string }>): Promise<string> {
-  const ws = workspace(slug)
+/** One folder per conversation, the same one every turn — the SDK keys a
+ *  session by its cwd — rebuilt from the database each turn, so it never
+ *  starts stale and nothing from a previous turn leaks in. */
+async function buildWorkspace(slug: string, sessionId: string, rows: Map<string, { content: string }>): Promise<string> {
+  const ws = workspace(slug, sessionId)
   await rm(ws, { recursive: true, force: true })
   await mkdir(path.join(ws, 'projects', '_db'), { recursive: true })
   for (const ref of REFERENCE) {
@@ -115,20 +124,24 @@ async function writeTree(dir: string, rows: Map<string, { content: string }>) {
   }
 }
 
-async function readTree(dir: string, prefix = ''): Promise<Map<string, string>> {
-  const out = new Map<string, string>()
-  if (!existsSync(dir)) return out
-  for (const entry of await readdir(dir, { withFileTypes: true })) {
-    const rel = prefix ? `${prefix}/${entry.name}` : entry.name
-    if (entry.isDirectory()) for (const [k, v] of await readTree(path.join(dir, entry.name), rel)) out.set(k, v)
-    else if (entry.isFile()) out.set(rel, await readFile(path.join(dir, entry.name), 'utf8'))
-  }
-  return out
-}
-
 const inside = (file: string, dir: string) => {
   const rel = path.relative(dir, file)
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
+}
+
+/** After an edit inside the project: save it now, and tell the agent about
+ *  anything merged in from someone else. */
+function saveAfterEdit(projectDir: string, ws: string, live: LiveSave): HookCallback {
+  return async (input) => {
+    if (input.hook_event_name !== 'PostToolUse' || !WRITES.has(input.tool_name)) return {}
+    const args = (input.tool_input ?? {}) as Record<string, unknown>
+    const target = typeof args.file_path === 'string' ? path.resolve(ws, args.file_path) : null
+    if (!target || !inside(target, projectDir)) return {}
+    const notes = await live.sync()
+    return notes.length
+      ? { hookSpecificOutput: { hookEventName: 'PostToolUse' as const, additionalContext: notes.join('\n') } }
+      : {}
+  }
 }
 
 /** Writes only inside the project's folder; every other path inside the workspace. */
@@ -169,10 +182,17 @@ function studioAppend(slug: string): string {
     'projects are read-only reference. You have no shell, no git and no network,',
     'cannot delete files, and there is no dev server to start — none is needed.',
     '',
-    'Saving. Your changes are saved to the studio when your turn ends, and only if',
-    'the whole project passes the studio checks. Before you finish, call the',
-    '`check_project` tool and fix everything it reports. Ignore the git, commit,',
-    'push and `npm run` instructions in CLAUDE.md — they do not apply here.',
+    'Saving. Each edit is saved to the studio as soon as the whole project passes',
+    'the studio checks — an edit that leaves it incomplete (a screen not yet listed',
+    'in index.ts) waits for the edit that completes it. Before you finish, call the',
+    '`check_project` tool and fix everything it reports; anything still unsaved when',
+    'your turn ends is lost. Ignore the git, commit, push and `npm run` instructions',
+    'in CLAUDE.md — they do not apply here.',
+    '',
+    'Others. Designers and other chat sessions may be editing this project at the',
+    'same time. When someone else changes a file you are working on, the studio',
+    'merges it and tells you — re-read the file before editing it again. If a file',
+    'gets <<<<<<< conflict markers, resolve them keeping both changes.',
     '',
     'Destructive requests. If asked to delete, reset or wipe a whole project or',
     'anything outside this project, say plainly that chat cannot do that.',
@@ -212,22 +232,35 @@ export async function cloudTurn(request: Request): Promise<Response> {
     return json({ error: 'Chat on the live studio works on database projects only.' }, 400)
   }
 
-  // One turn at a time, across every instance. Expires on its own if an
-  // instance dies mid-turn.
-  const locked = await redis<string | null>('SET', LOCK, slug, 'NX', 'EX', 300)
-  if (locked !== 'OK') return json({ error: 'Another turn is still running.' }, 409)
+  // A new conversation gets its id here, so its workspace and lock exist
+  // before the CLI starts; a later turn names the one it continues.
+  if (body.sessionId !== undefined && !UUID.test(body.sessionId)) {
+    return json({ error: 'That conversation could not be found — start a new chat.' }, 400)
+  }
+  const resuming = body.sessionId !== undefined
+  const sessionId = body.sessionId ?? randomUUID()
 
-  let rows: Map<string, { content: string; at: string }>
+  // One turn at a time per conversation, across every instance; other
+  // conversations, on this project or another, run alongside. Expires on its
+  // own if an instance dies mid-turn.
+  const lock = lockOf(sessionId)
+  const locked = await redis<string | null>('SET', lock, slug, 'NX', 'EX', 300)
+  if (locked !== 'OK') return json({ error: 'This chat is still working on your last message.' }, 409)
+
+  const user = await getStudioUser()
+  const by = user ? `${user.displayName ?? user.label} (chat)` : 'chat'
+  const configDir = path.join(BASE, 'config', sessionId)
   let ws: string
+  let live: LiveSave
   try {
-    rows = await readDbRows(slug)
-    ws = await buildWorkspace(slug, rows)
+    const rows = await readDbRows(slug)
+    ws = await buildWorkspace(slug, sessionId, rows)
+    live = new LiveSave(slug, path.join(ws, folderOf(slug)), rows, by)
   } catch (err) {
-    await redis('DEL', LOCK).catch(() => {})
+    await redis('DEL', lock).catch(() => {})
     return json({ error: `Could not load the project: ${err instanceof Error ? err.message : String(err)}` }, 500)
   }
   const projectDir = path.join(ws, folderOf(slug))
-  const original = new Map([...rows].map(([p, r]) => [p, r.content]))
 
   const studio = createSdkMcpServer({
     name: 'studio',
@@ -237,17 +270,13 @@ export async function cloudTurn(request: Request): Promise<Response> {
         'Run the studio checks a save must pass (compiles, design-system classes only, nothing that leaves the prototype, valid flows) on the project as it is now. Call it before finishing.',
         {},
         async () => {
-          const now = await readTree(projectDir)
-          const changed = [...now].filter(([p, c]) => original.get(p) !== c).map(([p]) => p)
-          const problems = await checkDbProject(slug, now, original, changed)
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: problems.length ? `Problems:\n${problems.map((p) => `- ${p}`).join('\n')}` : 'check_project — OK',
-              },
-            ],
-          }
+          const notes = await live.sync()
+          const lines = [...notes]
+          if (live.clashes.size) lines.push(`Unresolved conflict markers in: ${[...live.clashes].join(', ')}.`)
+          if (live.problems.length) lines.push('Problems:', ...live.problems.map((p) => `- ${p}`))
+          const unsaved = await live.pending()
+          if (!lines.length && unsaved.length) lines.push(`Not saved yet: ${unsaved.join(', ')}.`)
+          return { content: [{ type: 'text' as const, text: lines.length ? lines.join('\n') : 'check_project — OK, everything is saved.' }] }
         },
       ),
     ],
@@ -256,8 +285,6 @@ export async function cloudTurn(request: Request): Promise<Response> {
   const abort = new AbortController()
   const timer = setTimeout(() => abort.abort(), TURN_MS)
   request.signal.addEventListener('abort', () => abort.abort())
-  const user = await getStudioUser()
-  const by = user ? `${user.displayName ?? user.label} (chat)` : 'chat'
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream<Uint8Array>({
@@ -277,7 +304,6 @@ export async function cloudTurn(request: Request): Promise<Response> {
 
       let result: Record<string, any> | null = null
       let failure: string | undefined
-      let sessionId = body.sessionId
       const started = Date.now()
       try {
         for await (const msg of query({
@@ -292,15 +318,18 @@ export async function cloudTurn(request: Request): Promise<Response> {
             permissionMode: 'acceptEdits',
             settingSources: ['project'],
             systemPrompt: { type: 'preset', preset: 'claude_code', append: studioAppend(slug) },
-            hooks: { PreToolUse: [{ hooks: [guard(ws, projectDir)] }] },
+            hooks: {
+              PreToolUse: [{ hooks: [guard(ws, projectDir)] }],
+              PostToolUse: [{ hooks: [saveAfterEdit(projectDir, ws, live)] }],
+            },
             maxTurns: MAX_TURNS,
-            resume: body.sessionId,
+            ...(resuming ? { resume: sessionId } : { sessionId }),
             sessionStore: redisSessionStore,
             abortController: abort,
             env: {
               PATH: process.env.PATH ?? '/usr/bin:/bin',
               HOME: path.join(BASE, 'home'),
-              CLAUDE_CONFIG_DIR: path.join(BASE, 'config'),
+              CLAUDE_CONFIG_DIR: configDir,
               CLAUDE_CODE_OAUTH_TOKEN: oauthToken() ?? '',
               DISABLE_AUTOUPDATER: '1',
               CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
@@ -310,7 +339,6 @@ export async function cloudTurn(request: Request): Promise<Response> {
         })) {
           const m = msg as Record<string, any>
           if (m.type === 'system' && m.subtype === 'init') {
-            sessionId = m.session_id
             send({ type: 'session', sessionId: m.session_id, model: m.model })
           } else if (m.type === 'assistant') {
             for (const block of m.message?.content ?? []) {
@@ -342,44 +370,35 @@ export async function cloudTurn(request: Request): Promise<Response> {
         failure = String(result.result ?? 'The turn failed.')
       }
 
-      // Save what the turn changed — the same checks and compare-and-set as
-      // every other save, so a file another designer saved meanwhile is kept.
-      let changed: string[] = []
+      // Save whatever the last edits left pending, then say what didn't make it.
       try {
-        const now = await readTree(projectDir)
-        const edits = [...now].filter(([p, c]) => original.get(p) !== c)
-        if (edits.length) {
-          const problems = await checkDbProject(slug, now, original, edits.map(([p]) => p))
-          if (problems.length) {
-            failure = [failure, `Not saved — the studio checks failed:\n${problems.map((p) => `• ${p}`).join('\n')}`]
-              .filter(Boolean)
-              .join('\n\n')
-          } else {
-            const { saved, conflicts } = await saveIfUnchanged(
-              slug,
-              edits.map(([p, content]) => ({ path: p, content, baseAt: rows.get(p)?.at ?? null })),
-              by,
-            )
-            changed = [...saved.keys()].map((p) => `${folderOf(slug)}/${p}`)
-            if (conflicts.length) {
-              failure = [failure, `Not saved, because someone else changed them during this turn: ${conflicts.join(', ')}.`]
-                .filter(Boolean)
-                .join('\n\n')
-            }
-          }
+        await live.sync()
+        const unsaved = await live.pending()
+        const notes: string[] = []
+        if (live.clashes.size) notes.push(`Not saved — still has clashing changes to settle: ${[...live.clashes].join(', ')}.`)
+        const blocked = unsaved.filter((p) => !live.clashes.has(p))
+        if (blocked.length) {
+          notes.push(
+            live.problems.length
+              ? `Not saved — the studio checks failed:\n${live.problems.map((p) => `• ${p}`).join('\n')}`
+              : `Not saved: ${blocked.join(', ')}.`,
+          )
         }
+        if (notes.length) failure = [failure, ...notes].filter(Boolean).join('\n\n')
       } catch (err) {
         failure = [failure, `Saving failed: ${err instanceof Error ? err.message : String(err)}`].filter(Boolean).join('\n\n')
       } finally {
-        await redis('DEL', LOCK).catch(() => {})
+        await redis('DEL', lock).catch(() => {})
+        await rm(ws, { recursive: true, force: true }).catch(() => {})
+        await rm(configDir, { recursive: true, force: true }).catch(() => {})
       }
 
       send({
         type: 'done',
-        sessionId: (result?.session_id as string | undefined) ?? sessionId,
+        sessionId,
         costUsd: 0, // a subscription turn has no per-turn price
         durationMs: (result?.duration_ms as number | undefined) ?? Date.now() - started,
-        changed,
+        changed: [...live.saved].map((p) => `${folderOf(slug)}/${p}`),
         outside: [],
         error: failure,
       })

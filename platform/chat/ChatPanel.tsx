@@ -293,7 +293,7 @@ export function LiveChatPanel({
   }
 
   const changed = chat.last?.changed.length ?? 0
-  const subtitle = `Claude ${chat.where === 'cloud' ? 'on the studio' : 'on this laptop'}${chat.model ? ` · ${chat.model}` : ''} — ask for a change to ${slug}.`
+  const subtitle = `Claude on ${chat.where === 'cloud' ? 'studio' : 'this laptop'} - working on ${slug}`
   const shell = (body: ReactNode) => (
     <aside className={`flex min-h-0 min-w-0 flex-1 flex-col ${className ?? ''}`}>
       <PanelHeader title="Chat" tabs={tabs} onMinimize={onMinimize} />
@@ -311,7 +311,18 @@ export function LiveChatPanel({
           </p>
         ) : chat.gate === 'no-cli' || chat.gate === 'signed-out' ? (
           <SignInHelp missing={chat.gate === 'no-cli'} onRecheck={chat.recheck} />
-        ) : chat.gate === 'checking' ? null : (
+        ) : chat.gate === 'checking' ? (
+          <p className="text-12 font-regular text-neutral-600">Connecting to Claude…</p>
+        ) : chat.gate === 'error' ? (
+          <div>
+            <p className="mb-8 text-12 font-regular text-neutral-600">
+              Couldn&rsquo;t reach chat just now. Check your connection, then try again.
+            </p>
+            <button type="button" onClick={chat.recheck} className={buttonClass}>
+              Try again
+            </button>
+          </div>
+        ) : (
           <PasswordForm onUnlock={chat.unlock} />
         )}
       </ChatView>,

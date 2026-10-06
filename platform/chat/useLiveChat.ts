@@ -26,6 +26,7 @@
 import { isActiveDbProject } from '@/platform/dbProjects/active'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { refreshProjectSoon } from '@/platform/runtime/projectRefresh'
+import { setChatAvailable } from '@/platform/runtime/chatBridge'
 import type { ChatEvent, ChatState } from './ChatPanel'
 
 interface Done {
@@ -49,7 +50,7 @@ type Unstamped = ChatEvent extends infer E ? (E extends ChatEvent ? Omit<E, 'at'
 
 /** 'signed-out' and 'no-cli': chat is allowed here, but Claude Code on this
  *  laptop can't run a turn until the designer fixes it in their terminal. */
-export type Gate = 'checking' | 'unavailable' | 'locked' | 'signed-out' | 'no-cli' | 'open'
+export type Gate = 'checking' | 'error' | 'unavailable' | 'locked' | 'signed-out' | 'no-cli' | 'open'
 
 interface Conversation {
   status: ChatState['status']
@@ -281,15 +282,18 @@ function probe() {
   check()
 }
 
-/** Ask the route again — after unlocking, or after signing in in the terminal. */
+/** Ask the route again — after unlocking, after signing in in the terminal,
+ *  or on Try again after it couldn't be reached. */
 function check() {
+  if (gate === 'error') setGate('checking')
   fetch('/api/chat', { cache: 'no-store' })
-    .then((r) => (r.ok ? r.json() : null))
-    .then((s: Status | null) => {
-      where = s?.where ?? 'laptop'
+    .then((r) => (r.ok ? (r.json() as Promise<Status>) : Promise.reject(new Error(String(r.status)))))
+    .then((s) => {
+      where = s.where ?? 'laptop'
       setGate(gateOf(s))
+      setChatAvailable(Boolean(s.available))
     })
-    .catch(() => setGate('unavailable'))
+    .catch(() => setGate('error'))
 }
 
 async function unlock(password: string): Promise<string | null> {
