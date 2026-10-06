@@ -18,8 +18,6 @@
 import type { ConfigRegistry } from '@/platform/types'
 
 export const configs: ConfigRegistry = {
-  'apartner-majelis-view': () =>
-    import('./apartner-majelis-view/project.config').then((m) => m.config),
   'afin-milestone-journey': () =>
     import('./afin-milestone-journey/project.config').then((m) => m.config),
   'afin-weekly-checkin': () => import('./afin-weekly-checkin/project.config').then((m) => m.config),
@@ -31,22 +29,16 @@ export const configs: ConfigRegistry = {
     import('./ngmis-bm-monitoring/project.config').then((m) => m.config),
   'apartner-bm-majelis-view': () =>
     import('./apartner-bm-majelis-view/project.config').then((m) => m.config),
-  'ngmis-bm-bp-progress': () =>
-    import('./ngmis-bm-bp-progress/project.config').then((m) => m.config),
   'hello-world': () => import('./hello-world/project.config').then((m) => m.config),
   'ngmis-bm-monitoring-v2': () =>
     import('./ngmis-bm-monitoring-v2/project.config').then((m) => m.config),
   'ngmis-cash-outstanding': () =>
     import('./ngmis-cash-outstanding/project.config').then((m) => m.config),
-  'afin-weekly-checkin-ut': () =>
-    import('./afin-weekly-checkin-ut/project.config').then((m) => m.config),
   'apartner-sales': () => import('./apartner-sales/project.config').then((m) => m.config),
-  'afin-linear': () => import('./afin-linear/project.config').then((m) => m.config),
   'apartner-sales-assisted-onboarding': () =>
     import('./apartner-sales-assisted-onboarding/project.config').then((m) => m.config),
   'bm-poi-ngmis': () => import('./bm-poi-ngmis/project.config').then((m) => m.config),
   'apartner-sot': () => import('./apartner-sot/project.config').then((m) => m.config),
-  'afin-bank-integration': () => import('./afin-bank-integration/project.config').then((m) => m.config),
   'afin-homepage-borrowers-v4': () =>
     import('./afin-homepage-borrowers-v4/project.config').then((m) => m.config),
   'ngmis-mitra-monitoring': () =>
