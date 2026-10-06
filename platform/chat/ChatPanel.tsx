@@ -311,7 +311,18 @@ export function LiveChatPanel({
           </p>
         ) : chat.gate === 'no-cli' || chat.gate === 'signed-out' ? (
           <SignInHelp missing={chat.gate === 'no-cli'} onRecheck={chat.recheck} />
-        ) : chat.gate === 'checking' ? null : (
+        ) : chat.gate === 'checking' ? (
+          <p className="text-12 font-regular text-neutral-600">Connecting to Claude…</p>
+        ) : chat.gate === 'error' ? (
+          <div>
+            <p className="mb-8 text-12 font-regular text-neutral-600">
+              Couldn&rsquo;t reach chat just now. Check your connection, then try again.
+            </p>
+            <button type="button" onClick={chat.recheck} className={buttonClass}>
+              Try again
+            </button>
+          </div>
+        ) : (
           <PasswordForm onUnlock={chat.unlock} />
         )}
       </ChatView>,

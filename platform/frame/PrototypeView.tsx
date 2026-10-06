@@ -531,10 +531,11 @@ const TAB_META: Record<EditTab, { label: string; icon: typeof ChatIcon }> = {
 /** Which tabs exist, and which one is showing. */
 function usePanelTab() {
   useEffect(probeChat, [])
+  // Shown unless the server said no — loading and errors show inside the tab.
   const chatAvailable = useSyncExternalStore(
     subscribeChat,
-    () => getChat().available === true,
-    () => getChatServerSnapshot().available === true,
+    () => getChat().available !== false,
+    () => getChatServerSnapshot().available !== false,
   )
   const chosen = useSyncExternalStore(subscribeDesignMode, getEditTab, getEditTabServerSnapshot)
   const backend = useSyncExternalStore(

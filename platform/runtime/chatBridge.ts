@@ -10,7 +10,8 @@
 // =============================================================================
 
 interface ChatBridgeState {
-  /** null until the server has answered; false on a deployment. */
+  /** null until the server has answered, and when it couldn't be reached;
+   *  false only when it said chat isn't for this viewer here. */
   available: boolean | null
 }
 
@@ -42,12 +43,18 @@ export function setChatAvailable(available: boolean) {
 }
 
 let probed = false
-/** Ask the server once whether chat can run here (dev server + password set). */
+/** Ask the server once whether chat can run here. Only a definite "no" hides
+ *  the tab; while it loads, or if the server can't be reached, the tab shows
+ *  and says so inside (platform/chat/useLiveChat.ts). */
 export function probeChat() {
   if (probed) return
   probed = true
+  reprobeChat()
+}
+
+export function reprobeChat() {
   fetch('/api/chat', { cache: 'no-store' })
-    .then((r) => (r.ok ? r.json() : null))
-    .then((s: { available?: boolean } | null) => setChatAvailable(Boolean(s?.available)))
-    .catch(() => setChatAvailable(false))
+    .then((r) => (r.ok ? (r.json() as Promise<{ available?: boolean }>) : Promise.reject(new Error(String(r.status)))))
+    .then((s) => setChatAvailable(Boolean(s.available)))
+    .catch(() => set({ available: null }))
 }
