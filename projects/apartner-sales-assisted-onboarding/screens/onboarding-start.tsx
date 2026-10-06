@@ -55,6 +55,9 @@ export function OnboardingStartScreen() {
   const [canInstall, setCanInstall] = useState<'yes' | 'no' | ''>('')
   const [phone, setPhone] = useState(lead?.phone ?? '')
   const [helpOpen, setHelpOpen] = useState(false)
+  // Editing the phone (new lead) — via a sheet, so the field isn't open inline.
+  const [editOpen, setEditOpen] = useState(false)
+  const [phoneDraft, setPhoneDraft] = useState('')
   // The "Kirim Passcode" sheet (can't-install-AFin path) — pick WhatsApp or SMS.
   const [otpOpen, setOtpOpen] = useState(false)
 
@@ -185,31 +188,28 @@ export function OnboardingStartScreen() {
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-8">
               <span className="text-14 font-bold text-default">Nomor HP calon mitra</span>
-              {hasAfin ? (
-                <button
-                  type="button"
-                  onClick={() => setHelpOpen(true)}
-                  className="shrink-0 text-12 font-bold text-link"
-                >
-                  Ubah
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  if (hasAfin) {
+                    setHelpOpen(true)
+                  } else {
+                    setPhoneDraft(phone)
+                    setEditOpen(true)
+                  }
+                }}
+                className="shrink-0 text-12 font-bold text-link"
+              >
+                {hasAfin ? 'Ubah' : 'Ganti'}
+              </button>
             </div>
-            <span className="text-12 text-caption">Digunakan untuk keperluan verifikasi</span>
+            <span className="text-12 text-caption">
+              Pastikan benar. Digunakan untuk proses verifikasi
+            </span>
           </div>
-          {hasAfin ? (
-            <div className="rounded-8 border border-default bg-neutral-50 px-12 py-8 text-14 text-caption">
-              {phone}
-            </div>
-          ) : (
-            <Input
-              required
-              inputMode="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="08xx-xxxx-xxxx"
-            />
-          )}
+          <div className="rounded-8 border border-default bg-neutral-50 px-12 py-8 text-14 text-default">
+            {phone}
+          </div>
         </div>
       </Card>
 
@@ -218,6 +218,35 @@ export function OnboardingStartScreen() {
           {hasAfin ? 'Confirm' : 'Verify'}
         </Button>
       </StickyBar>
+
+      {/* Ganti nomor HP — new lead edits the number in a sheet. */}
+      <BottomSheet
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Ganti nomor HP"
+        primaryAction={
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={phoneDraft.replace(/\D/g, '').length < 9}
+            onClick={() => {
+              setPhone(phoneDraft.trim())
+              setEditOpen(false)
+            }}
+          >
+            Simpan
+          </Button>
+        }
+      >
+        <Input
+          label="Nomor HP calon mitra"
+          required
+          inputMode="tel"
+          value={phoneDraft}
+          onChange={(e) => setPhoneDraft(e.target.value)}
+          placeholder="08xx-xxxx-xxxx"
+        />
+      </BottomSheet>
 
       {/* Kirim Passcode — pick the channel. */}
       <BottomSheet
