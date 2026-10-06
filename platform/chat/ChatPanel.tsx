@@ -21,6 +21,8 @@ import { attachmentFor } from './attach'
 import type { RecordedTurn, TranscriptEvent } from './transcript'
 import { useTranscriptReplay } from './useTranscriptReplay'
 import { useLiveChat } from './useLiveChat'
+import { useUsage, type LimitReport } from './usage'
+import { isActiveDbProject } from '@/platform/dbProjects/active'
 
 const SPEEDS = [1, 4, 16] as const
 
@@ -60,6 +62,34 @@ function activityFor(event: ChatEvent | undefined): string {
   }
 }
 
+/** One limit, as the footer shows it: "5h 23%", amber near the limit, red at it. */
+function Limit({ label, report }: { label: string; report: LimitReport | null }) {
+  const resets = report?.resetsAt
+    ? `resets ${new Date(report.resetsAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`
+    : null
+  const value =
+    report?.status === 'rejected' ? 'limit reached' : report?.percent !== null && report?.percent !== undefined ? `${report.percent}%` : report ? 'OK' : '—'
+  const tone =
+    report?.status === 'rejected' ? 'text-red-500' : report?.status === 'allowed_warning' ? 'text-orange-500' : ''
+  return (
+    <span className={tone} title={report ? [`${label} limit: ${value}`, resets].filter(Boolean).join(' · ') : `${label} usage shows after your next message`}>
+      {label} {value}
+    </span>
+  )
+}
+
+/** The subscription's 5-hour and weekly limits (./usage.ts). */
+function UsageMeter() {
+  const usage = useUsage()
+  return (
+    <span className="flex flex-none items-center gap-4">
+      <Limit label="5h" report={usage.fiveHour} />
+      <span aria-hidden>·</span>
+      <Limit label="Week" report={usage.weekly} />
+    </span>
+  )
+}
+
 function clock(ms: number): string {
   const total = Math.floor(ms / 1000)
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
@@ -72,6 +102,7 @@ function ChatView({
   doneLabel,
   onClose,
   embedded,
+  meter,
   statusExtra,
   children,
 }: {
@@ -83,7 +114,9 @@ function ChatView({
   /** Inside the prototype view's panel: no header of its own (the panel's tabs
    *  are the header) and no side padding (the panel's card has it). */
   embedded?: boolean
-  /** Beside the spend, in the status line — New chat. */
+  /** Right of the status line — usage, or a replay's spend. */
+  meter?: ReactNode
+  /** On its own line under the status — New chat. */
   statusExtra?: ReactNode
   children: ReactNode
 }) {
@@ -175,19 +208,11 @@ function ChatView({
       </div>
 
       <footer className={`border-t border-neutral-200 py-12 dark:border-ink-700 ${inset}`}>
-        <div className="mb-8 flex items-center justify-between gap-8 text-12 font-regular text-neutral-600">
-          <span>
-            {running
-              ? `Working — ${clock(state.elapsedMs)}`
-              : state.status === 'done'
-                ? doneLabel
-                : 'Idle'}
-          </span>
-          <span className="flex items-center gap-8">
-            {statusExtra}
-            <span>${state.spendUsd.toFixed(2)}</span>
-          </span>
+        <div className="mb-8 flex items-start justify-between gap-8 text-12 font-regular text-neutral-600">
+          <span>{running ? 'Working…' : state.status === 'done' ? doneLabel : 'Idle'}</span>
+          {meter}
         </div>
+        {statusExtra ? <div className="mb-8 text-12">{statusExtra}</div> : null}
         {children}
       </footer>
     </div>
@@ -217,7 +242,8 @@ export function ChatPanel({ turn }: { turn: RecordedTurn }) {
     <ChatView
       subtitle="afin-linear · replay of a recorded turn"
       state={{ ...replay, events, spendUsd }}
-      doneLabel={`Done in ${clock(turn.durationMs)} · saved, not live`}
+      doneLabel="Done · saved, not live"
+      meter={<span>${spendUsd.toFixed(2)}</span>}
       headerControls={
         <div className="flex gap-4" role="group" aria-label="Replay speed">
           {SPEEDS.map((s) => (
@@ -346,10 +372,11 @@ export function LiveChatPanel({
           </button>
         ) : null
       }
+      meter={<UsageMeter />}
       doneLabel={
         chat.last?.error
           ? 'Stopped'
-          : `Done in ${clock(chat.last?.durationMs ?? chat.elapsedMs)} · ${changed} file${changed === 1 ? '' : 's'} changed · saved, not live`
+          : `${changed} file${changed === 1 ? '' : 's'} changed · ${isActiveDbProject(slug) ? 'saved, live' : 'saved, not live'}`
       }
     >
       {/* One box, as in Claude and Airship: the selection's chip, the message,

@@ -348,6 +348,8 @@ export async function cloudTurn(request: Request): Promise<Response> {
                 send({ type: 'tool', tool: name, detail: detail(block.input ?? {}) })
               }
             }
+          } else if (m.type === 'rate_limit_event') {
+            send({ type: 'usage', info: m.rate_limit_info })
           } else if (m.type === 'result') {
             result = m
           }
