@@ -209,7 +209,13 @@ export const project: ProjectModule = {
       id: 'disbursement-confirm',
       title: 'Konfirmasi Pencairan',
       component: lazyScreen(() => import('./screens/disbursement-confirm'), 'DisbursementConfirmScreen'),
-      flowsTo: [{ to: 'disbursement-akad', label: 'Lanjut ke Persetujuan' }],
+      flowsTo: [{ to: 'disbursement-passcode', label: 'Lanjut ke Persetujuan' }],
+    },
+    {
+      id: 'disbursement-passcode',
+      title: 'Persetujuan Pembukaan Layanan',
+      component: lazyScreen(() => import('./screens/disbursement-passcode'), 'DisbursementPasscodeScreen'),
+      flowsTo: [{ to: 'disbursement-akad', label: 'Lanjut ke Akad' }],
     },
     {
       id: 'disbursement-akad',
