@@ -20,7 +20,19 @@ const nextConfig = {
   experimental: {
     outputFileTracingIncludes: {
       '/api/projects': ['./projects/amarthafin-live/**/*'],
+      // Chat on the deployment (platform/chat/server/cloud.ts): the Agent SDK
+      // finds its native binary at runtime, so tracing misses it; the rest is
+      // the read-only reference the agent works from.
+      '/api/chat': [
+        './node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/**/*',
+        './CLAUDE.md',
+        './design-system/**/*',
+        './platform/**/*',
+        './projects/_template/**/*',
+        './projects/amarthafin-live/**/*',
+      ],
     },
+    serverComponentsExternalPackages: ['@anthropic-ai/claude-agent-sdk'],
   },
 
   // Assets — the illustration generator is its own app and deployment

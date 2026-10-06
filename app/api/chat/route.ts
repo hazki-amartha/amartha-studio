@@ -8,7 +8,9 @@
 // already serving this checkout, so every edit hot-reloads into the preview —
 // the same loop the sandbox is meant to give, with none of its setup.
 //
-// Dev only. On a deployment there is no CLI and no subscription; the route 404s.
+// Dev only. On a deployment the route hands over to platform/chat/server/
+// cloud.ts — the owner's own chat on database projects — which 404s for
+// everyone else.
 //
 // Open with no password to the designer at this laptop (platform/chat/
 // localRequest.ts): `npm run dev` binds to 127.0.0.1, and a request that came
@@ -41,9 +43,12 @@ import {
 } from '@/platform/design/server/editGate'
 import { isLocalRequest } from '@/platform/chat/localRequest'
 import { ensureLocalCopy, projectFolder } from '@/platform/dbProjects/disk'
+import { cloudStatus, cloudTurn } from '@/platform/chat/server/cloud'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+// The deployed turn (cloud.ts) stops itself before this.
+export const maxDuration = 300
 
 const ROOT = process.cwd()
 
@@ -211,6 +216,7 @@ export interface ChatStatus {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  if (process.env.NODE_ENV !== 'development') return cloudStatus()
   const available =
     process.env.NODE_ENV === 'development' && (isLocalRequest(request) || isEditGateConfigured())
   const open = available && allowed(request)
@@ -252,7 +258,7 @@ interface ChatRequest {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  if (process.env.NODE_ENV !== 'development') return new Response(null, { status: 404 })
+  if (process.env.NODE_ENV !== 'development') return cloudTurn(request)
 
   const local = isLocalRequest(request)
   if (!local && !isEditGateConfigured()) {
