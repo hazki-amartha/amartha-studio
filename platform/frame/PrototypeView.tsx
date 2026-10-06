@@ -673,7 +673,7 @@ function SidebarPortals({
  * life size or smaller by height; a 1440 desktop frame scales to fit both axes
  * of what's left beside the panel.
  */
-function FramedLayout({ config, screens }: { config: ProjectConfig; screens: ScreenDef[] }) {
+function FramedLayout({ config, screens, presence }: { config: ProjectConfig; screens: ScreenDef[]; presence?: ReactNode }) {
   const { editing, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
   const device = config.device ?? 'mobile'
   const zoom = useCanvasZoom(DESKTOP_FRAME)
@@ -774,7 +774,10 @@ function FramedLayout({ config, screens }: { config: ProjectConfig; screens: Scr
           share={guest ? null : <ShareButton slug={config.slug} />}
           className="absolute right-0 top-0 z-30"
         />
-        <ViewSwitch slug={config.slug} className="absolute left-0 top-0 z-30" />
+        <div className="absolute left-0 top-0 z-30 flex items-center gap-8">
+          <ViewSwitch slug={config.slug} />
+          {presence}
+        </div>
         {device === 'desktop' ? (
           <ZoomControl
             scale={zoom.scale}
@@ -890,6 +893,8 @@ export interface PrototypeViewProps {
   /** Screens supplied by the caller instead of loaded from the registry —
    *  /db/<slug>, whose project lives in the database (platform/dbProjects). */
   screens?: ScreenDef[]
+  /** Shown beside the Flow button — /db/<slug>'s "also here" avatars. */
+  presence?: ReactNode
 }
 
 /** The project's screen list — its own plus any inherited from a base
@@ -922,7 +927,7 @@ function useScreens(slug: string, enabled: boolean): ScreenDef[] | null {
   return screens
 }
 
-export function PrototypeView({ config, initialScreenId, initialBare, screens: supplied }: PrototypeViewProps) {
+export function PrototypeView({ config, initialScreenId, initialBare, screens: supplied, presence }: PrototypeViewProps) {
   const isDesktop = useIsDesktop()
   const loaded = useScreens(config.slug, !supplied)
   const screens = supplied ?? loaded
@@ -967,7 +972,7 @@ export function PrototypeView({ config, initialScreenId, initialBare, screens: s
       {bare ? (
         <BareLayout device={device} fill={impliedBare} explicit={explicitBare} />
       ) : (
-        <FramedLayout config={config} screens={screens} />
+        <FramedLayout config={config} screens={screens} presence={presence} />
       )}
     </PrototypeProvider>
   )

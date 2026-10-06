@@ -18,6 +18,7 @@ import { STUDIO_DB_ANON_KEY, STUDIO_DB_URL } from './public'
 import { mergeProject } from '@/platform/runtime/resolveProject'
 import type { ProjectConfig, ScreenDef } from '@/platform/types'
 import { publishDbIndexEntry, setActiveDbProject } from './active'
+import { PresenceAvatars } from './PresenceAvatars'
 import { SAVED_EVENT, savedChannel, type DbProjectResponse } from './protocol'
 
 interface Props {
@@ -128,14 +129,8 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
         screens={project.screens}
         initialScreenId={initialScreenId}
         initialBare={initialBare}
+        presence={<PresenceAvatars names={others} />}
       />
-      {others.length ? (
-        <div className="pointer-events-none fixed inset-x-0 top-16 z-40 flex justify-center">
-          <span className="rounded-full border border-default bg-neutral-white px-12 py-4 text-12 text-default dark:border-ink-700 dark:bg-ink-800 dark:text-neutral-50">
-            Also here: {others.join(', ')}
-          </span>
-        </div>
-      ) : null}
       {problem ? (
         <pre className="fixed bottom-16 left-16 z-50 max-w-screen-sm whitespace-pre-wrap rounded-12 bg-red-50 p-12 text-12 text-red-500">
           {problem}
