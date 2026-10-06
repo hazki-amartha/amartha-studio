@@ -13,7 +13,6 @@
 import type { Registry } from '@/platform/types'
 
 export const registry: Registry = {
-  'apartner-majelis-view': () => import('./apartner-majelis-view').then((m) => m.project),
   'afin-milestone-journey': () => import('./afin-milestone-journey').then((m) => m.project),
   'afin-weekly-checkin': () => import('./afin-weekly-checkin').then((m) => m.project),
   'amarthafin-live': () => import('./amarthafin-live').then((m) => m.project),
@@ -22,13 +21,10 @@ export const registry: Registry = {
   'ngmis-bm-monitoring': () => import('./ngmis-bm-monitoring').then((m) => m.project),
   'apartner-bm-majelis-view': () =>
     import('./apartner-bm-majelis-view').then((m) => m.project),
-  'ngmis-bm-bp-progress': () => import('./ngmis-bm-bp-progress').then((m) => m.project),
   'hello-world': () => import('./hello-world').then((m) => m.project),
   'ngmis-bm-monitoring-v2': () => import('./ngmis-bm-monitoring-v2').then((m) => m.project),
   'ngmis-cash-outstanding': () => import('./ngmis-cash-outstanding').then((m) => m.project),
-  'afin-weekly-checkin-ut': () => import('./afin-weekly-checkin-ut').then((m) => m.project),
   'apartner-sales': () => import('./apartner-sales').then((m) => m.project),
-  'afin-linear': () => import('./afin-linear').then((m) => m.project),
   'apartner-sales-assisted-onboarding': () =>
     import('./apartner-sales-assisted-onboarding').then((m) => m.project),
   'bm-poi-ngmis': () => import('./bm-poi-ngmis').then((m) => m.project),
