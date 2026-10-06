@@ -383,6 +383,8 @@ export async function POST(request: Request): Promise<Response> {
                 send({ type: 'tool', tool: block.name, detail: toolDetail(block.input ?? {}) })
               }
             }
+          } else if (msg.type === 'rate_limit_event') {
+            send({ type: 'usage', info: msg.rate_limit_info })
           } else if (msg.type === 'result') {
             result = msg
           }

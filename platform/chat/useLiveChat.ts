@@ -28,6 +28,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { refreshProjectSoon } from '@/platform/runtime/projectRefresh'
 import { setChatAvailable } from '@/platform/runtime/chatBridge'
 import type { ChatEvent, ChatState } from './ChatPanel'
+import { reportUsage, type RateLimitInfo } from './usage'
 
 interface Done {
   type: 'done'
@@ -43,6 +44,7 @@ type ServerEvent =
   | { type: 'session'; sessionId: string; model: string }
   | { type: 'text'; text: string }
   | { type: 'tool'; tool: string; detail: string }
+  | { type: 'usage'; info: RateLimitInfo }
   | Done
 
 /** A ChatEvent before it is stamped — Omit distributed over the union. */
@@ -160,6 +162,9 @@ function handle(event: ServerEvent) {
       break
     case 'text':
       push({ kind: 'text', text: event.text })
+      break
+    case 'usage':
+      reportUsage(event.info)
       break
     case 'tool':
       push({ kind: 'tool', tool: event.tool, detail: event.detail })
