@@ -5,10 +5,11 @@
 // Persetujuan" moves on to the akad photo upload (disbursement-akad.tsx) —
 // "Kirim Pengajuan" itself lives on that page, once the akad's documented.
 
-import { Button, Card, NavigationHeader } from '@/design-system/components'
-import { Check, ChevronDown, Coins, Plus, ShieldCheck, Warning } from '@/design-system/icons'
+import { useState } from 'react'
+import { BottomSheet, Button, Card, NavigationHeader } from '@/design-system/components'
+import { Check, ChevronDown, Coins, Plus, ShieldCheck, Warning, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { usePipeline } from '../lib/pipeline-store'
+import { setOnboardingVerifyMethod, usePipeline } from '../lib/pipeline-store'
 import { DISB } from '../lib/disbursement'
 import { AppScreen, StickyBar } from '../lib/ui'
 
@@ -37,6 +38,14 @@ export function DisbursementConfirmScreen() {
   const flow = useFlow()
   const { leads, openId } = usePipeline()
   const lead = leads[openId]
+  // Ask how the passcode is sent before the Persetujuan passcode step.
+  const [otpOpen, setOtpOpen] = useState(false)
+
+  function sendPasscode(channel: 'wa' | 'sms') {
+    setOnboardingVerifyMethod(channel)
+    setOtpOpen(false)
+    flow.go('disbursement-passcode')
+  }
 
   return (
     <AppScreen topBar={<NavigationHeader title="Konfirmasi pencairan" onBack={() => flow.back()} />}>
@@ -129,10 +138,30 @@ export function DisbursementConfirmScreen() {
       </Card>
 
       <StickyBar>
-        <Button size="lg" className="w-full" onClick={() => flow.go('disbursement-akad')}>
+        <Button size="lg" className="w-full" onClick={() => setOtpOpen(true)}>
           Lanjut ke Persetujuan
         </Button>
       </StickyBar>
+
+      {/* Kirim Passcode — pick the channel before the Persetujuan step. */}
+      <BottomSheet
+        open={otpOpen}
+        onClose={() => setOtpOpen(false)}
+        title="Kirim Passcode"
+        description={`Pilih cara pengiriman passcode ke ${lead?.name ?? 'mitra'}`}
+      >
+        <div className="flex flex-col gap-8 pt-8">
+          <Button size="lg" className="w-full" onClick={() => sendPasscode('wa')}>
+            <span className="flex items-center justify-center gap-8">
+              <WhatsappLogo size={20} />
+              Kirim ke WhatsApp
+            </span>
+          </Button>
+          <Button variant="outline" size="lg" className="w-full" onClick={() => sendPasscode('sms')}>
+            Kirim ke SMS
+          </Button>
+        </div>
+      </BottomSheet>
     </AppScreen>
   )
 }
