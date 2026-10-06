@@ -27,3 +27,36 @@ export const pinTerkunci = () => store.set({ pin: 'locked' })
 
 export const punyaRekening = () => store.set({ account: 'active' })
 export const tanpaRekening = () => store.set({ account: 'none' })
+
+// Modal onboarding home persona.
+export const personaBorrower = () => store.set({ persona: 'borrower' })
+export const personaRegular = () => store.set({ persona: 'regular' })
+
+// --- The ten Beranda states (home state switcher) ---
+// Non Modal → regular home, keyed by the bank account's status.
+export const berandaNonBelum = () => store.set({ persona: 'regular', account: 'none' })
+export const berandaNonProses = () => store.set({ persona: 'regular', account: 'in-progress' })
+export const berandaNonGagal = () => store.set({ persona: 'regular', account: 'failed' })
+export const berandaNonAktif = () => store.set({ persona: 'regular', account: 'active' })
+// Modal → borrower home, keyed by the loan-lifecycle stage. Once Modal is active
+// (approved onwards) the white-labelled Rekening Amartha opens too, so the wallet
+// shows the active account (key logic).
+export const berandaBelumKyc = () => store.set({ persona: 'borrower', modalStage: 'belum-kyc', account: 'none' })
+export const berandaKycOngoing = () => store.set({ persona: 'borrower', modalStage: 'kyc-ongoing', account: 'none' })
+export const berandaKycGagal = () => store.set({ persona: 'borrower', modalStage: 'kyc-gagal', account: 'none' })
+export const berandaKycDiproses = () => store.set({ persona: 'borrower', modalStage: 'kyc-diproses', account: 'none' })
+export const berandaKycBerhasil = () => store.set({ persona: 'borrower', modalStage: 'kyc-berhasil', account: 'active' })
+export const berandaDicairkan = () => store.set({ persona: 'borrower', modalStage: 'dicairkan', account: 'active' })
+
+// Whether the application's sections are pre-filled.
+export const modalKosong = () => store.set({ modalFilled: false })
+export const modalTerisi = () => store.set({ modalFilled: true })
+
+// Poket detail tier.
+export const poketNonPremium = () => store.set({ poketTier: 'non-premium' })
+export const poketPremiumMitra = () => store.set({ poketTier: 'premium-mitra' })
+export const poketPremiumNonMitra = () => store.set({ poketTier: 'premium-non-mitra' })
+
+// Modal approved → the white-labelled bank account opens with it (key logic).
+export const modalDisetujui = () => store.set({ modalFilled: true, account: 'active' })
+export const modalMenunggu = () => store.set({ account: 'none' })

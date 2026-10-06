@@ -8,14 +8,153 @@ export const project: ProjectModule = {
   screens: [
     {
       id: 'home',
-      title: 'Beranda',
+      title: 'Beranda (Regular)',
       component: lazyScreen(() => import('./screens/home'), 'HomeScreen'),
-      entry: true,
       states: [
         { id: 'none', label: 'Belum punya rekening', apply: demo.belumPunya },
         { id: 'in-progress', label: 'Sedang diproses', apply: demo.sedangDiproses },
         { id: 'failed', label: 'Gagal dibuat', apply: demo.gagal },
         { id: 'active', label: 'Rekening aktif', apply: demo.aktif },
+      ],
+    },
+    // --- Modal Usaha onboarding (inactive → active, 6 steps, Ketua / Anggota) ---
+    {
+      id: 'modal-home',
+      title: 'Beranda',
+      component: lazyScreen(() => import('./screens/modal-home'), 'ModalHomeScreen'),
+      entry: true,
+      states: [
+        { id: 'non-belum', label: 'Non Modal: Belum Punya Rekening', apply: demo.berandaNonBelum },
+        { id: 'non-proses', label: 'Non Modal: Sedang diproses', apply: demo.berandaNonProses },
+        { id: 'non-gagal', label: 'Non Modal: Gagal dibuat', apply: demo.berandaNonGagal },
+        { id: 'non-aktif', label: 'Non Modal: Rekening aktif', apply: demo.berandaNonAktif },
+        { id: 'modal-belum-kyc', label: 'Modal: Belum KYC', apply: demo.berandaBelumKyc },
+        { id: 'modal-kyc-ongoing', label: 'Modal: KYC ongoing (3 dari 6)', apply: demo.berandaKycOngoing },
+        { id: 'modal-kyc-gagal', label: 'Modal: KYC gagal', apply: demo.berandaKycGagal },
+        { id: 'modal-kyc-diproses', label: 'Modal: KYC Diproses', apply: demo.berandaKycDiproses },
+        { id: 'modal-kyc-berhasil', label: 'Modal: KYC Berhasil siap dicairkan', apply: demo.berandaKycBerhasil },
+        { id: 'modal-dicairkan', label: 'Modal: Sudah dicairkan, ongoing', apply: demo.berandaDicairkan },
+      ],
+    },
+    {
+      id: 'modal-prepare',
+      title: 'Modal · Persiapan (Belum KYC)',
+      component: lazyScreen(() => import('./screens/modal-prepare'), 'ModalPrepareScreen'),
+    },
+    {
+      id: 'modal-verify-failed',
+      title: 'Modal · Verifikasi gagal',
+      component: lazyScreen(() => import('./screens/modal-verify-failed'), 'ModalVerifyFailedScreen'),
+    },
+    {
+      id: 'modal-hub',
+      title: 'Modal · Cek & perbarui data',
+      component: lazyScreen(() => import('./screens/modal-hub'), 'ModalHubScreen'),
+      states: [
+        { id: 'review', label: 'Belum terisi', description: 'All six sections still incomplete.', apply: demo.modalKosong },
+        { id: 'lengkap', label: 'Semua lengkap', description: 'All six sections complete.', apply: demo.modalTerisi },
+      ],
+    },
+    {
+      id: 'modal-ktp-guide',
+      title: 'Modal · 1 Panduan foto KTP',
+      component: lazyScreen(() => import('./screens/modal-ktp-guide'), 'ModalKtpGuideScreen'),
+    },
+    {
+      id: 'modal-ktp-form',
+      title: 'Modal · 1 Cek data KTP',
+      component: lazyScreen(() => import('./screens/modal-ktp-form'), 'ModalKtpFormScreen'),
+    },
+    {
+      id: 'modal-selfie',
+      title: 'Modal · 1 Selfie',
+      component: lazyScreen(() => import('./screens/modal-selfie'), 'ModalSelfieScreen'),
+    },
+    {
+      id: 'modal-pribadi',
+      title: 'Modal · 1 Alamat pribadi',
+      component: lazyScreen(() => import('./screens/modal-pribadi'), 'ModalPribadiScreen'),
+    },
+    {
+      id: 'modal-bank',
+      title: 'Modal · 2 Data bank',
+      component: lazyScreen(() => import('./screens/modal-bank'), 'ModalBankScreen'),
+    },
+    {
+      id: 'modal-pekerjaan',
+      title: 'Modal · 2 Data pekerjaan',
+      component: lazyScreen(() => import('./screens/modal-pekerjaan'), 'ModalPekerjaanScreen'),
+    },
+    {
+      id: 'modal-majelis',
+      title: 'Modal · Majelis Anda',
+      component: lazyScreen(() => import('./screens/modal-majelis'), 'ModalMajelisScreen'),
+      states: [
+        { id: 'belum-kyc', label: 'Belum KYC', apply: demo.berandaBelumKyc },
+        { id: 'kyc-ongoing', label: 'KYC ongoing (3 dari 6)', apply: demo.berandaKycOngoing },
+        { id: 'kyc-gagal', label: 'KYC gagal', apply: demo.berandaKycGagal },
+        { id: 'kyc-diproses', label: 'KYC Diproses', apply: demo.berandaKycDiproses },
+        { id: 'kyc-berhasil', label: 'KYC Berhasil siap dicairkan', apply: demo.berandaKycBerhasil },
+        { id: 'dicairkan', label: 'Sudah dicairkan, ongoing', apply: demo.berandaDicairkan },
+      ],
+    },
+    {
+      id: 'modal-keluarga',
+      title: 'Modal · 4 Panduan foto KK',
+      component: lazyScreen(() => import('./screens/modal-keluarga'), 'ModalKeluargaScreen'),
+    },
+    {
+      id: 'modal-keluarga-form',
+      title: 'Modal · 4 Data keluarga',
+      component: lazyScreen(() => import('./screens/modal-keluarga-form'), 'ModalKeluargaFormScreen'),
+    },
+    {
+      id: 'modal-rumah',
+      title: 'Modal · 5 Panduan foto rumah',
+      component: lazyScreen(() => import('./screens/modal-rumah'), 'ModalRumahScreen'),
+    },
+    {
+      id: 'modal-rumah-form',
+      title: 'Modal · 5 Lokasi rumah',
+      component: lazyScreen(() => import('./screens/modal-rumah-form'), 'ModalRumahFormScreen'),
+    },
+    {
+      id: 'modal-usaha',
+      title: 'Modal · 6 Panduan foto usaha',
+      component: lazyScreen(() => import('./screens/modal-usaha'), 'ModalUsahaScreen'),
+    },
+    {
+      id: 'modal-usaha-form',
+      title: 'Modal · 6 Lokasi usaha',
+      component: lazyScreen(() => import('./screens/modal-usaha-form'), 'ModalUsahaFormScreen'),
+    },
+    {
+      id: 'modal-review',
+      title: 'Modal · Data pengajuan (review)',
+      component: lazyScreen(() => import('./screens/modal-review'), 'ModalReviewScreen'),
+    },
+    {
+      id: 'modal-confirm',
+      title: 'Modal · Konfirmasi kirim',
+      component: lazyScreen(() => import('./screens/modal-confirm'), 'ModalConfirmScreen'),
+    },
+    {
+      id: 'modal-sending',
+      title: 'Modal · Mengirim…',
+      component: lazyScreen(() => import('./screens/modal-sending'), 'ModalSendingScreen'),
+    },
+    {
+      id: 'modal-sent',
+      title: 'Modal · Pengajuan terkirim',
+      component: lazyScreen(() => import('./screens/modal-sent'), 'ModalSentScreen'),
+    },
+    {
+      id: 'modal-success',
+      title: 'Modal · Approval (bank dibuka)',
+      component: lazyScreen(() => import('./screens/modal-success'), 'ModalSuccessScreen'),
+      states: [
+        { id: 'pending', label: 'Terkirim (ditinjau)', apply: demo.modalMenunggu },
+        { id: 'approved', label: 'Disetujui — rekening dibuka', description: 'Modal active; Rekening Amartha opens with it.', apply: demo.modalDisetujui },
       ],
     },
     {
@@ -166,6 +305,26 @@ export const project: ProjectModule = {
       id: 'bind-success',
       title: 'Hubungkan — Berhasil',
       component: lazyScreen(() => import('./screens/bind-success'), 'BindSuccessScreen'),
+    },
+    {
+      id: 'poket-detail',
+      title: 'Poket',
+      component: lazyScreen(() => import('./screens/poket-detail'), 'PoketDetailScreen'),
+      states: [
+        { id: 'non-premium', label: 'Non premium', apply: demo.poketNonPremium },
+        { id: 'premium-mitra', label: 'Premium Mitra (after KYC Modal)', apply: demo.poketPremiumMitra },
+        { id: 'premium-non-mitra', label: 'Premium Non Mitra (after buka rekening)', apply: demo.poketPremiumNonMitra },
+      ],
+    },
+    {
+      id: 'poket-topup',
+      title: 'Poket · Isi Saldo',
+      component: lazyScreen(() => import('./screens/poket-topup'), 'PoketTopupScreen'),
+    },
+    {
+      id: 'poket-transfer',
+      title: 'Poket · Transfer',
+      component: lazyScreen(() => import('./screens/poket-transfer'), 'PoketTransferScreen'),
     },
     {
       id: 'balance-detail',

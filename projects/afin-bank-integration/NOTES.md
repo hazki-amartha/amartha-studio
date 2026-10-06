@@ -1,2 +1,4 @@
 - `StepHeader`, `BottomAction`, `CodeBoxes`, `Keypad`, `KtpArt`, `FaceArt`, `CameraShutter`, `Spinner` (lib/ui.tsx) — no stepper, pinned CTA, OTP/PIN pad, camera or placeholder-photo component in FunDS; used across the onboarding screens.
 - `PinSheet` (lib/pin-sheet.tsx), `OtpStep` (lib/otp-step.tsx) — account-PIN bottom sheet with wrong/locked states, and a stage-less OTP page; used by payment, unlinking, PIN reset.
+- Consent checkbox (inline in screens/modal-review.tsx) — FunDS has no Checkbox (only Toggle); a square check built from tokens for the "Kirim Pengajuan" consent gate.
+- `ModalStepBar`, `PhotoGuide`, `PhotoArt`, `LocationFields` (lib/modal.tsx) — Modal-onboarding step bar, shared photo-capture guide, placeholder photo tiles, and the shared address fields.

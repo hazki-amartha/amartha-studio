@@ -78,15 +78,15 @@ function ChromeIcon({ badge, children }: { badge?: string; children: ReactNode }
   )
 }
 
-/** The live Poket widget, unchanged — shown while the user has no bank account. */
-export function PoketWidget({ balance }: { balance: string }) {
+/** The live Poket widget. The title + arrow open the Poket detail. */
+export function PoketWidget({ balance, onOpen }: { balance: string; onOpen?: () => void }) {
   return (
     <div className="flex items-center gap-16 rounded-16 border border-default bg-gradient-to-r from-neutral-white to-primary-50 p-12">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-4 text-primary-500">
+        <button type="button" onClick={onOpen} className="flex items-center gap-4 text-primary-500">
           <Wordmark name="poket" height={20} />
           <ArrowRight size={16} />
-        </div>
+        </button>
         <div className="mt-4 flex items-center gap-8">
           <span className="text-16 font-bold text-default">{balance}</span>
           <Eye size={16} className="text-default" />
