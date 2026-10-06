@@ -36,7 +36,7 @@ import {
   type PipelineLead,
 } from './pipeline'
 import { pipelineStore, setAddLeadEntry, usePipeline } from './pipeline-store'
-import { canDisburse, useFormation } from './formation'
+import { canDisburse, setFormation, useFormation } from './formation'
 import { usePois } from './poi-store'
 import { store, useApp } from './store'
 import { SOFT_REJECT_CASES, type SoftRejectCase } from './validasi'
@@ -69,7 +69,7 @@ const TODAY_GROUPS: { key: string; label: string; secs: LeadsSection[] }[] = [
 ]
 
 const CARD_NOTE: Partial<Record<LeadsSection, CardNote>> = {
-  'survey-approved': { text: 'Waiting for group formation', tone: 'orange' },
+  'survey-approved': { text: 'Waiting for group activation', tone: 'orange' },
   'need-resubmit': { text: 'Need to resubmit UK', tone: 'orange' },
   'pending-bm-validation': { text: 'Need BM Review', tone: 'orange' },
   'survey-submitted': { text: 'Application in process', tone: 'blue' },
@@ -322,7 +322,7 @@ export function SalesList({ scope }: { scope: Scope }) {
   const allPoiTasks = buildTasks([], pois).filter((t): t is PoiTask => t.kind === 'poi')
 
   // The section a lead shows in — approved splits into "Ready for disbursement"
-  // (majelis settled) and "Waiting for group formation" (new majelis not formed).
+  // (majelis settled) and "Waiting for group activation" (new majelis not formed).
   const displaySection = (l: PipelineLead): LeadsSection =>
     l.status === 'approved' && canDisburse(formation, l) ? 'ready-for-disbursement' : leadsSection(l)
 
@@ -337,6 +337,22 @@ export function SalesList({ scope }: { scope: Scope }) {
 
   function openLead(lead: PipelineLead) {
     pipelineStore.open(lead.id)
+    // "Waiting for group activation" — open the formation (ketua + jadwal) directly.
+    if (
+      lead.status === 'approved' &&
+      lead.majelis.kind === 'new' &&
+      !canDisburse(formation, lead)
+    ) {
+      setFormation({
+        mode: 'form',
+        phase: 'majelis',
+        majelisName: lead.majelis.name,
+        memberCount: 0,
+        returnTo: leadDetailTarget(lead),
+      })
+      flow.go('group-formation')
+      return
+    }
     flow.go(leadDetailTarget(lead))
   }
 

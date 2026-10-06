@@ -155,7 +155,7 @@ export function TugasScreen() {
 
   function startActivation(task: GroupFormationTask) {
     setGate(null)
-    setFormation({ mode: 'form', majelisName: task.majelisName, memberCount: task.memberCount })
+    setFormation({ mode: 'form', phase: 'majelis', majelisName: task.majelisName, memberCount: task.memberCount })
     flow.go('group-formation')
   }
 

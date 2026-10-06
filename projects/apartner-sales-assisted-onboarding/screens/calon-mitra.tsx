@@ -37,7 +37,13 @@ import {
   setActiveSection,
   useSurvey,
 } from '../lib/survey'
-import { isMajelisActivated, isMemberAccepted, setFormation, useFormation } from '../lib/formation'
+import {
+  isMajelisActivated,
+  isMemberAccepted,
+  isPerjanjianAgreed,
+  setFormation,
+  useFormation,
+} from '../lib/formation'
 import { DRAFT_SCHEDULE, MAJELIS_DIRECTORY } from '../lib/schedule'
 import { store } from '../lib/store'
 import { Snackbar } from '../lib/snackbar'
@@ -135,9 +141,11 @@ export function CalonMitraScreen() {
   // formed new majelis can disburse. A new (draft) majelis can be formed at any
   // time — group formation no longer waits for a minimum of approved members.
   const activatedNew = isNewMajelis && isMajelisActivated(formation, newMajelisName)
-  // A new majelis needs enough members before it can be formed.
+  // During onboarding a new majelis only needs its perjanjian agreed; the group
+  // itself (ketua + jadwal) is formed after approval.
+  const perjanjianDone = isNewMajelis && isPerjanjianAgreed(formation, newMajelisName)
+  // A new majelis needs enough members before its perjanjian can be done.
   const enoughToForm = newMembers.length >= MIN_FORM_MEMBERS
-  const readyToForm = isNewMajelis && !activatedNew
   const canDisburse = isExisting || activatedNew
 
   // A negative underwriting outcome overrides the badge with its own label.
@@ -147,13 +155,13 @@ export function CalonMitraScreen() {
   const isResubmit = issue === 'resubmit'
 
   // Once approved: "Ready for disbursement" if her majelis is settled, else
-  // "Waiting for group formation". Before that, the badge follows the survey stage.
+  // "Waiting for group activation". Before that, the badge follows the survey stage.
   const statusLabel = issue
     ? ISSUE_LABEL[issue]
     : approved
       ? canDisburse
         ? 'Ready for disbursement'
-        : 'Waiting for group formation'
+        : 'Waiting for group activation'
       : surveyStatusLabel(lead.status)
   const statusIntent: BadgeIntent = issue
     ? issue === 'hard-reject'
@@ -185,7 +193,8 @@ export function CalonMitraScreen() {
   // NEW majelis can submit even before it is activated.
   const needsAcceptance = isExisting && !accepted
   // A new majelis must be formed before the onboarding can be submitted.
-  const needsFormation = isNewMajelis && !activatedNew
+  // Before submit, a new majelis needs its perjanjian agreed (not the full group).
+  const needsFormation = isNewMajelis && !perjanjianDone
   const canSubmit = allDone && !needsAcceptance && !needsFormation
 
   // Survey cards, in display order: Uji Kelayakan first, then BP Feedback.
@@ -248,9 +257,12 @@ export function CalonMitraScreen() {
     flow.go('majelis-page')
   }
 
-  function startGroupFormation() {
+  // `perjanjian` during onboarding (just the agreement); `majelis` after approval
+  // (ketua + jadwal — the actual group).
+  function startGroupFormation(phase: 'perjanjian' | 'majelis') {
     setFormation({
       mode: 'form',
+      phase,
       majelisName: newMajelisName,
       memberCount: newApprovedCount,
       returnTo: detailScreen(lead),
@@ -428,26 +440,32 @@ export function CalonMitraScreen() {
               {isNewMajelis ? (
                 <>
                   <span className="flex min-w-0 items-center gap-8">
-                    <StatusDot done={activatedNew} />
+                    <StatusDot done={approved ? activatedNew : perjanjianDone} />
                     <span
                       className={`text-12 font-bold ${
-                        activatedNew ? 'text-green-600' : 'text-orange-500'
+                        (approved ? activatedNew : perjanjianDone)
+                          ? 'text-green-600'
+                          : 'text-orange-500'
                       }`}
                     >
-                      {activatedNew
-                        ? 'Majelis sudah dibentuk'
-                        : enoughToForm
-                          ? 'Majelis belum dibentuk'
-                          : `Baru ${newMembers.length} anggota. Kurang ${
-                              MIN_FORM_MEMBERS - newMembers.length
-                            } anggota lagi`}
+                      {approved
+                        ? activatedNew
+                          ? 'Majelis sudah dibentuk'
+                          : 'Menunggu pembentukan majelis'
+                        : perjanjianDone
+                          ? 'Perjanjian majelis disetujui'
+                          : enoughToForm
+                            ? 'Upload perjanjian majelis'
+                            : `Baru ${newMembers.length} anggota. Kurang ${
+                                MIN_FORM_MEMBERS - newMembers.length
+                              } anggota lagi`}
                     </span>
                   </span>
-                  {/* Forming the new majelis is required to submit — and only
-                      possible once it has enough members. */}
-                  {readyToForm && enoughToForm ? (
-                    <Button size="sm" variant="outline" onClick={startGroupFormation}>
-                      Bentuk
+                  {/* During onboarding, agree the perjanjian (needs enough members).
+                      The actual group is formed from the Ready-to-disburse view. */}
+                  {!approved && enoughToForm && !perjanjianDone ? (
+                    <Button size="sm" variant="outline" onClick={() => startGroupFormation('perjanjian')}>
+                      Start
                     </Button>
                   ) : null}
                 </>
@@ -640,7 +658,7 @@ export function CalonMitraScreen() {
             </Button>
           ) : (
             <>
-              <Button size="lg" className="w-full" onClick={startGroupFormation}>
+              <Button size="lg" className="w-full" onClick={() => startGroupFormation('majelis')}>
                 Start group formation
               </Button>
               <Button variant="outline" size="lg" className="w-full" onClick={saveForLater}>
@@ -668,8 +686,8 @@ export function CalonMitraScreen() {
                 ? 'Lengkapi survey untuk mengirim onboarding.'
                 : needsFormation
                   ? enoughToForm
-                    ? 'Bentuk majelis baru untuk mengirim onboarding.'
-                    : 'Tambah anggota majelis baru agar bisa dibentuk & dikirim.'
+                    ? 'Setujui perjanjian majelis untuk mengirim onboarding.'
+                    : 'Tambah anggota majelis baru agar perjanjian bisa dibuat.'
                   : 'Selesaikan penerimaan majelis (KM) untuk mengirim onboarding.'}
             </span>
           ) : null}
