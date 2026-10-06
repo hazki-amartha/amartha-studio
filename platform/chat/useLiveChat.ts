@@ -81,6 +81,8 @@ const fresh = (): Conversation => ({
 let slugNow: string | null = null
 let convo: Conversation = fresh()
 let gate: Gate = 'checking'
+/** Where turns run: this laptop's CLI, or the deployed studio (owner only). */
+let where: 'laptop' | 'cloud' = 'laptop'
 let abort: AbortController | null = null
 const listeners = new Set<() => void>()
 
@@ -261,6 +263,7 @@ interface Status {
   available: boolean
   needsPassword: boolean
   signIn: 'signed-in' | 'signed-out' | 'no-cli' | null
+  where?: 'laptop' | 'cloud'
 }
 
 function gateOf(s: Status | null): Gate {
@@ -282,7 +285,10 @@ function probe() {
 function check() {
   fetch('/api/chat', { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null))
-    .then((s: Status | null) => setGate(gateOf(s)))
+    .then((s: Status | null) => {
+      where = s?.where ?? 'laptop'
+      setGate(gateOf(s))
+    })
     .catch(() => setGate('unavailable'))
 }
 
@@ -316,6 +322,7 @@ export interface LiveChat extends ChatState {
   setDraft: (draft: string) => void
   model: string | null
   last: Done | null
+  where: 'laptop' | 'cloud'
 }
 
 const SERVER: Conversation = fresh()
@@ -353,5 +360,6 @@ export function useLiveChat(slug: string): LiveChat {
     setDraft,
     model: c.model,
     last: c.last,
+    where,
   }
 }
