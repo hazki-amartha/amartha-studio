@@ -41,7 +41,7 @@ export const project: ProjectModule = {
   screens: [
     {
       id: 'home-var-d',
-      title: 'Home A (Final) - telat bayar',
+      title: 'Home - Telat Bayar',
       component: lazyScreen(() => import('./screens/home-var-d'), 'HomeVarDScreen'),
       entry: true, // exactly ONE screen per project sets entry: true
       // The late payer's ten Minggu — Poket Transfer / Isi Saldo step through
@@ -111,7 +111,7 @@ export const project: ProjectModule = {
     },
     {
       id: 'home-b',
-      title: 'Home B (Final) - tepat waktu',
+      title: 'Home - Tepat Waktu',
       component: lazyScreen(() => import('./screens/home-var-d'), 'HomeBScreen'),
       // Pays on time while other members fall behind (PATHS.b).
       states: [
