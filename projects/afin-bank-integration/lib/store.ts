@@ -24,6 +24,30 @@ export type AccountStanding = 'active' | 'dormant' | 'frozen'
 export type PinResult = 'correct' | 'wrong' | 'locked'
 export type PinFlow = 'reset' | 'change'
 
+// Which homepage the person sees: a Modal borrower, or the regular AmarthaFin
+// user (Hazki's original home). The switcher on the home flips this.
+export type Persona = 'borrower' | 'regular'
+
+// Where a Modal borrower is in the loan lifecycle — drives the home Modal card.
+//   belum-kyc    — not started; invited to begin
+//   kyc-ongoing  — mid data-collection (e.g. step 3 of 6)
+//   kyc-gagal    — verification failed; must resubmit
+//   kyc-diproses — submitted, under review
+//   kyc-berhasil — approved, ready to disburse
+//   dicairkan    — disbursed; loan running
+export type ModalStage =
+  | 'belum-kyc'
+  | 'kyc-ongoing'
+  | 'kyc-gagal'
+  | 'kyc-diproses'
+  | 'kyc-berhasil'
+  | 'dicairkan'
+
+// What the Poket detail shows: a plain wallet, a Premium wallet with a Mitra
+// Amartha account (after Modal KYC), or a single Premium Plus wallet (after
+// opening a Rekening / "Upgrade Poket Premium Plus").
+export type PoketTier = 'non-premium' | 'premium-mitra' | 'premium-non-mitra'
+
 export interface BankState {
   kyc: KycTier
   account: AccountStatus
@@ -32,6 +56,12 @@ export interface BankState {
   status: AccountStanding
   pin: PinResult
   pinFlow: PinFlow
+  persona: Persona
+  modalStage: ModalStage
+  poketTier: PoketTier
+  // Whether the application's sections are already filled (lets a presenter jump
+  // to the completed hub/forms without typing every field).
+  modalFilled: boolean
 }
 
 const initial: BankState = {
@@ -42,6 +72,10 @@ const initial: BankState = {
   status: 'active',
   pin: 'correct',
   pinFlow: 'reset',
+  persona: 'borrower',
+  modalStage: 'belum-kyc',
+  poketTier: 'non-premium',
+  modalFilled: false,
 }
 
 let state: BankState = initial

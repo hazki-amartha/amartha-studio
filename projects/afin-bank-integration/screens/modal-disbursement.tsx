@@ -11,11 +11,11 @@ import { Bank, CheckCircleFill, WarningCircle } from '@/design-system/icons'
 import { Screen } from '@/platform/primitives'
 import { useFlow } from '@/platform/runtime'
 import { ACCOUNT_NAME, BottomAction, DataRow } from '../lib/ui'
-import { useBankState } from '../lib/store'
+import { store, useBankState } from '../lib/store'
 
 export function ModalDisbursementScreen() {
   const flow = useFlow()
-  const { account } = useBankState()
+  const { account, modalStage } = useBankState()
   const hasAccount = account === 'active'
   const [dest, setDest] = useState<'rekening' | 'lain'>(hasAccount ? 'rekening' : 'lain')
 
@@ -91,7 +91,20 @@ export function ModalDisbursementScreen() {
       )}
 
       <BottomAction>
-        <Button variant="primary" size="lg" className="w-full" onClick={() => flow.go('home')}>
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full"
+          onClick={() => {
+            // Modal flow: cairkan from "siap dicairkan" moves to the disbursed state.
+            if (modalStage === 'kyc-berhasil') {
+              store.set({ modalStage: 'dicairkan', account: 'active' })
+              flow.go('modal-home')
+            } else {
+              flow.go('home')
+            }
+          }}
+        >
           Cairkan Dana
         </Button>
       </BottomAction>

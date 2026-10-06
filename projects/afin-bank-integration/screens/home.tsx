@@ -37,24 +37,28 @@ import {
   Shortcut,
   WalletAction,
 } from '../lib/ui'
-import { useBankState } from '../lib/store'
+import { store, useBankState } from '../lib/store'
 
 export function HomeScreen() {
   const flow = useFlow()
   const { account } = useBankState()
+  const openPoket = () => {
+    store.set({ poketTier: 'non-premium' })
+    flow.go('poket-detail')
+  }
 
   return (
     <Screen statusBar="none" canvas="white" chromeClassName={BAND_FILL} topBar={<BrandHeader />}>
       <BrandBand>
-        {account === 'active' ? <UnifiedBalance /> : <PoketWidget balance="Rp160.000" />}
+        {account === 'active' ? <UnifiedBalance /> : <PoketWidget balance="Rp160.000" onOpen={openPoket} />}
       </BrandBand>
-
-      <ShortcutRow />
 
       {account === 'none' ? <OpenAccountCard /> : null}
       {account === 'none' ? <BindLink /> : null}
       {account === 'in-progress' ? <InProgressCard /> : null}
       {account === 'failed' ? <FailedCard /> : null}
+
+      <ShortcutRow />
 
       <SectionTitle showArrow={false}>Rekomendasi Untuk Anda</SectionTitle>
       <OfferCard
@@ -102,17 +106,23 @@ export function HomeScreen() {
 // The wallet once the account is active: one number for Poket + account (PRD
 // C: "single/combined balance"), with the split one tap away instead of in a
 // tooltip, since the split is the thing a user will want to check.
-function UnifiedBalance() {
+export function UnifiedBalance() {
   const flow = useFlow()
-  const { status } = useBankState()
+  const { status, persona } = useBankState()
   const [open, setOpen] = useState(false)
+  // Premium Poket: a Modal borrower holds a Mitra Amartha account; a regular
+  // user who opened a Rekening holds a single Premium Plus wallet.
+  const openPoket = () => {
+    store.set({ poketTier: persona === 'borrower' ? 'premium-mitra' : 'premium-non-mitra' })
+    flow.go('poket-detail')
+  }
   return (
     <div className="rounded-16 border border-default bg-gradient-to-r from-neutral-white to-primary-50 p-12">
       <div className="flex items-center gap-16">
         <div className="min-w-0 flex-1">
           <button
             type="button"
-            onClick={() => flow.go('balance-detail')}
+            onClick={openPoket}
             className="flex items-center gap-4 text-14 font-bold text-primary-500"
           >
             Total Saldo
@@ -180,19 +190,19 @@ function OpenAccountCard() {
         </span>
         <div className="min-w-0 flex-1 pr-24">
           <div className="flex items-center gap-8">
-            <p className="text-16 font-bold">Buka {ACCOUNT_NAME}</p>
+            <p className="text-16 font-bold">Upgrade Poket Premium Plus</p>
             <Badge intent="orange" size="sm">
               Baru
             </Badge>
           </div>
           <p className="mt-4 text-12 text-primary-50">
-            Simpan saldo tanpa batas dan terima pencairan langsung. Gratis, cukup 5 menit.
+            Nikmati semua fitur Poket: simpan saldo tanpa batas dan terima pencairan langsung. Gratis, cukup 5 menit.
           </p>
         </div>
       </div>
       <div className="mt-16">
         <Button variant="secondary" size="sm" className="w-full" onClick={() => flow.go('ob-intro')}>
-          Buka Rekening Sekarang
+          Upgrade Sekarang
         </Button>
       </div>
     </div>
