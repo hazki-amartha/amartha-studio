@@ -95,6 +95,8 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
             const names = Object.entries(channel.presenceState<{ name: string | null }>())
               .filter(([key]) => key !== me)
               .flatMap(([, metas]) => metas.map((m) => m.name ?? 'Someone'))
+              // Your own other tabs are not someone else.
+              .filter((name) => !viewer || name !== viewer)
             setOthers([...new Set(names)])
           })
           .subscribe((status) => {
