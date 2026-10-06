@@ -884,3 +884,16 @@ export function setOnboardingHasWa(v: 'yes' | 'no') {
 export function getOnboardingHasWa(): 'yes' | 'no' {
   return onboardingHasWa
 }
+
+// How the verification passcode is delivered — chosen on the Persetujuan page
+// (SMS or WhatsApp), read by the Finalisasi passcode step.
+export type VerifyMethod = 'sms' | 'wa'
+let onboardingVerifyMethod: VerifyMethod = 'wa'
+
+export function setOnboardingVerifyMethod(v: VerifyMethod) {
+  onboardingVerifyMethod = v
+}
+
+export function getOnboardingVerifyMethod(): VerifyMethod {
+  return onboardingVerifyMethod
+}

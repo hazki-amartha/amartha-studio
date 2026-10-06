@@ -362,9 +362,9 @@ export function FollowUpScreen() {
               size="lg"
               className="w-full"
               disabled={!canAct}
-              onClick={() => flow.go('onboarding-start')}
+              onClick={() => flow.go('pendaftaran')}
             >
-              Start onboarding
+              Mulai pendaftaran
             </Button>
             <Button
               size="lg"

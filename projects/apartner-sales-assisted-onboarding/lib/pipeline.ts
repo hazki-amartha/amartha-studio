@@ -1722,6 +1722,38 @@ export const SEED_PIPELINE: PipelineLead[] = [
       { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding renewal dimulai (self-service) — gabung Majelis Anggrek' },
     ],
   },
+  // Complete onboarding, forming a brand-new majelis that is still just her — not
+  // enough members to form the group yet, so she cannot submit onboarding.
+  {
+    id: 'p18',
+    name: 'Titin Haryani',
+    phone: '0812-7788-3321',
+    source: 'referral',
+    referredBy: 'Bu Imas (tokoh warga)',
+    fo: 'Nurhayati',
+    photo: true,
+    address: { kecamatan: 'Ciseeng', desa: 'Putat Nutug', detail: 'Kp. Nutug RT 02/RW 03', mapsCoord: 'pinned' },
+    status: 'survey-created',
+    surveyMode: 'assisted',
+    ageDays: 4,
+    agenda: { day: 'today', kind: 'Diproses', when: '14.30', order: 3, dueDays: 0 },
+    majelis: {
+      kind: 'new',
+      name: 'Majelis Mekar Jaya',
+      location: 'Balai RW 03, Putat Nutug',
+      day: 'Rabu',
+      time: '13.00',
+    },
+    nik: '3201094507920018',
+    ktp: true,
+    product: null,
+    amount: '',
+    disburseDate: '',
+    log: [
+      { at: '17 Juli', via: 'manual', status: 'interested', system: 'Referral dari Bu Imas', note: 'Ingin bikin majelis baru di RW 03.' },
+      { at: '21 Juli', via: 'manual', status: 'survey-created', system: 'Onboarding dimulai (assisted) — Majelis Mekar Jaya (baru)' },
+    ],
+  },
   // Perkenalan — an existing-majelis application waiting for the kumpulan day.
   {
     id: 'p15',
