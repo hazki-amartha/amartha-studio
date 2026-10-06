@@ -14,7 +14,12 @@ import { useState } from 'react'
 import { Badge, BottomSheet, Button, Card, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { ArrowLeft, CheckCircle, MapPin, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { pipelineStore, setOnboardingHasWa, usePipeline } from '../lib/pipeline-store'
+import {
+  pipelineStore,
+  setOnboardingHasWa,
+  setOnboardingVerifyMethod,
+  usePipeline,
+} from '../lib/pipeline-store'
 import { AppScreen, ContactButton, StickyBar } from '../lib/ui'
 
 // What each AFin answer implies — shown under the options once one is picked.
@@ -50,6 +55,8 @@ export function OnboardingStartScreen() {
   const [canInstall, setCanInstall] = useState<'yes' | 'no' | ''>('')
   const [phone, setPhone] = useState(lead?.phone ?? '')
   const [helpOpen, setHelpOpen] = useState(false)
+  // The "Kirim Passcode" sheet (can't-install-AFin path) — pick WhatsApp or SMS.
+  const [otpOpen, setOtpOpen] = useState(false)
 
   if (!lead) {
     return (
@@ -77,16 +84,23 @@ export function OnboardingStartScreen() {
       flow.go('calon-mitra')
       return
     }
-    // New calon mitra — set the gate the finalize step reads, then go there.
+    // Can install AFIN → she registers & fills the survey herself.
     if (canInstall === 'yes') {
-      // Can install AFIN → she registers & fills the survey herself.
       setOnboardingHasWa('yes')
       pipelineStore.chooseSurveyMode(lead.id, 'self')
-    } else {
-      // Can't install AFIN → confirm her number via passcode, BP-assisted.
-      setOnboardingHasWa('no')
-      pipelineStore.chooseSurveyMode(lead.id, 'assisted')
+      flow.go('onboarding-finalize')
+      return
     }
+    // Can't install AFIN → pick the passcode channel (WhatsApp / SMS) in a sheet.
+    setOtpOpen(true)
+  }
+
+  // Send the passcode on the chosen channel, then continue to the Finalisasi step.
+  function sendOtp(channel: 'wa' | 'sms') {
+    setOnboardingHasWa('no')
+    setOnboardingVerifyMethod(channel)
+    pipelineStore.chooseSurveyMode(lead.id, 'assisted')
+    setOtpOpen(false)
     flow.go('onboarding-finalize')
   }
 
@@ -168,17 +182,20 @@ export function OnboardingStartScreen() {
           reactivation, with the "?" explaining how. */}
       <Card>
         <div className="flex flex-col gap-8">
-          <div className="flex items-center justify-between gap-8">
-            <span className="text-14 font-bold text-default">Nomor HP calon mitra</span>
-            {hasAfin ? (
-              <button
-                type="button"
-                onClick={() => setHelpOpen(true)}
-                className="shrink-0 text-12 font-bold text-link"
-              >
-                Ubah
-              </button>
-            ) : null}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-8">
+              <span className="text-14 font-bold text-default">Nomor HP calon mitra</span>
+              {hasAfin ? (
+                <button
+                  type="button"
+                  onClick={() => setHelpOpen(true)}
+                  className="shrink-0 text-12 font-bold text-link"
+                >
+                  Ubah
+                </button>
+              ) : null}
+            </div>
+            <span className="text-12 text-caption">Digunakan untuk keperluan verifikasi</span>
           </div>
           {hasAfin ? (
             <div className="rounded-8 border border-default bg-neutral-50 px-12 py-8 text-14 text-caption">
@@ -201,6 +218,26 @@ export function OnboardingStartScreen() {
           {hasAfin ? 'Confirm' : 'Verify'}
         </Button>
       </StickyBar>
+
+      {/* Kirim Passcode — pick the channel. */}
+      <BottomSheet
+        open={otpOpen}
+        onClose={() => setOtpOpen(false)}
+        title="Kirim Passcode"
+        description={`Pastikan nomor ${phone} sudah benar`}
+      >
+        <div className="flex flex-col gap-8 pt-8">
+          <Button size="lg" className="w-full" onClick={() => sendOtp('wa')}>
+            <span className="flex items-center justify-center gap-8">
+              <WhatsappLogo size={20} />
+              Kirim ke WhatsApp
+            </span>
+          </Button>
+          <Button variant="outline" size="lg" className="w-full" onClick={() => sendOtp('sms')}>
+            Kirim ke SMS
+          </Button>
+        </div>
+      </BottomSheet>
 
       {/* How to change a reactivation mitra's locked number. */}
       <BottomSheet

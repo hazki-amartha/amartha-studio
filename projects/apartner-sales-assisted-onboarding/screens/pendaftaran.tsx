@@ -40,8 +40,15 @@ export function PendaftaranScreen() {
   const [address, setAddress] = useState<LeadAddress>(lead?.address ?? EMPTY_ADDRESS)
   // Majelis is chosen in two steps: kind (new / existing), then — for an existing
   // one — which majelis.
-  // '' = none, 'baru' = new majelis, otherwise an existing majelis id.
-  const [majelisChoice, setMajelisChoice] = useState('')
+  // '' = none, 'baru' = new majelis, otherwise an existing majelis id. Prefilled
+  // from the lead's assigned majelis (e.g. a reactivation's existing group).
+  const [majelisChoice, setMajelisChoice] = useState(() =>
+    lead?.majelis.kind === 'existing'
+      ? lead.majelis.id
+      : lead?.majelis.kind === 'new'
+        ? 'baru'
+        : '',
+  )
   const [majelisQuery, setMajelisQuery] = useState('')
   // The onboarding-timing sheet (existing majelis) — opened once the data is
   // filled: onboard now, or save as a calon mitra and continue later.

@@ -43,6 +43,9 @@ import { store } from '../lib/store'
 import { Snackbar } from '../lib/snackbar'
 import { AppScreen, ContactButton, StickyBar } from '../lib/ui'
 
+// Members a new majelis needs before it can be formed.
+const MIN_FORM_MEMBERS = 5
+
 const TUJUAN_OPTIONS = [
   'Pembelian bahan baku produksi',
   'Modal kerja harian',
@@ -132,6 +135,8 @@ export function CalonMitraScreen() {
   // formed new majelis can disburse. A new (draft) majelis can be formed at any
   // time — group formation no longer waits for a minimum of approved members.
   const activatedNew = isNewMajelis && isMajelisActivated(formation, newMajelisName)
+  // A new majelis needs enough members before it can be formed.
+  const enoughToForm = newMembers.length >= MIN_FORM_MEMBERS
   const readyToForm = isNewMajelis && !activatedNew
   const canDisburse = isExisting || activatedNew
 
@@ -179,7 +184,9 @@ export function CalonMitraScreen() {
   // Submit rule: an EXISTING majelis must have completed KM acceptance first; a
   // NEW majelis can submit even before it is activated.
   const needsAcceptance = isExisting && !accepted
-  const canSubmit = allDone && !needsAcceptance
+  // A new majelis must be formed before the onboarding can be submitted.
+  const needsFormation = isNewMajelis && !activatedNew
+  const canSubmit = allDone && !needsAcceptance && !needsFormation
 
   // Survey cards, in display order: Uji Kelayakan first, then BP Feedback.
   const orderedSections = (['uji-kelayakan', 'bp-feedback'] as const)
@@ -416,19 +423,29 @@ export function CalonMitraScreen() {
             </div>
 
             {/* Footer — the majelis stage grouped with its action (KM acceptance
-                for an existing group; a new one reads done since group formation
-                is optional during onboarding, with formation still offered). */}
+                for an existing group; a new one must be formed before submit). */}
             <div className="flex items-center justify-between gap-8 border-t border-default pt-12">
               {isNewMajelis ? (
                 <>
                   <span className="flex min-w-0 items-center gap-8">
-                    <StatusDot done />
-                    <span className="text-12 font-bold text-green-600">
-                      {activatedNew ? 'Majelis sudah dibentuk' : 'Majelis baru — pembentukan opsional'}
+                    <StatusDot done={activatedNew} />
+                    <span
+                      className={`text-12 font-bold ${
+                        activatedNew ? 'text-green-600' : 'text-orange-500'
+                      }`}
+                    >
+                      {activatedNew
+                        ? 'Majelis sudah dibentuk'
+                        : enoughToForm
+                          ? 'Majelis belum dibentuk'
+                          : `Baru ${newMembers.length} anggota. Kurang ${
+                              MIN_FORM_MEMBERS - newMembers.length
+                            } anggota lagi`}
                     </span>
                   </span>
-                  {/* Formation stays available, but is not required to onboard. */}
-                  {readyToForm ? (
+                  {/* Forming the new majelis is required to submit — and only
+                      possible once it has enough members. */}
+                  {readyToForm && enoughToForm ? (
                     <Button size="sm" variant="outline" onClick={startGroupFormation}>
                       Bentuk
                     </Button>
@@ -649,7 +666,11 @@ export function CalonMitraScreen() {
             <span className="text-center text-12 text-caption">
               {!allDone
                 ? 'Lengkapi survey untuk mengirim onboarding.'
-                : 'Selesaikan penerimaan majelis (KM) untuk mengirim onboarding.'}
+                : needsFormation
+                  ? enoughToForm
+                    ? 'Bentuk majelis baru untuk mengirim onboarding.'
+                    : 'Tambah anggota majelis baru agar bisa dibentuk & dikirim.'
+                  : 'Selesaikan penerimaan majelis (KM) untuk mengirim onboarding.'}
             </span>
           ) : null}
           <Button size="lg" className="w-full" disabled={!canSubmit} onClick={submit}>

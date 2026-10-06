@@ -9,14 +9,22 @@
 // The orange "Tandai …" control is the prototype stand-in for the step the calon
 // mitra completes herself; the BP's own actions use normal buttons.
 
-import { useState } from 'react'
-import { Badge, Button, Input, NavigationHeader } from '@/design-system/components'
-import { ArrowLeft, CheckCircle, Hourglass, MapPin, WhatsappLogo } from '@/design-system/icons'
+import { useEffect, useState } from 'react'
+import { Badge, Button, Card, Input, NavigationHeader } from '@/design-system/components'
+import { ArrowClockwise, ArrowLeft, CheckCircle, Hourglass, MapPin, WhatsappLogo } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { getOnboardingHasWa, pipelineStore, usePipeline } from '../lib/pipeline-store'
+import {
+  getOnboardingHasWa,
+  getOnboardingVerifyMethod,
+  pipelineStore,
+  usePipeline,
+} from '../lib/pipeline-store'
 import { AppScreen, ContactButton, StickyBar } from '../lib/ui'
 
 const SIM_FONT = { fontFamily: '"Comic Sans MS", "Comic Sans", cursive' }
+
+// The passcode resend countdown — 2:57, as the design shows.
+const RESEND_SECONDS = 177
 
 export function OnboardingFinalizeScreen() {
   const flow = useFlow()
@@ -28,6 +36,13 @@ export function OnboardingFinalizeScreen() {
   const [passcode, setPasscode] = useState('')
   // No-WhatsApp number confirmation — her own typed-in passcode, all caps.
   const [noWaPasscode, setNoWaPasscode] = useState('')
+  // Resend-passcode countdown.
+  const [resendLeft, setResendLeft] = useState(RESEND_SECONDS)
+  useEffect(() => {
+    if (resendLeft <= 0) return
+    const t = setTimeout(() => setResendLeft((s) => s - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendLeft])
 
   // Persetujuan finished — leave the "Starting onboarding" state and open the
   // survey. Closing instead parks her in "Starting onboarding" to finish later.
@@ -57,6 +72,10 @@ export function OnboardingFinalizeScreen() {
   }
 
   const hasWa = getOnboardingHasWa()
+  const verifyChannel = getOnboardingVerifyMethod() === 'wa' ? 'WhatsApp' : 'SMS'
+  const resendLabel = `${String(Math.floor(resendLeft / 60)).padStart(2, '0')}:${String(
+    resendLeft % 60,
+  ).padStart(2, '0')}`
   const mode = lead.surveyMode
   const phoneValid = phone.replace(/\D/g, '').length >= 9
   const passcodeValid = passcode.replace(/\D/g, '').length >= 4
@@ -165,27 +184,58 @@ export function OnboardingFinalizeScreen() {
           confirmed via a typed passcode. Forced uppercase to match how the
           passcode is actually printed/read out. */}
       {hasWa === 'no' ? (
-        <div className="flex flex-col gap-16">
-          <div className="flex flex-col gap-8 rounded-16 border border-blue-200 bg-blue-50 p-12">
+        <>
+          {/* Consent — sharing the passcode is the mitra's agreement. */}
+          <div className="flex items-start gap-8 rounded-16 border border-blue-200 bg-blue-50 p-12">
+            <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 border-blue-500 text-12 font-bold text-blue-500">
+              i
+            </span>
             <div className="flex flex-col gap-2">
-              <span className="text-14 font-bold text-default">Passcode terkirim ke calon mitra</span>
-              <span className="text-12 text-default">
-                Dikirim via SMS ke <span className="font-bold">{phone}</span>.
+              <span className="text-14 font-bold text-default">Passcode dikirim ke calon mitra</span>
+              <span className="text-12 text-blue-700">
+                Dengan membagikan passcode ke petugas, calon mitra menyetujui syarat &amp; ketentuan
+                pendaftaran Amartha
               </span>
             </div>
-            <span className="border-t border-blue-200 pt-8 text-12 text-default">
-              Dengan membagikan passcode ke petugas, calon mitra menyetujui syarat &amp; ketentuan
-              pendaftaran Amartha.
-            </span>
           </div>
-          <Input
-            label="Passcode dari calon mitra"
-            required
-            value={noWaPasscode}
-            onChange={(e) => setNoWaPasscode(e.target.value.toUpperCase())}
-            placeholder="Masukkan Passcode"
-          />
-        </div>
+
+          {/* Passcode entry — a 6-character field, with a resend countdown. */}
+          <Card>
+            <div className="flex flex-col gap-16">
+              <span className="text-14 text-caption">
+                Dikirim via <span className="font-bold text-default">{verifyChannel}</span> ke{' '}
+                <span className="font-bold text-default">{phone}</span>
+              </span>
+              <Input
+                label="Passcode dari calon mitra"
+                value={noWaPasscode}
+                onChange={(e) =>
+                  setNoWaPasscode(
+                    e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6),
+                  )
+                }
+                placeholder="Masukkan 6 karakter passcode"
+              />
+              <span className="flex items-center gap-8 text-14 text-caption">
+                <ArrowClockwise size={20} />
+                {resendLeft > 0 ? (
+                  <span>
+                    Kirim ulang passcode dalam{' '}
+                    <span className="font-bold text-default">{resendLabel}</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setResendLeft(RESEND_SECONDS)}
+                    className="font-bold text-link"
+                  >
+                    Kirim ulang passcode
+                  </button>
+                )}
+              </span>
+            </div>
+          </Card>
+        </>
       ) : null}
 
       {/* Bottom action per gate. */}
@@ -228,7 +278,7 @@ export function OnboardingFinalizeScreen() {
           <Button
             size="lg"
             className="w-full"
-            disabled={noWaPasscode.trim().length === 0}
+            disabled={noWaPasscode.length < 6}
             onClick={finish}
           >
             Lanjut ke Survey
