@@ -68,6 +68,9 @@ const TODAY_GROUPS: { key: string; label: string; secs: LeadsSection[] }[] = [
   { key: 'follow-up', label: 'Follow up', secs: ['follow-up'] },
 ]
 
+// Members a new majelis needs before its activation can start.
+const MIN_ACTIVATION = 5
+
 const CARD_NOTE: Partial<Record<LeadsSection, CardNote>> = {
   'survey-approved': { text: 'Waiting for group activation', tone: 'orange' },
   'need-resubmit': { text: 'Need to resubmit UK', tone: 'orange' },
@@ -326,6 +329,21 @@ export function SalesList({ scope }: { scope: Scope }) {
   const displaySection = (l: PipelineLead): LeadsSection =>
     l.status === 'approved' && canDisburse(formation, l) ? 'ready-for-disbursement' : leadsSection(l)
 
+  // The card note — a "Waiting for group activation" lead splits by whether her
+  // new majelis has enough members to start the activation.
+  const noteFor = (l: PipelineLead): CardNote | undefined => {
+    if (displaySection(l) === 'survey-approved' && l.majelis.kind === 'new') {
+      const name = l.majelis.name
+      const members = Object.values(leads).filter(
+        (x) => x.majelis.kind === 'new' && x.majelis.name === name,
+      ).length
+      return members < MIN_ACTIVATION
+        ? { text: 'Waiting for group activation (still waiting for members)', tone: 'orange' }
+        : { text: 'Waiting for group activation', tone: 'orange' }
+    }
+    return CARD_NOTE[displaySection(l)]
+  }
+
   function toggle(key: string) {
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -490,7 +508,7 @@ export function SalesList({ scope }: { scope: Scope }) {
                           key={lead.id}
                           lead={lead}
                           divider={i > 0}
-                          note={CARD_NOTE[displaySection(lead)]}
+                          note={noteFor(lead)}
                           onOpen={() => openLead(lead)}
                         />
                       ))
