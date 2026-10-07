@@ -26,6 +26,10 @@ export interface MajelisEntry {
   menunggak: number
   type: MajelisType
   status: MajelisStatus
+  /** The BP who runs this group — who a lead joining an EXISTING majelis is
+   *  handed to (the BM picks the BP only for a NEW majelis). Absent on a
+   *  synthesized draft group that has no responsible BP yet. */
+  fo?: string
 }
 
 /**
@@ -57,6 +61,7 @@ export const shortfallOf = (entry: MajelisEntry): number =>
 export const MAJELIS_DIRECTORY: MajelisEntry[] = [
   {
     id: 'seruni',
+    fo: 'Siti Aminah',
     name: 'Majelis Seruni',
     place: 'Balai RW 02, Putat Nutug',
     day: 'Senin',
@@ -68,6 +73,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
   },
   {
     id: 'mawar',
+    fo: 'Rina Marlina',
     name: 'Majelis Mawar',
     place: 'Balai RW 04, Ciseeng',
     day: 'Selasa',
@@ -82,6 +88,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
   },
   {
     id: 'melati',
+    fo: 'Dewi Lestari',
     name: 'Majelis Melati',
     place: 'Rumah Bu Yanti, Putat Nutug',
     day: 'Selasa',
@@ -93,6 +100,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
   },
   {
     id: 'kenanga',
+    fo: 'Siti Aminah',
     name: 'Majelis Kenanga',
     place: 'Balai Desa Ciseeng',
     day: 'Selasa',
@@ -104,6 +112,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
   },
   {
     id: 'dahlia',
+    fo: 'Rina Marlina',
     name: 'Majelis Dahlia',
     place: 'Balai RW 07, Ciseeng',
     day: 'Rabu',
@@ -115,6 +124,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
   },
   {
     id: 'anggrek',
+    fo: 'Dewi Lestari',
     name: 'Majelis Anggrek',
     place: 'Rumah Bu Imas, Cibeuteung',
     day: 'Rabu',
@@ -128,6 +138,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
   // shortfall reads as a real range rather than one decorative case.
   {
     id: 'kenari',
+    fo: 'Siti Aminah',
     name: 'Majelis Kenari',
     place: 'Warung Bu Ipah, Cibeuteung',
     day: 'Kamis',
@@ -139,6 +150,7 @@ export const MAJELIS_DIRECTORY: MajelisEntry[] = [
   },
   {
     id: 'teratai',
+    fo: 'Rina Marlina',
     name: 'Majelis Teratai',
     place: 'Rumah Bu Eem, Ciseeng',
     day: 'Jumat',
@@ -172,6 +184,10 @@ const TASKS: Task[] = [
 
 export const findTask = (id: string | null): Task | undefined =>
   TASKS.find((t) => t.id === id)
+
+/** The BP who runs an existing majelis — who a lead joining it is handed to. */
+export const majelisFo = (id: string): string =>
+  MAJELIS_DIRECTORY.find((g) => g.id === id)?.fo ?? ''
 
 /** A stable mock distance (km) for a majelis from the lead's location, 0.4–6.2.
  *  There is no real geodata in the prototype — the id seeds a fixed value. */

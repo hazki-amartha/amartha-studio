@@ -571,6 +571,14 @@ export const FIELD_OFFICERS = ['Nurhayati', 'Siti Aminah', 'Dewi Lestari', 'Rina
 /** Whoever is holding the phone. The default assignee on a new lead. */
 export const CURRENT_FO = FIELD_OFFICERS[0]
 
+/** The branch manager among the field officers — the one tagged "(BM)" in the
+ *  petugas pickers and on the BM-view cards. */
+export const BM_FO = CURRENT_FO
+
+/** A petugas name as it reads in the BM view — the BM carries a "(BM)" tag so
+ *  she is distinguishable from the BPs in a filter or on a card. */
+export const foLabel = (fo: string): string => (fo === BM_FO ? `${fo} (BM)` : fo)
+
 /** The roster of mitra, for the searchable referral picker. In production this
  *  spans every active mitra, so its picker is searchable. */
 export const MITRA_REFERRERS = [

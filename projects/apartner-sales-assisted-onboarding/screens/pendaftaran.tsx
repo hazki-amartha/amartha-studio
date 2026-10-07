@@ -11,20 +11,23 @@ import { useState } from 'react'
 import { BottomSheet, Button, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { Camera, FileCheck, MapPin } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
-import { MAJELIS_DIRECTORY, majelisDistanceKm } from '../lib/schedule'
+import { MAJELIS_DIRECTORY, majelisDistanceKm, majelisFo } from '../lib/schedule'
 import { pipelineStore, setOnboardingTiming, usePipeline } from '../lib/pipeline-store'
 import { OnboardingTimingSheet, PickSheet, SelectField } from '../lib/pipeline-ui'
+import { useApp } from '../lib/store'
 import { AppScreen, SearchField, StickyBar } from '../lib/ui'
 import {
   EMPTY_ADDRESS,
+  FIELD_OFFICERS,
   KECAMATAN_LIST,
   WILAYAH,
   addressComplete,
+  foLabel,
   sourceDetail,
   type LeadAddress,
 } from '../lib/pipeline'
 
-type SheetId = 'kecamatan' | 'desa' | 'majelis' | null
+type SheetId = 'kecamatan' | 'desa' | 'majelis' | 'petugas' | null
 
 // A stand-in for OCR — uploading the KTP reads a NIK the BP can still edit.
 const READ_NIK = '3201094507910023'
@@ -53,6 +56,11 @@ export function PendaftaranScreen() {
   // The onboarding-timing sheet (existing majelis) — opened once the data is
   // filled: onboard now, or save as a calon mitra and continue later.
   const [timingOpen, setTimingOpen] = useState(false)
+  // BM view: the BM goes only up to the KTP stage, then names the BP who will
+  // run onboarding. For a NEW majelis she picks; an existing one carries its own.
+  const { role } = useApp()
+  const isBM = role === 'BM'
+  const [petugas, setPetugas] = useState('')
 
   if (!lead) {
     return (
@@ -71,13 +79,19 @@ export function PendaftaranScreen() {
     g.name.toLowerCase().includes(majelisQuery.trim().toLowerCase()),
   )
   const nikValid = nik.replace(/\D/g, '').length === 16
+  // BM view: an existing majelis carries its own BP; a new one needs the BM to
+  // name who will run it. `resolvedFo` is who the lead is handed to on Lanjut.
+  const isExistingMajelis = majelisChoice !== '' && majelisChoice !== 'baru'
+  const resolvedFo = isExistingMajelis ? majelisFo(majelisChoice) : petugas
+  const petugasReady = !isBM || resolvedFo.trim() !== ''
   const ready =
     ktp &&
     nikValid &&
     nama.trim() !== '' &&
     addressComplete(address) &&
     address.detail.trim() !== '' &&
-    majelisChoice !== ''
+    majelisChoice !== '' &&
+    petugasReady
 
   function uploadKtp() {
     setKtp(true)
@@ -95,8 +109,25 @@ export function PendaftaranScreen() {
   function submit() {
     if (!ready) return
     pipelineStore.saveRegistrationDetails(lead.id, nik, ktp, address)
-    // Ask now-or-later here for BOTH paths. A new majelis then goes to "Buat
-    // Majelis Baru" carrying the choice; an existing one starts right away.
+    // BM view: this is the furthest she goes. She assigns the majelis + the BP,
+    // and the lead is handed off — it lands in "Start onboarding" for that BP to
+    // run the persetujuan and survey. The BM does nothing further.
+    if (isBM) {
+      const majelis =
+        majelisChoice === 'baru'
+          ? lead.majelis.kind === 'new'
+            ? lead.majelis
+            : ({ kind: 'new', name: 'Majelis Baru' } as const)
+          : ({ kind: 'existing', id: majelisChoice } as const)
+      pipelineStore.assignMajelis(lead.id, majelis)
+      pipelineStore.setFo(lead.id, resolvedFo)
+      pipelineStore.setStartingOnboarding(lead.id, true)
+      pipelineStore.setFlash(`${lead.name} diserahkan ke BP ${resolvedFo}`)
+      flow.go('sales')
+      return
+    }
+    // BP view — ask now-or-later here for BOTH paths. A new majelis then goes to
+    // "Buat Majelis Baru" carrying the choice; an existing one starts right away.
     setTimingOpen(true)
   }
 
@@ -247,11 +278,31 @@ export function PendaftaranScreen() {
           placeholder="Pilih majelis"
           onClick={() => setSheet('majelis')}
         />
+
+        {/* BM view: who the lead is handed to. An existing majelis carries its
+            own BP (read-only); a new one is the BM's to assign. */}
+        {isBM ? (
+          <SelectField
+            label="Petugas"
+            required
+            readOnly={isExistingMajelis}
+            value={resolvedFo ? foLabel(resolvedFo) : undefined}
+            placeholder="Pilih petugas (BP)"
+            description={
+              isExistingMajelis && majelisLabel ? (
+                <span className="text-caption">Otomatis — penanggung jawab {majelisLabel}</span>
+              ) : undefined
+            }
+            onClick={() => {
+              if (!isExistingMajelis) setSheet('petugas')
+            }}
+          />
+        ) : null}
       </div>
 
       <StickyBar>
         <Button size="lg" className="w-full" disabled={!ready} onClick={submit}>
-          Submit
+          {isBM ? 'Lanjut' : 'Submit'}
         </Button>
       </StickyBar>
 
@@ -314,6 +365,30 @@ export function PendaftaranScreen() {
           {majelisResults.length === 0 ? (
             <span className="px-4 py-8 text-12 text-caption">Majelis tidak ditemukan.</span>
           ) : null}
+        </div>
+      </BottomSheet>
+
+      {/* BM view — pick the BP who will run onboarding for a new majelis. */}
+      <BottomSheet
+        open={sheet === 'petugas'}
+        onClose={() => setSheet(null)}
+        title="Pilih petugas"
+        description="BP yang akan menjalankan onboarding majelis baru ini."
+      >
+        <div className="flex flex-col gap-8">
+          {FIELD_OFFICERS.map((fo) => (
+            <SelectableCard
+              key={fo}
+              name="petugas"
+              inputType="radio"
+              title={foLabel(fo)}
+              checked={petugas === fo}
+              onChange={() => {
+                setPetugas(fo)
+                setSheet(null)
+              }}
+            />
+          ))}
         </div>
       </BottomSheet>
 
