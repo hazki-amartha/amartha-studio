@@ -6,12 +6,16 @@
 // on the row when the BP returns to the roster.
 
 import { useSyncExternalStore } from 'react'
+import { majelisFo } from './schedule'
 import {
+  BM_FO,
   CURRENT_FO,
+  FIELD_OFFICERS,
   SEED_PIPELINE,
   contextSteps,
   dateFromToday,
   followUpDateFor,
+  leadsSection,
   majelisLine,
   type Channel,
   type Interest,
@@ -65,9 +69,29 @@ interface PipelineState {
   completedToday: Record<string, number>
 }
 
+// The BM (Nurhayati) only ever owns Follow up leads. Everything past it —
+// onboarding, reaktivasi, waiting for approval, disbursement — is a BP's work, so
+// a seed lead sitting in one of those stages with the BM as its petugas is handed
+// to a BP: the majelis's own BP where there is one, else a round-robin among the
+// branch's BPs.
+const BPS = FIELD_OFFICERS.filter((f) => f !== BM_FO)
+function bpFor(l: PipelineLead): string {
+  if (l.majelis.kind === 'existing') {
+    const fo = majelisFo(l.majelis.id)
+    if (fo && fo !== BM_FO) return fo
+  }
+  let h = 0
+  for (let i = 0; i < l.id.length; i++) h = (h * 31 + l.id.charCodeAt(i)) >>> 0
+  return BPS[h % BPS.length]
+}
+function normalizeFo(l: PipelineLead): PipelineLead {
+  if (l.fo !== BM_FO || leadsSection(l) === 'follow-up') return l
+  return { ...l, fo: bpFor(l) }
+}
+
 const seedLeads: Record<string, PipelineLead> = {}
 SEED_PIPELINE.forEach((l) => {
-  seedLeads[l.id] = l
+  seedLeads[l.id] = normalizeFo(l)
 })
 
 let state: PipelineState = {

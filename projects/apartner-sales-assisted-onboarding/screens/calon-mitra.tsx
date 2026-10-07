@@ -48,6 +48,7 @@ import { DRAFT_SCHEDULE, MAJELIS_DIRECTORY } from '../lib/schedule'
 import { store } from '../lib/store'
 import { Snackbar } from '../lib/snackbar'
 import { AppScreen, ContactButton, StickyBar } from '../lib/ui'
+import { BmPetugasBar, useBmReadOnly } from '../lib/bm-petugas-bar'
 
 // Members a new majelis needs before it can be formed.
 const MIN_FORM_MEMBERS = 5
@@ -77,6 +78,7 @@ export function CalonMitraScreen() {
   const survey = useSurvey()
   const formation = useFormation()
   const lead = leads[openId]
+  const bmReadOnly = useBmReadOnly()
   // The survey-mode choice (assisted / self) is made here, at the first Survey
   // Uji Kelayakan tap — not back at registration.
   const [modeOpen, setModeOpen] = useState(false)
@@ -316,7 +318,7 @@ export function CalonMitraScreen() {
   // taps the control below (the prototype stand-in for underwriting finishing).
   if (submitting || (submitted && !issue)) {
     return (
-      <AppScreen topBar={header}>
+      <AppScreen topBar={<>{header}<BmPetugasBar /></>} disabled={bmReadOnly}>
         <div className="flex flex-1 flex-col items-center justify-center gap-12 py-48 text-center">
           <span className="flex h-48 w-48 items-center justify-center rounded-full bg-primary-50 text-primary-500">
             <Hourglass size={24} />
@@ -342,7 +344,7 @@ export function CalonMitraScreen() {
   }
 
   return (
-    <AppScreen topBar={header}>
+    <AppScreen topBar={<>{header}<BmPetugasBar /></>} disabled={bmReadOnly}>
       {/* Success confirmation — e.g. after a new majelis is formed. */}
       <Snackbar />
 
@@ -648,8 +650,8 @@ export function CalonMitraScreen() {
       ) : null}
 
       {/* CTA — Ready for disbursement (approved) routes by majelis state;
-          otherwise the survey submit bar. */}
-      {approved ? (
+          otherwise the survey submit bar. Removed entirely in the BM read-only view. */}
+      {bmReadOnly ? null : approved ? (
         <StickyBar>
           {canDisburse ? (
             // Ready to disburse — only "Lanjut" (no save-for-later here).

@@ -1,29 +1,40 @@
 'use client'
 
-// New POI — the BM's "Add POI" form (from the "Add" bottom sheet). It registers
-// a titik sosialisasi: where it is, who to ask for, when it is busy, an optional
-// schedule, and the petugas it is assigned to. Saving adds it to the POI store,
-// so it appears on the Sales board (with "Belum ada jadwal" if no date was set).
+// Tambah lokasi sosialisasi — the "Add Sosialisasi" form (reached from the Add
+// sheet when the source is a POI / sosialisasi). It registers a titik
+// sosialisasi: where it is, who to ask for, when it is busy, an optional
+// schedule, and — in the BM view — the petugas (BP) it is handed to. Saving adds
+// it to the POI store, so it appears on the Sales board (with "Belum ada jadwal"
+// if no date was set).
+//
+// BM view adds one required field the BP view doesn't need: "Nama petugas" — the
+// BM runs seven BPs, so she names who the sosialisasi belongs to; a BP is always
+// herself.
 
 import { useState } from 'react'
-import { Button, Input, NavigationHeader } from '@/design-system/components'
+import { BottomSheet, Button, Input, NavigationHeader, SelectableCard } from '@/design-system/components'
 import { MapPin } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   KECAMATAN_LIST,
   WILAYAH,
   FIELD_OFFICERS,
+  foLabel,
   type Agenda,
 } from '../lib/pipeline'
 import { PickSheet, SelectField } from '../lib/pipeline-ui'
 import { poiStore } from '../lib/poi-store'
 import { pipelineStore } from '../lib/pipeline-store'
+import { useApp } from '../lib/store'
 import { AppScreen, StickyBar } from '../lib/ui'
 
-type SheetId = 'kecamatan' | 'desa' | 'jadwal' | 'fo' | null
+type SheetId = 'jenis' | 'kecamatan' | 'desa' | 'jadwal' | 'fo' | null
 
-// When to run the sosialisasi. "Belum dijadwalkan" leaves the POI schedulable
-// later — it shows on the board as "Belum ada jadwal".
+// The preset kinds of sosialisasi location.
+const LOKASI_TYPES = ['Pasar', 'Posyandu', 'Sekolah', 'Warung', 'Masjid', 'Kantor desa', 'Lainnya']
+
+// When to run the sosialisasi. "Belum dijadwalkan" leaves it schedulable later —
+// it shows on the board as "Belum ada jadwal".
 const SCHEDULE_OPTIONS: { label: string; days: number | null }[] = [
   { label: 'Belum dijadwalkan', days: null },
   { label: 'Hari ini', days: 0 },
@@ -38,6 +49,8 @@ function Heading({ children }: { children: string }) {
 
 export function PoiNewScreen() {
   const flow = useFlow()
+  const { role } = useApp()
+  const isBM = role === 'BM'
   const [sheet, setSheet] = useState<SheetId>(null)
 
   const [name, setName] = useState('')
@@ -57,7 +70,10 @@ export function PoiNewScreen() {
   const [fo, setFo] = useState('')
 
   const desaOptions = kecamatan ? WILAYAH[kecamatan] ?? [] : []
-  const ready = name.trim() !== '' && poiType.trim() !== '' && kecamatan !== '' && desa !== ''
+  // BM must name the petugas; a BP is herself, so the field is hers to skip.
+  const petugasReady = !isBM || fo !== ''
+  const ready =
+    name.trim() !== '' && poiType.trim() !== '' && kecamatan !== '' && desa !== '' && petugasReady
 
   // Marking the pin stands in for a reverse-geocode — it fills the detail line
   // if it is still empty.
@@ -99,21 +115,28 @@ export function PoiNewScreen() {
       fo,
       agenda,
     })
-    pipelineStore.setFlash(`POI ${name.trim()} ditambahkan`)
+    pipelineStore.setFlash(`Lokasi sosialisasi ${name.trim()} ditambahkan`)
     flow.go('sales')
   }
 
   return (
-    <AppScreen topBar={<NavigationHeader title="New POI" onBack={() => flow.back()} />}>
+    <AppScreen topBar={<NavigationHeader title="Tambah lokasi sosialisasi" onBack={() => flow.back()} />}>
       <div className="flex flex-col gap-12">
-        <Heading>General</Heading>
-        <Input label="POI Name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama POI" />
+        <Heading>Info</Heading>
         <Input
-          label="POI Type"
+          label="Nama lokasi"
           required
-          value={poiType}
-          onChange={(e) => setPoiType(e.target.value)}
-          placeholder="mis. Pasar, Posyandu"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Nama lokasi sosialisasi"
+          helperText="Lokasi tempat sosialisasi dilakukan"
+        />
+        <SelectField
+          label="Jenis lokasi"
+          required
+          value={poiType || undefined}
+          placeholder="Pilih jenis lokasi"
+          onClick={() => setSheet('jenis')}
         />
         <div className="flex flex-col gap-8">
           <span className="text-12 font-bold text-default">
@@ -125,9 +148,9 @@ export function PoiNewScreen() {
           </div>
         </div>
 
-        <Heading>Address &amp; Contact</Heading>
+        <Heading>Kontak dan alamat</Heading>
         <SelectField
-          label="Kecamatan"
+          label="Kecamatan lokasi sosialisasi"
           required
           value={kecamatan || undefined}
           placeholder="Pilih kecamatan"
@@ -135,7 +158,7 @@ export function PoiNewScreen() {
           description={<span className="text-caption">Hanya kecamatan &amp; desa dalam wilayahmu</span>}
         />
         <SelectField
-          label="Desa"
+          label="Kelurahan/desa lokasi sosialisasi"
           required
           value={desa || undefined}
           placeholder={kecamatan ? 'Pilih desa' : 'Pilih kecamatan dulu'}
@@ -143,16 +166,12 @@ export function PoiNewScreen() {
         />
         <div className="flex flex-col gap-8">
           <span className="text-12 text-default">
-            Lokasi di Maps <span className="text-caption">(opsional)</span>
+            Titik alamat di peta <span className="text-caption">(opsional)</span>
           </span>
           {pinned ? (
             <div className="flex items-center justify-between">
               <span className="text-12 text-green-600">Lokasi sudah ditandai</span>
-              <button
-                type="button"
-                onClick={() => setPinned(false)}
-                className="text-12 font-bold text-link"
-              >
+              <button type="button" onClick={() => setPinned(false)} className="text-12 font-bold text-link">
                 Ubah pin
               </button>
             </div>
@@ -163,20 +182,26 @@ export function PoiNewScreen() {
               className="flex items-center justify-center gap-8 rounded-8 border border-dashed border-default py-16 text-14 font-bold text-primary-500"
             >
               <MapPin size={20} />
-              Tandai Lokasi di Maps
+              Tandai lokasi di peta
             </button>
           )}
         </div>
         <Input
-          label="Detail alamat"
+          label="Alamat lokasi sosialisasi"
           optionalText="opsional"
           value={detail}
           onChange={(e) => setDetail(e.target.value)}
           placeholder="Kampung / RT / RW / patokan"
         />
-        <Input label="Nama kontak" optionalText="opsional" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Nama kontak POI" />
         <Input
-          label="No. HP kontak"
+          label="Nama kontak di lokasi"
+          optionalText="opsional"
+          value={contact}
+          onChange={(e) => setContact(e.target.value)}
+          placeholder="Nama kontak"
+        />
+        <Input
+          label="Nomor HP kontak di lokasi"
           optionalText="opsional"
           inputMode="tel"
           value={phone}
@@ -184,12 +209,19 @@ export function PoiNewScreen() {
           placeholder="08xx-xxxx-xxxx"
         />
 
-        <Heading>Catatan</Heading>
-        <Input label="Catatan" optionalText="opsional" value={catatan} onChange={(e) => setCatatan(e.target.value)} placeholder="Catatan untuk petugas" />
-
-        <Heading>Detail POI Visit</Heading>
+        <Heading>Detail penugasan</Heading>
+        {/* BM view: who runs this sosialisasi. A BP is always herself. */}
+        {isBM ? (
+          <SelectField
+            label="Nama petugas"
+            required
+            value={fo ? foLabel(fo) : undefined}
+            placeholder="Pilih petugas"
+            onClick={() => setSheet('fo')}
+          />
+        ) : null}
         <SelectField
-          label="Jadwal POI Visit"
+          label="Jadwal sosialisasi"
           value={scheduleLabel}
           placeholder="Pilih jadwal"
           onClick={() => setSheet('jadwal')}
@@ -197,15 +229,32 @@ export function PoiNewScreen() {
         {scheduleDays !== null ? (
           <Input label="Jam" optionalText="opsional" value={time} onChange={(e) => setTime(e.target.value)} placeholder="14.00" />
         ) : null}
-        <SelectField label="Assigned FO" optionalText="opsional" value={fo || undefined} placeholder="Pilih petugas" onClick={() => setSheet('fo')} />
+        <Input
+          label="Catatan"
+          optionalText="opsional"
+          value={catatan}
+          onChange={(e) => setCatatan(e.target.value)}
+          placeholder="Catatan untuk petugas"
+        />
       </div>
 
       <StickyBar>
         <Button size="lg" className="w-full" disabled={!ready} onClick={save}>
-          Save POI
+          Tambahkan ke Prospek
         </Button>
       </StickyBar>
 
+      <PickSheet
+        open={sheet === 'jenis'}
+        title="Pilih jenis lokasi"
+        options={LOKASI_TYPES}
+        value={poiType}
+        onClose={() => setSheet(null)}
+        onPick={(t) => {
+          setPoiType(t)
+          setSheet(null)
+        }}
+      />
       <PickSheet
         open={sheet === 'kecamatan'}
         title="Kecamatan"
@@ -231,7 +280,7 @@ export function PoiNewScreen() {
       />
       <PickSheet
         open={sheet === 'jadwal'}
-        title="Jadwal POI Visit"
+        title="Jadwal sosialisasi"
         options={SCHEDULE_OPTIONS.map((o) => o.label)}
         value={scheduleLabel}
         onClose={() => setSheet(null)}
@@ -242,17 +291,25 @@ export function PoiNewScreen() {
           setSheet(null)
         }}
       />
-      <PickSheet
-        open={sheet === 'fo'}
-        title="Assigned FO"
-        options={FIELD_OFFICERS}
-        value={fo}
-        onClose={() => setSheet(null)}
-        onPick={(v) => {
-          setFo(v)
-          setSheet(null)
-        }}
-      />
+
+      {/* BM view — pick the BP who runs this sosialisasi (the BM carries a "(BM)" tag). */}
+      <BottomSheet open={sheet === 'fo'} onClose={() => setSheet(null)} title="Pilih petugas">
+        <div className="flex flex-col gap-8">
+          {FIELD_OFFICERS.map((f) => (
+            <SelectableCard
+              key={f}
+              name="poi-petugas"
+              inputType="radio"
+              title={foLabel(f)}
+              checked={fo === f}
+              onChange={() => {
+                setFo(f)
+                setSheet(null)
+              }}
+            />
+          ))}
+        </div>
+      </BottomSheet>
     </AppScreen>
   )
 }

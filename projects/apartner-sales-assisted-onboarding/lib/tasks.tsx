@@ -31,6 +31,7 @@ import {
   addressLine,
   dateFromToday,
   dateWithWeekday,
+  foLabel,
   majelisLine,
   sourceDetail,
   type Agenda,
@@ -332,7 +333,7 @@ export function LeadTaskCard({
           </span>
           <span className="truncate text-16 font-bold text-default">{lead.name}</span>
           {showPetugas ? (
-            <span className="truncate text-12 text-caption">Petugas: {lead.fo}</span>
+            <span className="truncate text-12 text-caption">Petugas: {foLabel(lead.fo)}</span>
           ) : null}
           <span className="truncate text-12 text-caption">
             Source:{' '}
@@ -400,11 +401,14 @@ export function LeadBoardCard({
   onOpen,
   divider,
   note,
+  showPetugas,
 }: {
   lead: PipelineLead
   onOpen: () => void
   divider?: boolean
   note?: CardNote
+  /** BM view: name the petugas (BP) the lead belongs to. */
+  showPetugas?: boolean
 }) {
   const cold = lead.status === 'not-interested' || lead.status === 'rejected'
   const source = cold ? `Reaktivasi — eks ${majelisLine(lead)}` : sourceDetail(lead)
@@ -428,6 +432,9 @@ export function LeadBoardCard({
       {noSchedule ? null : <DatePills agenda={lead.agenda} />}
       <div className="flex min-w-0 flex-col gap-2">
         <span className="truncate text-16 font-bold text-default">{lead.name}</span>
+        {showPetugas ? (
+          <span className="truncate text-12 text-caption">Petugas: {foLabel(lead.fo)}</span>
+        ) : null}
         <span className="truncate text-12 text-caption">Source: {source}</span>
         {loc ? (
           <span className="flex items-center gap-4 text-12 text-caption">

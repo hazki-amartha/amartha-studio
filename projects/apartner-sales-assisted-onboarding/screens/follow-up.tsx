@@ -32,6 +32,7 @@ import { PickSheet } from '../lib/pipeline-ui'
 import { store, useApp } from '../lib/store'
 import { agendaDueDays, leadScheduleLabel, overdueDays } from '../lib/tasks'
 import { AppScreen, ChoiceList, ContactButton } from '../lib/ui'
+import { BmPetugasBar } from '../lib/bm-petugas-bar'
 
 type SheetId = 'reschedule-why' | 'drop' | null
 
@@ -242,6 +243,8 @@ export function FollowUpScreen() {
   // A BM can oversee and reassign anyone's task, but can only work a task that is
   // hers — the action buttons are disabled on another petugas' lead.
   const canAct = !isBM || lead.fo === CURRENT_FO
+  // BM viewing a BP's lead (a reaktivasi owned by a BP): remove the CTA entirely.
+  const bmReadOnly = !canAct
 
   function dropLead() {
     // Dropping a survey-ongoing lead ends her onboarding (status → rejected) so
@@ -265,7 +268,7 @@ export function FollowUpScreen() {
 
   return (
     <AppScreen
-      topBar={<NavigationHeader title={followUpTitle(lead)} onBack={() => flow.go('sales')} />}
+      topBar={<><NavigationHeader title={followUpTitle(lead)} onBack={() => flow.go('sales')} /><BmPetugasBar /></>}
     >
       {/* Profile box — who she is and where, nothing about the task. Source sits
           directly under the name; phone and address each carry their own
@@ -338,7 +341,9 @@ export function FollowUpScreen() {
       />
 
       {/* Follow up result — the heading sits with its buttons in a full-bleed
-          background bar at the bottom of the page (not sticky). */}
+          background bar at the bottom of the page (not sticky). Removed when the
+          BM opens a reaktivasi that belongs to a BP. */}
+      {bmReadOnly ? null : (
       <div className="-mx-16 mt-auto flex flex-col gap-12 border-t border-default bg-neutral-white p-16">
         <span className="text-14 font-bold text-default">
           {isReaktivasi
@@ -514,8 +519,7 @@ export function FollowUpScreen() {
           </>
         )}
       </div>
-
-
+      )}
 
       {/* Reschedule — a reason and a new date. */}
       <BottomSheet

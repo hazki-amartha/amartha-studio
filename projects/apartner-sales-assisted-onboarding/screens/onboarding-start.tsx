@@ -21,6 +21,7 @@ import {
   usePipeline,
 } from '../lib/pipeline-store'
 import { AppScreen, ContactButton, StickyBar } from '../lib/ui'
+import { BmPetugasBar, useBmReadOnly } from '../lib/bm-petugas-bar'
 
 // What each AFin answer implies — shown under the options once one is picked.
 const AFIN_YES_INFO = [
@@ -52,6 +53,7 @@ export function OnboardingStartScreen() {
   const flow = useFlow()
   const { leads, openId } = usePipeline()
   const lead = leads[openId]
+  const bmReadOnly = useBmReadOnly()
   const [canInstall, setCanInstall] = useState<'yes' | 'no' | ''>('')
   const [phone, setPhone] = useState(lead?.phone ?? '')
   const [helpOpen, setHelpOpen] = useState(false)
@@ -137,7 +139,7 @@ export function OnboardingStartScreen() {
   )
 
   return (
-    <AppScreen topBar={header}>
+    <AppScreen topBar={<>{header}<BmPetugasBar /></>} disabled={bmReadOnly}>
       {/* Card 1 — AFin: whether she owns / can own an AFin account. A statement
           for a reactivation (she already has one), a question for a new mitra. */}
       <Card>
@@ -213,11 +215,13 @@ export function OnboardingStartScreen() {
         </div>
       </Card>
 
-      <StickyBar>
-        <Button size="lg" className="w-full" disabled={!canConfirm} onClick={verify}>
-          {hasAfin ? 'Confirm' : 'Verify'}
-        </Button>
-      </StickyBar>
+      {bmReadOnly ? null : (
+        <StickyBar>
+          <Button size="lg" className="w-full" disabled={!canConfirm} onClick={verify}>
+            {hasAfin ? 'Confirm' : 'Verify'}
+          </Button>
+        </StickyBar>
+      )}
 
       {/* Ganti nomor HP — new lead edits the number in a sheet. */}
       <BottomSheet

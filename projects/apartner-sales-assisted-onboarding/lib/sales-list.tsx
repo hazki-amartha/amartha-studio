@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BottomSheet, Button, NavigationHeader } from '@/design-system/components'
-import { Check, CheckCircle, ChevronRight, Plus, Sliders } from '@/design-system/icons'
+import { Check, CheckCircle, ChevronDown, ChevronRight, Plus, Sliders } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   BmValidationCard,
@@ -28,7 +28,9 @@ import {
   type SalesTask,
 } from './tasks'
 import {
+  FIELD_OFFICERS,
   LEADS_SECTION_LABEL,
+  foLabel,
   leadDetailTarget,
   leadsSection,
   sourceDetail,
@@ -41,7 +43,7 @@ import { usePois } from './poi-store'
 import { store, useApp } from './store'
 import { SOFT_REJECT_CASES, type SoftRejectCase } from './validasi'
 import { useValidasiAll, validasiStore } from './validasi-store'
-import { SourceSheet } from './pipeline-ui'
+import { ChevronRow, SourceSheet } from './pipeline-ui'
 import { TabBar } from './tabs'
 import { AppScreen, EmptyState, SearchField, VisitTitle } from './ui'
 
@@ -314,6 +316,17 @@ export function SalesList({ scope }: { scope: Scope }) {
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [query, setQuery] = useState('')
   const [addSourceOpen, setAddSourceOpen] = useState(false)
+  // BM view: "Tambah Prospek" first asks what kind — a calon mitra (the lead
+  // flow) or a new lokasi sosialisasi (the Add Sosialisasi form).
+  const [jenisOpen, setJenisOpen] = useState(false)
+  // BM view — a Petugas filter (both scopes); non-follow-up leads open the BP
+  // page with a petugas bar (BmPetugasBar) rather than a read-only sheet.
+  const isBM = role === 'BM'
+  // Single-select petugas filter (null = all), shown as a dropdown that opens a
+  // "Filter petugas" radio sheet — shared by both scopes.
+  const [petugasFilter, setPetugasFilter] = useState<string | null>(null)
+  const [petugasSheetOpen, setPetugasSheetOpen] = useState(false)
+  const [petugasDraft, setPetugasDraft] = useState<string | null>(null)
 
   const q = query.trim().toLowerCase()
   const matchesQuery = (lead: PipelineLead) =>
@@ -354,6 +367,9 @@ export function SalesList({ scope }: { scope: Scope }) {
   }
 
   function openLead(lead: PipelineLead) {
+    // BM view: every stage past Follow up belongs to a BP, so the BM opens the
+    // same page the BP would — read-only, with a petugas bar under the header to
+    // see and reassign who owns it (BmPetugasBar, injected on those screens).
     pipelineStore.open(lead.id)
     // "Waiting for group activation" — open the formation (ketua + jadwal) directly.
     if (
@@ -385,13 +401,38 @@ export function SalesList({ scope }: { scope: Scope }) {
   }
 
   const addLead = (
-    <Button size="sm" className="shadow-lg" onClick={() => setAddSourceOpen(true)}>
+    <Button size="sm" className="shadow-lg" onClick={() => (isBM ? setJenisOpen(true) : setAddSourceOpen(true))}>
       <span className="flex items-center gap-4">
         <Plus size={16} />
-        Add lead
+        {isBM ? 'Tambah Prospek' : 'Add lead'}
       </span>
     </Button>
   )
+
+  // BM view: the "Pilih jenis prospek" step — a calon mitra, or a new sosialisasi
+  // location (the Add Sosialisasi form).
+  const jenisSheet = isBM ? (
+    <BottomSheet open={jenisOpen} onClose={() => setJenisOpen(false)} title="Pilih jenis prospek">
+      <div className="flex flex-col gap-8">
+        <ChevronRow
+          title="Calon mitra"
+          description="Tambahkan calon mitra baru"
+          onClick={() => {
+            setJenisOpen(false)
+            setAddSourceOpen(true)
+          }}
+        />
+        <ChevronRow
+          title="Lokasi sosialisasi"
+          description="Tambahkan lokasi baru untuk sosialisasi"
+          onClick={() => {
+            setJenisOpen(false)
+            flow.go('poi-new')
+          }}
+        />
+      </div>
+    </BottomSheet>
+  ) : null
   const sourceSheet = (
     <SourceSheet
       open={addSourceOpen}
@@ -404,11 +445,64 @@ export function SalesList({ scope }: { scope: Scope }) {
     />
   )
 
+  // BM view: the Petugas filter — a dropdown opening a single-select sheet.
+  const petugasControl = isBM ? (
+    <button
+      type="button"
+      onClick={() => {
+        setPetugasDraft(petugasFilter)
+        setPetugasSheetOpen(true)
+      }}
+      className="flex w-1/2 items-center justify-between gap-8 rounded-8 border border-default bg-neutral-white px-12 py-8 text-left text-14"
+    >
+      <span className={`truncate ${petugasFilter ? 'text-default' : 'text-caption'}`}>
+        {petugasFilter ? foLabel(petugasFilter) : 'Semua petugas'}
+      </span>
+      <span className="shrink-0 text-disabled">
+        <ChevronDown size={20} />
+      </span>
+    </button>
+  ) : null
+
+  const petugasSheet = isBM ? (
+    <BottomSheet
+      open={petugasSheetOpen}
+      onClose={() => setPetugasSheetOpen(false)}
+      title="Filter petugas"
+      secondaryAction={
+        <Button variant="outline" size="lg" className="w-full" onClick={() => setPetugasSheetOpen(false)}>
+          Batal
+        </Button>
+      }
+      primaryAction={
+        <Button
+          size="lg"
+          className="w-full"
+          onClick={() => {
+            setPetugasFilter(petugasDraft)
+            setPetugasSheetOpen(false)
+          }}
+        >
+          Simpan
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-8">
+        <RadioRow label="Lihat semua" checked={petugasDraft === null} onSelect={() => setPetugasDraft(null)} />
+        {FIELD_OFFICERS.map((fo) => (
+          <RadioRow key={fo} label={foLabel(fo)} checked={petugasDraft === fo} onSelect={() => setPetugasDraft(fo)} />
+        ))}
+      </div>
+    </BottomSheet>
+  ) : null
+
   // ---------------------------------------------------------------- today ---
   if (scope === 'today') {
     // Only the active stages appear today; submitted and approved surveys have
     // no follow-up to do, so they wait on "Lihat semua". A follow-up must be due.
     const leadsToday = leadsAll.filter((l) => {
+      // BM view: the Petugas filter narrows the board to one BP's leads.
+      if (petugasFilter && l.fo !== petugasFilter) return false
       const sec = displaySection(l)
       // A hard reject is not today's work — it waits on "Lihat semua".
       if (sec === 'survey-rejected') return false
@@ -485,6 +579,8 @@ export function SalesList({ scope }: { scope: Scope }) {
           label="Cari nama lead atau POI"
         />
 
+        {petugasControl}
+
         <div className="flex flex-col gap-12 pb-16">
           {visible.length === 0 ? (
             <EmptyState
@@ -509,6 +605,7 @@ export function SalesList({ scope }: { scope: Scope }) {
                           lead={lead}
                           divider={i > 0}
                           note={noteFor(lead)}
+                          showPetugas={isBM}
                           onOpen={() => openLead(lead)}
                         />
                       ))
@@ -539,6 +636,9 @@ export function SalesList({ scope }: { scope: Scope }) {
         {snackbar}
         <TabBar active="sales" action={addLead} />
         {sourceSheet}
+        {jenisSheet}
+
+        {petugasSheet}
       </AppScreen>
     )
   }
@@ -557,6 +657,7 @@ export function SalesList({ scope }: { scope: Scope }) {
       (l) =>
         (jenis.size === 0 || jenis.has(displaySection(l))) &&
         (sumber.size === 0 || sumber.has(sumberOf(l))) &&
+        (!petugasFilter || l.fo === petugasFilter) &&
         matchesQuery(l),
     )
     .sort((a, b) => {
@@ -648,6 +749,8 @@ export function SalesList({ scope }: { scope: Scope }) {
         </button>
       </div>
 
+      {mainTab === 'leads' ? petugasControl : null}
+
       {mainTab === 'poi' ? (
         <span className="text-12 text-caption">
           {poiVisible.length} hasil untuk semua lokasi sosialisasi
@@ -668,7 +771,7 @@ export function SalesList({ scope }: { scope: Scope }) {
                   key={lead.id}
                   className="overflow-hidden rounded-16 border border-default bg-neutral-white"
                 >
-                  <LeadBoardCard lead={lead} onOpen={() => openLead(lead)} />
+                  <LeadBoardCard lead={lead} showPetugas={isBM} onOpen={() => openLead(lead)} />
                 </div>
               ))
             )}
@@ -696,6 +799,9 @@ export function SalesList({ scope }: { scope: Scope }) {
 
       <TabBar active="sales" action={addLead} />
       {sourceSheet}
+      {jenisSheet}
+
+      {petugasSheet}
 
       <BottomSheet
         open={filterOpen}

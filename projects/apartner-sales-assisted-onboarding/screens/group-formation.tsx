@@ -29,6 +29,7 @@ import { SelectField } from '../lib/pipeline-ui'
 import { store } from '../lib/store'
 import { RITUAL_POINTS } from '../lib/survey'
 import { AppScreen, StageBar, StickyBar } from '../lib/ui'
+import { BmPetugasBar, useBmReadOnly } from '../lib/bm-petugas-bar'
 
 // A majelis needs at least this many members to be formed.
 const MIN_MEMBERS = 5
@@ -140,6 +141,7 @@ export function GroupFormationScreen() {
   const steps = stepsForContext(ctx)
   // Jadwal & lokasi were set on "Buat Majelis Baru" — prefill them here.
   const { leads, openId } = usePipeline()
+  const bmReadOnly = useBmReadOnly()
   const newAssign = leads[openId]?.majelis.kind === 'new' ? leads[openId].majelis : undefined
   const draftSched = DRAFT_SCHEDULE[ctx.majelisName]
   const prefLocation =
@@ -256,7 +258,7 @@ export function GroupFormationScreen() {
   ) {
     const need = MIN_ACTIVATION_MEMBERS - majelisMembers.length
     return (
-      <AppScreen topBar={<NavigationHeader title={title} onBack={() => flow.back()} />}>
+      <AppScreen topBar={<><NavigationHeader title={title} onBack={() => flow.back()} /><BmPetugasBar /></>} disabled={bmReadOnly}>
         <div className="flex items-start gap-8 rounded-16 border border-orange-200 bg-orange-50 p-12">
           <span className="shrink-0 text-orange-500">
             <Users size={20} />
@@ -292,7 +294,7 @@ export function GroupFormationScreen() {
   }
 
   return (
-    <AppScreen topBar={<NavigationHeader title={title} onBack={back} />}>
+    <AppScreen topBar={<><NavigationHeader title={title} onBack={back} /><BmPetugasBar /></>} disabled={bmReadOnly}>
       {/* The stepper only makes sense for a multi-step flow — not the single-page
           acceptance, nor the one-step onboarding perjanjian. */}
       {ctx.mode === 'form' && steps.length > 1 ? (
@@ -462,17 +464,19 @@ export function GroupFormationScreen() {
         </div>
       )}
 
-      <StickyBar>
-        <Button size="lg" className="w-full" disabled={!stepDone} onClick={next}>
-          {isLast
-            ? ctx.mode === 'accept'
-              ? 'Terima anggota'
-              : ctx.phase === 'perjanjian'
-                ? 'Submit'
-                : 'Aktifkan Majelis'
-            : 'Lanjut'}
-        </Button>
-      </StickyBar>
+      {bmReadOnly ? null : (
+        <StickyBar>
+          <Button size="lg" className="w-full" disabled={!stepDone} onClick={next}>
+            {isLast
+              ? ctx.mode === 'accept'
+                ? 'Terima anggota'
+                : ctx.phase === 'perjanjian'
+                  ? 'Submit'
+                  : 'Aktifkan Majelis'
+              : 'Lanjut'}
+          </Button>
+        </StickyBar>
+      )}
 
       {/* Pickers */}
       <BottomSheet open={sheet === 'ketua'} onClose={() => setSheet(null)} title="Pilih ketua majelis">

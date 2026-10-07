@@ -35,8 +35,25 @@ import { REJECT_AFTER } from './store'
  * element, so without the important flag which of the two wins would depend on
  * their order in Tailwind's generated CSS rather than on anything stated here.
  */
-export function AppScreen({ className, ...props }: ScreenProps) {
-  return <Screen {...props} className={`!bg-canvas-blue ${className ?? ''}`.trim()} />
+export function AppScreen({
+  className,
+  disabled,
+  children,
+  ...props
+}: ScreenProps & { disabled?: boolean }) {
+  // `disabled` makes the page non-interactive (the BM's read-only view of a BP's
+  // lead) while leaving the top bar — and its Ganti petugas control — live. The
+  // wrapper re-applies the 12px section gap the Screen's content container owns,
+  // so disabling does not collapse the layout.
+  return (
+    <Screen {...props} className={`!bg-canvas-blue ${className ?? ''}`.trim()}>
+      {disabled ? (
+        <div className="pointer-events-none flex flex-col gap-12">{children}</div>
+      ) : (
+        children
+      )}
+    </Screen>
+  )
 }
 
 export function StageBar({
