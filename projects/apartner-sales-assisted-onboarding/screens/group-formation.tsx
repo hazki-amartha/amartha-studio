@@ -162,6 +162,7 @@ export function GroupFormationScreen() {
   // Ketua
   const [ketua, setKetua] = useState('')
   const [votingPhoto, setVotingPhoto] = useState(false)
+  const [kmPhoto, setKmPhoto] = useState(false)
   // Perjanjian
   const [pernyataan, setPernyataan] = useState(false)
   // Jadwal & Lokasi — prefilled from the new majelis' saved schedule.
@@ -180,7 +181,7 @@ export function GroupFormationScreen() {
     current === 'anggota'
       ? members.size >= MIN_MEMBERS
       : current === 'ketua'
-      ? ketua !== '' && votingPhoto
+      ? ketua !== '' && votingPhoto && kmPhoto
       : current === 'perjanjian'
         ? pernyataan
         : current === 'jadwal'
@@ -351,10 +352,17 @@ export function GroupFormationScreen() {
           />
           <UploadRow
             icon={<Camera size={20} />}
-            label="Foto bukti voting"
+            label="Form bukti pemilihan majelis"
             action="Take photo"
             done={votingPhoto}
             onToggle={() => setVotingPhoto((v) => !v)}
+          />
+          <UploadRow
+            icon={<Camera size={20} />}
+            label="Surat pernyataan KM"
+            action="Take photo"
+            done={kmPhoto}
+            onToggle={() => setKmPhoto((v) => !v)}
           />
         </div>
       ) : current === 'perjanjian' ? (
