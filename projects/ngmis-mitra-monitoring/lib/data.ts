@@ -27,6 +27,7 @@ export const BRANCHES = [
 
 export const TABS = [
   { id: 'daily', label: 'Progres harian' },
+  { id: 'weekly', label: 'Weekly task' },
   { id: 'repayment', label: 'Pembayaran' },
   { id: 'cash', label: 'Sisa setor tunai' },
   { id: 'disbursement', label: 'Pencairan' },
