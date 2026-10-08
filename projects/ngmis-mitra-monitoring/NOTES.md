@@ -1,1 +1,2 @@
 - `lib/write-off-dialog.tsx` — checkbox rows, textarea and upload dropzone for the write-off suggestion form; FunDS has none of them (the upload is drawn, not wired). Used in the BP drawer.
+- `lib/daily-*.ts(x)` + `screens/briefing-*.tsx` — Progres harian tab and its briefing flow (Mulai/Lanjutkan briefing, Riwayat, Detail), copied from `ngmis-bm-monitoring` (§1: copied, not imported). Own `daily-store.ts`, separate from `store.ts`. Same promotion candidate as there.
