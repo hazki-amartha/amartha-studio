@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BottomSheet, Button, NavigationHeader } from '@/design-system/components'
-import { Check, CheckCircle, ChevronDown, ChevronRight, Plus, Sliders } from '@/design-system/icons'
+import { Check, CheckCircle, ChevronDown, ChevronRight, Plus, Sliders, Sort } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   BmValidationCard,
@@ -297,8 +297,10 @@ export function SalesList({ scope }: { scope: Scope }) {
   ) : null
   const [mainTab, setMainTab] = useState<MainTab>('leads')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  // Lihat semua filter/sort — applied values + the sheet's draft.
+  // Lihat semua filter/sort — applied values + the sheet's draft. Filter and Sort
+  // are two separate sheets, opened from two buttons.
   const [filterOpen, setFilterOpen] = useState(false)
+  const [sortOpen, setSortOpen] = useState(false)
   const [jenis, setJenis] = useState<Set<LeadsSection>>(new Set())
   const [sumber, setSumber] = useState<Set<Sumber>>(new Set())
   const [sortDir, setSortDir] = useState<'akhir' | 'awal'>('awal')
@@ -651,7 +653,11 @@ export function SalesList({ scope }: { scope: Scope }) {
       return poiSort === 'awal' ? d : -d
     })
   const filterCount =
-    mainTab === 'leads' ? jenis.size + sumber.size : poiNoSched ? 1 : 0
+    mainTab === 'leads'
+      ? jenis.size + sumber.size + (isBM && petugasFilter ? 1 : 0)
+      : poiNoSched
+        ? 1
+        : 0
   const flatLeads = leadsAll
     .filter(
       (l) =>
@@ -669,11 +675,10 @@ export function SalesList({ scope }: { scope: Scope }) {
     if (mainTab === 'leads') {
       setJenisDraft(new Set(jenis))
       setSumberDraft(new Set(sumber))
-      setSortDraft(sortDir)
+      setPetugasDraft(petugasFilter)
       setFilterCat('jenis')
     } else {
       setPoiNoSchedDraft(poiNoSched)
-      setPoiSortDraft(poiSort)
       setFilterCat('jadwal')
     }
     setFilterOpen(true)
@@ -682,23 +687,32 @@ export function SalesList({ scope }: { scope: Scope }) {
     if (mainTab === 'leads') {
       setJenis(new Set(jenisDraft))
       setSumber(new Set(sumberDraft))
-      setSortDir(sortDraft)
+      setPetugasFilter(petugasDraft)
     } else {
       setPoiNoSched(poiNoSchedDraft)
-      setPoiSort(poiSortDraft)
     }
     setFilterOpen(false)
   }
-  // Reset — clear the drafts back to defaults; the sheet stays open.
+  // Reset — clear the filter drafts back to defaults; the sheet stays open.
   function resetFilter() {
     if (mainTab === 'leads') {
       setJenisDraft(new Set())
       setSumberDraft(new Set())
-      setSortDraft('awal')
+      setPetugasDraft(null)
     } else {
       setPoiNoSchedDraft(false)
-      setPoiSortDraft('awal')
     }
+  }
+  // Sort is its own sheet now — seed its draft on open, apply on Terapkan.
+  function openSort() {
+    if (mainTab === 'leads') setSortDraft(sortDir)
+    else setPoiSortDraft(poiSort)
+    setSortOpen(true)
+  }
+  function applySort() {
+    if (mainTab === 'leads') setSortDir(sortDraft)
+    else setPoiSort(poiSortDraft)
+    setSortOpen(false)
   }
   const toggleIn = <T,>(set: Set<T>, v: T) => {
     const next = new Set(set)
@@ -739,7 +753,7 @@ export function SalesList({ scope }: { scope: Scope }) {
         >
           <span className="flex items-center gap-8 text-14 font-bold text-default">
             <Sliders size={20} />
-            Filter &amp; Urut
+            Filter
           </span>
           {filterCount > 0 ? (
             <span className="flex h-24 items-center justify-center rounded-full bg-primary-500 px-8 text-12 font-bold text-neutral-white">
@@ -747,9 +761,15 @@ export function SalesList({ scope }: { scope: Scope }) {
             </span>
           ) : null}
         </button>
+        <button
+          type="button"
+          onClick={openSort}
+          className="flex shrink-0 items-center gap-8 rounded-12 border border-default bg-neutral-white px-16 py-12 text-14 font-bold text-default active:bg-neutral-50"
+        >
+          <Sort size={20} />
+          Sort
+        </button>
       </div>
-
-      {mainTab === 'leads' ? petugasControl : null}
 
       {mainTab === 'poi' ? (
         <span className="text-12 text-caption">
@@ -801,12 +821,10 @@ export function SalesList({ scope }: { scope: Scope }) {
       {sourceSheet}
       {jenisSheet}
 
-      {petugasSheet}
-
       <BottomSheet
         open={filterOpen}
         onClose={() => setFilterOpen(false)}
-        title="Filter dan urutkan"
+        title="Filter"
         secondaryAction={
           <Button variant="outline" size="lg" className="w-full" onClick={resetFilter}>
             Reset
@@ -824,15 +842,9 @@ export function SalesList({ scope }: { scope: Scope }) {
               ? [
                   { id: 'jenis', label: 'Jenis tugas' },
                   { id: 'sumber', label: 'Sumber' },
-                  { id: 'urut', label: 'Tanggal tugas' },
+                  ...(isBM ? [{ id: 'petugas', label: 'Petugas' }] : []),
                 ]
-              : [
-                  { id: 'jadwal', label: 'Jadwal' },
-                  { id: 'urut', label: 'Tanggal tugas' },
-                ]
-          const sortVal = mainTab === 'leads' ? sortDraft : poiSortDraft
-          const setSort = (v: 'akhir' | 'awal') =>
-            mainTab === 'leads' ? setSortDraft(v) : setPoiSortDraft(v)
+              : [{ id: 'jadwal', label: 'Jadwal' }]
           const setSection = (el: HTMLDivElement | null, id: string) => {
             sectionRefs.current[id] = el
           }
@@ -910,19 +922,24 @@ export function SalesList({ scope }: { scope: Scope }) {
                         />
                       ))}
                     </div>
-                    <div ref={(el) => setSection(el, 'urut')} className="flex flex-col gap-8">
-                      <span className="text-14 font-bold text-default">Urutkan</span>
-                      <RadioRow
-                        label="Paling akhir"
-                        checked={sortVal === 'akhir'}
-                        onSelect={() => setSort('akhir')}
-                      />
-                      <RadioRow
-                        label="Paling awal"
-                        checked={sortVal === 'awal'}
-                        onSelect={() => setSort('awal')}
-                      />
-                    </div>
+                    {isBM ? (
+                      <div ref={(el) => setSection(el, 'petugas')} className="flex flex-col gap-8">
+                        <span className="text-14 font-bold text-default">Petugas</span>
+                        <RadioRow
+                          label="Semua petugas"
+                          checked={petugasDraft === null}
+                          onSelect={() => setPetugasDraft(null)}
+                        />
+                        {FIELD_OFFICERS.map((fo) => (
+                          <RadioRow
+                            key={fo}
+                            label={foLabel(fo)}
+                            checked={petugasDraft === fo}
+                            onSelect={() => setPetugasDraft(fo)}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
                   </>
                 ) : (
                   <>
@@ -934,25 +951,36 @@ export function SalesList({ scope }: { scope: Scope }) {
                         onToggle={() => setPoiNoSchedDraft((v) => !v)}
                       />
                     </div>
-                    <div ref={(el) => setSection(el, 'urut')} className="flex flex-col gap-8">
-                      <span className="text-14 font-bold text-default">Urutkan</span>
-                      <RadioRow
-                        label="Paling akhir"
-                        checked={sortVal === 'akhir'}
-                        onSelect={() => setSort('akhir')}
-                      />
-                      <RadioRow
-                        label="Paling awal"
-                        checked={sortVal === 'awal'}
-                        onSelect={() => setSort('awal')}
-                      />
-                    </div>
                   </>
                 )}
               </div>
             </div>
           )
         })()}
+      </BottomSheet>
+
+      <BottomSheet
+        open={sortOpen}
+        onClose={() => setSortOpen(false)}
+        title="Urutkan"
+        primaryAction={
+          <Button size="lg" className="w-full" onClick={applySort}>
+            Terapkan
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-8">
+          <RadioRow
+            label="Tugas paling awal"
+            checked={(mainTab === 'leads' ? sortDraft : poiSortDraft) === 'awal'}
+            onSelect={() => (mainTab === 'leads' ? setSortDraft('awal') : setPoiSortDraft('awal'))}
+          />
+          <RadioRow
+            label="Tugas paling akhir"
+            checked={(mainTab === 'leads' ? sortDraft : poiSortDraft) === 'akhir'}
+            onSelect={() => (mainTab === 'leads' ? setSortDraft('akhir') : setPoiSortDraft('akhir'))}
+          />
+        </div>
       </BottomSheet>
     </AppScreen>
   )
