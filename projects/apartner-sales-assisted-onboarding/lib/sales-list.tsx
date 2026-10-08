@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BottomSheet, Button, NavigationHeader } from '@/design-system/components'
-import { Check, CheckCircle, ChevronDown, ChevronRight, Plus, Sliders, Sort } from '@/design-system/icons'
+import { Check, CheckCircle, ChevronDown, Plus, Sliders, Sort } from '@/design-system/icons'
 import { useFlow } from '@/platform/runtime'
 import {
   BmValidationCard,
@@ -144,23 +144,28 @@ function RadioRow({ label, checked, onSelect }: { label: string; checked: boolea
 
 /** The day's progress banner above the Sales hari ini search — a full-width blue
  *  strip with two counters (follow-up selesai, pencairan hari ini) and a chevron
- *  that opens the detail page. */
-function DaySummaryBox({ onOpen }: { onOpen: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="-mx-16 -mt-16 flex items-center gap-8 border-b border-blue-200 bg-blue-50 px-16 py-12 text-left active:bg-blue-100"
-    >
-      <span className="min-w-0 flex-1 text-14 font-bold text-blue-600">
-        Lihat capaian hari ini
-      </span>
-      <span className="shrink-0 text-blue-600">
-        <ChevronRight size={24} />
-      </span>
-    </button>
-  )
-}
+ *  that opens the detail page.
+ *
+ *  Removed from the board for now (see the commented render in the today scope);
+ *  kept here so it can be pulled back by uncommenting both and re-adding the
+ *  `ChevronRight` icon import.
+// function DaySummaryBox({ onOpen }: { onOpen: () => void }) {
+//   return (
+//     <button
+//       type="button"
+//       onClick={onOpen}
+//       className="-mx-16 -mt-16 flex items-center gap-8 border-b border-blue-200 bg-blue-50 px-16 py-12 text-left active:bg-blue-100"
+//     >
+//       <span className="min-w-0 flex-1 text-14 font-bold text-blue-600">
+//         Lihat capaian hari ini
+//       </span>
+//       <span className="shrink-0 text-blue-600">
+//         <ChevronRight size={24} />
+//       </span>
+//     </button>
+//   )
+// }
+*/
 
 
 /** The Leads ↔ POI visit segmented switch — "Lihat semua" only. */
@@ -570,7 +575,9 @@ export function SalesList({ scope }: { scope: Scope }) {
           />
         }
       >
-        <DaySummaryBox onOpen={() => flow.go('capaian')} />
+        {/* "Lihat capaian hari ini" removed for now — re-enable by uncommenting
+            this and the DaySummaryBox component above.
+        <DaySummaryBox onOpen={() => flow.go('capaian')} /> */}
 
         <SearchField
           value={query}
