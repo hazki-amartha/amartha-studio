@@ -64,9 +64,9 @@ const TODAY_GROUPS: { key: string; label: string; secs: LeadsSection[] }[] = [
     label: 'Waiting for approval',
     secs: ['need-resubmit', 'pending-bm-validation', 'survey-submitted'],
   },
-  { key: 'survey-ongoing', label: 'Complete onboarding', secs: ['survey-ongoing'] },
+  // Start onboarding + Complete onboarding are one "Onboarding" bucket.
+  { key: 'onboarding', label: 'Onboarding', secs: ['starting-onboarding', 'survey-ongoing'] },
   { key: 'reactivation', label: 'Reaktivasi', secs: ['reactivation'] },
-  { key: 'starting-onboarding', label: 'Start onboarding', secs: ['starting-onboarding'] },
   { key: 'follow-up', label: 'Follow up', secs: ['follow-up'] },
 ]
 
@@ -80,20 +80,20 @@ const CARD_NOTE: Partial<Record<LeadsSection, CardNote>> = {
   'survey-submitted': { text: 'Application in process', tone: 'blue' },
 }
 
-// "Jenis tugas" filter order — the lead's journey top-to-bottom, then the
+// "Jenis tugas" filter options — the lead's journey top-to-bottom, then the
 // needs-attention exceptions grouped at the end (distinct from the board's
-// funnel order, which leads with what's closest to disbursing).
-const JENIS_ORDER: LeadsSection[] = [
-  'follow-up',
-  'starting-onboarding',
-  'survey-ongoing',
-  'reactivation',
-  'survey-submitted',
-  'survey-approved',
-  'ready-for-disbursement',
-  'need-resubmit',
-  'pending-bm-validation',
-  'survey-rejected',
+// funnel order, which leads with what's closest to disbursing). Each option maps
+// to one or more sections; "Onboarding" covers both Start and Complete onboarding.
+const JENIS_FILTER_OPTIONS: { label: string; sections: LeadsSection[] }[] = [
+  { label: LEADS_SECTION_LABEL['follow-up'], sections: ['follow-up'] },
+  { label: 'Onboarding', sections: ['starting-onboarding', 'survey-ongoing'] },
+  { label: LEADS_SECTION_LABEL['reactivation'], sections: ['reactivation'] },
+  { label: LEADS_SECTION_LABEL['survey-submitted'], sections: ['survey-submitted'] },
+  { label: LEADS_SECTION_LABEL['survey-approved'], sections: ['survey-approved'] },
+  { label: LEADS_SECTION_LABEL['ready-for-disbursement'], sections: ['ready-for-disbursement'] },
+  { label: LEADS_SECTION_LABEL['need-resubmit'], sections: ['need-resubmit'] },
+  { label: LEADS_SECTION_LABEL['pending-bm-validation'], sections: ['pending-bm-validation'] },
+  { label: LEADS_SECTION_LABEL['survey-rejected'], sections: ['survey-rejected'] },
 ]
 
 // "Sumber" filter — where the lead came from (a cold reactivation counts too).
@@ -545,17 +545,15 @@ export function SalesList({ scope }: { scope: Scope }) {
     const group = (key: string) => TODAY_GROUPS.find((g) => g.key === key)!
     const readyGroup = group('ready-to-disburse')
     const waitingGroup = group('waiting-approval')
-    const surveyGroup = group('survey-ongoing')
+    const onboardingGroup = group('onboarding')
     const reactivationGroup = group('reactivation')
-    const startingGroup = group('starting-onboarding')
     const followGroup = group('follow-up')
     const sections: Section[] = [
       { key: 'bm-validation', label: 'BM Validation', kind: 'bm-validation', rows: bmRows },
       { key: readyGroup.key, label: readyGroup.label, kind: 'lead', rows: groupRows(readyGroup.secs) },
       { key: waitingGroup.key, label: waitingGroup.label, kind: 'lead', rows: groupRows(waitingGroup.secs) },
-      { key: surveyGroup.key, label: surveyGroup.label, kind: 'lead', rows: groupRows(surveyGroup.secs) },
+      { key: onboardingGroup.key, label: onboardingGroup.label, kind: 'lead', rows: groupRows(onboardingGroup.secs) },
       { key: reactivationGroup.key, label: reactivationGroup.label, kind: 'lead', rows: groupRows(reactivationGroup.secs) },
-      { key: startingGroup.key, label: startingGroup.label, kind: 'lead', rows: groupRows(startingGroup.secs) },
       { key: followGroup.key, label: followGroup.label, kind: 'lead', rows: groupRows(followGroup.secs) },
       { key: 'poi', label: 'Sosialisasi', kind: 'poi', rows: poiRows },
     ]
@@ -652,9 +650,11 @@ export function SalesList({ scope }: { scope: Scope }) {
       const d = agendaDueDays(a.event.agenda) - agendaDueDays(b.event.agenda)
       return poiSort === 'awal' ? d : -d
     })
+  // One filter per selected Jenis OPTION (Onboarding covers two sections but counts once).
+  const jenisCount = JENIS_FILTER_OPTIONS.filter((o) => o.sections.every((x) => jenis.has(x))).length
   const filterCount =
     mainTab === 'leads'
-      ? jenis.size + sumber.size + (isBM && petugasFilter ? 1 : 0)
+      ? jenisCount + sumber.size + (isBM && petugasFilter ? 1 : 0)
       : poiNoSched
         ? 1
         : 0
@@ -902,12 +902,19 @@ export function SalesList({ scope }: { scope: Scope }) {
                   <>
                     <div ref={(el) => setSection(el, 'jenis')} className="flex flex-col gap-8">
                       <span className="text-14 font-bold text-default">Jenis tugas</span>
-                      {JENIS_ORDER.map((section) => (
+                      {JENIS_FILTER_OPTIONS.map((opt) => (
                         <CheckRow
-                          key={section}
-                          label={LEADS_SECTION_LABEL[section]}
-                          checked={jenisDraft.has(section)}
-                          onToggle={() => setJenisDraft((s) => toggleIn(s, section))}
+                          key={opt.label}
+                          label={opt.label}
+                          checked={opt.sections.every((x) => jenisDraft.has(x))}
+                          onToggle={() =>
+                            setJenisDraft((s) => {
+                              const next = new Set(s)
+                              const allIn = opt.sections.every((x) => next.has(x))
+                              opt.sections.forEach((x) => (allIn ? next.delete(x) : next.add(x)))
+                              return next
+                            })
+                          }
                         />
                       ))}
                     </div>
