@@ -25,6 +25,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { configs } from '@/projects/configs'
+import { isDbProject } from '@/platform/dbProjects/server'
 import { isSignInRequired } from '@/platform/auth/env'
 import type { StudioUser } from '@/platform/auth/protocol'
 import { getStudioUser } from '@/platform/auth/server'
@@ -51,8 +52,9 @@ const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { 'cache-control': 'no-store' } })
 const refuse = (error: string, status = 400) => json({ error }, status)
 
-const knownSlug = (slug: unknown): slug is string =>
-  typeof slug === 'string' && KEBAB.test(slug) && slug in configs
+/** A git project, or one that lives in the studio's database. */
+const knownSlug = async (slug: unknown): Promise<boolean> =>
+  typeof slug === 'string' && KEBAB.test(slug) && (slug in configs || (await isDbProject(slug)))
 
 /** The viewer's key, hashed — or null when the browser sent none. */
 function viewer(request: Request): string | null {
@@ -81,7 +83,7 @@ async function caller(slug: string): Promise<{ user: StudioUser | null; allowed:
 export async function GET(request: Request): Promise<Response> {
   if (!isStoreConfigured()) return json({ available: false, comments: [] } satisfies CommentsResponse)
   const slug = new URL(request.url).searchParams.get('slug')
-  if (!knownSlug(slug)) return refuse('Unknown project', 404)
+  if (typeof slug !== 'string' || !(await knownSlug(slug))) return refuse('Unknown project', 404)
   if (!(await caller(slug)).allowed) return json({ available: false, comments: [] } satisfies CommentsResponse)
   const me = viewer(request)
   try {
@@ -95,7 +97,7 @@ export async function GET(request: Request): Promise<Response> {
 export async function POST(request: Request): Promise<Response> {
   if (!isStoreConfigured()) return refuse('Comments are not set up here', 404)
   const body = (await request.json().catch(() => null)) as CommentRequest | null
-  if (!body || !knownSlug(body.slug)) return refuse('Unknown project', 404)
+  if (!body || !(await knownSlug(body.slug))) return refuse('Unknown project', 404)
   const me = viewer(request)
   if (!me) return refuse('Missing commenter key')
   const { user, allowed } = await caller(body.slug)
