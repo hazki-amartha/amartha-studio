@@ -3,7 +3,7 @@
 // =============================================================================
 // DB projects · drafts in the studio (./drafts.ts). Two pieces, one state:
 //
-//   DraftSwitcher  the Edit panel's title — "Edit · Live" or "Edit · Draft:
+//   DraftSwitcher  the Edit panel's title — "Edit · Main" or "Edit · Draft:
 //                  <name>" — opening a list of the project and its drafts,
 //                  and "Start a draft". Drafts are editing, so they live in
 //                  Edit; the panel is closed for anyone just looking.
@@ -151,7 +151,7 @@ export function DraftSwitcher({ slug }: { slug: string }) {
       >
         {title}
         <span className="truncate text-14 text-caption group-hover:text-default dark:text-neutral-400 dark:group-hover:text-neutral-50">
-          · {draft ? `Draft: ${draft.name}` : 'Live'}
+          · {draft ? `Draft: ${draft.name}` : 'Main'}
         </span>
         <ChevronRightIcon className="size-16 flex-none rotate-90 text-caption group-hover:text-default dark:text-neutral-400 dark:group-hover:text-neutral-50" />
       </button>
@@ -160,7 +160,7 @@ export function DraftSwitcher({ slug }: { slug: string }) {
         <div className="absolute left-0 top-full z-40 mt-4 flex w-280 flex-col gap-4 rounded-12 border border-default bg-neutral-white p-8 shadow-sm dark:border-ink-700 dark:bg-ink-900">
           <button type="button" className={ROW} onClick={() => go(project)}>
             <span className="flex min-w-0 flex-col">
-              <span className="text-14 text-default dark:text-neutral-50">Live</span>
+              <span className="text-14 text-default dark:text-neutral-50">Main</span>
               <span className={`${NOTE} truncate`}>{draft ? draft.parentName : 'What the project’s link shows'}</span>
             </span>
             {!draft ? <span className="text-12 font-bold text-primary-500">Here</span> : null}

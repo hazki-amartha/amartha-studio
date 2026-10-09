@@ -309,7 +309,7 @@ already live — that's the whole point. (A **draft** is the one exception — s
 below.)
 
 **Drafts.** A designer can start a **draft** of a database project from the
-Edit panel's title ("Edit · Live ▾") — a copy at `/p/<slug>-draft-<name>` that is not on
+Edit panel's title ("Edit · Main ▾") — a copy at `/p/<slug>-draft-<name>` that is not on
 the project's link. It is a database project like any other
 (`projects/_db/<draft-slug>/`, Chat, Edit mode), plus a `draft.json` saying what
 it's a draft of — **never edit `draft.json`**. Drafts are optional: editing the
