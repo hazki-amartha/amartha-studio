@@ -33,6 +33,7 @@ import studioTailwind from '@/tailwind.config'
 import type { ProjectConfig } from '@/platform/types'
 import { SAVED_EVENT, savedChannel, type DbProjectBuild } from './protocol'
 import { laptopCredentials, remote } from './remote'
+import { DRAFT_FILE, parseDraftMeta, type DraftMeta } from './draftMeta'
 
 export const FILES_TABLE = 'studio_project_files'
 export const VERSIONS_TABLE = 'studio_project_file_versions'
@@ -357,30 +358,52 @@ function configOf(slug: string, source: string): ProjectConfig | null {
   }
 }
 
-/** The config of every project in the database, newest first. */
-let remoteConfigs: { at: number; list: Promise<ProjectConfig[]> } | null = null
+/** A database project's config, and — for a draft — the project it's a draft
+ *  of (./drafts.ts). Drafts are projects too, so /p/<slug>, Chat and the
+ *  laptop sync treat them like any other; only lists that show projects to
+ *  people leave them out. */
+export type DbProjectConfig = ProjectConfig & { draft?: DraftMeta }
 
-export async function listDbConfigs(): Promise<ProjectConfig[]> {
+/** The config of every project in the database, drafts included, newest first. */
+let remoteConfigs: { at: number; list: Promise<DbProjectConfig[]> } | null = null
+
+export async function listDbConfigs(): Promise<DbProjectConfig[]> {
   const db = createAdminClient()
   if (!db) {
     // A laptop: the studio's list, briefly cached — every page asks.
     if (!remoteConfigs || Date.now() - remoteConfigs.at > 3000) {
       remoteConfigs = {
         at: Date.now(),
-        list: remote<{ projects: ProjectConfig[] }>('/api/db-projects')
+        list: remote<{ projects: DbProjectConfig[] }>('/api/db-projects')
           .then((r) => r.projects)
           .catch(() => []),
       }
     }
     return remoteConfigs.list
   }
-  const { data, error } = await db.from(FILES_TABLE).select('slug, content').eq('path', 'project.config.ts')
+  const { data, error } = await db
+    .from(FILES_TABLE)
+    .select('slug, path, content')
+    .in('path', ['project.config.ts', DRAFT_FILE])
   if (error) {
     console.error('[dbProjects] listing failed:', error.message)
     return []
   }
+  const drafts = new Map(
+    data.filter((r) => r.path === DRAFT_FILE).flatMap((r) => {
+      const meta = parseDraftMeta(r.content as string)
+      return meta ? [[r.slug as string, meta] as const] : []
+    }),
+  )
   return data
+    .filter((r) => r.path === 'project.config.ts')
     .map((r) => configOf(r.slug as string, r.content as string))
     .filter((c): c is ProjectConfig => c !== null)
+    .map((c) => (drafts.has(c.slug) ? { ...c, draft: drafts.get(c.slug) } : c))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
+/** Projects people pick from — the gallery, the sidebar: drafts left out. */
+export async function listDbProjects(): Promise<ProjectConfig[]> {
+  return (await listDbConfigs()).filter((c) => !c.draft)
 }

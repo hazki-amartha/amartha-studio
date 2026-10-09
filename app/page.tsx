@@ -17,7 +17,7 @@ import { NewProjectButton } from '@/platform/projects/NewProjectButton'
 import { ChevronLeftIcon } from '@/platform/chrome/icons'
 import type { BusinessUnit, Platform, ProjectConfig, ProjectStatus } from '@/platform/types'
 import { configs as projectConfigs } from '@/projects/configs'
-import { listDbConfigs } from '@/platform/dbProjects/server'
+import { listDbProjects } from '@/platform/dbProjects/server'
 
 // draft = blue, in-review = green, final = green (Badge subtle = 500-on-50 rule).
 // live = primary purple: it is not another shade of "done", it is the shipped
@@ -97,7 +97,7 @@ async function loadEntries(): Promise<GalleryEntry[]> {
   // slug in both is the database copy — that is the one /p/<slug> serves.
   const [git, db] = await Promise.all([
     Promise.all(Object.values(projectConfigs).map((load) => load())),
-    listDbConfigs(),
+    listDbProjects(),
   ])
   const inDb = new Set(db.map((c) => c.slug))
   const entries: GalleryEntry[] = [...db, ...git.filter((c) => !inDb.has(c.slug))].map((config) => ({ config }))

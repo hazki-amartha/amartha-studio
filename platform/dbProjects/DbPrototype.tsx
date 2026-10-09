@@ -18,6 +18,7 @@ import { STUDIO_DB_ANON_KEY, STUDIO_DB_URL } from './public'
 import { mergeProject } from '@/platform/runtime/resolveProject'
 import type { ProjectConfig, ScreenDef } from '@/platform/types'
 import { publishDbIndexEntry, setActiveDbProject } from './active'
+import { DraftsMenu } from './DraftsMenu'
 import { PresenceAvatars } from './PresenceAvatars'
 import { SAVED_EVENT, savedChannel, type DbProjectResponse } from './protocol'
 
@@ -131,7 +132,12 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
         screens={project.screens}
         initialScreenId={initialScreenId}
         initialBare={initialBare}
-        presence={<PresenceAvatars names={others} />}
+        presence={
+          <>
+            <DraftsMenu slug={slug} />
+            <PresenceAvatars names={others} />
+          </>
+        }
       />
       {problem ? (
         <pre className="fixed bottom-16 left-16 z-50 max-w-screen-sm whitespace-pre-wrap rounded-12 bg-red-50 p-12 text-12 text-red-500">

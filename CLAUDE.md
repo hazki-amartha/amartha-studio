@@ -305,7 +305,26 @@ this.
 `projects/_db/` — it's ignored by git, and there is nothing to land: it is
 already live. "Commit" and "push" (§5, §7) only apply to git projects and shared
 files. If a designer says "push it" about a database project, tell them it's
-already live — that's the whole point.
+already live — that's the whole point. (A **draft** is the one exception — see
+below.)
+
+**Drafts.** A designer can start a **draft** of a database project from the
+**Drafts** button beside Flow — a copy at `/p/<slug>-draft-<name>` that is not on
+the project's link. It is a database project like any other
+(`projects/_db/<draft-slug>/`, Chat, Edit mode), plus a `draft.json` saying what
+it's a draft of — **never edit `draft.json`**. Drafts are optional: editing the
+project directly works exactly as before. Work on a draft only when the designer
+names one.
+
+- **"Push it" on a draft** = merge it into the project and delete it: the
+  draft's **Push** button, or `curl -s -X POST localhost:4000/api/db-projects/<draft-slug>/draft -H 'content-type: application/json' -d '{"action":"push"}'`.
+  Lines changed on only one side merge on their own.
+- **A push that conflicts lands nothing.** The draft catches up with the
+  project instead, the clashing files get `<<<<<<< yours` / `>>>>>>> theirs`
+  markers — resolve them in the draft (keep both designers' intent), then push
+  again.
+- After a push or discard the draft and its laptop folder are gone; the
+  designer is back on the project.
 
 **Moving a git project into the database** is an owner decision:
 `npm run db:sync -- <slug>` copies it in once; from then on `/p/<slug>` serves
