@@ -1,7 +1,7 @@
 'use client'
 
 // =============================================================================
-// DB projects · drafts in the studio (./drafts.ts). Three pieces, one state:
+// DB projects · drafts in the studio (./drafts.ts). Two pieces, one state:
 //
 //   DraftSwitcher  the Edit panel's title — "Edit · Live" or "Edit · Draft:
 //                  <name>" — opening a list of the project and its drafts,
@@ -13,8 +13,6 @@
 //                  database project saves itself, so there's nothing to save
 //                  first. A live database project has no bar: every save
 //                  there is already live.
-//   DraftLabel     beside Flow, on a draft only, no buttons — so whoever
-//                  opens a draft's link can tell it isn't the project.
 //
 // Editing the project directly stays exactly as it was; a draft is only for
 // trying something off the link.
@@ -35,7 +33,7 @@ const ROW =
   'flex w-full items-center justify-between gap-8 rounded-8 px-8 py-8 text-left hover:bg-neutral-50 dark:hover:bg-ink-800'
 const ERROR = 'flex flex-col gap-4 whitespace-pre-line text-12 text-red-700 dark:text-red-400'
 
-// --- shared state: one fetch per project, read by all three ---------------------
+// --- shared state: one fetch per project, read by both ---------------------
 
 let info: { slug: string; data: DraftsResponse } | null = null
 const listeners = new Set<() => void>()
@@ -149,13 +147,13 @@ export function DraftSwitcher({ slug }: { slug: string }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="-ml-8 flex min-w-0 items-center gap-4 rounded-8 px-8 py-4 hover:bg-neutral-50 dark:hover:bg-ink-800"
+        className="group flex min-w-0 items-center gap-4 py-4"
       >
         {title}
-        <span className="truncate text-14 text-caption dark:text-neutral-400">
+        <span className="truncate text-14 text-caption group-hover:text-default dark:text-neutral-400 dark:group-hover:text-neutral-50">
           · {draft ? `Draft: ${draft.name}` : 'Live'}
         </span>
-        <ChevronRightIcon className="size-16 flex-none rotate-90 text-caption dark:text-neutral-400" />
+        <ChevronRightIcon className="size-16 flex-none rotate-90 text-caption group-hover:text-default dark:text-neutral-400 dark:group-hover:text-neutral-50" />
       </button>
 
       {open ? (
@@ -261,22 +259,5 @@ export function DraftPushBar({ slug }: { slug: string }) {
         </div>
       )}
     </div>
-  )
-}
-
-// --- beside Flow ---------------------------------------------------------------------
-
-export function DraftLabel({ slug }: { slug: string }) {
-  const { data } = useDrafts(slug)
-  const draft = data?.draft
-  if (!draft) return null
-  return (
-    <span
-      title={`A draft of ${draft.parentName} — not on the project’s link until it’s pushed.`}
-      className="flex h-40 items-center rounded-full border border-default bg-neutral-white px-16 text-12 font-bold text-default shadow-sm dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:shadow-none"
-    >
-      <span className="text-primary-500">Draft</span>&nbsp;· {draft.name}
-      <span className="font-regular text-caption dark:text-neutral-400">&nbsp;of {draft.parentName}</span>
-    </span>
   )
 }
