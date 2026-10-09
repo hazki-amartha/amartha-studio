@@ -10,19 +10,22 @@ import { canShare, getStudioUser, isSameOrigin } from '@/platform/auth/server'
 import { EXPIRY_CHOICES, type ShareRequest, type ShareResponse } from '@/platform/share/protocol'
 import { createShare, isShareStoreConfigured, isToken, listShares, revokeShare } from '@/platform/share/server/store'
 import { configs } from '@/projects/configs'
+import { isDbProject } from '@/platform/dbProjects/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/
-const knownSlug = (slug: unknown): slug is string => typeof slug === 'string' && KEBAB.test(slug) && slug in configs
+/** A git project, or one that lives in the studio's database. */
+const knownSlug = async (slug: unknown): Promise<boolean> =>
+  typeof slug === 'string' && KEBAB.test(slug) && (slug in configs || (await isDbProject(slug)))
 
 const json = (body: ShareResponse, status = 200) =>
   Response.json(body, { status, headers: { 'cache-control': 'no-store' } })
 
 export async function GET(request: Request): Promise<Response> {
   const slug = new URL(request.url).searchParams.get('slug')
-  if (!knownSlug(slug)) return json({ error: 'Unknown project' }, 404)
+  if (typeof slug !== 'string' || !(await knownSlug(slug))) return json({ error: 'Unknown project' }, 404)
   if (!(await getStudioUser())) return json({ error: 'Sign in to see share links' }, 401)
   if (!isShareStoreConfigured()) return json({ links: [] })
   try {
@@ -39,7 +42,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!isShareStoreConfigured()) return json({ error: 'Sharing is not set up here' }, 404)
 
   const body = (await request.json().catch(() => null)) as ShareRequest | null
-  if (!body || !knownSlug(body.slug)) return json({ error: 'Unknown project' }, 404)
+  if (!body || !(await knownSlug(body.slug))) return json({ error: 'Unknown project' }, 404)
 
   try {
     if (body.action === 'create') {
