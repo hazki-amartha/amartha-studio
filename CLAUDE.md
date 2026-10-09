@@ -309,7 +309,7 @@ already live — that's the whole point. (A **draft** is the one exception — s
 below.)
 
 **Drafts.** A designer can start a **draft** of a database project from the
-**Drafts** button beside Flow — a copy at `/p/<slug>-draft-<name>` that is not on
+Edit panel's title ("Edit · Live ▾") — a copy at `/p/<slug>-draft-<name>` that is not on
 the project's link. It is a database project like any other
 (`projects/_db/<draft-slug>/`, Chat, Edit mode), plus a `draft.json` saying what
 it's a draft of — **never edit `draft.json`**. Drafts are optional: editing the
@@ -317,7 +317,7 @@ project directly works exactly as before. Work on a draft only when the designer
 names one.
 
 - **"Push it" on a draft** = merge it into the project and delete it: the
-  draft's **Push** button, or `curl -s -X POST localhost:4000/api/db-projects/<draft-slug>/draft -H 'content-type: application/json' -d '{"action":"push"}'`.
+  **Push** bar at the foot of the draft's Edit panel, or `curl -s -X POST localhost:4000/api/db-projects/<draft-slug>/draft -H 'content-type: application/json' -d '{"action":"push"}'`.
   Lines changed on only one side merge on their own.
 - **A push that conflicts lands nothing.** The draft catches up with the
   project instead, the clashing files get `<<<<<<< yours` / `>>>>>>> theirs`

@@ -18,7 +18,7 @@ import { STUDIO_DB_ANON_KEY, STUDIO_DB_URL } from './public'
 import { mergeProject } from '@/platform/runtime/resolveProject'
 import type { ProjectConfig, ScreenDef } from '@/platform/types'
 import { publishDbIndexEntry, setActiveDbProject } from './active'
-import { DraftsMenu } from './DraftsMenu'
+import { DraftLabel } from './DraftControls'
 import { PresenceAvatars } from './PresenceAvatars'
 import { SAVED_EVENT, savedChannel, type DbProjectResponse } from './protocol'
 
@@ -134,7 +134,7 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
         initialBare={initialBare}
         presence={
           <>
-            <DraftsMenu slug={slug} />
+            <DraftLabel slug={slug} />
             <PresenceAvatars names={others} />
           </>
         }
