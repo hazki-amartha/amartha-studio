@@ -31,8 +31,9 @@ async function loadDbEntries(): Promise<ProjectIndexEntry[]> {
   try {
     const res = await fetch('/api/db-projects', { cache: 'no-store' })
     if (!res.ok) return []
-    const { projects } = (await res.json()) as { projects: ProjectConfig[] }
-    return projects.map((c) => ({ slug: c.slug, name: c.name, status: c.status, createdAt: c.createdAt, screens: [] }))
+    // Drafts are listed by their project's Drafts menu, not as projects.
+    const { projects } = (await res.json()) as { projects: (ProjectConfig & { draft?: unknown })[] }
+    return projects.filter((c) => !c.draft).map((c) => ({ slug: c.slug, name: c.name, status: c.status, createdAt: c.createdAt, screens: [] }))
   } catch {
     return []
   }

@@ -209,6 +209,7 @@ async function poll() {
       }
     }
     lastPollError = null
+    if (rows.length) forgetGone(new Set(rows.map((r) => r.slug)))
     // Catch edits the watcher missed.
     for (const slug of Object.keys(state)) queue(slug)
   } catch (e) {
@@ -217,6 +218,28 @@ async function poll() {
     lastPollError = e.message
   } finally {
     polling = false
+  }
+}
+
+/**
+ * A project that left the database — a draft that was pushed or discarded —
+ * leaves this laptop too, so nobody edits a folder that saves nowhere. Not
+ * while it holds edits that never saved: those stay, and it says so once.
+ */
+const keptGone = new Set()
+function forgetGone(present) {
+  for (const slug of Object.keys(state)) {
+    if (present.has(slug)) continue
+    const unsaved = [...localFiles(slug)].some(([rel, text]) => text !== known(slug, rel)?.base)
+    if (unsaved) {
+      if (!keptGone.has(slug)) log(`${slug}: no longer in the studio, but this laptop has unsaved edits in it — left in place.`)
+      keptGone.add(slug)
+      continue
+    }
+    rmSync(join(DIR, slug), { recursive: true, force: true })
+    delete state[slug]
+    persist()
+    log(`${slug}: removed — it's no longer in the studio (a draft that was pushed or discarded).`)
   }
 }
 
