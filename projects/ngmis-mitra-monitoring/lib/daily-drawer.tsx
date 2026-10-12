@@ -47,7 +47,7 @@ interface Majelis {
   /** Why the report looks wrong — present means it needs verifying. */
   flag?: string
   /** The attendance photo — a flagged report can carry one that isn't a majelis. */
-  photo?: 'tree' | 'home' | 'sandal' | 'house'
+  photo?: 'tree' | 'home' | 'sandal' | 'house' | 'mitra' | 'family' | 'visit'
   /** Present on a home visit: the mitra's majelis and what the visit produced. */
   home?: {
     majelis: string
@@ -200,7 +200,7 @@ const HOME_VISITS: Majelis[] = [
     attended: 0,
     cash: 250_000,
     settled: false,
-    photo: 'home',
+    photo: 'mitra',
   },
   {
     id: 'hv-retno',
@@ -242,7 +242,7 @@ const HOME_VISITS: Majelis[] = [
     attended: 0,
     cash: 0,
     settled: true,
-    photo: 'home',
+    photo: 'family',
   },
   {
     id: 'hv-sri',
@@ -263,7 +263,7 @@ const HOME_VISITS: Majelis[] = [
     attended: 0,
     cash: 0,
     settled: true,
-    photo: 'home',
+    photo: 'visit',
   },
   {
     id: 'hv-yuni',
@@ -316,6 +316,19 @@ const HOME_VISITS: Majelis[] = [
 
 type Task = 'all' | 'majelis' | 'home'
 
+/** Mitra-level payment on a visit: paid a full angsuran (1x), paid part of one
+ *  (less than 1x), or paid nothing. Only a visit that was done has payment. */
+function mitraPay(m: Majelis): { full: number; partial: number; none: number } {
+  if (m.outcome !== 'held') return { full: 0, partial: 0, none: 0 }
+  if (m.home) {
+    if (m.paid <= 0) return { full: 0, partial: 0, none: 1 }
+    return m.home.installment === 'partial'
+      ? { full: 0, partial: 1, none: 0 }
+      : { full: 1, partial: 0, none: 0 }
+  }
+  return { full: m.full, partial: m.partial, none: m.mitra - m.paid }
+}
+
 const RESULT_LABEL = {
   mitra: 'Met mitra',
   none: 'Did not meet mitra',
@@ -367,6 +380,15 @@ export function DailyDrawer({
     'not-completed': list.filter((m) => !isDone(m)).length,
     verify: list.filter(needsVerify).length,
   }
+  // Mitra-level payment counts: Majelis and Home visits added together on All
+  // tasks, and just the chosen task's when the task dropdown is set.
+  const payTotals = list.reduce(
+    (n, m) => {
+      const p = mitraPay(m)
+      return { full: n.full + p.full, partial: n.partial + p.partial, none: n.none + p.none }
+    },
+    { full: 0, partial: 0, none: 0 },
+  )
   const filtered = list.filter(
     (m) =>
       (filter === 'all' ||
@@ -399,18 +421,40 @@ export function DailyDrawer({
   return (
     <div className="absolute inset-0 z-20 flex justify-end bg-overlay">
       <div className="flex h-full w-full flex-col bg-neutral-50" style={{ maxWidth: DRAWER_W }}>
-        <div className="flex shrink-0 items-start justify-between gap-16 border-b border-default bg-neutral-white p-24">
-          <div className="flex flex-col gap-4">
-            <span className="text-12 font-bold text-caption">Daily diagnosis</span>
-            <span className="text-20 font-bold text-default">{bpName}</span>
-            <span className="flex items-center gap-8 text-14 text-caption">
-              <CalendarDots size={16} />
-              Fri, 7 Aug 2026
-            </span>
+        <div className="flex shrink-0 flex-col gap-16 border-b border-default bg-neutral-white p-24">
+          <div className="flex items-start justify-between gap-16">
+            <div className="flex flex-col gap-4">
+              <span className="text-12 font-bold text-caption">Daily diagnosis</span>
+              <span className="text-20 font-bold text-default">{bpName}</span>
+              <span className="flex items-center gap-8 text-14 text-caption">
+                <CalendarDots size={16} />
+                Fri, 7 Aug 2026
+              </span>
+            </div>
+            <button type="button" aria-label="Close" onClick={onClose} className="text-default">
+              <Cross size={20} />
+            </button>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="text-default">
-            <Cross size={20} />
-          </button>
+          <div className="flex gap-12">
+            {(
+              [
+                ['none', 'Not paying', payTotals.none, 'bg-red-500'],
+                ['partial', 'Partial payment', payTotals.partial, 'bg-orange-500'],
+                ['full', 'At least 1x payment', payTotals.full, 'bg-green-500'],
+              ] as const
+            ).map(([id, label, n, dot]) => (
+              <div
+                key={id}
+                className="flex min-w-0 flex-1 flex-col gap-4 rounded-16 bg-neutral-50 p-12"
+              >
+                <span className="flex items-center gap-8 text-14 text-caption">
+                  <span className={`block size-8 shrink-0 rounded-full ${dot}`} />
+                  <span className="truncate">{label}</span>
+                </span>
+                <span className="text-16 font-bold text-default">{n} Mitra</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-12 overflow-y-auto p-24">
