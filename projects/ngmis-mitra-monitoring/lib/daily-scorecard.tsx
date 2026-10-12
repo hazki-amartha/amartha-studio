@@ -214,7 +214,7 @@ function SectionMatrix({
                 className={`align-middle ${ri % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'}`}
               >
                 <td
-                  className={`sticky left-0 z-10 border-r border-default px-16 py-20 ${
+                  className={`sticky left-0 z-10 border-r border-default px-16 py-12 ${
                     ri % 2 === 1 ? 'bg-neutral-50' : 'bg-neutral-white'
                   }`}
                 >
@@ -225,7 +225,7 @@ function SectionMatrix({
                 </td>
                 {row.merged
                   ? bps.map((bp, i) => (
-                      <td key={bp.id} colSpan={measures.length} className="border-l border-default px-16 py-20 text-center">
+                      <td key={bp.id} colSpan={measures.length} className="border-l border-default px-16 py-12 text-center">
                         <StatusBadge done={row.status?.[i] ?? false} />
                       </td>
                     ))
@@ -239,7 +239,7 @@ function SectionMatrix({
                         return (
                           <td
                             key={`${bp.id}-${mm.id}`}
-                            className={`px-16 py-20 text-center text-14 ${j === 0 ? 'border-l border-default' : ''}`}
+                            className={`px-16 py-12 text-center text-14 ${j === 0 ? 'border-l border-default' : ''}`}
                           >
                             <span className={`block ${toneMainClass(tone)}`}>
                               {fmtMain(cells[mm.id], kindAt(row, j))}
