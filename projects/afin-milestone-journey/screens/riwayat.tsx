@@ -44,7 +44,7 @@ export function RiwayatScreen() {
             pill beside the figure so it reads as one fact, not two headlines. */}
         <div className="mt-4 flex items-center gap-8">
           <p className="text-20 font-bold text-default">{rupiah(LOAN_OUTSTANDING)}</p>
-          <span className="rounded-full bg-neutral-100 px-8 py-4 text-12 font-bold text-neutral-700">
+          <span className="rounded-full px-8 py-4 text-12 font-bold text-neutral-700">
             {WEEKS_LEFT} minggu lagi
           </span>
         </div>

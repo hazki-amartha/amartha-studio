@@ -91,7 +91,7 @@ export function ProgressAltScreen() {
               flow.go('riwayat')
             }}
           />
-          <div className="h-px bg-neutral-200" />
+          <div className="bg-neutral-200" />
           <ProgressMenuItem
             label="Status majelis"
             subtitle="Mempengaruhi kenaikan limit akhir."

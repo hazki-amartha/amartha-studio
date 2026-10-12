@@ -141,7 +141,7 @@ function CardHeader({ title, subtitle }: { title: string; subtitle: string }) {
         <p className="text-14 font-bold text-default">{title}</p>
         <p className="text-12 text-caption">{subtitle}</p>
       </div>
-      <span className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full bg-neutral-50">
+      <span className="flex shrink-0 items-center justify-center rounded-full bg-neutral-50">
         <ArrowRight size={20} className="text-default" />
       </span>
     </div>

@@ -344,7 +344,7 @@ export function SettlementScreen() {
                       settling whole groups. Opening one is how she gets to the
                       woman whose money is staying in the bag. */}
                   {open ? (
-                    <div className="flex flex-col gap-8 border-t border-light pl-36 pt-12">
+                    <div className="flex flex-col gap-8 border-t border-light pt-12">
                       {g.leaves.map((l) => (
                         <SelectRow
                           key={l.key}

@@ -50,7 +50,7 @@ export function ProgressScreen() {
           health={personal}
           onOpen={() => flow.go('riwayat')}
         />
-        <div className="mx-16 h-px bg-neutral-200" />
+        <div className="mx-16 bg-neutral-200" />
         <ProgressMenuItem
           inset
           label="Status majelis"

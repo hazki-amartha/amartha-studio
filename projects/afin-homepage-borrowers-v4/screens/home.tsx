@@ -35,7 +35,7 @@ export function HomeScreen() {
 
       <StatusCard>
         <StatusCardHeader>
-          <p className="text-12 font-medium text-default">Limit saat ini: Rp5.000.000</p>
+          <p className="text-12 text-default">Limit saat ini: Rp5.000.000</p>
           <div className="flex items-center gap-8">
             <p className="flex-1 text-14 font-bold text-default">Potensi naik limit hingga</p>
             <p className="whitespace-nowrap text-14 font-bold text-default">Rp6jt-8jt 🎉</p>
@@ -62,7 +62,7 @@ export function HomeScreen() {
         <StatusCardHeader>
           <div className="flex items-end justify-between gap-8">
             <div className="flex flex-1 flex-col">
-              <p className="text-12 font-medium text-default">Misi Majelis ke-1</p>
+              <p className="text-12 text-default">Misi Majelis ke-1</p>
               <p className="text-14 font-bold text-default">Dapat cair tambahan</p>
             </div>
             <p className="whitespace-nowrap text-14 font-bold text-default">Rp1jt 🎁</p>

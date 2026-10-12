@@ -39,7 +39,7 @@ export function HomeVarAScreen() {
         <StatusCardHeader>
           <div className="flex items-end justify-between gap-8">
             <div className="flex flex-1 flex-col">
-              <p className="text-12 font-medium text-default">Misi Majelis ke-1</p>
+              <p className="text-12 text-default">Misi Majelis ke-1</p>
               <p className="text-14 font-bold text-default">Dapat cair tambahan</p>
             </div>
             <p className="whitespace-nowrap text-14 font-bold text-default">Rp1jt 🎁</p>

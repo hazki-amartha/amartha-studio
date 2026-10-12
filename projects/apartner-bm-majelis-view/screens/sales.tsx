@@ -171,7 +171,7 @@ function HeaderTabs({
         type="button"
         onClick={() => onTab(id)}
         aria-selected={active}
-        className={`-mb-px flex-1 border-b-2 py-12 text-center text-14 font-bold ${
+        className={`flex-1 border-b-2 py-12 text-center text-14 font-bold ${
           active ? 'border-primary-500 text-primary-500' : 'border-transparent text-caption'
         }`}
       >
