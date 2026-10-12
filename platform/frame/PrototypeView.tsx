@@ -71,6 +71,7 @@ import { DesignLayer, DesignPanel } from '@/platform/design'
 import { LiveChatPanel } from '@/platform/chat/ChatPanel'
 import { getChat, getChatServerSnapshot, probeChat, subscribeChat } from '@/platform/runtime/chatBridge'
 import { PushBar } from '@/platform/push/PushBar'
+import { DraftPushBar, DraftSwitcher } from '@/platform/dbProjects/DraftControls'
 import { CommentLayer } from '@/platform/comments/CommentLayer'
 import { useGuestAccess } from '@/platform/auth/session'
 import { ShareButton } from '@/platform/share/ShareButton'
@@ -566,11 +567,13 @@ function RightPanel({
 }) {
   const { tab, tabs, select } = usePanelTab()
   // The panel's own title and ✕ above the tabs — the ✕ ends Edit, whichever
-  // tab is showing, so it belongs to the panel rather than to a tab's row.
+  // tab is showing, so it belongs to the panel rather than to a tab's row. On
+  // a database project the title also says, and switches, where the edits go:
+  // the project itself or one of its drafts (platform/dbProjects/DraftControls).
   const header = (
     <div className="flex w-full flex-col">
       <div className="flex h-48 items-center justify-between">
-        <span className="text-14 font-bold text-default dark:text-neutral-50">Edit</span>
+        <DraftSwitcher slug={slug} />
         <button
           type="button"
           onClick={onMinimize}
@@ -607,6 +610,7 @@ function RightPanel({
         />
       ) : null}
       <PushBar slug={slug} />
+      <DraftPushBar slug={slug} />
     </aside>
   )
 }

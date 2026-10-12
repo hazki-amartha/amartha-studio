@@ -147,7 +147,8 @@ export async function startDraft(project: string, name: string, by: string | nul
   if (!db) return passOn(project, { action: 'start', name })
 
   const label = name.trim().slice(0, 40)
-  const tail = slugFor(label)
+  // "Draft Hazki" shouldn't make <project>-draft-draft-hazki.
+  const tail = slugFor(label).replace(/^draft-/, '') || slugFor(label)
   if (!tail) throw new DraftRefused('Give the draft a name with some letters or numbers in it.')
 
   const configs = await listDbConfigs()
