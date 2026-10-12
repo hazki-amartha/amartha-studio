@@ -45,3 +45,6 @@ next-env.d.ts
 .vercel
 .env*
 .gstack/
+
+# Which prototype the designer last opened on this laptop (platform/dbProjects/opened.ts)
+/.studio-open.json

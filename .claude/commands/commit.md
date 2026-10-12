@@ -9,6 +9,13 @@ Triggers: `/commit`, "commit it", "commit my work", "checkpoint this".
 
 ## What to do
 
+0. **Database projects and drafts have nothing to commit** (`CLAUDE.md` §3b).
+   Their files live in `projects/_db/`, which git ignores, and every save is
+   already kept — on the project's link, or a draft's. If that's the only work,
+   run `npm run check:project -- <slug>`, fix what it reports, and tell them it's
+   saved (live on the project, or on the draft until they say **push it**).
+   Don't create a branch or a commit for it. Commit only the git work below.
+
 1. **Group the changes by tier (`CLAUDE.md` §1).** Run `git status` and sort what
    changed:
    - **Project work** — files under a single `projects/<slug>/` (plus, at most,

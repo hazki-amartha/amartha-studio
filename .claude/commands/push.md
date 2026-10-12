@@ -9,6 +9,32 @@ this belongs to (never say "PR" to a designer).
 
 Triggers: `/push`, "push it", "ship it", "make it live", "deploy it".
 
+## First: where is the work?
+
+Database projects (`projects/_db/<slug>/`, `CLAUDE.md` §3b) never go through
+git — skip everything below for them:
+
+- **A database project** → it's already live: every save reached the link
+  within seconds. Run `npm run check:project -- <slug>` and fix what it reports
+  (a change that fails it is still only on this laptop), then tell them it's
+  live and give the preview link, `http://localhost:4000/p/<slug>`. No commit,
+  no push.
+- **A draft** (its folder has a `draft.json`; `.studio-open.json` names it when
+  it's what they have open) → "push it" means merge the draft into its project.
+  Run `npm run check:project -- <draft-slug>` first, then:
+  ```bash
+  curl -s -X POST localhost:4000/api/db-projects/<draft-slug>/draft \
+    -H 'content-type: application/json' -d '{"action":"push"}'
+  ```
+  On `ok: true` it's live on the project and the draft is gone — give the
+  project's preview link. On a conflict, resolve the marked files in the draft
+  (keep both designers' intent) and push again. They can also press **Push to
+  <project>** at the foot of the draft's Edit panel — same thing.
+- **Both git and database work pending** → do each its own way, and say so in
+  one line.
+
+Everything below is for git projects and shared files.
+
 ## What to do
 
 1. **Verify first (`CLAUDE.md` §6).** Run `npm run lint`, `npm run build`, and
@@ -32,9 +58,9 @@ Triggers: `/push`, "push it", "ship it", "make it live", "deploy it".
      goes live on its own; nobody has to review it. Don't mention review, and
      don't say "PR".
    - **Touches shared files** (anything owner-gated in `.github/CODEOWNERS`) →
-     *"Pushed — this changes shared studio files, so it's **pending review** by
-     Hazki before it goes live. That's normal, not a failure — and the preview
-     link works right now."*
+     *"Pushed — this changes shared studio files, so it's **pending review**
+     before it goes live. The preview link works right now."* Never name the
+     reviewer (`CLAUDE.md` §7).
    - **Either way, give them the preview link** (see below). It works even while
      review is pending, so "pending review" never means "can't show anyone."
 
@@ -52,13 +78,11 @@ working (`CLAUDE.md` §5) — report it plainly, don't route around it.
 
 ## Getting the preview link
 
-The preview is the Vercel deployment attached to the PR, ready as soon as the
-build finishes — independent of whether the PR has merged. Pull it from the PR:
+Always a localhost link — never a `*.vercel.app` URL, which designers can't open
+(`CLAUDE.md` §7):
 
 ```bash
-gh pr view --json statusCheckRollup \
-  -q '.statusCheckRollup[] | select(.context=="Vercel") | .targetUrl'
+npm run dev -- --warm /p/<slug>
 ```
 
-If it isn't ready yet, tell them it'll appear in a minute or two rather than
-making them wait while you poll.
+Hand over the `Preview:` line it prints, and only once it appears.
