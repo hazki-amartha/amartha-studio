@@ -290,15 +290,6 @@ export function WeeklyDrawer({
                     unit="mitra attended the meeting"
                   />
                 </div>
-                <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
-                  <Money label="Cash collected" value={collected} />
-                  <Money label="Cash settled" value={settled} tone="green" />
-                  <Money
-                    label="Not yet settled"
-                    value={pending}
-                    tone={pending ? 'orange' : undefined}
-                  />
-                </div>
               </>
             ) : null}
             {focus.id === 'home-visit' ? (
@@ -317,15 +308,6 @@ export function WeeklyDrawer({
                     total={totals[1].target}
                     unit="home visits done"
                     note={`${metMitra} met mitra · ${metNone} not met · ${metFamily} met family`}
-                  />
-                </div>
-                <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
-                  <Money label="Cash collected" value={hvCollected} />
-                  <Money label="Cash settled" value={hvCollected - hvPending} tone="green" />
-                  <Money
-                    label="Not yet settled"
-                    value={hvPending}
-                    tone={hvPending ? 'orange' : undefined}
                   />
                 </div>
                 <div className="flex gap-24">
@@ -398,6 +380,28 @@ export function WeeklyDrawer({
                 )
               })}
             </div>
+            {focus.id === 'pelayanan' ? (
+              <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
+                <Money label="Cash collected" value={collected} />
+                <Money label="Cash settled" value={settled} tone="green" />
+                <Money
+                  label="Not yet settled"
+                  value={pending}
+                  tone={pending ? 'orange' : undefined}
+                />
+              </div>
+            ) : null}
+            {focus.id === 'home-visit' ? (
+              <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
+                <Money label="Cash collected" value={hvCollected} />
+                <Money label="Cash settled" value={hvCollected - hvPending} tone="green" />
+                <Money
+                  label="Not yet settled"
+                  value={hvPending}
+                  tone={hvPending ? 'orange' : undefined}
+                />
+              </div>
+            ) : null}
             {verifyTotal > 0 || pending > 0 ? (
               <div className="flex flex-col gap-8 border-t border-default pt-12">
                 <span className="flex items-baseline gap-8">
