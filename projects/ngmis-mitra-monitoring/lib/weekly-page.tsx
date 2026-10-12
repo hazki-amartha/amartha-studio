@@ -10,7 +10,7 @@ import { useState, type ReactNode } from 'react'
 import { Badge } from '@/design-system/components'
 import { CheckCircleFill, ChevronLeft, ChevronRight, Hourglass } from '@/design-system/icons'
 import { PanelHeading } from './ui'
-import { DailyDrawer } from './daily-drawer'
+import { DailyDrawer, type WeekList } from './daily-drawer'
 import type { GapFocus } from './daily-scorecard'
 import { WeeklyDrawer } from './weekly-drawer'
 import { BPS, type Bp } from './daily-data'
@@ -61,6 +61,7 @@ export function WeeklyProgress({ onOpenCash }: { onOpenCash: (bpName: string) =>
   const [weeklyBp, setWeeklyBp] = useState<string | null>(null)
   const [dailyBp, setDailyBp] = useState<string | null>(null)
   const [dailyGap, setDailyGap] = useState<GapFocus | undefined>()
+  const [dailyWeek, setDailyWeek] = useState<WeekList | undefined>()
   const days = weekDays(week)
   return (
     <>
@@ -99,6 +100,7 @@ export function WeeklyProgress({ onOpenCash }: { onOpenCash: (bpName: string) =>
             week={week}
             onWeekly={(b) => setWeeklyBp(b.name)}
             onDaily={(b, gap) => {
+              setDailyWeek(undefined)
               setDailyGap(gap)
               setDailyBp(b.name)
             }}
@@ -112,6 +114,22 @@ export function WeeklyProgress({ onOpenCash }: { onOpenCash: (bpName: string) =>
           onClose={() => setWeeklyBp(null)}
           onOpenDaily={() => {
             setDailyGap(undefined)
+            setDailyWeek(undefined)
+            setDailyBp(weeklyBp)
+            setWeeklyBp(null)
+          }}
+          onOpenList={(task, wk) => {
+            const bp = BPS.find((b) => b.name === weeklyBp) ?? BPS[0]
+            const ds = weekDays(wk)
+            const taskId = task === 'home' ? 'home-visit' : 'pelayanan'
+            setDailyGap(undefined)
+            setDailyWeek({
+              task,
+              range: weekRange(wk),
+              days: ds,
+              doneByDay: ds.map((_, i) => snapshot(bp, i - wk * 5).done[taskId]),
+              target: COUNT_TASKS.find((t) => t.id === taskId)!.target,
+            })
             setDailyBp(weeklyBp)
             setWeeklyBp(null)
           }}
@@ -125,6 +143,7 @@ export function WeeklyProgress({ onOpenCash }: { onOpenCash: (bpName: string) =>
         <DailyDrawer
           bpName={dailyBp}
           gap={dailyGap}
+          week={dailyWeek}
           onClose={() => setDailyBp(null)}
           onOpenCash={(name) => {
             setDailyBp(null)

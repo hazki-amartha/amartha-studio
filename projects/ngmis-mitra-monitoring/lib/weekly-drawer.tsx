@@ -6,7 +6,7 @@
 // and what needs the BM's review. Mock figures follow the same per-BP profile
 // as the table behind it (lib/weekly-data.ts), so the two always agree.
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Badge, Button } from '@/design-system/components'
 import {
   ArrowRight,
@@ -49,6 +49,7 @@ export function WeeklyDrawer({
   initialWeek,
   onClose,
   onOpenDaily,
+  onOpenList,
   onOpenCash,
 }: {
   bpName: string
@@ -56,6 +57,8 @@ export function WeeklyDrawer({
   onClose: () => void
   /** Jump to this BP's daily diagnosis. */
   onOpenDaily: () => void
+  /** Every majelis or home visit of the week, as a list. */
+  onOpenList: (task: 'majelis' | 'home', week: number) => void
   /** Jump to Sisa setor tunai, from the unsettled-cash review row. */
   onOpenCash: (bpName: string) => void
 }) {
@@ -100,6 +103,9 @@ export function WeeklyDrawer({
   const metMitra = visited - metNone - metFamily
   const paidVisits = Math.round(visited * 0.45)
   const paidFull = Math.round(paidVisits * 0.6)
+  // Home-visit cash: a full angsuran is Rp250.000, a partial one Rp100.000.
+  const hvCollected = paidFull * 250_000 + (paidVisits - paidFull) * 100_000
+  const hvPending = Math.min(slip, 1) * 250_000
 
   // Cash comes from majelis visits: roughly a million and change per visit held.
   const majelis = totals[0]
@@ -182,12 +188,15 @@ export function WeeklyDrawer({
             </div>
             <div className="flex flex-col">
               {rows.map((t) => {
-                const on = selected === t.id
+                // Only the two visit tasks have a detail section to open onto.
+                const actionable = t.id === 'pelayanan' || t.id === 'home-visit'
+                const on = actionable && selected === t.id
                 const clean = !t.notDone && !t.skipped && !t.rescheduled && !t.verify
                 return (
                   <button
                     key={t.id}
                     type="button"
+                    disabled={!actionable}
                     onClick={() => setSelected(t.id)}
                     className={`flex items-center gap-12 border-l-4 border-t border-t-default px-12 py-12 text-left ${
                       on
@@ -234,9 +243,11 @@ export function WeeklyDrawer({
                         ) : null}
                       </span>
                     </span>
-                    <span className="text-caption">
-                      <ChevronRight size={16} />
-                    </span>
+                    {actionable ? (
+                      <span className="text-caption">
+                        <ChevronRight size={16} />
+                      </span>
+                    ) : null}
                   </button>
                 )
               })}
@@ -251,13 +262,15 @@ export function WeeklyDrawer({
                   Weekly summary
                 </Badge>
               </span>
-              <button
-                type="button"
-                onClick={onOpenDaily}
-                className="flex items-center gap-4 text-14 font-bold text-link active:opacity-70"
-              >
-                View {focus.target} {focus.name.toLowerCase()} <ArrowRight size={16} />
-              </button>
+              {focus.id === 'pelayanan' || focus.id === 'home-visit' ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenList(focus.id === 'home-visit' ? 'home' : 'majelis', week)}
+                  className="flex items-center gap-4 text-14 font-bold text-link active:opacity-70"
+                >
+                  View {focus.target} {focus.name.toLowerCase()} <ArrowRight size={16} />
+                </button>
+              ) : null}
             </div>
 
             {focus.id === 'pelayanan' ? (
@@ -267,7 +280,7 @@ export function WeeklyDrawer({
                     label="Repayment"
                     value={focus.done * 7}
                     total={focus.target * 10}
-                    unit="angsuran paid by mitra"
+                    unit="loan paid by mitra"
                     note={`${Math.round(focus.done * 6.3)} full · ${Math.round(focus.done * 0.7)} partial`}
                   />
                   <Fraction
@@ -275,15 +288,6 @@ export function WeeklyDrawer({
                     value={focus.done * 8}
                     total={focus.target * 10}
                     unit="mitra attended the meeting"
-                  />
-                </div>
-                <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
-                  <Money label="Cash collected" value={collected} />
-                  <Money label="Cash settled" value={settled} tone="green" />
-                  <Money
-                    label="Not yet settled"
-                    value={pending}
-                    tone={pending ? 'orange' : undefined}
                   />
                 </div>
               </>
@@ -303,23 +307,17 @@ export function WeeklyDrawer({
                     value={visited}
                     total={totals[1].target}
                     unit="home visits done"
+                    note={`${metMitra} met mitra · ${metNone} not met · ${metFamily} met family`}
                   />
-                </div>
-                <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
-                  <Tally label="Met mitra" value={metMitra} />
-                  <Tally label="Did not meet mitra" value={metNone} />
-                  <Tally label="Met family" value={metFamily} />
                 </div>
                 <div className="flex gap-24">
                   <ReasonList
-                    title="Why the mitra was not met"
-                    unit="visits"
-                    reasons={distribute(NOT_MET_REASONS, metNone + metFamily)}
+                    title="Why the mitra did not pay"
+                    reasons={distribute(NOT_PAID_REASONS, visited - paidVisits)}
                   />
                   <ReasonList
-                    title="Why the mitra did not pay"
-                    unit="visits"
-                    reasons={distribute(NOT_PAID_REASONS, visited - paidVisits)}
+                    title="Why the mitra was not met"
+                    reasons={distribute(NOT_MET_REASONS, metNone + metFamily)}
                   />
                 </div>
               </>
@@ -382,6 +380,28 @@ export function WeeklyDrawer({
                 )
               })}
             </div>
+            {focus.id === 'pelayanan' ? (
+              <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
+                <Money label="Cash collected" value={collected} />
+                <Money label="Cash settled" value={settled} tone="green" />
+                <Money
+                  label="Not yet settled"
+                  value={pending}
+                  tone={pending ? 'orange' : undefined}
+                />
+              </div>
+            ) : null}
+            {focus.id === 'home-visit' ? (
+              <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
+                <Money label="Cash collected" value={hvCollected} />
+                <Money label="Cash settled" value={hvCollected - hvPending} tone="green" />
+                <Money
+                  label="Not yet settled"
+                  value={hvPending}
+                  tone={hvPending ? 'orange' : undefined}
+                />
+              </div>
+            ) : null}
             {verifyTotal > 0 || pending > 0 ? (
               <div className="flex flex-col gap-8 border-t border-default pt-12">
                 <span className="flex items-baseline gap-8">
@@ -472,21 +492,10 @@ function distribute(base: [string, number][], total: number): [string, number][]
 }
 
 /** A ranked list of reasons; the most common one is called out first. */
-function ReasonList({
-  title,
-  unit,
-  reasons,
-}: {
-  title: string
-  unit: string
-  reasons: [string, number][]
-}) {
-  const total = reasons.reduce((n, [, c]) => n + c, 0)
+function ReasonList({ title, reasons }: { title: string; reasons: [string, number][] }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <span className="pb-8 text-14 font-bold text-default">
-        {title} <span className="font-regular text-caption">· {total}</span>
-      </span>
+      <span className="pb-8 text-14 font-bold text-default">{title}</span>
       {reasons.map(([reason, count]) => (
         <span
           key={reason}
@@ -500,28 +509,20 @@ function ReasonList({
   )
 }
 
-/** One figure in a strip: a small label over a bold count. */
-function Tally({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex flex-1 flex-col gap-2">
-      <span className="text-12 text-caption">{label}</span>
-      <span className="text-20 font-bold text-default">{value}</span>
-    </div>
-  )
-}
-
 function Fraction({
   label,
   value,
   total,
   unit,
   note,
+  children,
 }: {
   label: string
   value: number
   total: number
   unit: string
   note?: string
+  children?: ReactNode
 }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -531,6 +532,7 @@ function Fraction({
       </span>
       <span className="text-12 text-caption">{unit}</span>
       {note ? <span className="text-12 text-caption">{note}</span> : null}
+      {children}
     </div>
   )
 }
