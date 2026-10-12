@@ -143,7 +143,7 @@ export function LimitCardHistory() {
     <StatusCard>
       <LimitCardHeader intent={badge.intent} label={badge.label} />
 
-      <p className="text-12 font-medium text-default">5 minggu terakhir</p>
+      <p className="text-12 text-default">5 minggu terakhir</p>
       <HistoryStat label="Bayar angsuran" elapsed={elapsed} total={48} statuses={toWindow(weeks)} />
       <StatDivider />
       <HistoryStat label="Hadir kumpulan" elapsed={elapsed} total={48} statuses={toWindow(attendanceWeeks)} />
