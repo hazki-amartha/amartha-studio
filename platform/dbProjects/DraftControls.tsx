@@ -5,7 +5,8 @@
 //
 //   DraftSwitcher  the Edit panel's title — "Edit · Main" or "Edit · Draft:
 //                  <name>" — opening a list of the project and its drafts,
-//                  and "Start a draft". Drafts are editing, so they live in
+//                  "Start a draft", and the History of every save
+//                  (./HistoryList.tsx). Drafts are editing, so they live in
 //                  Edit; the panel is closed for anyone just looking.
 //   DraftPushBar   the Edit panel's foot, on a draft: Push to the project
 //                  (its changes go live, the draft is deleted) and Discard —
@@ -20,9 +21,10 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react'
-import { ChevronRightIcon, PlusIcon } from '@/platform/chrome/icons'
+import { ChevronRightIcon, HistoryIcon, PlusIcon } from '@/platform/chrome/icons'
 import { isActiveDbProject } from './active'
 import type { DraftActionResult, DraftsResponse } from './draftMeta'
+import { HistoryList } from './HistoryList'
 
 const PRIMARY =
   'rounded-full bg-primary-500 px-16 py-8 text-12 font-bold text-neutral-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-placeholder dark:disabled:bg-ink-800 dark:disabled:text-neutral-600'
@@ -99,6 +101,7 @@ export function DraftSwitcher({ slug }: { slug: string }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [starting, setStarting] = useState(false)
+  const [history, setHistory] = useState(false)
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [outcome, setOutcome] = useState<Refusal | null>(null)
@@ -107,6 +110,7 @@ export function DraftSwitcher({ slug }: { slug: string }) {
   useEffect(() => {
     if (!open) {
       setStarting(false)
+      setHistory(false)
       setOutcome(null)
       return
     }
@@ -158,48 +162,58 @@ export function DraftSwitcher({ slug }: { slug: string }) {
 
       {open ? (
         <div className="absolute left-0 top-full z-40 mt-4 flex w-280 flex-col gap-4 rounded-12 border border-default bg-neutral-white p-8 shadow-sm dark:border-ink-700 dark:bg-ink-900">
-          <button type="button" className={ROW} onClick={() => go(project)}>
-            <span className="flex min-w-0 flex-col">
-              <span className="text-14 text-default dark:text-neutral-50">Main</span>
-              <span className={`${NOTE} truncate`}>{draft ? draft.parentName : 'What the project’s link shows'}</span>
-            </span>
-            {!draft ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
-          </button>
-          {data.drafts.map((d) => (
-            <button key={d.slug} type="button" className={ROW} onClick={() => go(d.slug)}>
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-14 text-default dark:text-neutral-50">Draft: {d.name}</span>
-                {d.createdBy ? <span className={NOTE}>{d.createdBy}</span> : null}
-              </span>
-              {d.slug === slug ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
-            </button>
-          ))}
-          <div className="border-t border-default pt-4 dark:border-ink-700">
-            {starting ? (
-              <form onSubmit={start} className="flex flex-col gap-8 p-8">
-                <p className={NOTE}>Try a change without it showing on the project’s link. Push the draft when it’s ready.</p>
-                <div className="flex gap-8">
-                  <input
-                    autoFocus
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Name the draft"
-                    maxLength={40}
-                    className="min-w-0 flex-1 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12 text-default placeholder:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
-                  />
-                  <button type="submit" className={PRIMARY} disabled={busy || !name.trim()}>
-                    {busy ? 'Starting…' : 'Start'}
-                  </button>
-                </div>
-                {outcome ? <Refused outcome={outcome} /> : null}
-              </form>
-            ) : (
-              <button type="button" className={`${ROW} justify-start`} onClick={() => setStarting(true)}>
-                <PlusIcon className="size-16 text-caption dark:text-neutral-400" />
-                <span className="text-14 text-default dark:text-neutral-50">Start a draft</span>
+          {history ? (
+            <HistoryList slug={slug} onBack={() => setHistory(false)} />
+          ) : (
+            <>
+              <button type="button" className={ROW} onClick={() => go(project)}>
+                <span className="flex min-w-0 flex-col">
+                  <span className="text-14 text-default dark:text-neutral-50">Main</span>
+                  <span className={`${NOTE} truncate`}>{draft ? draft.parentName : 'What the project’s link shows'}</span>
+                </span>
+                {!draft ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
               </button>
-            )}
-          </div>
+              {data.drafts.map((d) => (
+                <button key={d.slug} type="button" className={ROW} onClick={() => go(d.slug)}>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-14 text-default dark:text-neutral-50">Draft: {d.name}</span>
+                    {d.createdBy ? <span className={NOTE}>{d.createdBy}</span> : null}
+                  </span>
+                  {d.slug === slug ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
+                </button>
+              ))}
+              <div className="border-t border-default pt-4 dark:border-ink-700">
+                {starting ? (
+                  <form onSubmit={start} className="flex flex-col gap-8 p-8">
+                    <p className={NOTE}>Try a change without it showing on the project’s link. Push the draft when it’s ready.</p>
+                    <div className="flex gap-8">
+                      <input
+                        autoFocus
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Name the draft"
+                        maxLength={40}
+                        className="min-w-0 flex-1 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12 text-default placeholder:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
+                      />
+                      <button type="submit" className={PRIMARY} disabled={busy || !name.trim()}>
+                        {busy ? 'Starting…' : 'Start'}
+                      </button>
+                    </div>
+                    {outcome ? <Refused outcome={outcome} /> : null}
+                  </form>
+                ) : (
+                  <button type="button" className={`${ROW} justify-start`} onClick={() => setStarting(true)}>
+                    <PlusIcon className="size-16 text-caption dark:text-neutral-400" />
+                    <span className="text-14 text-default dark:text-neutral-50">Start a draft</span>
+                  </button>
+                )}
+                <button type="button" className={`${ROW} justify-start`} onClick={() => setHistory(true)}>
+                  <HistoryIcon className="size-16 text-caption dark:text-neutral-400" />
+                  <span className="text-14 text-default dark:text-neutral-50">History</span>
+                </button>
+              </div>
+            </>
+          )}
         </div>
       ) : null}
     </div>

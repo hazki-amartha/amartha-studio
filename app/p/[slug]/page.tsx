@@ -15,6 +15,7 @@ import { configs } from '@/projects/configs'
 import { PrototypeView } from '@/platform/frame'
 import { DbPrototype } from '@/platform/dbProjects/DbPrototype'
 import { isDbProject, viewerName } from '@/platform/dbProjects/server'
+import { noteOpened } from '@/platform/dbProjects/opened'
 import { getStudioUser } from '@/platform/auth/server'
 
 interface PageProps {
@@ -55,6 +56,7 @@ export default async function PrototypePage({ params, searchParams }: PageProps)
     && firstValue(searchParams.full) !== '0'
 
   if (await isDbProject(params.slug)) {
+    noteOpened(params.slug, true)
     const viewer = viewerName((await getStudioUser())?.displayName)
     return (
       <DbPrototype slug={params.slug} viewer={viewer} initialScreenId={initialScreenId} initialBare={initialBare} />
@@ -63,6 +65,7 @@ export default async function PrototypePage({ params, searchParams }: PageProps)
 
   const loader = configs[params.slug]
   if (!loader) return <NotFound slug={params.slug} />
+  noteOpened(params.slug, false)
 
   // Only the config crosses the server boundary. The screen list stays on the
   // client (PrototypeView loads it from the same registry entry): its

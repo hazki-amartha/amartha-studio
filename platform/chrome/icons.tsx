@@ -256,6 +256,15 @@ export const NotesIcon = icon(
   </>,
 )
 
+/** A clock turning back — a project's save history. */
+export const HistoryIcon = icon(
+  <>
+    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M12 7v5l3 2" />
+  </>,
+)
+
 // Zoom — the canvas's zoom steps.
 export const PlusIcon = icon(<path d="M12 5v14M5 12h14" />)
 export const MinusIcon = icon(<path d="M5 12h14" />)

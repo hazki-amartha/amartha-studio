@@ -313,8 +313,17 @@ Edit panel's title ("Edit · Main ▾") — a copy at `/p/<slug>-draft-<name>` t
 the project's link. It is a database project like any other
 (`projects/_db/<draft-slug>/`, Chat, Edit mode), plus a `draft.json` saying what
 it's a draft of — **never edit `draft.json`**. Drafts are optional: editing the
-project directly works exactly as before. Work on a draft only when the designer
-names one.
+project directly works exactly as before.
+
+**Which copy — read `.studio-open.json` first.** You can't see the browser, so
+before editing a database project, read `.studio-open.json` at the repo root:
+the dev server writes it each time the designer opens a prototype (`slug`,
+`folder`, and `draftOf` when it's a draft). If they have a **draft** of the
+project open, edit the draft's folder — editing the project itself would put the
+change on its link, which is what the draft exists to avoid. If the note names a
+different project from the one they asked about, or it's missing, ask "your
+draft or the main project?" before editing. Never pick the main project by
+default when a draft is open.
 
 - **"Push it" on a draft** = merge it into the project and delete it: the
   **Push** bar at the foot of the draft's Edit panel, or `curl -s -X POST localhost:4000/api/db-projects/<draft-slug>/draft -H 'content-type: application/json' -d '{"action":"push"}'`.
@@ -325,6 +334,12 @@ names one.
   again.
 - After a push or discard the draft and its laptop folder are gone; the
   designer is back on the project.
+- **"Commit it" on a draft or a database project** — there is nothing to
+  commit: every save is already kept. Say the change is saved (on the draft's
+  link, or live on the project's) and stop.
+- **Undo across saves:** the Edit panel's title menu has **History** — every
+  save of the project; picking one restores the project to it. Point a designer
+  there rather than re-typing old code by hand.
 
 **Moving a git project into the database** is an owner decision:
 `npm run db:sync -- <slug>` copies it in once; from then on `/p/<slug>` serves
