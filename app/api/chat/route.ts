@@ -43,6 +43,8 @@ import {
 } from '@/platform/design/server/editGate'
 import { isLocalRequest } from '@/platform/chat/localRequest'
 import { diskChanges, diskFiles, ensureLocalCopy, projectFolder } from '@/platform/dbProjects/disk'
+import { draftChatLines } from '@/platform/dbProjects/draftMeta'
+import { draftsOf } from '@/platform/dbProjects/drafts'
 import { cloudStatus, cloudTurn } from '@/platform/chat/server/cloud'
 
 export const runtime = 'nodejs'
@@ -77,7 +79,8 @@ const DENIED = [
   'Bash(next:*)',
 ]
 
-function studioAppend(slug: string, db: boolean): string {
+/** `draftOf`: the name of the project this one is a draft of, if it is one. */
+function studioAppend(slug: string, db: boolean, draftOf: string | null): string {
   return [
     `You are running inside the Amartha Studio chat panel for project \`${slug}\`,`,
     'on behalf of its designer, who is watching the prototype beside this chat.',
@@ -110,6 +113,7 @@ function studioAppend(slug: string, db: boolean): string {
           'finish, run `npm run check:project` and fix everything it reports; changes',
           'that fail it are not saved. Keep replies short and in plain language — the',
           'designer does not read code.',
+          ...(draftOf ? ['', ...draftChatLines(draftOf)] : []),
         ]
       : [
           'Run `npm run lint` after edits that touch classes. Keep replies short and in',
@@ -297,6 +301,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'Another turn is still running.' }, { status: 409 })
   }
 
+  const draftOf = body.db ? ((await draftsOf(body.slug).catch(() => null))?.draft?.parentName ?? null) : null
   const args = [
     '-p',
     body.message,
@@ -313,7 +318,7 @@ export async function POST(request: Request): Promise<Response> {
     '--settings', guardSettings(),
     '--max-turns', String(MAX_TURNS),
     '--disable-slash-commands',
-    '--append-system-prompt', studioAppend(body.slug, Boolean(body.db)),
+    '--append-system-prompt', studioAppend(body.slug, Boolean(body.db), draftOf),
   ]
   if (process.env.CHAT_LOCAL_MODEL) args.push('--model', process.env.CHAT_LOCAL_MODEL)
   if (body.sessionId) args.push('--resume', body.sessionId)
