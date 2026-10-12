@@ -14,6 +14,7 @@
 import { createContext, Suspense, useCallback, useContext, useMemo, useState } from 'react'
 import type { FlowApi, ScreenDef } from '@/platform/types'
 import styles from '@/platform/frame/prototype.module.css'
+import { ScreenErrorBoundary } from './ScreenErrorBoundary'
 
 // --- FlowApi (frozen contract) ----------------------------------------------
 
@@ -185,9 +186,11 @@ export function ScreenStage() {
             its chunk. Fallback is blank rather than a spinner: the wait is a
             frame or two on localhost, and a flashing loader would read as part
             of the prototype. */}
-        <Suspense fallback={null}>
-          <Screen />
-        </Suspense>
+        <ScreenErrorBoundary resetKey={Screen}>
+          <Suspense fallback={null}>
+            <Screen />
+          </Suspense>
+        </ScreenErrorBoundary>
       </div>
     </div>
   )

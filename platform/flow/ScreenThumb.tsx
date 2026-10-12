@@ -13,6 +13,7 @@
 import { Suspense } from 'react'
 import type { DeviceKind, ScreenDef } from '@/platform/types'
 import { FlowContext } from '@/platform/runtime'
+import { ScreenErrorBoundary } from '@/platform/runtime/ScreenErrorBoundary'
 import { DEVICE_SPECS } from '@/platform/frame/device'
 import type { NodeBox } from './geometry'
 
@@ -57,9 +58,11 @@ export function ScreenThumb({
           }}
         >
           <FlowContext.Provider value={{ ...INERT_FLOW, current: screen.id }}>
-            <Suspense fallback={null}>
-              <Component />
-            </Suspense>
+            <ScreenErrorBoundary resetKey={Component} compact>
+              <Suspense fallback={null}>
+                <Component />
+              </Suspense>
+            </ScreenErrorBoundary>
           </FlowContext.Provider>
         </div>
       </div>

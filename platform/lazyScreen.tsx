@@ -42,5 +42,12 @@ export function lazyScreen<K extends string>(
   load: () => Promise<Record<K, ComponentType>>,
   name: K,
 ): LazyExoticComponent<ComponentType> {
-  return lazy(async () => ({ default: (await load())[name] }))
+  return lazy(async () => {
+    const component = (await load())[name]
+    // Only reachable where the type check doesn't run — a database project, or
+    // a save that renamed the export before index.ts caught up. Say which name
+    // is missing instead of React's "Element type is invalid".
+    if (!component) throw new Error(`The screen file has no export named "${name}" — index.ts and the screen disagree.`)
+    return { default: component }
+  })
 }
