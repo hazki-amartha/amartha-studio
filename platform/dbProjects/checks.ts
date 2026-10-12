@@ -28,6 +28,7 @@ import { findProjectConfig, tailwindFor } from './server'
 
 const COMPILED = /\.(tsx?|jsx?)$/
 const CLASS_CALLEES = new Set(['clsx', 'cn'])
+const COMPARISONS = new Set(['===', '!==', '==', '!='])
 /** Classes that are real but generate no CSS of their own. */
 const NO_CSS = /^(group|peer|ds-.*)$/
 const BANNED: Record<string, string> = {
@@ -117,8 +118,11 @@ function scan(source: string): Found {
     return found
   }
 
+  // A string compared with something (`state === 'missed' ? … : …`) is a
+  // value, not a class — only what the expression yields is.
   const collectStrings = (node: unknown) =>
-    walk(node, (n) => {
+    walk(node, (n, parent) => {
+      if (parent?.type === 'BinaryExpression' && COMPARISONS.has(String(parent.operator))) return
       if (n.type === 'StringLiteral') addClasses(found.classes, String(n.value), true, true)
       else if (n.type === 'TemplateLiteral') {
         const quasis = n.quasis as { value: { raw: string } }[]
