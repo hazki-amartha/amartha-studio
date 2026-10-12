@@ -17,17 +17,12 @@ export const registry: Registry = {
   'afin-weekly-checkin': () => import('./afin-weekly-checkin').then((m) => m.project),
   'amarthafin-live': () => import('./amarthafin-live').then((m) => m.project),
   'ngmis-live': () => import('./ngmis-live').then((m) => m.project),
-  'agent-dashboard': () => import('./agent-dashboard').then((m) => m.project),
   'ngmis-bm-monitoring': () => import('./ngmis-bm-monitoring').then((m) => m.project),
   'apartner-bm-majelis-view': () =>
     import('./apartner-bm-majelis-view').then((m) => m.project),
-  'hello-world': () => import('./hello-world').then((m) => m.project),
   'ngmis-bm-monitoring-v2': () => import('./ngmis-bm-monitoring-v2').then((m) => m.project),
-  'ngmis-cash-outstanding': () => import('./ngmis-cash-outstanding').then((m) => m.project),
-  'apartner-sales': () => import('./apartner-sales').then((m) => m.project),
   'apartner-sales-assisted-onboarding': () =>
     import('./apartner-sales-assisted-onboarding').then((m) => m.project),
-  'bm-poi-ngmis': () => import('./bm-poi-ngmis').then((m) => m.project),
   'apartner-sot': () => import('./apartner-sot').then((m) => m.project),
   'afin-homepage-borrowers-v4': () =>
     import('./afin-homepage-borrowers-v4').then((m) => m.project),
