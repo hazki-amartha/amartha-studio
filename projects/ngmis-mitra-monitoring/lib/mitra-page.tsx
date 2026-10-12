@@ -6,6 +6,7 @@
 // built; the other tabs are drawn so the header reads the same as the live page.
 
 import { useState } from 'react'
+import { CashPage } from './cash-page'
 import { DailyDashboard } from './daily-dashboard'
 import { WeeklyProgress } from './weekly-page'
 import { BpTable, RepaymentMetrics, TableHeading } from './bp-table'
@@ -28,6 +29,7 @@ export function MitraPage() {
   const [province, setProvince] = useState('jawa-barat')
   const [kota, setKota] = useState('cirebon')
   const [branch, setBranch] = useState('belawa')
+  const [cashBp, setCashBp] = useState<string | undefined>()
   const [bpOpen, setBpOpen] = useState<string | null>(null)
 
   const branchLabel = BRANCHES.find((b) => b.value === branch)?.label ?? ''
@@ -52,14 +54,24 @@ export function MitraPage() {
               </>
             }
           />
-          <Tabs items={TABS} activeId={tab} onChange={setTab} />
+          <Tabs items={TABS} activeId={tab} onChange={(t) => {
+            setCashBp(undefined)
+            setTab(t)
+          }} />
         </>
       }
     >
       {tab === 'daily' ? (
-        <DailyDashboard />
+        <DailyDashboard
+          onOpenCash={(name) => {
+            setCashBp(name)
+            setTab('cash')
+          }}
+        />
       ) : tab === 'weekly' ? (
         <WeeklyProgress />
+      ) : tab === 'cash' ? (
+        <CashPage initialBp={cashBp} />
       ) : (
         <>
           <span className="pb-12 text-16 font-bold text-default">{UPDATE_BAR.scope}</span>

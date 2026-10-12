@@ -15,6 +15,7 @@ import {
   Hourglass,
   MagnifyingGlass,
   MapPin,
+  Prohibit,
   Sliders,
   WarningFill,
 } from '@/design-system/icons'
@@ -24,7 +25,7 @@ import { rupiah } from './daily-data'
 
 const DRAWER_W = 640
 
-type Outcome = 'held' | 'postponed'
+type Outcome = 'held' | 'postponed' | 'skipped' | 'pending'
 
 interface Majelis {
   id: string
@@ -34,6 +35,8 @@ interface Majelis {
   reported?: string
   /** Why a postponed majelis didn't meet. */
   reason?: string
+  /** When a postponed majelis is rescheduled to. */
+  rescheduledTo?: string
   mitra: number
   paid: number
   full: number
@@ -44,10 +47,12 @@ interface Majelis {
   /** Why the report looks wrong — present means it needs verifying. */
   flag?: string
   /** The attendance photo — a flagged report can carry one that isn't a majelis. */
-  photo?: 'tree' | 'home' | 'sandal'
+  photo?: 'tree' | 'home' | 'sandal' | 'house'
 }
 
-// Five assigned majelis visits for the day: four held (two flagged), one postponed.
+// Seven assigned majelis visits for the day: four held (two flagged), one
+// rescheduled, one skipped by the BP with a reason and proof photo, and one
+// not yet reported.
 const MAJELIS: Majelis[] = [
   {
     id: 'melati', name: 'Melati Majelis', desa: 'Desa Kudu', outcome: 'held', reported: '09:18',
@@ -58,6 +63,7 @@ const MAJELIS: Majelis[] = [
   {
     id: 'mawar', name: 'Mawar Majelis', desa: 'Desa Jati', outcome: 'postponed',
     reason: 'Group requested a different time.',
+    rescheduledTo: 'Mon, 10 Aug 2026 · 10:00',
     mitra: 0, paid: 0, full: 0, partial: 0, attended: 0, cash: 0, settled: true,
   },
   {
@@ -70,6 +76,16 @@ const MAJELIS: Majelis[] = [
     mitra: 12, paid: 9, full: 8, partial: 1, attended: 10, cash: 740_000, settled: true,
     flag: 'Report submitted 3.2 km from the Majelis location.',
     photo: 'sandal',
+  },
+  {
+    id: 'cempaka', name: 'Cempaka Majelis', desa: 'Desa Karang', outcome: 'skipped', reported: '08:50',
+    reason: 'Majelis no longer meets',
+    photo: 'house',
+    mitra: 0, paid: 0, full: 0, partial: 0, attended: 0, cash: 0, settled: true,
+  },
+  {
+    id: 'teratai', name: 'Teratai Majelis', desa: 'Desa Mekar', outcome: 'pending',
+    mitra: 0, paid: 0, full: 0, partial: 0, attended: 0, cash: 0, settled: true,
   },
   {
     id: 'dahlia', name: 'Dahlia Majelis', desa: 'Desa Cikuya', outcome: 'held', reported: '13:20',
@@ -89,32 +105,53 @@ const ALERT_REASONS = ['Location too far from majelis', 'Fake photo', 'Meeting n
 
 type Filter = 'all' | 'completed' | 'not-completed' | 'verify'
 
-export function DailyDrawer({ bpName, onClose }: { bpName: string; onClose: () => void }) {
+export function DailyDrawer({
+  bpName,
+  onClose,
+  onOpenCash,
+}: {
+  bpName: string
+  onClose: () => void
+  /** Jump to the Sisa setor tunai tab, from a majelis whose cash isn't settled. */
+  onOpenCash: (bpName: string) => void
+}) {
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<'default' | 'latest' | 'earliest'>('default')
   const [resolved, setResolved] = useState<Record<string, Resolution>>({})
 
+  // A skipped task counts as done: the BP closed it out with a reason and proof.
+  const isDone = (m: Majelis) => m.outcome === 'held' || m.outcome === 'skipped'
   const needsVerify = (m: Majelis) => !!m.flag && !resolved[m.id]
   const counts: Record<Filter, number> = {
     all: MAJELIS.length,
-    completed: MAJELIS.filter((m) => m.outcome === 'held').length,
-    'not-completed': MAJELIS.filter((m) => m.outcome === 'postponed').length,
+    completed: MAJELIS.filter(isDone).length,
+    'not-completed': MAJELIS.filter((m) => !isDone(m)).length,
     verify: MAJELIS.filter(needsVerify).length,
   }
-  const shown = MAJELIS.filter(
+  const filtered = MAJELIS.filter(
     (m) =>
       (filter === 'all' ||
-        (filter === 'completed' && m.outcome === 'held') ||
-        (filter === 'not-completed' && m.outcome === 'postponed') ||
+        (filter === 'completed' && isDone(m)) ||
+        (filter === 'not-completed' && !isDone(m)) ||
         (filter === 'verify' && needsVerify(m))) &&
       `${m.name} ${m.desa}`.toLowerCase().includes(query.trim().toLowerCase()),
   )
+  // Sorted by the time the BP reported; a task with no report time sits last.
+  const shown =
+    sort === 'default'
+      ? filtered
+      : [...filtered].sort((a, b) => {
+          if (!a.reported) return 1
+          if (!b.reported) return -1
+          return sort === 'latest' ? b.reported.localeCompare(a.reported) : a.reported.localeCompare(b.reported)
+        })
 
   const TABS: { id: Filter; label: string }[] = [
-    { id: 'all', label: 'Semua' },
-    { id: 'completed', label: 'Sudah dikerjakan' },
-    { id: 'not-completed', label: 'Belum dikerjakan' },
-    { id: 'verify', label: 'Butuh konfirmasi' },
+    { id: 'all', label: 'All' },
+    { id: 'completed', label: 'Done' },
+    { id: 'not-completed', label: 'Not done' },
+    { id: 'verify', label: 'Needs confirmation' },
   ]
 
   return (
@@ -132,7 +169,7 @@ export function DailyDrawer({ bpName, onClose }: { bpName: string; onClose: () =
               Fri, 7 Aug 2026
             </span>
           </div>
-          <button type="button" aria-label="Tutup" onClick={onClose} className="text-default">
+          <button type="button" aria-label="Close" onClick={onClose} className="text-default">
             <Cross size={20} />
           </button>
         </div>
@@ -155,6 +192,16 @@ export function DailyDrawer({ bpName, onClose }: { bpName: string; onClose: () =
                 options={[{ value: 'majelis', label: 'Majelis visits' }]}
               />
             </div>
+            <Select
+              label="Sort"
+              value={sort}
+              onChange={(v) => setSort(v as typeof sort)}
+              options={[
+                { value: 'default', label: 'Default order' },
+                { value: 'latest', label: 'Reported time: latest first' },
+                { value: 'earliest', label: 'Reported time: earliest first' },
+              ]}
+            />
             <Button variant="outline" size="sm" onClick={() => undefined}>
               <span className="flex items-center gap-8">
                 <Sliders size={16} />
@@ -180,9 +227,6 @@ export function DailyDrawer({ bpName, onClose }: { bpName: string; onClose: () =
               </button>
             ))}
           </div>
-          <span className="text-12 text-caption">
-            Completion is BP-reported. Verification is reviewed separately.
-          </span>
 
           {shown.length === 0 ? (
             <span className="py-32 text-center text-14 text-caption">No majelis match.</span>
@@ -191,6 +235,7 @@ export function DailyDrawer({ bpName, onClose }: { bpName: string; onClose: () =
               <MajelisCard
                 key={m.id}
                 m={m}
+                onOpenCash={() => onOpenCash(bpName)}
                 resolution={resolved[m.id]}
                 onResolve={(r) => setResolved((v) => ({ ...v, [m.id]: r }))}
               />
@@ -231,8 +276,10 @@ function MajelisCard({
   m,
   resolution,
   onResolve,
+  onOpenCash,
 }: {
   m: Majelis
+  onOpenCash: () => void
   resolution?: Resolution
   onResolve: (r: Resolution) => void
 }) {
@@ -250,11 +297,19 @@ function MajelisCard({
         </div>
         {held ? (
           <Badge intent="green" variant="subtle" size="sm" leadingIcon={<CheckCircleFill size={16} />}>
-            Pelayanan dilakukan
+            Task done
+          </Badge>
+        ) : m.outcome === 'skipped' ? (
+          <Badge intent="red" variant="subtle" size="sm" leadingIcon={<Prohibit size={16} />}>
+            Task skipped
+          </Badge>
+        ) : m.outcome === 'pending' ? (
+          <Badge intent="neutral" variant="subtle" size="sm" leadingIcon={<Hourglass size={16} />}>
+            Task not yet done
           </Badge>
         ) : (
           <Badge intent="orange" variant="subtle" size="sm" leadingIcon={<Hourglass size={16} />}>
-            Pelayanan di reschedule
+            Task rescheduled
           </Badge>
         )}
       </div>
@@ -287,15 +342,24 @@ function MajelisCard({
             </div>
             <div className="flex flex-1 flex-col gap-2">
               <span className="text-12 text-caption">Settlement status</span>
-              <span className="flex">
+              <span className="flex items-center">
                 {m.settled ? (
                   <Badge intent="green" variant="subtle" size="sm" leadingIcon={<CheckCircleFill size={16} />}>
                     Settled
                   </Badge>
                 ) : (
-                  <Badge intent="neutral" variant="subtle" size="sm" leadingIcon={<Hourglass size={16} />}>
-                    Not settled
-                  </Badge>
+                  <>
+                    <Badge intent="neutral" variant="subtle" size="sm" leadingIcon={<Hourglass size={16} />}>
+                      Not settled
+                    </Badge>
+                    <button
+                      type="button"
+                      onClick={onOpenCash}
+                      className="ml-8 text-14 font-bold text-link active:opacity-70"
+                    >
+                      Check Sisa setor tunai
+                    </button>
+                  </>
                 )}
               </span>
             </div>
@@ -303,8 +367,32 @@ function MajelisCard({
 
           {m.flag ? <FlagReview flag={m.flag} resolution={resolution} onResolve={onResolve} /> : null}
         </>
+      ) : m.outcome === 'skipped' ? (
+        <div className="flex gap-12">
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <span className="text-14 text-default">Reason for skipping the majelis</span>
+            <span className="text-16 font-bold text-default">{m.reason}</span>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={PHOTOS[m.photo ?? 'house']}
+            alt="Absence proof photo"
+            className="shrink-0 rounded-8 object-cover"
+            style={{ width: 96, height: 96 }}
+          />
+        </div>
+      ) : m.outcome === 'pending' ? (
+        <span className="text-14 text-default">No report from the BP yet.</span>
       ) : (
-        <span className="text-14 text-default">{m.reason}</span>
+        <div className="flex flex-col gap-8">
+          <span className="text-14 text-default">{m.reason}</span>
+          {m.rescheduledTo ? (
+            <span className="flex items-center gap-8 text-14 font-bold text-default">
+              <CalendarDots size={16} />
+              Rescheduled to {m.rescheduledTo}
+            </span>
+          ) : null}
+        </div>
       )}
     </div>
   )
