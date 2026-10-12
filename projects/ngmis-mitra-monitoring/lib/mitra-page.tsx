@@ -24,7 +24,7 @@ import {
 } from './data'
 
 export function MitraPage() {
-  const [tab, setTab] = useState('repayment')
+  const [tab, setTab] = useState('daily')
   const [region, setRegion] = useState('jawa')
   const [province, setProvince] = useState('jawa-barat')
   const [kota, setKota] = useState('cirebon')

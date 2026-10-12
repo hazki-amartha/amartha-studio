@@ -17,13 +17,14 @@ import { Button } from '@/design-system/components'
 import { ArrowRight } from '@/design-system/icons'
 import { MoonGlyph, SunGlyph } from './daily-ui'
 import { DailyDrawer } from './daily-drawer'
-import { Scorecard } from './daily-scorecard'
+import { Scorecard, type GapFocus } from './daily-scorecard'
 import { BRIEFING_LABEL, type BriefingKind } from './daily-data'
 import { isDraftStarted, useFlowState } from './daily-store'
 
 export function DailyDashboard({ onOpenCash }: { onOpenCash: (bpName: string) => void }) {
   const flow = useFlow()
   const [bpOpen, setBpOpen] = useState<string | null>(null)
+  const [gapFocus, setGapFocus] = useState<GapFocus | undefined>()
   const { scheduled, submitted, drafts } = useFlowState()
 
   // The banner only appears while the scheduled briefing is due and unsent; once
@@ -49,11 +50,18 @@ export function DailyDashboard({ onOpenCash }: { onOpenCash: (bpName: string) =>
         </div>
       ) : null}
 
-      <Scorecard seeDetail onSeeDetail={(bp) => setBpOpen(bp.name)} />
+      <Scorecard
+        seeDetail
+        onSeeDetail={(bp, gap) => {
+          setGapFocus(gap)
+          setBpOpen(bp.name)
+        }}
+      />
 
       {bpOpen ? (
         <DailyDrawer
           bpName={bpOpen}
+          gap={gapFocus}
           onClose={() => setBpOpen(null)}
           onOpenCash={(name) => {
             setBpOpen(null)
