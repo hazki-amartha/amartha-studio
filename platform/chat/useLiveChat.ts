@@ -29,6 +29,7 @@ import { refreshProjectSoon } from '@/platform/runtime/projectRefresh'
 import { setChatAvailable } from '@/platform/runtime/chatBridge'
 import type { ChatEvent, ChatState } from './ChatPanel'
 import { reportUsage, type RateLimitInfo } from './usage'
+import type { PendingImage } from './images'
 
 interface Done {
   type: 'done'
@@ -69,6 +70,9 @@ interface Conversation {
   /** What's typed but not sent — kept, like everything else, across the panel
    *  coming and going. */
   draft: string
+  /** Reference images waiting to go with the draft. Not kept across a reload:
+   *  they are too large for sessionStorage, and re-pasting is one keystroke. */
+  images: PendingImage[]
 }
 
 const fresh = (): Conversation => ({
@@ -80,6 +84,7 @@ const fresh = (): Conversation => ({
   model: null,
   last: null,
   draft: '',
+  images: [],
 })
 
 // --- the store ----------------------------------------------------------------
@@ -108,7 +113,7 @@ const key = (slug: string) => `studio-chat:${slug}`
 function save() {
   if (!slugNow) return
   try {
-    sessionStorage.setItem(key(slugNow), JSON.stringify(convo))
+    sessionStorage.setItem(key(slugNow), JSON.stringify({ ...convo, images: [] }))
   } catch {}
 }
 
@@ -116,7 +121,7 @@ function restore(slug: string): Conversation {
   try {
     const raw = sessionStorage.getItem(key(slug))
     if (!raw) return fresh()
-    const saved = { ...fresh(), ...(JSON.parse(raw) as Partial<Conversation>) }
+    const saved = { ...fresh(), ...(JSON.parse(raw) as Partial<Conversation>), images: [] }
     // The reload cut the stream, and the route stops the agent when its
     // request goes away — so a turn that was running is over, not paused.
     if (saved.status === 'running') {
@@ -200,8 +205,9 @@ async function send(prompt: string, shown?: string) {
   if (!text || abort || !slug) return
   const controller = new AbortController()
   abort = controller
-  set({ startedAt: Date.now(), lastEventAt: 0, last: null, status: 'running', draft: '' })
-  push({ kind: 'user', text: shown ?? text })
+  const images = convo.images
+  set({ startedAt: Date.now(), lastEventAt: 0, last: null, status: 'running', draft: '', images: [] })
+  push({ kind: 'user', text: shown ?? text, ...(images.length ? { images: images.map((i) => i.thumb) } : {}) })
 
   try {
     const res = await fetch('/api/chat', {
@@ -212,6 +218,7 @@ async function send(prompt: string, shown?: string) {
       body: JSON.stringify({
         slug,
         message: text,
+        images: images.length ? images.map((i) => i.image) : undefined,
         sessionId: convo.sessionId,
         db: isActiveDbProject(slug) || undefined,
       }),
@@ -269,6 +276,14 @@ function newChat() {
 
 function setDraft(draft: string) {
   set({ draft })
+}
+
+function addImages(images: PendingImage[]) {
+  set({ images: [...convo.images, ...images] })
+}
+
+function removeImage(id: string) {
+  set({ images: convo.images.filter((i) => i.id !== id) })
 }
 
 interface Status {
@@ -335,6 +350,9 @@ export interface LiveChat extends ChatState {
   newChat: () => void
   draft: string
   setDraft: (draft: string) => void
+  images: PendingImage[]
+  addImages: (images: PendingImage[]) => void
+  removeImage: (id: string) => void
   model: string | null
   last: Done | null
   where: 'laptop' | 'cloud'
@@ -373,6 +391,9 @@ export function useLiveChat(slug: string): LiveChat {
     newChat,
     draft: c.draft,
     setDraft,
+    images: c.images,
+    addImages,
+    removeImage,
     model: c.model,
     last: c.last,
     where,

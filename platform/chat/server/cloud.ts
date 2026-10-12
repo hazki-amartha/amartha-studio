@@ -39,6 +39,7 @@ import { draftChatLines } from '@/platform/dbProjects/draftMeta'
 import { draftsOf } from '@/platform/dbProjects/drafts'
 import { LiveSave } from './liveSave'
 import { isSessionStoreConfigured, redisSessionStore } from './sessionStore'
+import { readImages, userContent, type ChatImage } from '../images'
 
 const ROOT = process.cwd()
 const BASE = '/tmp/studio-chat'
@@ -213,8 +214,19 @@ function studioAppend(slug: string, draftOf: string | null): string {
 interface ChatRequest {
   slug: string
   message: string
+  images?: unknown
   sessionId?: string
   db?: boolean
+}
+
+/** With images, the prompt has to be a message stream — a plain string can't
+ *  carry them. */
+async function* withImages(text: string, images: ChatImage[]) {
+  yield {
+    type: 'user' as const,
+    message: { role: 'user' as const, content: userContent(text, images) },
+    parent_tool_use_id: null,
+  }
 }
 
 const json = (body: object, status: number) => Response.json(body, { status })
@@ -231,6 +243,8 @@ export async function cloudTurn(request: Request): Promise<Response> {
   if (SLASH_COMMAND.test(message)) {
     return json({ error: 'Chat doesn’t take commands like /clear or /usage — just describe the change you want.' }, 400)
   }
+  const images = readImages(body.images)
+  if ('error' in images) return json(images, 400)
   const slug = body.slug
   if (!(await isDbProject(slug))) {
     return json({ error: 'Chat on the live studio works on database projects only.' }, 400)
@@ -312,7 +326,7 @@ export async function cloudTurn(request: Request): Promise<Response> {
       const started = Date.now()
       try {
         for await (const msg of query({
-          prompt: message,
+          prompt: images.length ? withImages(message, images) : message,
           options: {
             cwd: ws,
             pathToClaudeCodeExecutable: BINARY,

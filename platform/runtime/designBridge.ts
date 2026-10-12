@@ -16,7 +16,7 @@
 export type EditTab = 'chat' | 'edit' | 'css'
 
 let designing = false
-/** null until the designer picks one; the panel then chooses by backend. */
+/** null until the designer picks one; the panel then shows its default. */
 let tab: EditTab | null = null
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
@@ -24,6 +24,9 @@ const emit = () => listeners.forEach((l) => l())
 export function setDesignMode(on: boolean) {
   if (designing === on) return
   designing = on
+  // Every opening starts on the default tab (Chat, where it's available),
+  // not on whichever tab was showing last time.
+  if (on) tab = null
   emit()
 }
 

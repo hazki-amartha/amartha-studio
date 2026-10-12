@@ -46,6 +46,7 @@ import { diskChanges, diskFiles, ensureLocalCopy, projectFolder } from '@/platfo
 import { draftChatLines } from '@/platform/dbProjects/draftMeta'
 import { draftsOf } from '@/platform/dbProjects/drafts'
 import { cloudStatus, cloudTurn } from '@/platform/chat/server/cloud'
+import { readImages, userContent } from '@/platform/chat/images'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -254,6 +255,8 @@ interface ChatRequest {
   unlock?: string
   slug: string
   message: string
+  /** Reference images the designer pasted (platform/chat/images.ts). */
+  images?: unknown
   /** The CLI session to continue; absent on the first turn. */
   sessionId?: string
   /** Sent from /db/<slug>: the project lives in the database. The turn starts
@@ -297,14 +300,18 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     )
   }
+  const images = readImages(body.images)
+  if ('error' in images) return Response.json(images, { status: 400 })
   if (running) {
     return Response.json({ error: 'Another turn is still running.' }, { status: 409 })
   }
 
   const draftOf = body.db ? ((await draftsOf(body.slug).catch(() => null))?.draft?.parentName ?? null) : null
+  // The message goes in on stdin as a stream-json user message, not as an
+  // argument: that is the only way the CLI takes images with it.
   const args = [
     '-p',
-    body.message,
+    '--input-format', 'stream-json',
     '--output-format', 'stream-json',
     '--verbose',
     '--setting-sources', 'project',
@@ -340,9 +347,13 @@ export async function POST(request: Request): Promise<Response> {
   const child = spawn(CLI, args, {
     cwd: ROOT,
     env: childEnv(body.slug, Boolean(body.db)),
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: ['pipe', 'pipe', 'pipe'],
   })
   running = child
+  child.stdin!.on('error', () => {}) // a CLI that failed to start has no stdin; 'error' below reports it
+  child.stdin!.end(
+    JSON.stringify({ type: 'user', message: { role: 'user', content: userContent(body.message, images) } }) + '\n',
+  )
   let timedOut = false
   const timer = setTimeout(() => {
     timedOut = true

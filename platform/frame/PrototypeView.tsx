@@ -545,8 +545,9 @@ function usePanelTab() {
     () => getDesignStoreServerSnapshot().backend,
   )
 
-  const fallback: EditTab = backend === 'record' ? 'css' : 'edit'
   const tabs: EditTab[] = chatAvailable ? ['chat', 'edit', 'css'] : ['edit', 'css']
+  // Chat first whenever it is there; otherwise what this backend can do.
+  const fallback: EditTab = chatAvailable ? 'chat' : backend === 'record' ? 'css' : 'edit'
   const tab: EditTab = chosen && tabs.includes(chosen) ? chosen : fallback
 
   return { tab, tabs, select: setEditTab }
