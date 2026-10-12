@@ -69,7 +69,12 @@ export function MitraPage() {
           }}
         />
       ) : tab === 'weekly' ? (
-        <WeeklyProgress />
+        <WeeklyProgress
+          onOpenCash={(name) => {
+            setCashBp(name)
+            setTab('cash')
+          }}
+        />
       ) : tab === 'cash' ? (
         <CashPage initialBp={cashBp} />
       ) : (

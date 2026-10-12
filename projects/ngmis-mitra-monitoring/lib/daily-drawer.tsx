@@ -314,7 +314,7 @@ const HOME_VISITS: Majelis[] = [
   },
 ]
 
-type Task = 'majelis' | 'home'
+type Task = 'all' | 'majelis' | 'home'
 
 const RESULT_LABEL = {
   mitra: 'Met mitra',
@@ -341,7 +341,7 @@ export function DailyDrawer({
   onOpenCash: (bpName: string) => void
 }) {
   const focus = gap && GAP_TASK[gap.rowId] ? { ...gap, task: GAP_TASK[gap.rowId] } : undefined
-  const [task, setTask] = useState<Task>(focus?.task ?? 'majelis')
+  const [task, setTask] = useState<Task>(focus?.task ?? 'all')
   const [filter, setFilter] = useState<Filter>(focus ? 'not-completed' : 'all')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'default' | 'latest' | 'earliest'>('default')
@@ -352,7 +352,8 @@ export function DailyDrawer({
   const needsVerify = (m: Majelis) => !!m.flag && !resolved[m.id]
   // From a missed figure the list is exactly that figure's tasks: as many done as
   // the BP reported, and the rest not done — so the gap can be read off it.
-  const full = task === 'majelis' ? MAJELIS : HOME_VISITS
+  const full =
+    task === 'majelis' ? MAJELIS : task === 'home' ? HOME_VISITS : [...MAJELIS, ...HOME_VISITS]
   const focused = focus && focus.task === task
   const list = focused
     ? [
@@ -431,6 +432,7 @@ export function DailyDrawer({
                   setFilter('all')
                 }}
                 options={[
+                  { value: 'all', label: 'All tasks' },
                   { value: 'majelis', label: 'Majelis visits' },
                   { value: 'home', label: 'Home visits' },
                 ]}
@@ -471,6 +473,7 @@ export function DailyDrawer({
           ) : (
             shown.map((m) => (
               <MajelisCard
+                showType={task === 'all'}
                 key={m.id}
                 m={m}
                 onOpenCash={() => onOpenCash(bpName)}
@@ -512,11 +515,14 @@ function Stat({
 
 function MajelisCard({
   m,
+  showType,
   resolution,
   onResolve,
   onOpenCash,
 }: {
   m: Majelis
+  /** In the all-tasks list each card names its task, since the layouts differ. */
+  showType: boolean
   onOpenCash: () => void
   resolution?: Resolution
   onResolve: (r: Resolution) => void
@@ -526,6 +532,9 @@ function MajelisCard({
     <div className="flex flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12">
       <div className="flex items-start justify-between gap-12">
         <div className="flex flex-col gap-2">
+          {showType ? (
+            <span className="text-12 text-caption">{m.home ? 'Home visit' : 'Majelis visit'}</span>
+          ) : null}
           <span className="text-16 font-bold text-default">{m.name}</span>
           <span className="flex items-center gap-4 text-12 text-caption">
             <MapPin size={16} />

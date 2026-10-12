@@ -10,78 +10,28 @@ import { useState, type ReactNode } from 'react'
 import { Badge } from '@/design-system/components'
 import { CheckCircleFill, ChevronLeft, ChevronRight, Hourglass } from '@/design-system/icons'
 import { PanelHeading } from './ui'
+import { DailyDrawer } from './daily-drawer'
+import type { GapFocus } from './daily-scorecard'
+import { WeeklyDrawer } from './weekly-drawer'
 import { BPS, type Bp } from './daily-data'
-
-interface Day {
-  label: string
-  date: string
-}
-
-const DAY_LABELS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum']
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-/** The Monday of the current week (the reporting date, 7 Agu 2026, is a Friday). */
-const THIS_MONDAY = new Date(2026, 7, 3)
-const OLDEST_WEEK = -4
-
-const fmt = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]}`
-const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
-
-/** `week` is 0 for this week, -1 for last week, and so on. */
-function weekDays(week: number): Day[] {
-  const monday = addDays(THIS_MONDAY, week * 7)
-  return DAY_LABELS.map((label, i) => ({ label, date: fmt(addDays(monday, i)) }))
-}
-
-/** "3 Agu – 10 Agu 2026": Monday to the following Monday. */
-function weekRange(week: number): string {
-  const monday = addDays(THIS_MONDAY, week * 7)
-  const next = addDays(monday, 7)
-  return `${fmt(monday)} – ${fmt(next)} ${next.getFullYear()}`
-}
-
-/** Per-BP profile: how often she misses a day's target (0–3). */
-const SLIP: Record<string, number> = {
-  'bp-a': 1,
-  'bp-b': 0,
-  'bp-c': 3,
-  'bp-d': 1,
-  'bp-e': 2,
-  'bp-f': 3,
-}
-
-/** The count tasks Progres harian's Tugas scorecard lists, with a day's target. */
-const COUNT_TASKS = [
-  { id: 'pelayanan', label: 'Pelayanan', target: 6 },
-  { id: 'home-visit', label: 'Home visit', target: 3 },
-  { id: 'reaktivasi', label: 'Reaktivasi & lanjutan', target: 1 },
-  { id: 'sosialisasi', label: 'Sosialisasi', target: 2 },
-  { id: 'follow-up', label: 'Follow up', target: 2 },
-]
-
-interface Snapshot {
-  done: Record<string, number>
-  reminded: boolean
-  closed: boolean
-}
-
-function snapshot(bp: Bp, dayIndex: number): Snapshot {
-  const slip = SLIP[bp.id]
-  const done: Record<string, number> = {}
-  COUNT_TASKS.forEach((t, k) => {
-    const miss = (dayIndex + k + slip) % 4 < slip
-    done[t.id] = miss ? Math.max(0, t.target - 1 - ((dayIndex + k) % 2)) : t.target
-  })
-  return {
-    done,
-    reminded: (dayIndex + slip) % 4 !== 3 || slip === 0,
-    closed: !((dayIndex + slip) % 3 === 0 && slip > 1),
-  }
-}
+import {
+  COUNT_TASKS,
+  OLDEST_WEEK,
+  snapshot,
+  weekDays,
+  weekRange,
+  type Day,
+  type Snapshot,
+} from './weekly-data'
 
 /** The entry point under a figure that missed its target. */
-function SeeDetail() {
+function SeeDetail({ onClick }: { onClick?: () => void }) {
   return (
-    <button type="button" className="block w-full text-center text-12 font-bold text-link active:opacity-70">
+    <button
+      type="button"
+      onClick={onClick}
+      className="block w-full text-center text-12 font-bold text-link active:opacity-70"
+    >
       See detail
     </button>
   )
@@ -106,8 +56,11 @@ function StatusBadge({ done }: { done: boolean }) {
   )
 }
 
-export function WeeklyProgress() {
+export function WeeklyProgress({ onOpenCash }: { onOpenCash: (bpName: string) => void }) {
   const [week, setWeek] = useState(0)
+  const [weeklyBp, setWeeklyBp] = useState<string | null>(null)
+  const [dailyBp, setDailyBp] = useState<string | null>(null)
+  const [dailyGap, setDailyGap] = useState<GapFocus | undefined>()
   const days = weekDays(week)
   return (
     <>
@@ -139,9 +92,46 @@ export function WeeklyProgress() {
       </div>
       <div className="flex flex-col gap-24">
         {BPS.map((bp) => (
-          <BpWeek key={bp.id} bp={bp} days={days} week={week} />
+          <BpWeek
+            key={bp.id}
+            bp={bp}
+            days={days}
+            week={week}
+            onWeekly={(b) => setWeeklyBp(b.name)}
+            onDaily={(b, gap) => {
+              setDailyGap(gap)
+              setDailyBp(b.name)
+            }}
+          />
         ))}
       </div>
+      {weeklyBp ? (
+        <WeeklyDrawer
+          bpName={weeklyBp}
+          initialWeek={week}
+          onClose={() => setWeeklyBp(null)}
+          onOpenDaily={() => {
+            setDailyGap(undefined)
+            setDailyBp(weeklyBp)
+            setWeeklyBp(null)
+          }}
+          onOpenCash={(name) => {
+            setWeeklyBp(null)
+            onOpenCash(name)
+          }}
+        />
+      ) : null}
+      {dailyBp ? (
+        <DailyDrawer
+          bpName={dailyBp}
+          gap={dailyGap}
+          onClose={() => setDailyBp(null)}
+          onOpenCash={(name) => {
+            setDailyBp(null)
+            onOpenCash(name)
+          }}
+        />
+      ) : null}
     </>
   )
 }
@@ -149,18 +139,22 @@ export function WeeklyProgress() {
 /** A day's two figures for one row; a `merged` row has one cell spanning both. */
 interface Row {
   label: string
-  cells?: (s: Snapshot) => [ReactNode, ReactNode]
+  cells?: (s: Snapshot, open: (gap?: GapFocus) => void) => [ReactNode, ReactNode]
   merged?: (s: Snapshot) => ReactNode
 }
 
 const ROWS: Row[] = [
   ...COUNT_TASKS.map((t): Row => ({
     label: t.label,
-    cells: (s) => [
-      <span key="t" className="text-default">{t.target}</span>,
+    cells: (s, open) => [
+      <span key="t" className="text-default">
+        {t.target}
+      </span>,
       <span key="d" className="block text-center">
         <span className={`block ${tone(s.done[t.id] >= t.target)}`}>{s.done[t.id]}</span>
-        {s.done[t.id] < t.target ? <SeeDetail /> : null}
+        {s.done[t.id] < t.target ? (
+          <SeeDetail onClick={() => open({ rowId: t.id, target: t.target, done: s.done[t.id] })} />
+        ) : null}
       </span>,
     ],
   })),
@@ -168,12 +162,35 @@ const ROWS: Row[] = [
   { label: 'Tutup hari', merged: (s) => <StatusBadge done={s.closed} /> },
 ]
 
-function BpWeek({ bp, days, week }: { bp: Bp; days: Day[]; week: number }) {
+function BpWeek({
+  bp,
+  days,
+  week,
+  onWeekly,
+  onDaily,
+}: {
+  bp: Bp
+  days: Day[]
+  week: number
+  onWeekly: (bp: Bp) => void
+  onDaily: (bp: Bp, gap?: GapFocus) => void
+}) {
   const snaps = days.map((_, i) => snapshot(bp, i - week * 5))
 
   return (
     <section>
-      <PanelHeading title={bp.name} />
+      <PanelHeading
+        title={bp.name}
+        titleAction={
+          <button
+            type="button"
+            onClick={() => onWeekly(bp)}
+            className="text-14 font-bold text-link active:opacity-70"
+          >
+            See detail
+          </button>
+        }
+      />
       <div className="overflow-x-auto rounded-12 border border-default">
         <table
           className="w-full table-fixed border-collapse text-left"
@@ -199,7 +216,11 @@ function BpWeek({ bp, days, week }: { bp: Bp; days: Day[]; week: number }) {
                 >
                   <span className="flex items-baseline justify-center gap-8">
                     {d.label}, {d.date}
-                    <button type="button" className="text-14 font-bold text-link active:opacity-70">
+                    <button
+                      type="button"
+                      onClick={() => onDaily(bp)}
+                      className="text-14 font-bold text-link active:opacity-70"
+                    >
                       See detail
                     </button>
                   </span>
@@ -214,7 +235,10 @@ function BpWeek({ bp, days, week }: { bp: Bp; days: Day[]; week: number }) {
                 >
                   Target
                 </th>,
-                <th key={`${d.date}-d`} className="px-16 pb-16 text-center text-14 font-regular text-default">
+                <th
+                  key={`${d.date}-d`}
+                  className="px-16 pb-16 text-center text-14 font-regular text-default"
+                >
                   Selesai
                 </th>,
               ])}
@@ -237,14 +261,21 @@ function BpWeek({ bp, days, week }: { bp: Bp; days: Day[]; week: number }) {
                   const s = snaps[i]
                   if (row.merged) {
                     return [
-                      <td key={d.date} colSpan={2} className="border-l border-default px-16 py-12 text-center">
+                      <td
+                        key={d.date}
+                        colSpan={2}
+                        className="border-l border-default px-16 py-12 text-center"
+                      >
                         {row.merged(s)}
                       </td>,
                     ]
                   }
-                  const [target, done] = row.cells!(s)
+                  const [target, done] = row.cells!(s, (gap) => onDaily(bp, gap))
                   return [
-                    <td key={`${d.date}-t`} className="border-l border-default px-16 py-12 text-center text-14">
+                    <td
+                      key={`${d.date}-t`}
+                      className="border-l border-default px-16 py-12 text-center text-14"
+                    >
                       {target}
                     </td>,
                     <td key={`${d.date}-d`} className="px-16 py-12 text-center text-14">
