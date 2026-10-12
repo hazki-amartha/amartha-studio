@@ -21,7 +21,7 @@ import { Scorecard } from './daily-scorecard'
 import { BRIEFING_LABEL, type BriefingKind } from './daily-data'
 import { isDraftStarted, useFlowState } from './daily-store'
 
-export function DailyDashboard() {
+export function DailyDashboard({ onOpenCash }: { onOpenCash: (bpName: string) => void }) {
   const flow = useFlow()
   const [bpOpen, setBpOpen] = useState<string | null>(null)
   const { scheduled, submitted, drafts } = useFlowState()
@@ -51,7 +51,16 @@ export function DailyDashboard() {
 
       <Scorecard seeDetail onSeeDetail={(bp) => setBpOpen(bp.name)} />
 
-      {bpOpen ? <DailyDrawer bpName={bpOpen} onClose={() => setBpOpen(null)} /> : null}
+      {bpOpen ? (
+        <DailyDrawer
+          bpName={bpOpen}
+          onClose={() => setBpOpen(null)}
+          onOpenCash={(name) => {
+            setBpOpen(null)
+            onOpenCash(name)
+          }}
+        />
+      ) : null}
     </>
   )
 }
