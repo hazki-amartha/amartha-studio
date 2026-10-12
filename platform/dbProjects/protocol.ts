@@ -22,3 +22,16 @@ export function savedChannel(slug: string): string {
   return `studio-project:${slug}`
 }
 export const SAVED_EVENT = 'saved'
+
+/** One save in a project's history (platform/dbProjects/history.ts): the files
+ *  one person saved together. `id` is its newest history row — restoring to it
+ *  puts every file back as it was right after this save. */
+export interface SavePoint {
+  id: number
+  at: string
+  by: string | null
+  files: string[]
+}
+
+export type HistoryResponse = { ok: true; points: SavePoint[] } | { ok: false; reason: string }
+export type RestoreResult = { ok: true; changed: number } | { ok: false; reason: string }
