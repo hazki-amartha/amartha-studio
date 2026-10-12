@@ -18,6 +18,7 @@
 // picking things on screen, and exactly what's missing from a handoff.
 // =============================================================================
 
+import { diskPath } from '@/platform/dbProjects/active'
 import type { InspectTarget } from './resolve'
 import { normaliseColor, tokenForColor, tokenForValue } from './tokenMap'
 
@@ -78,7 +79,7 @@ export function copySpec(target: InspectTarget, slug: string, screenId: string):
 
   lines.push(`Amartha Studio · project ${slug} · screen ${screenId}`)
   lines.push(`Element: ${name}${target.text ? ` — "${target.text}"` : ''}`)
-  lines.push(`File: projects/${slug}/screens/${screenId}.tsx (or a helper it imports from lib/)`)
+  lines.push(`File: ${diskPath(`projects/${slug}/screens/${screenId}.tsx`)} (or a helper it imports from lib/)`)
   lines.push('')
 
   // --- geometry -------------------------------------------------------------

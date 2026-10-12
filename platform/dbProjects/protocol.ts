@@ -10,6 +10,9 @@ export interface DbProjectBuild {
   css: string
   /** Files that failed to compile; they are missing from `modules`. */
   errors: { path: string; message: string }[]
+  /** The project it `extends`, when that is a database project too — sent in
+   *  the same response, so whoever may open this project gets its base. */
+  base?: DbProjectBuild
 }
 
 export type DbProjectResponse = ({ ok: true } & DbProjectBuild) | { ok: false; error: string }

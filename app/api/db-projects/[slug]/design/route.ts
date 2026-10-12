@@ -35,7 +35,7 @@ import type {
   DesignUndoRequest,
   DesignUnlockRequest,
 } from '@/platform/design/protocol'
-import { batchFile, KEBAB, projectFacts, refuse, whyNot } from '@/platform/design/server/common'
+import { batchFile, KEBAB, refuse, whyNot, type ProjectFacts } from '@/platform/design/server/common'
 import {
   createEditToken,
   EDIT_COOKIE,
@@ -47,7 +47,7 @@ import {
 } from '@/platform/design/server/editGate'
 import { versionOf } from '@/platform/design/version'
 import { checkDbProject } from '@/platform/dbProjects/checks'
-import { contentBefore, createAdminClient, isDbProject, readDbRows, saveIfUnchanged } from '@/platform/dbProjects/server'
+import { contentBefore, createAdminClient, findProjectConfig, isDbProject, readDbRows, saveIfUnchanged } from '@/platform/dbProjects/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -83,10 +83,17 @@ async function access(request: Request): Promise<{ may: boolean; user: StudioUse
   return { may: verifyEditToken(editCookie(request)), user, laptopReady: true }
 }
 
+/** Owners and status, read from the database copy — the design route's
+ *  projectFacts() reads git's, which a database project isn't in. */
+async function dbFacts(slug: string): Promise<ProjectFacts | null> {
+  const found = await findProjectConfig(slug)
+  return found?.inDb ? { owners: [found.config.owner].flat(), status: found.config.status } : null
+}
+
 /** Why nobody may write this project — or null. Any studio editor may edit any
  *  database project; only production documentation (`status: 'live'`) is shut. */
 async function locked(slug: string): Promise<string | undefined> {
-  const facts = await projectFacts(slug)
+  const facts = await dbFacts(slug)
   if (facts?.status === 'live') return whyNot(facts, 'x') ?? undefined
   return undefined
 }
@@ -97,7 +104,7 @@ export async function GET(request: Request, { params }: Params): Promise<NextRes
     return NextResponse.json({ backend: 'record', owners: [] } satisfies DesignStatus)
   }
   const { may, user, laptopReady } = await access(request)
-  const facts = await projectFacts(slug)
+  const facts = await dbFacts(slug)
   const status: DesignStatus = {
     backend: 'fs',
     instant: true,

@@ -31,6 +31,7 @@ import tailwindcss from 'tailwindcss'
 import { transform } from 'sucrase'
 import studioTailwind from '@/tailwind.config'
 import type { ProjectConfig } from '@/platform/types'
+import { configs } from '@/projects/configs'
 import { SAVED_EVENT, savedChannel, type DbProjectBuild } from './protocol'
 import { laptopCredentials, remote } from './remote'
 import { DRAFT_FILE, parseDraftMeta, type DraftMeta } from './draftMeta'
@@ -406,4 +407,17 @@ export async function listDbConfigs(): Promise<DbProjectConfig[]> {
 /** Projects people pick from — the gallery, the sidebar: drafts left out. */
 export async function listDbProjects(): Promise<ProjectConfig[]> {
   return (await listDbConfigs()).filter((c) => !c.draft)
+}
+
+/**
+ * A project's config wherever it lives — the database first (a slug in both is
+ * served from there, as /p/<slug> does), then git. Null when it's neither.
+ * Anything that asks "is this a project, and whose" goes through here, so a
+ * database project is never "unknown" to one feature and known to the rest.
+ */
+export async function findProjectConfig(slug: string): Promise<{ config: DbProjectConfig; inDb: boolean } | null> {
+  const db = (await listDbConfigs()).find((c) => c.slug === slug)
+  if (db) return { config: db, inDb: true }
+  const git = await configs[slug]?.()
+  return git ? { config: git, inDb: false } : null
 }

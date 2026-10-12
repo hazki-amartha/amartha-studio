@@ -24,8 +24,7 @@ import { parse } from '@babel/parser'
 import { transform } from 'sucrase'
 import { knownNames } from '@/platform/auth/profiles'
 import type { ProjectModule, ScreenDef } from '@/platform/types'
-import { configs } from '@/projects/configs'
-import { tailwindFor } from './server'
+import { findProjectConfig, tailwindFor } from './server'
 
 const COMPILED = /\.(tsx?|jsx?)$/
 const CLASS_CALLEES = new Set(['clsx', 'cn'])
@@ -226,12 +225,12 @@ async function flowProblems(slug: string, files: Map<string, string>): Promise<s
   const entries = screens.filter((s) => s.entry).length
   if (entries !== 1) errors.push(`index.ts: exactly one screen must be the entry — found ${entries}`)
 
-  // A base is a git project: only its config is readable on the server (its
-  // screens are client code), so the base must exist and not extend again —
+  // A base is a git or a database project: only its config is read here, so
+  // the base must exist and not extend again —
   // and a target that isn't one of this project's own screens may be the
   // base's, so it can't be called wrong here.
   if (config.extends) {
-    const base = await configs[config.extends]?.()
+    const base = (await findProjectConfig(config.extends))?.config
     if (!base) errors.push(`project.config.ts: extends "${config.extends}", which isn’t a project`)
     else if (base.extends) {
       errors.push(`project.config.ts: "${config.extends}" itself extends another project — one level only`)

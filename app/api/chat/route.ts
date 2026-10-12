@@ -42,7 +42,7 @@ import {
   verifyEditToken,
 } from '@/platform/design/server/editGate'
 import { isLocalRequest } from '@/platform/chat/localRequest'
-import { ensureLocalCopy, projectFolder } from '@/platform/dbProjects/disk'
+import { diskChanges, diskFiles, ensureLocalCopy, projectFolder } from '@/platform/dbProjects/disk'
 import { cloudStatus, cloudTurn } from '@/platform/chat/server/cloud'
 
 export const runtime = 'nodejs'
@@ -329,6 +329,9 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const before = dirtyPaths()
+  // A database project's folder is ignored by git, so git can't say what the
+  // turn changed there: compare the files themselves.
+  const dbBefore = body.db ? await diskFiles(body.slug) : null
   const child = spawn(CLI, args, {
     cwd: ROOT,
     env: childEnv(body.slug, Boolean(body.db)),
@@ -398,8 +401,19 @@ export async function POST(request: Request): Promise<Response> {
         clearTimeout(timer)
         running = null
         const after = dirtyPaths()
+        const folder = projectFolder(body.slug, Boolean(body.db))
         const changed = [...after].filter((p) => !before.has(p))
-        const outside = changed.filter((p) => !p.startsWith(`projects/${body.slug}/`))
+        const outside = changed.filter((p) => !p.startsWith(`${folder}/`))
+        // The live sync saves those files only if they pass the save checks —
+        // so run the same checks, and say so when the link won't change.
+        let notSaved: string[] | undefined
+        if (dbBefore) {
+          const db = await diskChanges(body.slug, dbBefore).catch(() => null)
+          if (db) {
+            changed.push(...db.changed.map(([rel]) => `${folder}/${rel}`))
+            if (db.problems.length) notSaved = db.problems
+          }
+        }
         send({
           type: 'done',
           sessionId: (result?.session_id as string | undefined) ?? body.sessionId,
@@ -407,6 +421,7 @@ export async function POST(request: Request): Promise<Response> {
           durationMs: (result?.duration_ms as number | undefined) ?? 0,
           changed,
           outside,
+          notSaved,
           error: timedOut
             ? `Stopped: a turn can run for ${TURN_TIMEOUT_MS / 60000} minutes at most.`
             : result?.subtype === 'error_max_turns'

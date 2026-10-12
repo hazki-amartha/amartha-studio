@@ -109,6 +109,7 @@ import {
   undoLast,
 } from './designStore'
 import type { Edit } from './protocol'
+import { diskPath } from '@/platform/dbProjects/active'
 
 export interface DesignPanelProps {
   pinned: Element | null
@@ -455,7 +456,7 @@ export function DesignPanel({
     }
     const lines = [
       `Amartha Studio · project \`${slug}\` · screen \`${screenId}\``,
-      `File: ${pinnedFile ?? `projects/${slug}/screens/${screenId}.tsx`}`,
+      `File: ${diskPath(pinnedFile ?? `projects/${slug}/screens/${screenId}.tsx`)}`,
       target
         ? `Element: ${target.component ? `FunDS <${target.component}>` : `<${target.tag}>`}${
             target.text ? ` — text: "${target.text}"` : ''
@@ -602,7 +603,7 @@ export function DesignPanel({
             by a component in the project's lib/ lives there, and so does any
             change made to it. */}
         <span className="break-all text-10 text-placeholder dark:text-neutral-600">
-          {pinnedFile ?? `projects/${slug}/screens/${screenId}.tsx`}
+          {diskPath(pinnedFile ?? `projects/${slug}/screens/${screenId}.tsx`)}
         </span>
         {peerCount > 1 ? (
           <span className="text-12 text-caption dark:text-neutral-400">

@@ -23,6 +23,16 @@ export function isActiveDbProject(slug: string | null | undefined): boolean {
   return Boolean(slug) && active === slug
 }
 
+/**
+ * Where a file is on disk, for anything handed to an agent. A database
+ * project's elements are addressed `projects/<slug>/…` like a git project's
+ * (Edit mode depends on that), but its files are in `projects/_db/<slug>/`.
+ */
+export function diskPath(file: string): string {
+  const slug = /^projects\/([^/]+)\//.exec(file)?.[1]
+  return slug && isActiveDbProject(slug) ? `projects/_db/${file.slice('projects/'.length)}` : file
+}
+
 let entry: ProjectIndexEntry | null = null
 const listeners = new Set<() => void>()
 
