@@ -15,6 +15,8 @@ const PILL =
   'flex h-40 flex-none items-center gap-8 rounded-full border border-default bg-neutral-white px-16 text-14 font-bold text-default shadow-sm hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:shadow-none dark:hover:bg-ink-800'
 const COMPACT =
   'flex h-32 flex-none items-center gap-4 rounded-full border border-default bg-neutral-white px-12 text-12 font-bold text-default hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800'
+const BLOCK =
+  'flex w-full items-center justify-center gap-8 rounded-full border border-default px-20 py-12 text-14 font-bold text-default'
 const SMALL =
   'rounded-full border border-default px-12 py-4 text-12 font-bold text-default hover:bg-neutral-50 disabled:opacity-50 dark:border-ink-700 dark:text-neutral-50 dark:hover:bg-ink-800'
 const NOTE = 'text-12 text-caption dark:text-neutral-400'
@@ -44,8 +46,10 @@ async function call(init?: { slug: string; body: object }, slug?: string): Promi
   }
 }
 
-/** `compact`: the smaller pill for a panel header (the project sidebar). */
-export function ShareButton({ slug, compact }: { slug: string; compact?: boolean }) {
+/** `compact`: the smaller pill for a panel header (the project sidebar).
+ *  `block`: a full-width button whose panel opens in place below it — for the
+ *  phone's prototype-controls dialog, where a floating panel has no room. */
+export function ShareButton({ slug, compact, block }: { slug: string; compact?: boolean; block?: boolean }) {
   const { user } = useStudioUser()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -62,17 +66,22 @@ export function ShareButton({ slug, compact }: { slug: string; compact?: boolean
   if (!user || (user.role !== 'editor' && user.role !== 'admin')) return null
 
   return (
-    <div ref={ref} className="relative">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className={compact ? COMPACT : PILL}>
+    <div ref={ref} className={block ? 'flex flex-col gap-8' : 'relative'}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={block ? BLOCK : compact ? COMPACT : PILL}
+      >
         <LinkIcon className="size-16" />
         Share
       </button>
-      {open ? <SharePanel slug={slug} /> : null}
+      {open ? <SharePanel slug={slug} inline={block} /> : null}
     </div>
   )
 }
 
-function SharePanel({ slug }: { slug: string }) {
+function SharePanel({ slug, inline }: { slug: string; inline?: boolean }) {
   const [links, setLinks] = useState<ShareLink[] | null>(null)
   const [access, setAccess] = useState<ShareAccess>('comment')
   const [days, setDays] = useState<number | null>(EXPIRY_CHOICES[0])
@@ -111,7 +120,11 @@ function SharePanel({ slug }: { slug: string }) {
   }
 
   return (
-    <div className="absolute right-0 top-full z-50 mt-8 flex w-320 flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12 shadow-sm dark:border-ink-700 dark:bg-ink-900">
+    <div
+      className={`flex flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12 dark:border-ink-700 dark:bg-ink-900 ${
+        inline ? 'w-full' : 'absolute right-0 top-full z-50 mt-8 w-320 shadow-sm'
+      }`}
+    >
       <div className="flex flex-col gap-4">
         <span className="text-14 font-bold text-default dark:text-neutral-50">Share this prototype</span>
         <span className={NOTE}>

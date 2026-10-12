@@ -15,6 +15,7 @@
 import Link from 'next/link'
 import { useCallback, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useGuestAccess } from '@/platform/auth/session'
+import { ShareButton } from '@/platform/share/ShareButton'
 import { getScreenBridge, subscribeScreenBridge } from '@/platform/runtime/bridge'
 import type { ScreenState } from '@/platform/types'
 
@@ -116,6 +117,9 @@ export function TripleTapExit({
               <DialogStates states={states} onApplied={() => setOpen(false)} />
             ) : null}
             <div className="flex flex-col gap-8">
+              {/* Share lives in the project sidebar on desktop; the phone has
+                  no sidebar, so it is offered here. */}
+              {guest || !bridge ? null : <ShareButton slug={bridge.slug} block />}
               {guest ? null : (
                 <Link
                   href="/"
