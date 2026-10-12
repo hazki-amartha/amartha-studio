@@ -49,6 +49,8 @@ interface Majelis {
   /** The attendance photo — a flagged report can carry one that isn't a majelis. */
   photo?: 'tree' | 'home' | 'sandal' | 'house' | 'mitra' | 'family' | 'visit'
   /** Present on a home visit: the mitra's majelis and what the visit produced. */
+  /** In the week list: which day this visit belongs to. */
+  dayLabel?: string
   home?: {
     majelis: string
     /** Who the BP actually met: the mitra, no one, or the mitra's family. */
@@ -316,6 +318,40 @@ const HOME_VISITS: Majelis[] = [
 
 type Task = 'all' | 'majelis' | 'home'
 
+/** A week of one task's visits: what each day's reported count was. */
+export interface WeekList {
+  task: 'majelis' | 'home'
+  range: string
+  days: { label: string; date: string }[]
+  /** How many of each day's visits were done, in `days` order. */
+  doneByDay: number[]
+  /** The daily target. */
+  target: number
+}
+
+/** Every visit for the week: each day gets its reported number done, then the
+ *  rest as not done. They are drawn from the day's mock visits in turn, and
+ *  only today's keep their verification flags. */
+function weekVisits(week: WeekList): Majelis[] {
+  const pool = week.task === 'majelis' ? MAJELIS : HOME_VISITS
+  const done = pool.filter((m) => m.outcome === 'held' || m.outcome === 'skipped')
+  const notDone = pool.filter((m) => !(m.outcome === 'held' || m.outcome === 'skipped'))
+  const pick = (from: Majelis[], n: number) =>
+    from.length ? Array.from({ length: n }, (_, i) => from[i % from.length]) : []
+  return week.days.flatMap((d, di) => {
+    const today = di === week.days.length - 1
+    return [
+      ...pick(done, week.doneByDay[di]),
+      ...pick(notDone, Math.max(week.target - week.doneByDay[di], 0)),
+    ].map((m, i) => ({
+      ...m,
+      id: `${m.id}-d${di}-${i}`,
+      dayLabel: `${d.label}, ${d.date}`,
+      flag: today ? m.flag : undefined,
+    }))
+  })
+}
+
 /** Mitra-level payment on a visit: paid a full angsuran (1x), paid part of one
  *  (less than 1x), or paid nothing. Only a visit that was done has payment. */
 function mitraPay(m: Majelis): { full: number; partial: number; none: number } {
@@ -343,10 +379,13 @@ type Filter = 'all' | 'completed' | 'not-completed' | 'verify'
 export function DailyDrawer({
   bpName,
   gap,
+  week,
   onClose,
   onOpenCash,
 }: {
   bpName: string
+  /** Set when opened from a weekly diagnosis: every visit of one task across the week. */
+  week?: WeekList
   /** Set when opened from a figure that missed target: the drawer lands on that task's gap. */
   gap?: GapFocus
   onClose: () => void
@@ -354,7 +393,7 @@ export function DailyDrawer({
   onOpenCash: (bpName: string) => void
 }) {
   const focus = gap && GAP_TASK[gap.rowId] ? { ...gap, task: GAP_TASK[gap.rowId] } : undefined
-  const [task, setTask] = useState<Task>(focus?.task ?? 'all')
+  const [task, setTask] = useState<Task>(week?.task ?? focus?.task ?? 'all')
   const [filter, setFilter] = useState<Filter>(focus ? 'not-completed' : 'all')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'default' | 'latest' | 'earliest'>('default')
@@ -365,8 +404,13 @@ export function DailyDrawer({
   const needsVerify = (m: Majelis) => !!m.flag && !resolved[m.id]
   // From a missed figure the list is exactly that figure's tasks: as many done as
   // the BP reported, and the rest not done — so the gap can be read off it.
-  const full =
-    task === 'majelis' ? MAJELIS : task === 'home' ? HOME_VISITS : [...MAJELIS, ...HOME_VISITS]
+  const full = week
+    ? weekVisits(week)
+    : task === 'majelis'
+      ? MAJELIS
+      : task === 'home'
+        ? HOME_VISITS
+        : [...MAJELIS, ...HOME_VISITS]
   const focused = focus && focus.task === task
   const list = focused
     ? [
@@ -424,11 +468,15 @@ export function DailyDrawer({
         <div className="flex shrink-0 flex-col gap-16 border-b border-default bg-neutral-white p-24">
           <div className="flex items-start justify-between gap-16">
             <div className="flex flex-col gap-4">
-              <span className="text-12 font-bold text-caption">Daily diagnosis</span>
+              <span className="text-12 font-bold text-caption">
+                {week
+                  ? `${week.task === 'home' ? 'Home visits' : 'Majelis visits'} this week`
+                  : 'Daily diagnosis'}
+              </span>
               <span className="text-20 font-bold text-default">{bpName}</span>
               <span className="flex items-center gap-8 text-14 text-caption">
                 <CalendarDots size={16} />
-                Fri, 7 Aug 2026
+                {week ? week.range : 'Fri, 7 Aug 2026'}
               </span>
             </div>
             <button type="button" aria-label="Close" onClick={onClose} className="text-default">
@@ -466,22 +514,24 @@ export function DailyDrawer({
             onChange={(e) => setQuery(e.target.value)}
           />
           <div className="flex items-center gap-12">
-            <div className="min-w-0 flex-1">
-              <Select
-                label="Task"
-                fullWidth
-                value={task}
-                onChange={(v) => {
-                  setTask(v as Task)
-                  setFilter('all')
-                }}
-                options={[
-                  { value: 'all', label: 'All tasks' },
-                  { value: 'majelis', label: 'Majelis visits' },
-                  { value: 'home', label: 'Home visits' },
-                ]}
-              />
-            </div>
+            {week ? null : (
+              <div className="min-w-0 flex-1">
+                <Select
+                  label="Task"
+                  fullWidth
+                  value={task}
+                  onChange={(v) => {
+                    setTask(v as Task)
+                    setFilter('all')
+                  }}
+                  options={[
+                    { value: 'all', label: 'All tasks' },
+                    { value: 'majelis', label: 'Majelis visits' },
+                    { value: 'home', label: 'Home visits' },
+                  ]}
+                />
+              </div>
+            )}
             <Select
               label="Sort"
               value={sort}
@@ -576,7 +626,9 @@ function MajelisCard({
     <div className="flex flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12">
       <div className="flex items-start justify-between gap-12">
         <div className="flex flex-col gap-2">
-          {showType ? (
+          {m.dayLabel ? (
+            <span className="text-12 font-bold text-caption">{m.dayLabel}</span>
+          ) : showType ? (
             <span className="text-12 text-caption">{m.home ? 'Home visit' : 'Majelis visit'}</span>
           ) : null}
           <span className="text-16 font-bold text-default">{m.name}</span>
