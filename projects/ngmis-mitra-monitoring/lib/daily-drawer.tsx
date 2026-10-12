@@ -16,7 +16,6 @@ import {
   MagnifyingGlass,
   MapPin,
   Prohibit,
-  Sliders,
   WarningFill,
 } from '@/design-system/icons'
 import { PHOTOS } from './photos'
@@ -202,12 +201,6 @@ export function DailyDrawer({
                 { value: 'earliest', label: 'Reported time: earliest first' },
               ]}
             />
-            <Button variant="outline" size="sm" onClick={() => undefined}>
-              <span className="flex items-center gap-8">
-                <Sliders size={16} />
-                Filters
-              </span>
-            </Button>
           </div>
 
           <div className="flex items-center rounded-12 border border-default bg-neutral-white p-4">
