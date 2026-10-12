@@ -71,10 +71,9 @@ import { DesignLayer, DesignPanel } from '@/platform/design'
 import { LiveChatPanel } from '@/platform/chat/ChatPanel'
 import { getChat, getChatServerSnapshot, probeChat, subscribeChat } from '@/platform/runtime/chatBridge'
 import { PushBar } from '@/platform/push/PushBar'
-import { DraftPushBar, DraftSwitcher } from '@/platform/dbProjects/DraftControls'
+import { DraftPushBar, HistoryMenu } from '@/platform/dbProjects/DraftControls'
 import { CommentLayer } from '@/platform/comments/CommentLayer'
 import { useGuestAccess } from '@/platform/auth/session'
-import { ShareButton } from '@/platform/share/ShareButton'
 import { CommentsPanel } from '@/platform/comments/CommentList'
 import { setCommentMode, useComments, useCommentsFor } from '@/platform/comments/store'
 import { layersDrag } from '@/platform/design/actions'
@@ -545,8 +544,9 @@ function usePanelTab() {
     () => getDesignStoreServerSnapshot().backend,
   )
 
-  const fallback: EditTab = backend === 'record' ? 'css' : 'edit'
   const tabs: EditTab[] = chatAvailable ? ['chat', 'edit', 'css'] : ['edit', 'css']
+  // Chat first whenever it is there; otherwise what this backend can do.
+  const fallback: EditTab = chatAvailable ? 'chat' : backend === 'record' ? 'css' : 'edit'
   const tab: EditTab = chosen && tabs.includes(chosen) ? chosen : fallback
 
   return { tab, tabs, select: setEditTab }
@@ -568,12 +568,12 @@ function RightPanel({
   const { tab, tabs, select } = usePanelTab()
   // The panel's own title and ✕ above the tabs — the ✕ ends Edit, whichever
   // tab is showing, so it belongs to the panel rather than to a tab's row. On
-  // a database project the title also says, and switches, where the edits go:
-  // the project itself or one of its drafts (platform/dbProjects/DraftControls).
+  // a database project the title also opens the save History
+  // (platform/dbProjects/DraftControls).
   const header = (
     <div className="flex w-full flex-col">
       <div className="flex h-48 items-center justify-between">
-        <DraftSwitcher slug={slug} />
+        <HistoryMenu slug={slug} />
         <button
           type="button"
           onClick={onMinimize}
@@ -776,7 +776,6 @@ function FramedLayout({ config, screens, presence }: { config: ProjectConfig; sc
           slug={config.slug}
           onEdit={editing || guest ? undefined : startEditing}
           onComment={canComment && !commenting ? () => setCommentMode(true) : undefined}
-          share={guest ? null : <ShareButton slug={config.slug} />}
           className="absolute right-0 top-0 z-30"
         />
         <div className="absolute left-0 top-0 z-30 flex items-center gap-8">

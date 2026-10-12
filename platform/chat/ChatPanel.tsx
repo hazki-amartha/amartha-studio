@@ -14,10 +14,11 @@
 // =============================================================================
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { CloseIcon, CursorIcon, StopIcon } from '@/platform/chrome/icons'
+import { CloseIcon, CursorIcon, MediaIcon, StopIcon } from '@/platform/chrome/icons'
 import { PanelHeader } from '@/platform/chrome/SidePanel'
 import { resolveTarget } from '@/platform/inspect/resolve'
 import { attachmentFor } from './attach'
+import { MAX_IMAGES, MAX_TOTAL_CHARS, prepareImage, type PendingImage } from './images'
 import type { RecordedTurn, TranscriptEvent } from './transcript'
 import { useTranscriptReplay } from './useTranscriptReplay'
 import { useLiveChat } from './useLiveChat'
@@ -28,7 +29,7 @@ const SPEEDS = [1, 4, 16] as const
 
 export type ChatEvent =
   | TranscriptEvent
-  | { at: number; kind: 'user'; text: string }
+  | { at: number; kind: 'user'; text: string; images?: string[] }
   | { at: number; kind: 'error'; text: string }
 
 /** What the view needs from either source. */
@@ -167,6 +168,13 @@ function ChatView({
             case 'user':
               return (
                 <div key={i} className="mb-16 mt-4 rounded-12 bg-neutral-50 px-12 py-8 dark:bg-ink-800">
+                  {event.images?.length ? (
+                    <div className="mb-8 flex flex-wrap gap-8">
+                      {event.images.map((src, j) => (
+                        <Thumb key={j} src={src} small />
+                      ))}
+                    </div>
+                  ) : null}
                   <p className="whitespace-pre-wrap break-words text-14 font-regular text-ink-900 dark:text-neutral-200">
                     {event.text}
                   </p>
@@ -216,6 +224,32 @@ function ChatView({
         {children}
       </footer>
     </div>
+  )
+}
+
+/** A reference image's thumbnail — in the composer with an ✕, in the transcript without. */
+function Thumb({ src, small, onRemove }: { src: string; small?: boolean; onRemove?: () => void }) {
+  return (
+    <span
+      className={`relative flex-none overflow-hidden rounded-8 border border-neutral-200 bg-neutral-white dark:border-ink-700 ${
+        small ? 'size-48' : 'size-64'
+      }`}
+    >
+      {/* A data: URL made in the browser — nothing for next/image to optimise. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="Reference image" className="h-full w-full object-cover" />
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remove image"
+          title="Remove image"
+          className="absolute left-4 top-4 flex size-20 items-center justify-center rounded-full bg-neutral-white text-ink-900 shadow-sm hover:bg-neutral-50"
+        >
+          <CloseIcon className="size-12" />
+        </button>
+      ) : null}
+    </span>
   )
 }
 
@@ -302,14 +336,41 @@ export function LiveChatPanel({
 }) {
   const chat = useLiveChat(slug)
   const running = chat.status === 'running'
+  const [imageError, setImageError] = useState<string | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const picker = useRef<HTMLInputElement>(null)
   const attachment = useMemo(
     () => (pinned ? attachmentFor(resolveTarget(pinned), slug, screenId) : null),
     [pinned, slug, screenId],
   )
 
+  /** Pasted, dropped or picked files: the images among them, shrunk and
+   *  attached, up to what one message can carry. */
+  const attach = async (files: File[]) => {
+    const picked = files.filter((f) => f.type.startsWith('image/'))
+    if (!picked.length) return
+    const room = MAX_IMAGES - chat.images.length
+    const ready = (await Promise.all(picked.slice(0, Math.max(0, room)).map(prepareImage))).filter(
+      (img): img is PendingImage => img !== null,
+    )
+    let total = chat.images.reduce((n, img) => n + img.image.data.length, 0)
+    const fits = ready.filter((img) => (total += img.image.data.length) <= MAX_TOTAL_CHARS)
+    if (fits.length) chat.addImages(fits)
+    setImageError(
+      picked.length > room
+        ? `Up to ${MAX_IMAGES} images per message.`
+        : fits.length < ready.length
+          ? 'Those images are too large together — send fewer at once.'
+          : ready.length < picked.length
+            ? 'One of those files couldn’t be read as an image.'
+            : null,
+    )
+  }
+
   const submit = () => {
     const draft = chat.draft.trim()
     if (!draft || running) return
+    setImageError(null)
     if (attachment) {
       // The element goes to the agent in full; the transcript shows the chip.
       chat.send(`${attachment.context}\n\nChange: ${draft}`, `[${attachment.label}] ${draft}`)
@@ -385,7 +446,32 @@ export function LiveChatPanel({
           and the send button inside it. ⌘↵ sends; Enter is a new line — a
           change request is often a few lines, and a stray Enter shouldn't
           spend a turn. */}
-      <div className="flex flex-col gap-8 rounded-12 border border-neutral-200 bg-neutral-white p-8 focus-within:border-primary-500 dark:border-ink-700 dark:bg-ink-800">
+      <div
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes('Files')) return
+          e.preventDefault()
+          setDragging(true)
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false)
+        }}
+        onDrop={(e) => {
+          if (!e.dataTransfer.types.includes('Files')) return
+          e.preventDefault()
+          setDragging(false)
+          void attach([...e.dataTransfer.files])
+        }}
+        className={`flex flex-col gap-8 rounded-12 border bg-neutral-white p-8 focus-within:border-primary-500 dark:bg-ink-800 ${
+          dragging ? 'border-primary-500' : 'border-neutral-200 dark:border-ink-700'
+        }`}
+      >
+        {chat.images.length ? (
+          <div className="flex flex-wrap gap-8">
+            {chat.images.map((img) => (
+              <Thumb key={img.id} src={img.thumb} onRemove={() => chat.removeImage(img.id)} />
+            ))}
+          </div>
+        ) : null}
         {attachment ? (
           // Quiet on purpose: the selection is context, not the message — a
           // neutral chip, capped to the box so a long label truncates instead
@@ -410,6 +496,14 @@ export function LiveChatPanel({
         <textarea
           value={chat.draft}
           onChange={(e) => chat.setDraft(e.target.value)}
+          onPaste={(e) => {
+            // A screenshot or a frame copied from Figma arrives as a file; text
+            // pastes as usual.
+            const files = [...e.clipboardData.files].filter((f) => f.type.startsWith('image/'))
+            if (!files.length) return
+            e.preventDefault()
+            void attach(files)
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
               e.preventDefault()
@@ -419,11 +513,37 @@ export function LiveChatPanel({
           rows={2}
           aria-label="Message"
           placeholder={
-            attachment ? 'What should change about it?' : 'Describe the change, or click an element first'
+            attachment
+              ? 'What should change about it?'
+              : chat.images.length
+                ? 'What should it take from the image?'
+                : 'Describe the change, or click an element first'
           }
           className="w-full resize-none bg-transparent text-14 font-regular text-ink-900 outline-none placeholder:text-neutral-400 dark:text-neutral-white"
         />
-        <div className="flex items-center justify-end">
+        {imageError ? <p className="text-12 font-regular text-red-500">{imageError}</p> : null}
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => picker.current?.click()}
+            disabled={chat.images.length >= MAX_IMAGES}
+            aria-label="Attach images"
+            title="Attach images — or paste or drop them here"
+            className="flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-ink-700 dark:hover:text-neutral-50"
+          >
+            <MediaIcon className="size-16" />
+          </button>
+          <input
+            ref={picker}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(e) => {
+              void attach([...(e.target.files ?? [])])
+              e.target.value = ''
+            }}
+          />
           <button
             type="button"
             onClick={running ? chat.stop : submit}

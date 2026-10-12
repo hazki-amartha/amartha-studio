@@ -1,7 +1,7 @@
 'use client'
 
 // =============================================================================
-// DB projects · the save history, in the Edit panel's project menu
+// DB projects · the save history, in the Edit panel's title menu
 // (./DraftControls.tsx). Every save, newest first; pick one and the project
 // goes back to how it was right after it (./history.ts). The restore is a save
 // of its own, so nothing is lost — the saves after it stay in the list.
@@ -28,7 +28,7 @@ function summary(point: SavePoint): string {
   return names.length <= 2 ? names.join(', ') : `${names.slice(0, 2).join(', ')} +${names.length - 2} more`
 }
 
-export function HistoryList({ slug, onBack }: { slug: string; onBack: () => void }) {
+export function HistoryList({ slug, onBack }: { slug: string; onBack?: () => void }) {
   const [points, setPoints] = useState<SavePoint[] | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const [picked, setPicked] = useState<SavePoint | null>(null)
@@ -78,10 +78,14 @@ export function HistoryList({ slug, onBack }: { slug: string; onBack: () => void
 
   return (
     <div className="flex flex-col gap-4">
-      <button type="button" className="flex items-center gap-4 px-8 py-4 text-left" onClick={onBack}>
-        <ChevronLeftIcon className="size-16 text-caption dark:text-neutral-400" />
-        <span className="text-14 font-bold text-default dark:text-neutral-50">History</span>
-      </button>
+      {onBack ? (
+        <button type="button" className="flex items-center gap-4 px-8 py-4 text-left" onClick={onBack}>
+          <ChevronLeftIcon className="size-16 text-caption dark:text-neutral-400" />
+          <span className="text-14 font-bold text-default dark:text-neutral-50">History</span>
+        </button>
+      ) : (
+        <p className="px-8 py-4 text-14 font-bold text-default dark:text-neutral-50">History</p>
+      )}
       <p className={`${NOTE} px-8`}>Every save, newest first. Restoring adds a save — the ones after it stay here.</p>
 
       {done ? <p className="px-8 text-12 font-bold text-green-700 dark:text-green-400">{done}</p> : null}
