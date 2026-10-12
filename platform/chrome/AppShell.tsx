@@ -35,7 +35,7 @@ import { MobileTopNav } from './MobileTopNav'
 import { NavRail, type RailSection } from './NavRail'
 import { ScreenSidebar } from './ScreenSidebar'
 import { StudioSidebar } from './StudioSidebar'
-import { useGuestAccess } from '@/platform/auth/session'
+import { useGuestAccess, useStudioUser } from '@/platform/auth/session'
 import { TripleTapExit } from './TripleTapExit'
 import { SystemSidebar } from './SystemSidebar'
 import { getDbIndexEntry, subscribeDbIndexEntry } from '@/platform/dbProjects/active'
@@ -211,6 +211,7 @@ function AppShellInner({
   // Opened from a share link: the prototype and its screens, and no way out
   // to the rest of the studio (platform/share).
   const guest = useGuestAccess(currentSlug) !== null
+  const viewerKnown = useStudioUser().loaded
 
   // The unlock gate, the sign-in hand-off and share-link pages render without
   // any chrome.
@@ -265,7 +266,10 @@ function AppShellInner({
             <AssetsSidebar />
           ) : currentProject ? (
             <ScreenSidebar project={currentProject} />
-          ) : (
+          ) : isProto && (guest || !viewerKnown) ? null : (
+            // A guest only ever sees the prototype they were shared — so not
+            // while a database project's screens are still loading either, nor
+            // before it's known whether this viewer is one.
             <StudioSidebar projects={projects} currentSlug={currentSlug} />
           )}
         </aside>

@@ -17,7 +17,8 @@ import { usePublishHeaderStatus } from '@/platform/chrome'
 import { nextZoom, ZoomControl } from '@/platform/chrome/ZoomControl'
 import { ShortcutSheet, useShortcuts } from '@/platform/chrome/shortcuts'
 import { registry } from '@/projects/registry'
-import { resolveProject } from '@/platform/runtime/resolveProject'
+import { resolveProject, type ResolvedProject } from '@/platform/runtime/resolveProject'
+import { publishDbIndexEntry } from '@/platform/dbProjects/active'
 import { Edges } from './Edges'
 import { ScreenThumb } from './ScreenThumb'
 import { computeLayout } from './layout'
@@ -69,7 +70,27 @@ function MoveIcon() {
   )
 }
 
-export function FlowCanvas({ slug }: { slug: string }) {
+/** A database project, the same way its prototype view loads it — and its
+ *  screens handed to the sidebar, which can't list them otherwise. */
+async function resolveDb(slug: string): Promise<ResolvedProject | null> {
+  const { fetchDbProject, resolveDbProject } = await import('@/platform/dbProjects/load')
+  const build = await fetchDbProject(slug)
+  if (!build.ok) return null
+  const { resolved } = await resolveDbProject(build)
+  const brief = (s: { id: string; title: string }) => ({ id: s.id, title: s.title })
+  publishDbIndexEntry({
+    slug,
+    name: resolved.config.name,
+    status: resolved.config.status,
+    createdAt: resolved.config.createdAt,
+    screens: resolved.own.map(brief),
+    inherited: resolved.base ? { from: resolved.base.name, screens: resolved.inherited.map(brief) } : undefined,
+  })
+  return resolved
+}
+
+/** `db`: the project lives in the database (platform/dbProjects), not the registry. */
+export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean }) {
   const router = useRouter()
   const [mod, setMod] = useState<ProjectModule | null>(null)
   const [state, setState] = useState<LoadState>('loading')
@@ -98,7 +119,8 @@ export function FlowCanvas({ slug }: { slug: string }) {
     // would otherwise disappear among forty inherited nodes. Edges into the
     // base are still valid navigation (check:flows resolves them against the
     // merged list); the canvas simply has no node to draw them to.
-    resolveProject(registry, slug)
+    const load = db ? resolveDb(slug) : resolveProject(registry, slug)
+    load
       .then((m) => {
         if (!alive) return
         if (!m) {
@@ -111,8 +133,9 @@ export function FlowCanvas({ slug }: { slug: string }) {
       .catch(() => alive && setState('missing'))
     return () => {
       alive = false
+      if (db) publishDbIndexEntry(null)
     }
-  }, [slug])
+  }, [slug, db])
 
   // The node box follows the project's device, so a 1440-wide desktop flow
   // lays out on a 1440-shaped lattice instead of the phone's.

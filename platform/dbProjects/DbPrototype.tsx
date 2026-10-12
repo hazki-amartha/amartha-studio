@@ -15,12 +15,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { PrototypeView } from '@/platform/frame'
 import { STUDIO_DB_ANON_KEY, STUDIO_DB_URL } from './public'
-import { mergeProject } from '@/platform/runtime/resolveProject'
 import type { ProjectConfig, ScreenDef } from '@/platform/types'
 import { publishDbIndexEntry, setActiveDbProject } from './active'
 import { DraftsMenu } from './DraftsMenu'
 import { PresenceAvatars } from './PresenceAvatars'
-import { SAVED_EVENT, savedChannel, type DbProjectResponse } from './protocol'
+import { SAVED_EVENT, savedChannel } from './protocol'
 
 interface Props {
   slug: string
@@ -40,23 +39,14 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`/api/db-projects/${slug}`, { cache: 'no-store' })
-      const build = (await res.json()) as DbProjectResponse
-      if (!build.ok) return setProblem(build.error)
-      if (build.version === version.current) return
       // Loaded here, not at the top: the linker pulls in the whole design
       // system and icon set, which a git project's page must not pay for.
-      const { linkDbProject } = await import('./loader')
-      const own = linkDbProject(build)
-      // `extends`: the base is a git project (the live references stay in git),
-      // merged exactly as the runtime merges a git project with its base.
-      const baseSlug = own.config.extends
-      const base = baseSlug
-        ? await import('@/projects/registry').then(({ registry }) => registry[baseSlug]?.())
-        : undefined
-      const resolved = mergeProject(own, base)
+      const { fetchDbProject, resolveDbProject } = await import('./load')
+      const build = await fetchDbProject(slug)
+      if (!build.ok) return setProblem(build.error)
+      if (build.version === version.current) return
+      const { own, resolved } = await resolveDbProject(build)
       version.current = build.version
-      injectCss(slug, build.css)
       setProject({ config: own.config, screens: resolved.screens })
       const brief = (s: ScreenDef) => ({ id: s.id, title: s.title })
       publishDbIndexEntry({
@@ -146,52 +136,4 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
       ) : null}
     </>
   )
-}
-
-/**
- * Add the project's CSS — only the rules the studio's own stylesheet lacks.
- *
- * The generated sheet repeats every utility the project names, and most of
- * those (`hidden`, `bg-neutral-50`) the studio already has. Appended after the
- * studio's CSS, a repeat moves that utility to the end of the cascade and beats
- * variants it used to lose to: `hidden` overrode the shell's `md:flex` and hid
- * the nav rail and sidebar. So only rules for classes new to this page go in.
- */
-function injectCss(slug: string, css: string) {
-  const id = `db-project-css-${slug}`
-  let el = document.getElementById(id) as HTMLStyleElement | null
-  if (!el) {
-    el = document.createElement('style')
-    el.id = id
-    document.head.appendChild(el)
-  }
-
-  const existing = new Set<string>()
-  for (const sheet of Array.from(document.styleSheets)) {
-    if (sheet.ownerNode === el) continue
-    try {
-      collectKeys(sheet.cssRules, '', existing)
-    } catch {
-      // A cross-origin sheet (fonts) can't be read, and holds no utilities.
-    }
-  }
-
-  const generated = new CSSStyleSheet()
-  generated.replaceSync(css)
-  const kept: string[] = []
-  for (const rule of Array.from(generated.cssRules)) {
-    const keys = new Set<string>()
-    collectKeys([rule] as unknown as CSSRuleList, '', keys)
-    if (!keys.size || Array.from(keys).some((k) => !existing.has(k))) kept.push(rule.cssText)
-  }
-  el.textContent = kept.join('\n')
-}
-
-/** A key per style rule — its selector, prefixed by any enclosing @media. */
-function collectKeys(rules: CSSRuleList, scope: string, into: Set<string>) {
-  for (const rule of Array.from(rules)) {
-    if (rule instanceof CSSStyleRule) into.add(`${scope}${rule.selectorText}`)
-    else if (rule instanceof CSSMediaRule) collectKeys(rule.cssRules, `${scope}@media ${rule.conditionText}|`, into)
-    else if ('cssRules' in rule) collectKeys((rule as CSSGroupingRule).cssRules, scope, into)
-  }
 }

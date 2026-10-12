@@ -376,7 +376,9 @@ export function LiveChatPanel({
       doneLabel={
         chat.last?.error
           ? 'Stopped'
-          : `${changed} file${changed === 1 ? '' : 's'} changed · ${isActiveDbProject(slug) ? 'saved, live' : 'saved, not live'}`
+          : `${changed} file${changed === 1 ? '' : 's'} changed · ${
+              chat.last?.notSaved?.length ? 'not saved' : isActiveDbProject(slug) ? 'saved, live' : 'saved, not live'
+            }`
       }
     >
       {/* One box, as in Claude and Airship: the selection's chip, the message,

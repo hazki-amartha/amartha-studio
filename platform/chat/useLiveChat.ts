@@ -37,6 +37,9 @@ interface Done {
   durationMs: number
   changed: string[]
   outside: string[]
+  /** A database project's edits the save checks refuse — the link keeps the
+   *  last version that passed until they're fixed. */
+  notSaved?: string[]
   error?: string
 }
 
@@ -175,6 +178,9 @@ function handle(event: ServerEvent) {
       set({ sessionId: event.sessionId ?? convo.sessionId, spendUsd: convo.spendUsd + event.costUsd, last: event })
       if (event.changed.length > 0) refreshProjectSoon()
       if (event.error) push({ kind: 'error', text: event.error })
+      if (event.notSaved?.length) {
+        push({ kind: 'error', text: `Not saved — the link still shows the last version that worked: ${event.notSaved.join('; ')}` })
+      }
       if (event.outside.length > 0) {
         push({
           kind: 'error',

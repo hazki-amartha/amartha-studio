@@ -43,7 +43,7 @@
 // project, whichever backend it is headed for.
 // =============================================================================
 
-import { isActiveDbProject } from '@/platform/dbProjects/active'
+import { diskPath, isActiveDbProject } from '@/platform/dbProjects/active'
 import { sameLayout, type Layout } from './layout'
 import {
   addressesOf,
@@ -794,7 +794,7 @@ export function changeListText(): string {
     const screensHere = Array.from(new Set(inFile.map((r) => r.screenId)))
     const version = inFile.find((r) => r.version)?.version
     lines.push(
-      `\`${file}\`${version ? ` (version ${version})` : ''} — seen on screen ${screensHere
+      `\`${diskPath(file)}\`${version ? ` (version ${version})` : ''} — seen on screen ${screensHere
         .map((s) => `\`${s}\``)
         .join(', ')}`,
     )

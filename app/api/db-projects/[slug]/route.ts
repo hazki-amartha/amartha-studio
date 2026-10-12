@@ -5,7 +5,7 @@
 // =============================================================================
 
 import { NextResponse } from 'next/server'
-import { buildDbProject } from '@/platform/dbProjects/server'
+import { buildDbProject, findProjectConfig } from '@/platform/dbProjects/server'
 import type { DbProjectResponse } from '@/platform/dbProjects/protocol'
 
 export const dynamic = 'force-dynamic'
@@ -21,7 +21,13 @@ export async function GET(_req: Request, { params }: { params: { slug: string } 
   if ('error' in build) {
     return NextResponse.json({ ok: false, error: build.error } satisfies DbProjectResponse, { status: 404 })
   }
-  return NextResponse.json({ ok: true, ...build } satisfies DbProjectResponse, {
+  // A base in the database rides along (platform/dbProjects/load.ts links
+  // both); its version joins this one's, so a save to the base shows here too.
+  const baseSlug = (await findProjectConfig(params.slug))?.config.extends
+  const base = baseSlug && (await findProjectConfig(baseSlug))?.inDb ? await buildDbProject(baseSlug) : null
+  const body: DbProjectResponse =
+    base && !('error' in base) ? { ok: true, ...build, version: `${build.version}+${base.version}`, base } : { ok: true, ...build }
+  return NextResponse.json(body, {
     headers: { 'Cache-Control': 'no-store' },
   })
 }

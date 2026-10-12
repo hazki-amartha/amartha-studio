@@ -12,6 +12,7 @@
 // promising an exact file without the stamp would be a confident lie.
 // =============================================================================
 
+import { diskPath } from '@/platform/dbProjects/active'
 import type { InspectTarget } from './resolve'
 
 export function copyForAgent(target: InspectTarget, slug: string, screenId: string): string {
@@ -20,10 +21,10 @@ export function copyForAgent(target: InspectTarget, slug: string, screenId: stri
   lines.push(`Amartha Studio · project \`${slug}\` · screen \`${screenId}\``)
   if (target.source) {
     const [file, line] = target.source.split(':')
-    lines.push(`File: ${file}, line ${line}`)
+    lines.push(`File: ${diskPath(file)}, line ${line}`)
   } else {
     lines.push(
-      `File: projects/${slug}/screens/${screenId}.tsx (or a helper it imports from lib/)`,
+      `File: ${diskPath(`projects/${slug}/screens/${screenId}.tsx`)} (or a helper it imports from lib/)`,
     )
   }
   lines.push('')

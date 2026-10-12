@@ -76,6 +76,10 @@ export interface ProjectFacts {
   status: string
 }
 
+/** A git project's owners and status — null for anything else. Git only on
+ *  purpose: its callers write to git (the GitHub backend, Push), and a
+ *  database project must never reach them. Its own route reads the database
+ *  copy (app/api/db-projects/[slug]/design). */
 export async function projectFacts(slug: string): Promise<ProjectFacts | null> {
   const load = configs[slug]
   if (!load) return null
