@@ -1,13 +1,13 @@
 'use client'
 
 // =============================================================================
-// DB projects · drafts in the studio (./drafts.ts). Two pieces, one state:
+// DB projects · drafts in the studio (./drafts.ts). Three pieces, one state:
 //
-//   DraftSwitcher  the Edit panel's title — "Edit · Main" or "Edit · Draft:
-//                  <name>" — opening a list of the project and its drafts,
-//                  "Start a draft", and the History of every save
-//                  (./HistoryList.tsx). Drafts are editing, so they live in
-//                  Edit; the panel is closed for anyone just looking.
+//   ProjectSwitcher  the sidebar's project name — "<Project>" or "<Project> ·
+//                  Draft: <name>" — opening a list of the project and its
+//                  drafts, and "Start a draft". Hidden from share-link guests.
+//   HistoryMenu    the Edit panel's title, opening the History of every save
+//                  (./HistoryList.tsx).
 //   DraftPushBar   the Edit panel's foot, on a draft: Push to the project
 //                  (its changes go live, the draft is deleted) and Discard —
 //                  where the Push bar sits for a git project. Every edit to a
@@ -21,7 +21,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react'
-import { ChevronRightIcon, HistoryIcon, PlusIcon } from '@/platform/chrome/icons'
+import { ChevronRightIcon, PlusIcon } from '@/platform/chrome/icons'
 import { isActiveDbProject } from './active'
 import type { DraftActionResult, DraftsResponse } from './draftMeta'
 import { HistoryList } from './HistoryList'
@@ -92,29 +92,15 @@ function Refused({ outcome }: { outcome: Refusal }) {
   )
 }
 
-// --- the Edit panel's title -----------------------------------------------------
+// --- the menus ----------------------------------------------------------------
 
-/** The panel title. A git project has no drafts, so it stays plain "Edit". */
-export function DraftSwitcher({ slug }: { slug: string }) {
-  const db = isActiveDbProject(slug)
-  const { data, refresh } = useDrafts(slug, db)
-  const router = useRouter()
+/** Open/close for a title menu: closes on a click anywhere outside it. */
+function useMenu(onOpen?: () => void) {
   const [open, setOpen] = useState(false)
-  const [starting, setStarting] = useState(false)
-  const [history, setHistory] = useState(false)
-  const [name, setName] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [outcome, setOutcome] = useState<Refusal | null>(null)
   const box = useRef<HTMLDivElement>(null)
-
   useEffect(() => {
-    if (!open) {
-      setStarting(false)
-      setHistory(false)
-      setOutcome(null)
-      return
-    }
-    refresh()
+    if (!open) return
+    onOpen?.()
     const close = (e: PointerEvent) => {
       if (!box.current?.contains(e.target as Node)) setOpen(false)
     }
@@ -122,11 +108,39 @@ export function DraftSwitcher({ slug }: { slug: string }) {
     return () => window.removeEventListener('pointerdown', close)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+  return { open, setOpen, box }
+}
 
-  const title = <span className="text-14 font-bold text-default dark:text-neutral-50">Edit</span>
-  if (!db || !data) return title
+const CHEVRON =
+  'size-16 flex-none rotate-90 text-caption group-hover:text-default dark:text-neutral-400 dark:group-hover:text-neutral-50'
+const MENU =
+  'absolute left-0 top-full z-40 mt-4 flex w-280 flex-col gap-4 rounded-12 border border-default bg-neutral-white p-8 shadow-sm dark:border-ink-700 dark:bg-ink-900'
 
-  const draft = data.draft
+/** The sidebar's project name. On a database project it opens the project and
+ *  its drafts, and starts a new draft; on a git project it is just the name. */
+export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) {
+  const db = isActiveDbProject(slug)
+  const { data, refresh } = useDrafts(slug, db)
+  const router = useRouter()
+  const { open, setOpen, box } = useMenu(() => refresh())
+  const [starting, setStarting] = useState(false)
+  const [draftName, setDraftName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [outcome, setOutcome] = useState<Refusal | null>(null)
+
+  useEffect(() => {
+    if (open) return
+    setStarting(false)
+    setOutcome(null)
+  }, [open])
+
+  const draft = data?.draft
+  // A draft's sidebar names the project it belongs to, then which draft.
+  const title = (
+    <span className="truncate text-14 font-bold text-default dark:text-neutral-50">{draft?.parentName ?? name}</span>
+  )
+  if (!db || !data) return <span className="flex min-w-0">{title}</span>
+
   const project = draft?.draftOf ?? slug
   const go = (to: string) => {
     setOpen(false)
@@ -135,13 +149,13 @@ export function DraftSwitcher({ slug }: { slug: string }) {
 
   const start = async (e: FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) return
+    if (!draftName.trim()) return
     setBusy(true)
     setOutcome(null)
-    const result = await act(project, { action: 'start', name })
+    const result = await act(project, { action: 'start', name: draftName })
     setBusy(false)
     if (!result.ok) return setOutcome(result)
-    setName('')
+    setDraftName('')
     go(result.slug)
   }
 
@@ -151,69 +165,90 @@ export function DraftSwitcher({ slug }: { slug: string }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="group flex min-w-0 items-center gap-4 py-4"
+        title="Switch between the project and its drafts"
+        className="group flex min-w-0 max-w-full items-center gap-4 py-4"
       >
         {title}
-        <span className="truncate text-14 text-caption group-hover:text-default dark:text-neutral-400 dark:group-hover:text-neutral-50">
-          · {draft ? `Draft: ${draft.name}` : 'Main'}
-        </span>
-        <ChevronRightIcon className="size-16 flex-none rotate-90 text-caption group-hover:text-default dark:text-neutral-400 dark:group-hover:text-neutral-50" />
+        {draft ? (
+          <span className="truncate text-14 text-caption group-hover:text-default dark:text-neutral-400 dark:group-hover:text-neutral-50">
+            · Draft: {draft.name}
+          </span>
+        ) : null}
+        <ChevronRightIcon className={CHEVRON} />
       </button>
 
       {open ? (
-        <div className="absolute left-0 top-full z-40 mt-4 flex w-280 flex-col gap-4 rounded-12 border border-default bg-neutral-white p-8 shadow-sm dark:border-ink-700 dark:bg-ink-900">
-          {history ? (
-            <HistoryList slug={slug} onBack={() => setHistory(false)} />
-          ) : (
-            <>
-              <button type="button" className={ROW} onClick={() => go(project)}>
-                <span className="flex min-w-0 flex-col">
-                  <span className="text-14 text-default dark:text-neutral-50">Main</span>
-                  <span className={`${NOTE} truncate`}>{draft ? draft.parentName : 'What the project’s link shows'}</span>
-                </span>
-                {!draft ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
-              </button>
-              {data.drafts.map((d) => (
-                <button key={d.slug} type="button" className={ROW} onClick={() => go(d.slug)}>
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-14 text-default dark:text-neutral-50">Draft: {d.name}</span>
-                    {d.createdBy ? <span className={NOTE}>{d.createdBy}</span> : null}
-                  </span>
-                  {d.slug === slug ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
-                </button>
-              ))}
-              <div className="border-t border-default pt-4 dark:border-ink-700">
-                {starting ? (
-                  <form onSubmit={start} className="flex flex-col gap-8 p-8">
-                    <p className={NOTE}>Try a change without it showing on the project’s link. Push the draft when it’s ready.</p>
-                    <div className="flex gap-8">
-                      <input
-                        autoFocus
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Name the draft"
-                        maxLength={40}
-                        className="min-w-0 flex-1 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12 text-default placeholder:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
-                      />
-                      <button type="submit" className={PRIMARY} disabled={busy || !name.trim()}>
-                        {busy ? 'Starting…' : 'Start'}
-                      </button>
-                    </div>
-                    {outcome ? <Refused outcome={outcome} /> : null}
-                  </form>
-                ) : (
-                  <button type="button" className={`${ROW} justify-start`} onClick={() => setStarting(true)}>
-                    <PlusIcon className="size-16 text-caption dark:text-neutral-400" />
-                    <span className="text-14 text-default dark:text-neutral-50">Start a draft</span>
+        <div className={MENU}>
+          <button type="button" className={ROW} onClick={() => go(project)}>
+            <span className="flex min-w-0 flex-col">
+              <span className="text-14 text-default dark:text-neutral-50">Main</span>
+              <span className={`${NOTE} truncate`}>What the project’s link shows</span>
+            </span>
+            {!draft ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
+          </button>
+          {data.drafts.map((d) => (
+            <button key={d.slug} type="button" className={ROW} onClick={() => go(d.slug)}>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-14 text-default dark:text-neutral-50">Draft: {d.name}</span>
+                {d.createdBy ? <span className={NOTE}>{d.createdBy}</span> : null}
+              </span>
+              {d.slug === slug ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
+            </button>
+          ))}
+          <div className="border-t border-default pt-4 dark:border-ink-700">
+            {starting ? (
+              <form onSubmit={start} className="flex flex-col gap-8 p-8">
+                <p className={NOTE}>Try a change without it showing on the project’s link. Push the draft when it’s ready.</p>
+                <div className="flex gap-8">
+                  <input
+                    autoFocus
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    placeholder="Name the draft"
+                    maxLength={40}
+                    className="min-w-0 flex-1 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12 text-default placeholder:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
+                  />
+                  <button type="submit" className={PRIMARY} disabled={busy || !draftName.trim()}>
+                    {busy ? 'Starting…' : 'Start'}
                   </button>
-                )}
-                <button type="button" className={`${ROW} justify-start`} onClick={() => setHistory(true)}>
-                  <HistoryIcon className="size-16 text-caption dark:text-neutral-400" />
-                  <span className="text-14 text-default dark:text-neutral-50">History</span>
-                </button>
-              </div>
-            </>
-          )}
+                </div>
+                {outcome ? <Refused outcome={outcome} /> : null}
+              </form>
+            ) : (
+              <button type="button" className={`${ROW} justify-start`} onClick={() => setStarting(true)}>
+                <PlusIcon className="size-16 text-caption dark:text-neutral-400" />
+                <span className="text-14 text-default dark:text-neutral-50">Start a draft</span>
+              </button>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** The Edit panel's title. On a database project it opens the save History;
+ *  a git project has none, so it stays plain "Edit". */
+export function HistoryMenu({ slug }: { slug: string }) {
+  const { open, setOpen, box } = useMenu()
+  const title = <span className="text-14 font-bold text-default dark:text-neutral-50">Edit</span>
+  if (!isActiveDbProject(slug)) return title
+
+  return (
+    <div ref={box} className="relative min-w-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        title="History — every save of this project"
+        className="group flex min-w-0 items-center gap-4 py-4"
+      >
+        {title}
+        <ChevronRightIcon className={CHEVRON} />
+      </button>
+      {open ? (
+        <div className={MENU}>
+          <HistoryList slug={slug} />
         </div>
       ) : null}
     </div>

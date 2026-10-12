@@ -13,6 +13,8 @@ import { EXPIRY_CHOICES, type ShareAccess, type ShareLink, type ShareResponse } 
 
 const PILL =
   'flex h-40 flex-none items-center gap-8 rounded-full border border-default bg-neutral-white px-16 text-14 font-bold text-default shadow-sm hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:shadow-none dark:hover:bg-ink-800'
+const COMPACT =
+  'flex h-32 flex-none items-center gap-4 rounded-full border border-default bg-neutral-white px-12 text-12 font-bold text-default hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800'
 const SMALL =
   'rounded-full border border-default px-12 py-4 text-12 font-bold text-default hover:bg-neutral-50 disabled:opacity-50 dark:border-ink-700 dark:text-neutral-50 dark:hover:bg-ink-800'
 const NOTE = 'text-12 text-caption dark:text-neutral-400'
@@ -42,7 +44,8 @@ async function call(init?: { slug: string; body: object }, slug?: string): Promi
   }
 }
 
-export function ShareButton({ slug }: { slug: string }) {
+/** `compact`: the smaller pill for a panel header (the project sidebar). */
+export function ShareButton({ slug, compact }: { slug: string; compact?: boolean }) {
   const { user } = useStudioUser()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -60,7 +63,7 @@ export function ShareButton({ slug }: { slug: string }) {
 
   return (
     <div ref={ref} className="relative">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className={PILL}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className={compact ? COMPACT : PILL}>
         <LinkIcon className="size-16" />
         Share
       </button>
@@ -108,7 +111,7 @@ function SharePanel({ slug }: { slug: string }) {
   }
 
   return (
-    <div className="absolute right-0 top-48 z-50 flex w-320 flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12 shadow-sm dark:border-ink-700 dark:bg-ink-900">
+    <div className="absolute right-0 top-full z-50 mt-8 flex w-320 flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12 shadow-sm dark:border-ink-700 dark:bg-ink-900">
       <div className="flex flex-col gap-4">
         <span className="text-14 font-bold text-default dark:text-neutral-50">Share this prototype</span>
         <span className={NOTE}>
