@@ -20,8 +20,9 @@
 //
 // STUDIO_REQUIRE_SIGN_IN=1 makes the studio members-only, as in Vocus. Without
 // a session, the only ways in are a share link's prototype (platform/share:
-// /p/<slug>, its flow view, and comments, which check the link themselves) and
-// the pages that get you signed in. Pages redirect to Google; APIs answer 401.
+// /p/<slug>, its flow view, a database project's screens, and comments, which
+// check the link themselves) and the pages that get you signed in. Pages
+// redirect to Google; APIs answer 401.
 
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
@@ -33,6 +34,9 @@ import { edgeShareOpens, shareCookie } from '@/platform/share/edge'
 /** Reachable without signing in, even when sign-in is required. */
 const OPEN = [/^\/auth\//, /^\/s\//, /^\/share-ended$/, /^\/api\/me$/, /^\/api\/comments$/, /^\/unlock(\/|$)/, /^\/assets-app(\/|$)/]
 const PROTOTYPE = /^\/p\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\/flow)?\/?$/
+/** A database project's compiled screens — what its /p/<slug> page loads
+ *  client-side (platform/dbProjects/DbPrototype), so a share link opens it too. */
+const DB_PROJECT = /^\/api\/db-projects\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
@@ -58,7 +62,7 @@ export async function middleware(request: NextRequest) {
   // the role table — so here it only has to get through.
   if (pathname.startsWith('/api/') && request.headers.get('authorization')?.startsWith('Bearer ')) return response
 
-  const shared = pathname.match(PROTOTYPE)?.[1]
+  const shared = pathname.match(PROTOTYPE)?.[1] ?? (request.method === 'GET' ? pathname.match(DB_PROJECT)?.[1] : undefined)
   if (shared && (await edgeShareOpens(request.cookies.get(shareCookie(shared))?.value, shared))) return response
 
   if (pathname.startsWith('/api/')) {
