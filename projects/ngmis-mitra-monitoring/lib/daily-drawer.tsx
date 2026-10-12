@@ -18,6 +18,7 @@ import {
   Prohibit,
   WarningFill,
 } from '@/design-system/icons'
+import type { GapFocus } from './daily-scorecard'
 import { PHOTOS } from './photos'
 import { Select } from './ui'
 import { rupiah } from './daily-data'
@@ -47,6 +48,18 @@ interface Majelis {
   flag?: string
   /** The attendance photo — a flagged report can carry one that isn't a majelis. */
   photo?: 'tree' | 'home' | 'sandal' | 'house'
+  /** Present on a home visit: the mitra's majelis and what the visit produced. */
+  home?: {
+    majelis: string
+    /** Who the BP actually met: the mitra, no one, or the mitra's family. */
+    result: 'mitra' | 'none' | 'family'
+    /** Why the mitra wasn't met — on `none` and `family` visits. */
+    reason?: string
+    /** Whether the angsuran collected on the visit was paid in full or in part. */
+    installment?: 'full' | 'partial'
+    /** A promise to pay made on the visit, when there is one. */
+    janji?: { date: string; amount: number }
+  }
 }
 
 // Seven assigned majelis visits for the day: four held (two flagged), one
@@ -54,41 +67,109 @@ interface Majelis {
 // not yet reported.
 const MAJELIS: Majelis[] = [
   {
-    id: 'melati', name: 'Melati Majelis', desa: 'Desa Kudu', outcome: 'held', reported: '09:18',
-    mitra: 15, paid: 10, full: 9, partial: 1, attended: 8, cash: 1_230_000, settled: true,
+    id: 'melati',
+    name: 'Melati Majelis',
+    desa: 'Desa Kudu',
+    outcome: 'held',
+    reported: '09:18',
+    mitra: 15,
+    paid: 10,
+    full: 9,
+    partial: 1,
+    attended: 8,
+    cash: 1_230_000,
+    settled: true,
     flag: 'Report submitted 1.8 km from the Majelis location.',
     photo: 'tree',
   },
   {
-    id: 'mawar', name: 'Mawar Majelis', desa: 'Desa Jati', outcome: 'postponed',
+    id: 'mawar',
+    name: 'Mawar Majelis',
+    desa: 'Desa Jati',
+    outcome: 'postponed',
     reason: 'Group requested a different time.',
     rescheduledTo: 'Mon, 10 Aug 2026 · 10:00',
-    mitra: 0, paid: 0, full: 0, partial: 0, attended: 0, cash: 0, settled: true,
+    mitra: 0,
+    paid: 0,
+    full: 0,
+    partial: 0,
+    attended: 0,
+    cash: 0,
+    settled: true,
   },
   {
-    id: 'anggrek', name: 'Anggrek Majelis', desa: 'Desa Sukamaju', outcome: 'held', reported: '10:42',
-    mitra: 14, paid: 12, full: 12, partial: 0, attended: 13, cash: 980_000, settled: false,
+    id: 'anggrek',
+    name: 'Anggrek Majelis',
+    desa: 'Desa Sukamaju',
+    outcome: 'held',
+    reported: '10:42',
+    mitra: 14,
+    paid: 12,
+    full: 12,
+    partial: 0,
+    attended: 13,
+    cash: 980_000,
+    settled: false,
     photo: 'home',
   },
   {
-    id: 'kenanga', name: 'Kenanga Majelis', desa: 'Desa Pagaden', outcome: 'held', reported: '11:05',
-    mitra: 12, paid: 9, full: 8, partial: 1, attended: 10, cash: 740_000, settled: true,
+    id: 'kenanga',
+    name: 'Kenanga Majelis',
+    desa: 'Desa Pagaden',
+    outcome: 'held',
+    reported: '11:05',
+    mitra: 12,
+    paid: 9,
+    full: 8,
+    partial: 1,
+    attended: 10,
+    cash: 740_000,
+    settled: true,
     flag: 'Report submitted 3.2 km from the Majelis location.',
     photo: 'sandal',
   },
   {
-    id: 'cempaka', name: 'Cempaka Majelis', desa: 'Desa Karang', outcome: 'skipped', reported: '08:50',
+    id: 'cempaka',
+    name: 'Cempaka Majelis',
+    desa: 'Desa Karang',
+    outcome: 'skipped',
+    reported: '08:50',
     reason: 'Majelis no longer meets',
     photo: 'house',
-    mitra: 0, paid: 0, full: 0, partial: 0, attended: 0, cash: 0, settled: true,
+    mitra: 0,
+    paid: 0,
+    full: 0,
+    partial: 0,
+    attended: 0,
+    cash: 0,
+    settled: true,
   },
   {
-    id: 'teratai', name: 'Teratai Majelis', desa: 'Desa Mekar', outcome: 'pending',
-    mitra: 0, paid: 0, full: 0, partial: 0, attended: 0, cash: 0, settled: true,
+    id: 'teratai',
+    name: 'Teratai Majelis',
+    desa: 'Desa Mekar',
+    outcome: 'pending',
+    mitra: 0,
+    paid: 0,
+    full: 0,
+    partial: 0,
+    attended: 0,
+    cash: 0,
+    settled: true,
   },
   {
-    id: 'dahlia', name: 'Dahlia Majelis', desa: 'Desa Cikuya', outcome: 'held', reported: '13:20',
-    mitra: 11, paid: 11, full: 11, partial: 0, attended: 11, cash: 1_100_000, settled: true,
+    id: 'dahlia',
+    name: 'Dahlia Majelis',
+    desa: 'Desa Cikuya',
+    outcome: 'held',
+    reported: '13:20',
+    mitra: 11,
+    paid: 11,
+    full: 11,
+    partial: 0,
+    attended: 11,
+    cash: 1_100_000,
+    settled: true,
     photo: 'home',
   },
 ]
@@ -102,19 +183,166 @@ interface Resolution {
 
 const ALERT_REASONS = ['Location too far from majelis', 'Fake photo', 'Meeting not held', 'Other']
 
+// Seven assigned home visits: four done (one flagged, one where the mitra
+// wasn't met, one where only family was met), one skipped, one rescheduled, one not yet reported. `name` is the mitra visited.
+const HOME_VISITS: Majelis[] = [
+  {
+    id: 'hv-marlina',
+    name: 'Marlina',
+    desa: 'Desa Jati',
+    outcome: 'held',
+    reported: '08:55',
+    home: { majelis: 'Majelis Mawar', result: 'mitra', installment: 'full' },
+    mitra: 0,
+    paid: 250_000,
+    full: 0,
+    partial: 0,
+    attended: 0,
+    cash: 250_000,
+    settled: false,
+    photo: 'home',
+  },
+  {
+    id: 'hv-retno',
+    name: 'Retno Wulandari',
+    desa: 'Desa Sukamaju',
+    outcome: 'held',
+    reported: '10:15',
+    home: {
+      majelis: 'Majelis Anggrek',
+      result: 'mitra',
+      installment: 'partial',
+      janji: { date: 'Fri, 14 Aug 2026', amount: 150_000 },
+    },
+    mitra: 0,
+    paid: 100_000,
+    full: 0,
+    partial: 0,
+    attended: 0,
+    cash: 100_000,
+    settled: true,
+    flag: "Report submitted 2.1 km from the mitra's home.",
+    photo: 'sandal',
+  },
+  {
+    id: 'hv-dewi',
+    name: 'Dewi Lestari',
+    desa: 'Desa Kudu',
+    outcome: 'held',
+    reported: '11:40',
+    home: {
+      majelis: 'Majelis Melati',
+      result: 'none',
+      reason: 'Mitra is working',
+    },
+    mitra: 0,
+    paid: 0,
+    full: 0,
+    partial: 0,
+    attended: 0,
+    cash: 0,
+    settled: true,
+    photo: 'home',
+  },
+  {
+    id: 'hv-sri',
+    name: 'Sri Rahayu',
+    desa: 'Desa Karang',
+    outcome: 'held',
+    reported: '12:10',
+    home: {
+      majelis: 'Majelis Cempaka',
+      result: 'family',
+      reason: 'Mitra went to the market',
+      janji: { date: 'Wed, 12 Aug 2026', amount: 250_000 },
+    },
+    mitra: 0,
+    paid: 0,
+    full: 0,
+    partial: 0,
+    attended: 0,
+    cash: 0,
+    settled: true,
+    photo: 'home',
+  },
+  {
+    id: 'hv-yuni',
+    name: 'Yuni Astuti',
+    desa: 'Desa Kudu',
+    outcome: 'skipped',
+    reported: '09:30',
+    home: { majelis: 'Majelis Kenanga', result: 'none' },
+    reason: 'Mitra pindah domisili',
+    photo: 'house',
+    mitra: 0,
+    paid: 0,
+    full: 0,
+    partial: 0,
+    attended: 0,
+    cash: 0,
+    settled: true,
+  },
+  {
+    id: 'hv-lestari',
+    name: 'Lestari',
+    desa: 'Desa Pagaden',
+    outcome: 'postponed',
+    home: { majelis: 'Majelis Melati', result: 'none' },
+    reason: 'Mitra was not at home.',
+    rescheduledTo: 'Today, Fri 7 Aug 2026 · 17:00',
+    mitra: 0,
+    paid: 0,
+    full: 0,
+    partial: 0,
+    attended: 0,
+    cash: 0,
+    settled: true,
+  },
+  {
+    id: 'hv-fitriani',
+    name: 'Fitriani',
+    desa: 'Desa Cikuya',
+    outcome: 'pending',
+    home: { majelis: 'Majelis Dahlia', result: 'none' },
+    mitra: 0,
+    paid: 0,
+    full: 0,
+    partial: 0,
+    attended: 0,
+    cash: 0,
+    settled: true,
+  },
+]
+
+type Task = 'majelis' | 'home'
+
+const RESULT_LABEL = {
+  mitra: 'Met mitra',
+  none: 'Did not meet mitra',
+  family: 'Met family',
+} as const
+
+/** Which drawer task a Tugas row opens onto; the other rows have no task list. */
+const GAP_TASK: Record<string, Task> = { pelayanan: 'majelis', 'home-visit': 'home' }
+
 type Filter = 'all' | 'completed' | 'not-completed' | 'verify'
 
 export function DailyDrawer({
   bpName,
+  gap,
   onClose,
   onOpenCash,
 }: {
   bpName: string
+  /** Set when opened from a figure that missed target: the drawer lands on that task's gap. */
+  gap?: GapFocus
   onClose: () => void
   /** Jump to the Sisa setor tunai tab, from a majelis whose cash isn't settled. */
   onOpenCash: (bpName: string) => void
 }) {
-  const [filter, setFilter] = useState<Filter>('all')
+  const focus = gap && GAP_TASK[gap.rowId] ? { ...gap, task: GAP_TASK[gap.rowId] } : undefined
+  const [task, setTask] = useState<Task>(focus?.task ?? 'majelis')
+  const [filter, setFilter] = useState<Filter>(focus ? 'not-completed' : 'all')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'default' | 'latest' | 'earliest'>('default')
   const [resolved, setResolved] = useState<Record<string, Resolution>>({})
@@ -122,19 +350,31 @@ export function DailyDrawer({
   // A skipped task counts as done: the BP closed it out with a reason and proof.
   const isDone = (m: Majelis) => m.outcome === 'held' || m.outcome === 'skipped'
   const needsVerify = (m: Majelis) => !!m.flag && !resolved[m.id]
+  // From a missed figure the list is exactly that figure's tasks: as many done as
+  // the BP reported, and the rest not done — so the gap can be read off it.
+  const full = task === 'majelis' ? MAJELIS : HOME_VISITS
+  const focused = focus && focus.task === task
+  const list = focused
+    ? [
+        ...full.filter(isDone).slice(0, focus.done),
+        ...full.filter((m) => !isDone(m)).slice(0, Math.max(focus.target - focus.done, 0)),
+      ]
+    : full
   const counts: Record<Filter, number> = {
-    all: MAJELIS.length,
-    completed: MAJELIS.filter(isDone).length,
-    'not-completed': MAJELIS.filter((m) => !isDone(m)).length,
-    verify: MAJELIS.filter(needsVerify).length,
+    all: list.length,
+    completed: list.filter(isDone).length,
+    'not-completed': list.filter((m) => !isDone(m)).length,
+    verify: list.filter(needsVerify).length,
   }
-  const filtered = MAJELIS.filter(
+  const filtered = list.filter(
     (m) =>
       (filter === 'all' ||
         (filter === 'completed' && isDone(m)) ||
         (filter === 'not-completed' && !isDone(m)) ||
         (filter === 'verify' && needsVerify(m))) &&
-      `${m.name} ${m.desa}`.toLowerCase().includes(query.trim().toLowerCase()),
+      `${m.name} ${m.desa} ${m.home?.majelis ?? ''}`
+        .toLowerCase()
+        .includes(query.trim().toLowerCase()),
   )
   // Sorted by the time the BP reported; a task with no report time sits last.
   const shown =
@@ -143,7 +383,9 @@ export function DailyDrawer({
       : [...filtered].sort((a, b) => {
           if (!a.reported) return 1
           if (!b.reported) return -1
-          return sort === 'latest' ? b.reported.localeCompare(a.reported) : a.reported.localeCompare(b.reported)
+          return sort === 'latest'
+            ? b.reported.localeCompare(a.reported)
+            : a.reported.localeCompare(b.reported)
         })
 
   const TABS: { id: Filter; label: string }[] = [
@@ -155,10 +397,7 @@ export function DailyDrawer({
 
   return (
     <div className="absolute inset-0 z-20 flex justify-end bg-overlay">
-      <div
-        className="flex h-full w-full flex-col bg-neutral-50"
-        style={{ maxWidth: DRAWER_W }}
-      >
+      <div className="flex h-full w-full flex-col bg-neutral-50" style={{ maxWidth: DRAWER_W }}>
         <div className="flex shrink-0 items-start justify-between gap-16 border-b border-default bg-neutral-white p-24">
           <div className="flex flex-col gap-4">
             <span className="text-12 font-bold text-caption">Daily diagnosis</span>
@@ -186,9 +425,15 @@ export function DailyDrawer({
               <Select
                 label="Task"
                 fullWidth
-                value="majelis"
-                onChange={() => undefined}
-                options={[{ value: 'majelis', label: 'Majelis visits' }]}
+                value={task}
+                onChange={(v) => {
+                  setTask(v as Task)
+                  setFilter('all')
+                }}
+                options={[
+                  { value: 'majelis', label: 'Majelis visits' },
+                  { value: 'home', label: 'Home visits' },
+                ]}
               />
             </div>
             <Select
@@ -284,12 +529,18 @@ function MajelisCard({
           <span className="text-16 font-bold text-default">{m.name}</span>
           <span className="flex items-center gap-4 text-12 text-caption">
             <MapPin size={16} />
+            {m.home ? `${m.home.majelis} · ` : ''}
             {m.desa}
             {m.reported ? ` · Reported ${m.reported}` : ''}
           </span>
         </div>
         {held ? (
-          <Badge intent="green" variant="subtle" size="sm" leadingIcon={<CheckCircleFill size={16} />}>
+          <Badge
+            intent="green"
+            variant="subtle"
+            size="sm"
+            leadingIcon={<CheckCircleFill size={16} />}
+          >
             Task done
           </Badge>
         ) : m.outcome === 'skipped' ? (
@@ -311,59 +562,109 @@ function MajelisCard({
       {held ? (
         <>
           <div className="flex gap-12">
-            <Stat
-              label="Repayment"
-              value={m.paid}
-              total={m.mitra}
-              unit="Mitra paid"
-              note={`${m.full} full · ${m.partial} partial`}
-            />
-            <Stat label="Attendance" value={m.attended} total={m.mitra} unit="Mitra attended" />
+            {m.home ? (
+              <>
+                <div className="flex min-w-0 flex-1 flex-col gap-4">
+                  <span className="text-14 text-default">Payment</span>
+                  <span className="text-24 font-bold text-default">{rupiah(m.paid)}</span>
+                  {m.paid > 0 ? (
+                    <span className="text-12 text-caption">
+                      {m.home.installment === 'partial' ? 'Partial angsuran' : 'Full angsuran'}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-4">
+                  <span className="text-14 text-default">Visit result</span>
+                  <span className="text-16 font-bold text-default">
+                    {RESULT_LABEL[m.home.result]}
+                  </span>
+                  {m.home.reason ? (
+                    <span className="text-12 text-caption">{m.home.reason}</span>
+                  ) : null}
+                  {m.home.janji ? (
+                    <span className="text-12 text-caption">
+                      Janji bayar, {m.home.janji.date} · {rupiah(m.home.janji.amount)}
+                    </span>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <>
+                <Stat
+                  label="Repayment"
+                  value={m.paid}
+                  total={m.mitra}
+                  unit="Mitra paid"
+                  note={`${m.full} full · ${m.partial} partial`}
+                />
+                <Stat label="Attendance" value={m.attended} total={m.mitra} unit="Mitra attended" />
+              </>
+            )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={PHOTOS[m.photo ?? 'group']}
               alt="Attendance photo"
               className="shrink-0 rounded-8 object-cover"
-              style={{ width: 96, height: 96, objectPosition: m.photo === 'tree' ? '50% 20%' : undefined }}
+              style={{
+                width: 96,
+                height: 96,
+                objectPosition: m.photo === 'tree' ? '50% 20%' : undefined,
+              }}
             />
           </div>
 
-          <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
-            <div className="flex flex-1 flex-col gap-2">
-              <span className="text-12 text-caption">Cash collected</span>
-              <span className="text-20 font-bold text-default">{rupiah(m.cash)}</span>
-            </div>
-            <div className="flex flex-1 flex-col gap-2">
-              <span className="text-12 text-caption">Settlement status</span>
-              <span className="flex items-center">
-                {m.settled ? (
-                  <Badge intent="green" variant="subtle" size="sm" leadingIcon={<CheckCircleFill size={16} />}>
-                    Settled
-                  </Badge>
-                ) : (
-                  <>
-                    <Badge intent="neutral" variant="subtle" size="sm" leadingIcon={<Hourglass size={16} />}>
-                      Not settled
-                    </Badge>
-                    <button
-                      type="button"
-                      onClick={onOpenCash}
-                      className="ml-8 text-14 font-bold text-link active:opacity-70"
+          {m.home && m.home.result !== 'mitra' ? null : (
+            <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
+              <div className="flex flex-1 flex-col gap-2">
+                <span className="text-12 text-caption">Cash collected</span>
+                <span className="text-20 font-bold text-default">{rupiah(m.cash)}</span>
+              </div>
+              <div className="flex flex-1 flex-col gap-2">
+                <span className="text-12 text-caption">Settlement status</span>
+                <span className="flex items-center">
+                  {m.settled ? (
+                    <Badge
+                      intent="green"
+                      variant="subtle"
+                      size="sm"
+                      leadingIcon={<CheckCircleFill size={16} />}
                     >
-                      Check Sisa setor tunai
-                    </button>
-                  </>
-                )}
-              </span>
+                      Settled
+                    </Badge>
+                  ) : (
+                    <>
+                      <Badge
+                        intent="neutral"
+                        variant="subtle"
+                        size="sm"
+                        leadingIcon={<Hourglass size={16} />}
+                      >
+                        Not settled
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={onOpenCash}
+                        className="ml-8 text-14 font-bold text-link active:opacity-70"
+                      >
+                        Check Sisa setor tunai
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
-          {m.flag ? <FlagReview flag={m.flag} resolution={resolution} onResolve={onResolve} /> : null}
+          {m.flag ? (
+            <FlagReview flag={m.flag} resolution={resolution} onResolve={onResolve} />
+          ) : null}
         </>
       ) : m.outcome === 'skipped' ? (
         <div className="flex gap-12">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <span className="text-14 text-default">Reason for skipping the majelis</span>
+            <span className="text-14 text-default">
+              {m.home ? 'Reason for skipping the visit' : 'Reason for skipping the majelis'}
+            </span>
             <span className="text-16 font-bold text-default">{m.reason}</span>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -416,7 +717,9 @@ function FlagReview({
         </span>
         <span className="flex flex-col">
           <span className="text-14 font-bold text-default">Marked as an alert</span>
-          {resolution.reason ? <span className="text-12 text-caption">{resolution.reason}</span> : null}
+          {resolution.reason ? (
+            <span className="text-12 text-caption">{resolution.reason}</span>
+          ) : null}
         </span>
       </div>
     ) : (

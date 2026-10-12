@@ -105,6 +105,13 @@ function commentCell(comment: CommentMode, sectionId: string, bpId: string): Rea
   )
 }
 
+/** The figure a "See detail" was clicked under: which task, its target and what was done. */
+export interface GapFocus {
+  rowId: string
+  target: number
+  done: number
+}
+
 /** The purple entry point shown beside a BP's name and under a missed figure. */
 function SeeDetail({ block = false, onClick }: { block?: boolean; onClick?: () => void }) {
   return (
@@ -130,7 +137,7 @@ function SectionMatrix({
   comment: CommentMode
   /** Offer "See detail" on the BP names and on figures that missed target. */
   seeDetail: boolean
-  onSeeDetail?: (bp: Bp) => void
+  onSeeDetail?: (bp: Bp, gap?: GapFocus) => void
 }) {
   const { measures } = section
   const withDetail = seeDetail && section.id === 'task'
@@ -244,7 +251,16 @@ function SectionMatrix({
                             <span className={`block ${toneMainClass(tone)}`}>
                               {fmtMain(cells[mm.id], kindAt(row, j))}
                             </span>
-                            {withDetail && tone === 'bad' ? <SeeDetail block onClick={() => onSeeDetail?.(bp)} /> : null}
+                            {withDetail && tone === 'bad' ? <SeeDetail
+                                block
+                                onClick={() =>
+                                  onSeeDetail?.(bp, {
+                                    rowId: row.id,
+                                    target: cells[measures[0].id],
+                                    done: cells[measures[1].id],
+                                  })
+                                }
+                              /> : null}
                             {note ? (
                               <span className={`block text-12 ${toneNoteClass(tone)}`}>{note}</span>
                             ) : null}
@@ -290,7 +306,7 @@ export function Scorecard({
   comment?: CommentMode
   seeDetail?: boolean
   /** Called with the BP whose "See detail" was clicked. */
-  onSeeDetail?: (bp: Bp) => void
+  onSeeDetail?: (bp: Bp, gap?: GapFocus) => void
 }) {
   return (
     <div className="flex flex-col gap-16">
