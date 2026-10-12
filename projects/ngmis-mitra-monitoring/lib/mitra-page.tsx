@@ -77,24 +77,16 @@ export function MitraPage() {
         />
       ) : tab === 'cash' ? (
         <CashPage initialBp={cashBp} />
-      ) : (
+      ) : tab === 'repayment' ? (
         <>
           <span className="pb-12 text-16 font-bold text-default">{UPDATE_BAR.scope}</span>
 
           <RepaymentMetrics unit="pinjaman" />
 
-          {tab === 'repayment' ? (
-            <>
-              <TableHeading />
-              <BpTable unit="pinjaman" onDetailClick={(bp) => setBpOpen(bp.name)} />
-            </>
-          ) : (
-            <span className="py-32 text-center text-14 text-caption">
-              Tab ini tidak termasuk dalam prototipe — hanya Pembayaran dan Progres harian.
-            </span>
-          )}
+          <TableHeading />
+          <BpTable unit="pinjaman" onDetailClick={(bp) => setBpOpen(bp.name)} />
         </>
-      )}
+      ) : null}
 
       {bpOpen ? (
         <MitraDrawer bpName={bpOpen} roster={drawerMitraFor(bpOpen)} onClose={() => setBpOpen(null)} />

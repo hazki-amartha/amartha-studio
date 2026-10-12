@@ -103,6 +103,16 @@ export function WeeklyDrawer({
 
   // Cash comes from majelis visits: roughly a million and change per visit held.
   const majelis = totals[0]
+
+  // Mitra-level payment across Majelis and Home visits for the week: a Majelis
+  // counts every mitra on the group, a home visit counts one mitra.
+  const majelisPaid = majelis.done * 7
+  const majelisPartial = Math.round(majelis.done * 0.7)
+  const pay = {
+    none: majelis.target * 10 - majelisPaid + (visited - paidVisits),
+    partial: majelisPartial + (paidVisits - paidFull),
+    full: majelisPaid - majelisPartial + paidFull,
+  }
   const collected = majelis.done * 1_170_000
   const pending = slip * 400_000
   const settled = collected - pending
@@ -110,36 +120,58 @@ export function WeeklyDrawer({
   return (
     <div className="absolute inset-0 z-20 flex justify-end bg-overlay">
       <div className="flex h-full w-full flex-col bg-neutral-50" style={{ maxWidth: DRAWER_W }}>
-        <div className="flex shrink-0 items-start justify-between gap-16 border-b border-default bg-neutral-white p-24">
-          <div className="flex flex-col gap-4">
-            <span className="text-12 font-bold text-caption">Weekly diagnosis</span>
-            <span className="text-20 font-bold text-default">{bp.name}</span>
-            <span className="flex items-center gap-4 text-14 text-default">
-              <button
-                type="button"
-                aria-label="Previous week"
-                disabled={week <= OLDEST_WEEK}
-                onClick={() => setWeek(week - 1)}
-                className="flex size-24 items-center justify-center disabled:text-placeholder"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <CalendarDots size={16} />
-              <span className="px-4">{weekRange(week)}</span>
-              <button
-                type="button"
-                aria-label="Next week"
-                disabled={week >= 0}
-                onClick={() => setWeek(week + 1)}
-                className="flex size-24 items-center justify-center disabled:text-placeholder"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </span>
+        <div className="flex shrink-0 flex-col gap-16 border-b border-default bg-neutral-white p-24">
+          <div className="flex items-start justify-between gap-16">
+            <div className="flex flex-col gap-4">
+              <span className="text-12 font-bold text-caption">Weekly diagnosis</span>
+              <span className="text-20 font-bold text-default">{bp.name}</span>
+              <span className="flex items-center gap-4 text-14 text-default">
+                <button
+                  type="button"
+                  aria-label="Previous week"
+                  disabled={week <= OLDEST_WEEK}
+                  onClick={() => setWeek(week - 1)}
+                  className="flex size-24 items-center justify-center disabled:text-placeholder"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <CalendarDots size={16} />
+                <span className="px-4">{weekRange(week)}</span>
+                <button
+                  type="button"
+                  aria-label="Next week"
+                  disabled={week >= 0}
+                  onClick={() => setWeek(week + 1)}
+                  className="flex size-24 items-center justify-center disabled:text-placeholder"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </span>
+            </div>
+            <button type="button" aria-label="Close" onClick={onClose} className="text-default">
+              <Cross size={20} />
+            </button>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="text-default">
-            <Cross size={20} />
-          </button>
+          <div className="flex gap-12">
+            {(
+              [
+                ['none', 'Not paying', pay.none, 'bg-red-500'],
+                ['partial', 'Partial payment', pay.partial, 'bg-orange-500'],
+                ['full', 'At least 1x payment', pay.full, 'bg-green-500'],
+              ] as const
+            ).map(([id, label, n, dot]) => (
+              <div
+                key={id}
+                className="flex min-w-0 flex-1 flex-col gap-4 rounded-16 bg-neutral-50 p-12"
+              >
+                <span className="flex items-center gap-8 text-14 text-caption">
+                  <span className={`block size-8 shrink-0 rounded-full ${dot}`} />
+                  <span className="truncate">{label}</span>
+                </span>
+                <span className="text-16 font-bold text-default">{n} Mitra</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-12 overflow-y-auto p-24">
