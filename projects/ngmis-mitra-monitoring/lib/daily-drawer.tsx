@@ -352,19 +352,6 @@ function weekVisits(week: WeekList): Majelis[] {
   })
 }
 
-/** Mitra-level payment on a visit: paid a full angsuran (1x), paid part of one
- *  (less than 1x), or paid nothing. Only a visit that was done has payment. */
-function mitraPay(m: Majelis): { full: number; partial: number; none: number } {
-  if (m.outcome !== 'held') return { full: 0, partial: 0, none: 0 }
-  if (m.home) {
-    if (m.paid <= 0) return { full: 0, partial: 0, none: 1 }
-    return m.home.installment === 'partial'
-      ? { full: 0, partial: 1, none: 0 }
-      : { full: 1, partial: 0, none: 0 }
-  }
-  return { full: m.full, partial: m.partial, none: m.mitra - m.paid }
-}
-
 const RESULT_LABEL = {
   mitra: 'Met mitra',
   none: 'Did not meet mitra',
@@ -394,7 +381,9 @@ export function DailyDrawer({
 }) {
   const focus = gap && GAP_TASK[gap.rowId] ? { ...gap, task: GAP_TASK[gap.rowId] } : undefined
   const [task, setTask] = useState<Task>(week?.task ?? focus?.task ?? 'all')
-  const [filter, setFilter] = useState<Filter>(focus ? 'not-completed' : 'all')
+  const [filter, setFilter] = useState<Filter>(
+    focus && focus.target > focus.done ? 'not-completed' : 'all',
+  )
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'default' | 'latest' | 'earliest'>('default')
   const [resolved, setResolved] = useState<Record<string, Resolution>>({})
@@ -424,15 +413,6 @@ export function DailyDrawer({
     'not-completed': list.filter((m) => !isDone(m)).length,
     verify: list.filter(needsVerify).length,
   }
-  // Mitra-level payment counts: Majelis and Home visits added together on All
-  // tasks, and just the chosen task's when the task dropdown is set.
-  const payTotals = list.reduce(
-    (n, m) => {
-      const p = mitraPay(m)
-      return { full: n.full + p.full, partial: n.partial + p.partial, none: n.none + p.none }
-    },
-    { full: 0, partial: 0, none: 0 },
-  )
   const filtered = list.filter(
     (m) =>
       (filter === 'all' ||
@@ -482,26 +462,6 @@ export function DailyDrawer({
             <button type="button" aria-label="Close" onClick={onClose} className="text-default">
               <Cross size={20} />
             </button>
-          </div>
-          <div className="flex gap-12">
-            {(
-              [
-                ['none', 'Not paying', payTotals.none, 'bg-red-500'],
-                ['partial', 'Partial payment', payTotals.partial, 'bg-orange-500'],
-                ['full', 'At least 1x payment', payTotals.full, 'bg-green-500'],
-              ] as const
-            ).map(([id, label, n, dot]) => (
-              <div
-                key={id}
-                className="flex min-w-0 flex-1 flex-col gap-4 rounded-16 bg-neutral-50 p-12"
-              >
-                <span className="flex items-center gap-8 text-14 text-caption">
-                  <span className={`block size-8 shrink-0 rounded-full ${dot}`} />
-                  <span className="truncate">{label}</span>
-                </span>
-                <span className="text-16 font-bold text-default">{n} Mitra</span>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -678,13 +638,16 @@ function MajelisCard({
                     </span>
                   ) : null}
                 </div>
+                <div className="self-stretch border-l border-default" />
                 <div className="flex min-w-0 flex-1 flex-col gap-4">
                   <span className="text-14 text-default">Visit result</span>
                   <span className="text-16 font-bold text-default">
                     {RESULT_LABEL[m.home.result]}
                   </span>
                   {m.home.reason ? (
-                    <span className="text-12 text-caption">{m.home.reason}</span>
+                    <span className="self-start rounded-8 bg-orange-50 px-8 py-4 text-14 font-bold text-orange-500">
+                      {m.home.reason}
+                    </span>
                   ) : null}
                   {m.home.janji ? (
                     <span className="text-12 text-caption">
@@ -702,6 +665,7 @@ function MajelisCard({
                   unit="Mitra paid"
                   note={`${m.full} full · ${m.partial} partial`}
                 />
+                <div className="self-stretch border-l border-default" />
                 <Stat label="Attendance" value={m.attended} total={m.mitra} unit="Mitra attended" />
               </>
             )}
@@ -719,49 +683,55 @@ function MajelisCard({
           </div>
 
           {m.home && m.home.result !== 'mitra' ? null : (
-            <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
-              <div className="flex flex-1 flex-col gap-2">
-                <span className="text-12 text-caption">Cash collected</span>
-                <span className="text-20 font-bold text-default">{rupiah(m.cash)}</span>
-              </div>
-              <div className="flex flex-1 flex-col gap-2">
-                <span className="text-12 text-caption">Settlement status</span>
-                <span className="flex items-center">
-                  {m.settled ? (
-                    <Badge
-                      intent="green"
-                      variant="subtle"
-                      size="sm"
-                      leadingIcon={<CheckCircleFill size={16} />}
-                    >
-                      Settled
-                    </Badge>
-                  ) : (
-                    <>
+            <>
+              <div className="border-t border-default" />
+              <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
+                <div className="flex flex-1 flex-col gap-2">
+                  <span className="text-12 text-caption">Cash collected</span>
+                  <span className="text-20 font-bold text-default">{rupiah(m.cash)}</span>
+                </div>
+                <div className="flex flex-1 flex-col gap-2">
+                  <span className="text-12 text-caption">Settlement status</span>
+                  <span className="flex items-center">
+                    {m.settled ? (
                       <Badge
-                        intent="neutral"
+                        intent="green"
                         variant="subtle"
                         size="sm"
-                        leadingIcon={<Hourglass size={16} />}
+                        leadingIcon={<CheckCircleFill size={16} />}
                       >
-                        Not settled
+                        Settled
                       </Badge>
-                      <button
-                        type="button"
-                        onClick={onOpenCash}
-                        className="ml-8 text-14 font-bold text-link active:opacity-70"
-                      >
-                        Check Sisa setor tunai
-                      </button>
-                    </>
-                  )}
-                </span>
+                    ) : (
+                      <>
+                        <Badge
+                          intent="neutral"
+                          variant="subtle"
+                          size="sm"
+                          leadingIcon={<Hourglass size={16} />}
+                        >
+                          Not settled
+                        </Badge>
+                        <button
+                          type="button"
+                          onClick={onOpenCash}
+                          className="ml-8 text-14 font-bold text-link active:opacity-70"
+                        >
+                          Check Sisa setor tunai
+                        </button>
+                      </>
+                    )}
+                  </span>
+                </div>
               </div>
-            </div>
+            </>
           )}
 
           {m.flag ? (
-            <FlagReview flag={m.flag} resolution={resolution} onResolve={onResolve} />
+            <>
+              <div className="border-t border-default" />
+              <FlagReview flag={m.flag} resolution={resolution} onResolve={onResolve} />
+            </>
           ) : null}
         </>
       ) : m.outcome === 'skipped' ? (

@@ -110,15 +110,6 @@ export function WeeklyDrawer({
   // Cash comes from majelis visits: roughly a million and change per visit held.
   const majelis = totals[0]
 
-  // Mitra-level payment across Majelis and Home visits for the week: a Majelis
-  // counts every mitra on the group, a home visit counts one mitra.
-  const majelisPaid = majelis.done * 7
-  const majelisPartial = Math.round(majelis.done * 0.7)
-  const pay = {
-    none: majelis.target * 10 - majelisPaid + (visited - paidVisits),
-    partial: majelisPartial + (paidVisits - paidFull),
-    full: majelisPaid - majelisPartial + paidFull,
-  }
   const collected = majelis.done * 1_170_000
   const pending = slip * 400_000
   const settled = collected - pending
@@ -157,26 +148,6 @@ export function WeeklyDrawer({
             <button type="button" aria-label="Close" onClick={onClose} className="text-default">
               <Cross size={20} />
             </button>
-          </div>
-          <div className="flex gap-12">
-            {(
-              [
-                ['none', 'Not paying', pay.none, 'bg-red-500'],
-                ['partial', 'Partial payment', pay.partial, 'bg-orange-500'],
-                ['full', 'At least 1x payment', pay.full, 'bg-green-500'],
-              ] as const
-            ).map(([id, label, n, dot]) => (
-              <div
-                key={id}
-                className="flex min-w-0 flex-1 flex-col gap-4 rounded-16 bg-neutral-50 p-12"
-              >
-                <span className="flex items-center gap-8 text-14 text-caption">
-                  <span className={`block size-8 shrink-0 rounded-full ${dot}`} />
-                  <span className="truncate">{label}</span>
-                </span>
-                <span className="text-16 font-bold text-default">{n} Mitra</span>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -283,6 +254,7 @@ export function WeeklyDrawer({
                     unit="loan paid by mitra"
                     note={`${Math.round(focus.done * 6.3)} full · ${Math.round(focus.done * 0.7)} partial`}
                   />
+                  <div className="self-stretch border-l border-default" />
                   <Fraction
                     label="Attendance"
                     value={focus.done * 8}
@@ -302,6 +274,7 @@ export function WeeklyDrawer({
                     unit="visits where the mitra paid"
                     note={`${paidFull} full · ${paidVisits - paidFull} partial`}
                   />
+                  <div className="self-stretch border-l border-default" />
                   <Fraction
                     label="Visited"
                     value={visited}

@@ -24,19 +24,6 @@ import {
   type Snapshot,
 } from './weekly-data'
 
-/** The entry point under a figure that missed its target. */
-function SeeDetail({ onClick }: { onClick?: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="block w-full text-center text-12 font-bold text-link active:opacity-70"
-    >
-      See detail
-    </button>
-  )
-}
-
 const tone = (ok: boolean) => (ok ? 'text-green-500' : 'text-red-500')
 
 // Same geometry as Progres harian's scorecard (daily-scorecard.tsx): a 220 label
@@ -169,12 +156,16 @@ const ROWS: Row[] = [
       <span key="t" className="text-default">
         {t.target}
       </span>,
-      <span key="d" className="block text-center">
-        <span className={`block ${tone(s.done[t.id] >= t.target)}`}>{s.done[t.id]}</span>
-        {s.done[t.id] < t.target ? (
-          <SeeDetail onClick={() => open({ rowId: t.id, target: t.target, done: s.done[t.id] })} />
-        ) : null}
-      </span>,
+      <button
+        key="d"
+        type="button"
+        onClick={() => open({ rowId: t.id, target: t.target, done: s.done[t.id] })}
+        className={`block w-full underline-offset-4 hover:underline active:opacity-70 ${tone(
+          s.done[t.id] >= t.target,
+        )}`}
+      >
+        {s.done[t.id]}
+      </button>,
     ],
   })),
   { label: 'Ingatkan kumpulan', merged: (s) => <StatusBadge done={s.reminded} /> },
