@@ -121,7 +121,9 @@ export const setShowResolved = (showResolved: boolean) => set({ showResolved })
 
 // --- data ---------------------------------------------------------------------
 
-const POLL_MS = 15_000
+// Each poll is a function invocation on the deployed studio, so keep it slow;
+// focusing the tab reloads at once, and your own writes update the list directly.
+const POLL_MS = 60_000
 
 async function load(slug: string) {
   try {
