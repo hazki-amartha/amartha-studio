@@ -72,7 +72,14 @@ function usePushStatus(slug: string) {
   return { status, refresh }
 }
 
+/** Not mounted at all off the dev server: /api/push always answers "not
+ *  available" there, and polling it every few seconds from every open tab was
+ *  most of the deployed studio's function invocations. */
 export function PushBar({ slug }: { slug: string }) {
+  return process.env.NODE_ENV === 'development' ? <DevPushBar slug={slug} /> : null
+}
+
+function DevPushBar({ slug }: { slug: string }) {
   const { status, refresh } = usePushStatus(slug)
   const design = useSyncExternalStore(subscribeDesignStore, getDesignStoreState, getDesignStoreServerSnapshot)
   const [live, setLive] = useState(false)
