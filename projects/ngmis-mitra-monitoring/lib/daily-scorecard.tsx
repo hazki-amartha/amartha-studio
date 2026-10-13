@@ -45,9 +45,17 @@ const MEASURE_W = 132
  *  briefing), or seeded read-only text (a past briefing). */
 export type CommentMode =
   | { kind: 'none' }
-  | { kind: 'edit'; comments: Record<string, string>; onChange: (key: string, value: string) => void }
+  | {
+      kind: 'edit'
+      comments: Record<string, string>
+      onChange: (key: string, value: string) => void
+    }
   | { kind: 'read'; comments: Record<string, string> }
-  | { kind: 'cta'; comments: Record<string, string>; onOpen: (sectionId: string, bpId: string) => void }
+  | {
+      kind: 'cta'
+      comments: Record<string, string>
+      onOpen: (sectionId: string, bpId: string) => void
+    }
 
 const fmtMain = (value: number, kind: CellKind): string =>
   kind === 'rupiah' ? rupiah(value) : String(value)
@@ -87,7 +95,9 @@ function commentCell(comment: CommentMode, sectionId: string, bpId: string): Rea
   if (comment.kind === 'cta') {
     return (
       <div className="flex flex-col items-start gap-4">
-        {value ? <span className="block whitespace-normal text-14 text-default">{value}</span> : null}
+        {value ? (
+          <span className="block whitespace-normal text-14 text-default">{value}</span>
+        ) : null}
         <button
           type="button"
           onClick={() => comment.onOpen(sectionId, bpId)}
@@ -232,7 +242,11 @@ function SectionMatrix({
                 </td>
                 {row.merged
                   ? bps.map((bp, i) => (
-                      <td key={bp.id} colSpan={measures.length} className="border-l border-default px-16 py-12 text-center">
+                      <td
+                        key={bp.id}
+                        colSpan={measures.length}
+                        className="border-l border-default px-16 py-12 text-center"
+                      >
                         <StatusBadge done={row.status?.[i] ?? false} />
                       </td>
                     ))
@@ -248,11 +262,9 @@ function SectionMatrix({
                             key={`${bp.id}-${mm.id}`}
                             className={`px-16 py-12 text-center text-14 ${j === 0 ? 'border-l border-default' : ''}`}
                           >
-                            <span className={`block ${toneMainClass(tone)}`}>
-                              {fmtMain(cells[mm.id], kindAt(row, j))}
-                            </span>
-                            {withDetail && tone === 'bad' ? <SeeDetail
-                                block
+                            {withDetail && j === 1 ? (
+                              <button
+                                type="button"
                                 onClick={() =>
                                   onSeeDetail?.(bp, {
                                     rowId: row.id,
@@ -260,7 +272,15 @@ function SectionMatrix({
                                     done: cells[measures[1].id],
                                   })
                                 }
-                              /> : null}
+                                className={`block w-full underline-offset-4 hover:underline active:opacity-70 ${toneMainClass(tone)}`}
+                              >
+                                {fmtMain(cells[mm.id], kindAt(row, j))}
+                              </button>
+                            ) : (
+                              <span className={`block ${toneMainClass(tone)}`}>
+                                {fmtMain(cells[mm.id], kindAt(row, j))}
+                              </span>
+                            )}
                             {note ? (
                               <span className={`block text-12 ${toneNoteClass(tone)}`}>{note}</span>
                             ) : null}
@@ -311,7 +331,14 @@ export function Scorecard({
   return (
     <div className="flex flex-col gap-16">
       {sections.map((section) => (
-        <SectionMatrix key={section.id} section={section} bps={bps} comment={comment} seeDetail={seeDetail} onSeeDetail={onSeeDetail} />
+        <SectionMatrix
+          key={section.id}
+          section={section}
+          bps={bps}
+          comment={comment}
+          seeDetail={seeDetail}
+          onSeeDetail={onSeeDetail}
+        />
       ))}
     </div>
   )
