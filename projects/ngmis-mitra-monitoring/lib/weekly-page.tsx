@@ -99,8 +99,12 @@ export function WeeklyProgress({ onOpenCash }: { onOpenCash: (bpName: string) =>
           bpName={weeklyBp}
           initialWeek={week}
           onClose={() => setWeeklyBp(null)}
-          onOpenDaily={() => {
-            setDailyGap(undefined)
+          onOpenDaily={(day) => {
+            setDailyGap(
+              day
+                ? { rowId: day.taskId, target: day.target, done: day.done, dayLabel: day.dayLabel }
+                : undefined,
+            )
             setDailyWeek(undefined)
             setDailyBp(weeklyBp)
             setWeeklyBp(null)

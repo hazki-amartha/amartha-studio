@@ -455,7 +455,7 @@ export function DailyDrawer({
               <span className="text-20 font-bold text-default">{bpName}</span>
               <span className="flex items-center gap-8 text-14 text-caption">
                 <CalendarDots size={16} />
-                {week ? week.range : 'Fri, 7 Aug 2026'}
+                {week ? week.range : (gap?.dayLabel ?? 'Fri, 7 Aug 2026')}
               </span>
             </div>
             <button type="button" aria-label="Close" onClick={onClose} className="text-default">
