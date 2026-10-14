@@ -39,55 +39,69 @@ const PAYMENT: { id: PaymentStatus; label: string; dot: string }[] = [
 
 const bucketOf = (id: string) => BUCKETS.find((b) => b.id === id)!
 
-function Hasil({ t }: { t: Tindakan }) {
-  const color = t.ok === null ? 'text-caption' : 'text-default'
+function PaymentCell({ t, payment }: { t: Tindakan; payment: PaymentStatus }) {
+  // A call takes no payment, so it has no Pembayaran line — only the promise
+  // made on it, if any.
+  const call = t.jenis === 'Telepon'
   return (
-    <span className={`flex items-center gap-4 text-12 ${color}`}>
-      {t.ok === true ? (
-        <span className="text-green-500"><CheckCircleFill size={16} /></span>
-      ) : t.ok === false ? (
-        <span className="text-red-500"><CrossCircleFill size={16} /></span>
-      ) : (
-        <Prohibit size={16} />
+    <div className="flex shrink-0 flex-col items-end gap-2">
+      {call ? null : (
+        <>
+          <span className="text-12 text-caption">Pembayaran:</span>
+          {t.dibayar > 0 ? (
+            <span className="flex items-center gap-8 text-14 font-bold text-default">
+              <span
+                className={`block size-8 rounded-full ${payment === 'full' ? 'bg-green-500' : 'bg-yellow-500'}`}
+              />
+              Rp{rupiah(t.dibayar)}
+            </span>
+          ) : (
+            <span className="text-14 font-bold text-caption">Rp0</span>
+          )}
+        </>
       )}
-      {t.hasil}
-    </span>
+      {t.catatanBayar ? <span className="pt-2 text-12 text-caption">{t.catatanBayar}</span> : null}
+      {t.janji ? (
+        <span className="pt-2 text-12 text-caption">
+          Janji bayar, {t.janji.date.split(' ').slice(0, 2).join(' ')}, Rp{rupiah(t.janji.amount)}
+        </span>
+      ) : null}
+    </div>
   )
 }
 
-function TindakanRow({ t, payment }: { t: Tindakan; payment: PaymentStatus }) {
+/** The card preview's own row: date, who and what with the outcome beneath,
+ *  and the payment on the right — three columns so a long outcome wraps in
+ *  the middle instead of pushing the amount around. */
+function CardTindakanRow({ t, payment }: { t: Tindakan; payment: PaymentStatus }) {
+  const icon =
+    t.ok === true ? (
+      <span className="text-green-500"><CheckCircleFill size={16} /></span>
+    ) : t.ok === false ? (
+      <span className="text-red-500"><CrossCircleFill size={16} /></span>
+    ) : (
+      <Prohibit size={16} />
+    )
   return (
-    <div className="flex items-start justify-between gap-12">
-      <div className="flex flex-col gap-4">
-        <span className="text-12 text-caption">{t.date}</span>
+    <div className="flex items-start gap-16">
+      <span className="shrink-0 text-14 text-caption" style={{ width: 80 }}>
+        {t.date}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
         <span className="flex items-center gap-8">
-          <span className="w-24 shrink-0 text-12 font-bold text-caption">{t.pelaku}</span>
-          <span className="text-14 font-bold text-default">{t.jenis}</span>
-          <Hasil t={t} />
+          <span className="flex size-24 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-10 font-bold text-caption">
+            {t.pelaku}
+          </span>
+          <span className={`text-14 ${t.ok === null ? 'text-caption' : 'font-bold text-default'}`}>
+            {t.jenis === 'Telepon' ? 'Desk call' : t.jenis}
+          </span>
         </span>
-        {t.catatan ? (
-          <span className="text-12 text-caption">{t.catatan}</span>
-        ) : null}
+        <span className="flex items-start gap-8 text-14 text-caption">
+          <span className="shrink-0 pt-2">{icon}</span>
+          <span>{t.catatan ? `${t.hasil} - ${t.catatan}` : t.hasil}</span>
+        </span>
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-2">
-        <span className="text-12 text-caption">Pembayaran:</span>
-        {t.dibayar > 0 ? (
-          <span className="flex items-center gap-8 text-14 font-bold text-default">
-            <span
-              className={`block size-8 rounded-full ${payment === 'full' ? 'bg-green-500' : 'bg-yellow-500'}`}
-            />
-            Rp{rupiah(t.dibayar)}
-          </span>
-        ) : (
-          <span className="text-14 font-bold text-caption">Rp0</span>
-        )}
-        {t.catatanBayar ? <span className="pt-2 text-12 text-caption">{t.catatanBayar}</span> : null}
-        {t.janji ? (
-          <span className="pt-2 text-12 text-caption">
-            Janji bayar {t.janji.date}, Rp{rupiah(t.janji.amount)}
-          </span>
-        ) : null}
-      </div>
+      <PaymentCell t={t} payment={payment} />
     </div>
   )
 }
@@ -126,10 +140,10 @@ function MitraCard({
       </span>
       {m.tindakan.length > 0 ? (
       <span className="flex flex-col gap-16 border-t border-default bg-neutral-50 p-16">
-        <span className="text-14 font-bold text-default">Tindakan terakhir</span>
+        <span className="text-14 text-default">Tindakan terakhir</span>
         {m.tindakan.slice(0, 2).map((t, i) => (
           <div key={i} className={i === 0 ? 'border-b border-default pb-12' : ''}>
-            <TindakanRow t={t} payment={m.payment} />
+            <CardTindakanRow t={t} payment={m.payment} />
           </div>
         ))}
         {m.followUp && bucketNow(m) !== 'dpd0' ? (
@@ -260,7 +274,7 @@ function DetailPanel({
               />
             </div>
             <div className={`min-w-0 flex-1 py-12 ${i === m.tindakan.length - 1 ? '' : 'border-b border-default'}`}>
-              <TindakanRow t={t} payment={m.payment} />
+              <CardTindakanRow t={t} payment={m.payment} />
             </div>
           </div>
         ))}

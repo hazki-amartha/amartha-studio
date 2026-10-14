@@ -5,7 +5,7 @@
 // A BP's "Lihat detail" opens the drawer with her mitra. Only Pembayaran is
 // built; the other tabs are drawn so the header reads the same as the live page.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CashPage } from './cash-page'
 import { DailyDashboard } from './daily-dashboard'
 import { WeeklyProgress } from './weekly-page'
@@ -31,6 +31,15 @@ export function MitraPage() {
   const [branch, setBranch] = useState('belawa')
   const [cashBp, setCashBp] = useState<string | undefined>()
   const [bpOpen, setBpOpen] = useState<string | null>(null)
+
+  // A page opened by "Review" in a new browser tab lands straight on Sisa setor
+  // tunai for that BP (?tab=cash&bp=...).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('tab') !== 'cash') return
+    setCashBp(q.get('bp') ?? undefined)
+    setTab('cash')
+  }, [])
 
   const branchLabel = BRANCHES.find((b) => b.value === branch)?.label ?? ''
 
@@ -63,10 +72,14 @@ export function MitraPage() {
     >
       {tab === 'daily' ? (
         <DailyDashboard
-          onOpenCash={(name) => {
-            setCashBp(name)
-            setTab('cash')
-          }}
+          // Opens in a new browser tab so the BM keeps the daily drawer where it is.
+          onOpenCash={(name) =>
+            window.open(
+              `${window.location.pathname}?tab=cash&bp=${encodeURIComponent(name)}`,
+              '_blank',
+              'noopener',
+            )
+          }
         />
       ) : tab === 'weekly' ? (
         <WeeklyProgress
