@@ -11,11 +11,9 @@ import { Badge, Button } from '@/design-system/components'
 import {
   ArrowRight,
   CalendarDots,
-  CheckCircleFill,
   ChevronLeft,
   ChevronRight,
   Cross,
-  Hourglass,
   WarningFill,
 } from '@/design-system/icons'
 import { BPS, rupiah } from './daily-data'
@@ -93,7 +91,6 @@ export function WeeklyDrawer({
   })
 
   const verifyTotal = totals.reduce((n, t) => n + t.verify, 0)
-  const rows = totals
   const focus = totals.find((t) => t.id === selected) ?? totals[0]
 
   // Home visits: of those done, who was met, who paid, and why not.
@@ -152,77 +149,24 @@ export function WeeklyDrawer({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-12 overflow-y-auto p-24">
-          <div className="flex shrink-0 flex-col overflow-hidden rounded-16 border border-default bg-neutral-white">
-            <div className="flex items-center justify-between p-12">
-              <span className="text-16 font-bold text-default">Performance by task</span>
-              <span className="text-12 text-caption">Select a task to focus.</span>
-            </div>
-            <div className="flex flex-col">
-              {rows.map((t) => {
-                // Only the two visit tasks have a detail section to open onto.
-                const actionable = t.id === 'pelayanan' || t.id === 'home-visit'
-                const on = actionable && selected === t.id
-                const clean = !t.notDone && !t.skipped && !t.rescheduled && !t.verify
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    disabled={!actionable}
-                    onClick={() => setSelected(t.id)}
-                    className={`flex items-center gap-12 border-l-4 border-t border-t-default px-12 py-12 text-left ${
-                      on
-                        ? 'border-l-primary-500 bg-primary-50'
-                        : 'border-l-transparent bg-neutral-white'
-                    }`}
-                  >
-                    <span className="flex min-w-0 flex-1 flex-col gap-8">
-                      <span className="flex items-baseline justify-between gap-12">
-                        <span
-                          className={`text-14 text-default ${on ? 'font-bold' : 'font-regular'}`}
-                        >
-                          {t.name}
-                        </span>
-                        <span className="text-14 text-default">
-                          <span className="text-16 font-bold">{t.done}</span> / {t.target} done
-                        </span>
-                      </span>
-                      <span className="flex flex-wrap gap-8">
-                        {clean ? (
-                          <Badge intent="green" variant="subtle" size="sm">
-                            All on target
-                          </Badge>
-                        ) : null}
-                        {t.notDone ? (
-                          <Badge intent="red" variant="subtle" size="sm">
-                            {t.notDone} not done
-                          </Badge>
-                        ) : null}
-                        {t.rescheduled ? (
-                          <Badge intent="blue" variant="subtle" size="sm">
-                            {t.rescheduled} rescheduled
-                          </Badge>
-                        ) : null}
-                        {t.skipped ? (
-                          <Badge intent="neutral" variant="subtle" size="sm">
-                            {t.skipped} skipped
-                          </Badge>
-                        ) : null}
-                        {t.verify ? (
-                          <Badge intent="orange" variant="subtle" size="sm">
-                            {t.verify} to verify
-                          </Badge>
-                        ) : null}
-                      </span>
-                    </span>
-                    {actionable ? (
-                      <span className="text-caption">
-                        <ChevronRight size={16} />
-                      </span>
-                    ) : null}
-                  </button>
-                )
-              })}
-            </div>
+          <div className="flex shrink-0 gap-4 rounded-12 border border-default bg-neutral-white p-4">
+            {totals.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setSelected(t.id)}
+                className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-2 rounded-8 px-4 py-8 text-center ${
+                  selected === t.id ? 'bg-primary-50 text-primary-500' : 'text-default'
+                }`}
+              >
+                <span className={`text-14 ${selected === t.id ? 'font-bold' : 'font-regular'}`}>
+                  {t.name}
+                </span>
+                <span className="text-14 font-bold">
+                  {t.done}/{t.target}
+                </span>
+              </button>
+            ))}
           </div>
 
           <div className="flex shrink-0 flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12">
@@ -296,59 +240,36 @@ export function WeeklyDrawer({
               </>
             ) : null}
 
-            <span className="flex flex-col gap-2">
-              <span className="text-14 font-bold text-default">Day by day</span>
-              <span className="text-12 text-caption">
-                {focus.name} done against the daily target
-              </span>
-            </span>
+            <span className="text-14 font-bold text-default">Day by day</span>
             <div className="flex flex-col overflow-hidden rounded-12 border border-default">
               {days.map((d, i) => {
                 const done = snaps[i].done[focus.id]
                 const target = COUNT_TASKS.find((t) => t.id === focus.id)!.target
-                const gap = target - done
-                const met = gap <= 0
-                const visit = focus.id === 'pelayanan' || focus.id === 'home-visit'
-                const rescheduled = visit && gap >= 1 ? 1 : 0
-                const skipped = visit && gap >= 3 ? 1 : 0
-                const parts = [
-                  [gap - rescheduled - skipped, 'not done'],
-                  [skipped, 'skipped'],
-                  [rescheduled, 'rescheduled'],
-                ]
-                  .filter(([n]) => n)
-                  .map(([n, label]) => `${n} ${label}`)
-                  .join(' · ')
+                const met = done >= target
                 return (
                   <div
                     key={d.date}
-                    className={`flex items-center gap-12 px-12 py-12 ${
+                    className={`flex items-center justify-between gap-12 px-12 py-12 text-14 ${
                       i > 0 ? 'border-t border-default' : ''
                     } ${met ? 'bg-neutral-white' : 'bg-orange-50'}`}
                   >
-                    <span className={met ? 'text-green-500' : 'text-orange-500'}>
-                      {met ? <CheckCircleFill size={20} /> : <Hourglass size={20} />}
-                    </span>
-                    <span className="shrink-0 text-14 text-default" style={{ width: 96 }}>
+                    <span className="text-default">
                       {d.label}, {d.date}
                     </span>
-                    <span className="shrink-0 text-14 font-bold text-default" style={{ width: 56 }}>
-                      {done} / {target}
+                    <span className="flex items-center gap-12">
+                      {met ? null : (
+                        <button
+                          type="button"
+                          onClick={onOpenDaily}
+                          className="font-bold text-link active:opacity-70"
+                        >
+                          See detail
+                        </button>
+                      )}
+                      <span className={`font-bold ${met ? 'text-default' : 'text-orange-500'}`}>
+                        {done}/{target}
+                      </span>
                     </span>
-                    <span
-                      className={`min-w-0 flex-1 text-14 ${met ? 'text-caption' : 'text-default'}`}
-                    >
-                      {met ? 'Target met' : parts}
-                    </span>
-                    {met ? null : (
-                      <button
-                        type="button"
-                        onClick={onOpenDaily}
-                        className="shrink-0 text-14 font-bold text-link active:opacity-70"
-                      >
-                        See detail
-                      </button>
-                    )}
                   </div>
                 )
               })}

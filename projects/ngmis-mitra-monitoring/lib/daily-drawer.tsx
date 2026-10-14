@@ -567,6 +567,16 @@ function Stat({
   )
 }
 
+/** A labelled value, the same pairing the done cards use for Visit result. */
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-4">
+      <span className="text-14 text-default">{label}</span>
+      <span className="text-16 font-bold text-default">{value}</span>
+    </div>
+  )
+}
+
 function MajelisCard({
   m,
   showType,
@@ -645,9 +655,7 @@ function MajelisCard({
                     {RESULT_LABEL[m.home.result]}
                   </span>
                   {m.home.reason ? (
-                    <span className="self-start rounded-8 bg-orange-50 px-8 py-4 text-14 font-bold text-orange-500">
-                      {m.home.reason}
-                    </span>
+                    <span className="text-14 text-default">{m.home.reason}</span>
                   ) : null}
                   {m.home.janji ? (
                     <span className="text-12 text-caption">
@@ -736,12 +744,7 @@ function MajelisCard({
         </>
       ) : m.outcome === 'skipped' ? (
         <div className="flex gap-12">
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <span className="text-14 text-default">
-              {m.home ? 'Reason for skipping the visit' : 'Reason for skipping the majelis'}
-            </span>
-            <span className="text-16 font-bold text-default">{m.reason}</span>
-          </div>
+          <Field label="Reason for skipping" value={m.reason ?? ''} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={PHOTOS[m.photo ?? 'house']}
@@ -751,16 +754,14 @@ function MajelisCard({
           />
         </div>
       ) : m.outcome === 'pending' ? (
-        <span className="text-14 text-default">No report from the BP yet.</span>
+        <div className="flex gap-12">
+          <Field label="Report" value="Not reported yet" />
+        </div>
       ) : (
-        <div className="flex flex-col gap-8">
-          <span className="text-14 text-default">{m.reason}</span>
-          {m.rescheduledTo ? (
-            <span className="flex items-center gap-8 text-14 font-bold text-default">
-              <CalendarDots size={16} />
-              Rescheduled to {m.rescheduledTo}
-            </span>
-          ) : null}
+        <div className="flex gap-12">
+          <Field label="Reason" value={m.reason ?? ''} />
+          <div className="self-stretch border-l border-default" />
+          <Field label="Rescheduled to" value={m.rescheduledTo ?? ''} />
         </div>
       )}
     </div>
