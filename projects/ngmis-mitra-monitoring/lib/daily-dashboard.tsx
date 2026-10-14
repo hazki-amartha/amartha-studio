@@ -63,10 +63,7 @@ export function DailyDashboard({ onOpenCash }: { onOpenCash: (bpName: string) =>
           bpName={bpOpen}
           gap={gapFocus}
           onClose={() => setBpOpen(null)}
-          onOpenCash={(name) => {
-            setBpOpen(null)
-            onOpenCash(name)
-          }}
+          onOpenCash={onOpenCash}
         />
       ) : null}
     </>

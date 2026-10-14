@@ -183,7 +183,6 @@ interface Resolution {
   reason?: string
 }
 
-const ALERT_REASONS = ['Location too far from majelis', 'Fake photo', 'Meeting not held', 'Other']
 
 // Seven assigned home visits: four done (one flagged, one where the mitra
 // wasn't met, one where only family was met), one skipped, one rescheduled, one not yet reported. `name` is the mitra visited.
@@ -632,7 +631,8 @@ function MajelisCard({
           </Badge>
         )}
       </div>
-      <div className="border-t border-default" />
+      {/* A task not yet done has nothing to report, so the card stops at its header. */}
+      {m.outcome === 'pending' ? null : <div className="border-t border-default" />}
 
       {held ? (
         <>
@@ -693,12 +693,18 @@ function MajelisCard({
           {m.home && m.home.result !== 'mitra' ? null : (
             <>
               <div className="border-t border-default" />
-              <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
-                <div className="flex flex-1 flex-col gap-2">
-                  <span className="text-12 text-caption">Cash collected</span>
-                  <span className="text-20 font-bold text-default">{rupiah(m.cash)}</span>
+              <div className="flex gap-12 rounded-12 bg-neutral-50 py-12">
+                {/* The padding sits on an inner wrapper: padding on a flex-1 item
+                    makes it wider than its sibling and drags the divider off the
+                    one above. */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-col gap-2 pl-12">
+                    <span className="text-12 text-caption">Cash collected</span>
+                    <span className="text-20 font-bold text-default">{rupiah(m.cash)}</span>
+                  </div>
                 </div>
-                <div className="flex flex-1 flex-col gap-2">
+                <div className="self-stretch border-l border-default" />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
                   <span className="text-12 text-caption">Settlement status</span>
                   <span className="flex items-center">
                     {m.settled ? (
@@ -720,18 +726,34 @@ function MajelisCard({
                         >
                           Not settled
                         </Badge>
-                        <button
-                          type="button"
-                          onClick={onOpenCash}
-                          className="ml-8 text-14 font-bold text-link active:opacity-70"
-                        >
-                          Check Sisa setor tunai
-                        </button>
                       </>
                     )}
                   </span>
                 </div>
+                {/* Same width as the photo above, so this divider lands exactly
+                    under the Repayment | Attendance one. */}
+                <div className="shrink-0" style={{ width: 96 }} />
               </div>
+              {m.settled ? null : (
+                <div className="flex flex-col gap-8">
+                  <span className="text-16 font-bold text-default">Needs your review</span>
+                  <div className="flex items-center justify-between gap-12 rounded-12 bg-orange-50 p-12">
+                    <div className="flex items-center gap-12">
+                      <span className="text-orange-500">
+                        <WarningFill size={24} />
+                      </span>
+                      <span className="flex flex-col gap-2">
+                        <span className="text-14 font-bold text-default">
+                          {rupiah(m.cash)} cash not yet settled
+                        </span>
+                      </span>
+                    </div>
+                    <Button variant="primary" size="sm" onClick={onOpenCash}>
+                      Review
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -753,11 +775,7 @@ function MajelisCard({
             style={{ width: 96, height: 96 }}
           />
         </div>
-      ) : m.outcome === 'pending' ? (
-        <div className="flex gap-12">
-          <Field label="Report" value="Not reported yet" />
-        </div>
-      ) : (
+      ) : m.outcome === 'pending' ? null : (
         <div className="flex gap-12">
           <Field label="Reason" value={m.reason ?? ''} />
           <div className="self-stretch border-l border-default" />
@@ -782,98 +800,42 @@ function FlagReview({
   resolution?: Resolution
   onResolve: (r: Resolution) => void
 }) {
-  const [step, setStep] = useState<'banner' | 'ask' | 'reason'>('banner')
-  const [reason, setReason] = useState<string | null>(null)
-
   if (resolution) {
     return resolution.alert ? (
       <div className="flex items-center gap-8 rounded-12 bg-red-50 p-12">
         <span className="text-red-500">
           <WarningFill size={16} />
         </span>
-        <span className="flex flex-col">
-          <span className="text-14 font-bold text-default">Marked as an alert</span>
-          {resolution.reason ? (
-            <span className="text-12 text-caption">{resolution.reason}</span>
-          ) : null}
-        </span>
+        <span className="text-14 font-bold text-default">Marked as fake</span>
       </div>
     ) : (
       <div className="flex items-center gap-8 rounded-12 bg-green-50 p-12 text-14 font-bold text-green-500">
-        <CheckCircleFill size={16} /> Verified, not an alert
-      </div>
-    )
-  }
-
-  if (step === 'banner') {
-    return (
-      <div className="flex items-center justify-between gap-12 rounded-12 bg-orange-50 p-12">
-        <div className="flex items-center gap-12">
-          <span className="text-orange-500">
-            <WarningFill size={24} />
-          </span>
-          <span className="flex flex-col gap-2">
-            <span className="text-14 font-bold text-default">Looks like a fake submission</span>
-            <span className="text-12 text-caption">{flag}</span>
-          </span>
-        </div>
-        <Button variant="primary" size="sm" onClick={() => setStep('ask')}>
-          Verify
-        </Button>
-      </div>
-    )
-  }
-
-  if (step === 'ask') {
-    return (
-      <div className="flex flex-col gap-12 rounded-12 bg-orange-50 p-12">
-        <span className="flex flex-col gap-2">
-          <span className="text-14 font-bold text-default">Is this something alerting?</span>
-          <span className="text-12 text-caption">{flag}</span>
-        </span>
-        <div className="flex items-center gap-12">
-          <Button variant="primary" size="sm" onClick={() => setStep('reason')}>
-            Yes, it&apos;s an alert
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => onResolve({ alert: false })}>
-            No, not an issue
-          </Button>
-        </div>
+        <CheckCircleFill size={16} /> Marked as not fake
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-12 rounded-12 bg-orange-50 p-12">
-      <span className="text-14 font-bold text-default">What is the issue?</span>
-      <div className="flex flex-wrap gap-8">
-        {ALERT_REASONS.map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => setReason(r)}
-            className={`rounded-full border px-12 py-4 text-14 ${
-              reason === r
-                ? 'border-primary-500 bg-primary-50 font-bold text-primary-500'
-                : 'border-default bg-neutral-white font-regular text-default'
-            }`}
-          >
-            {r}
-          </button>
-        ))}
-      </div>
+    <div className="flex flex-col gap-8">
+      <span className="text-16 font-bold text-default">Needs your review</span>
+      <div className="flex items-center justify-between gap-12 rounded-12 bg-orange-50 p-12">
       <div className="flex items-center gap-12">
-        <Button
-          variant="primary"
-          size="sm"
-          disabled={!reason}
-          onClick={() => onResolve({ alert: true, reason: reason ?? undefined })}
-        >
-          Submit
+        <span className="text-orange-500">
+          <WarningFill size={24} />
+        </span>
+        <span className="flex flex-col gap-2">
+          <span className="text-14 font-bold text-default">Looks like a fake submission</span>
+          <span className="text-12 text-caption">{flag}</span>
+        </span>
+      </div>
+      <div className="flex shrink-0 items-center gap-8">
+        <Button variant="outline" size="sm" onClick={() => onResolve({ alert: false })}>
+          Not fake
         </Button>
-        <Button variant="outline" size="sm" onClick={() => setStep('ask')}>
-          Back
+        <Button variant="primary" size="sm" onClick={() => onResolve({ alert: true })}>
+          This is fake
         </Button>
+      </div>
       </div>
     </div>
   )
