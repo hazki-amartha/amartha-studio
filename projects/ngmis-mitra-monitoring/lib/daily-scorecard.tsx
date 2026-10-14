@@ -120,6 +120,8 @@ export interface GapFocus {
   rowId: string
   target: number
   done: number
+  /** The day this gap is from, when opened from a weekly day row. */
+  dayLabel?: string
 }
 
 /** The purple entry point shown beside a BP's name and under a missed figure. */

@@ -53,8 +53,8 @@ export function WeeklyDrawer({
   bpName: string
   initialWeek: number
   onClose: () => void
-  /** Jump to this BP's daily diagnosis. */
-  onOpenDaily: () => void
+  /** Jump to this BP's daily diagnosis — on a given day's gap when one is passed. */
+  onOpenDaily: (day?: { dayLabel: string; taskId: string; done: number; target: number }) => void
   /** Every majelis or home visit of the week, as a list. */
   onOpenList: (task: 'majelis' | 'home', week: number) => void
   /** Jump to Sisa setor tunai, from the unsettled-cash review row. */
@@ -110,6 +110,12 @@ export function WeeklyDrawer({
   const collected = majelis.done * 1_170_000
   const pending = slip * 400_000
   const settled = collected - pending
+
+  // Only the days that missed the target — a clean day needs no row.
+  const dayTarget = COUNT_TASKS.find((t) => t.id === focus.id)!.target
+  const missedDays = days
+    .map((d, i) => ({ d, done: snaps[i].done[focus.id] }))
+    .filter((x) => x.done < dayTarget)
 
   return (
     <div className="absolute inset-0 z-20 flex justify-end bg-overlay">
@@ -206,6 +212,17 @@ export function WeeklyDrawer({
                     unit="mitra attended the meeting"
                   />
                 </div>
+                <div className="flex gap-12 border-t border-default pt-12">
+                  <ReasonList
+                    title="Why the mitra did not pay"
+                    reasons={distribute(NOT_PAID_REASONS, focus.target * 10 - focus.done * 7)}
+                  />
+                  <div className="self-stretch border-l border-default" />
+                  <ReasonList
+                    title="Why the mitra did not attend"
+                    reasons={distribute(NOT_ATTEND_REASONS, focus.target * 10 - focus.done * 8)}
+                  />
+                </div>
               </>
             ) : null}
             {focus.id === 'home-visit' ? (
@@ -227,11 +244,12 @@ export function WeeklyDrawer({
                     note={`${metMitra} met mitra · ${metNone} not met · ${metFamily} met family`}
                   />
                 </div>
-                <div className="flex gap-24">
+                <div className="flex gap-12 border-t border-default pt-12">
                   <ReasonList
                     title="Why the mitra did not pay"
                     reasons={distribute(NOT_PAID_REASONS, visited - paidVisits)}
                   />
+                  <div className="self-stretch border-l border-default" />
                   <ReasonList
                     title="Why the mitra was not met"
                     reasons={distribute(NOT_MET_REASONS, metNone + metFamily)}
@@ -240,42 +258,10 @@ export function WeeklyDrawer({
               </>
             ) : null}
 
-            <span className="text-14 font-bold text-default">Day by day</span>
-            <div className="flex flex-col overflow-hidden rounded-12 border border-default">
-              {days.map((d, i) => {
-                const done = snaps[i].done[focus.id]
-                const target = COUNT_TASKS.find((t) => t.id === focus.id)!.target
-                const met = done >= target
-                return (
-                  <div
-                    key={d.date}
-                    className={`flex items-center justify-between gap-12 px-12 py-12 text-14 ${
-                      i > 0 ? 'border-t border-default' : ''
-                    } ${met ? 'bg-neutral-white' : 'bg-orange-50'}`}
-                  >
-                    <span className="text-default">
-                      {d.label}, {d.date}
-                    </span>
-                    <span className="flex items-center gap-12">
-                      {met ? null : (
-                        <button
-                          type="button"
-                          onClick={onOpenDaily}
-                          className="font-bold text-link active:opacity-70"
-                        >
-                          See detail
-                        </button>
-                      )}
-                      <span className={`font-bold ${met ? 'text-default' : 'text-orange-500'}`}>
-                        {done}/{target}
-                      </span>
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
             {focus.id === 'pelayanan' ? (
-              <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
+              <div className="flex flex-col gap-8">
+                <span className="text-14 font-bold text-default">Cash settlement</span>
+                <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
                 <Money label="Cash collected" value={collected} />
                 <Money label="Cash settled" value={settled} tone="green" />
                 <Money
@@ -283,10 +269,13 @@ export function WeeklyDrawer({
                   value={pending}
                   tone={pending ? 'orange' : undefined}
                 />
+                </div>
               </div>
             ) : null}
             {focus.id === 'home-visit' ? (
-              <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
+              <div className="flex flex-col gap-8">
+                <span className="text-14 font-bold text-default">Cash settlement</span>
+                <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
                 <Money label="Cash collected" value={hvCollected} />
                 <Money label="Cash settled" value={hvCollected - hvPending} tone="green" />
                 <Money
@@ -294,9 +283,12 @@ export function WeeklyDrawer({
                   value={hvPending}
                   tone={hvPending ? 'orange' : undefined}
                 />
+                </div>
               </div>
             ) : null}
-            {verifyTotal > 0 || pending > 0 ? (
+            {/* Only the visit tasks have anything to verify or settle. */}
+            {(focus.id === 'pelayanan' || focus.id === 'home-visit') &&
+            (verifyTotal > 0 || pending > 0 || missedDays.length > 0) ? (
               <div className="flex flex-col gap-8 border-t border-default pt-12">
                 <span className="flex items-baseline gap-8">
                   <span className="text-16 font-bold text-default">Needs your review</span>
@@ -317,7 +309,7 @@ export function WeeklyDrawer({
                         </span>
                       </span>
                     </div>
-                    <Button variant="primary" size="sm" onClick={onOpenDaily}>
+                    <Button variant="primary" size="sm" onClick={() => onOpenDaily()}>
                       Verify
                     </Button>
                   </div>
@@ -342,6 +334,40 @@ export function WeeklyDrawer({
                     </Button>
                   </div>
                 ) : null}
+                {missedDays.map(({ d, done }) => (
+                  <div
+                    key={d.date}
+                    className="flex items-center justify-between gap-12 rounded-12 bg-orange-50 p-12"
+                  >
+                    <div className="flex items-center gap-12">
+                      <span className="text-orange-500">
+                        <WarningFill size={24} />
+                      </span>
+                      <span className="flex flex-col gap-2">
+                        <span className="text-14 font-bold text-default">
+                          {d.label}, {d.date} was below target
+                        </span>
+                        <span className="text-12 text-caption">
+                          {done}/{dayTarget} {focus.name.toLowerCase()} done
+                        </span>
+                      </span>
+                    </div>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() =>
+                        onOpenDaily({
+                          dayLabel: `${d.label}, ${d.date}`,
+                          taskId: focus.id,
+                          done,
+                          target: dayTarget,
+                        })
+                      }
+                    >
+                      See detail
+                    </Button>
+                  </div>
+                ))}
               </div>
             ) : null}
           </div>
@@ -358,6 +384,12 @@ const NOT_MET_REASONS: [string, number][] = [
   ['Mitra went to the market', 3],
   ['Mitra not at home, no reason given', 2],
   ['Mitra moved house', 1],
+]
+const NOT_ATTEND_REASONS: [string, number][] = [
+  ['Mitra is working', 4],
+  ['Mitra is sick', 3],
+  ['Mitra is out of town', 2],
+  ['Family event', 1],
 ]
 const NOT_PAID_REASONS: [string, number][] = [
   ['No cash on hand', 5],
