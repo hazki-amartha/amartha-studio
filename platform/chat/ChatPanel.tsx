@@ -18,6 +18,7 @@ import { CloseIcon, CursorIcon, MediaIcon, StopIcon } from '@/platform/chrome/ic
 import { PanelHeader } from '@/platform/chrome/SidePanel'
 import { resolveTarget } from '@/platform/inspect/resolve'
 import { attachmentFor } from './attach'
+import { ChatLoader, useLoaderVisible } from './ChatLoader'
 import { MAX_IMAGES, MAX_TOTAL_CHARS, prepareImage, type PendingImage } from './images'
 import type { RecordedTurn, TranscriptEvent } from './transcript'
 import { useTranscriptReplay } from './useTranscriptReplay'
@@ -336,6 +337,7 @@ export function LiveChatPanel({
 }) {
   const chat = useLiveChat(slug)
   const running = chat.status === 'running'
+  const loaderVisible = useLoaderVisible(chat.gate === 'checking')
   const [imageError, setImageError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
@@ -388,6 +390,12 @@ export function LiveChatPanel({
     </aside>
   )
 
+  // Reaching Claude takes a moment; the loader fills the panel so it sits in
+  // the middle of the chat window rather than at the top of an empty transcript.
+  // A quick connect shows a blank panel instead of a flash of loader.
+  if (loaderVisible) return shell(<ChatLoader label="Connecting to Claude…" />)
+  if (chat.gate === 'checking') return shell(null)
+
   if (chat.gate !== 'open') {
     return shell(
       <ChatView subtitle={subtitle} state={chat} doneLabel="" embedded>
@@ -398,8 +406,6 @@ export function LiveChatPanel({
           </p>
         ) : chat.gate === 'no-cli' || chat.gate === 'signed-out' ? (
           <SignInHelp missing={chat.gate === 'no-cli'} onRecheck={chat.recheck} />
-        ) : chat.gate === 'checking' ? (
-          <p className="text-12 font-regular text-neutral-600">Connecting to Claude…</p>
         ) : chat.gate === 'error' ? (
           <div>
             <p className="mb-8 text-12 font-regular text-neutral-600">
