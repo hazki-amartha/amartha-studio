@@ -71,7 +71,7 @@ import { DesignLayer, DesignPanel } from '@/platform/design'
 import { LiveChatPanel } from '@/platform/chat/ChatPanel'
 import { getChat, getChatServerSnapshot, probeChat, subscribeChat } from '@/platform/runtime/chatBridge'
 import { PushBar } from '@/platform/push/PushBar'
-import { DraftPushBar, HistoryMenu } from '@/platform/dbProjects/DraftControls'
+import { HistoryMenu } from '@/platform/dbProjects/DraftControls'
 import { CommentLayer } from '@/platform/comments/CommentLayer'
 import { useGuestAccess } from '@/platform/auth/session'
 import { CommentsPanel } from '@/platform/comments/CommentList'
@@ -610,7 +610,6 @@ function RightPanel({
         />
       ) : null}
       <PushBar slug={slug} />
-      <DraftPushBar slug={slug} />
     </aside>
   )
 }

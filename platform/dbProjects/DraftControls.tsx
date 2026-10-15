@@ -1,19 +1,19 @@
 'use client'
 
 // =============================================================================
-// DB projects · drafts in the studio (./drafts.ts). Three pieces, one state:
+// DB projects · drafts in the studio (./drafts.ts) — "branches" on screen.
+// Two pieces, one state:
 //
 //   ProjectSwitcher  the sidebar's project name — "<Project>" or "<Project> ·
-//                  Draft: <name>" — opening a list of the project and its
-//                  drafts, and "Start a draft". Hidden from share-link guests.
+//                  Branch: <name>" — opening a list of the project and its
+//                  branches, and "Start a branch". Each branch row the viewer
+//                  may act on carries Push (its changes go live on the
+//                  project, the branch is deleted) and a trash button
+//                  (Discard, after asking). Every edit to a database project
+//                  saves itself, so there's nothing to save first. Hidden
+//                  from share-link guests.
 //   HistoryMenu    the Edit panel's title, opening the History of every save
 //                  (./HistoryList.tsx).
-//   DraftPushBar   the Edit panel's foot, on a draft: Push to the project
-//                  (its changes go live, the draft is deleted) and Discard —
-//                  where the Push bar sits for a git project. Every edit to a
-//                  database project saves itself, so there's nothing to save
-//                  first. A live database project has no bar: every save
-//                  there is already live.
 //
 // Editing the project directly stays exactly as it was; a draft is only for
 // trying something off the link.
@@ -21,18 +21,21 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react'
-import { ChevronRightIcon, PlusIcon } from '@/platform/chrome/icons'
+import { ChevronRightIcon, PlusIcon, TrashIcon } from '@/platform/chrome/icons'
+import { useStudioUser } from '@/platform/auth/session'
 import { isActiveDbProject } from './active'
 import type { DraftActionResult, DraftsResponse } from './draftMeta'
 import { HistoryList } from './HistoryList'
 
 const PRIMARY =
   'rounded-full bg-primary-500 px-16 py-8 text-12 font-bold text-neutral-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-placeholder dark:disabled:bg-ink-800 dark:disabled:text-neutral-600'
-const SECONDARY =
-  'rounded-full border border-default px-16 py-8 text-12 font-bold text-default hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-placeholder dark:border-ink-700 dark:text-neutral-50 dark:hover:bg-ink-800'
 const NOTE = 'text-12 text-caption dark:text-neutral-400'
 const ROW =
   'flex w-full items-center justify-between gap-8 rounded-8 px-8 py-8 text-left hover:bg-neutral-50 dark:hover:bg-ink-800'
+const SMALL_PRIMARY =
+  'flex-none rounded-full bg-primary-500 px-12 py-4 text-12 font-bold text-neutral-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-placeholder dark:disabled:bg-ink-800 dark:disabled:text-neutral-600'
+const ICON_BUTTON =
+  'flex size-24 flex-none items-center justify-center rounded-4 text-caption hover:bg-neutral-200 hover:text-default disabled:cursor-not-allowed dark:text-neutral-400 dark:hover:bg-ink-700 dark:hover:text-neutral-50'
 const ERROR = 'flex flex-col gap-4 whitespace-pre-line text-12 text-red-700 dark:text-red-400'
 
 // --- shared state: one fetch per project, read by both ---------------------
@@ -127,11 +130,17 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
   const [draftName, setDraftName] = useState('')
   const [busy, setBusy] = useState(false)
   const [outcome, setOutcome] = useState<Refusal | null>(null)
+  // A branch row's own work: which one is pushing or discarding, which one is
+  // asking before it deletes.
+  const [acting, setActing] = useState<{ slug: string; label: string } | null>(null)
+  const [confirming, setConfirming] = useState<string | null>(null)
+  const me = useStudioUser().user?.displayName ?? null
 
   useEffect(() => {
     if (open) return
     setStarting(false)
     setOutcome(null)
+    setConfirming(null)
   }, [open])
 
   const draft = data?.draft
@@ -159,6 +168,23 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
     go(result.slug)
   }
 
+  /** Push or discard a branch from its row. Pushing lands on the project;
+   *  discarding the branch that's open does too — any other just leaves the list. */
+  const run = async (branch: string, action: 'push' | 'discard') => {
+    setOutcome(null)
+    setActing({ slug: branch, label: action === 'push' ? 'Pushing…' : 'Discarding…' })
+    const result = await act(branch, { action })
+    setActing(null)
+    setConfirming(null)
+    if (!result.ok) return setOutcome(result)
+    info = null
+    if (action === 'push' || branch === slug) go(result.slug)
+    else refresh()
+  }
+  // Today's limits: the branch that's open, and the ones this person started.
+  const mayAct = (d: { slug: string; createdBy: string | null }) => d.slug === slug || (me !== null && d.createdBy === me)
+  const parentName = draft?.parentName ?? name
+
   return (
     <div ref={box} className="relative min-w-0">
       <button
@@ -171,7 +197,7 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
         {title}
         {draft ? (
           <span className="truncate text-14 text-caption group-hover:text-default dark:text-neutral-400 dark:group-hover:text-neutral-50">
-            · Draft: {draft.name}
+            · Branch: {draft.name}
           </span>
         ) : null}
         <ChevronRightIcon className={CHEVRON} />
@@ -187,14 +213,54 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
             {!draft ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
           </button>
           {data.drafts.map((d) => (
-            <button key={d.slug} type="button" className={ROW} onClick={() => go(d.slug)}>
-              <span className="flex min-w-0 flex-col">
+            <div key={d.slug} className={ROW}>
+              <button type="button" className="flex min-w-0 flex-1 flex-col text-left" onClick={() => go(d.slug)}>
                 <span className="truncate text-14 text-default dark:text-neutral-50">Branch: {d.name}</span>
-                {d.createdBy ? <span className={NOTE}>{d.createdBy}</span> : null}
-              </span>
-              {d.slug === slug ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
-            </button>
+                <span className={`${NOTE} truncate`}>
+                  {d.createdBy}
+                  {d.slug === slug ? (
+                    <span className="font-bold text-primary-500">{d.createdBy ? ' · Here' : 'Here'}</span>
+                  ) : null}
+                </span>
+              </button>
+              {acting?.slug === d.slug ? (
+                <span className={NOTE}>{acting.label}</span>
+              ) : confirming === d.slug ? (
+                <span className="flex flex-none items-center gap-8">
+                  <span className={NOTE}>Delete?</span>
+                  <button type="button" className={`${NOTE} font-bold hover:text-default dark:hover:text-neutral-50`} onClick={() => setConfirming(null)}>
+                    Keep
+                  </button>
+                  <button type="button" className={SMALL_PRIMARY} onClick={() => void run(d.slug, 'discard')}>
+                    Delete
+                  </button>
+                </span>
+              ) : mayAct(d) ? (
+                <span className="flex flex-none items-center gap-4">
+                  <button
+                    type="button"
+                    className={SMALL_PRIMARY}
+                    disabled={acting !== null}
+                    title={`Push to ${parentName} — its changes go live, and the branch is deleted`}
+                    onClick={() => void run(d.slug, 'push')}
+                  >
+                    Push
+                  </button>
+                  <button
+                    type="button"
+                    className={ICON_BUTTON}
+                    disabled={acting !== null}
+                    aria-label={`Discard the branch ${d.name}`}
+                    title="Discard this branch and its changes"
+                    onClick={() => setConfirming(d.slug)}
+                  >
+                    <TrashIcon className="size-16" />
+                  </button>
+                </span>
+              ) : null}
+            </div>
           ))}
+          {outcome && !starting ? <div className="px-8"><Refused outcome={outcome} /></div> : null}
           <div className="border-t border-default pt-4 dark:border-ink-700">
             {starting ? (
               <form onSubmit={start} className="flex flex-col gap-8 p-8">
@@ -251,62 +317,6 @@ export function HistoryMenu({ slug }: { slug: string }) {
           <HistoryList slug={slug} />
         </div>
       ) : null}
-    </div>
-  )
-}
-
-// --- the Edit panel's foot --------------------------------------------------------
-
-export function DraftPushBar({ slug }: { slug: string }) {
-  const { data } = useDrafts(slug, isActiveDbProject(slug))
-  const router = useRouter()
-  const [busy, setBusy] = useState<string | null>(null)
-  const [confirmDiscard, setConfirmDiscard] = useState(false)
-  const [outcome, setOutcome] = useState<Refusal | null>(null)
-
-  const draft = data?.draft
-  if (!draft) return null
-
-  const run = async (body: { action: 'push' | 'discard' }) => {
-    setOutcome(null)
-    setBusy(body.action === 'push' ? 'Pushing…' : 'Discarding…')
-    const result = await act(slug, body)
-    setBusy(null)
-    if (!result.ok) return setOutcome(result)
-    info = null
-    router.push(`/p/${result.slug}`)
-  }
-
-  return (
-    <div className="flex flex-none flex-col gap-8 border-t border-default pt-12 dark:border-ink-700">
-      {outcome ? <Refused outcome={outcome} /> : null}
-      {confirmDiscard ? (
-        <div className="flex items-center justify-between gap-8">
-          <span className={NOTE}>Delete this branch and its changes?</span>
-          <div className="flex flex-none gap-8">
-            <button type="button" className={SECONDARY} disabled={Boolean(busy)} onClick={() => setConfirmDiscard(false)}>
-              Keep
-            </button>
-            <button type="button" className={PRIMARY} disabled={Boolean(busy)} onClick={() => void run({ action: 'discard' })}>
-              {busy ?? 'Discard'}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between gap-8">
-          <button
-            type="button"
-            disabled={Boolean(busy)}
-            onClick={() => setConfirmDiscard(true)}
-            className="text-12 font-bold text-caption hover:text-default disabled:cursor-not-allowed dark:text-neutral-400 dark:hover:text-neutral-50"
-          >
-            Discard
-          </button>
-          <button type="button" className={`${PRIMARY} truncate`} disabled={Boolean(busy)} onClick={() => void run({ action: 'push' })}>
-            {busy ?? `Push to ${draft.parentName}`}
-          </button>
-        </div>
-      )}
     </div>
   )
 }

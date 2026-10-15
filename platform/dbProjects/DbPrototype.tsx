@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { PrototypeView } from '@/platform/frame'
+import { ChatLoader, useLoaderVisible } from '@/platform/chat/ChatLoader'
 import { STUDIO_DB_ANON_KEY, STUDIO_DB_URL } from './public'
 import type { ProjectConfig, ScreenDef } from '@/platform/types'
 import { publishDbIndexEntry, setActiveDbProject } from './active'
@@ -33,6 +34,7 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
   // Before anything renders: Edit mode and Chat decide where to write by this.
   setActiveDbProject(slug)
   const [problem, setProblem] = useState<string | null>(null)
+  const loaderVisible = useLoaderVisible(!project && !problem)
   const [others, setOthers] = useState<string[]>([])
   const version = useRef<string | null>(null)
 
@@ -106,9 +108,11 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
   }, [slug, refresh, viewer])
 
   if (!project) {
+    // The same Vocus mark as Chat's; a quick load shows the empty canvas
+    // instead of a flash of loader.
     return (
-      <div className="flex h-full w-full items-center justify-center bg-neutral-50 px-16 text-center text-14 text-caption dark:bg-ink-950 dark:text-neutral-400">
-        {problem ?? 'Loading from the database…'}
+      <div className="flex h-full w-full flex-col items-center justify-center bg-neutral-50 px-16 text-center text-14 text-caption dark:bg-ink-950 dark:text-neutral-400">
+        {problem ?? (loaderVisible ? <ChatLoader label="Loading from the database…" /> : null)}
       </div>
     )
   }

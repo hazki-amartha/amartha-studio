@@ -14,10 +14,11 @@
 // =============================================================================
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ChevronRightIcon, CloseIcon, CursorIcon, MediaIcon, StopIcon } from '@/platform/chrome/icons'
+import { ChevronRightIcon, CloseIcon, CursorIcon, FigmaIcon, MediaIcon, StopIcon } from '@/platform/chrome/icons'
 import { PanelHeader } from '@/platform/chrome/SidePanel'
 import { resolveTarget } from '@/platform/inspect/resolve'
 import { attachmentFor } from './attach'
+import { MAX_FIGMA_LINKS, isFigmaLink, parseFigmaUrl } from './figmaLink'
 import { ChatLoader, LoaderMark, useLoaderVisible } from './ChatLoader'
 import { MAX_IMAGES, MAX_TOTAL_CHARS, prepareImage, type PendingImage } from './images'
 import type { RecordedTurn, TranscriptEvent } from './transcript'
@@ -30,7 +31,7 @@ const SPEEDS = [1, 4, 16] as const
 
 export type ChatEvent =
   | TranscriptEvent
-  | { at: number; kind: 'user'; text: string; images?: string[] }
+  | { at: number; kind: 'user'; text: string; images?: string[]; figma?: string[] }
   | { at: number; kind: 'error'; text: string }
 
 /** What the view needs from either source. */
@@ -239,6 +240,13 @@ function ChatView({
                       ))}
                     </div>
                   ) : null}
+                  {event.figma?.length ? (
+                    <div className="mb-8 flex flex-col gap-4">
+                      {event.figma.map((label, j) => (
+                        <Chip key={j} icon={<FigmaIcon className="size-12" />} label={label} />
+                      ))}
+                    </div>
+                  ) : null}
                   <p className="whitespace-pre-wrap break-words text-14 font-regular text-ink-900 dark:text-neutral-200">
                     {event.text}
                   </p>
@@ -268,7 +276,7 @@ function ChatView({
             long as the turn runs, beside what it is doing right now. */}
         {running && (
           <div role="status" className="mt-12 flex items-center gap-8">
-            <LoaderMark className="size-24" />
+            <LoaderMark className="size-20" />
             <span className="text-14 font-bold text-ink-900 dark:text-neutral-white">{activityFor(last)}</span>
             <span className="text-12 font-regular text-neutral-600">
               {clock(state.sinceLastEventMs)} on this step
@@ -290,6 +298,51 @@ function ChatView({
   )
 }
 
+/** The one ✕ every attachment uses — the selection, a Figma link, an image. */
+function RemoveButton({ label, onClick, className = '' }: { label: string; onClick: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={`flex size-20 flex-none items-center justify-center rounded-4 text-caption hover:bg-neutral-200 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-700 dark:hover:text-neutral-50 ${className}`}
+    >
+      <CloseIcon className="size-12" />
+    </button>
+  )
+}
+
+/** What goes with a message besides its words — the selection, a Figma link.
+ *  Quiet on purpose: context, not the message — a neutral chip, capped to the
+ *  box so a long label truncates instead of pushing the panel wider. */
+function Chip({
+  icon,
+  label,
+  title,
+  onRemove,
+  removeLabel,
+}: {
+  icon: ReactNode
+  label: string
+  title?: string
+  onRemove?: () => void
+  removeLabel?: string
+}) {
+  return (
+    <span
+      title={title ?? label}
+      className={`flex min-w-0 max-w-full items-center gap-8 self-start rounded-8 border border-neutral-200 bg-neutral-50 py-4 pl-8 text-12 text-neutral-700 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-200 ${
+        onRemove ? 'pr-4' : 'pr-8'
+      }`}
+    >
+      <span className="flex-none text-caption dark:text-neutral-400">{icon}</span>
+      <span className="min-w-0 truncate">{label}</span>
+      {onRemove ? <RemoveButton label={removeLabel ?? 'Remove'} onClick={onRemove} /> : null}
+    </span>
+  )
+}
+
 /** A reference image's thumbnail — in the composer with an ✕, in the transcript without. */
 function Thumb({ src, small, onRemove }: { src: string; small?: boolean; onRemove?: () => void }) {
   return (
@@ -302,15 +355,12 @@ function Thumb({ src, small, onRemove }: { src: string; small?: boolean; onRemov
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt="Reference image" className="h-full w-full object-cover" />
       {onRemove ? (
-        <button
-          type="button"
+        // The chip's ✕, on the chip's surface so it reads over any image.
+        <RemoveButton
+          label="Remove image"
           onClick={onRemove}
-          aria-label="Remove image"
-          title="Remove image"
-          className="absolute left-4 top-4 flex size-20 items-center justify-center rounded-full bg-neutral-white text-ink-900 shadow-sm hover:bg-neutral-50"
-        >
-          <CloseIcon className="size-12" />
-        </button>
+          className="absolute right-4 top-4 border border-neutral-200 bg-neutral-50 dark:border-ink-700 dark:bg-ink-900"
+        />
       ) : null}
     </span>
   )
@@ -501,7 +551,6 @@ export function LiveChatPanel({
           </button>
         ) : null
       }
-      meter={<UsageMeter />}
       doneLabel={
         chat.last?.error
           ? 'Stopped'
@@ -540,31 +589,42 @@ export function LiveChatPanel({
             ))}
           </div>
         ) : null}
+        {chat.figma.map((f) => (
+          <Chip
+            key={f.id}
+            icon={<FigmaIcon className="size-12" />}
+            label={f.label}
+            title={f.url}
+            onRemove={() => chat.removeFigma(f.id)}
+            removeLabel="Remove the Figma link"
+          />
+        ))}
         {attachment ? (
-          // Quiet on purpose: the selection is context, not the message — a
-          // neutral chip, capped to the box so a long label truncates instead
-          // of pushing the panel wider.
-          <span
-            title={attachment.label}
-            className="flex min-w-0 max-w-full items-center gap-8 self-start rounded-8 border border-neutral-200 bg-neutral-50 py-4 pl-8 pr-4 text-12 text-neutral-700 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-200"
-          >
-            <CursorIcon className="size-12 flex-none text-caption dark:text-neutral-400" />
-            <span className="min-w-0 truncate">{attachment.label}</span>
-            <button
-              type="button"
-              onClick={onDeselect}
-              aria-label="Deselect the element"
-              title="Deselect — the message will be about the project"
-              className="flex size-20 flex-none items-center justify-center rounded-4 text-caption hover:bg-neutral-200 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-700 dark:hover:text-neutral-50"
-            >
-              <CloseIcon className="size-12" />
-            </button>
-          </span>
+          <Chip
+            icon={<CursorIcon className="size-12" />}
+            label={attachment.label}
+            onRemove={onDeselect}
+            removeLabel="Deselect — the message will be about the project"
+          />
         ) : null}
         <textarea
           value={chat.draft}
           onChange={(e) => chat.setDraft(e.target.value)}
           onPaste={(e) => {
+            // A Figma link on its own becomes a chip, like the selection.
+            const pasted = e.clipboardData.getData('text/plain')
+            if (isFigmaLink(pasted)) {
+              e.preventDefault()
+              if (!parseFigmaUrl(pasted)) {
+                setImageError('That link is to the whole Figma file — right-click a frame → Copy link to selection.')
+              } else if (chat.figma.length >= MAX_FIGMA_LINKS) {
+                setImageError(`Up to ${MAX_FIGMA_LINKS} Figma links per message.`)
+              } else {
+                setImageError(null)
+                chat.addFigma(pasted.trim())
+              }
+              return
+            }
             // A screenshot or a frame copied from Figma arrives as a file; text
             // pastes as usual.
             const files = [...e.clipboardData.files].filter((f) => f.type.startsWith('image/'))
@@ -612,17 +672,23 @@ export function LiveChatPanel({
               e.target.value = ''
             }}
           />
-          <button
-            type="button"
-            onClick={running ? chat.stop : submit}
-            disabled={!running && !chat.draft.trim()}
-            aria-label={running ? 'Stop' : 'Send'}
-            title={running ? 'Stop this turn' : 'Send (⌘↵)'}
-            className="flex h-32 min-w-32 flex-none items-center justify-center rounded-8 bg-primary-500 px-8 text-14 font-bold text-neutral-white hover:bg-primary-600 disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-ink-700"
-          >
-            {/* The shortcut IS the label: it says how to send without a hint beside it. */}
-            {running ? <StopIcon className="size-16" /> : '⌘↵'}
-          </button>
+          {/* Usage sits with Send, so the field's own edge stays clean. */}
+          <div className="flex items-center gap-12">
+            <span className="text-12 font-regular text-neutral-600">
+              <UsageMeter />
+            </span>
+            <button
+              type="button"
+              onClick={running ? chat.stop : submit}
+              disabled={!running && !chat.draft.trim()}
+              aria-label={running ? 'Stop' : 'Send'}
+              title={running ? 'Stop this turn' : 'Send (⌘↵)'}
+              className="flex h-32 min-w-32 flex-none items-center justify-center rounded-8 bg-primary-500 px-8 text-14 font-bold text-neutral-white hover:bg-primary-600 disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-ink-700"
+            >
+              {/* The shortcut IS the label: it says how to send without a hint beside it. */}
+              {running ? <StopIcon className="size-16" /> : '⌘↵'}
+            </button>
+          </div>
         </div>
       </div>
     </ChatView>,

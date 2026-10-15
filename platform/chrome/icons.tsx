@@ -219,6 +219,26 @@ export const InspectIcon = icon(
 // A pointer arrow — the selection chip in chat: "this is what you clicked".
 export const CursorIcon = icon(<path d="M5 3l14 7-6 2-2 6z" />)
 
+// Figma's mark, outlined — a Figma link attached to a chat message.
+export const FigmaIcon = icon(
+  <>
+    <path d="M12 2H8.5a3.5 3.5 0 0 0 0 7H12z" />
+    <path d="M12 2h3.5a3.5 3.5 0 0 1 0 7H12z" />
+    <path d="M12 9H8.5a3.5 3.5 0 0 0 0 7H12z" />
+    <circle cx="15.5" cy="12.5" r="3.5" />
+    <path d="M8.5 16a3.5 3.5 0 1 0 3.5 3.5V16z" />
+  </>,
+)
+
+// Trash — deletes something, after asking.
+export const TrashIcon = icon(
+  <>
+    <path d="M4 7h16" />
+    <path d="M9 7V4.5h6V7" />
+    <path d="M6 7l1 13h10l1-13" />
+  </>,
+)
+
 // Stop — a square: stops the chat turn that is running.
 export const StopIcon = icon(<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" />)
 

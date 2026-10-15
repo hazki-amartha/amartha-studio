@@ -30,6 +30,7 @@ import { setChatAvailable } from '@/platform/runtime/chatBridge'
 import type { ChatEvent, ChatState } from './ChatPanel'
 import { reportUsage, type RateLimitInfo } from './usage'
 import type { PendingImage } from './images'
+import { figmaFileLabel, type PendingFigma } from './figmaLink'
 
 interface Done {
   type: 'done'
@@ -73,6 +74,8 @@ interface Conversation {
   /** Reference images waiting to go with the draft. Not kept across a reload:
    *  they are too large for sessionStorage, and re-pasting is one keystroke. */
   images: PendingImage[]
+  /** Figma links pasted into the draft, shown as chips. */
+  figma: PendingFigma[]
 }
 
 const fresh = (): Conversation => ({
@@ -85,6 +88,7 @@ const fresh = (): Conversation => ({
   last: null,
   draft: '',
   images: [],
+  figma: [],
 })
 
 // --- the store ----------------------------------------------------------------
@@ -206,8 +210,16 @@ async function send(prompt: string, shown?: string) {
   const controller = new AbortController()
   abort = controller
   const images = convo.images
-  set({ startedAt: Date.now(), lastEventAt: 0, last: null, status: 'running', draft: '', images: [] })
-  push({ kind: 'user', text: shown ?? text, ...(images.length ? { images: images.map((i) => i.thumb) } : {}) })
+  const figma = convo.figma
+  // The links go to the agent ahead of the message; the transcript shows chips.
+  const message = figma.length ? `Figma:\n${figma.map((f) => `- ${f.label}: ${f.url}`).join('\n')}\n\n${text}` : text
+  set({ startedAt: Date.now(), lastEventAt: 0, last: null, status: 'running', draft: '', images: [], figma: [] })
+  push({
+    kind: 'user',
+    text: shown ?? text,
+    ...(images.length ? { images: images.map((i) => i.thumb) } : {}),
+    ...(figma.length ? { figma: figma.map((f) => f.label) } : {}),
+  })
 
   try {
     const res = await fetch('/api/chat', {
@@ -217,7 +229,7 @@ async function send(prompt: string, shown?: string) {
       // loads it for the agent and saves the turn's changes back.
       body: JSON.stringify({
         slug,
-        message: text,
+        message,
         images: images.length ? images.map((i) => i.image) : undefined,
         sessionId: convo.sessionId,
         db: isActiveDbProject(slug) || undefined,
@@ -284,6 +296,25 @@ function addImages(images: PendingImage[]) {
 
 function removeImage(id: string) {
   set({ images: convo.images.filter((i) => i.id !== id) })
+}
+
+/** A pasted Figma link becomes a chip at once, labelled with the file's name;
+ *  where the studio has a Figma login, the frame's own name replaces it a
+ *  moment later. Sending never waits for it. */
+function addFigma(url: string) {
+  const id = Math.random().toString(36).slice(2)
+  set({ figma: [...convo.figma, { id, url, label: figmaFileLabel(url) }] })
+  void fetch(`/api/chat/figma/name?url=${encodeURIComponent(url)}`)
+    .then((res) => (res.ok ? (res.json() as Promise<{ name: string | null }>) : null))
+    .then((body) => {
+      const name = body?.name
+      if (name) set({ figma: convo.figma.map((f) => (f.id === id ? { ...f, label: name } : f)) })
+    })
+    .catch(() => {})
+}
+
+function removeFigma(id: string) {
+  set({ figma: convo.figma.filter((f) => f.id !== id) })
 }
 
 interface Status {
@@ -353,6 +384,9 @@ export interface LiveChat extends ChatState {
   images: PendingImage[]
   addImages: (images: PendingImage[]) => void
   removeImage: (id: string) => void
+  figma: PendingFigma[]
+  addFigma: (url: string) => void
+  removeFigma: (id: string) => void
   model: string | null
   last: Done | null
   where: 'laptop' | 'cloud'
@@ -394,6 +428,9 @@ export function useLiveChat(slug: string): LiveChat {
     images: c.images,
     addImages,
     removeImage,
+    figma: c.figma,
+    addFigma,
+    removeFigma,
     model: c.model,
     last: c.last,
     where,
