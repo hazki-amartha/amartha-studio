@@ -230,6 +230,15 @@ export const FigmaIcon = icon(
   </>,
 )
 
+// Trash — deletes something, after asking.
+export const TrashIcon = icon(
+  <>
+    <path d="M4 7h16" />
+    <path d="M9 7V4.5h6V7" />
+    <path d="M6 7l1 13h10l1-13" />
+  </>,
+)
+
 // Stop — a square: stops the chat turn that is running.
 export const StopIcon = icon(<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" />)
 
