@@ -11,11 +11,9 @@ import { Badge, Button } from '@/design-system/components'
 import {
   ArrowRight,
   CalendarDots,
-  CheckCircleFill,
   ChevronLeft,
   ChevronRight,
   Cross,
-  Hourglass,
   WarningFill,
 } from '@/design-system/icons'
 import { BPS, rupiah } from './daily-data'
@@ -55,8 +53,8 @@ export function WeeklyDrawer({
   bpName: string
   initialWeek: number
   onClose: () => void
-  /** Jump to this BP's daily diagnosis. */
-  onOpenDaily: () => void
+  /** Jump to this BP's daily diagnosis — on a given day's gap when one is passed. */
+  onOpenDaily: (day?: { dayLabel: string; taskId: string; done: number; target: number }) => void
   /** Every majelis or home visit of the week, as a list. */
   onOpenList: (task: 'majelis' | 'home', week: number) => void
   /** Jump to Sisa setor tunai, from the unsettled-cash review row. */
@@ -93,7 +91,6 @@ export function WeeklyDrawer({
   })
 
   const verifyTotal = totals.reduce((n, t) => n + t.verify, 0)
-  const rows = totals
   const focus = totals.find((t) => t.id === selected) ?? totals[0]
 
   // Home visits: of those done, who was met, who paid, and why not.
@@ -113,6 +110,12 @@ export function WeeklyDrawer({
   const collected = majelis.done * 1_170_000
   const pending = slip * 400_000
   const settled = collected - pending
+
+  // Only the days that missed the target — a clean day needs no row.
+  const dayTarget = COUNT_TASKS.find((t) => t.id === focus.id)!.target
+  const missedDays = days
+    .map((d, i) => ({ d, done: snaps[i].done[focus.id] }))
+    .filter((x) => x.done < dayTarget)
 
   return (
     <div className="absolute inset-0 z-20 flex justify-end bg-overlay">
@@ -152,77 +155,24 @@ export function WeeklyDrawer({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-12 overflow-y-auto p-24">
-          <div className="flex shrink-0 flex-col overflow-hidden rounded-16 border border-default bg-neutral-white">
-            <div className="flex items-center justify-between p-12">
-              <span className="text-16 font-bold text-default">Performance by task</span>
-              <span className="text-12 text-caption">Select a task to focus.</span>
-            </div>
-            <div className="flex flex-col">
-              {rows.map((t) => {
-                // Only the two visit tasks have a detail section to open onto.
-                const actionable = t.id === 'pelayanan' || t.id === 'home-visit'
-                const on = actionable && selected === t.id
-                const clean = !t.notDone && !t.skipped && !t.rescheduled && !t.verify
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    disabled={!actionable}
-                    onClick={() => setSelected(t.id)}
-                    className={`flex items-center gap-12 border-l-4 border-t border-t-default px-12 py-12 text-left ${
-                      on
-                        ? 'border-l-primary-500 bg-primary-50'
-                        : 'border-l-transparent bg-neutral-white'
-                    }`}
-                  >
-                    <span className="flex min-w-0 flex-1 flex-col gap-8">
-                      <span className="flex items-baseline justify-between gap-12">
-                        <span
-                          className={`text-14 text-default ${on ? 'font-bold' : 'font-regular'}`}
-                        >
-                          {t.name}
-                        </span>
-                        <span className="text-14 text-default">
-                          <span className="text-16 font-bold">{t.done}</span> / {t.target} done
-                        </span>
-                      </span>
-                      <span className="flex flex-wrap gap-8">
-                        {clean ? (
-                          <Badge intent="green" variant="subtle" size="sm">
-                            All on target
-                          </Badge>
-                        ) : null}
-                        {t.notDone ? (
-                          <Badge intent="red" variant="subtle" size="sm">
-                            {t.notDone} not done
-                          </Badge>
-                        ) : null}
-                        {t.rescheduled ? (
-                          <Badge intent="blue" variant="subtle" size="sm">
-                            {t.rescheduled} rescheduled
-                          </Badge>
-                        ) : null}
-                        {t.skipped ? (
-                          <Badge intent="neutral" variant="subtle" size="sm">
-                            {t.skipped} skipped
-                          </Badge>
-                        ) : null}
-                        {t.verify ? (
-                          <Badge intent="orange" variant="subtle" size="sm">
-                            {t.verify} to verify
-                          </Badge>
-                        ) : null}
-                      </span>
-                    </span>
-                    {actionable ? (
-                      <span className="text-caption">
-                        <ChevronRight size={16} />
-                      </span>
-                    ) : null}
-                  </button>
-                )
-              })}
-            </div>
+          <div className="flex shrink-0 gap-4 rounded-12 border border-default bg-neutral-white p-4">
+            {totals.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setSelected(t.id)}
+                className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-2 rounded-8 px-4 py-8 text-center ${
+                  selected === t.id ? 'bg-primary-50 text-primary-500' : 'text-default'
+                }`}
+              >
+                <span className={`text-14 ${selected === t.id ? 'font-bold' : 'font-regular'}`}>
+                  {t.name}
+                </span>
+                <span className="text-14 font-bold">
+                  {t.done}/{t.target}
+                </span>
+              </button>
+            ))}
           </div>
 
           <div className="flex shrink-0 flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12">
@@ -262,6 +212,17 @@ export function WeeklyDrawer({
                     unit="mitra attended the meeting"
                   />
                 </div>
+                <div className="flex gap-12 border-t border-default pt-12">
+                  <ReasonList
+                    title="Why the mitra did not pay"
+                    reasons={distribute(NOT_PAID_REASONS, focus.target * 10 - focus.done * 7)}
+                  />
+                  <div className="self-stretch border-l border-default" />
+                  <ReasonList
+                    title="Why the mitra did not attend"
+                    reasons={distribute(NOT_ATTEND_REASONS, focus.target * 10 - focus.done * 8)}
+                  />
+                </div>
               </>
             ) : null}
             {focus.id === 'home-visit' ? (
@@ -283,11 +244,12 @@ export function WeeklyDrawer({
                     note={`${metMitra} met mitra · ${metNone} not met · ${metFamily} met family`}
                   />
                 </div>
-                <div className="flex gap-24">
+                <div className="flex gap-12 border-t border-default pt-12">
                   <ReasonList
                     title="Why the mitra did not pay"
                     reasons={distribute(NOT_PAID_REASONS, visited - paidVisits)}
                   />
+                  <div className="self-stretch border-l border-default" />
                   <ReasonList
                     title="Why the mitra was not met"
                     reasons={distribute(NOT_MET_REASONS, metNone + metFamily)}
@@ -296,65 +258,10 @@ export function WeeklyDrawer({
               </>
             ) : null}
 
-            <span className="flex flex-col gap-2">
-              <span className="text-14 font-bold text-default">Day by day</span>
-              <span className="text-12 text-caption">
-                {focus.name} done against the daily target
-              </span>
-            </span>
-            <div className="flex flex-col overflow-hidden rounded-12 border border-default">
-              {days.map((d, i) => {
-                const done = snaps[i].done[focus.id]
-                const target = COUNT_TASKS.find((t) => t.id === focus.id)!.target
-                const gap = target - done
-                const met = gap <= 0
-                const visit = focus.id === 'pelayanan' || focus.id === 'home-visit'
-                const rescheduled = visit && gap >= 1 ? 1 : 0
-                const skipped = visit && gap >= 3 ? 1 : 0
-                const parts = [
-                  [gap - rescheduled - skipped, 'not done'],
-                  [skipped, 'skipped'],
-                  [rescheduled, 'rescheduled'],
-                ]
-                  .filter(([n]) => n)
-                  .map(([n, label]) => `${n} ${label}`)
-                  .join(' · ')
-                return (
-                  <div
-                    key={d.date}
-                    className={`flex items-center gap-12 px-12 py-12 ${
-                      i > 0 ? 'border-t border-default' : ''
-                    } ${met ? 'bg-neutral-white' : 'bg-orange-50'}`}
-                  >
-                    <span className={met ? 'text-green-500' : 'text-orange-500'}>
-                      {met ? <CheckCircleFill size={20} /> : <Hourglass size={20} />}
-                    </span>
-                    <span className="shrink-0 text-14 text-default" style={{ width: 96 }}>
-                      {d.label}, {d.date}
-                    </span>
-                    <span className="shrink-0 text-14 font-bold text-default" style={{ width: 56 }}>
-                      {done} / {target}
-                    </span>
-                    <span
-                      className={`min-w-0 flex-1 text-14 ${met ? 'text-caption' : 'text-default'}`}
-                    >
-                      {met ? 'Target met' : parts}
-                    </span>
-                    {met ? null : (
-                      <button
-                        type="button"
-                        onClick={onOpenDaily}
-                        className="shrink-0 text-14 font-bold text-link active:opacity-70"
-                      >
-                        See detail
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
             {focus.id === 'pelayanan' ? (
-              <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
+              <div className="flex flex-col gap-8">
+                <span className="text-14 font-bold text-default">Cash settlement</span>
+                <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
                 <Money label="Cash collected" value={collected} />
                 <Money label="Cash settled" value={settled} tone="green" />
                 <Money
@@ -362,10 +269,13 @@ export function WeeklyDrawer({
                   value={pending}
                   tone={pending ? 'orange' : undefined}
                 />
+                </div>
               </div>
             ) : null}
             {focus.id === 'home-visit' ? (
-              <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
+              <div className="flex flex-col gap-8">
+                <span className="text-14 font-bold text-default">Cash settlement</span>
+                <div className="flex items-center gap-12 rounded-12 bg-neutral-50 p-12">
                 <Money label="Cash collected" value={hvCollected} />
                 <Money label="Cash settled" value={hvCollected - hvPending} tone="green" />
                 <Money
@@ -373,9 +283,12 @@ export function WeeklyDrawer({
                   value={hvPending}
                   tone={hvPending ? 'orange' : undefined}
                 />
+                </div>
               </div>
             ) : null}
-            {verifyTotal > 0 || pending > 0 ? (
+            {/* Only the visit tasks have anything to verify or settle. */}
+            {(focus.id === 'pelayanan' || focus.id === 'home-visit') &&
+            (verifyTotal > 0 || pending > 0 || missedDays.length > 0) ? (
               <div className="flex flex-col gap-8 border-t border-default pt-12">
                 <span className="flex items-baseline gap-8">
                   <span className="text-16 font-bold text-default">Needs your review</span>
@@ -396,7 +309,7 @@ export function WeeklyDrawer({
                         </span>
                       </span>
                     </div>
-                    <Button variant="primary" size="sm" onClick={onOpenDaily}>
+                    <Button variant="primary" size="sm" onClick={() => onOpenDaily()}>
                       Verify
                     </Button>
                   </div>
@@ -421,6 +334,40 @@ export function WeeklyDrawer({
                     </Button>
                   </div>
                 ) : null}
+                {missedDays.map(({ d, done }) => (
+                  <div
+                    key={d.date}
+                    className="flex items-center justify-between gap-12 rounded-12 bg-orange-50 p-12"
+                  >
+                    <div className="flex items-center gap-12">
+                      <span className="text-orange-500">
+                        <WarningFill size={24} />
+                      </span>
+                      <span className="flex flex-col gap-2">
+                        <span className="text-14 font-bold text-default">
+                          {d.label}, {d.date} was below target
+                        </span>
+                        <span className="text-12 text-caption">
+                          {done}/{dayTarget} {focus.name.toLowerCase()} done
+                        </span>
+                      </span>
+                    </div>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() =>
+                        onOpenDaily({
+                          dayLabel: `${d.label}, ${d.date}`,
+                          taskId: focus.id,
+                          done,
+                          target: dayTarget,
+                        })
+                      }
+                    >
+                      See detail
+                    </Button>
+                  </div>
+                ))}
               </div>
             ) : null}
           </div>
@@ -437,6 +384,12 @@ const NOT_MET_REASONS: [string, number][] = [
   ['Mitra went to the market', 3],
   ['Mitra not at home, no reason given', 2],
   ['Mitra moved house', 1],
+]
+const NOT_ATTEND_REASONS: [string, number][] = [
+  ['Mitra is working', 4],
+  ['Mitra is sick', 3],
+  ['Mitra is out of town', 2],
+  ['Family event', 1],
 ]
 const NOT_PAID_REASONS: [string, number][] = [
   ['No cash on hand', 5],
