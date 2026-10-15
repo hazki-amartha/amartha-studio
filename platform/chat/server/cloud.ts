@@ -19,7 +19,8 @@
 // team feature — anyone else gets `available: false` and the Chat tab never shows.
 //
 // What the agent can do is enforced, not asked for: built-in tools are only
-// Read, Edit, Write, Glob and Grep (no Bash, no web), a PreToolUse hook keeps
+// Read, Edit, Write, Glob and Grep (no Bash, no web) plus, with a Figma app set up,
+// two read-only Figma tools (./figma.ts), a PreToolUse hook keeps
 // writes inside the project's folder and reads inside the workspace, and the
 // CLI's env carries the token and nothing else — none of the deployment's
 // keys. Turns are capped in steps and in time, and a conversation runs one turn
@@ -37,6 +38,7 @@ import { KEBAB } from '@/platform/design/server/common'
 import { redis } from '@/platform/comments/server/store'
 import { draftChatLines } from '@/platform/dbProjects/draftMeta'
 import { draftsOf } from '@/platform/dbProjects/drafts'
+import { FIGMA_TOOLS, figmaConfigured, figmaTools } from './figma'
 import { LiveSave } from './liveSave'
 import { isSessionStoreConfigured, redisSessionStore } from './sessionStore'
 import { readImages, userContent, type ChatImage } from '../images'
@@ -76,7 +78,7 @@ function configured(): boolean {
   return Boolean(ownerEmails().length && oauthToken() && isSessionStoreConfigured() && existsSync(BINARY))
 }
 
-async function isOwner(): Promise<boolean> {
+export async function isOwner(): Promise<boolean> {
   const owners = ownerEmails()
   if (!owners.length) return false
   const user = await getStudioUser()
@@ -156,7 +158,7 @@ function guard(ws: string, projectDir: string): HookCallback {
     const deny = (reason: string) => ({
       hookSpecificOutput: { hookEventName: 'PreToolUse' as const, permissionDecision: 'deny' as const, permissionDecisionReason: reason },
     })
-    if (name === CHECK_TOOL) return {}
+    if (name === CHECK_TOOL || FIGMA_TOOLS.includes(name)) return {}
     if (!BUILT_IN.includes(name)) return deny(`${name} is not available in studio chat.`)
     const target = [args.file_path, args.path, args.notebook_path].find((v): v is string => typeof v === 'string')
     const resolved = target ? path.resolve(ws, target) : ws
@@ -172,7 +174,7 @@ function guard(ws: string, projectDir: string): HookCallback {
 }
 
 /** `draftOf`: the name of the project this one is a draft of, if it is one. */
-function studioAppend(slug: string, draftOf: string | null): string {
+function studioAppend(slug: string, draftOf: string | null, figma: boolean): string {
   return [
     `You are running inside the Amartha Studio chat panel for project \`${slug}\`,`,
     'on behalf of its designer, who is watching the prototype beside this chat.',
@@ -186,6 +188,16 @@ function studioAppend(slug: string, draftOf: string | null): string {
     'projects are read-only reference. You have no shell, no git and no network,',
     'cannot delete files, and there is no dev server to start — none is needed.',
     '',
+    ...(figma
+      ? [
+          'Figma. When the designer shares a figma.com link, read it with `figma_design`',
+          'and `figma_screenshot`. Figma is the reference for what to build, never a',
+          'source of values: map every colour, size and component to the nearest FunDS',
+          'token and component (CLAUDE.md §2). A link without a node-id needs the frame',
+          'link instead — ask for it (right-click the frame → Copy link to selection).',
+          '',
+        ]
+      : []),
     'Saving. Each edit is saved to the studio as soon as the whole project passes',
     'the studio checks — an edit that leaves it incomplete (a screen not yet listed',
     'in index.ts) waits for the edit that completes it. Before you finish, call the',
@@ -280,9 +292,11 @@ export async function cloudTurn(request: Request): Promise<Response> {
   }
   const projectDir = path.join(ws, folderOf(slug))
 
+  const figma = figmaConfigured()
   const studio = createSdkMcpServer({
     name: 'studio',
     tools: [
+      ...(figma ? figmaTools() : []),
       tool(
         'check_project',
         'Run the studio checks a save must pass (compiles, design-system classes only, nothing that leaves the prototype, valid flows) on the project as it is now. Call it before finishing.',
@@ -318,6 +332,7 @@ export async function cloudTurn(request: Request): Promise<Response> {
       const detail = (input: Record<string, unknown>) => {
         const file = input.file_path ?? input.path
         if (typeof file === 'string') return path.relative(ws, path.resolve(ws, file)) || file
+        if (typeof input.url === 'string') return input.url
         return typeof input.pattern === 'string' ? input.pattern : ''
       }
 
@@ -332,11 +347,11 @@ export async function cloudTurn(request: Request): Promise<Response> {
             pathToClaudeCodeExecutable: BINARY,
             model: process.env.CHAT_MODEL?.trim() || 'opus',
             tools: BUILT_IN,
-            allowedTools: [...BUILT_IN, CHECK_TOOL],
+            allowedTools: [...BUILT_IN, CHECK_TOOL, ...(figma ? FIGMA_TOOLS : [])],
             mcpServers: { studio },
             permissionMode: 'acceptEdits',
             settingSources: ['project'],
-            systemPrompt: { type: 'preset', preset: 'claude_code', append: studioAppend(slug, draftOf) },
+            systemPrompt: { type: 'preset', preset: 'claude_code', append: studioAppend(slug, draftOf, figma) },
             hooks: {
               PreToolUse: [{ hooks: [guard(ws, projectDir)] }],
               PostToolUse: [{ hooks: [saveAfterEdit(projectDir, ws, live)] }],
@@ -363,7 +378,7 @@ export async function cloudTurn(request: Request): Promise<Response> {
             for (const block of m.message?.content ?? []) {
               if (block.type === 'text' && block.text?.trim()) send({ type: 'text', text: block.text })
               else if (block.type === 'tool_use') {
-                const name = block.name === CHECK_TOOL ? 'Check' : block.name
+                const name = block.name === CHECK_TOOL ? 'Check' : FIGMA_TOOLS.includes(block.name) ? 'Figma' : block.name
                 send({ type: 'tool', tool: name, detail: detail(block.input ?? {}) })
               }
             }
