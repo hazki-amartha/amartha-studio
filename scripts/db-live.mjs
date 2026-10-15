@@ -239,7 +239,7 @@ function forgetGone(present) {
     rmSync(join(DIR, slug), { recursive: true, force: true })
     delete state[slug]
     persist()
-    log(`${slug}: removed — it's no longer in the studio (a draft that was pushed or discarded).`)
+    log(`${slug}: removed — it's no longer in the studio (a branch that was pushed or discarded).`)
   }
 }
 

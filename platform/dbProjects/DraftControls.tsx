@@ -165,7 +165,7 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        title="Switch between the project and its drafts"
+        title="Switch between the project and its branches"
         className="group flex min-w-0 max-w-full items-center gap-4 py-4"
       >
         {title}
@@ -189,7 +189,7 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
           {data.drafts.map((d) => (
             <button key={d.slug} type="button" className={ROW} onClick={() => go(d.slug)}>
               <span className="flex min-w-0 flex-col">
-                <span className="truncate text-14 text-default dark:text-neutral-50">Draft: {d.name}</span>
+                <span className="truncate text-14 text-default dark:text-neutral-50">Branch: {d.name}</span>
                 {d.createdBy ? <span className={NOTE}>{d.createdBy}</span> : null}
               </span>
               {d.slug === slug ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
@@ -198,13 +198,13 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
           <div className="border-t border-default pt-4 dark:border-ink-700">
             {starting ? (
               <form onSubmit={start} className="flex flex-col gap-8 p-8">
-                <p className={NOTE}>Try a change without it showing on the project’s link. Push the draft when it’s ready.</p>
+                <p className={NOTE}>Try a change without it showing on the project’s link. Push the branch when it’s ready.</p>
                 <div className="flex gap-8">
                   <input
                     autoFocus
                     value={draftName}
                     onChange={(e) => setDraftName(e.target.value)}
-                    placeholder="Name the draft"
+                    placeholder="Name the branch"
                     maxLength={40}
                     className="min-w-0 flex-1 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12 text-default placeholder:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
                   />
@@ -217,7 +217,7 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
             ) : (
               <button type="button" className={`${ROW} justify-start`} onClick={() => setStarting(true)}>
                 <PlusIcon className="size-16 text-caption dark:text-neutral-400" />
-                <span className="text-14 text-default dark:text-neutral-50">Start a draft</span>
+                <span className="text-14 text-default dark:text-neutral-50">Start a branch</span>
               </button>
             )}
           </div>
@@ -282,7 +282,7 @@ export function DraftPushBar({ slug }: { slug: string }) {
       {outcome ? <Refused outcome={outcome} /> : null}
       {confirmDiscard ? (
         <div className="flex items-center justify-between gap-8">
-          <span className={NOTE}>Delete this draft and its changes?</span>
+          <span className={NOTE}>Delete this branch and its changes?</span>
           <div className="flex flex-none gap-8">
             <button type="button" className={SECONDARY} disabled={Boolean(busy)} onClick={() => setConfirmDiscard(false)}>
               Keep

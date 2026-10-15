@@ -14,7 +14,10 @@ import Link from 'next/link'
 import { configs } from '@/projects/configs'
 import { PrototypeView } from '@/platform/frame'
 import { DbPrototype } from '@/platform/dbProjects/DbPrototype'
-import { isDbProject, viewerName } from '@/platform/dbProjects/server'
+import { findProjectConfig, isDbProject, viewerName } from '@/platform/dbProjects/server'
+import { currentDeleter, owns } from '@/platform/dbProjects/trash'
+import { daysLeft } from '@/platform/dbProjects/trashMeta'
+import { RestoreButton } from '@/platform/projects/ProjectMenu'
 import { noteOpened } from '@/platform/dbProjects/opened'
 import { getStudioUser } from '@/platform/auth/server'
 
@@ -48,6 +51,41 @@ function NotFound({ slug }: { slug: string }) {
   )
 }
 
+// A deleted project's link says so, rather than a 404 that looks like a typo —
+// and its owner (or an admin) can bring it back from here. A branch that went
+// with its project is restored by restoring the project.
+async function Deleted({ slug, name, deletedAt, deletedBy, withProject }: {
+  slug: string
+  name: string
+  deletedAt: string
+  deletedBy: string | null
+  withProject?: string
+}) {
+  const target = withProject ?? slug
+  const owner = (await findProjectConfig(target))?.config
+  const who = await currentDeleter()
+  const canRestore = Boolean(who && owner && owns(who, owner))
+  const left = daysLeft(deletedAt)
+  return (
+    <main className="mx-auto flex min-h-full max-w-screen-sm flex-col items-center justify-center gap-16 bg-neutral-50 px-16 text-center dark:bg-ink-950">
+      <span className="text-10 font-bold uppercase text-caption dark:text-neutral-400">Deleted</span>
+      <h1 className="text-24 font-bold text-default dark:text-neutral-50">{name} was deleted</h1>
+      <p className="text-14 text-caption dark:text-neutral-400">
+        {withProject ? `It went with ${owner?.name ?? withProject}. ` : ''}
+        {deletedBy ? `${deletedBy} deleted it` : 'It was deleted'} — it can be restored for{' '}
+        {left === 1 ? '1 more day' : `${left} more days`}
+        {canRestore ? '.' : ' by its owner or a studio admin.'}
+      </p>
+      <div className="flex items-start gap-8">
+        <Link href="/" className="rounded-full bg-primary-500 px-20 py-12 text-14 font-bold text-neutral-white">
+          Back to gallery
+        </Link>
+        {canRestore ? <RestoreButton slug={target} then={`/p/${slug}`} /> : null}
+      </div>
+    </main>
+  )
+}
+
 export default async function PrototypePage({ params, searchParams }: PageProps) {
   const initialScreenId = firstValue(searchParams.screen)
   // ?full=1 — open straight into bare presentation. Presence is enough; only an
@@ -56,6 +94,8 @@ export default async function PrototypePage({ params, searchParams }: PageProps)
     && firstValue(searchParams.full) !== '0'
 
   if (await isDbProject(params.slug)) {
+    const deleted = (await findProjectConfig(params.slug))?.config
+    if (deleted?.deleted) return <Deleted slug={params.slug} name={deleted.name} {...deleted.deleted} />
     noteOpened(params.slug, true)
     const viewer = viewerName((await getStudioUser())?.displayName)
     return (

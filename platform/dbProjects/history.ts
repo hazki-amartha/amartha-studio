@@ -19,6 +19,7 @@
 // =============================================================================
 
 import { DRAFT_FILE } from './draftMeta'
+import { TRASH_FILE } from './trashMeta'
 import type { HistoryResponse, RestoreResult, SavePoint } from './protocol'
 import { remote } from './remote'
 import { announceSave, createAdminClient, FILES_TABLE, readDbRows, VERSIONS_TABLE } from './server'
@@ -63,7 +64,7 @@ export async function listHistory(slug: string): Promise<HistoryResponse> {
 export function savePoints(rows: Row[]): SavePoint[] {
   const points: SavePoint[] = []
   for (const row of rows) {
-    if (row.path === DRAFT_FILE) continue
+    if (row.path === DRAFT_FILE || row.path === TRASH_FILE) continue
     const last = points[points.length - 1]
     const near = last && last.by === row.saved_by && Date.parse(last.at) - Date.parse(row.saved_at) < SAME_SAVE_MS
     if (near) {
@@ -97,8 +98,8 @@ export function restorePlan(
   const write: { path: string; content: string }[] = []
   const remove: string[] = []
   for (const path of known) {
-    // A draft's link to its project isn't part of what was saved.
-    if (path === DRAFT_FILE) continue
+    // A branch's link to its project, and the deleted mark, aren't part of what was saved.
+    if (path === DRAFT_FILE || path === TRASH_FILE) continue
     const was = then(path)
     if (was === (now.get(path) ?? null)) continue
     if (was === null) remove.push(path)

@@ -29,14 +29,9 @@ function icon(path: ReactNode) {
   }
 }
 
-// Studio — stacked layout tiles (the gallery of prototypes).
+// Studio — a folder (the gallery of prototypes).
 export const StudioIcon = icon(
-  <>
-    <rect x="3" y="3" width="7" height="7" rx="1.5" />
-    <rect x="14" y="3" width="7" height="7" rx="1.5" />
-    <rect x="3" y="14" width="7" height="7" rx="1.5" />
-    <rect x="14" y="14" width="7" height="7" rx="1.5" />
-  </>,
+  <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h3.6a2 2 0 0 1 1.4.6L12 7h6.5A2.5 2.5 0 0 1 21 9.5v8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" />,
 )
 
 // FunDS — layered swatches (the design system).

@@ -35,6 +35,7 @@ import { configs } from '@/projects/configs'
 import { SAVED_EVENT, savedChannel, type DbProjectBuild } from './protocol'
 import { laptopCredentials, remote } from './remote'
 import { DRAFT_FILE, parseDraftMeta, type DraftMeta } from './draftMeta'
+import { KEEP_DAYS, parseDeletedMeta, TRASH_FILE, type DeletedMeta } from './trashMeta'
 
 export const FILES_TABLE = 'studio_project_files'
 export const VERSIONS_TABLE = 'studio_project_file_versions'
@@ -167,7 +168,12 @@ export async function listDbChanges(): Promise<{ slug: string; path: string; at:
   if (!db) return (await remote<{ rows: { slug: string; path: string; at: string }[] }>('/api/db-projects/changes')).rows
   const { data, error } = await db.from(FILES_TABLE).select('slug, path, updated_at')
   if (error) throw new Error(error.message)
-  return data.map((r) => ({ slug: r.slug as string, path: r.path as string, at: r.updated_at as string }))
+  // A deleted project isn't offered to laptops, so their sync drops its folder;
+  // a restore brings it back on the next poll.
+  const deleted = new Set(data.filter((r) => r.path === TRASH_FILE).map((r) => r.slug as string))
+  return data
+    .filter((r) => !deleted.has(r.slug as string))
+    .map((r) => ({ slug: r.slug as string, path: r.path as string, at: r.updated_at as string }))
 }
 
 /**
@@ -363,9 +369,10 @@ function configOf(slug: string, source: string): ProjectConfig | null {
  *  of (./drafts.ts). Drafts are projects too, so /p/<slug>, Chat and the
  *  laptop sync treat them like any other; only lists that show projects to
  *  people leave them out. */
-export type DbProjectConfig = ProjectConfig & { draft?: DraftMeta }
+export type DbProjectConfig = ProjectConfig & { draft?: DraftMeta; deleted?: DeletedMeta }
 
-/** The config of every project in the database, drafts included, newest first. */
+/** The config of every project in the database, drafts and deleted ones
+ *  included, newest first. */
 let remoteConfigs: { at: number; list: Promise<DbProjectConfig[]> } | null = null
 
 export async function listDbConfigs(): Promise<DbProjectConfig[]> {
@@ -385,10 +392,29 @@ export async function listDbConfigs(): Promise<DbProjectConfig[]> {
   const { data, error } = await db
     .from(FILES_TABLE)
     .select('slug, path, content')
-    .in('path', ['project.config.ts', DRAFT_FILE])
+    .in('path', ['project.config.ts', DRAFT_FILE, TRASH_FILE])
   if (error) {
     console.error('[dbProjects] listing failed:', error.message)
     return []
+  }
+  const deleted = new Map(
+    data.filter((r) => r.path === TRASH_FILE).flatMap((r) => {
+      const meta = parseDeletedMeta(r.content as string)
+      return meta ? [[r.slug as string, meta] as const] : []
+    }),
+  )
+  // Past the restore window: gone for good. Every listing checks, so nothing
+  // has to run on a schedule.
+  const expired = [...deleted].filter(([, m]) => Date.now() - new Date(m.deletedAt).getTime() > KEEP_DAYS * 86_400_000)
+  if (expired.length) {
+    for (const [slug] of expired) deleted.delete(slug)
+    const gone = new Set(expired.map(([slug]) => slug))
+    void db
+      .from(FILES_TABLE)
+      .delete()
+      .in('slug', [...gone])
+      .then(({ error: e }) => e && console.error('[dbProjects] purge failed:', e.message))
+    data.splice(0, data.length, ...data.filter((r) => !gone.has(r.slug as string)))
   }
   const drafts = new Map(
     data.filter((r) => r.path === DRAFT_FILE).flatMap((r) => {
@@ -400,13 +426,14 @@ export async function listDbConfigs(): Promise<DbProjectConfig[]> {
     .filter((r) => r.path === 'project.config.ts')
     .map((r) => configOf(r.slug as string, r.content as string))
     .filter((c): c is ProjectConfig => c !== null)
-    .map((c) => (drafts.has(c.slug) ? { ...c, draft: drafts.get(c.slug) } : c))
+    .map((c): DbProjectConfig => (drafts.has(c.slug) ? { ...c, draft: drafts.get(c.slug) } : c))
+    .map((c): DbProjectConfig => (deleted.has(c.slug) ? { ...c, deleted: deleted.get(c.slug) } : c))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
 
-/** Projects people pick from — the gallery, the sidebar: drafts left out. */
+/** Projects people pick from — the gallery, the sidebar: drafts and deleted ones left out. */
 export async function listDbProjects(): Promise<ProjectConfig[]> {
-  return (await listDbConfigs()).filter((c) => !c.draft)
+  return (await listDbConfigs()).filter((c) => !c.draft && !c.deleted)
 }
 
 /**

@@ -1,8 +1,8 @@
 'use client'
 
-// What Chat shows while it reaches Claude: the Vocus mark's looping liquid
-// Lottie (public/chat/loader.json, copied from amartha-vocus), centred in the
-// panel. The player and the animation load lazily, so nothing is paid until
+// The Vocus mark's looping liquid Lottie (public/chat/loader.json, copied from
+// amartha-vocus): centred in the panel while Chat reaches Claude, and small
+// under the transcript while a turn runs. The player and the animation load lazily, so nothing is paid until
 // Chat actually opens; reduced motion, or a failed load, leaves just the words.
 
 import { useEffect, useRef, useState } from 'react'
@@ -35,7 +35,9 @@ export function useLoaderVisible(loading: boolean) {
   return visible
 }
 
-export function ChatLoader({ label }: { label: string }) {
+/** The Vocus mark, looping. Reduced motion, or a failed load, draws nothing —
+ *  callers always pair it with words, so nothing is lost. */
+export function LoaderMark({ className }: { className: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const [still, setStill] = useState(false)
 
@@ -69,9 +71,13 @@ export function ChatLoader({ label }: { label: string }) {
     }
   }, [])
 
+  return still ? null : <div ref={ref} aria-hidden className={`flex-none ${className}`} />
+}
+
+export function ChatLoader({ label }: { label: string }) {
   return (
     <div role="status" className="flex min-h-0 flex-1 flex-col items-center justify-center gap-12">
-      {still ? null : <div ref={ref} aria-hidden className="size-40" />}
+      <LoaderMark className="size-40" />
       <p className="text-12 font-regular text-neutral-600">{label}</p>
     </div>
   )
