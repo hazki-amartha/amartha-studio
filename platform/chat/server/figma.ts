@@ -13,6 +13,7 @@
 
 import { tool } from '@anthropic-ai/claude-agent-sdk'
 import { z } from 'zod'
+import { parseFigmaUrl } from '../figmaLink'
 import { figmaAccessToken, figmaAuthConfigured } from './figmaAuth'
 
 const API = 'https://api.figma.com/v1'
@@ -25,23 +26,6 @@ const MAX_IMAGE_SIDE = 7000
 export const FIGMA_TOOLS = ['mcp__studio__figma_design', 'mcp__studio__figma_screenshot']
 
 export const figmaConfigured = figmaAuthConfigured
-
-/** figma.com/design|file|proto/:key[/branch/:branchKey]/…?node-id=1-2 */
-export function parseFigmaUrl(raw: string): { fileKey: string; nodeId: string } | null {
-  let url: URL
-  try {
-    url = new URL(raw.trim())
-  } catch {
-    return null
-  }
-  if (!/(^|\.)figma\.com$/.test(url.hostname)) return null
-  const parts = url.pathname.split('/').filter(Boolean)
-  if (!['design', 'file', 'proto'].includes(parts[0]) || !parts[1]) return null
-  const fileKey = parts[2] === 'branch' && parts[3] ? parts[3] : parts[1]
-  const nodeId = url.searchParams.get('node-id')?.replace(/-/g, ':')
-  if (!/^[\w]+$/.test(fileKey) || !nodeId || !/^[\w:;]+$/.test(nodeId)) return null
-  return { fileKey, nodeId }
-}
 
 const call = async (pathAndQuery: string, stale: boolean) =>
   fetch(`${API}${pathAndQuery}`, { headers: { authorization: `Bearer ${await figmaAccessToken(stale)}` } })
@@ -205,4 +189,14 @@ export function figmaTools() {
       },
     ),
   ]
+}
+
+/** The name a pasted link's chip shows: the frame's, or "Page · …" / "Section · …". */
+export async function figmaNodeName(link: string): Promise<string | null> {
+  const ref = parseFigmaUrl(link)
+  if (!ref) return null
+  const data = await figma<NodesResponse>(`/files/${ref.fileKey}/nodes?ids=${encodeURIComponent(ref.nodeId)}&depth=1`)
+  const node = data.nodes[ref.nodeId]?.document
+  if (!node) return null
+  return node.type === 'CANVAS' ? `Page · ${node.name}` : node.type === 'SECTION' ? `Section · ${node.name}` : node.name
 }
