@@ -276,7 +276,7 @@ function ChatView({
             long as the turn runs, beside what it is doing right now. */}
         {running && (
           <div role="status" className="mt-12 flex items-center gap-8">
-            <LoaderMark className="size-24" />
+            <LoaderMark className="size-20" />
             <span className="text-14 font-bold text-ink-900 dark:text-neutral-white">{activityFor(last)}</span>
             <span className="text-12 font-regular text-neutral-600">
               {clock(state.sinceLastEventMs)} on this step

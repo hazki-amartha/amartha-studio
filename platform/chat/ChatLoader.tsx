@@ -77,7 +77,7 @@ export function LoaderMark({ className }: { className: string }) {
 export function ChatLoader({ label }: { label: string }) {
   return (
     <div role="status" className="flex min-h-0 flex-1 flex-col items-center justify-center gap-12">
-      <LoaderMark className="size-40" />
+      <LoaderMark className="size-32" />
       <p className="text-12 font-regular text-neutral-600">{label}</p>
     </div>
   )
