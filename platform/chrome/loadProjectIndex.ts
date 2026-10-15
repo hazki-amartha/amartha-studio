@@ -31,9 +31,10 @@ async function loadDbEntries(): Promise<ProjectIndexEntry[]> {
   try {
     const res = await fetch('/api/db-projects', { cache: 'no-store' })
     if (!res.ok) return []
-    // Drafts are listed by their project's Drafts menu, not as projects.
-    const { projects } = (await res.json()) as { projects: (ProjectConfig & { draft?: unknown })[] }
-    return projects.filter((c) => !c.draft).map((c) => ({ slug: c.slug, name: c.name, status: c.status, createdAt: c.createdAt, screens: [] }))
+    // Branches are listed by their project's menu, not as projects; deleted
+    // projects only under the gallery's Recently deleted.
+    const { projects } = (await res.json()) as { projects: (ProjectConfig & { draft?: unknown; deleted?: unknown })[] }
+    return projects.filter((c) => !c.draft && !c.deleted).map((c) => ({ slug: c.slug, name: c.name, status: c.status, createdAt: c.createdAt, screens: [] }))
   } catch {
     return []
   }

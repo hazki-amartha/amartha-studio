@@ -1,8 +1,9 @@
 // =============================================================================
 // DB projects · drafts — start one, push it back, or throw it away.
 //
-// Server-only. A draft (./draftMeta.ts) is a copy of a project under its own
-// slug, `<project>-draft-<name>`, with draft.json saying what it's a copy of
+// Server-only. A draft (./draftMeta.ts) — a "branch" on screen — is a copy of
+// a project under its own slug, `<project>-branch-<name>` (older ones say
+// `-draft-`; the slug is only a name), with draft.json saying what it's a copy of
 // and the project's newest history row at that moment (`baseVersion`).
 //
 //   start     copy every file of the project; project.config.ts gets the
@@ -74,7 +75,7 @@ export async function draftsOf(slug: string): Promise<DraftsResponse> {
   return {
     draft: self?.draft ? { ...self.draft, parentName } : null,
     drafts: configs
-      .filter((c) => c.draft?.draftOf === parent)
+      .filter((c) => c.draft?.draftOf === parent && !c.deleted)
       .map((c) => ({ slug: c.slug, name: c.draft!.name, createdBy: c.draft!.createdBy, createdAt: c.draft!.createdAt }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
   }
@@ -136,7 +137,7 @@ async function deleteProject(db: Db, slug: string) {
 async function draftOf(slug: string): Promise<{ meta: DraftMeta; rows: Map<string, { content: string; at: string }> }> {
   const rows = await readDbRows(slug)
   const meta = rows.get(DRAFT_FILE) ? parseDraftMeta(rows.get(DRAFT_FILE)!.content) : null
-  if (!meta) throw new DraftRefused('This project isn’t a draft.')
+  if (!meta) throw new DraftRefused('This project isn’t a branch.')
   return { meta, rows }
 }
 
@@ -147,17 +148,17 @@ export async function startDraft(project: string, name: string, by: string | nul
   if (!db) return passOn(project, { action: 'start', name })
 
   const label = name.trim().slice(0, 40)
-  // "Draft Hazki" shouldn't make <project>-draft-draft-hazki.
-  const tail = slugFor(label).replace(/^draft-/, '') || slugFor(label)
-  if (!tail) throw new DraftRefused('Give the draft a name with some letters or numbers in it.')
+  // "Branch Hazki" shouldn't make <project>-branch-branch-hazki.
+  const tail = slugFor(label).replace(/^(branch|draft)-/, '') || slugFor(label)
+  if (!tail) throw new DraftRefused('Give the branch a name with some letters or numbers in it.')
 
   const configs = await listDbConfigs()
   const parent = configs.find((c) => c.slug === project)
-  if (!parent) throw new DraftRefused('Only a project that lives in the database can have drafts.')
-  if (parent.draft) throw new DraftRefused('This is already a draft — start one from the project itself.')
+  if (!parent) throw new DraftRefused('Only a project that lives in the database can have branches.')
+  if (parent.draft) throw new DraftRefused('This is already a branch — start one from the project itself.')
 
   const taken = new Set(configs.map((c) => c.slug))
-  const base = `${project}-draft-${tail}`
+  const base = `${project}-branch-${tail}`
   let slug = base
   for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`
 
@@ -188,7 +189,7 @@ export async function pushDraft(slug: string, by: string | null): Promise<DraftA
   const project = meta.draftOf
   const caughtUpTo = await newestVersion(db, project)
   const live = await readDbRows(project)
-  if (!live.size) throw new DraftRefused(`The project this is a draft of (${project}) isn’t in the studio any more.`)
+  if (!live.size) throw new DraftRefused(`The project this is a branch of (${project}) isn’t in the studio any more.`)
 
   const draftConfig = draftRows.get(CONFIG)?.content
   const liveConfig = live.get(CONFIG)?.content
@@ -215,7 +216,7 @@ export async function pushDraft(slug: string, by: string | null): Promise<DraftA
     await catchUp(db, slug, draftRows, result, { ...meta, baseVersion: caughtUpTo }, draftName, by)
     return {
       ok: false,
-      reason: `${conflicts.length === 1 ? 'This file' : 'These files'} changed on the project in the same places as in this draft, so nothing went live. The draft now has both versions marked — resolve them, then push again.`,
+      reason: `${conflicts.length === 1 ? 'This file' : 'These files'} changed on the project in the same places as in this branch, so nothing went live. The branch now has both versions marked — resolve them, then push again.`,
       conflicts,
     }
   }
@@ -238,7 +239,7 @@ export async function pushDraft(slug: string, by: string | null): Promise<DraftA
     changed.map(([p]) => p),
   )
   if (problems.length) {
-    return { ok: false, reason: 'The draft can’t go live until these are fixed in it:', problems }
+    return { ok: false, reason: 'The branch can’t go live until these are fixed in it:', problems }
   }
 
   const saved = await saveIfUnchanged(

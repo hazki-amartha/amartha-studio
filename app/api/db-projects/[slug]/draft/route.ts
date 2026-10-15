@@ -37,7 +37,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
   const dev = process.env.NODE_ENV === 'development'
   const user = dev ? null : await requestUser(request)
   if (dev ? !isLocalRequest(request) : !isEditor(user)) {
-    return answer({ ok: false, reason: 'Sign in as a studio editor to work with drafts.' })
+    return answer({ ok: false, reason: 'Sign in as a studio editor to work with branches.' })
   }
   if (!KEBAB.test(params.slug)) return answer({ ok: false, reason: 'Bad slug.' })
   const by = user ? nameOf(user) : viewerName(null)
@@ -52,7 +52,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
       case 'discard':
         return answer(await discardDraft(params.slug))
       default:
-        return answer({ ok: false, reason: 'Unknown draft action.' })
+        return answer({ ok: false, reason: 'Unknown branch action.' })
     }
   } catch (err) {
     if (err instanceof NotSignedIn) {

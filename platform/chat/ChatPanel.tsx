@@ -14,10 +14,11 @@
 // =============================================================================
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { CloseIcon, CursorIcon, MediaIcon, StopIcon } from '@/platform/chrome/icons'
+import { ChevronRightIcon, CloseIcon, CursorIcon, MediaIcon, StopIcon } from '@/platform/chrome/icons'
 import { PanelHeader } from '@/platform/chrome/SidePanel'
 import { resolveTarget } from '@/platform/inspect/resolve'
 import { attachmentFor } from './attach'
+import { ChatLoader, LoaderMark, useLoaderVisible } from './ChatLoader'
 import { MAX_IMAGES, MAX_TOTAL_CHARS, prepareImage, type PendingImage } from './images'
 import type { RecordedTurn, TranscriptEvent } from './transcript'
 import { useTranscriptReplay } from './useTranscriptReplay'
@@ -61,6 +62,68 @@ function activityFor(event: ChatEvent | undefined): string {
     default:
       return 'Working'
   }
+}
+
+type ToolEvent = Extract<ChatEvent, { kind: 'tool' }>
+
+/** A run of tool calls in one line — "Read 2 files · edited 1 file · ran 2
+ *  commands" — the way Claude's own apps fold the steps between replies. */
+function stepsSummary(tools: ToolEvent[]): string {
+  const count = (names: string[]) => tools.filter((t) => names.includes(t.tool)).length
+  const n = (k: number, one: string) => `${k} ${one}${k === 1 ? '' : 's'}`
+  const parts: string[] = []
+  const read = count(['Read'])
+  const edited = count(['Edit', 'Write', 'MultiEdit'])
+  const searched = count(['Glob', 'Grep'])
+  const ran = count(['Bash'])
+  const other = tools.length - read - edited - searched - ran
+  if (read) parts.push(`read ${n(read, 'file')}`)
+  if (edited) parts.push(`edited ${n(edited, 'file')}`)
+  if (searched) parts.push(`searched ${searched === 1 ? 'once' : `${searched} times`}`)
+  if (ran) parts.push(`ran ${n(ran, 'command')}`)
+  if (other) parts.push(n(other, 'other step'))
+  const line = parts.join(' · ')
+  return line.charAt(0).toUpperCase() + line.slice(1)
+}
+
+/** Folded steps; a click opens the full list for anyone who wants it. */
+function StepGroup({ tools }: { tools: ToolEvent[] }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="mb-12">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex items-center gap-4 text-12 font-regular text-neutral-600 hover:text-ink-900 dark:hover:text-neutral-white"
+      >
+        <span>{stepsSummary(tools)}</span>
+        <ChevronRightIcon className={`size-12 flex-none transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open ? (
+        <div className="mt-4 border-l border-neutral-200 pl-8 dark:border-ink-700">
+          {tools.map((t, i) => (
+            <div key={i} className="mb-4 flex items-baseline gap-8">
+              <span className="text-12 font-bold text-ink-900 dark:text-neutral-white">{t.tool}</span>
+              <span className="truncate text-12 font-regular text-neutral-600">{t.detail}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** Consecutive tool calls folded into one group between messages. */
+function groupSteps(events: ChatEvent[]): (ChatEvent | ToolEvent[])[] {
+  const out: (ChatEvent | ToolEvent[])[] = []
+  for (const e of events) {
+    const prev = out[out.length - 1]
+    if (e.kind !== 'tool') out.push(e)
+    else if (Array.isArray(prev)) prev.push(e)
+    else out.push([e])
+  }
+  return out
 }
 
 /** One limit, as the footer shows it: "5h 23%", amber near the limit, red at it. */
@@ -115,9 +178,9 @@ function ChatView({
   /** Inside the prototype view's panel: no header of its own (the panel's tabs
    *  are the header) and no side padding (the panel's card has it). */
   embedded?: boolean
-  /** Right of the status line — usage, or a replay's spend. */
+  /** Below the input — usage, or a replay's spend. */
   meter?: ReactNode
-  /** On its own line under the status — New chat. */
+  /** Above the input, on the right — New chat. */
   statusExtra?: ReactNode
   children: ReactNode
 }) {
@@ -163,7 +226,8 @@ function ChatView({
         {state.events.length === 0 && embedded ? (
           <p className="text-12 font-regular text-neutral-600">{subtitle}</p>
         ) : null}
-        {state.events.map((event, i) => {
+        {groupSteps(state.events).map((event, i) => {
+          if (Array.isArray(event)) return <StepGroup key={i} tools={event} />
           switch (event.kind) {
             case 'user':
               return (
@@ -196,18 +260,16 @@ function ChatView({
                 </p>
               )
             default:
-              return (
-                <div key={i} className="mb-4 flex items-baseline gap-8">
-                  <span className="text-12 font-bold text-primary-500">{event.tool}</span>
-                  <span className="truncate text-12 font-regular text-neutral-600">{event.detail}</span>
-                </div>
-              )
+              return null
           }
         })}
 
+        {/* Like Claude's own apps: the mark loops under the last message for as
+            long as the turn runs, beside what it is doing right now. */}
         {running && (
-          <div className="mt-12 flex items-center gap-8 rounded-12 bg-primary-50 px-12 py-8">
-            <span className="text-14 font-bold text-primary-500">{activityFor(last)}</span>
+          <div role="status" className="mt-12 flex items-center gap-8">
+            <LoaderMark className="size-24" />
+            <span className="text-14 font-bold text-ink-900 dark:text-neutral-white">{activityFor(last)}</span>
             <span className="text-12 font-regular text-neutral-600">
               {clock(state.sinceLastEventMs)} on this step
             </span>
@@ -215,13 +277,14 @@ function ChatView({
         )}
       </div>
 
-      <footer className={`border-t border-neutral-200 py-12 dark:border-ink-700 ${inset}`}>
-        <div className="mb-8 flex items-start justify-between gap-8 text-12 font-regular text-neutral-600">
+      {/* Embedded, the panel's card already pads the bottom — its own would double it. */}
+      <footer className={`border-t border-neutral-200 pt-12 dark:border-ink-700 ${embedded ? '' : 'pb-12'} ${inset}`}>
+        <div className="mb-8 flex items-center justify-between gap-8 text-12 font-regular text-neutral-600">
           <span>{running ? 'Working…' : state.status === 'done' ? doneLabel : 'Idle'}</span>
-          {meter}
+          {statusExtra}
         </div>
-        {statusExtra ? <div className="mb-8 text-12">{statusExtra}</div> : null}
         {children}
+        {meter ? <div className="mt-8 text-12 font-regular text-neutral-600">{meter}</div> : null}
       </footer>
     </div>
   )
@@ -336,6 +399,7 @@ export function LiveChatPanel({
 }) {
   const chat = useLiveChat(slug)
   const running = chat.status === 'running'
+  const loaderVisible = useLoaderVisible(chat.gate === 'checking')
   const [imageError, setImageError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
@@ -388,6 +452,12 @@ export function LiveChatPanel({
     </aside>
   )
 
+  // Reaching Claude takes a moment; the loader fills the panel so it sits in
+  // the middle of the chat window rather than at the top of an empty transcript.
+  // A quick connect shows a blank panel instead of a flash of loader.
+  if (loaderVisible) return shell(<ChatLoader label="Connecting to Claude…" />)
+  if (chat.gate === 'checking') return shell(null)
+
   if (chat.gate !== 'open') {
     return shell(
       <ChatView subtitle={subtitle} state={chat} doneLabel="" embedded>
@@ -398,8 +468,6 @@ export function LiveChatPanel({
           </p>
         ) : chat.gate === 'no-cli' || chat.gate === 'signed-out' ? (
           <SignInHelp missing={chat.gate === 'no-cli'} onRecheck={chat.recheck} />
-        ) : chat.gate === 'checking' ? (
-          <p className="text-12 font-regular text-neutral-600">Connecting to Claude…</p>
         ) : chat.gate === 'error' ? (
           <div>
             <p className="mb-8 text-12 font-regular text-neutral-600">
@@ -427,7 +495,7 @@ export function LiveChatPanel({
             type="button"
             onClick={chat.newChat}
             title="Start over — a new conversation"
-            className="font-bold text-primary-500 hover:underline"
+            className="font-bold text-ink-900 dark:text-neutral-white hover:underline"
           >
             New chat
           </button>

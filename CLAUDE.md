@@ -305,41 +305,52 @@ this.
 `projects/_db/` — it's ignored by git, and there is nothing to land: it is
 already live. "Commit" and "push" (§5, §7) only apply to git projects and shared
 files. If a designer says "push it" about a database project, tell them it's
-already live — that's the whole point. (A **draft** is the one exception — see
+already live — that's the whole point. (A **branch** is the one exception — see
 below.)
 
-**Drafts.** A designer can start a **draft** of a database project from the
-Edit panel's title ("Edit · Main ▾") — a copy at `/p/<slug>-draft-<name>` that is not on
-the project's link. It is a database project like any other
-(`projects/_db/<draft-slug>/`, Chat, Edit mode), plus a `draft.json` saying what
-it's a draft of — **never edit `draft.json`**. Drafts are optional: editing the
-project directly works exactly as before.
+**Branches.** A designer can start a **branch** of a database project from the
+Edit panel's title ("Edit · Main ▾") — a copy at `/p/<slug>-branch-<name>` (older
+ones are `-draft-`) that is not on the project's link. It is a database project
+like any other (`projects/_db/<branch-slug>/`, Chat, Edit mode), plus a
+`draft.json` saying what it's a branch of — **never edit `draft.json`** (the code
+still calls branches drafts: `draft.json`, `draftOf`, the `/draft` route).
+Branches are optional: editing the project directly works exactly as before.
+This is the studio's own word for that copy, so say it freely; it is never a git
+branch, and git branches stay out of the conversation (§7).
 
 **Which copy — read `.studio-open.json` first.** You can't see the browser, so
 before editing a database project, read `.studio-open.json` at the repo root:
 the dev server writes it each time the designer opens a prototype (`slug`,
-`folder`, and `draftOf` when it's a draft). If they have a **draft** of the
-project open, edit the draft's folder — editing the project itself would put the
-change on its link, which is what the draft exists to avoid. If the note names a
+`folder`, and `draftOf` when it's a branch). If they have a **branch** of the
+project open, edit the branch's folder — editing the project itself would put the
+change on its link, which is what the branch exists to avoid. If the note names a
 different project from the one they asked about, or it's missing, ask "your
-draft or the main project?" before editing. Never pick the main project by
-default when a draft is open.
+branch or the main project?" before editing. Never pick the main project by
+default when a branch is open.
 
-- **"Push it" on a draft** = merge it into the project and delete it: the
-  **Push** bar at the foot of the draft's Edit panel, or `curl -s -X POST localhost:4000/api/db-projects/<draft-slug>/draft -H 'content-type: application/json' -d '{"action":"push"}'`.
+- **"Push it" on a branch** = merge it into the project and delete it: the
+  **Push** bar at the foot of the branch's Edit panel, or `curl -s -X POST localhost:4000/api/db-projects/<branch-slug>/draft -H 'content-type: application/json' -d '{"action":"push"}'`.
   Lines changed on only one side merge on their own.
-- **A push that conflicts lands nothing.** The draft catches up with the
+- **A push that conflicts lands nothing.** The branch catches up with the
   project instead, the clashing files get `<<<<<<< yours` / `>>>>>>> theirs`
-  markers — resolve them in the draft (keep both designers' intent), then push
+  markers — resolve them in the branch (keep both designers' intent), then push
   again.
-- After a push or discard the draft and its laptop folder are gone; the
+- After a push or discard the branch and its laptop folder are gone; the
   designer is back on the project.
-- **"Commit it" on a draft or a database project** — there is nothing to
-  commit: every save is already kept. Say the change is saved (on the draft's
+- **"Commit it" on a branch or a database project** — there is nothing to
+  commit: every save is already kept. Say the change is saved (on the branch's
   link, or live on the project's) and stop.
 - **Undo across saves:** the Edit panel's title menu has **History** — every
   save of the project; picking one restores the project to it. Point a designer
   there rather than re-typing old code by hand.
+
+**Deleting a project** is the gallery card's **⋯ → Delete project**, open to
+the project's owner and studio admins only. It moves the project (and its
+branches) to **Recently deleted** for 30 days, restorable there or on its link;
+live projects and projects another one extends can't be deleted. A
+`deleted.json` marks it — **never write or remove that file yourself**, and
+never delete a project's files to "delete" it. If a designer asks you to
+delete one, point them to the ⋯ menu.
 
 **Moving a git project into the database** is an owner decision:
 `npm run db:sync -- <slug>` copies it in once; from then on `/p/<slug>` serves
@@ -539,7 +550,7 @@ server that is gone.
 
 **How to speak.** The only words are "commit", "committed", "push", "pushed",
 "live", "preview link", and — for shared changes — "pending review". **Never say
-"PR"** (or "pull request", "merge", "auto-merge", "branch", "mergeStateStatus")
+"PR"** (or "pull request", "merge", "auto-merge", a git "branch", "mergeStateStatus")
 to a designer, and never hand them a raw git command. Don't dress a verb in a
 parenthetical that teaches a concept — "commit it (a private checkpoint)" is
 worse than "commit it", because the aside answers a question they didn't ask. If

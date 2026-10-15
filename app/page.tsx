@@ -17,7 +17,10 @@ import { NewProjectButton } from '@/platform/projects/NewProjectButton'
 import { ChevronLeftIcon } from '@/platform/chrome/icons'
 import type { BusinessUnit, Platform, ProjectConfig, ProjectStatus } from '@/platform/types'
 import { configs as projectConfigs } from '@/projects/configs'
-import { listDbProjects } from '@/platform/dbProjects/server'
+import { listDbConfigs } from '@/platform/dbProjects/server'
+import { currentDeleter, deleteStates, owns } from '@/platform/dbProjects/trash'
+import { daysLeft, type DeleteState } from '@/platform/dbProjects/trashMeta'
+import { ProjectMenu, RestoreButton } from '@/platform/projects/ProjectMenu'
 
 // draft = blue, in-review = green, final = green (Badge subtle = 500-on-50 rule).
 // live = primary purple: it is not another shade of "done", it is the shipped
@@ -77,6 +80,8 @@ const NO_PLATFORM_CARD = 'from-neutral-700 to-neutral-900'
 
 type GalleryEntry = {
   config: ProjectConfig
+  /** Set when the person looking may delete it (or would, but it's blocked). */
+  deletable?: DeleteState
 }
 
 function formatDate(iso: string): string {
@@ -90,19 +95,35 @@ function lastModified(config: ProjectConfig): string {
   return config.updatedAt ?? config.createdAt
 }
 
-async function loadEntries(): Promise<GalleryEntry[]> {
+async function loadEntries() {
   // config() only — the gallery draws cards, so pulling each project's screens
   // in here would put the whole studio's screen code on the front door.
   // Git projects and database projects (platform/dbProjects) side by side; a
   // slug in both is the database copy — that is the one /p/<slug> serves.
-  const [git, db] = await Promise.all([
+  const [git, all, who] = await Promise.all([
     Promise.all(Object.values(projectConfigs).map((load) => load())),
-    listDbProjects(),
+    listDbConfigs(),
+    currentDeleter(),
   ])
-  const inDb = new Set(db.map((c) => c.slug))
-  const entries: GalleryEntry[] = [...db, ...git.filter((c) => !inDb.has(c.slug))].map((config) => ({ config }))
+  const states = await deleteStates(who)
+  // Every slug in the database, deleted ones too — a deleted project's git
+  // copy (if one is left) mustn't stand in for it.
+  const inDb = new Set(all.map((c) => c.slug))
+  const db = all.filter((c) => !c.draft && !c.deleted)
+  const entries: GalleryEntry[] = [...db, ...git.filter((c) => !inDb.has(c.slug))].map((config) => ({
+    config,
+    deletable: states[config.slug],
+  }))
+  // Deleted projects, newest deletion first; branches went with their project.
+  const deleted = all
+    .filter((c) => c.deleted && !c.draft)
+    .sort((a, b) => b.deleted!.deletedAt.localeCompare(a.deleted!.deletedAt))
+    .map((config) => ({ config, canRestore: Boolean(who && owns(who, config)) }))
   // Most-recently-modified first.
-  return entries.sort((a, b) => lastModified(b.config).localeCompare(lastModified(a.config)))
+  return {
+    entries: entries.sort((a, b) => lastModified(b.config).localeCompare(lastModified(a.config))),
+    deleted,
+  }
 }
 
 // The whole card is the link — it opens the prototype. Flow view stays
@@ -115,11 +136,14 @@ async function loadEntries(): Promise<GalleryEntry[]> {
 // carries the bookkeeping — who and when, and the status badge. Splitting them
 // means the eye can skip the footer entirely when scanning the grid for a
 // prototype, and go straight to it when scanning for what changed recently.
-function ProjectCard({ config }: GalleryEntry) {
+function ProjectCard({ config, deletable }: GalleryEntry) {
   const owners = Array.isArray(config.owner) ? config.owner.join(', ') : config.owner
   const fill = config.platform ? PLATFORM_COLOR[config.platform].card : NO_PLATFORM_CARD
+  // The ⋯ menu sits over the card, not inside the link — a button in a link
+  // would open the prototype too.
   return (
-    <Link href={`/p/${config.slug}`} className="group flex rounded-16">
+    <div className="relative flex">
+    <Link href={`/p/${config.slug}`} className="group flex flex-1 rounded-16">
       <Card flush className="gallery-card flex flex-1 flex-col group-hover:opacity-90 dark:border-ink-700 dark:bg-ink-900">
         <div className={`flex flex-1 flex-col gap-12 bg-gradient-to-br ${fill} p-16`}>
           {/* When only one of the two is set the other still renders, empty:
@@ -152,6 +176,39 @@ function ProjectCard({ config }: GalleryEntry) {
         </div>
       </Card>
     </Link>
+    {deletable ? <ProjectMenu slug={config.slug} name={config.name} state={deletable} /> : null}
+    </div>
+  )
+}
+
+// Deleted projects wait here for KEEP_DAYS, then the studio removes them. The
+// owner or an admin can restore one; everyone else sees it went, and when.
+function RecentlyDeleted({ items }: { items: { config: ProjectConfig & { deleted?: { deletedAt: string; deletedBy: string | null } }; canRestore: boolean }[] }) {
+  return (
+    <section className="flex flex-col gap-12">
+      <h2 className="text-16 font-bold text-default dark:text-neutral-50">Recently deleted</h2>
+      <Card flush className="gallery-card flex flex-col dark:border-ink-700 dark:bg-ink-900">
+        {items.map(({ config, canRestore }, i) => {
+          const left = daysLeft(config.deleted!.deletedAt)
+          return (
+            <div
+              key={config.slug}
+              className={`flex items-center justify-between gap-12 px-16 py-12 ${i ? 'border-t border-default dark:border-ink-700' : ''}`}
+            >
+              <div className="flex min-w-0 flex-col gap-2">
+                <span className="truncate text-14 font-bold text-default dark:text-neutral-50">{config.name}</span>
+                <span className="truncate text-12 text-caption dark:text-neutral-400">
+                  Deleted {formatDate(config.deleted!.deletedAt)}
+                  {config.deleted!.deletedBy ? ` by ${config.deleted!.deletedBy}` : ''} · gone for good in{' '}
+                  {left === 1 ? '1 day' : `${left} days`}
+                </span>
+              </div>
+              {canRestore ? <RestoreButton slug={config.slug} /> : null}
+            </div>
+          )
+        })}
+      </Card>
+    </section>
   )
 }
 
@@ -315,7 +372,7 @@ export default async function Home({
     bu?: string | string[]
   }
 }) {
-  const entries = await loadEntries()
+  const { entries, deleted } = await loadEntries()
   // A new project lives in the database, so it can be started anywhere: on the
   // laptop running the studio, or on the link by a signed-in editor.
   const user = await getStudioUser()
@@ -358,7 +415,7 @@ export default async function Home({
     ) : (
       <section className="grid grid-cols-1 gap-16 sm:grid-cols-2 lg:grid-cols-3">
         {shown.map((e) => (
-          <ProjectCard key={e.config.slug} config={e.config} />
+          <ProjectCard key={e.config.slug} {...e} />
         ))}
       </section>
     )
@@ -436,6 +493,8 @@ export default async function Home({
           {grid}
         </>
       )}
+
+      {deleted.length ? <RecentlyDeleted items={deleted} /> : null}
     </div>
   )
 }

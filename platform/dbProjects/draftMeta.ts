@@ -77,10 +77,10 @@ export type DraftActionResult =
  *  tells the designer their change is on the project's link when it isn't. */
 export function draftChatLines(parentName: string): string[] {
   return [
-    `This project is a DRAFT of “${parentName}”: a copy for trying changes without them`,
+    `This project is a BRANCH of “${parentName}”: a copy for trying changes without them`,
     `showing on that project’s link. Your saves reach this draft only — never tell the`,
     `designer a change is live on “${parentName}”. When they want it there (“push it”),`,
     `tell them to press “Push to ${parentName}” at the foot of the Edit panel: it merges`,
-    'the draft into the project and deletes the draft. Chat cannot push it.',
+    'the branch into the project and deletes the branch. Chat cannot push it.',
   ]
 }
