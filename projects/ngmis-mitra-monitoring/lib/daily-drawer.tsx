@@ -20,12 +20,13 @@ import {
 } from '@/design-system/icons'
 import type { GapFocus } from './daily-scorecard'
 import { PHOTOS } from './photos'
+import { useDayClosed } from './store'
 import { Select } from './ui'
 import { rupiah } from './daily-data'
 
 const DRAWER_W = 640
 
-type Outcome = 'held' | 'postponed' | 'skipped' | 'pending'
+type Outcome = 'held' | 'postponed' | 'skipped' | 'pending' | 'rejected'
 
 interface Majelis {
   id: string
@@ -386,6 +387,7 @@ export function DailyDrawer({
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'default' | 'latest' | 'earliest'>('default')
   const [resolved, setResolved] = useState<Record<string, Resolution>>({})
+  const dayClosed = useDayClosed()
 
   // A skipped task counts as done: the BP closed it out with a reason and proof.
   const isDone = (m: Majelis) => m.outcome === 'held' || m.outcome === 'skipped'
@@ -524,7 +526,10 @@ export function DailyDrawer({
           {shown.length === 0 ? (
             <span className="py-32 text-center text-14 text-caption">No majelis match.</span>
           ) : (
-            shown.map((m) => (
+            shown.map((raw) => {
+              // Once the day closes, a task still unreported is rejected by the system.
+              const m: Majelis = dayClosed && raw.outcome === 'pending' ? { ...raw, outcome: 'rejected' } : raw
+              return (
               <MajelisCard
                 showType={task === 'all'}
                 key={m.id}
@@ -533,7 +538,8 @@ export function DailyDrawer({
                 resolution={resolved[m.id]}
                 onResolve={(r) => setResolved((v) => ({ ...v, [m.id]: r }))}
               />
-            ))
+              )
+            })
           )}
         </div>
       </div>
@@ -625,6 +631,10 @@ function MajelisCard({
           <Badge intent="neutral" variant="subtle" size="sm" leadingIcon={<Hourglass size={16} />}>
             Task not yet done
           </Badge>
+        ) : m.outcome === 'rejected' ? (
+          <Badge intent="red" variant="subtle" size="sm" leadingIcon={<Prohibit size={16} />}>
+            Task rejected by system
+          </Badge>
         ) : (
           <Badge intent="orange" variant="subtle" size="sm" leadingIcon={<Hourglass size={16} />}>
             Task rescheduled
@@ -632,7 +642,9 @@ function MajelisCard({
         )}
       </div>
       {/* A task not yet done has nothing to report, so the card stops at its header. */}
-      {m.outcome === 'pending' ? null : <div className="border-t border-default" />}
+      {m.outcome === 'pending' || m.outcome === 'rejected' ? null : (
+        <div className="border-t border-default" />
+      )}
 
       {held ? (
         <>
@@ -775,7 +787,7 @@ function MajelisCard({
             style={{ width: 96, height: 96 }}
           />
         </div>
-      ) : m.outcome === 'pending' ? null : (
+      ) : m.outcome === 'pending' || m.outcome === 'rejected' ? null : (
         <div className="flex gap-12">
           <Field label="Reason" value={m.reason ?? ''} />
           <div className="self-stretch border-l border-default" />

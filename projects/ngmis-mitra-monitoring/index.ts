@@ -1,7 +1,14 @@
 import type { ProjectModule } from '@/platform/types'
 import { lazyScreen } from '@/platform/lazyScreen'
 import { config } from './project.config'
-import { scheduleEvening, scheduleMorning, showFo, showHmb } from './lib/demo'
+import {
+  scheduleEvening,
+  scheduleMorning,
+  showDayClosed,
+  showDayOpen,
+  showFo,
+  showHmb,
+} from './lib/demo'
 
 export const project: ProjectModule = {
   config,
@@ -23,6 +30,18 @@ export const project: ProjectModule = {
           label: 'Regular FO',
           description: 'Regular field officer: no write-off entry point — the drawer is read-only.',
           apply: showFo,
+        },
+        {
+          id: 'day-open',
+          label: 'Day in progress',
+          description: 'Daily diagnosis: a task nobody has reported yet reads "Task not yet done".',
+          apply: showDayOpen,
+        },
+        {
+          id: 'day-closed',
+          label: 'Day closed',
+          description: 'Daily diagnosis: after closing the day, those same tasks read "Task rejected by system".',
+          apply: showDayClosed,
         },
         {
           id: 'jadwal-sore',
