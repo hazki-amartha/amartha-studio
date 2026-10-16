@@ -202,7 +202,7 @@ export function WeeklyDrawer({
                     value={focus.done * 7}
                     total={focus.target * 10}
                     unit="loan paid by mitra"
-                    note={`${Math.round(focus.done * 6.3)} full · ${Math.round(focus.done * 0.7)} partial`}
+                    breakdown={repaymentBreakdown(focus.done * 7, focus.target * 10)}
                   />
                   <div className="self-stretch border-l border-default" />
                   <Fraction
@@ -233,7 +233,11 @@ export function WeeklyDrawer({
                     value={paidVisits}
                     total={visited}
                     unit="visits where the mitra paid"
-                    note={`${paidFull} full · ${paidVisits - paidFull} partial`}
+                    breakdown={[
+                      { label: 'Full payment', count: paidFull, dot: 'bg-green-500' },
+                      { label: 'Partial payment', count: paidVisits - paidFull, dot: 'bg-yellow-500' },
+                      { label: 'Not paid', count: visited - paidVisits, dot: 'bg-neutral-400' },
+                    ]}
                   />
                   <div className="self-stretch border-l border-default" />
                   <Fraction
@@ -290,10 +294,7 @@ export function WeeklyDrawer({
             {(focus.id === 'pelayanan' || focus.id === 'home-visit') &&
             (verifyTotal > 0 || pending > 0 || missedDays.length > 0) ? (
               <div className="flex flex-col gap-8 border-t border-default pt-12">
-                <span className="flex items-baseline gap-8">
-                  <span className="text-16 font-bold text-default">Needs your review</span>
-                  <span className="text-12 text-caption">Across all task types</span>
-                </span>
+                <span className="text-16 font-bold text-default">Needs your review</span>
                 {verifyTotal > 0 ? (
                   <div className="flex items-center justify-between gap-12 rounded-12 bg-orange-50 p-12">
                     <div className="flex items-center gap-12">
@@ -398,6 +399,23 @@ const NOT_PAID_REASONS: [string, number][] = [
   ['Family emergency', 1],
 ]
 
+/** How a week's repayments divide. The paid loans are mostly paid in full;
+ *  the rest are partial, settled early at a discount (diskon pelunasan), or
+ *  settled early (pelunasan dini). Whatever is left of the total did not pay. */
+function repaymentBreakdown(paid: number, total: number) {
+  const full = Math.round(paid * 0.82)
+  const partial = Math.round(paid * 0.1)
+  const diskon = Math.round(paid * 0.05)
+  const dini = paid - full - partial - diskon
+  return [
+    { label: 'Full payment', count: full, dot: 'bg-green-500' },
+    { label: 'Partial payment', count: partial, dot: 'bg-yellow-500' },
+    { label: 'Diskon pelunasan', count: diskon, dot: 'bg-blue-500' },
+    { label: 'Pelunasan dini', count: dini, dot: 'bg-primary-500' },
+    { label: 'Not paid', count: total - paid, dot: 'bg-neutral-400' },
+  ]
+}
+
 /** Split `total` across the reasons in proportion to their weights (largest
  *  remainder), so the tallies always add up to the figure they explain. */
 function distribute(base: [string, number][], total: number): [string, number][] {
@@ -441,6 +459,7 @@ function Fraction({
   total,
   unit,
   note,
+  breakdown,
   children,
 }: {
   label: string
@@ -448,6 +467,8 @@ function Fraction({
   total: number
   unit: string
   note?: string
+  /** How the loans divide by outcome, one row each with its share of the total. */
+  breakdown?: { label: string; count: number; dot: string }[]
   children?: ReactNode
 }) {
   return (
@@ -458,6 +479,22 @@ function Fraction({
       </span>
       <span className="text-12 text-caption">{unit}</span>
       {note ? <span className="text-12 text-caption">{note}</span> : null}
+      {breakdown ? (
+        <div className="flex flex-col pt-4">
+          {breakdown.map((r) => (
+            <span key={r.label} className="flex items-center justify-between gap-8 py-2 text-12 text-default">
+              <span className="flex items-center gap-8">
+                <span className={`block size-8 rounded-full ${r.dot}`} />
+                {r.label}
+              </span>
+              <span>
+                <span className="font-bold">{r.count}</span>
+                <span className="text-caption"> · {Math.round((r.count / total) * 100)}%</span>
+              </span>
+            </span>
+          ))}
+        </div>
+      ) : null}
       {children}
     </div>
   )
