@@ -20,7 +20,8 @@
 //
 // What the agent can do is enforced, not asked for: built-in tools are only
 // Read, Edit, Write, Glob and Grep (no Bash, no web) plus, with a Figma app set up,
-// two read-only Figma tools (./figma.ts), a PreToolUse hook keeps
+// two read-only Figma tools (./figma.ts) and, with Vocus set up, read-only research
+// tools (./vocus.ts), a PreToolUse hook keeps
 // writes inside the project's folder and reads inside the workspace, and the
 // CLI's env carries the token and nothing else — none of the deployment's
 // keys. Turns are capped in steps and in time, and a conversation runs one turn
@@ -39,6 +40,7 @@ import { redis } from '@/platform/comments/server/store'
 import { draftChatLines } from '@/platform/dbProjects/draftMeta'
 import { draftsOf } from '@/platform/dbProjects/drafts'
 import { FIGMA_TOOLS, figmaConfigured, figmaTools } from './figma'
+import { VOCUS_TOOLS, vocusConfigured, vocusTools } from './vocus'
 import { LiveSave } from './liveSave'
 import { isSessionStoreConfigured, redisSessionStore } from './sessionStore'
 import { readImages, userContent, type ChatImage } from '../images'
@@ -158,7 +160,7 @@ function guard(ws: string, projectDir: string): HookCallback {
     const deny = (reason: string) => ({
       hookSpecificOutput: { hookEventName: 'PreToolUse' as const, permissionDecision: 'deny' as const, permissionDecisionReason: reason },
     })
-    if (name === CHECK_TOOL || FIGMA_TOOLS.includes(name)) return {}
+    if (name === CHECK_TOOL || FIGMA_TOOLS.includes(name) || VOCUS_TOOLS.includes(name)) return {}
     if (!BUILT_IN.includes(name)) return deny(`${name} is not available in studio chat.`)
     const target = [args.file_path, args.path, args.notebook_path].find((v): v is string => typeof v === 'string')
     const resolved = target ? path.resolve(ws, target) : ws
@@ -174,14 +176,17 @@ function guard(ws: string, projectDir: string): HookCallback {
 }
 
 /** `draftOf`: the name of the project this one is a draft of, if it is one. */
-function studioAppend(slug: string, draftOf: string | null, figma: boolean): string {
+function studioAppend(slug: string, draftOf: string | null, figma: boolean, vocus: boolean): string {
   return [
     `You are running inside the Amartha Studio chat panel for project \`${slug}\`,`,
     'on behalf of its designer, who is watching the prototype beside this chat.',
     '',
     'Scope. You only help with this prototype: its screens, flows, copy and design',
-    'system usage. If asked anything else, reply in one short sentence that chat is',
-    'only for this prototype, and do not answer it.',
+    ...(vocus
+      ? ['system usage, and the customer research behind it. If asked anything else,']
+      : ['system usage. If asked anything else,']),
+    'reply in one short sentence that chat is only for this prototype, and do not',
+    'answer it.',
     '',
     `Files. The project is in \`${folderOf(slug)}/\` — a database project (CLAUDE.md §3b).`,
     'You can change files only there. design-system/, platform/ and the other',
@@ -195,6 +200,19 @@ function studioAppend(slug: string, draftOf: string | null, figma: boolean): str
           'source of values: map every colour, size and component to the nearest FunDS',
           'token and component (CLAUDE.md §2). A link without a node-id needs the frame',
           'link instead — ask for it (right-click the frame → Copy link to selection).',
+          '',
+        ]
+      : []),
+    ...(vocus
+      ? [
+          'Research. Vocus holds Amartha’s customer research: the insight wiki, clustered',
+          'VoC insights and CSAT/NPS by product. When the designer asks what customers',
+          'need, feel or struggle with, or why a flow should work a certain way, look it',
+          'up with `vocus_answer_query` first (`vocus_product_voc` for one product,',
+          '`vocus_search_insights` → `vocus_get_insight` for a specific problem). Cite',
+          'wiki pages as [[Page Title]], keep the caveats, and say plainly when Vocus has',
+          'nothing — never fill the gap from memory. Research informs the prototype; it',
+          'is not a request to change it until the designer asks.',
           '',
         ]
       : []),
@@ -293,10 +311,12 @@ export async function cloudTurn(request: Request): Promise<Response> {
   const projectDir = path.join(ws, folderOf(slug))
 
   const figma = figmaConfigured()
+  const vocus = vocusConfigured()
   const studio = createSdkMcpServer({
     name: 'studio',
     tools: [
       ...(figma ? figmaTools() : []),
+      ...(vocus ? vocusTools(user?.email ?? 'unknown') : []),
       tool(
         'check_project',
         'Run the studio checks a save must pass (compiles, design-system classes only, nothing that leaves the prototype, valid flows) on the project as it is now. Call it before finishing.',
@@ -333,6 +353,10 @@ export async function cloudTurn(request: Request): Promise<Response> {
         const file = input.file_path ?? input.path
         if (typeof file === 'string') return path.relative(ws, path.resolve(ws, file)) || file
         if (typeof input.url === 'string') return input.url
+        if (typeof input.question === 'string') return input.question
+        if (typeof input.query === 'string') return input.query
+        if (Array.isArray(input.titles)) return input.titles.join(', ')
+        if (typeof input.product === 'string' || typeof input.business_unit === 'string') return String(input.product ?? input.business_unit)
         return typeof input.pattern === 'string' ? input.pattern : ''
       }
 
@@ -347,11 +371,11 @@ export async function cloudTurn(request: Request): Promise<Response> {
             pathToClaudeCodeExecutable: BINARY,
             model: process.env.CHAT_MODEL?.trim() || 'opus',
             tools: BUILT_IN,
-            allowedTools: [...BUILT_IN, CHECK_TOOL, ...(figma ? FIGMA_TOOLS : [])],
+            allowedTools: [...BUILT_IN, CHECK_TOOL, ...(figma ? FIGMA_TOOLS : []), ...(vocus ? VOCUS_TOOLS : [])],
             mcpServers: { studio },
             permissionMode: 'acceptEdits',
             settingSources: ['project'],
-            systemPrompt: { type: 'preset', preset: 'claude_code', append: studioAppend(slug, draftOf, figma) },
+            systemPrompt: { type: 'preset', preset: 'claude_code', append: studioAppend(slug, draftOf, figma, vocus) },
             hooks: {
               PreToolUse: [{ hooks: [guard(ws, projectDir)] }],
               PostToolUse: [{ hooks: [saveAfterEdit(projectDir, ws, live)] }],
@@ -378,7 +402,14 @@ export async function cloudTurn(request: Request): Promise<Response> {
             for (const block of m.message?.content ?? []) {
               if (block.type === 'text' && block.text?.trim()) send({ type: 'text', text: block.text })
               else if (block.type === 'tool_use') {
-                const name = block.name === CHECK_TOOL ? 'Check' : FIGMA_TOOLS.includes(block.name) ? 'Figma' : block.name
+                const name =
+                  block.name === CHECK_TOOL
+                    ? 'Check'
+                    : FIGMA_TOOLS.includes(block.name)
+                      ? 'Figma'
+                      : VOCUS_TOOLS.includes(block.name)
+                        ? 'Vocus'
+                        : block.name
                 send({ type: 'tool', tool: name, detail: detail(block.input ?? {}) })
               }
             }
