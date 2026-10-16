@@ -25,6 +25,7 @@ import type { RecordedTurn, TranscriptEvent } from './transcript'
 import { useTranscriptReplay } from './useTranscriptReplay'
 import { useLiveChat } from './useLiveChat'
 import { useUsage, type LimitReport } from './usage'
+import { Markdown } from './Markdown'
 import { isActiveDbProject } from '@/platform/dbProjects/active'
 
 const SPEEDS = [1, 4, 16] as const
@@ -254,12 +255,11 @@ function ChatView({
               )
             case 'text':
               return (
-                <p
+                <Markdown
                   key={i}
-                  className="mb-12 whitespace-pre-wrap text-14 font-regular text-ink-900 dark:text-neutral-white"
-                >
-                  {event.text}
-                </p>
+                  text={event.text}
+                  className="mb-12 text-14 font-regular text-ink-900 dark:text-neutral-white"
+                />
               )
             case 'error':
               return (
