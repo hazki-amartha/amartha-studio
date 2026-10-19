@@ -1,603 +1,272 @@
 # Amartha Studio — Agent Contract
 
-You are a designer's AI agent working in **Amartha Studio**, a shared prototyping
-studio. Every prototype is built **exclusively** from the in-repo design system
-(FunDS Lite). This file is your contract. Follow it exactly, every session.
+You are a designer's AI agent in **Amartha Studio**, a shared prototyping studio.
+Every prototype is built **only** from the in-repo design system, FunDS Lite.
+This file is your contract: follow it exactly, every session. The `*PLAN.md`
+files at the root are build specs for the studio itself — don't read them for
+project work.
 
-Read `README.md` for the human's-eye view. Do **not** read `PLAN.md` for project
-work — it is the build spec for the tool itself, not for prototypes.
+When the designer says **commit** or **push** — in those words or as `/commit`,
+`/push` — follow that command (`.claude/commands/commit.md`, `push.md`). Each
+holds the whole routine behind its verb (§5) and how to report it (§7); read it
+before running any git command.
 
 ---
 
 ## 1. Scope — two tiers, gated at the merge
 
-Everything is editable. The gate is **where work lands**, not what you may touch.
+Everything is editable; the gate is **where work lands**.
 
-- **Tier 1 — project work.** `projects/<slug>/**` plus one appended line in
-  `projects/registry.ts`. Auto-merges once CI is green; nobody reviews it, so §6
-  is the only gate.
-- **Tier 2 — shared work.** `design-system/`, `platform/`, `app/`,
-  `tailwind.config.ts`, `CLAUDE.md`, CI, config. Blocks until the studio owner
-  reviews (`.github/CODEOWNERS` holds who that is — never name them to the
-  designer; see §7).
+- **Tier 1 — project work:** `projects/<slug>/**`, plus one appended line each
+  in `projects/registry.ts` and `projects/configs.ts`. Lands without review once
+  CI is green, so §6 is its only gate.
+- **Tier 2 — shared work:** `design-system/`, `platform/`, `app/`,
+  `tailwind.config.ts`, `CLAUDE.md`, CI, config. Waits for the studio owner's
+  review (`.github/CODEOWNERS` — never name them unprompted, §7). Keep it in
+  its own commit, tell the designer first, since it costs them a review, and
+  prefer a project-local component (§4) when only your prototype wants it.
 
-Touching Tier 2: keep it in **its own commit**, tell the designer first (it costs
-them a review), and prefer a project-local component (§4) when only your
-prototype wants it.
+`platform/types.ts` is **frozen** — the contract between every project and the
+runtime. If you truly can't work around it, ask.
 
-`platform/types.ts` is **frozen** — it's the contract between every project and
-the runtime. If you truly can't work around it, ask.
-
-**Never edit another designer's `projects/<slug>/`.** Nothing enforces this —
-`owner` is a display name, not a GitHub account — and project work auto-merges,
-so a mistake here lands unreviewed.
-
-**Database projects are the exception to all of the above** — see §3b. They
-don't live in git at all, and their work never goes through a PR.
+**Never edit another designer's `projects/<slug>/`.** Nothing enforces it —
+`owner` is a display name — and project work lands unreviewed. Database projects
+(§3b) are the exception: they don't live in git, and any studio editor may edit
+any of them.
 
 ---
 
 ## 2. Vocabulary — build only from the design system
 
 Compose screens **only** from `@/design-system/components` and
-`@/platform/primitives`. Read **`design-system/guidelines/CHEATSHEET.md`** before
-building — that one file, not the whole folder. It carries every token and every
-component signature. Open a `components/*.md` doc only when the cheatsheet
-genuinely doesn't answer your question about a component you're actually using.
+`@/platform/primitives`, and read **`design-system/guidelines/CHEATSHEET.md`**
+before building — that one file holds every token, component signature, icon
+and layout rule. Open a `guidelines/components/*.md` doc only when the cheatsheet
+doesn't answer a question about a component you are using.
 
-**Never** hardcode hex colors, font sizes, spacing, or radii. **Never** use
-Tailwind arbitrary values (`p-[13px]`, `text-[#853291]`, `w-[200px]`) — the lint
-rule `no-arbitrary-value` errors on them. Use only the locked named classes
-(`px-16`, `gap-12`, `rounded-12`, `text-primary-500`, …).
+**Never** hardcode colours, font sizes, spacing or radii, and never use Tailwind
+arbitrary values (`p-[13px]`). If what you want isn't a token, you're off-system:
+pick the nearest one. A screen's content goes inside `Screen` (`AppShell` on
+desktop) — never hand-roll page padding.
 
-### Key constraints (absolute)
+**The live references document the shipped product** — they are not prototypes:
+`amarthafin-live` (the AmarthaFin app), `apartner-sot` (the A-Partner field app)
+and `ngmis-live` (the NG-MIS back office). That is what `status: 'live'` means,
+and all it means (`'final'` is settled, not shipped). **Before building or
+changing anything those apps already have — a homepage above all — open the
+reference and match it.** For the AmarthaFin homepage that is the flat white
+canvas (`<Screen canvas="white">`), the curved brand band, the Poket wallet
+widget, the service shortcuts and the bottom nav. A prototype that redraws the
+surrounding chrome hides the very change the designer is judging, however legal
+its tokens.
 
-| Rule | Value |
-|------|-------|
-| Brand / primary color | `primary-500` = `#853291` — the ONLY primary action color |
-| Font | Inter, weights **500 and 700 only** — classes `font-regular` / `font-bold`; `font-medium` etc. do NOT exist and fail silently |
-| Spacing | 4px grid: `0 2 4 8 12 16 20 24 32 40 48` px only |
-| Sizes | width/height (`w-` `h-` `size-`) also take every 4px step from 52 to 1200 (`w-200`) — never `w-[…]` |
-| Buttons | pill shape (`rounded-full`, 9999px) — never rectangular |
-| Cards | 16px radius (`rounded-16`) by default, 12px padding — `<Card radius>` takes 8/12/16/20/24 when a surface genuinely needs another |
-| Inputs | 8px radius (`rounded-8`) |
-| Status colors | 500 foreground on the matching 50-tint background (Badge handles this) |
-| Layout | 16px page padding-x, 16px page padding-top, 12px section gap, 48px topbar |
-
-Do NOT invent values. If a color/size/spacing you want isn't a named token, you're
-off-system — pick the nearest token instead.
-
-### Layout primitives (`@/platform/primitives`)
-
-Every screen wraps its content in **`Screen`** — never hand-roll page padding:
-
-```tsx
-<Screen topBar={<NavigationHeader title="…" onBack={flow.back} />}>
-  {/* content — bg-neutral-50 canvas, px-16 pt-16, and 12px section gap
-      are already applied; just stack your sections */}
-</Screen>
-```
-
-- `Screen` — props: `topBar?` (pinned chrome) + `children`. Applies the
-  `neutral-50` canvas, 16px page padding, and 12px section gap for you.
-  `canvas="white"` swaps the tinted canvas for a flat white page — the shipped
-  AmarthaFin homepage has no canvas tint, so homepages want it (see below).
-  `statusBar="none"` stops the status strip painting, so coloured chrome can
-  reach the top of the display.
-- `TopBar` — a minimal 48px top bar (`children`) for screens that don't need a
-  full `NavigationHeader`.
-
-### Live product reference — read before building a homepage
-
-`projects/amarthafin-live/` is the **source of truth for screens already shipped
-in production**. It is not a prototype under review; it is what the app actually
-looks like today. That is what `status: 'live'` means in `project.config.ts` —
-distinct from `'final'`, which means the design is settled but says nothing
-about whether it shipped. Only use `'live'` for a project that documents
-production.
-
-**If you are building or changing a homepage, open it first** and match what is
-already there — the flat white canvas (`<Screen canvas="white">`, not the
-neutral-50 tint), the curved brand band, the Poket wallet widget, the service
-shortcut row, the bottom navigation. A homepage that invents its own header or
-wallet is wrong even when every token in it is legal: the designer is judging a
-change *against the live product*, and a prototype that silently redraws the
-surrounding chrome hides the very thing they are trying to see.
-
-To reuse its **screens** whole — start on the real homepage, return to it,
-tab across to it — don't rebuild them: set `extends: 'amarthafin-live'` in your
-`project.config.ts` and they are yours (§3 "Extending a base project"). To
-reuse a **piece** of one inside a screen you're redrawing, read
-`projects/amarthafin-live/lib/ui.tsx` and copy that piece into your own
-project's `lib/` — do **not** import across projects (§1: never reach into
-another project's folder).
-
-Some of these pieces are genuinely shared vocabulary — the Poket payment widget
-is the clearest case — and are **candidates for promotion into
-`design-system/components/`** once a second prototype wants them (§4's
-"wanted twice" bar). Promoting one is Tier 2: its own commit, and tell the
-designer, because it costs them a review.
+Reuse a reference's whole screens with `extends` (§3). To reuse a piece inside
+your own screen, copy it from the reference's `lib/` into yours — never import
+across projects. A piece a second prototype also wants (the Poket widget is the
+clearest) is a candidate for `design-system/components/`, which is Tier 2.
 
 ---
 
 ## 3. Structure — how a project is shaped
 
-**Default to a click-through.** A prototype is screens that call `go()` to reach
-each other — nothing more. Local `useState` is fine for anything that doesn't
-need to survive navigation. Do **not** reach for a module store, `lib/demo.ts`
-seed data, or `states` unless the designer asks to *demonstrate real behavior*
-(a value carried across screens, an error condition, a day that already
-happened). Real data and state cost real tokens to build and maintain; a
-click-through is the cheap default, and most prototypes want exactly that. When
-in doubt, build the click-through and offer the fancier version rather than
+**Default to a click-through:** screens that `go()` to each other, with local
+`useState` for anything that needn't survive navigation. No module store, no
+`lib/demo.ts` seed data and no `states` unless the designer asks to *demonstrate
+real behaviour* — a value carried across screens, an error, a day that already
+happened. Build the click-through and offer the richer version instead of
 assuming it.
 
-**Nothing leaves the prototype.** A button that really opens WhatsApp, launches
-Google Maps, dials a number, or sends mail is not a prototype — it's an
-integration. It throws the viewer out of the device frame mid-demo with no way
-back, and it can't be shown at all on a laptop with no WhatsApp installed. So:
-no `wa.me` / `maps.google.com` / `tel:` / `mailto:` hrefs, no `window.open`, no
-`fetch` to a live service, no embedded map or video. Draw the affordance and
-have it `go()` to a screen that shows the *result* — a sent-message state, a
-map placeholder, a call sheet. That is what the designer is reviewing; the
-handoff to a real app is the engineer's problem, not the prototype's.
+**Nothing leaves the prototype.** No `wa.me` / `maps.google.com` / `tel:` /
+`mailto:` links, no `window.open`, no `fetch`, no embedded map or video: they
+throw the viewer out of the device mid-demo and can't be shown on a laptop at
+all. Draw the affordance and `go()` to a screen that shows the result — a sent
+message, a map placeholder, a call sheet. Wire the real thing only when the
+designer asks for it in words, this session — "make it really open WhatsApp",
+not just a WhatsApp button.
 
-Wire the real thing **only when the designer asks for it in words, this
-session** — same bar as `notes` below. Realism nobody requested is the most
-expensive kind of overengineering here: it costs build time, it can't be
-demoed, and it makes the prototype look finished when it isn't.
+**A new git project** is a copy of `projects/_template/` at `projects/<slug>/`
+(the gallery's New Project button makes a database project instead — §3b):
 
-A new project = **copy `projects/_template/` → `projects/<slug>/`**, then:
-
-1. Fill `project.config.ts` — every field. `slug` must match the folder name and
-   be unique (kebab-case). `createdAt` is set once and never edited. `owner` is
-   the **designer's name** — it is how ownership is enforced (§1). **Ask the
-   designer for their name** if you don't know it; `git config user.name` is an
-   acceptable fallback. Never guess.
-2. Write screens: **one file per screen** in `screens/`, `'use client'` at top.
-3. List screens in `index.ts` — each with `id` (kebab-case, stable), `title`,
-   and `component`. Exactly **one** screen sets `entry: true`. That's the whole
-   requirement; `notes` and `flowsTo` are opt-in extras (see below).
-
-   **`component` is always a `lazyScreen()`, never a top-level import.** The
-   index is metadata; importing a screen file at the top of it means listing a
-   screen loads it, which put every screen of every project into every page of
-   the studio:
+1. `project.config.ts`, every field. `slug` is the folder name — unique,
+   kebab-case. `createdAt` is set once. `owner` is the **designer's name**: ask
+   (`git config user.name` as a fallback), never guess.
+2. One file per screen in `screens/`, with `'use client'` at the top.
+3. `index.ts` lists each screen — `id` (kebab-case, stable), `title`,
+   `component` — with exactly **one** `entry: true`. `component` is always
+   `lazyScreen(() => import('./screens/home'), 'HomeScreen')` with the import
+   written inline: a top-level import loads every screen into every studio page.
+4. One line in each of the two maps, above the marker comment, touching no
+   other line — `npm run check:flows` catches a missed one:
    ```ts
-   import { lazyScreen } from '@/platform/lazyScreen'
-   // ✅
-   component: lazyScreen(() => import('./screens/home'), 'HomeScreen'),
-   // ❌ import { HomeScreen } from './screens/home'  →  component: HomeScreen
-   ```
-   The import must be written inline like that — a bundler can only split a
-   path it can read literally.
-4. Register the project in **two** append-only maps, one line in each, above
-   the marker comment; never modify or reorder other lines:
-   ```ts
-   // projects/registry.ts — the full module, loaded by client code
+   // projects/registry.ts — the full module, for client code
    '<slug>': () => import('./<slug>').then((m) => m.project),
-
-   // projects/configs.ts — metadata only, loaded by server code
+   // projects/configs.ts — metadata only, for server code
    '<slug>': () => import('./<slug>/project.config').then((m) => m.config),
    ```
-   They are separate files because a Server Component pays for everything
-   reachable from what it imports, dynamic imports included: the gallery only
-   wants your project's name, and reading it through `registry.ts` would load
-   the whole studio's screens. `npm run check:flows` fails if the two maps
-   drift, so a missed line is caught before it ships.
 
-**`notes` — only when the designer asks, in words, this session.** They're
-annotations shown beside the device on desktop — genuinely useful when someone
-wants them, and pure wasted effort when nobody did. The failure mode is adding
-them *by habit*: if you're about to write a `notes` entry and the designer did
-not explicitly ask for annotations, **stop and leave the field off.** Building
-the screen is not a licence to also explain it. Never write design rationale
-nobody requested — it costs more time than the screen did. Default: omit.
+**Opt-in extras, all off by default:**
 
-**`states` — optional, and worth offering when a screen has more than one
-condition worth showing.** Each entry is `{ id, label, description?, apply }`,
-rendered as a one-click control on the LEFT of the device in desktop view,
-mirroring `notes` on the right. `apply` is your own function — normally a write
-to the project's module store — so the platform never learns anything about your
-internals. It exists for presentations: reaching the state under discussion
-should not cost six screens of tapping, and some states (an error, a mismatch, a
-day that already happened) can't be tapped to at all. Keep the seeding functions
-in `projects/<slug>/lib/demo.ts`, out of the prototype's own code.
+- `notes` (annotations beside the device) — **only when the designer asks for
+  them in words, this session.** Never add them, or any design rationale, by
+  habit.
+- `states` (one-click setups beside the device: `{ id, label, description?,
+  apply }`) — worth offering when a screen has conditions you can't tap to.
+  `apply` writes the module store; seeding lives in `lib/demo.ts`.
+- `flowsTo` (flow-view metadata) — every `to` must be a real screen id.
 
-**`flowsTo` — optional.** It's descriptive metadata for the flow view; real
-navigation is `useFlow().go(id)` in the component. Add it when a flow diagram
-would help the designer, skip it otherwise. If you do add it, `check:flows`
-requires every `to` be a real screen id.
+**Mock data** — plain constants in `lib/` — covers what's on screen: ~3–5 rows,
+never faker-scale volume unless the designer asks to see the prototype under load.
 
-Project-local state / mock data goes in `projects/<slug>/lib/`. **Keep mock data
-to what's actually on screen** — a few representative rows (~3–5), not a
-realistic-scale dataset. A list that shows five items needs five, not fifty; the
-invisible rows are pure token cost for zero visible difference. Never generate
-faker-style volume "to make it look real" unless the designer asks to see the
-prototype under load.
-
-A screen obtains navigation from `useFlow()` (`@/platform/runtime`): `go(id)`
-pushes, `back()` pops, `current` is the active id. Screens receive no props.
+**Navigation** is `useFlow()` from `@/platform/runtime`: `go(id)`, `back()`,
+`current`. Screens take no props and **remount on every navigation**, so a
+value that must survive a `go()` goes in a module store, `lib/store.ts` read with
+`useSyncExternalStore` (the template's stub shows the pattern — delete it in a
+click-through).
 
 ### Extending a base project
 
-A prototype is usually one feature inside an app that already exists. Rather
-than rebuilding the app around the feature, a project can **extend** another:
+`extends: '<slug>'` in `project.config.ts` merges the base's screens under the
+project's own. The same id **replaces** the base screen, every other one is
+inherited, and `go(id)` works across both — so a project holds only its feature
+and still behaves like the whole app. Prefer a `status: 'live'` base.
 
-```ts
-// project.config.ts
-extends: 'apartner-majelis-view',
-```
-
-The runtime merges the base's screens under this project's own. A screen here
-with the **same id** as a base screen **replaces** it; every other base screen
-is inherited unchanged; `go(id)` resolves across both, in either direction. So a
-project holds only the screens of its feature, and the prototype still behaves
-like the whole app — the tab bar leads somewhere real, the base's own tab bar
-leads back into the feature's screens. Rules:
-
-- **One level.** A base may not itself extend. `check:flows` rejects chains.
-- **Same id means override — on purpose.** `check:flows` prints the override
-  list every run; read it. Reusing a generic id (`home`, `detail`) replaces the
-  base screen silently otherwise.
-- **The base's ids are a contract.** Renaming a screen in a base breaks every
-  project that extends it. Treat a base's `index.ts` ids as stable, and prefer
-  extending a `status: 'live'` project — that is what they are for.
-- **Inheritance is live.** When the base changes, so does every project
-  extending it. If a project needs a frozen copy of a base screen, override it.
-- **Your entry still wins.** The extending project needs exactly one `entry`;
-  the base's is ignored. Flow view draws only the project's own screens.
-- **Never edit the base to fix your feature** — §1 still holds. Override the
-  screen instead, or ask the base's owner.
-
-### Cross-screen state
-
-Most prototypes never need this — see the click-through default at the top of
-§3. Reach for it only when a value genuinely must survive navigation.
-
-**Screens remount on every navigation** — `useState` inside a screen is
-silently lost when you `go()` away and back. When a value *must* survive
-navigation (an entered amount, a selected option), it goes in a **module store**
-in `projects/<slug>/lib/store.ts`, read via `useSyncExternalStore`. The
-template ships an **optional** stub at `projects/_template/lib/store.ts` —
-delete it if the prototype is a plain click-through; see
-`projects/apartner-majelis-view/lib/store.ts` for a full flow using the pattern.
+- One level only: a base can't extend.
+- A reused id is an override — read the list `check:flows` prints.
+- A base's screen ids are a contract: renaming one breaks every extender.
+- Inheritance is live; to freeze a base screen, override it.
+- The project needs exactly one `entry` of its own; the base's is ignored.
+- Never edit the base to fix your feature — override the screen, or ask its owner.
 
 ---
 
-## 3b. Database projects — shared live, no commit or push
+## 3b. Database projects — shared and live, no git
 
-Some projects live in the studio's **database**, not in git. Every project the
-gallery's **New Project** button makes is one. A database project has **one
-shared copy, and it is live**: a save shows on the link, for everyone, within
-seconds. Everything in §2–§4 still applies to what you build; what changes is
-where the files are and how work lands.
+**How to tell:** `projects/_db/<slug>/` exists. Every project the gallery's New
+Project button makes is one, and it has **one shared copy, which is live**: a
+save shows on the link, for everyone, within seconds. The folder is this
+laptop's copy, kept in step by the live sync `npm run dev` starts. A
+`projects/<slug>/` beside it is a stale git copy — never edit or create one.
+§2–§4 apply as usual; their `projects/<slug>/` paths are
+`projects/_db/<slug>/` here.
 
-**How to tell.** `projects/_db/<slug>/` exists → it's a database project. That
-folder is this laptop's copy, kept in step by the live sync
-(`scripts/db-live.mjs`, started by `npm run dev`). If `projects/<slug>/` exists
-too, it is a stale git copy — **never edit it**, and never create one.
+**Which copy:** read `.studio-open.json` at the repo root before editing — it
+names what the designer has open: `slug`, `folder`, and `draftOf` when that's a
+**branch**. A branch open → edit the branch's folder. The note names another
+project, or is missing → ask "your branch or the main project?". Never default
+to the main project while a branch is open.
 
-**Editing.** Edit the files in `projects/_db/<slug>/` exactly as you would a
-git project. Each file you save goes to the database a moment later — **if**
-the project still passes the save checks (compiles, design-system classes only,
-nothing that leaves the prototype, valid flows). Other designers may be working
-on the same project at the same time:
+**Editing:**
 
-- **Their saves land in your files while you work.** Re-read a file before you
-  edit it; don't trust an old read.
-- **A file you both changed is merged for you** (git's three-way merge). When
-  you both changed the same lines, the file gets `<<<<<<< yours` /
-  `>>>>>>> theirs (just saved)` conflict markers and is not saved until you
-  resolve them — keep both designers' intent, remove the markers.
+- Each file you save goes live a moment later **if** the project passes the save
+  checks; a refused save waits on this laptop. Others save too, so **re-read a
+  file before you edit it.**
+- A file you both changed is merged for you. Where you both changed the same
+  lines, it gets `<<<<<<< yours` / `>>>>>>> theirs` markers and waits until you
+  resolve them — keep both designers' intent.
 - **Before you say you're done,** run `npm run check:project -- <slug>` and fix
-  everything it reports. Changes that fail it are sitting on this laptop, not
-  on the link.
+  everything it reports. It type-checks too, which a save doesn't.
+- Saving needs the laptop signed in once, at
+  `http://localhost:4000/auth/laptop/start`, with the designer's Amartha Google
+  account. Never ask for keys or `.env.local`.
 
-**Signing in.** Saving needs the laptop signed in to the studio — once, with the
-designer's Amartha Google account, no keys or `.env.local`: they open
-`http://localhost:4000/auth/laptop/start` (Edit mode's panel and `check:project`
-point them there). Viewing works without it. Any studio editor may edit any
-database project. Never ask a designer for keys or to edit `.env.local` for
-this.
+**No git.** Never commit, push or open anything for `projects/_db/`: "commit it"
+means it's already saved, "push it" means it's already live. A **branch** is the
+one exception — `/push` merges it into its project.
 
-**No git for this work.** Don't commit, push, or open a PR for anything in
-`projects/_db/` — it's ignored by git, and there is nothing to land: it is
-already live. "Commit" and "push" (§5, §7) only apply to git projects and shared
-files. If a designer says "push it" about a database project, tell them it's
-already live — that's the whole point. (A **branch** is the one exception — see
-below.)
+**Branches** are the studio's own word, so say it freely — never a git branch. A
+designer starts one from the Edit panel's title ("Edit · Main ▾"): a database
+project at `/p/<slug>-branch-<name>` (older ones say `-draft-`) with a
+`draft.json` you never edit, kept off the project's link until it's pushed.
 
-**Branches.** A designer can start a **branch** of a database project from the
-Edit panel's title ("Edit · Main ▾") — a copy at `/p/<slug>-branch-<name>` (older
-ones are `-draft-`) that is not on the project's link. It is a database project
-like any other (`projects/_db/<branch-slug>/`, Chat, Edit mode), plus a
-`draft.json` saying what it's a branch of — **never edit `draft.json`** (the code
-still calls branches drafts: `draft.json`, `draftOf`, the `/draft` route).
-Branches are optional: editing the project directly works exactly as before.
-This is the studio's own word for that copy, so say it freely; it is never a git
-branch, and git branches stay out of the conversation (§7).
-
-**Which copy — read `.studio-open.json` first.** You can't see the browser, so
-before editing a database project, read `.studio-open.json` at the repo root:
-the dev server writes it each time the designer opens a prototype (`slug`,
-`folder`, and `draftOf` when it's a branch). If they have a **branch** of the
-project open, edit the branch's folder — editing the project itself would put the
-change on its link, which is what the branch exists to avoid. If the note names a
-different project from the one they asked about, or it's missing, ask "your
-branch or the main project?" before editing. Never pick the main project by
-default when a branch is open.
-
-- **"Push it" on a branch** = merge it into the project and delete it: the
-  **Push** bar at the foot of the branch's Edit panel, or `curl -s -X POST localhost:4000/api/db-projects/<branch-slug>/draft -H 'content-type: application/json' -d '{"action":"push"}'`.
-  Lines changed on only one side merge on their own.
-- **A push that conflicts lands nothing.** The branch catches up with the
-  project instead, the clashing files get `<<<<<<< yours` / `>>>>>>> theirs`
-  markers — resolve them in the branch (keep both designers' intent), then push
-  again.
-- After a push or discard the branch and its laptop folder are gone; the
-  designer is back on the project.
-- **"Commit it" on a branch or a database project** — there is nothing to
-  commit: every save is already kept. Say the change is saved (on the branch's
-  link, or live on the project's) and stop.
-- **Undo across saves:** the Edit panel's title menu has **History** — every
-  save of the project; picking one restores the project to it. Point a designer
-  there rather than re-typing old code by hand.
-
-**Deleting a project** is the gallery card's **⋯ → Delete project**, open to
-the project's owner and studio admins only. It moves the project (and its
-branches) to **Recently deleted** for 30 days, restorable there or on its link;
-live projects and projects another one extends can't be deleted. A
-`deleted.json` marks it — **never write or remove that file yourself**, and
-never delete a project's files to "delete" it. If a designer asks you to
-delete one, point them to the ⋯ menu.
-
-**Moving a git project into the database** is an owner decision:
-`npm run db:sync -- <slug>` copies it in once; from then on `/p/<slug>` serves
-the database copy.
+**Done in the studio, not by hand:** undo across saves is the Edit panel's title
+menu → **History**. Deleting is the gallery card's **⋯ → Delete project** (owner
+or admin; restorable for 30 days) — never touch `deleted.json` or delete files
+to "delete" a project. Moving a git project into the database is the owner's
+`npm run db:sync -- <slug>`.
 
 ---
 
 ## 4. Missing component protocol
 
-**Icons are not a missing component.** FunDS ships 166 shared icons at
-`@/design-system/icons` — import them by name (`import { Coins } from
-'@/design-system/icons'`). **Never hand-roll an icon or add a project-local
-`icons.tsx`.** See the Icons section of the cheatsheet for names and the `-fill`
-convention. Only if a glyph genuinely isn't in the set does the protocol below
-apply — and even then, prefer a project-local one-off over expanding the shared
-module (a shared icon earns its place by being wanted twice, same as any
-component).
+**Icons are never missing.** Import them by name from `@/design-system/icons`
+(names in the cheatsheet) — never hand-roll an icon or add a project-local
+`icons.tsx`. A glyph the set truly lacks is a project-local one-off, below.
 
-If a screen needs a component that `@/design-system/components` doesn't provide:
+When `@/design-system/components` lacks something a screen needs:
 
-1. Build a **project-local** version in `projects/<slug>/lib/`, using **only**
-   tokens and existing design-system components (same vocabulary rules as §2).
-2. Add **one line** to `projects/<slug>/NOTES.md` (create it if absent) — name,
-   why, where used. One line, not a write-up.
+1. Build it **project-local** in `projects/<slug>/lib/`, from tokens and
+   design-system components only (§2).
+2. Add **one line** to `projects/<slug>/NOTES.md` — name, why, where it's used.
 
-This is the only thing `NOTES.md` is for. Don't write a project README, a design
-rationale, or a summary of what you built unless the designer asks — the repo and
-the prototype already say that.
-
-Project-local stays the default even though §1 lets you edit `design-system/`: it
-ships today, can't break anyone else, and a component earns promotion by being
-wanted twice. `NOTES.md` is just how the owner learns a candidate exists.
+That line is all `NOTES.md` is for: no README, rationale or summary unless the
+designer asks. Project-local stays the default even though §1 lets you edit the
+design system — it ships today, can't break anyone else, and a component earns
+promotion by being wanted twice.
 
 ---
 
 ## 5. Git routine — everything lands by PR
 
-Designers rely on you for git. **`main` is protected: you cannot push to it.**
-Every change lands through a pull request. Don't try to push to `main` and then
-report the rejection as a problem — the PR *is* the route.
+`main` is protected: every change lands through a pull request, opened only
+when the designer says push. The full routine — branch names, one tier per
+commit, the squash trap, what to expect per tier — is in `/commit` and `/push`.
+What holds everywhere:
 
-- **Before starting:** `git checkout main`, then `git pull --rebase`. Always
-  branch from a **fresh `main`**, never from an old branch — see the branch
-  hygiene note below for why this is not optional.
-- **Branch.** `<slug>/<what>` for project work, `platform/<what>` or
-  `design-system/<what>` for Tier 2. Never work directly on `main`.
-- **Branch hygiene — the squash trap.** PRs merge into `main` by **squash**, so
-  a branch's own commits *never* land on `main` — only a single new commit
-  holding their flattened result does. That means a merged branch is instantly
-  dead weight: reuse it, or branch off it, and git replays commits it thinks are
-  new on top of the squashed copy already on `main`, producing phantom
-  "conflicts" (a DIRTY PR) even when the trees are identical. Two habits, both
-  yours to run silently (§7): **(a)** start every branch from a freshly-pulled
-  `main`; **(b)** delete each branch — local and its `origin` copy — the moment
-  its PR merges (GitHub usually auto-deletes the remote; run `git remote prune
-  origin` to clear stale pointers). If DIRTY-on-every-push starts recurring,
-  stale merged branches are the cause — prune them, don't fight the conflict.
-- **Commit** with `[<slug>] <what changed>`, or `[platform]` / `[design-system]`
-  for Tier 2. **One tier per commit** (§1).
-- **Open the PR only when the designer confirms** — same rule as pushing used to
-  be. Then:
-  ```bash
-  gh pr create --fill
-  gh pr merge --auto --squash      # lands itself the moment it's allowed to
-  ```
-- **What happens next depends on the tier, and you should say which you expect:**
-  - *Project-only PR* → merges by itself as soon as CI is green, usually a minute
-    or two. No human looks at it. Tell the designer it's landing.
-  - *PR touching Tier 2* → `--auto` parks it until the **studio owner**
-    approves. This is normal, not a failure. Tell the designer it's waiting on
-    review — not who is reviewing it (§7) — and don't poll it; they'll come back
-    to you.
-- **Never** force-push, and never `gh auth switch` to an admin account to get
-  around a block. If you're blocked, that is the gate working.
-- **Conflicts:** inside someone else's `projects/<slug>/` → take theirs; inside
-  your own project → take yours; **anywhere else** (design-system, platform, app,
-  config, registry structure) → **stop and ask** the designer.
-- **CI is not optional.** It runs §6 for you, but a red PR never merges — so run
-  §6 locally *before* opening the PR and don't outsource your own verification to
-  the robot.
+- Start git work — before you edit anything — from a freshly pulled `main`
+  (`git checkout main && git pull --rebase`), and never commit to `main`.
+- Never force-push, and never switch to an admin account to get past a block —
+  a block is the gate working.
+- Conflicts: in another designer's project take theirs, in your own take yours,
+  and two appended registry lines keep both. **Anywhere else, stop and ask** —
+  about the change, in plain words ("your version of the header, or the one
+  that just landed?"), never as a git question.
 
 ---
 
 ## 6. Verification — at commit and push, not per tweak
 
-The full gate is three checks; all must pass **before any `commit` or `push`**
-(§7 verbs), and a red one is fixed before the designer is told the work landed:
+Before any commit or push of git work: `npm run lint`, `npm run build` (locally
+it builds into `.next-build`, never the `.next` the dev server runs from) and
+`npm run check:flows`, all clean. A database project's gate is `check:project`
+(§3b). Fix anything red before you tell the designer the work landed.
 
-- `npm run lint` — clean (catches arbitrary values / off-system classes).
-- `npm run build` — clean (type-checks every screen, so every `go()` target and
-  import is verified). Locally it builds into `.next-build`, never the `.next`
-  the dev server is live on — plain `next build` used to wipe that folder and
-  leave the designer's preview link broken until someone restarted the server.
-  On Vercel and in CI it is exactly `next build`.
-- `npm run check:flows` — unique `entry`, unique screen ids, and every
-  `flowsTo.to` resolves.
+**Not between those moments.** While the designer iterates on the preview, hot
+reload already shows breakage on the screen under discussion, and a ~40-second
+build per one-line tweak is the studio's biggest per-iteration cost. At most run
+`npm run lint` after editing classes.
 
-**Between those moments — live iteration — do not run the gate.** While the
-designer is looking at the preview and asking for tweaks, hot reload plus the
-dev overlay already surface breakage on the exact screen under discussion, and
-re-running a ~40-second build to bless a one-line edit is the single biggest
-per-iteration cost in the studio. At most run `npm run lint` (~3s) after an
-edit that touched classes or tokens. The guarantee this contract cares about —
-nothing broken is ever checkpointed or shipped — lives at commit/push, and the
-full gate runs there every time, no exceptions.
-
-**That is the whole gate. Do not add to it.** Specifically: **do not open a
-browser, drive a headless session, or take screenshots to "verify" a UI change.**
-The designer previews their own work — that's what the dev server and the preview
-link are for, and looking at it is their job, not yours. A visual pass is
-minutes of work to re-confirm what they can see in seconds. Only do it if the
-designer explicitly asks you to look at something, or you're chasing a bug that
-genuinely can't be seen in the code.
+**That is the whole gate.** Don't open a browser, drive a headless session or
+take screenshots to "verify" a UI change — the designer previews their own work.
+Look only when they ask, or for a bug the code can't show.
 
 ---
 
 ## 7. Talking to the designer — commit & push
 
 Most designers here have little git experience, and the studio fails the moment
-git frustration drives someone off it. **You own git entirely; the designer owns
-two verbs.** They use the real git words — `commit` and `push` — but you do all
-the work behind them: never make them think about branches, PRs, or merges, and
-never hand them a git command to run.
+git frustration drives someone off it. **You own git; they own two verbs** —
+"commit" (a checkpoint, not live) and "push" (make it live) — and `/commit`,
+`/push` carry each out end to end.
 
-**The two verbs — and only these two** (each has a slash command: `/commit`,
-`/push`). Never introduce a third word for either — not "save", not "publish",
-not "ship", not "deploy". Commit and push are the whole vocabulary:
+- **The only words:** commit, committed, push, pushed, live, preview link, and —
+  for shared changes — pending review. Never another word for either verb
+  ("save", "publish", "ship", "deploy"). Never "PR", "pull request", "merge",
+  "auto-merge" or a git "branch", never a raw git command, never an aside
+  explaining a concept. Asked what a git term means: one sentence, then move on.
+- **Never name the reviewer** — say "pending review"; if asked who, answer once.
+- **Confused, or "just do it"?** Take over completely: pick every default, run
+  the whole flow, hand them no git decisions. Branches and worktrees are yours
+  to manage silently.
+- **Edit mode and Chat write the same files you do.** That's the designer's own
+  work, and it rides commit and push (`/commit` checks where it landed). In a
+  git project the panel's **Save** writes the working copy only — not a third
+  verb, and not live until they push. (In a database project every save is
+  live — §3b.)
 
-- **"commit it"** → a checkpoint, not live yet. If they're on `main`, silently
-  create a branch first (§5 naming) — never commit to `main`, never ask them to
-  name it. Report what you committed and that it isn't live yet. Don't explain
-  *why* a commit is private or reversible — they didn't ask; just say it's saved
-  and not live.
-- **"push it"** → make it live. Behind the words you run the §6 checks, commit
-  anything pending, push, open the PR, enable auto-merge, and surface the
-  **preview link** — but you never narrate that machinery. Then say plainly:
-  - **Project-only** → it goes live on its own; give the preview link. Nothing
-    is "waiting" — don't mention review, and don't offer commit-vs-push as if it
-    were a fork in the road.
-  - **Touches shared files** → it's **pending review** (someone looks before it
-    goes live). Give the preview link — it works while review is pending.
-
-  **Never name the reviewer.** Say "pending review", or at most "it needs a
-  review before it goes live" — not who reviews it. Whose name sits in
-  `.github/CODEOWNERS` is routing, not something the designer has to act on, and
-  naming a person turns a routine gate into a favour they're asking of a
-  colleague. If they ask who reviews it, answer once and move on.
-
-  Leave them on a clean, synced `main` when it's done.
-
-**The preview link is always a localhost link — never a Vercel URL.** Start the
-dev server (`npm run dev`, in the background) and give them the `localhost` link
-it prints, or surface it in the agent runtime's preview window. Never hand a
-designer a `*.vercel.app` deployment or preview URL: those are auth-gated behind
-a Vercel account with team access, which designers here do not have, so the link
-shows them a login wall instead of their prototype. This is the *only* thing that
-changes about the push flow; everything above still applies, and you still call
-it the "preview link".
-
-**One server, always on port 4000 — `npm run dev`.** The preview link is always
-`http://localhost:4000/p/<slug>`, this session and every other one.
-
-You do not have to check whether a server is already running, or whether the one
-that is running still works: `npm run dev` is **idempotent and self-healing**. It
-reuses a server only if that server actually answers HTTP *and* was started from
-this checkout; a crashed one, a hung one, or a leftover from another folder is
-replaced instead of advertised. So run it whenever you need the link, and never
-reach for `next dev` directly — that is what used to start rivals.
-
-**Always run it with `--warm <path>` and only hand over the link it prints at
-the end.** Next compiles routes on demand, so a link given the instant the
-server spawns can sit blank for tens of seconds — which is what "the link
-doesn't work" usually means. `--warm` makes the script hold the link back until
-that exact page has answered, so the designer's first click is instant:
-
-```bash
-npm run dev -- --warm /p/<slug>
-```
-
-Never paste the preview link from memory or from the "already running" line
-before the `Preview:` line appears — waiting for it is the whole point.
-
-Why this is a script and not a habit (`scripts/dev.mjs` spells it out): two
-`next dev` processes on this folder share one `.next` cache and overwrite each
-other's compiled output, so the designer's open page goes stale after an edit
-and only a kill-and-restart clears it — indistinguishable from "hot reload is
-broken", which is how it kept getting misdiagnosed. And bare `next dev` silently
-drifts to the next free port, leaving the designer's bookmarked tab pointed at a
-server that is gone.
-
-- **Never restart the server as a matter of course after making changes.** Hot
-  reload works; an edit shows up on refresh. Restarting by habit hides the real
-  problem and costs the designer a wait.
-- If a preview genuinely is stuck: `npm run dev:restart` (stops the old process,
-  then starts one — it never leaves two), or `npm run dev -- --fresh` to clear
-  `.next` first.
-
-**How to speak.** The only words are "commit", "committed", "push", "pushed",
-"live", "preview link", and — for shared changes — "pending review". **Never say
-"PR"** (or "pull request", "merge", "auto-merge", a git "branch", "mergeStateStatus")
-to a designer, and never hand them a raw git command. Don't dress a verb in a
-parenthetical that teaches a concept — "commit it (a private checkpoint)" is
-worse than "commit it", because the aside answers a question they didn't ask. If
-a designer asks what a git term means, answer in one sentence and move on.
-
-**When they're confused or say "just do it," take over completely** — pick every
-default, run the whole flow, and hand them no git decisions. The moment you
-surface git mechanics to a confused designer is the moment they stop using the
-studio.
-
-**Branches (and worktrees) are yours to manage silently.** Create, name, and
-clean them up yourself. You may use a git worktree internally for parallel work,
-but a designer never sees or manages one — it is never part of their vocabulary.
-
-### Edit-mode tweaks — files can change without you
-
-The studio shell's **Edit mode** lets a designer tweak token values, text, and
-component props, and move, duplicate, delete, wrap or insert elements,
-themselves; pressing **Save** writes those changes straight into
-`projects/<slug>/` on the dev server. (Since 2026-09-22 it is one mode whose
-panel has an **Edit** tab — formerly Design mode — and a **CSS** tab — formerly
-Inspect mode. The rules below are unchanged.) Chat in the studio writes the
-same working copy. Treat all of it as the designer's own work, with these rules:
-
-- **They ride commit and push silently.** "Commit it" includes whatever panel
-  tweaks are in the working tree — don't quiz the designer about edits they
-  made themselves.
-- **Check where they landed before committing.** Panel tweaks make it one
-  click to touch the wrong project. A tweak inside another designer's
-  `projects/<slug>/`, or inside a `status: 'live'` project (production
-  documentation, §2), is almost always a stray test — surface it and ask
-  instead of shipping it. Everything in the designer's own project ships
-  without comment.
-- **Owners can push without you.** Edit mode's panel has a **Push** button.
-  On the deployed link it's in the Edit tab and lands as `[<slug>] Design
-  changes from the studio (<name>)`; on the dev server it's a bar under every
-  tab that pushes the project's changed files through the studio's GitHub App,
-  lands as `[<slug>] Changes from the studio (<name>)`, and fast-forwards this
-  checkout afterwards when it's on `main`. Both only ever touch `projects/<slug>/`. That is the
-  designer's own work arriving on `main`: pull before you start, as always, and
-  treat it like any other commit of theirs.
-- **The panel's "Save" is not a third verb.** It exists only on the dev
-  server and writes the working copy, nothing more — the panel says so. If a
-  designer thinks Save made something live, say plainly that saved tweaks are
-  not live until they say push, and don't expand the vocabulary beyond commit
-  and push.
-
-This section governs *communication and defaults only*. The tier rules (§1),
-branch naming (§5), and the verification gate (§6) still hold exactly as written —
-this just says how to carry them out without taxing the designer.
+**The preview link is always `http://localhost:4000/p/<slug>`** — never a
+`*.vercel.app` URL, which sits behind a Vercel login designers don't have. Run
+`npm run dev -- --warm /p/<slug>` in the background and hand over the `Preview:`
+line it prints, once it appears. It's idempotent — it reuses a healthy server
+from this checkout and replaces a broken one — so run it whenever you need the
+link. Never run `next dev` directly, and never restart by habit; a stuck preview
+is `npm run dev:restart`.
