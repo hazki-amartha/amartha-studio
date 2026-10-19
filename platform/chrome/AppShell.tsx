@@ -232,6 +232,11 @@ function AppShellInner({
   // was the whole reason the toggle sets a flag instead of navigating.
   const bareProto = isProto && bare
 
+  // A prototype keeps the studio's chrome out until it's known whether this
+  // viewer is a guest — otherwise a share link flashes the rail and an empty
+  // sidebar before the guest view takes them away.
+  const pendingViewer = isProto && !viewerKnown
+
   // Inside a project the sidebar becomes its page explorer; an unknown slug
   // (the 404 route) falls back to the project list.
   // A database project's screens come from the running prototype.
@@ -241,11 +246,13 @@ function AppShellInner({
 
   return (
     <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-ink-950">
-      <NavRail active={active} className={bareProto || guest ? 'hidden' : 'hidden md:flex'} />
+      <NavRail active={active} className={bareProto || guest || pendingViewer ? 'hidden' : 'hidden md:flex'} />
 
       {/* Inside a project the sidebar holds Screens · Layers · Notes, which the
-          prototype can't do without — so it stays, and only elsewhere folds. */}
-      {(collapsed && !isProto) || bareProto ? null : isProto && currentProject ? (
+          prototype can't do without — so it stays, and only elsewhere folds.
+          A guest only ever sees the prototype they were shared, so nothing
+          shows while its screens are still loading or the viewer isn't known. */}
+      {(collapsed && !isProto) || bareProto || (isProto && !currentProject && (guest || pendingViewer)) ? null : isProto && currentProject ? (
         // Inside a project the sidebar floats as a card on the canvas, matching
         // the Edit panel opposite — both are tools laid over the design, not
         // columns of the page.
@@ -266,10 +273,7 @@ function AppShellInner({
             <AssetsSidebar />
           ) : currentProject ? (
             <ScreenSidebar project={currentProject} />
-          ) : isProto && (guest || !viewerKnown) ? null : (
-            // A guest only ever sees the prototype they were shared — so not
-            // while a database project's screens are still loading either, nor
-            // before it's known whether this viewer is one.
+          ) : (
             <StudioSidebar projects={projects} currentSlug={currentSlug} />
           )}
         </aside>

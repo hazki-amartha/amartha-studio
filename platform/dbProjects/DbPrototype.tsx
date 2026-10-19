@@ -112,7 +112,7 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
     // instead of a flash of loader.
     return (
       <div className="flex h-full w-full flex-col items-center justify-center bg-neutral-50 px-16 text-center text-14 text-caption dark:bg-ink-950 dark:text-neutral-400">
-        {problem ?? (loaderVisible ? <ChatLoader label="Loading from the database…" /> : null)}
+        {problem ?? (loaderVisible ? <ChatLoader label="Loading project…" /> : null)}
       </div>
     )
   }
