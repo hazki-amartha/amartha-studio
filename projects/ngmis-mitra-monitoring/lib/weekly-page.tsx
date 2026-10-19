@@ -172,8 +172,8 @@ const ROWS: Row[] = [
       </button>,
     ],
   })),
-  { label: 'Ingatkan kumpulan', merged: (s) => <StatusBadge done={s.reminded} /> },
   { label: 'Tutup hari', merged: (s) => <StatusBadge done={s.closed} /> },
+  { label: 'Ingatkan kumpulan', merged: (s) => <StatusBadge done={s.reminded} /> },
 ]
 
 function BpWeek({

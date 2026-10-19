@@ -46,8 +46,10 @@ export const SLIP: Record<string, number> = {
 export const COUNT_TASKS = [
   { id: 'pelayanan', label: 'Pelayanan', target: 6 },
   { id: 'home-visit', label: 'Home visit', target: 3 },
-  { id: 'reaktivasi', label: 'Reaktivasi & lanjutan', target: 1 },
-  { id: 'sosialisasi', label: 'Sosialisasi', target: 2 },
+  { id: 'reaktivasi', label: 'Reaktivasi', target: 1 },
+  { id: 'lanjutan', label: 'Lanjutan', target: 2 },
+  { id: 'sosialisasi-poi', label: 'Sosialisasi - POI Visit', target: 1 },
+  { id: 'sosialisasi-leads', label: 'Sosialisasi - Add leads', target: 1 },
   { id: 'follow-up', label: 'Follow up', target: 2 },
 ]
 
