@@ -180,9 +180,18 @@ const MAJELIS: Majelis[] = [
 /** What the BM decided after verifying a flagged report. */
 interface Resolution {
   alert: boolean
-  /** Why it is an alert — only when `alert`. */
-  reason?: string
+  /** Why the BM thinks it is fake — only when `alert`. */
+  reasons?: string[]
 }
+
+const FAKE_REASONS = [
+  'Photo is not a majelis',
+  'Location does not match',
+  'Attendance looks made up',
+  'Repayment figures do not add up',
+  'BP was not seen at the visit',
+  'Other',
+]
 
 
 // Seven assigned home visits: four done (one flagged, one where the mitra
@@ -597,6 +606,8 @@ function MajelisCard({
   onResolve: (r: Resolution) => void
 }) {
   const held = m.outcome === 'held'
+  const [asking, setAsking] = useState(false)
+  const canReport = held && !m.flag && !resolution && !asking
   return (
     <div className="flex flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12">
       <div className="flex items-start justify-between gap-12">
@@ -615,14 +626,25 @@ function MajelisCard({
           </span>
         </div>
         {held ? (
-          <Badge
-            intent="green"
-            variant="subtle"
-            size="sm"
-            leadingIcon={<CheckCircleFill size={16} />}
-          >
-            Task done
-          </Badge>
+          <span className="flex flex-col items-end justify-between self-stretch">
+            <Badge
+              intent="green"
+              variant="subtle"
+              size="sm"
+              leadingIcon={<CheckCircleFill size={16} />}
+            >
+              Task done
+            </Badge>
+            {canReport ? (
+              <button
+                type="button"
+                onClick={() => setAsking(true)}
+                className="text-12 text-caption underline"
+              >
+                Report as fake
+              </button>
+            ) : null}
+          </span>
         ) : m.outcome === 'skipped' ? (
           <Badge intent="red" variant="subtle" size="sm" leadingIcon={<Prohibit size={16} />}>
             Task skipped
@@ -769,10 +791,16 @@ function MajelisCard({
             </>
           )}
 
-          {m.flag ? (
+          {m.flag || resolution || asking ? (
             <>
               <div className="border-t border-default" />
-              <FlagReview flag={m.flag} resolution={resolution} onResolve={onResolve} />
+              <FlagReview
+                flag={m.flag}
+                resolution={resolution}
+                onResolve={onResolve}
+                asking={asking}
+                setAsking={setAsking}
+              />
             </>
           ) : null}
         </>
@@ -799,30 +827,125 @@ function MajelisCard({
 }
 
 /**
- * The flagged-report flow, inside the card. The banner's Verify opens a first
- * question — is this something alerting? — and "Yes" asks one more (what
- * kind) before it is recorded. "No" closes it straight away.
+ * The fake-report flow, inside the card. A flagged report arrives with a "Needs
+ * your review" banner; any other report carries only a quiet "Report as fake"
+ * link under its status badge, so the BM can raise it the other way round. Calling it fake asks why
+ * (pick one reason, then submit). A submitted answer can be changed.
  */
 function FlagReview({
   flag,
   resolution,
   onResolve,
+  asking,
+  setAsking,
 }: {
-  flag: string
+  flag?: string
   resolution?: Resolution
   onResolve: (r: Resolution) => void
+  asking: boolean
+  setAsking: (v: boolean) => void
 }) {
+  // "Other" is stored as "Other: <text>"; split it back out when reopening.
+  const prior = resolution?.reasons ?? []
+  const [reasons, setReasons] = useState<string[]>(
+    prior.map((r) => (r.startsWith('Other: ') ? 'Other' : r)),
+  )
+  const [otherText, setOtherText] = useState(
+    prior.find((r) => r.startsWith('Other: '))?.slice(7) ?? '',
+  )
+  const otherOn = reasons.includes('Other')
+
+  if (asking) {
+    return (
+      <div className="flex flex-col gap-12 rounded-12 bg-neutral-50 p-12">
+        <span className="text-14 font-bold text-default">Why do you think this is fake?</span>
+        <div role="radiogroup" className="flex flex-col gap-8">
+          {FAKE_REASONS.map((r) => {
+            const on = reasons.includes(r)
+            return (
+              <button
+                key={r}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => setReasons([r])}
+                className="flex items-center gap-12 text-left text-14 text-default"
+              >
+                <span
+                  className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 ${
+                    on ? 'border-primary-500' : 'border-neutral-400'
+                  }`}
+                >
+                  {on ? <span className="h-8 w-8 rounded-full bg-primary-500" /> : null}
+                </span>
+                {r}
+              </button>
+            )
+          })}
+        </div>
+        {otherOn ? (
+          <Input
+            size="md"
+            placeholder="Tell us why you think it is fake"
+            value={otherText}
+            onChange={(e) => setOtherText(e.target.value)}
+          />
+        ) : null}
+        <div className="flex justify-end gap-8">
+          <Button variant="outline" size="sm" onClick={() => setAsking(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={reasons.length === 0 || (otherOn && !otherText.trim())}
+            onClick={() => {
+              onResolve({
+                alert: true,
+                reasons: reasons.map((r) => (r === 'Other' ? `Other: ${otherText.trim()}` : r)),
+              })
+              setAsking(false)
+            }}
+          >
+            Submit
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (resolution) {
+    const change = (
+      <button
+        type="button"
+        onClick={() => {
+          setReasons(resolution.reasons ?? [])
+          setAsking(true)
+        }}
+        className="shrink-0 text-12 font-bold text-primary-500 underline"
+      >
+        Change answer
+      </button>
+    )
     return resolution.alert ? (
-      <div className="flex items-center gap-8 rounded-12 bg-red-50 p-12">
-        <span className="text-red-500">
-          <WarningFill size={16} />
-        </span>
-        <span className="text-14 font-bold text-default">Marked as fake</span>
+      <div className="flex items-start justify-between gap-12 rounded-12 bg-red-50 p-12">
+        <div className="flex items-start gap-8">
+          <span className="text-red-500">
+            <WarningFill size={16} />
+          </span>
+          <span className="flex flex-col gap-2">
+            <span className="text-14 font-bold text-default">Marked as fake</span>
+            <span className="text-12 text-caption">{resolution.reasons?.join(' · ')}</span>
+          </span>
+        </div>
+        {change}
       </div>
     ) : (
-      <div className="flex items-center gap-8 rounded-12 bg-green-50 p-12 text-14 font-bold text-green-500">
-        <CheckCircleFill size={16} /> Marked as not fake
+      <div className="flex items-center justify-between gap-12 rounded-12 bg-green-50 p-12">
+        <span className="flex items-center gap-8 text-14 font-bold text-green-500">
+          <CheckCircleFill size={16} /> Marked as not fake
+        </span>
+        {change}
       </div>
     )
   }
@@ -831,23 +954,23 @@ function FlagReview({
     <div className="flex flex-col gap-8">
       <span className="text-16 font-bold text-default">Needs your review</span>
       <div className="flex items-center justify-between gap-12 rounded-12 bg-orange-50 p-12">
-      <div className="flex items-center gap-12">
-        <span className="text-orange-500">
-          <WarningFill size={24} />
-        </span>
-        <span className="flex flex-col gap-2">
-          <span className="text-14 font-bold text-default">Looks like a fake submission</span>
-          <span className="text-12 text-caption">{flag}</span>
-        </span>
-      </div>
-      <div className="flex shrink-0 items-center gap-8">
-        <Button variant="outline" size="sm" onClick={() => onResolve({ alert: false })}>
-          Not fake
-        </Button>
-        <Button variant="primary" size="sm" onClick={() => onResolve({ alert: true })}>
-          This is fake
-        </Button>
-      </div>
+        <div className="flex items-center gap-12">
+          <span className="text-orange-500">
+            <WarningFill size={24} />
+          </span>
+          <span className="flex flex-col gap-2">
+            <span className="text-14 font-bold text-default">Looks like a fake submission</span>
+            <span className="text-12 text-caption">{flag}</span>
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-8">
+          <Button variant="outline" size="sm" onClick={() => onResolve({ alert: false })}>
+            Not fake
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => setAsking(true)}>
+            This is fake
+          </Button>
+        </div>
       </div>
     </div>
   )
