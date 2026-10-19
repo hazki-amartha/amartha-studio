@@ -25,8 +25,10 @@ const DRAWER_W = 640
 const TASK_NAME: Record<string, string> = {
   pelayanan: 'Majelis visits',
   'home-visit': 'Home visits',
-  reaktivasi: 'Reaktivasi & lanjutan',
-  sosialisasi: 'Sosialisasi',
+  reaktivasi: 'Reaktivasi',
+  lanjutan: 'Lanjutan',
+  'sosialisasi-poi': 'Sosialisasi - POI Visit',
+  'sosialisasi-leads': 'Sosialisasi - Add leads',
   'follow-up': 'Follow up',
 }
 
