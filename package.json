@@ -7,7 +7,7 @@
     "dev:restart": "node scripts/dev-restart.mjs",
     "build": "node scripts/build.mjs",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "next lint --dir app --dir platform --dir design-system --dir projects",
     "check:flows": "node scripts/check-flows.mjs",
     "test:design": "node --test scripts/test-design.mjs",
     "db:sync": "node scripts/db-sync.mjs",

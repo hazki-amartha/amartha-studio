@@ -329,7 +329,7 @@ export function PickList({
                 </button>
               </div>
               {g.perMitra && open ? (
-                <div className="flex flex-col gap-8 border-t border-light pl-36 pt-12">
+                <div className="flex flex-col gap-8 border-t border-light pt-12">
                   {g.leaves.map((l) => (
                     <button
                       key={l.key}

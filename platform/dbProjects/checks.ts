@@ -10,14 +10,21 @@
 //                  (`p-[13px]`), nothing the config doesn't define
 //                  (`font-medium`). The CSS generator would happily render
 //                  either, so nothing else stops them now.
+//   raw values     no colour literals, and no font values in `style` — what a
+//                  class would have said, smuggled past the class check
+//                  (./vocabulary.ts)
+//   imports        only what a database project can reach, only names that
+//                  exist, only files that are there (./vocabulary.ts)
 //   stays inside   no fetch / WebSocket / browser storage / eval / window.open
 //                  — the same globals the lint config bans in projects/
 //   flows          one entry screen, unique ids, a known owner, one level of
 //                  `extends`, and every flowsTo and go('…') names a real screen
 //
-// Class and global checks look only at what the save CHANGES, and only at
-// problems the file didn't already have — a project with an old slip must stay
-// editable. The flow checks are whole-project, as check:flows is.
+// Class, value, import and global checks look only at what the save CHANGES,
+// and only at problems the file didn't already have — a project with an old
+// slip must stay editable. The flow checks are whole-project, as check:flows is.
+// Types are not checked on a save — too slow for every keystroke the live sync
+// sends — but `npm run check:project` checks them before a turn ends.
 // =============================================================================
 
 import { parse } from '@babel/parser'
@@ -25,6 +32,7 @@ import { transform } from 'sucrase'
 import { knownNames } from '@/platform/auth/profiles'
 import type { ProjectModule, ScreenDef } from '@/platform/types'
 import { findProjectConfig, tailwindFor } from './server'
+import { vocabularyProblems } from './vocabulary'
 
 const COMPILED = /\.(tsx?|jsx?)$/
 const CLASS_CALLEES = new Set(['clsx', 'cn'])
@@ -87,6 +95,7 @@ export async function checkDbProject(
       const why = BANNED[name] ?? 'reaches outside the studio'
       errors.push(`${path}: ${onWindow ? `window.${name}` : name} ${why} — prototypes draw the result on a screen instead`)
     }
+    errors.push(...vocabularyProblems(path, content, before, files))
   }
 
   if (candidates.size) {
@@ -248,6 +257,8 @@ async function flowProblems(slug: string, files: Map<string, string>): Promise<s
     }
   }
   for (const [path, content] of files) {
+    // Code only: a NOTES.md line that mentions go('detail') navigates nowhere.
+    if (!COMPILED.test(path)) continue
     for (const m of content.matchAll(/\bgo\(\s*['"]([^'"]+)['"]\s*\)/g)) {
       if (!ids.has(m[1])) errors.push(`${path}: go('${m[1]}') — there’s no screen with that id`)
     }
@@ -267,16 +278,16 @@ function runIndex(files: Map<string, string>): ProjectModule | null {
   const load = (path: string): Record<string, unknown> => {
     const hit = instances.get(path)
     if (hit) return hit.exports
-    const module = { exports: {} as Record<string, unknown> }
-    instances.set(path, module)
+    const mod = { exports: {} as Record<string, unknown> }
+    instances.set(path, mod)
     const code = transform(files.get(path)!, {
       transforms: ['typescript', 'jsx', 'imports'],
       jsxRuntime: 'automatic',
       production: true,
     }).code
     // eslint-disable-next-line no-new-func
-    new Function('require', 'module', 'exports', code)((spec: string) => resolve(path, spec), module, module.exports)
-    return module.exports
+    new Function('require', 'module', 'exports', code)((spec: string) => resolve(path, spec), mod, mod.exports)
+    return mod.exports
   }
   const resolve = (from: string, spec: string): unknown => {
     if (spec === '@/platform/lazyScreen') return lazyScreen

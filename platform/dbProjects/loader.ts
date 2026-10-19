@@ -57,12 +57,12 @@ export function linkDbProject(build: DbProjectBuild): ProjectModule {
     const existing = instances.get(path)
     if (existing) return existing.exports
     const code = build.modules[path]
-    const module = { exports: {} as Record<string, unknown> }
-    instances.set(path, module)
+    const mod = { exports: {} as Record<string, unknown> }
+    instances.set(path, mod)
     // eslint-disable-next-line no-new-func
     const run = new Function('require', 'module', 'exports', `${code}\n//# sourceURL=db://${build.slug}/${path}`)
-    run((spec: string) => requireFrom(path, spec), module, module.exports)
-    return module.exports
+    run((spec: string) => requireFrom(path, spec), mod, mod.exports)
+    return mod.exports
   }
 
   function requireFrom(from: string, spec: string): unknown {

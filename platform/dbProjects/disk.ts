@@ -17,7 +17,9 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { checkDbProject } from './checks'
 
-const SYNCED = /\.(tsx?|jsx?|json)$/
+// `.md` is NOTES.md — the missing-component log CLAUDE.md §4 asks for. Left
+// out, every note written in a database project stayed on one laptop.
+const SYNCED = /\.(tsx?|jsx?|json|md)$/
 
 /** The folder Claude Code edits, relative to the repo. */
 export function projectFolder(slug: string, db: boolean): string {

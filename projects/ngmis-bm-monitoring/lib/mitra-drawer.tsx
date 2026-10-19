@@ -142,7 +142,7 @@ function MapPreview({ label }: { label: string }) {
       <span className="flex items-center gap-4 text-12 font-bold text-caption">
         <MapPin size={16} /> Lokasi
       </span>
-      <div className="relative overflow-hidden rounded-12 bg-neutral-100 py-32">
+      <div className="relative overflow-hidden rounded-12 py-32">
         <span className="absolute left-0 right-0 top-16 h-2 bg-neutral-200" />
         <span className="absolute bottom-12 left-0 right-0 h-2 bg-neutral-200" />
         <span className="absolute bottom-0 left-20 top-0 w-2 bg-neutral-200" />
@@ -150,7 +150,7 @@ function MapPreview({ label }: { label: string }) {
         <span className="absolute left-24 top-24 text-primary-500">
           <MapPin size={20} />
         </span>
-        <span className="absolute bottom-6 right-8 rounded-full bg-neutral-white px-8 py-2 text-10 text-caption">
+        <span className="absolute right-8 rounded-full bg-neutral-white px-8 py-2 text-10 text-caption">
           Ilustrasi peta
         </span>
       </div>
@@ -183,10 +183,10 @@ function PhotoPreview() {
       <span className="flex items-center gap-4 text-12 font-bold text-caption">
         <Camera size={16} /> Bukti foto
       </span>
-      <div className="relative flex items-end justify-center gap-8 rounded-12 bg-neutral-100 py-16">
+      <div className="relative flex items-end justify-center gap-8 rounded-12 py-16">
         <PersonSilhouette tone="a" />
         <PersonSilhouette tone="b" />
-        <span className="absolute bottom-6 right-8 rounded-full bg-neutral-white px-8 py-2 text-10 text-caption">
+        <span className="absolute right-8 rounded-full bg-neutral-white px-8 py-2 text-10 text-caption">
           Ilustrasi foto
         </span>
       </div>
@@ -365,7 +365,7 @@ function MitraListPanel({
               {m.tindakan.slice(0, 2).map((t, i) => (
                 <TindakanRow key={i} t={t} />
               ))}
-              <span className="rounded-8 bg-neutral-100 px-8 py-4 text-10 text-caption">
+              <span className="rounded-8 px-8 py-4 text-10 text-caption">
                 Tindak lanjut: {m.followUp}
               </span>
             </div>

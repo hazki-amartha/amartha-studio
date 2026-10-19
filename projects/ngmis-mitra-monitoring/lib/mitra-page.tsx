@@ -74,6 +74,7 @@ export function MitraPage() {
         <DailyDashboard
           // Opens in a new browser tab so the BM keeps the daily drawer where it is.
           onOpenCash={(name) =>
+            // eslint-disable-next-line no-restricted-properties -- asked for in #525; it opens this same prototype, so the viewer never leaves the studio
             window.open(
               `${window.location.pathname}?tab=cash&bp=${encodeURIComponent(name)}`,
               '_blank',

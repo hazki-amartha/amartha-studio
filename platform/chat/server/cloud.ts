@@ -319,7 +319,7 @@ export async function cloudTurn(request: Request): Promise<Response> {
       ...(vocus ? vocusTools(user?.email ?? 'unknown') : []),
       tool(
         'check_project',
-        'Run the studio checks a save must pass (compiles, design-system classes only, nothing that leaves the prototype, valid flows) on the project as it is now. Call it before finishing.',
+        'Run the studio checks a save must pass (compiles, design-system classes and colours only, imports that exist, nothing that leaves the prototype, valid flows) on the project as it is now. Call it before finishing.',
         {},
         async () => {
           const notes = await live.sync()

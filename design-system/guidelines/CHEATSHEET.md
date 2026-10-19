@@ -43,6 +43,12 @@ If the value you want isn't a token, you're off-system: pick the nearest token.
 Intents available as badge/status colors: `primary blue green orange red yellow
 neutral`.
 
+Raw colours (`'#22C55E'`, `rgb(…)`; a shadow's tint is fine) and font values in
+`style` are off-system too, and a database project's save refuses them. Give an
+SVG `fill="currentColor"` plus a `text-*` class. A value the designer asked for
+in words that no token can give: a `ds-exception: <why>` comment on the line
+above (`{/* … */}` inside JSX).
+
 ---
 
 ## Layout — always start here

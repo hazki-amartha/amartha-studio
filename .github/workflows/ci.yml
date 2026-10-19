@@ -7,6 +7,11 @@
 # (unique entry, unique ids, real flowsTo targets).
 #
 # `verify` is a required status check on main: no PR merges until it is green.
+#
+# `design-tests` runs scripts/test-design.mjs — Edit mode's write-back, Push,
+# and the database-project save checks — beside `verify` rather than after it,
+# so it adds no time to a merge. It gates merges only once it is marked
+# required in the branch protection settings.
 # =============================================================================
 
 name: CI
@@ -32,7 +37,8 @@ jobs:
 
       - run: npm ci
 
-      # The token lock — catches arbitrary Tailwind values and off-system classes.
+      # The token lock — catches arbitrary Tailwind values and off-system classes,
+      # in projects/ as well as the studio's own code.
       - run: npm run lint
 
       # Type-checks every screen in every project.
@@ -40,3 +46,18 @@ jobs:
 
       # Unique entry, unique screen ids, and every flowsTo.to resolves.
       - run: npm run check:flows
+
+  design-tests:
+    name: design-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run test:design

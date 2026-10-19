@@ -89,7 +89,7 @@ function CardTindakanRow({ t, payment }: { t: Tindakan; payment: PaymentStatus }
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <span className="flex items-center gap-8">
-          <span className="flex size-24 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-10 font-bold text-caption">
+          <span className="flex size-24 shrink-0 items-center justify-center rounded-full text-10 font-bold text-caption">
             {t.pelaku}
           </span>
           <span className={`text-14 ${t.ok === null ? 'text-caption' : 'font-bold text-default'}`}>
@@ -170,7 +170,7 @@ function Stat({ icon, title, sub }: { icon: ReactNode; title: string; sub: strin
         <span className="text-16 font-bold text-default">{title}</span>
         <span className="text-12 text-caption">{sub}</span>
       </span>
-      <span className="flex size-40 items-center justify-center rounded-full bg-neutral-100 text-default">
+      <span className="flex size-40 items-center justify-center rounded-full text-default">
         {icon}
       </span>
     </div>
@@ -246,7 +246,7 @@ function DetailPanel({
 
       {m.tindakan.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-12 py-48">
-          <span className="flex size-48 items-center justify-center rounded-16 bg-neutral-100 text-placeholder">
+          <span className="flex size-48 items-center justify-center rounded-16 text-placeholder">
             <ChecklistDocFill size={24} />
           </span>
           <span className="flex flex-col items-center gap-2">

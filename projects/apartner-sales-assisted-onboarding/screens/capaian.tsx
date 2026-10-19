@@ -130,7 +130,7 @@ export function CapaianScreen() {
           <button
             type="button"
             onClick={() => setView('bulanan')}
-            className="flex w-full items-center gap-8 rounded-12 border border-blue-200 bg-blue-50 p-12 text-left active:bg-blue-100"
+            className="flex w-full items-center gap-8 rounded-12 border border-blue-200 bg-blue-50 p-12 text-left"
           >
             <span className="min-w-0 flex-1 text-14 font-bold text-blue-600">
               Lihat capaian bulanan
