@@ -292,7 +292,7 @@ function AppShellInner({
           >
             <PanelIcon className="size-20" />
           </button>
-          <span aria-hidden className="hidden h-20 w-px bg-neutral-200 dark:bg-ink-700 md:block" />
+          <span aria-hidden className="hidden h-20 border-l border-neutral-200 dark:border-ink-700 md:block" />
           <Breadcrumb crumbs={crumbs} />
           <div className="ml-auto flex shrink-0 items-center gap-12">
             <HeaderStatusView />

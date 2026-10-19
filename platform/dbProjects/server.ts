@@ -45,7 +45,6 @@ export const VERSIONS_TABLE = 'studio_project_file_versions'
 // project never goes through webpack, so the same stamp runs here, before the
 // compile — and Edit mode can address its elements exactly as it does a git
 // project's.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { stampSource } = require('../design/stamp.cjs') as {
   stampSource: (source: string, file: string) => { code: string } | null
 }
@@ -355,10 +354,10 @@ export async function announceSave(slug: string): Promise<void> {
 function configOf(slug: string, source: string): ProjectConfig | null {
   try {
     const code = transform(source, { transforms: ['typescript', 'imports'], production: true }).code
-    const module = { exports: {} as Record<string, unknown> }
+    const mod = { exports: {} as Record<string, unknown> }
     // eslint-disable-next-line no-new-func
-    new Function('require', 'module', 'exports', code)(() => ({}), module, module.exports)
-    const config = module.exports.config as ProjectConfig | undefined
+    new Function('require', 'module', 'exports', code)(() => ({}), mod, mod.exports)
+    const config = mod.exports.config as ProjectConfig | undefined
     return config && config.slug === slug && typeof config.name === 'string' ? config : null
   } catch {
     return null

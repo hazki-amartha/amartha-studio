@@ -10,6 +10,9 @@
 // edit in design mode would land on the wrong line, and that test is what
 // catches it.
 //
+// At the end, the database-project save checks that need no server
+// (platform/dbProjects/vocabulary.ts) — raw colours and fonts, and imports.
+//
 // Bundles the TypeScript with esbuild so it runs in plain Node, the same way
 // scripts/check-flows.mjs does.
 
@@ -1035,7 +1038,7 @@ test('the dev route writes, refuses stale versions, and undoes', async () => {
     logLevel: 'silent',
     define: { 'process.env.NODE_ENV': '"development"' },
     // next ships no `exports` map, so Node's ESM resolver needs the extension.
-    alias: { 'next/server': 'next/server.js' },
+    alias: { 'next/server': 'next/server.js', 'next/headers': 'next/headers.js' },
   })
   const { POST } = await import(pathToFileURL(routeFile).href)
 
@@ -1140,10 +1143,28 @@ test('the dev route writes, refuses stale versions, and undoes', async () => {
 // No App exists to test against, so this is GitHub as the backend uses it,
 // in memory: installation tokens (checked against the App's public key),
 // contents, refs, pulls and the auto-merge mutation.
+//
+// The project registry is a fixture too: a draft Hazki owns, and a live
+// project. These tests were written against the real afin-linear, and went
+// down unseen when it moved to the database (#494) — real projects come and go.
+
+const FIXTURE_CONFIGS = `export const configs = {
+  'afin-linear': async () => ({ slug: 'afin-linear', owner: 'Hazki', status: 'draft' }),
+  'amarthafin-live': async () => ({ slug: 'amarthafin-live', owner: 'Hazki', status: 'live' }),
+}`
 
 const github = await (async () => {
   const file = join(root, 'scripts', '.test-design-github.mjs')
   await build({
+    plugins: [
+      {
+        name: 'fixture-configs',
+        setup(b) {
+          b.onResolve({ filter: /^@\/projects\/configs$/ }, () => ({ path: 'configs', namespace: 'fixture' }))
+          b.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: FIXTURE_CONFIGS, loader: 'js' }))
+        },
+      },
+    ],
     absWorkingDir: root,
     stdin: {
       contents: [
@@ -1160,7 +1181,7 @@ const github = await (async () => {
     outfile: file,
     packages: 'external',
     logLevel: 'silent',
-    alias: { 'next/server': 'next/server.js' },
+    alias: { 'next/server': 'next/server.js', 'next/headers': 'next/headers.js' },
   })
   const mod = await import(pathToFileURL(file).href)
   process.on('exit', () => rm(file, { force: true }).catch(() => {}))
@@ -1308,9 +1329,30 @@ test('github: the branch is a function of project, name and build', () => {
 
 const call = async (handler, ...args) => (await handler(...args)).json()
 
+/** A git project's home as the backend sees one: a shell holding a card whose
+ *  component lives in the same file — afin-linear's, cut down. */
+const AFIN_HOME = `'use client'
+
+import { MoneyBag } from '@/design-system/icons'
+import { HomeShell } from '../lib/ui'
+
+export function HomeScreen() {
+  return (
+    <HomeShell>
+      <LimitCard />
+      <MoneyBag size={24} />
+    </HomeShell>
+  )
+}
+
+function LimitCard() {
+  return <div className="rounded-16 bg-neutral-white p-12">Limit</div>
+}
+`
+
 test('github: apply rebuilds from the build, commits to the branch, and undoes by re-applying', async () => {
   const rel = 'projects/afin-linear/screens/home.tsx'
-  const source = await readFile(join(root, rel), 'utf8')
+  const source = AFIN_HOME
   const icons = await readFile(join(root, 'design-system/icons/index.tsx'), 'utf8')
   const gh = fakeGitHub({
     [rel]: source,
@@ -1583,4 +1625,98 @@ test('github: commitFiles lands every file as ONE commit on top of the parent', 
     'projects/afin-linear/gone.tsx': null,
   })
   assert.equal(calls.filter((c) => c === 'POST /repos/acme/studio/git/commits').length, 1)
+})
+
+// ------------------------------------------ database-project save checks
+//
+// The raw-value and import checks a save runs (platform/dbProjects/
+// vocabulary.ts). They read the host modules' real sources, so the export
+// names below are this repo's own.
+
+const vocabulary = await (async () => {
+  const file = join(root, 'scripts', '.test-design-vocabulary.mjs')
+  await build({
+    absWorkingDir: root,
+    stdin: {
+      contents: `export { vocabularyProblems, exportsOf, HOST_MODULES } from './platform/dbProjects/vocabulary'`,
+      resolveDir: root,
+      loader: 'ts',
+    },
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    outfile: file,
+    packages: 'external',
+    logLevel: 'silent',
+  })
+  const mod = await import(pathToFileURL(file).href)
+  process.on('exit', () => rm(file, { force: true }).catch(() => {}))
+  return mod
+})()
+
+/** The save's problems for one changed file, `screens/home.tsx` by default. */
+const saveProblems = (source, { file = 'screens/home.tsx', before = '', files = [] } = {}) =>
+  vocabulary.vocabularyProblems(file, source, before, new Map([file, ...files].map((f) => [f, ''])), root)
+
+test('save check: a raw colour is refused, naming the nearest token', () => {
+  const [one, ...rest] = saveProblems(`export const A = () => <div style={{ background: '#22C55E' }} />`)
+  assert.deepEqual(rest, [])
+  assert.match(one, /`#22C55E` is a raw colour/)
+  assert.match(one, /nearest: green-\d+/)
+  // Inside a CSS value, and as an SVG attribute.
+  assert.equal(saveProblems(`export const A = () => <div style={{ border: '1px solid #F4F0F9' }} />`).length, 1)
+  assert.equal(saveProblems(`export const A = () => <circle fill="#fff" />`).length, 1)
+  assert.equal(saveProblems(`export const A = 'rgba(17, 25, 40, 0.8)'`).length, 1)
+})
+
+test('save check: what only looks like a colour passes', () => {
+  assert.deepEqual(saveProblems(`export const A = () => <p>{'Pinjaman #1234'}</p>`), [])
+  assert.deepEqual(saveProblems(`export const A = () => <a href="#add">x</a>`), [])
+  // An arbitrary class is the class check's to report, not a second error here.
+  assert.deepEqual(saveProblems(`export const A = () => <div className="bg-[#853291]" />`), [])
+  // A shadow's tint — FunDS's own Button casts a purple one, and there are no shadow tokens.
+  assert.deepEqual(saveProblems(`export const A = () => <div style={{ boxShadow: '0 2px 3px 0 rgba(133,50,145,0.3)' }} />`), [])
+  assert.deepEqual(saveProblems(`export const A = () => <div style={{ boxShadow: 'inset 0 0 0 1px #E5E7EB' }} />`), [])
+})
+
+test('save check: an old colour stays editable, and ds-exception lets one through', () => {
+  const source = `export const A = () => <div style={{ color: '#EC4899' }} />`
+  assert.deepEqual(saveProblems(source, { before: source }), [])
+  assert.deepEqual(
+    saveProblems(`export const A = () => (\n  // ds-exception: the designer asked for the signature pink\n  <div style={{ color: '#EC4899' }} />\n)`),
+    [],
+  )
+})
+
+test('save check: font values written into style are refused; computed ones are not', () => {
+  const [one, ...rest] = saveProblems(`export const A = () => <p style={{ fontSize: '13px', width: '24px' }} />`)
+  assert.deepEqual(rest, [])
+  assert.match(one, /`style` sets fontSize/)
+  assert.deepEqual(saveProblems(`export const A = ({ size }) => <p style={{ fontSize: size, width: \`\${size}%\` }} />`), [])
+})
+
+test('save check: imports must be reachable, real, and there', () => {
+  assert.deepEqual(saveProblems(`import { Button } from '@/design-system/components'\nimport { Coins } from '@/design-system/icons'`), [])
+
+  const [misspelt] = saveProblems(`import { WhatsApp } from '@/design-system/icons'`)
+  assert.match(misspelt, /"@\/design-system\/icons" has no export `WhatsApp` — did you mean `WhatsappLogo`/)
+
+  assert.match(saveProblems(`import clsx from 'clsx'`)[0], /can only import React, the design system and the studio runtime/)
+  assert.match(saveProblems(`import { Row } from '../lib/ui'`)[0], /imports "\.\.\/lib\/ui", which isn’t a file in this project/)
+  assert.deepEqual(saveProblems(`import { Row } from '../lib/ui'`, { files: ['lib/ui.tsx'] }), [])
+  assert.match(saveProblems(`const S = () => import('./missing')`, { file: 'index.ts' })[0], /isn’t a file in this project/)
+  // Erased by the compile, so never resolved.
+  assert.deepEqual(saveProblems(`import type { Thing } from 'anything'`), [])
+})
+
+test('save check: exports are followed through export * — the components index', () => {
+  const names = vocabulary.exportsOf(join(root, 'design-system/components/index.ts'))
+  for (const name of ['Button', 'BottomSheet', 'NavigationHeader', 'AppShell', 'SideNav']) assert.ok(names.has(name), name)
+})
+
+test('save check: HOST_MODULES is exactly what the loader provides', async () => {
+  const loader = await readFile(join(root, 'platform/dbProjects/loader.ts'), 'utf8')
+  const block = loader.match(/const HOST: Record<string, unknown> = \{([\s\S]*?)\n\}/)[1]
+  const keys = [...block.matchAll(/^\s*(?:'([^']+)'|([\w/-]+)):/gm)].map((m) => m[1] ?? m[2])
+  assert.deepEqual([...keys].sort(), [...vocabulary.HOST_MODULES].sort())
 })

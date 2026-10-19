@@ -21,7 +21,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/%20/g, ' ')
 const [slug] = process.argv.slice(2)
-const SYNCED = /\.(tsx?|jsx?|json)$/
+const SYNCED = /\.(tsx?|jsx?|json|md)$/ // .md: NOTES.md (CLAUDE.md §4) — as platform/dbProjects/disk.ts
 
 if (!slug || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) {
   console.error('Usage: npm run db:sync -- <slug>')

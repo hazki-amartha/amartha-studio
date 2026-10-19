@@ -4,8 +4,13 @@
     "next/core-web-vitals",
     "plugin:tailwindcss/recommended"
   ],
+  "ignorePatterns": [
+    "projects/_db/**"
+  ],
   "rules": {
     "tailwindcss/no-arbitrary-value": "error",
+    "tailwindcss/enforces-shorthand": "off",
+    "tailwindcss/classnames-order": "off",
     "tailwindcss/no-custom-classname": [
       "error",
       {
@@ -30,6 +35,7 @@
         "projects/**/*.{ts,tsx,js,jsx}"
       ],
       "rules": {
+        "@next/next/no-img-element": "off",
         "no-restricted-globals": [
           "error",
           {
