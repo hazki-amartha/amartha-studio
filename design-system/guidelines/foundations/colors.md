@@ -11,6 +11,10 @@ Prefer semantic aliases over raw hex values in all component and layout code.
 | `text-disabled` | `#8E95A3` | `--neutral-500` | Disabled labels |
 | `text-placeholder` | `#C6CAD0` | `--neutral-400` | Input placeholder text |
 | `text-link` | `#853291` | `--primary-500` | Clickable links |
+| `text-success` | `#007D55` | `--green-600` | Status text — success / paid |
+| `text-warning` | `#AD540A` | `--orange-700` | Status text — warning / pending |
+| `text-error` | `#AC2B26` | `--red-600` | Status text — error / overdue |
+| `text-info` | `#0457A5` | `--blue-600` | Status text — informational |
 | `border-default` | `#E5E7EB` | `--neutral-200` | Card and input borders |
 | `border-light` | `#F9FAF8` | `--neutral-50` | Subtle dividers |
 
@@ -23,8 +27,10 @@ Prefer semantic aliases over raw hex values in all component and layout code.
 
 The Badge component pairs status colors for you, but when you build a tinted
 status surface yourself (e.g. a success/error icon circle), apply the same
-rule manually: **500 foreground on the matching 50-tint background** —
-`text-green-500` on `bg-green-50`, `text-red-500` on `bg-red-50`, and so on.
+rule manually: **status text uses the text alias, the surface the 50 tint** —
+`text-success` on `bg-green-50`, `text-error` on `bg-red-50`, and so on. An
+icon or dot on it can be the 500 (`text-green-500`), except orange and yellow,
+whose icons take 700. See Status Colors below for why.
 
 ---
 
@@ -64,15 +70,20 @@ Do NOT use purple tones from generic Tailwind palettes — ONLY `--primary-*` to
 
 ## Status Colors
 
-**Rule:** Always pair the 500 foreground with its 50-tint background. Do NOT use a status color on white or `--neutral-50` without the tint.
+**Rule:** status **text** takes the step that reads — 4.5:1 or better on white,
+`--neutral-50` and its own 50 tint alike. The 500s don't: orange-500 text is
+2.1:1 on its tint, yellow-500 1.9:1, green-500 3.3:1. **Icons and dots** need
+3:1, which the 500 gives for blue, green and red but not orange or yellow.
+**White text on a solid fill** needs 4.5:1 too, so green and orange fills go
+darker, and a yellow fill always carries dark text.
 
-| Color | 500 (Foreground) | 50 (Background Tint) | Role |
-|-------|-----------------|----------------------|------|
-| Blue | `#056DCE` (`--blue-500`) | `#EDF7FF` (`--blue-50`) | Informational |
-| Green | `#009C6A` (`--green-500`) | `#E4FCEF` (`--green-50`) | Success / funded |
-| Orange | `#F7941D` (`--orange-500`) | `#FDF4E9` (`--orange-50`) | Warning / pending |
-| Red | `#D73630` (`--red-500`) | `#FFF4F3` (`--red-50`) | Error / overdue / danger |
-| Yellow | `#EAB20B` (`--yellow-500`) | `#FFFED9` (`--yellow-50`) | Accent / review |
+| Color | Text | Icon / dot | Tint | White text on a fill | Role |
+|-------|------|------------|------|----------------------|------|
+| Blue | `text-info` (600) | 500 | `bg-blue-50` | `bg-blue-500` | Informational |
+| Green | `text-success` (600) | 500 | `bg-green-50` | `bg-green-600` | Success / funded |
+| Orange | `text-warning` (700) | 700 | `bg-orange-50` | `bg-orange-700` | Warning / pending |
+| Red | `text-error` (600) | 500 | `bg-red-50` | `bg-red-500` | Error / overdue / danger |
+| Yellow | `text-yellow-800` | 700 | `bg-yellow-50` | never — `bg-yellow-500` with `text-default` | Accent / review |
 
 ---
 

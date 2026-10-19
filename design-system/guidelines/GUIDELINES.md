@@ -27,7 +27,7 @@ The design system lives in this repo at `design-system/` — components in
 | Button radius | 9999px (pill) — never rectangular |
 | Card radius | 12px |
 | Input radius | 8px |
-| Status colors | Always pair 500 foreground with its 50-tint background |
+| Status colors | Text 600/700 (`text-success` …), tint backgrounds 50, 500 only for icons and fills — see [colors](foundations/colors.md) |
 
 Do NOT invent hex values. Do NOT use arbitrary spacing. Do NOT use font-weight 400, 600, or 800.
 

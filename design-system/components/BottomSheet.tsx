@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, type HTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type HTMLAttributes, type ReactNode } from 'react'
 import { ArrowLeft } from '../icons'
+import { useDialogFocus } from './useDialogFocus'
 
 export type BottomSheetSize = 'sm' | 'md' | 'fullscreen'
 
@@ -55,6 +56,10 @@ export function BottomSheet({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+  const panel = useRef<HTMLDivElement>(null)
+  useDialogFocus(open, panel)
+  const titleId = useId()
+  const descriptionId = useId()
 
   if (!open) return null
 
@@ -67,14 +72,22 @@ export function BottomSheet({
   const renderSlot = slot ? <div className="ds-sheet-slot">{slot}</div> : null
   const renderTextBlock = (
     <div className="ds-sheet-text">
-      {title ? <h3 className="ds-sheet-title">{title}</h3> : null}
-      {description ? <p className="ds-sheet-desc">{description}</p> : null}
+      {title ? <h3 id={titleId} className="ds-sheet-title">{title}</h3> : null}
+      {description ? <p id={descriptionId} className="ds-sheet-desc">{description}</p> : null}
     </div>
   )
 
+  // The dialog is the sheet, not the backdrop, named by its title (see Modal).
+  // A fullscreen sheet shows no description, so it isn't described by one.
   return (
-    <div className="ds-sheet-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+    <div className="ds-sheet-overlay" onClick={onClose}>
       <div
+        ref={panel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        aria-describedby={description && size !== 'fullscreen' ? descriptionId : undefined}
+        tabIndex={-1}
         className={sheetClasses}
         onClick={(e) => e.stopPropagation()}
         {...props}
@@ -86,7 +99,7 @@ export function BottomSheet({
             <button
               type="button"
               className="ds-sheet-close"
-              aria-label={onBack ? 'Back' : 'Close'}
+              aria-label={onBack ? 'Kembali' : 'Tutup'}
               onClick={onBack ?? onClose}
             >
               {onBack ? (
@@ -98,7 +111,7 @@ export function BottomSheet({
               )}
             </button>
           ) : null}
-          {size === 'fullscreen' && title ? <h3 className="ds-sheet-title ds-sheet-title-inline">{title}</h3> : null}
+          {size === 'fullscreen' && title ? <h3 id={titleId} className="ds-sheet-title ds-sheet-title-inline">{title}</h3> : null}
         </div>
         <div className="ds-sheet-body">
           {size !== 'fullscreen' ? (

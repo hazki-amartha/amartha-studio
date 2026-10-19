@@ -12,9 +12,9 @@ weight classes exist:
 | `font-bold` | 700 | Headings, buttons, active states |
 
 > ⚠️ **`font-medium` does NOT exist** (nor `font-semibold`, `font-normal`,
-> etc.). Because `tailwindcss/no-custom-classname` is off, a stray
-> `font-medium` fails silently — lint and build both stay green while the
-> weight silently falls back. Use `font-regular` / `font-bold` only.
+> etc.). `tailwindcss/no-custom-classname` reports it, but one that slips
+> through renders nothing: the weight silently falls back. Use
+> `font-regular` / `font-bold` only.
 
 ---
 
@@ -22,12 +22,12 @@ weight classes exist:
 
 | Class | Size | Weight | Letter Spacing | Line Height | Role |
 |-------|------|--------|----------------|-------------|------|
-| `text-24` | 24px | 700 | −0.02em | 100% | Page titles / primary headings |
-| `text-20` | 20px | 700 | −0.01em | 100% | Section headings |
+| `text-24` | 24px | 700 | −0.02em | 120% | Page titles / primary headings |
+| `text-20` | 20px | 700 | −0.01em | 125% | Section headings |
 | `text-18` | 18px | 500 | 0 | 150% | Primary reading size (dashboards) |
 | `text-16` | 16px | 500 | 0 | 150% | Secondary paragraphs and descriptions |
-| `text-14` | 14px | 500 | 0 | 150% | Compact data tables and labels |
-| `text-12` | 12px | 500 | 0 | 150% | Body / caption / helper text |
+| `text-14` | 14px | 500 | 0 | 150% | Mobile body (the minimum), compact data tables and labels |
+| `text-12` | 12px | 500 | 0 | 150% | Caption / helper text / metadata — not body copy |
 | `text-10` | 10px | 500 | +0.06em | 150% | Overline / micro labels (UPPERCASE only) |
 
 > This table mirrors `tailwind.config.ts` (`fontSize`), which is the source of
@@ -46,6 +46,8 @@ weight classes exist:
 - Use `text-18` for primary reading content (dashboards, detail pages)
 - Use `text-16` for standard paragraphs and descriptions
 - Use `text-14` for compact data tables, form labels, and UI labels
+- On mobile, `text-14` is the smallest size for anything meant to be read —
+  borrowers and field agents read on small phones, often outdoors
 
 ### Supporting Text
 - Use `text-12` for captions, helper text, badge labels, and metadata

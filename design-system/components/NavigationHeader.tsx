@@ -36,7 +36,7 @@ export function NavigationHeader({
   const backProps: ButtonHTMLAttributes<HTMLButtonElement> = {
     type: 'button',
     onClick: onBack,
-    'aria-label': 'Back',
+    'aria-label': 'Kembali',
   }
   const linkProps: ButtonHTMLAttributes<HTMLButtonElement> = {
     type: 'button',
@@ -70,8 +70,9 @@ export function NavigationHeader({
         ) : null}
         <span className="ds-navhdr-title">{title}</span>
         <span className="ds-navhdr-trailing">
+          {/* Not aria-hidden: what projects pass here is usually a button. */}
           {limitedIcons.map((ic, i) => (
-            <span key={i} className="ds-navhdr-trailing-icon" aria-hidden>{ic}</span>
+            <span key={i} className="ds-navhdr-trailing-icon">{ic}</span>
           ))}
           {link ? <button className="ds-navhdr-link" {...linkProps}>{link}</button> : null}
         </span>

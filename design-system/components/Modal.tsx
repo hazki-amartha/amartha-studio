@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, type HTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type HTMLAttributes, type ReactNode } from 'react'
+import { useDialogFocus } from './useDialogFocus'
 
 export type ModalSize = 'sm' | 'md' | 'lg'
 export type ModalVariant = 'default' | 'dialog'
@@ -73,6 +74,10 @@ export function Modal({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+  const panel = useRef<HTMLDivElement>(null)
+  useDialogFocus(open, panel)
+  const titleId = useId()
+  const descriptionId = useId()
 
   if (!open) return null
 
@@ -83,9 +88,17 @@ export function Modal({
     className,
   ].filter(Boolean).join(' ')
 
+  // The dialog is the panel, not the backdrop, and it is named by its title —
+  // a screen reader announces "Hapus pinjaman?, dialog", not an empty region.
   return (
-    <div className="ds-modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+    <div className="ds-modal-overlay" onClick={onClose}>
       <div
+        ref={panel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        aria-describedby={description ? descriptionId : undefined}
+        tabIndex={-1}
         className={dialogClasses}
         onClick={(e) => e.stopPropagation()}
         {...props}
@@ -96,9 +109,9 @@ export function Modal({
       >
         <div className="ds-modal-head">
           {intent ? <span className={`ds-modal-icon ds-modal-icon-${intent}`}>{intentIcon[intent]}</span> : null}
-          {title ? <h3 className="ds-modal-title">{title}</h3> : null}
+          {title ? <h3 id={titleId} className="ds-modal-title">{title}</h3> : null}
           {!hideClose ? (
-            <button type="button" className="ds-modal-close" aria-label="Close" onClick={onClose}>
+            <button type="button" className="ds-modal-close" aria-label="Tutup" onClick={onClose}>
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
@@ -106,7 +119,7 @@ export function Modal({
           ) : null}
         </div>
         {slot ? <div className="ds-modal-slot">{slot}</div> : null}
-        {description ? <p className="ds-modal-desc">{description}</p> : null}
+        {description ? <p id={descriptionId} className="ds-modal-desc">{description}</p> : null}
         {children}
         {(primaryAction || secondaryAction) ? (
           <div className="ds-modal-actions">

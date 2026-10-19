@@ -22,8 +22,19 @@ components from `@/design-system/components`, layout from `@/platform/primitives
 | Button radius | `rounded-full` (pill) — never rectangular |
 | Card radius | `rounded-16` default, 12px padding — `<Card radius="8|12|16|20|24">` |
 | Input radius | `rounded-8` |
-| Status | 500 foreground on matching 50-tint background (Badge does this) |
+| Status | Text `text-success` `text-warning` `text-error` `text-info` (500 is too pale to read); tint bg is the 50 step; 500 only for icons, dots, fills — orange and yellow icons take 700. Badge does all this |
 | Layout | 16px page padding-x/top, 12px section gap, 48px topbar |
+
+| Type role (mobile) | Class |
+|--------------------|-------|
+| Page / hero title · section heading · card heading | `text-24` · `text-20` · `text-16`, all `font-bold` |
+| Body — anything meant to be read | `text-14` at least, `text-16` for paragraphs |
+| Caption, helper text, metadata | `text-12` — never body copy |
+| Overline | `text-10`, uppercase only |
+
+Borrowers and field agents read these screens on small phones, often outdoors:
+when unsure, go up a size. Hand-built tappable things get `min-h-48` / `size-48`
+— the components already take a 44px tap.
 
 `font-medium`, `font-semibold`, `font-400` **do not exist** and fail silently.
 No arbitrary values (`p-[13px]`, `text-[#853291]`) — `no-arbitrary-value` errors.

@@ -84,8 +84,10 @@ const config: Config = {
       '14': ['14px', { lineHeight: '150%', letterSpacing: '0px' }],
       '16': ['16px', { lineHeight: '150%', letterSpacing: '0px' }],
       '18': ['18px', { lineHeight: '150%', letterSpacing: '0px' }],
-      '20': ['20px', { lineHeight: '100%', letterSpacing: '-0.01em' }],
-      '24': ['24px', { lineHeight: '100%', letterSpacing: '-0.02em' }],
+      // Headings are set tight, not solid: at 100% a heading that wraps put its
+      // lines about 1px apart, and none of the 193 uses in projects re-leaded it.
+      '20': ['20px', { lineHeight: '125%', letterSpacing: '-0.01em' }],
+      '24': ['24px', { lineHeight: '120%', letterSpacing: '-0.02em' }],
     },
 
     fontFamily: {
@@ -200,6 +202,13 @@ const config: Config = {
         'disabled':    '#8E95A3', // neutral-500
         'placeholder': '#C6CAD0', // neutral-400
         'link':        '#853291', // primary-500
+        // Status TEXT. The 500s are too pale to read — orange-500 is 2.1:1 on
+        // its own tint — so text takes the step that clears 4.5:1 on white,
+        // neutral-50 and the matching 50 tint alike. 500 is for icons and fills.
+        'success':     '#007D55', // green-600   4.8:1 on green-50
+        'warning':     '#AD540A', // orange-700  4.8:1 on orange-50
+        'error':       '#AC2B26', // red-600     6.2:1 on red-50
+        'info':        '#0457A5', // blue-600    6.7:1 on blue-50
       },
       borderColor: {
         'default': '#E5E7EB', // neutral-200
