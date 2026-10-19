@@ -29,5 +29,6 @@ export const configs: ConfigRegistry = {
   'apartner-sot': () => import('./apartner-sot/project.config').then((m) => m.config),
   'ngmis-mitra-monitoring': () =>
     import('./ngmis-mitra-monitoring/project.config').then((m) => m.config),
+  'qris-merchant-jemmi': () => import('./qris-merchant-jemmi/project.config').then((m) => m.config),
   // <append new projects above this line — one line per project>
 }
