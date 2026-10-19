@@ -30,7 +30,7 @@ export function AgentMapScreen() {
       {/* Drawn, not embedded. Height comes from the band's own padding; the
           roads and pins sit on top, so it reads as a location without
           pretending to BE one. */}
-      <div className="relative overflow-hidden rounded-12 bg-neutral-100 py-48">
+      <div className="relative overflow-hidden rounded-12 py-48">
         <span className="absolute left-0 right-0 top-20 h-2 bg-neutral-200" />
         <span className="absolute bottom-16 left-0 right-0 h-2 bg-neutral-200" />
         <span className="absolute bottom-0 left-24 top-0 w-2 bg-neutral-200" />

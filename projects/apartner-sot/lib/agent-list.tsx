@@ -71,7 +71,7 @@ function AgentRow({
 
       <div className="flex flex-col gap-4">
         <span className="flex">
-          <span className="rounded-8 bg-neutral-100 px-8 py-4 text-12 font-bold text-default">
+          <span className="rounded-8 px-8 py-4 text-12 font-bold text-default">
             {agent.eta} ({kmShort(agent.distanceKm)})
           </span>
         </span>

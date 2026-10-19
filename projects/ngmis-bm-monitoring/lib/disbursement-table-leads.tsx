@@ -261,7 +261,7 @@ function FunnelBox({
       </span>
       {hint ? <span className="text-10 text-caption">{hint}</span> : null}
       {parts ? (
-        <div className="flex flex-col gap-1 pt-2">
+        <div className="flex flex-col pt-2">
           {parts.map((p) => (
             <span key={p.label} className="flex items-center justify-between gap-8 text-10 text-caption">
               <span>{p.label}</span>
@@ -509,7 +509,7 @@ export function DisbursementTableLeads({ detailed = false }: { detailed?: boolea
                       <span className="flex w-20 items-center justify-center">
                         {potentialOpen ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
                       </span>
-                      <span className="w-px bg-neutral-200" />
+                      <span className="bg-neutral-200" />
                       <span className="flex w-20 items-center justify-center">
                         {potentialOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
                       </span>

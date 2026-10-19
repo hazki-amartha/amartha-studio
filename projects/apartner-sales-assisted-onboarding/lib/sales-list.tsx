@@ -267,7 +267,7 @@ export function SalesList({ scope }: { scope: Scope }) {
   const snackbar = flash ? (
     <div
       className={`sticky bottom-16 z-10 mx-4 flex items-center gap-8 rounded-12 px-12 py-12 shadow-lg ${
-        flash.tone === 'success' ? 'bg-green-500 text-neutral-white' : 'bg-neutral-800 text-neutral-white'
+        flash.tone === 'success' ? 'bg-green-500 text-neutral-white' : 'bg-neutral-900 text-neutral-white'
       }`}
     >
       {flash.tone === 'success' ? (

@@ -205,7 +205,7 @@ export function BpTable({
                   key={bp.id}
                   onClick={onDetailClick ? () => onDetailClick(bp) : undefined}
                   className={`border-b border-default ${zebra} ${
-                    onDetailClick ? 'cursor-pointer hover:bg-neutral-100' : ''
+                    onDetailClick ? 'cursor-pointer' : ''
                   }`}
                 >
                   <td className="px-16 py-16 text-14 text-default">

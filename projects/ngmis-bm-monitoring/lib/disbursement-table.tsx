@@ -497,7 +497,7 @@ function BpRow({
 
   return (
     <Fragment>
-      <tr onClick={onDetailClick} className={`cursor-pointer align-middle hover:bg-neutral-100 ${stripe}`}>
+      <tr onClick={onDetailClick} className={`cursor-pointer align-middle ${stripe}`}>
         <td rowSpan={2} className="px-16 py-12 text-14 text-default">
           <span className="flex flex-col items-start gap-2">
             {bp.name}
@@ -565,7 +565,7 @@ function BpRow({
           leading indicator, not something with a monthly pass/fail line. */}
       <tr
         onClick={onDetailClick}
-        className={`cursor-pointer border-b border-default align-top hover:bg-neutral-100 ${stripe}`}
+        className={`cursor-pointer border-b border-default align-top ${stripe}`}
       >
         <td className="border-l border-default px-12 pb-16 pt-4" />
         <td className={SHORT_CELL}>{nilaiShort ? `${rp(nilaiShort)} lagi` : null}</td>
