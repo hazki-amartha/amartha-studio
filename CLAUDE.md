@@ -136,6 +136,10 @@ and still behaves like the whole app. Prefer a `status: 'live'` base.
 - Inheritance is live; to freeze a base screen, override it.
 - The project needs exactly one `entry` of its own; the base's is ignored.
 - Never edit the base to fix your feature — override the screen, or ask its owner.
+- New Project's **Inside AmarthaFin / A-Partner / NG-MIS** starts a project this
+  way: the app's start screen, and what it imports, copied in as the project's
+  own; everything else inherited. To change another base screen, override it —
+  copy that screen and only the files it needs that the project lacks.
 
 ---
 

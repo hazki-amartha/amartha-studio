@@ -4,30 +4,36 @@
 // save after that is live — no folder, no registry lines, no push. So it works
 // on the deployed link as well as on the laptop.
 //
-//   blank            one empty screen, `home`, as the entry
-//   amarthafin-live  extends the live reference, with its home copied in as
-//                    the project's own `home` (overriding the base's) — the
-//                    homepage the designer is about to change, starting
-//                    exactly as it ships. Anything else the live app gains
-//                    later is inherited.
+//   blank       one empty screen, `home`, as the entry, in its platform's
+//               frame — a phone, or the desktop shell for NG-MIS
+//   a live app  extends that live reference (LIVE_STARTS in ../protocol.ts),
+//               with its start screen copied in as the project's own
+//               (./startingFiles.ts) — the screen the designer is about to
+//               change, starting exactly as it ships, demo states and all.
+//               Every other screen is inherited, so the prototype still
+//               behaves like the whole app, and anything the live app gains
+//               later arrives on its own.
+//
+// Copying here costs nothing. Left to Chat, the agent would have written every
+// line of the copy out again — for A-Partner's Beranda, 325KB of it.
 //
 // The registry-line helpers below stay for platform/push/server/local.ts,
 // which still pushes git projects.
 // =============================================================================
 
 import { existsSync } from 'node:fs'
-import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { saveDbFiles } from '@/platform/dbProjects/server'
-import type { BusinessUnit, Platform } from '@/platform/types'
-import type { ProjectStart } from '../protocol'
+import type { BusinessUnit, DeviceKind, Platform } from '@/platform/types'
+import { deviceFor, type LiveStart } from '../protocol'
+import { CreateRefused } from './refused'
+import { startingFiles } from './startingFiles'
 
 const ROOT = process.cwd()
 const PROJECTS = path.join(ROOT, 'projects')
 const MARKER = '  // <append new projects above this line — one line per project>'
-const BASE = 'amarthafin-live'
 
-export class CreateRefused extends Error {}
+export { CreateRefused }
 
 export function slugFor(name: string): string {
   return name
@@ -57,7 +63,8 @@ function configSource(c: {
   owner: string
   businessUnit: BusinessUnit
   platform: Platform
-  extendsBase: boolean
+  device: DeviceKind
+  base: string | null
 }): string {
   const today = new Date().toISOString().slice(0, 10)
   return `import type { ProjectConfig } from '@/platform/types'
@@ -69,9 +76,9 @@ export const config: ProjectConfig = {
   platform: ${q(c.platform)},
   owner: ${q(c.owner)},
   description: 'A new prototype — ask Chat to describe what it explores.',
-  device: 'mobile',
+  device: ${q(c.device)},
   status: 'draft',
-  createdAt: ${q(today)},${c.extendsBase ? `\n  extends: ${q(BASE)},` : ''}
+  createdAt: ${q(today)},${c.base ? `\n  extends: ${q(c.base)},` : ''}
 }
 `
 }
@@ -93,7 +100,33 @@ export const project: ProjectModule = {
 }
 `
 
-const blankScreen = (title: string) => `'use client'
+const blankScreen = (title: string, device: DeviceKind) =>
+  device === 'desktop'
+    ? `'use client'
+
+import { AppShell, SideNav } from '@/design-system/components'
+import { Layout } from '@/design-system/icons'
+
+export function HomeScreen() {
+  return (
+    <AppShell
+      user="A"
+      breadcrumbs={[{ label: ${JSON.stringify(title)}, current: true }]}
+      sidebar={(collapsed) => (
+        <SideNav
+          items={[{ id: 'home', label: 'Home', icon: <Layout size={20} /> }]}
+          activeId="home"
+          collapsed={collapsed}
+          onSelect={() => {}}
+        />
+      )}
+    >
+      {null}
+    </AppShell>
+  )
+}
+`
+    : `'use client'
 
 import { NavigationHeader } from '@/design-system/components'
 import { Screen } from '@/platform/primitives'
@@ -115,43 +148,26 @@ export function appendLine(text: string, slug: string, line: string): string {
   return text.replace(MARKER, `${line}\n${MARKER}`)
 }
 
-/** A git project's files, path → content — the base a live-started project
- *  copies. Deployed, these are traced into the function (next.config.mjs). */
-async function filesOf(slug: string): Promise<{ path: string; content: string }[]> {
-  const root = path.join(PROJECTS, slug)
-  const out: { path: string; content: string }[] = []
-  async function walk(dir: string) {
-    for (const name of await readdir(dir)) {
-      const full = path.join(dir, name)
-      if ((await stat(full)).isDirectory()) await walk(full)
-      else if (/\.(tsx?|json)$/.test(name)) {
-        out.push({ path: path.relative(root, full).split(path.sep).join('/'), content: await readFile(full, 'utf8') })
-      }
-    }
-  }
-  await walk(root)
-  return out
-}
-
 export async function createProject(input: {
   name: string
   owner: string
   businessUnit: BusinessUnit
   platform: Platform
-  start: ProjectStart
+  start: LiveStart | null
   taken: Set<string>
 }): Promise<string> {
   const slug = freeSlug(input.name, input.taken)
-  const live = input.start === BASE
-
-  const files = live
-    ? // The base's own files, minus what says whose project it is.
-      (await filesOf(BASE)).filter((f) => f.path !== 'project.config.ts')
+  const device = input.start?.device ?? deviceFor(input.platform)
+  const files = input.start
+    ? await startingFiles(input.start.id)
     : [
         { path: 'index.ts', content: BLANK_INDEX },
-        { path: 'screens/home.tsx', content: blankScreen(input.name) },
+        { path: 'screens/home.tsx', content: blankScreen(input.name, device) },
       ]
-  files.push({ path: 'project.config.ts', content: configSource({ ...input, slug, extendsBase: live }) })
+  files.push({
+    path: 'project.config.ts',
+    content: configSource({ ...input, slug, device, base: input.start?.id ?? null }),
+  })
   await saveDbFiles(slug, files, input.owner)
   return slug
 }

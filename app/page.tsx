@@ -14,6 +14,7 @@ import { Card } from '@/design-system/components/Card'
 import { PageHeader } from '@/platform/chrome'
 import { canEditAs, getStudioUser } from '@/platform/auth/server'
 import { NewProjectButton } from '@/platform/projects/NewProjectButton'
+import { PLATFORM_COLOR, PLATFORM_LABEL, PLATFORM_ORDER } from '@/platform/projects/platforms'
 import { ChevronLeftIcon } from '@/platform/chrome/icons'
 import type { BusinessUnit, Platform, ProjectConfig, ProjectStatus } from '@/platform/types'
 import { configs as projectConfigs } from '@/projects/configs'
@@ -43,15 +44,8 @@ const STATUS_LABEL: Record<ProjectStatus, string> = {
 // them get drawn is not (see `visible` below).
 const STATUS_ORDER: ProjectStatus[] = ['draft', 'in-review', 'final', 'live']
 
-// Enum value is code-friendly; the display label carries the hyphen/casing.
-const PLATFORM_LABEL: Record<Platform, string> = {
-  APartner: 'A-Partner',
-  AFIN: 'AFIN',
-  NGMIS: 'NGMIS',
-}
-
-// Platform is a filter now, not a folder — display order only.
-const PLATFORM_ORDER: Platform[] = ['AFIN', 'APartner', 'NGMIS']
+// Platform labels, order and swatches: platform/projects/platforms.ts, shared
+// with the New Project dialog.
 
 const BU_LABEL: Record<BusinessUnit, string> = {
   Lending: 'Lending',
@@ -63,16 +57,6 @@ const BU_LABEL: Record<BusinessUnit, string> = {
 // The folders are the business units. Fixed taxonomy, same order every visit —
 // an empty BU still shows a folder, so the org's shape reads the same each time.
 const BU_ORDER: BusinessUnit[] = ['Lending', 'Funding', 'Core', 'Payments']
-
-// One hue per platform — AFIN purple (the brand's consumer app), A-Partner
-// blue, NGMIS green — so a card's colour tells you which product it belongs to
-// before you read a word of it. The platform chips carry the same swatch, which
-// makes the filter row the legend.
-const PLATFORM_COLOR: Record<Platform, { card: string; dot: string }> = {
-  AFIN: { card: 'from-primary-700 to-primary-900', dot: 'bg-primary-500' },
-  APartner: { card: 'from-blue-600 to-blue-800', dot: 'bg-blue-500' },
-  NGMIS: { card: 'from-green-600 to-green-800', dot: 'bg-green-500' },
-}
 
 // Studio-internal work carries no platform — it gets the neutral ramp rather
 // than borrowing a platform's colour.
@@ -421,7 +405,7 @@ export default async function Home({
     )
 
   const newProject = canCreate ? (
-    <NewProjectButton account={account} businessUnit={bu} />
+    <NewProjectButton account={account} businessUnit={bu} platform={platform} />
   ) : undefined
 
   const chips = (

@@ -62,8 +62,17 @@ const CHECK_TOOL = 'mcp__studio__check_project'
 const SLASH_COMMAND = /^\/[a-z][\w:-]*(\s|$)/i
 
 // Read-only reference the agent works from, shipped with the function
-// (next.config.mjs → outputFileTracingIncludes['/api/chat']).
-const REFERENCE = ['design-system', 'platform', 'projects/_template', 'projects/amarthafin-live']
+// (next.config.mjs → outputFileTracingIncludes['/api/chat']). The live
+// references are among it: a project New Project started inside one inherits
+// its screens, and the agent has to be able to read what it is building on.
+const REFERENCE = [
+  'design-system',
+  'platform',
+  'projects/_template',
+  'projects/amarthafin-live',
+  'projects/apartner-sot',
+  'projects/ngmis-live',
+]
 
 function ownerEmails(): string[] {
   return (process.env.CHAT_OWNER_EMAIL ?? '')

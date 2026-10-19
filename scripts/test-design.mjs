@@ -1627,6 +1627,92 @@ test('github: commitFiles lands every file as ONE commit on top of the parent', 
   assert.equal(calls.filter((c) => c === 'POST /repos/acme/studio/git/commits').length, 1)
 })
 
+// ------------------------------------------------- new project, inside an app
+//
+// What New Project copies when a project starts inside a live reference
+// (platform/projects/server/startingFiles.ts): the start screen and what it
+// imports — every file of it reachable, every import one a database project
+// may make — and nothing else of the app.
+
+const starts = await (async () => {
+  const file = join(root, 'scripts', '.test-design-starts.mjs')
+  await build({
+    absWorkingDir: root,
+    stdin: {
+      contents: `export { startingFiles, entryOnly, importsOf } from './platform/projects/server/startingFiles'\nexport { LIVE_STARTS } from './platform/projects/protocol'\nexport { vocabularyProblems } from './platform/dbProjects/vocabulary'`,
+      resolveDir: root,
+      loader: 'ts',
+    },
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    outfile: file,
+    packages: 'external',
+    logLevel: 'silent',
+  })
+  const mod = await import(pathToFileURL(file).href)
+  process.on('exit', () => rm(file, { force: true }).catch(() => {}))
+  return mod
+})()
+
+test('new project: each live start is its reference’s platform and frame', async () => {
+  for (const s of starts.LIVE_STARTS) {
+    const config = await readFile(join(root, 'projects', s.id, 'project.config.ts'), 'utf8')
+    assert.match(config, /status: 'live'/, s.id)
+    assert.match(config, new RegExp(`platform: '${s.platform}'`), s.id)
+    assert.match(config, new RegExp(`device: '${s.device}'`), s.id)
+    assert.doesNotMatch(config, /extends:/, `${s.id} can't be a base if it extends`)
+  }
+})
+
+test('new project: a live start copies its start screen and what that imports — nothing else', async () => {
+  for (const s of starts.LIVE_STARTS) {
+    const files = new Map((await starts.startingFiles(s.id)).map((f) => [f.path, f.content]))
+    const index = files.get('index.ts')
+    assert.equal((index.match(/lazyScreen\(/g) ?? []).length, 1, `${s.id}: one screen`)
+    assert.match(index, /entry: true/, s.id)
+    assert.ok(!files.has('project.config.ts'), `${s.id}: the project writes its own config`)
+    assert.deepEqual([...files.keys()].filter((p) => p.startsWith('screens/')).length, 1, `${s.id}: one screen copied`)
+    files.set('project.config.ts', '') // create.ts writes it
+    for (const [path, source] of files) {
+      if (!/\.tsx?$/.test(path)) continue
+      for (const spec of starts.importsOf(source)) {
+        if (!spec.startsWith('.')) continue
+        const target = join(dirname(path), spec).replace(/^\.\//, '')
+        if (target === 'project.config') continue
+        assert.ok(['.tsx', '.ts', '/index.tsx', '/index.ts', ''].some((ext) => files.has(target + ext)), `${s.id}/${path} imports ${spec}`)
+      }
+      // As a laptop's New Project saves them: new files, through the save checks' imports and values.
+      assert.deepEqual(starts.vocabularyProblems(path, source, '', files, root), [], `${s.id}/${path}`)
+    }
+  }
+})
+
+test('new project: the index keeps its own lines and only the entry screen', () => {
+  const index = `import * as demo from './lib/demo'
+const DAY = [{ id: 'a', label: 'A', apply: demo.a }]
+export const project = {
+  config,
+  screens: [
+    { id: 'today', title: 'Tugas', component: lazyScreen(() => import('./screens/today'), 'Today') },
+    {
+      title: 'Beranda',
+      component: lazyScreen(() => import('./screens/home'), 'Home'),
+      states: DAY,
+      entry: true,
+      id: 'home',
+    },
+    { id: 'profile', component: lazyScreen(() => import('./screens/profile'), 'Profile') },
+  ],
+}`
+  const cut = starts.entryOnly(index)
+  assert.match(cut, /const DAY = \[/)
+  assert.match(cut, /import\('\.\/screens\/home'\)/)
+  assert.doesNotMatch(cut, /screens\/today|screens\/profile/)
+  assert.deepEqual(starts.importsOf(cut).sort(), ['./lib/demo', './screens/home'])
+  assert.throws(() => starts.entryOnly(index.replace('entry: true,', '')), /no start screen/)
+})
+
 // ------------------------------------------ database-project save checks
 //
 // The raw-value and import checks a save runs (platform/dbProjects/

@@ -14,15 +14,16 @@ const nextConfig = {
   // two never share a directory. Unset (Vercel, `next start`) it stays `.next`.
   distDir: process.env.NEXT_DIST_DIR || '.next',
 
-  // New Project (platform/projects/server/create.ts) can start a project as a
-  // copy of the live AmarthaFin reference, reading its files at runtime. A
-  // deployment only ships files the build traced, so name them here.
+  // New Project (platform/projects/server/create.ts) can start a project inside
+  // a live reference, copying its start screen from the reference's files at
+  // runtime. A deployment only ships files the build traced, so name them here.
   experimental: {
     outputFileTracingIncludes: {
-      '/api/projects': ['./projects/amarthafin-live/**/*'],
+      '/api/projects': ['./projects/amarthafin-live/**/*', './projects/apartner-sot/**/*', './projects/ngmis-live/**/*'],
       // Chat on the deployment (platform/chat/server/cloud.ts): the Agent SDK
       // finds its native binary at runtime, so tracing misses it; the rest is
-      // the read-only reference the agent works from.
+      // the read-only reference the agent works from — the live references
+      // among it, since a project started inside one inherits its screens.
       '/api/chat': [
         './node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/**/*',
         './CLAUDE.md',
@@ -30,6 +31,8 @@ const nextConfig = {
         './platform/**/*',
         './projects/_template/**/*',
         './projects/amarthafin-live/**/*',
+        './projects/apartner-sot/**/*',
+        './projects/ngmis-live/**/*',
       ],
     },
     serverComponentsExternalPackages: ['@anthropic-ai/claude-agent-sdk'],
