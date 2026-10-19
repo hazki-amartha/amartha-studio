@@ -23,10 +23,19 @@
 // instruction loses to CLAUDE.md): no git, no gh, no dev server — denied at the
 // tool level. A PreToolUse hook (scripts/chat-guard.mjs) checks every tool call
 // before it runs: writes only inside projects/<slug>/, reads only inside the
-// repo and never its secrets, Bash only the exact check commands. Each turn is
-// also capped in steps and minutes. Anything that still changes
+// repo and never its secrets, Bash only the check commands for this project.
+// Each turn is also capped in steps and minutes. Anything that still changes
 // outside is reported after the turn, not reset: this is a shared checkout, and
 // a reset here could wipe someone else's uncommitted work.
+//
+// The system prompt is the same for every session on this laptop, so each new
+// one reuses the cached copy the last one wrote instead of paying to write it
+// again: the project, the open screen and the branch travel in a note on each
+// message (platform/chat/server/turnNote.ts), CLAUDE.md is part of the system
+// prompt (platform/chat/server/contract.ts), the CLI moves its per-machine
+// sections (working directory, git status) out of it, and auto-memory and the
+// commit instructions are off — Chat must not read or write the laptop
+// owner's memory, and it can't run git.
 // =============================================================================
 
 import { spawn, execFile, execFileSync, type ChildProcess } from 'node:child_process'
@@ -43,9 +52,10 @@ import {
 } from '@/platform/design/server/editGate'
 import { isLocalRequest } from '@/platform/chat/localRequest'
 import { diskChanges, diskFiles, ensureLocalCopy, projectFolder } from '@/platform/dbProjects/disk'
-import { draftChatLines } from '@/platform/dbProjects/draftMeta'
 import { draftsOf } from '@/platform/dbProjects/drafts'
 import { cloudStatus, cloudTurn } from '@/platform/chat/server/cloud'
+import { turnNote } from '@/platform/chat/server/turnNote'
+import { withContract } from '@/platform/chat/server/contract'
 import { readImages, userContent } from '@/platform/chat/images'
 
 export const runtime = 'nodejs'
@@ -59,8 +69,18 @@ const ROOT = process.cwd()
 let running: ChildProcess | null = null
 
 const TOOLS = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash']
-// Exactly these, no extra arguments — the guard hook enforces the same list.
-const CHECKS = ['npm run lint', 'npm run check:flows', 'npx tsc --noEmit', 'npm run check:project']
+// The checks a turn can run, by where its project lives — the guard hook gets
+// the same list (CHAT_COMMANDS). A database project's check is check:project:
+// lint skips projects/_db, tsc leaves it out and check:flows loads only git
+// projects, so in its turns those ran for seconds (tsc once hung for four
+// minutes) and checked other projects' code.
+const CHECKS = {
+  db: ['npm run check:project'],
+  git: ['npm run lint', 'npm run check:flows', 'npx tsc --noEmit'],
+}
+/** CLAUDE.md writes the database check with its slug; that form works too. */
+const commandsFor = (slug: string, db: boolean) =>
+  db ? [...CHECKS.db, `npm run check:project -- ${slug}`] : CHECKS.git
 // A turn that loops or runs away stops here instead of burning the subscription.
 const MAX_TURNS = 40
 const TURN_TIMEOUT_MS = 10 * 60 * 1000
@@ -80,18 +100,23 @@ const DENIED = [
   'Bash(next:*)',
 ]
 
-/** `draftOf`: the name of the project this one is a draft of, if it is one. */
-function studioAppend(slug: string, db: boolean, draftOf: string | null): string {
+/** Never names the project — the note on each message does (turnNote.ts) — so
+ *  every session of a kind starts from the same system prompt. */
+function studioAppend(db: boolean): string {
   return [
-    `You are running inside the Amartha Studio chat panel for project \`${slug}\`,`,
-    'on behalf of its designer, who is watching the prototype beside this chat.',
+    'You are running inside the Amartha Studio chat panel, on behalf of the designer',
+    'of the project the <studio-note> at the top of each message names. They are',
+    'watching the prototype beside this chat. The studio writes that note, not the',
+    'designer, and it is current for its message: the project, its folder, the screen',
+    'open in the device and any error the device is showing. Start from that screen',
+    'instead of searching for it.',
     '',
     'Scope. You only help with this prototype: its screens, flows, copy and design',
     'system usage. If asked anything else — general knowledge, recipes, other',
     'projects, personal tasks — reply in one short sentence that chat is only for',
     'this prototype, and do not answer it.',
     '',
-    `Files. You can change files only inside \`${projectFolder(slug, db)}/\`; writes anywhere`,
+    'Files. You can change files only inside the folder the note names; writes anywhere',
     'else are blocked by the studio. You cannot delete files or folders, run shell',
     'commands other than the checks below, use git or gh, or start, stop or restart',
     'the dev server — the studio handles commit and push itself. Do not open a browser.',
@@ -103,7 +128,7 @@ function studioAppend(slug: string, db: boolean, draftOf: string | null): string
     'cannot perform.',
     '',
     'A dev server is already running and hot-reloads your edits into the preview.',
-    `The only commands you can run are, exactly: ${CHECKS.map((c) => `\`${c}\``).join(', ')}.`,
+    `The only commands you can run are: ${CHECKS[db ? 'db' : 'git'].map((c) => `\`${c}\``).join(', ')}.`,
     ...(db
       ? [
           'This project lives in the studio database and is shared live: each file you',
@@ -114,7 +139,6 @@ function studioAppend(slug: string, db: boolean, draftOf: string | null): string
           'finish, run `npm run check:project` and fix everything it reports; changes',
           'that fail it are not saved. Keep replies short and in plain language — the',
           'designer does not read code.',
-          ...(draftOf ? ['', ...draftChatLines(draftOf)] : []),
         ]
       : [
           'Run `npm run lint` after edits that touch classes. Keep replies short and in',
@@ -182,11 +206,33 @@ function cliEnv(): NodeJS.ProcessEnv {
 function childEnv(slug: string, db: boolean): NodeJS.ProcessEnv {
   const env = cliEnv()
   env.ENABLE_CLAUDEAI_MCP_SERVERS = 'false'
+  // Chat isn't the laptop owner's own Claude Code: it must not read their
+  // auto-memory or try to write to it, and it can't commit, so the commit and
+  // PR instructions are dead weight. Env, not settings: a CLI too old to know
+  // one simply ignores it.
+  env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = '1'
+  env.CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS = '1'
+  // CLAUDE.md comes in the system prompt instead (contract.ts).
+  env.CLAUDE_CODE_DISABLE_CLAUDE_MDS = '1'
   // Read by scripts/chat-guard.mjs.
   env.CHAT_SLUG = slug
   env.CHAT_ROOT = ROOT
   env.CHAT_DIR = projectFolder(slug, db)
+  env.CHAT_COMMANDS = commandsFor(slug, db).join('\n')
   return env
+}
+
+const EXCLUDE_DYNAMIC = '--exclude-dynamic-system-prompt-sections'
+let help: Promise<string> | null = null
+
+/** Does this laptop's CLI know the flag that moves its per-machine sections
+ *  out of the system prompt? Designers' CLIs update on their own schedule, and
+ *  an unknown flag fails the whole turn. Asked once per server. */
+function excludesDynamicSections(): Promise<boolean> {
+  help ??= new Promise((resolve) => {
+    execFile(CLI, ['--help'], { env: cliEnv(), timeout: 15_000 }, (_err, stdout) => resolve(String(stdout ?? '')))
+  })
+  return help.then((text) => text.includes(EXCLUDE_DYNAMIC))
 }
 
 export type SignIn = 'signed-in' | 'signed-out' | 'no-cli'
@@ -262,6 +308,9 @@ interface ChatRequest {
   /** Sent from /db/<slug>: the project lives in the database. The turn starts
    *  from the database's files and saves what it changed back there. */
   db?: boolean
+  /** The screen in the device, and the error it shows, if any (turnNote.ts). */
+  screen?: string
+  screenError?: string
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -306,7 +355,8 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'Another turn is still running.' }, { status: 409 })
   }
 
-  const draftOf = body.db ? ((await draftsOf(body.slug).catch(() => null))?.draft?.parentName ?? null) : null
+  const db = Boolean(body.db)
+  const draftOf = db ? ((await draftsOf(body.slug).catch(() => null))?.draft?.parentName ?? null) : null
   // The message goes in on stdin as a stream-json user message, not as an
   // argument: that is the only way the CLI takes images with it.
   const args = [
@@ -319,14 +369,16 @@ export async function POST(request: Request): Promise<Response> {
     '--permission-mode', 'acceptEdits',
     '--tools', ...TOOLS,
     // Bash is limited to the checks; reading goes through Read/Glob/Grep. In
-    // print mode anything not allowed here is refused, not asked about.
-    '--allowedTools', ...TOOLS.filter((t) => t !== 'Bash'), ...CHECKS.map((c) => `Bash(${c})`),
+    // print mode anything not allowed here is refused, not asked about — the
+    // guard allows the forms with `2>&1 | tail` itself.
+    '--allowedTools', ...TOOLS.filter((t) => t !== 'Bash'), ...commandsFor(body.slug, db).map((c) => `Bash(${c})`),
     '--disallowedTools', ...DENIED,
     '--settings', guardSettings(),
     '--max-turns', String(MAX_TURNS),
     '--disable-slash-commands',
-    '--append-system-prompt', studioAppend(body.slug, Boolean(body.db), draftOf),
+    '--append-system-prompt', withContract(studioAppend(db), ROOT),
   ]
+  if (await excludesDynamicSections()) args.push(EXCLUDE_DYNAMIC)
   if (process.env.CHAT_LOCAL_MODEL) args.push('--model', process.env.CHAT_LOCAL_MODEL)
   if (body.sessionId) args.push('--resume', body.sessionId)
 
@@ -339,6 +391,15 @@ export async function POST(request: Request): Promise<Response> {
       { status: 503 },
     )
   }
+  const note = turnNote({
+    root: ROOT,
+    slug: body.slug,
+    folder: projectFolder(body.slug, db),
+    db,
+    draftOf,
+    first: !body.sessionId,
+    view: body,
+  })
 
   const before = dirtyPaths()
   // A database project's folder is ignored by git, so git can't say what the
@@ -346,13 +407,16 @@ export async function POST(request: Request): Promise<Response> {
   const dbBefore = body.db ? await diskFiles(body.slug) : null
   const child = spawn(CLI, args, {
     cwd: ROOT,
-    env: childEnv(body.slug, Boolean(body.db)),
+    env: childEnv(body.slug, db),
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   running = child
   child.stdin!.on('error', () => {}) // a CLI that failed to start has no stdin; 'error' below reports it
   child.stdin!.end(
-    JSON.stringify({ type: 'user', message: { role: 'user', content: userContent(body.message, images) } }) + '\n',
+    JSON.stringify({
+      type: 'user',
+      message: { role: 'user', content: userContent(`${note}\n\n${body.message}`, images) },
+    }) + '\n',
   )
   let timedOut = false
   const timer = setTimeout(() => {

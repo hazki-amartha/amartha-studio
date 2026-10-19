@@ -11,10 +11,16 @@
 //   Reads (Read, Glob, Grep) — only inside the repo, and never secrets: .env*,
 //     .git, .claude, .vercel, keys. The editing password and the GitHub App key
 //     live there, and a read secret is one Write away from a pushed file.
-//   Bash — only the exact check commands below, no extra arguments. `lint --fix`
-//     or `eslint -o <file>` would write files this guard never sees.
+//   Bash — only this project's check commands (CHAT_COMMANDS, from the route),
+//     with no extra arguments: `lint --fix` or `eslint -o <file>` would write
+//     files this guard never sees. Output plumbing that runs nothing new is
+//     fine — `2>&1`, a trailing `| tail -n 40` or `| head`, and checks chained
+//     with `&&` — because refusing it only cost a round trip, and an agent told
+//     "do not try another way" after one stopped running the checks at all.
 //
-// Exit 2 = block (stderr is shown to the agent). Exit 0 = allow.
+// Exit 2 = block (stderr is shown to the agent). Exit 0 = allow; a check
+// command is allowed outright, so the CLI's own rules don't refuse the forms
+// above that its exact-match --allowedTools entries don't cover.
 // =============================================================================
 
 import path from 'node:path'
@@ -24,7 +30,13 @@ const root = process.env.CHAT_ROOT ?? process.cwd()
 
 const WRITE_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit'])
 const READ_TOOLS = new Set(['Read', 'Glob', 'Grep'])
-const COMMANDS = new Set(['npm run lint', 'npm run check:flows', 'npx tsc --noEmit', 'npm run check:project'])
+const COMMANDS = new Set(
+  (process.env.CHAT_COMMANDS ?? 'npm run lint\nnpm run check:flows\nnpx tsc --noEmit\nnpm run check:project')
+    .split('\n')
+    .filter(Boolean),
+)
+const TAIL = /\s*\|\s*(?:tail|head)(?:\s+(?:-n\s*\d+|-\d+|--lines[= ]\d+))?$/
+const STDERR = /\s+2>&1$/
 
 // Path segments / basenames that are never readable from chat.
 const SECRET_DIRS = new Set(['.git', '.claude', '.vercel', '.ssh', '.aws'])
@@ -47,10 +59,14 @@ const refuse = (what) =>
 
 if (tool === 'Bash') {
   const command = String(input.command ?? '').trim()
-  if (!COMMANDS.has(command)) {
-    refuse(`Chat can only run these commands, exactly: ${[...COMMANDS].join(', ')}.`)
+  if (!command.split('&&').every((part) => COMMANDS.has(bare(part)))) {
+    const shown = [...COMMANDS].filter((c) => !c.includes(' -- ')).map((c) => `\`${c}\``)
+    block(
+      `Chat can't run that. For this project it can run only ${shown.join(', ')}` +
+        ' (adding `2>&1 | tail -n 40` is fine). To look at files, use Read, Glob or Grep instead of the shell.',
+    )
   }
-  process.exit(0)
+  allow('One of the studio checks.')
 }
 
 if (WRITE_TOOLS.has(tool)) {
@@ -94,7 +110,23 @@ function isSecret(p, check = true) {
   return p.split(/[\\/]/).some((part) => SECRET_DIRS.has(part) || SECRET_FILE.test(part))
 }
 
+/** A command with its output plumbing taken off: `npm run lint 2>&1 | tail -40`
+ *  → `npm run lint`. Anything else left on it — `;`, `$(…)`, `> file` — stays,
+ *  so it matches no check. */
+function bare(part) {
+  return part.trim().replace(TAIL, '').replace(STDERR, '').trim()
+}
+
 function block(reason) {
   process.stderr.write(reason)
   process.exit(2)
+}
+
+function allow(reason) {
+  process.stdout.write(
+    JSON.stringify({
+      hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow', permissionDecisionReason: reason },
+    }),
+  )
+  process.exit(0)
 }
