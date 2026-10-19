@@ -82,17 +82,20 @@
 .ds-btn-lg { padding: 12px 16px; font-size: 16px; min-width: 100px; }
 .ds-btn-xl { padding: 12px 20px; font-size: 16px; min-width: 116px; }
 
-/* FunDS Input component styles */
+/* FunDS Input component styles
+   Text sizes sit on the type scale (14 / 16 / 18). The default is 16px because
+   iOS Safari zooms the whole page into any field set smaller when it's tapped;
+   sm (14px) still does, so it is for dense desktop forms. */
 .ds-inp {
-  font-family: var(--font); font-size: 13px; padding: 8px 12px;
+  font-family: var(--font); font-size: 16px; padding: 8px 12px;
   border: 1px solid var(--neutral-200); border-radius: 8px;
   background: var(--neutral-white); color: var(--neutral-900);
   outline: none; transition: border-color .15s, box-shadow .15s; width: 100%;
 }
 .ds-inp:focus { border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-50); }
 .ds-inp::placeholder { color: var(--neutral-400); }
-.ds-inp-sm { font-size: 12px; padding: 6px 10px; }
-.ds-inp-lg { font-size: 15px; padding: 10px 14px; }
+.ds-inp-sm { font-size: 14px; padding: 6px 10px; }
+.ds-inp-lg { font-size: 18px; padding: 10px 14px; }
 .ds-inp-focus { border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-50); }
 .ds-inp-valid { border-color: var(--green-500); }
 .ds-inp-error { border-color: var(--red-500); }
@@ -184,17 +187,19 @@
 .ds-badge-green   { background: var(--green-50);   color: var(--green-600); }
 .ds-badge-orange  { background: var(--orange-50);  color: var(--orange-700); }
 .ds-badge-red     { background: var(--red-50);     color: var(--red-600); }
-.ds-badge-yellow  { background: var(--yellow-50);  color: var(--yellow-700); }
+.ds-badge-yellow  { background: var(--yellow-50);  color: var(--yellow-800); } /* 700 is 4.4:1 here */
 .ds-badge-neutral { background: var(--neutral-50); color: var(--neutral-600); border: 1px solid var(--neutral-200); }
 .ds-badge-md { padding: 4px 12px; font-size: 13px; }
 .ds-badge-dot { width: 6px; height: 6px; border-radius: 9999px; background: currentColor; display: inline-block; }
 .ds-badge-icon { display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; }
 .ds-badge-md .ds-badge-icon { width: 14px; height: 14px; }
 
+/* White text needs 4.5:1 on its fill: green-500 gives 3.5:1 and orange-500
+   2.3:1, so those two fill one or two steps darker. */
 .ds-badge-solid.ds-badge-primary { background: var(--primary-500); color: var(--neutral-white); }
 .ds-badge-solid.ds-badge-blue    { background: var(--blue-500);    color: var(--neutral-white); }
-.ds-badge-solid.ds-badge-green   { background: var(--green-500);   color: var(--neutral-white); }
-.ds-badge-solid.ds-badge-orange  { background: var(--orange-500);  color: var(--neutral-white); }
+.ds-badge-solid.ds-badge-green   { background: var(--green-600);   color: var(--neutral-white); }
+.ds-badge-solid.ds-badge-orange  { background: var(--orange-700);  color: var(--neutral-white); }
 .ds-badge-solid.ds-badge-red     { background: var(--red-500);     color: var(--neutral-white); }
 .ds-badge-solid.ds-badge-yellow  { background: var(--yellow-500);  color: var(--neutral-900); }
 .ds-badge-solid.ds-badge-neutral { background: var(--neutral-600); color: var(--neutral-white); border: none; }
@@ -202,7 +207,7 @@
 .ds-badge-outline { background: var(--neutral-white); border: 1px solid currentColor; }
 .ds-badge-outline.ds-badge-primary { color: var(--primary-500); }
 .ds-badge-outline.ds-badge-blue    { color: var(--blue-500); }
-.ds-badge-outline.ds-badge-green   { color: var(--green-500); }
+.ds-badge-outline.ds-badge-green   { color: var(--green-600); } /* 500 is 3.5:1 on white */
 .ds-badge-outline.ds-badge-orange  { color: var(--orange-700); }
 .ds-badge-outline.ds-badge-red     { color: var(--red-500); }
 .ds-badge-outline.ds-badge-yellow  { color: var(--yellow-700); }
@@ -212,7 +217,13 @@
 
 /* FunDS Toggle component styles */
 .ds-toggle { position: relative; display: inline-flex; flex-shrink: 0; }
-.ds-toggle-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+/* The invisible input is what takes the tap, so it is at least 44×44 (see Hit
+   areas, at the end), centred on a track that stays 32×20 or 44×24 to the eye. */
+.ds-toggle-input {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: max(100%, 44px); height: max(100%, 44px);
+  opacity: 0; cursor: pointer; margin: 0;
+}
 .ds-toggle-track {
   width: 32px; height: 20px; border-radius: 9999px; background: var(--neutral-400);
   position: relative; transition: background-color .15s; display: inline-block;
@@ -594,3 +605,26 @@
 }
 button.ds-crumbs-link { cursor: pointer; }
 .ds-crumbs-current { color: var(--neutral-600); }
+
+/* Hit areas — every control above takes a tap across at least 44×44px, the
+   minimum Apple's guidelines and WCAG 2.5.5 ask for, without looking any
+   bigger: an invisible box centred on the control catches it. A Button stays
+   28–40px tall and a back arrow 24px, to the eye. `:where()` keeps the
+   position rule at zero specificity, so a prototype's `absolute` or `fixed`
+   class on a Button still wins over it. */
+:where(.ds-btn, .ds-navhdr-back, .ds-navhdr-link, .ds-modal-close, .ds-sheet-close, .ds-nominal-action) {
+  position: relative;
+}
+.ds-btn::after,
+.ds-navhdr-back::after,
+.ds-navhdr-link::after,
+.ds-modal-close::after,
+.ds-sheet-close::after,
+.ds-nominal-action::after {
+  content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: max(100%, 44px); height: max(100%, 44px);
+}
+
+/* A dialog moves focus to its panel when it opens (useDialogFocus.ts); the
+   panel itself needs no ring — the controls inside it keep theirs. */
+.ds-modal:focus, .ds-sheet:focus { outline: none; }

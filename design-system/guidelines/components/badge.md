@@ -32,7 +32,7 @@ import { Badge } from '@/design-system/components'
 | `green` | `#E4FCEF` (`--green-50`) | `#007D55` (`--green-600`) |
 | `orange` | `#FDF4E9` (`--orange-50`) | `#AD540A` (`--orange-700`) |
 | `red` | `#FFF4F3` (`--red-50`) | `#AC2B26` (`--red-600`) |
-| `yellow` | `#FFFED9` (`--yellow-50`) | `#996F03` (`--yellow-700`) |
+| `yellow` | `#FFFED9` (`--yellow-50`) | `#6A4103` (`--yellow-800`) |
 | `neutral` | `#F9FAF8` (`--neutral-50`) | `#6B7280` (`--neutral-600`) |
 
 ---
@@ -41,9 +41,9 @@ import { Badge } from '@/design-system/components'
 
 | Variant | Background | Border | Text |
 |---------|------------|--------|------|
-| `subtle` | tinted bg (50) | none | 600/700 shade |
-| `solid` | saturated (500) | none | white |
-| `outline` | white | 500 color | 600/700 shade |
+| `subtle` | tinted bg (50) | none | 600/700 shade (yellow 800) |
+| `solid` | saturated (500; green 600, orange 700, so white text reads) | none | white (yellow: dark) |
+| `outline` | white | its text colour | 500, or 600/700 where 500 is too pale (green, orange, yellow) |
 | `inverted` | white | `--primary-500` | `--primary-500` |
 
 Use `inverted` for emphasis on filled / colored card backgrounds.
