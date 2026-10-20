@@ -1,7 +1,7 @@
 'use client'
 
 // =============================================================================
-// DB projects · the save history, in the Edit panel's title menu
+// DB projects · the save history, behind the right panel's History button
 // (./DraftControls.tsx). Every save, newest first; pick one and the project
 // goes back to how it was right after it (./history.ts). The restore is a save
 // of its own, so nothing is lost — the saves after it stay in the list.

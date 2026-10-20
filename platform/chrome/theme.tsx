@@ -41,7 +41,8 @@ export function useTheme(): { theme: Theme; toggle: () => void } {
   return { theme, toggle }
 }
 
-/** Icon button that flips the chrome theme. */
+/** Icon button that flips the theme — of the page card; the frame around it,
+ *  and the sidebar and panel on it, stay dark. */
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, toggle } = useTheme()
   const isDark = theme === 'dark'
@@ -56,7 +57,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         'flex size-40 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50'
       }
     >
-      {isDark ? <SunIcon className="size-20" /> : <MoonIcon className="size-20" />}
+      {isDark ? <SunIcon className="size-16" /> : <MoonIcon className="size-16" />}
     </button>
   )
 }

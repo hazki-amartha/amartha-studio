@@ -2,16 +2,16 @@
 
 // =============================================================================
 // Zoom control — `− Fit +`, in the bottom-left corner of both canvases: the
-// prototype's desktop frame and the flow diagram. One component so the two
-// read and behave the same; each canvas owns its own zoom state and hands the
-// control what it needs.
+// prototype's device frame (phone or desktop) and the flow diagram. One
+// component so the two read and behave the same; each canvas owns its own zoom
+// state and hands the control what it needs.
 // =============================================================================
 
 import { MinusIcon, PlusIcon } from './icons'
 import { withKey } from './shortcuts'
 
-const BTN =
-  'flex size-32 items-center justify-center rounded-full text-caption hover:bg-neutral-50 hover:text-default disabled:text-placeholder dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50 dark:disabled:text-neutral-600'
+const STEP =
+  'flex h-full w-32 items-center justify-center text-caption hover:bg-neutral-50 hover:text-default disabled:text-placeholder dark:text-neutral-500 dark:hover:bg-ink-800 dark:hover:text-neutral-50 dark:disabled:text-neutral-700'
 
 /** The stops − and + step between; past either end they go to the limit. */
 export const ZOOM_STEPS = [0.1, 0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2, 3]
@@ -45,7 +45,7 @@ export function ZoomControl({
 }) {
   return (
     <div
-      className={`flex h-40 items-center gap-2 rounded-full border border-default bg-neutral-white px-4 shadow-sm dark:border-ink-700 dark:bg-ink-900 dark:shadow-none ${className ?? ''}`}
+      className={`flex h-32 items-stretch overflow-hidden rounded-8 border border-default bg-neutral-white text-12 dark:border-ink-800 dark:bg-ink-900 ${className ?? ''}`}
     >
       <button
         type="button"
@@ -53,7 +53,7 @@ export function ZoomControl({
         disabled={scale <= min}
         aria-label="Zoom out"
         title={withKey('Zoom out', 'zoomOut')}
-        className={BTN}
+        className={STEP}
       >
         <MinusIcon className="size-16" />
       </button>
@@ -61,7 +61,7 @@ export function ZoomControl({
         type="button"
         onClick={onFit}
         title={fitted ? 'Fitted to the canvas' : withKey('Fit to the canvas', 'fit')}
-        className="min-w-52 rounded-full px-8 py-4 text-12 font-bold text-default hover:bg-neutral-50 dark:text-neutral-50 dark:hover:bg-ink-800"
+        className="min-w-52 px-8 font-bold text-default hover:bg-neutral-50 dark:text-neutral-50 dark:hover:bg-ink-800"
       >
         {fitted ? 'Fit' : `${Math.round(scale * 100)}%`}
       </button>
@@ -71,7 +71,7 @@ export function ZoomControl({
         disabled={scale >= max}
         aria-label="Zoom in"
         title={withKey('Zoom in', 'zoomIn')}
-        className={BTN}
+        className={STEP}
       >
         <PlusIcon className="size-16" />
       </button>

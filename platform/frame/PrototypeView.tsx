@@ -14,19 +14,17 @@
 //   DEVICE — mobile (390×844) or desktop (1440×900). It decides what gets
 //   framed and how bare fills the window; it does NOT decide the presentation.
 //
-// In studio mode:
-//   • mobile  → device frame centered on neutral-50, flanked by arrows that step
-//               through the declared screen order, with the annotation panel
-//               pinned to the right edge showing the active screen's notes
-//               (falling back to the project's notes), and the states panel
-//               mirroring it on the left.
-//   • desktop → the same, but 1440 wide leaves no room for two columns, so the
-//               panels become drawers over the canvas.
-// The two panels are the two axes of a walkthrough: the arrows and the states
-// reach any screen in any condition without tapping through the setup first.
-// The arrows exist because not every screen is reachable by tapping: component
-// explorations declare states (on-track / late / settled) that no flow edge
-// points at, and a lifecycle transition is often time passing, not a tap.
+// In studio mode the device sits on the page card's canvas, either kind on a
+// canvas you can zoom and pan, flanked by arrows that step through the
+// declared screen order. Around it, the shell (platform/chrome) lends this
+// view three places to draw (shellSlots.ts): the sidebar's Layers and Notes
+// tabs, the top bar's Comment · Edit · Chat, and the panel column on the
+// frame, right of the card. The arrows and the sidebar's states are the two
+// axes of a walkthrough: they reach any screen in any condition without
+// tapping through the setup first. The arrows exist because not every screen
+// is reachable by tapping: component explorations declare states (on-track /
+// late / settled) that no flow edge points at, and a lifecycle transition is
+// often time passing, not a tap.
 // A single app instance is rendered in either mode (no duplicate screen state).
 // =============================================================================
 
@@ -71,7 +69,7 @@ import { DesignLayer, DesignPanel } from '@/platform/design'
 import { LiveChatPanel } from '@/platform/chat/ChatPanel'
 import { getChat, getChatServerSnapshot, probeChat, subscribeChat } from '@/platform/runtime/chatBridge'
 import { PushBar } from '@/platform/push/PushBar'
-import { HistoryMenu } from '@/platform/dbProjects/DraftControls'
+import { HistoryButton } from '@/platform/dbProjects/DraftControls'
 import { CommentLayer } from '@/platform/comments/CommentLayer'
 import { useGuestAccess } from '@/platform/auth/session'
 import { CommentsPanel } from '@/platform/comments/CommentList'
@@ -84,19 +82,21 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CloseIcon,
-  CodeIcon,
+  CommentIcon,
   EditIcon,
-    } from '@/platform/chrome/icons'
-import { PanelShell, PanelTabs } from '@/platform/chrome/SidePanel'
-import { CanvasControls, FullScreenButton, ViewSwitch } from '@/platform/chrome/CanvasControls'
+} from '@/platform/chrome/icons'
+import { PillTabs } from '@/platform/chrome/SidePanel'
+import { FullScreenButton, ViewSwitch } from '@/platform/chrome/CanvasControls'
+import { ShellPortal } from '@/platform/chrome/ShellPortal'
+import { ToolButton } from '@/platform/chrome/TopBar'
 import { nextZoom, ZoomControl } from '@/platform/chrome/ZoomControl'
-import { ShortcutSheet, useShortcuts, type ShortcutAction } from '@/platform/chrome/shortcuts'
+import { ShortcutSheet, useShortcuts, withKey, type ShortcutAction } from '@/platform/chrome/shortcuts'
 import {
-  getSidebarSlots,
-  getSidebarSlotsServerSnapshot,
-  setSidebarLive,
-  subscribeSidebarSlots,
-} from '@/platform/chrome/sidebarSlots'
+  getShellSlots,
+  getShellSlotsServerSnapshot,
+  setPrototypeLive,
+  subscribeShellSlots,
+} from '@/platform/chrome/shellSlots'
 import { useProjectVersion } from '@/platform/runtime/projectRefresh'
 import { DeviceFrame } from './DeviceFrame'
 import { DEVICE_SPECS, outerSize } from './device'
@@ -227,53 +227,13 @@ function NotesBody({ screens, projectNotes }: { screens: ScreenDef[]; projectNot
 // Outer phone dimensions: 390×844 screen + 12px bezel on each side.
 const PHONE = outerSize(DEVICE_SPECS.mobile)
 
-/** Scales the phone down (never up) so it always fits the height this view was
- *  given — whatever chrome surrounds it — without page scroll, while screens
- *  keep their 390px layout. The wrapper is measured (not the window) so
- *  headers/sidebars around the view are automatically accounted for.
- *
- *  Height-only is right for the phone: it is narrow, so the column it sits in
- *  is sized by the frame rather than the other way round. The desktop frame is
- *  the opposite case — see FittedDevice. */
-function ScaledDevice({ children }: { children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(1)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const ro = new ResizeObserver(() => {
-      setScale(Math.min(1, el.clientHeight / PHONE.height))
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
-  return (
-    <div ref={ref} className="h-full flex-none" style={{ width: PHONE.width * scale }}>
-      <div
-        style={{
-          width: PHONE.width,
-          height: PHONE.height,
-          transform: `scale(${scale})`,
-          transformOrigin: 'top left',
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  )
-}
-
-/** Scales a desktop frame down to fit BOTH axes of the space it was given.
- *  1440 is wider than most laptop viewports once the studio chrome is
- *  subtracted, so width is normally the binding constraint — the phone's
- *  height-only rule would overflow horizontally on every screen smaller than a
- *  27" monitor.
+/** Scales a frame down to fit BOTH axes of the space it was given — bare
+ *  presentation's, which has no zoom. (The framed layout's canvas is
+ *  useCanvasZoom, which opens fitted the same way.)
  *
  *  The measured element is `min-w-0 flex-1`, so its own width comes from the
- *  container and never from the scaled child. Sizing it from the scale (what
- *  ScaledDevice does) would feed the observer its own output. */
+ *  container and never from the scaled child. Sizing it from the scale would
+ *  feed the observer its own output. */
 function FittedDevice({
   spec,
   /** Framed, the device is hardware and never grows past life size. Bare, the
@@ -326,12 +286,17 @@ const DESKTOP_FRAME = outerSize(DEVICE_SPECS.desktop)
 
 const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z))
 
+/** The canvas's inset around the frame (ZoomableDevice's p-16), so a fitted
+ *  frame keeps its shadow instead of having it cut at the canvas's edge. */
+const CANVAS_INSET = 16
+
 /**
- * The desktop frame on a canvas you can zoom and pan — opens fitted, like
- * FittedDevice, then zooms past that when a 1440 layout shrunk beside the
- * panels is too small to work on. Pinch or ⌘/Ctrl-scroll zooms at the
- * pointer, plain scrolling pans, and ZoomControl (in the canvas's corner
- * buttons) steps or refits.
+ * The device on a canvas you can zoom and pan — the phone and the desktop
+ * frame alike. It opens fitted, never larger than life, then zooms past that
+ * when a 1440 layout shrunk beside the panels is too small to work on, or to
+ * look closely at a phone screen. A trackpad pinch (or ⌘/Ctrl + scroll, for a
+ * mouse) zooms at the pointer, a two-finger scroll pans, and ZoomControl (in
+ * the canvas's corner) steps or refits.
  *
  * `null` zoom means "fit": it follows the canvas as it resizes, so opening or
  * hiding a panel keeps a fitted frame fitted. Any explicit zoom stays put.
@@ -352,7 +317,8 @@ function useCanvasZoom(spec: { width: number; height: number }) {
     const el = ref.current
     if (!el) return
     const ro = new ResizeObserver(() => {
-      setFit(Math.min(1, el.clientWidth / spec.width, el.clientHeight / spec.height))
+      const room = 2 * CANVAS_INSET
+      setFit(Math.min(1, (el.clientWidth - room) / spec.width, (el.clientHeight - room) / spec.height))
     })
     ro.observe(el)
     return () => ro.disconnect()
@@ -373,7 +339,10 @@ function useCanvasZoom(spec: { width: number; height: number }) {
     })
   }, [])
 
-  // Non-passive, so a pinch zooms the frame instead of the whole page.
+  // Non-passive, so a pinch zooms the frame instead of the whole page. A pinch
+  // arrives as a wheel with ctrlKey set (the browser synthesises it), in small
+  // steps; ⌘/Ctrl + a mouse wheel arrives in notches of ~100, so it takes a
+  // gentler factor or one notch would leap a whole zoom stop.
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -381,10 +350,39 @@ function useCanvasZoom(spec: { width: number; height: number }) {
       if (!e.ctrlKey && !e.metaKey) return
       e.preventDefault()
       const box = el.getBoundingClientRect()
-      zoomAt(scaleRef.current * Math.exp(-e.deltaY * 0.01), e.clientX - box.left, e.clientY - box.top)
+      const rate = e.ctrlKey ? 0.01 : 0.002
+      zoomAt(scaleRef.current * Math.exp(-e.deltaY * rate), e.clientX - box.left, e.clientY - box.top)
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
+  }, [zoomAt])
+
+  // Safari doesn't turn a pinch into a ctrl-wheel: it sends gesture events,
+  // with the scale since the pinch began. Left alone they zoom the whole page.
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    type Gesture = Event & { scale: number; clientX: number; clientY: number }
+    let from = 1
+    const onStart = (e: Event) => {
+      e.preventDefault()
+      from = scaleRef.current
+    }
+    const onChange = (e: Event) => {
+      e.preventDefault()
+      const g = e as Gesture
+      const box = el.getBoundingClientRect()
+      zoomAt(from * g.scale, g.clientX - box.left, g.clientY - box.top)
+    }
+    const onEnd = (e: Event) => e.preventDefault()
+    el.addEventListener('gesturestart', onStart)
+    el.addEventListener('gesturechange', onChange)
+    el.addEventListener('gestureend', onEnd)
+    return () => {
+      el.removeEventListener('gesturestart', onStart)
+      el.removeEventListener('gesturechange', onChange)
+      el.removeEventListener('gestureend', onEnd)
+    }
   }, [zoomAt])
 
   const step = (dir: 1 | -1) => {
@@ -408,7 +406,7 @@ function ZoomableDevice({ zoom, children }: { zoom: CanvasZoom; children: ReactN
     // `m-auto` on the child, not centring on the parent: it centres a frame
     // smaller than the canvas and still lets a larger one scroll to its left
     // and top edges, which flex centring would push out of reach.
-    <div ref={ref} className="flex h-full min-h-0 min-w-0 flex-1 overflow-auto">
+    <div ref={ref} className="flex h-full min-h-0 min-w-0 flex-1 overflow-auto p-16">
       <div className="m-auto flex-none" style={{ width: spec.width * scale, height: spec.height * scale }}>
         <div
           style={{
@@ -443,7 +441,7 @@ function StepButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex h-40 w-40 flex-none items-center justify-center rounded-full border border-default bg-neutral-white text-default hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800 dark:disabled:text-neutral-600"
+      className="flex size-32 flex-none items-center justify-center rounded-8 border border-default bg-neutral-white text-default hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-placeholder dark:border-ink-800 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800 dark:disabled:text-neutral-700"
     >
       {children}
     </button>
@@ -506,37 +504,57 @@ function useInspectState() {
   return { editing, pinned, setPinned, repin, preview, setPreview, current }
 }
 
-// --- the right panel: Chat · Design · CSS ------------------------------------
+// --- the right panel: Comments · Edit · Chat ----------------------------------
 //
-// One selection, three things to do with it (STUDIO-EDITING-PLAN Part E): Chat
-// asks for a change to it, Design changes it, CSS reads it. Whether the canvas
-// selects at all is the Edit toggle in its corner, not a tab — tapping through
-// the app is navigation, and navigation (Screens, and each screen's states)
-// lives in the left sidebar. Under every tab, Push sends the project's changes
+// One column right of the page card, on the dark frame (the shell's `panel`
+// slot), with the same three tabs, in the same order, as the top-bar buttons
+// that open it. Comments: clicks on the device drop review pins. Edit and
+// Chat: clicks select, and the tab is what you do with the selection (STUDIO-
+// EDITING-PLAN Part E) — Edit changes it (Visual) or reads it (CSS), Chat asks
+// for a change to it. Navigation — Screens, and each screen's states — lives
+// in the left sidebar. Under Edit and Chat, Push sends the project's changes
 // live, whichever tab made them. Where nothing can be saved — a shared link
-// with no backend — it opens on CSS, since Design could only collect.
+// with no backend — Edit opens on CSS, since Visual could only collect.
 //
-// The Design panel stays MOUNTED behind Chat and CSS: it is what restores the
+// The Visual panel stays MOUNTED behind Chat and CSS: it is what restores the
 // unsaved list and asks where saves go, and its staged edits must survive a
 // look elsewhere. CSS mounts fresh each time — it reads computed styles once
 // per pin, so a fresh mount shows the element as it is after an edit. Chat
 // mounts freely too: its conversation lives in useLiveChat's store.
 
-const TAB_META: Record<EditTab, { label: string; icon: typeof ChatIcon }> = {
-  chat: { label: 'Chat', icon: ChatIcon },
-  edit: { label: 'Design', icon: EditIcon },
-  css: { label: 'CSS', icon: CodeIcon },
+type PanelTab = 'comments' | 'edit' | 'chat'
+/** What Edit shows: Visual (the design panel) or CSS (the inspector). */
+type EditView = 'edit' | 'css'
+
+/** Edit opens on the view last chosen — whoever works in CSS keeps landing
+ *  there. */
+const EDIT_VIEW_KEY = 'db.chrome.editView'
+
+function storedEditView(): EditView | null {
+  try {
+    const v = window.localStorage.getItem(EDIT_VIEW_KEY)
+    return v === 'edit' || v === 'css' ? v : null
+  } catch {
+    return null
+  }
 }
 
-/** Which tabs exist, and which one is showing. */
-function usePanelTab() {
+/** Whether Chat is offered — unless the server said no; loading and errors
+ *  show inside the tab. */
+function useChatAvailable(): boolean {
   useEffect(probeChat, [])
-  // Shown unless the server said no — loading and errors show inside the tab.
-  const chatAvailable = useSyncExternalStore(
+  return useSyncExternalStore(
     subscribeChat,
     () => getChat().available !== false,
     () => getChatServerSnapshot().available !== false,
   )
+}
+
+/** Which tab is showing, and the way to each — the top bar's buttons, the
+ *  panel's tabs and the shortcuts all go through here. */
+function usePanel(chatAvailable: boolean) {
+  const editing = useSyncExternalStore(subscribeDesignMode, getDesignMode, getDesignServerSnapshot)
+  const { mode: commenting } = useComments()
   const chosen = useSyncExternalStore(subscribeDesignMode, getEditTab, getEditTabServerSnapshot)
   const backend = useSyncExternalStore(
     subscribeDesignStore,
@@ -544,72 +562,148 @@ function usePanelTab() {
     () => getDesignStoreServerSnapshot().backend,
   )
 
-  const tabs: EditTab[] = chatAvailable ? ['chat', 'edit', 'css'] : ['edit', 'css']
-  // Chat first whenever it is there; otherwise what this backend can do.
+  // Opened without a tab named — picking a layer starts Edit mode — it shows
+  // Chat where Chat is there, otherwise what this backend can do.
   const fallback: EditTab = chatAvailable ? 'chat' : backend === 'record' ? 'css' : 'edit'
-  const tab: EditTab = chosen && tabs.includes(chosen) ? chosen : fallback
+  const editTab: EditTab = chosen && (chosen !== 'chat' || chatAvailable) ? chosen : fallback
+  const tab: PanelTab | null = editing ? (editTab === 'chat' ? 'chat' : 'edit') : commenting ? 'comments' : null
+  const editView: EditView = editTab === 'css' ? 'css' : 'edit'
 
-  return { tab, tabs, select: setEditTab }
+  const openEdit = (view?: EditView) => {
+    setCommentMode(false)
+    setDesignMode(true)
+    setEditTab(view ?? storedEditView() ?? (backend === 'record' ? 'css' : 'edit'))
+  }
+  const openChat = () => {
+    setCommentMode(false)
+    setDesignMode(true)
+    setEditTab('chat')
+  }
+  // Turning Comment on turns Edit off (comments/store).
+  const openComments = () => setCommentMode(true)
+  const close = () => {
+    setDesignMode(false)
+    setCommentMode(false)
+  }
+  const chooseView = (view: EditView) => {
+    try {
+      window.localStorage.setItem(EDIT_VIEW_KEY, view)
+    } catch {
+      /* private mode — the choice holds for this visit */
+    }
+    setEditTab(view)
+  }
+  const select = (next: PanelTab) =>
+    next === 'comments' ? openComments() : next === 'chat' ? openChat() : tab === 'edit' ? undefined : openEdit()
+
+  return { tab, editView, openEdit, openChat, openComments, close, chooseView, select }
+}
+
+/** Visual | CSS — the Edit tab's two ways to look at the selection. */
+function EditAs({ view, onChange }: { view: EditView; onChange: (view: EditView) => void }) {
+  const views: { id: EditView; label: string; title: string }[] = [
+    { id: 'edit', label: 'Visual', title: 'Change the selection with the design tools' },
+    { id: 'css', label: 'CSS', title: 'Read the selection’s styles' },
+  ]
+  return (
+    <div className="flex w-full pt-12">
+      <div
+        role="group"
+        aria-label="Edit as"
+        className="flex h-32 w-full items-stretch gap-2 rounded-8 border border-default bg-neutral-50 p-2 dark:border-ink-700 dark:bg-ink-900"
+      >
+        {views.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            aria-pressed={view === v.id}
+            title={v.title}
+            onClick={() => onChange(v.id)}
+            className={`flex flex-1 items-center justify-center rounded-6 text-12 ${
+              view === v.id
+                ? 'bg-neutral-white font-bold text-default shadow-sm dark:bg-ink-700 dark:text-neutral-50 dark:shadow-none'
+                : 'text-caption hover:text-default dark:text-neutral-500 dark:hover:text-neutral-50'
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function RightPanel({
+  tab,
+  tabs,
+  onTab,
+  editView,
+  onEditView,
+  onClose,
   pinned,
   onPin,
   slug,
   screenId,
-  onMinimize,
+  screens,
 }: {
+  tab: PanelTab
+  tabs: { id: PanelTab; label: string; title?: string }[]
+  onTab: (tab: PanelTab) => void
+  editView: EditView
+  onEditView: (view: EditView) => void
+  onClose: () => void
   pinned: Element | null
   onPin: (el: Element | null) => void
   slug: string
   screenId: string
-  onMinimize: () => void
+  screens: ScreenDef[]
 }) {
-  const { tab, tabs, select } = usePanelTab()
-  // The panel's own title and ✕ above the tabs — the ✕ ends Edit, whichever
-  // tab is showing, so it belongs to the panel rather than to a tab's row. On
-  // a database project the title also opens the save History
-  // (platform/dbProjects/DraftControls).
-  const header = (
-    <div className="flex w-full flex-col">
-      <div className="flex h-48 items-center justify-between">
-        <HistoryMenu slug={slug} />
+  // Every tab fills the box, so the Push bar under them never moves.
+  const common = { className: 'flex-1', pinned, onPin, slug, screenId }
+  const editAs = <EditAs view={editView} onChange={onEditView} />
+
+  return (
+    <aside aria-label="Panel" className="flex min-h-0 flex-1 flex-col">
+      {/* The tabs, the save History (database projects) and the ✕ sit on the
+          frame above the box, as the sidebar's header does opposite. The ✕
+          closes the whole panel, whichever tab is showing: clicks tap through
+          the prototype again. */}
+      <div className="flex h-48 flex-none items-center gap-4 px-4">
+        <PillTabs tabs={tabs} active={tab} onChange={onTab} />
+        <HistoryButton slug={slug} />
         <button
           type="button"
-          onClick={onMinimize}
-          aria-label="Close Edit"
-          title="Close Edit — clicks tap through the prototype again"
-          className="flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+          onClick={onClose}
+          aria-label="Close panel"
+          title="Close — clicks tap through the prototype again"
+          className="flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-500 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
         >
           <CloseIcon className="size-16" />
         </button>
       </div>
-      <PanelTabs tabs={tabs.map((id) => ({ id, ...TAB_META[id] }))} active={tab} onChange={select} />
-    </div>
-  )
-  // Every tab fills the panel, so the Push bar under them never moves.
-  const fill = 'flex-1'
-  const common = { className: fill, pinned, onPin, slug, screenId }
-
-  return (
-    <aside
-      className={`${styles.panel} flex h-full min-h-0 flex-none flex-col rounded-16 border border-default bg-neutral-white px-12 pb-12 dark:border-ink-700 dark:bg-ink-900`}
-    >
-      <div className={tab === 'edit' ? 'contents' : 'hidden'}>
-        <DesignPanel {...common} tabs={header} />
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-12 border border-default bg-neutral-white px-12 pb-12 dark:border-ink-800 dark:bg-ink-950">
+        {tab === 'comments' ? (
+          <CommentsPanel screens={screens} />
+        ) : (
+          <>
+            <div className={tab === 'edit' && editView === 'edit' ? 'contents' : 'hidden'}>
+              <DesignPanel {...common} tabs={editAs} />
+            </div>
+            {tab === 'edit' && editView === 'css' ? <InspectorPanel {...common} tabs={editAs} /> : null}
+            {tab === 'chat' ? (
+              <LiveChatPanel
+                slug={slug}
+                screenId={screenId}
+                pinned={pinned}
+                onDeselect={() => onPin(null)}
+                tabs={false}
+                className="flex-1"
+              />
+            ) : null}
+            <PushBar slug={slug} />
+          </>
+        )}
       </div>
-      {tab === 'css' ? <InspectorPanel {...common} tabs={header} /> : null}
-      {tab === 'chat' ? (
-        <LiveChatPanel
-          slug={slug}
-          screenId={screenId}
-          pinned={pinned}
-          onDeselect={() => onPin(null)}
-          tabs={header}
-          className={fill}
-        />
-      ) : null}
-      <PushBar slug={slug} />
     </aside>
   )
 }
@@ -617,7 +711,7 @@ function RightPanel({
 // --- the left sidebar's Layers and Notes -------------------------------------
 //
 // Both live in the shell's sidebar, as tabs beside Screens (see
-// chrome/sidebarSlots.ts). They are drawn from here because they need the
+// chrome/shellSlots.ts). They are drawn from here because they need the
 // running prototype; the sidebar only lends them a place.
 
 function SidebarPortals({
@@ -639,10 +733,10 @@ function SidebarPortals({
   setPinned: (el: Element | null) => void
   setPreview: (el: Element | null) => void
 }) {
-  const slots = useSyncExternalStore(subscribeSidebarSlots, getSidebarSlots, getSidebarSlotsServerSnapshot)
+  const slots = useSyncExternalStore(subscribeShellSlots, getShellSlots, getShellSlotsServerSnapshot)
   useEffect(() => {
-    setSidebarLive(true)
-    return () => setSidebarLive(false)
+    setPrototypeLive(true)
+    return () => setPrototypeLive(false)
   }, [])
 
   // Picking a layer is a request to work on it, so it starts Edit first.
@@ -671,18 +765,20 @@ function SidebarPortals({
 }
 
 /**
- * The framed layout — the device on the canvas with its view controls in the
- * corner, the sidebar's tabs on the left (drawn by the shell), and the one
- * panel floating on the right. The phone sits at
- * life size or smaller by height; a 1440 desktop frame scales to fit both axes
- * of what's left beside the panel.
+ * The framed layout — the device on the page card's canvas, with how you look
+ * at it in the canvas's bottom corners (zoom; Prototype | Flow and full
+ * screen). What you do to it goes through the shell: Comment · Edit · Chat in
+ * the top bar, their panel in the column right of the card, Layers and Notes
+ * as the sidebar's tabs.
  */
 function FramedLayout({ config, screens, presence }: { config: ProjectConfig; screens: ScreenDef[]; presence?: ReactNode }) {
   const { editing, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
   const device = config.device ?? 'mobile'
-  const zoom = useCanvasZoom(DESKTOP_FRAME)
+  const zoom = useCanvasZoom(device === 'desktop' ? DESKTOP_FRAME : PHONE)
   useCommentsFor(config.slug)
   const { mode: commenting, available: commentsOn } = useComments()
+  const chatAvailable = useChatAvailable()
+  const panel = usePanel(chatAvailable)
   // Opened from a share link (platform/share): never Edit, and comments only
   // when the link allows them. The routes enforce the same; this is the UI.
   const guest = useGuestAccess(config.slug)
@@ -695,26 +791,22 @@ function FramedLayout({ config, screens, presence }: { config: ProjectConfig; sc
   useEffect(() => {
     if (editing) setCommentMode(false)
   }, [editing])
-  // The right panel IS Edit: open, clicks select for its tools; closed, they
-  // tap through the app. One switch, so neither can be on without the other —
-  // selecting with nowhere to act on the selection would be a trap.
-  const startEditing = () => setDesignMode(true)
+  // The panel's Edit and Chat ARE Edit mode: open, clicks select for their
+  // tools; closed, they tap through the app. One switch, so neither can be on
+  // without the other — selecting with nowhere to act on the selection would
+  // be a trap.
   const stopEditing = () => setDesignMode(false)
   const restart = useRestart()
   const [shortcuts, setShortcuts] = useState(false)
   const keys: Partial<Record<ShortcutAction, () => boolean | void>> = {
-    comment: canComment ? () => setCommentMode(!commenting) : undefined,
-    edit: guest ? undefined : () => setDesignMode(!editing),
+    comment: canComment ? () => (panel.tab === 'comments' ? panel.close() : panel.openComments()) : undefined,
+    edit: guest ? undefined : () => (panel.tab === 'edit' ? panel.close() : panel.openEdit()),
     fullscreen: () => setBareMode(true),
     restart,
-    ...(device === 'desktop'
-      ? {
-          fit: zoom.refit,
-          actual: zoom.actual,
-          zoomIn: () => zoom.step(1),
-          zoomOut: () => zoom.step(-1),
-        }
-      : {}),
+    fit: zoom.refit,
+    actual: zoom.actual,
+    zoomIn: () => zoom.step(1),
+    zoomOut: () => zoom.step(-1),
     help: () => setShortcuts((open) => !open),
     // One step back. A selection clears first — the Edit layer does that — and
     // only an empty Edit closes; Comment handles its own Esc.
@@ -724,6 +816,18 @@ function FramedLayout({ config, screens, presence }: { config: ProjectConfig; sc
     },
   }
   useShortcuts(keys)
+
+  const tabs: { id: PanelTab; label: string; title?: string }[] = [
+    ...(canComment
+      ? [{ id: 'comments' as const, label: 'Comments', title: withKey('Comments — click the screen to leave feedback', 'comment') }]
+      : []),
+    ...(guest
+      ? []
+      : [
+          { id: 'edit' as const, label: 'Edit', title: withKey('Edit — click elements to select them', 'edit') },
+          ...(chatAvailable ? [{ id: 'chat' as const, label: 'AI Chat', title: 'AI Chat — ask Claude for a change' }] : []),
+        ]),
+  ]
 
   const viewport = (
     <AppViewport
@@ -739,7 +843,7 @@ function FramedLayout({ config, screens, presence }: { config: ProjectConfig; sc
   )
 
   return (
-    <div className="flex h-full min-h-0 w-full gap-16 overflow-hidden bg-neutral-50 p-16 dark:bg-ink-950">
+    <div className="relative flex h-full min-h-0 w-full overflow-hidden bg-neutral-50 dark:bg-ink-950">
       <SidebarPortals
         screens={screens}
         notes={config.notes}
@@ -751,48 +855,27 @@ function FramedLayout({ config, screens, presence }: { config: ProjectConfig; sc
         setPreview={setPreview}
       />
 
-      <div className="relative flex min-w-0 flex-1">
-        {device === 'desktop' ? (
-          // The 1440 frame fills its cell, so it starts below the corner
-          // buttons rather than under them.
-          <div className={`min-w-0 flex-1 pt-48 ${styles.desktopDevice}`}>
-            <DeviceStepper>
-              <ZoomableDevice zoom={zoom}>
-                <DeviceFrame device="desktop">{viewport}</DeviceFrame>
-              </ZoomableDevice>
-            </DeviceStepper>
-          </div>
-        ) : (
-          <div className="flex min-w-0 flex-1 justify-center py-8">
-            <DeviceStepper>
-              <ScaledDevice>
-                <DeviceFrame>{viewport}</DeviceFrame>
-              </ScaledDevice>
-            </DeviceStepper>
-          </div>
-        )}
-        <CanvasControls
-          slug={config.slug}
-          onEdit={editing || guest ? undefined : startEditing}
-          onComment={canComment && !commenting ? () => setCommentMode(true) : undefined}
-          className="absolute right-0 top-0 z-30"
-        />
-        <div className="absolute left-0 top-0 z-30 flex items-center gap-8">
-          <ViewSwitch slug={config.slug} />
-          {presence}
-        </div>
-        {device === 'desktop' ? (
-          <ZoomControl
-            scale={zoom.scale}
-            fitted={zoom.fitted}
-            min={MIN_ZOOM}
-            max={MAX_ZOOM}
-            onStep={zoom.step}
-            onFit={zoom.refit}
-            className="absolute bottom-0 left-0 z-30"
-          />
-        ) : null}
-        <FullScreenButton className="absolute bottom-0 right-0 z-30" />
+      {/* The bottom strip stays clear for the corner controls, so a fitted
+          device never sits under them. */}
+      <div className={`min-w-0 flex-1 px-16 pb-32 pt-8 ${styles.deviceCell}`}>
+        <DeviceStepper>
+          <ZoomableDevice zoom={zoom}>
+            <DeviceFrame device={device}>{viewport}</DeviceFrame>
+          </ZoomableDevice>
+        </DeviceStepper>
+      </div>
+      <ZoomControl
+        scale={zoom.scale}
+        fitted={zoom.fitted}
+        min={MIN_ZOOM}
+        max={MAX_ZOOM}
+        onStep={zoom.step}
+        onFit={zoom.refit}
+        className="absolute bottom-16 left-16 z-30"
+      />
+      <div className="absolute bottom-16 right-16 z-30 flex items-center gap-8">
+        <ViewSwitch slug={config.slug} />
+        <FullScreenButton />
       </div>
       {shortcuts ? (
         <ShortcutSheet
@@ -801,17 +884,57 @@ function FramedLayout({ config, screens, presence }: { config: ProjectConfig; sc
         />
       ) : null}
 
-      {editing ? (
-        <RightPanel
-          pinned={pinned}
-          onPin={setPinned}
-          slug={config.slug}
-          screenId={current}
-          onMinimize={stopEditing}
-        />
-      ) : null}
-      {commenting && !editing ? (
-        <CommentsPanel screens={screens} onClose={() => setCommentMode(false)} className={styles.panel} />
+      {/* The top bar's end: who else is here, then the ways into the panel —
+          gone while it's open, since its tabs are the same three. */}
+      <ShellPortal slot="actions">
+        {presence}
+        {panel.tab ? null : (
+          <>
+            {canComment ? (
+              <ToolButton
+                icon={<CommentIcon className="size-16" />}
+                label="Comment"
+                title={withKey('Comment — click anywhere on the screen to leave feedback', 'comment')}
+                onClick={panel.openComments}
+              />
+            ) : null}
+            {guest ? null : (
+              <ToolButton
+                icon={<EditIcon className="size-16" />}
+                label="Edit"
+                title={withKey('Edit — click elements to select them', 'edit')}
+                onClick={() => panel.openEdit()}
+              />
+            )}
+            {guest || !chatAvailable ? null : (
+              <ToolButton
+                icon={<ChatIcon className="size-16" />}
+                label="AI Chat"
+                title="AI Chat — ask Claude for a change"
+                inverted
+                onClick={panel.openChat}
+              />
+            )}
+          </>
+        )}
+      </ShellPortal>
+
+      {panel.tab ? (
+        <ShellPortal slot="panel">
+          <RightPanel
+            tab={panel.tab}
+            tabs={tabs}
+            onTab={panel.select}
+            editView={panel.editView}
+            onEditView={panel.chooseView}
+            onClose={panel.close}
+            pinned={pinned}
+            onPin={setPinned}
+            slug={config.slug}
+            screenId={current}
+            screens={screens}
+          />
+        </ShellPortal>
       ) : null}
     </div>
   )
@@ -896,7 +1019,8 @@ export interface PrototypeViewProps {
   /** Screens supplied by the caller instead of loaded from the registry —
    *  /db/<slug>, whose project lives in the database (platform/dbProjects). */
   screens?: ScreenDef[]
-  /** Shown beside the Flow button — /db/<slug>'s "also here" avatars. */
+  /** Shown in the top bar, before Comment · Edit · Chat — /db/<slug>'s "also
+   *  here" avatars. */
   presence?: ReactNode
 }
 

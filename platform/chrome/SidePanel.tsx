@@ -24,14 +24,16 @@ import { CloseIcon } from './icons'
 import styles from './chrome.module.css'
 
 /** The panel's own surface, which the sticky header has to repeat — otherwise
- *  scrolled content shows through it. Every panel sits on a card, in both
- *  layouts, so this is a constant rather than a choice. */
-const SURFACE_BG = 'bg-neutral-white dark:bg-ink-900'
+ *  scrolled content shows through it. Every panel sits in the right-hand
+ *  column's box (always dark, on the shell's frame), so this is a constant
+ *  rather than a choice. */
+const SURFACE_BG = 'bg-neutral-white dark:bg-ink-950'
 
 export interface PanelShellProps {
   title: string
   /** Drawn in the header instead of the title — for a panel with tabs. The
-   *  title still names the panel for the minimize control. */
+   *  title still names the panel for the minimize control. `false` draws no
+   *  header at all: the panel's tabs sit above its box, outside it. */
   tabs?: ReactNode
   /** Omitted for a panel that cannot be dismissed; then no control is drawn. */
   onMinimize?: () => void
@@ -69,7 +71,8 @@ export function PanelShell({
 
 /** A panel's header: its title or tabs, and the way to minimize it. Exported
  *  for a panel that lays out its own body — Chat, whose transcript scrolls
- *  while its composer stays put. */
+ *  while its composer stays put. `tabs={false}` with nothing to minimize draws
+ *  nothing. */
 export function PanelHeader({
   title,
   tabs,
@@ -81,6 +84,7 @@ export function PanelHeader({
   onMinimize?: () => void
   className?: string
 }) {
+  if (tabs === false && !onMinimize) return null
   return (
     <div
       className={`flex items-center justify-between gap-8 pb-8 ${tabs ? '' : 'pt-8'} ${SURFACE_BG} ${className ?? ''}`}
@@ -106,8 +110,8 @@ export function PanelHeader({
   )
 }
 
-/** A panel's tabs, for its header: equal-width, icon and label, the active
- *  one underlined — the same bar on both sidebars. */
+/** A sidebar's tabs: labels set left on a hairline, the active one bold and
+ *  underlined — the project sidebar's Screens · Layers · Notes. */
 export function PanelTabs<T extends string>({
   tabs,
   active,
@@ -118,7 +122,7 @@ export function PanelTabs<T extends string>({
   onChange: (id: T) => void
 }) {
   return (
-    <div role="tablist" className={`flex w-full items-stretch ${styles.tabs}`}>
+    <div role="tablist" className={`flex w-full items-stretch gap-16 px-20 ${styles.tabs}`}>
       {tabs.map((t) => {
         const on = t.id === active
         const Icon = t.icon
@@ -129,13 +133,50 @@ export function PanelTabs<T extends string>({
             role="tab"
             aria-selected={on}
             onClick={() => onChange(t.id)}
-            className={`flex h-40 min-w-0 flex-1 items-center justify-center gap-8 border-b-2 px-4 text-12 ${
+            className={`flex h-40 min-w-0 items-center gap-8 border-b-2 text-12 ${
               on
-                ? 'border-primary-500 font-bold text-default dark:text-neutral-50'
-                : 'border-transparent text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50'
+                ? 'border-primary-500 font-bold text-default dark:border-primary-400 dark:text-neutral-50'
+                : 'border-transparent text-caption hover:text-default dark:text-neutral-500 dark:hover:text-neutral-50'
             }`}
           >
             {Icon ? <Icon className="size-16 flex-none" /> : null}
+            <span className="truncate">{t.label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** A panel's tabs as pills, above its box — the right-hand column's
+ *  Comments · Edit · Chat. The active one sits on a raised chip. */
+export function PillTabs<T extends string>({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: { id: T; label: string; title?: string }[]
+  active: T
+  onChange: (id: T) => void
+}) {
+  return (
+    <div role="tablist" className="flex min-w-0 flex-1 items-center gap-2">
+      {tabs.map((t) => {
+        const on = t.id === active
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            title={t.title}
+            onClick={() => onChange(t.id)}
+            className={`flex h-32 min-w-0 items-center rounded-8 px-12 text-14 ${
+              on
+                ? 'bg-neutral-50 font-bold text-default dark:bg-ink-800 dark:text-neutral-50'
+                : 'text-caption hover:text-default dark:text-neutral-500 dark:hover:text-neutral-50'
+            }`}
+          >
             <span className="truncate">{t.label}</span>
           </button>
         )

@@ -29,9 +29,22 @@ function icon(path: ReactNode) {
   }
 }
 
-// Studio — a folder (the gallery of prototypes).
-export const StudioIcon = icon(
-  <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h3.6a2 2 0 0 1 1.4.6L12 7h6.5A2.5 2.5 0 0 1 21 9.5v8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" />,
+// Projects — a grid of cards (the gallery of prototypes).
+export const ProjectsIcon = icon(
+  <>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </>,
+)
+
+// Jump to — a magnifier, for the ⌘K search.
+export const SearchIcon = icon(
+  <>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-3.5-3.5" />
+  </>,
 )
 
 // FunDS — layered swatches (the design system).
@@ -52,7 +65,15 @@ export const AssetsIcon = icon(
   </>,
 )
 
-// Share — a chain link, for the prototype's share links.
+// Share — an arrow out of a tray: the project sidebar's Share button.
+export const ShareIcon = icon(
+  <>
+    <path d="M12 15V3M7 8l5-5 5 5" />
+    <path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+  </>,
+)
+
+// A chain link — a share link, in the Share panel's list.
 export const LinkIcon = icon(
   <>
     <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5" />
@@ -68,7 +89,17 @@ export const AccountIcon = icon(
   </>,
 )
 
-// Panel toggle — collapse/expand the secondary sidebar.
+// Branches — a fork: the project and its branches, beside Share.
+export const BranchIcon = icon(
+  <>
+    <path d="M6 3v12" />
+    <circle cx="18" cy="6" r="3" />
+    <circle cx="6" cy="18" r="3" />
+    <path d="M18 9a9 9 0 0 1-9 9" />
+  </>,
+)
+
+// Panel toggle — fold the sidebar to its icon rail, and open it again.
 export const PanelIcon = icon(
   <>
     <rect x="3" y="4" width="18" height="16" rx="2" />
@@ -201,9 +232,12 @@ export const EditIcon = icon(
   </>,
 )
 
-// Chat — a speech bubble: ask Claude for a change.
+// AI Chat — a rounded message bubble with lines of text: ask Claude for a change.
 export const ChatIcon = icon(
-  <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" />,
+  <>
+    <path d="M6 4h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-6l-4 3.5V17H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z" />
+    <path d="M8 9h8M8 12.5h5" />
+  </>,
 )
 
 // Inspect — a marquee with a cursor in it: pick an element, read its spec.

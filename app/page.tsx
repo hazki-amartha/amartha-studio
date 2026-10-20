@@ -1,8 +1,10 @@
 // WS-D · Gallery homepage — the front door.
 // Reads projects/configs.ts, renders one folder per business unit and one card
 // per project, most-recent-first. Platform and status are chip filters, applied
-// in place. Composed strictly from design-system components + tokens (no
-// arbitrary values).
+// in place. The title is the shell's top bar ("Projects", or "Projects ›
+// Lending" inside a folder); this page adds its count and New project there.
+// Composed strictly from design-system components + tokens (no arbitrary
+// values).
 
 import Link from 'next/link'
 // Import Badge + Card directly (and their CSS) rather than via the barrel:
@@ -11,10 +13,9 @@ import Link from 'next/link'
 import '@/design-system/components/styles.css'
 import { Badge, type BadgeIntent } from '@/design-system/components/Badge'
 import { Card } from '@/design-system/components/Card'
-import { PageHeader } from '@/platform/chrome'
+import { TopBarContent } from '@/platform/chrome'
 import { canEditAs, getStudioUser } from '@/platform/auth/server'
 import { NewProjectButton } from '@/platform/projects/NewProjectButton'
-import { ChevronLeftIcon } from '@/platform/chrome/icons'
 import type { BusinessUnit, Platform, ProjectConfig, ProjectStatus } from '@/platform/types'
 import { configs as projectConfigs } from '@/projects/configs'
 import { listDbConfigs } from '@/platform/dbProjects/server'
@@ -66,12 +67,11 @@ const BU_ORDER: BusinessUnit[] = ['Lending', 'Funding', 'Core', 'Payments']
 
 // One hue per platform — AFIN purple (the brand's consumer app), A-Partner
 // blue, NGMIS green — so a card's colour tells you which product it belongs to
-// before you read a word of it. The platform chips carry the same swatch, which
-// makes the filter row the legend.
-const PLATFORM_COLOR: Record<Platform, { card: string; dot: string }> = {
-  AFIN: { card: 'from-primary-700 to-primary-900', dot: 'bg-primary-500' },
-  APartner: { card: 'from-blue-600 to-blue-800', dot: 'bg-blue-500' },
-  NGMIS: { card: 'from-green-600 to-green-800', dot: 'bg-green-500' },
+// before you read a word of it.
+const PLATFORM_COLOR: Record<Platform, { card: string }> = {
+  AFIN: { card: 'from-primary-700 to-primary-900' },
+  APartner: { card: 'from-blue-600 to-blue-800' },
+  NGMIS: { card: 'from-green-600 to-green-800' },
 }
 
 // Studio-internal work carries no platform — it gets the neutral ramp rather
@@ -140,7 +140,11 @@ function ProjectCard({ config, deletable }: GalleryEntry) {
   const owners = Array.isArray(config.owner) ? config.owner.join(', ') : config.owner
   const fill = config.platform ? PLATFORM_COLOR[config.platform].card : NO_PLATFORM_CARD
   // The ⋯ menu sits over the card, not inside the link — a button in a link
-  // would open the prototype too.
+  // would open the prototype too. It covers the top-right corner, so whatever
+  // reaches that corner — the platform, or the name when there's no top row —
+  // stops short of it while the menu is there.
+  const clear = deletable ? 'pr-32' : ''
+  const hasTopRow = Boolean(config.businessUnit || config.platform)
   return (
     <div className="relative flex">
     <Link href={`/p/${config.slug}`} className="group flex flex-1 rounded-16">
@@ -150,8 +154,8 @@ function ProjectCard({ config, deletable }: GalleryEntry) {
               with two children, justify-between keeps the platform hard right
               whether or not a BU precedes it. Studio-internal work has neither,
               and drops the row rather than leaving a gap where it was. */}
-          {(config.businessUnit || config.platform) && (
-            <div className="flex items-start justify-between gap-8">
+          {hasTopRow && (
+            <div className={`flex items-start justify-between gap-8 ${clear}`}>
               <span className="text-12 font-regular uppercase text-neutral-400">
                 {config.businessUnit ? BU_LABEL[config.businessUnit] : ''}
               </span>
@@ -160,7 +164,7 @@ function ProjectCard({ config, deletable }: GalleryEntry) {
               </span>
             </div>
           )}
-          <h2 className="text-20 font-bold text-neutral-white">{config.name}</h2>
+          <h2 className={`text-20 font-bold text-neutral-white ${hasTopRow ? '' : clear}`}>{config.name}</h2>
           <p className="line-clamp-2 flex-1 text-14 text-neutral-white">{config.description}</p>
         </div>
         {/* Footer band. ink-900 is the studio's own chrome surface, so the
@@ -235,9 +239,18 @@ function BusinessUnitFolder({ bu, count }: { bu: BusinessUnit; count: number }) 
 }
 
 const chipClass = (selected: boolean) =>
-  selected
-    ? 'rounded-full border border-primary-500 bg-primary-500 px-12 py-4 text-12 font-bold text-neutral-white'
-    : 'rounded-full border border-default bg-neutral-white px-12 py-4 text-12 font-regular text-caption hover:border-primary-500 hover:text-link dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:text-neutral-50'
+  `flex h-32 items-center gap-8 rounded-full border px-12 text-12 font-bold ${
+    selected
+      ? 'border-primary-200 bg-primary-50 text-primary-600 dark:border-primary-700 dark:bg-primary-900 dark:text-primary-200'
+      : 'border-default text-neutral-700 hover:bg-neutral-50 dark:border-ink-800 dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50'
+  }`
+
+/** A chip's count, quieter than its label. */
+function Count({ n, selected }: { n: number; selected: boolean }) {
+  return (
+    <span className={`font-regular ${selected ? '' : 'text-caption dark:text-neutral-500'}`}>{n}</span>
+  )
+}
 
 // A chip is only drawn when it would return something. Platform is the reason:
 // most business units ship one or two products, so a fixed row would offer
@@ -298,10 +311,8 @@ function FilterChips({
             </Link>
             {platforms.map((p) => (
               <Link key={p} href={href({ platform: p })} className={chipClass(platform === p)}>
-                <span className="flex items-center gap-4">
-                  <span className={`size-8 shrink-0 rounded-full ${PLATFORM_COLOR[p].dot}`} />
-                  {PLATFORM_LABEL[p]} · {platformCounts[p]}
-                </span>
+                {PLATFORM_LABEL[p]}
+                <Count n={platformCounts[p]} selected={platform === p} />
               </Link>
             ))}
           </div>
@@ -316,7 +327,8 @@ function FilterChips({
             </Link>
             {statuses.map((s) => (
               <Link key={s} href={href({ status: s })} className={chipClass(status === s)}>
-                {STATUS_LABEL[s]} · {statusCounts[s]}
+                {STATUS_LABEL[s]}
+                <Count n={statusCounts[s]} selected={status === s} />
               </Link>
             ))}
           </div>
@@ -413,7 +425,7 @@ export default async function Home({
     shown.length === 0 ? (
       <p className="text-14 text-caption dark:text-neutral-400">Nothing matches that filter yet.</p>
     ) : (
-      <section className="grid grid-cols-1 gap-16 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="grid grid-cols-1 gap-16 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {shown.map((e) => (
           <ProjectCard key={e.config.slug} {...e} />
         ))}
@@ -434,33 +446,19 @@ export default async function Home({
     />
   )
 
+  // The count and New project, in the shell's top bar beside its title.
+  const topBar = (
+    <TopBarContent meta={shown.length === 1 ? '1 project' : `${shown.length} projects`}>{newProject}</TopBarContent>
+  )
+
   // Inside a folder the page IS that business unit: the sibling folders go away
-  // and a breadcrumb is the way back out — the mental model is a place you
-  // entered. The chips come with you, because a filter is not a place.
+  // and the top bar's breadcrumb (Projects › Lending) is the way back out — the
+  // mental model is a place you entered. The chips come with you, because a
+  // filter is not a place.
   if (bu) {
     return (
-      <div className="mx-auto flex max-w-screen-lg flex-col gap-24 px-16 py-32">
-        <div className="flex flex-col gap-8">
-          {/* Back out of the folder. The shell's own breadcrumb is the only
-              breadcrumb — this is a plain back affordance, not a second one. */}
-          {/* Hover underlines rather than darkens: a hover colour would need a
-              light and a dark value, and the two rules land at equal weight —
-              whichever Tailwind emits last wins, which in dark mode meant black
-              text on a black canvas. Underline needs no second colour. */}
-          <Link
-            href="/"
-            className="flex w-fit items-center gap-4 text-14 text-caption hover:underline dark:text-neutral-400"
-          >
-            <ChevronLeftIcon className="size-16 shrink-0" />
-            Back
-          </Link>
-          <PageHeader
-            title={BU_LABEL[bu]}
-            subtitle={shown.length === 1 ? '1 prototype' : `${shown.length} prototypes`}
-            actions={newProject}
-          />
-        </div>
-
+      <div className="flex flex-col gap-24 px-24 pb-24 pt-16">
+        {topBar}
         {chips}
         {grid}
       </div>
@@ -468,8 +466,8 @@ export default async function Home({
   }
 
   return (
-    <div className="mx-auto flex max-w-screen-lg flex-col gap-24 px-16 py-32">
-      <PageHeader title="Prototype Studio" actions={newProject} />
+    <div className="flex flex-col gap-24 px-24 pb-24 pt-16">
+      {topBar}
 
       {entries.length === 0 ? (
         <EmptyState />

@@ -95,21 +95,13 @@
   display: none;
 }
 
-/* A desktop-device prototype's canvas: one cell the frame fits itself into
-   (FittedDevice measures it), beside the right panel. */
-.desktopDevice {
+/* The prototype's canvas: one cell the device fits itself into (the canvas
+   zoom measures it). */
+.deviceCell {
   display: grid;
   grid-template-columns: 100%;
   grid-template-rows: 100%;
   align-items: stretch;
-}
-
-/* The right panel — Chat · Design · CSS. The same width as the project
-   sidebar card opposite (chrome.module.css .projectCard), so the two read as a
-   pair: roomy enough for chat and prop editors, not so wide it crowds the
-   canvas. */
-.panel {
-  width: 324px;
 }
 
 /* --- Screen stage + slide transitions -------------------------------------- */

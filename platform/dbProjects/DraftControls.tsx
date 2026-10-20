@@ -5,15 +5,16 @@
 // Two pieces, one state:
 //
 //   ProjectSwitcher  the sidebar's project name — "<Project>" or "<Project> ·
-//                  Branch: <name>" — opening a list of the project and its
-//                  branches, and "Start a branch". Each branch row the viewer
+//                  Branch: <name>" — and the branch button beside Share,
+//                  opening a list of the project and its branches, and
+//                  "Start a branch". Each branch row the viewer
 //                  may act on carries Push (its changes go live on the
 //                  project, the branch is deleted) and a trash button
 //                  (Discard, after asking). Every edit to a database project
 //                  saves itself, so there's nothing to save first. Hidden
 //                  from share-link guests.
-//   HistoryMenu    the Edit panel's title, opening the History of every save
-//                  (./HistoryList.tsx).
+//   HistoryButton  the clock beside the right panel's ✕, opening the History
+//                  of every save (./HistoryList.tsx).
 //
 // Editing the project directly stays exactly as it was; a draft is only for
 // trying something off the link.
@@ -21,7 +22,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react'
-import { ChevronRightIcon, PlusIcon, TrashIcon } from '@/platform/chrome/icons'
+import { BranchIcon, HistoryIcon, PlusIcon, TrashIcon } from '@/platform/chrome/icons'
+import { ICON_BUTTON as SIDEBAR_BUTTON } from '@/platform/chrome/sidebarRows'
 import { useStudioUser } from '@/platform/auth/session'
 import { isActiveDbProject } from './active'
 import type { DraftActionResult, DraftsResponse } from './draftMeta'
@@ -114,13 +116,13 @@ function useMenu(onOpen?: () => void) {
   return { open, setOpen, box }
 }
 
-const CHEVRON =
-  'size-16 flex-none rotate-90 text-caption group-hover:text-default dark:text-neutral-400 dark:group-hover:text-neutral-50'
 const MENU =
-  'absolute left-0 top-full z-40 mt-4 flex w-280 flex-col gap-4 rounded-12 border border-default bg-neutral-white p-8 shadow-sm dark:border-ink-700 dark:bg-ink-900'
+  'absolute top-full z-40 mt-4 flex w-280 flex-col gap-4 rounded-12 border border-default bg-neutral-white p-8 shadow-sm dark:border-ink-700 dark:bg-ink-900'
 
-/** The sidebar's project name. On a database project it opens the project and
- *  its drafts, and starts a new draft; on a git project it is just the name. */
+/** The sidebar's project name, and on a database project the branch button
+ *  after it, which opens the project and its branches and starts a new one. A
+ *  git project has no branches: just the name. The name takes the room left,
+ *  so the button stays put beside Share however long the name is. */
 export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) {
   const db = isActiveDbProject(slug)
   const { data, refresh } = useDrafts(slug, db)
@@ -144,11 +146,16 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
   }, [open])
 
   const draft = data?.draft
-  // A draft's sidebar names the project it belongs to, then which draft.
+  // A branch's sidebar names the project it belongs to, then which branch.
   const title = (
-    <span className="truncate text-14 font-bold text-default dark:text-neutral-50">{draft?.parentName ?? name}</span>
+    <span className="flex min-w-0 flex-1 items-baseline gap-4 px-8">
+      <span className="truncate text-14 font-bold text-default dark:text-neutral-50">{draft?.parentName ?? name}</span>
+      {draft ? (
+        <span className="truncate text-14 text-caption dark:text-neutral-400">· Branch: {draft.name}</span>
+      ) : null}
+    </span>
   )
-  if (!db || !data) return <span className="flex min-w-0">{title}</span>
+  if (!db || !data) return title
 
   const project = draft?.draftOf ?? slug
   const go = (to: string) => {
@@ -186,134 +193,131 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
   const parentName = draft?.parentName ?? name
 
   return (
-    <div ref={box} className="relative min-w-0">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        title="Switch between the project and its branches"
-        className="group flex min-w-0 max-w-full items-center gap-4 py-4"
-      >
-        {title}
-        {draft ? (
-          <span className="truncate text-14 text-caption group-hover:text-default dark:text-neutral-400 dark:group-hover:text-neutral-50">
-            · Branch: {draft.name}
-          </span>
-        ) : null}
-        <ChevronRightIcon className={CHEVRON} />
-      </button>
+    <>
+      {title}
+      <div ref={box} className="relative flex-none">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label="Branches"
+          title="Branches — switch between the project and its branches, or start one"
+          className={SIDEBAR_BUTTON}
+        >
+          <BranchIcon className="size-16" />
+        </button>
 
-      {open ? (
-        <div className={MENU}>
-          <button type="button" className={ROW} onClick={() => go(project)}>
-            <span className="flex min-w-0 flex-col">
-              <span className="text-14 text-default dark:text-neutral-50">Main</span>
-              <span className={`${NOTE} truncate`}>What the project’s link shows</span>
-            </span>
-            {!draft ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
-          </button>
-          {data.drafts.map((d) => (
-            <div key={d.slug} className={ROW}>
-              <button type="button" className="flex min-w-0 flex-1 flex-col text-left" onClick={() => go(d.slug)}>
-                <span className="truncate text-14 text-default dark:text-neutral-50">Branch: {d.name}</span>
-                <span className={`${NOTE} truncate`}>
-                  {d.createdBy}
-                  {d.slug === slug ? (
-                    <span className="font-bold text-primary-500">{d.createdBy ? ' · Here' : 'Here'}</span>
-                  ) : null}
-                </span>
-              </button>
-              {acting?.slug === d.slug ? (
-                <span className={NOTE}>{acting.label}</span>
-              ) : confirming === d.slug ? (
-                <span className="flex flex-none items-center gap-8">
-                  <span className={NOTE}>Delete?</span>
-                  <button type="button" className={`${NOTE} font-bold hover:text-default dark:hover:text-neutral-50`} onClick={() => setConfirming(null)}>
-                    Keep
-                  </button>
-                  <button type="button" className={SMALL_PRIMARY} onClick={() => void run(d.slug, 'discard')}>
-                    Delete
-                  </button>
-                </span>
-              ) : mayAct(d) ? (
-                <span className="flex flex-none items-center gap-4">
-                  <button
-                    type="button"
-                    className={SMALL_PRIMARY}
-                    disabled={acting !== null}
-                    title={`Push to ${parentName} — its changes go live, and the branch is deleted`}
-                    onClick={() => void run(d.slug, 'push')}
-                  >
-                    Push
-                  </button>
-                  <button
-                    type="button"
-                    className={ICON_BUTTON}
-                    disabled={acting !== null}
-                    aria-label={`Discard the branch ${d.name}`}
-                    title="Discard this branch and its changes"
-                    onClick={() => setConfirming(d.slug)}
-                  >
-                    <TrashIcon className="size-16" />
-                  </button>
-                </span>
-              ) : null}
+        {open ? (
+          <div className={`${MENU} left-0`}>
+            <button type="button" className={ROW} onClick={() => go(project)}>
+              <span className="flex min-w-0 flex-col">
+                <span className="text-14 text-default dark:text-neutral-50">Main</span>
+                <span className={`${NOTE} truncate`}>What the project’s link shows</span>
+              </span>
+              {!draft ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
+            </button>
+            {data.drafts.map((d) => (
+              <div key={d.slug} className={ROW}>
+                <button type="button" className="flex min-w-0 flex-1 flex-col text-left" onClick={() => go(d.slug)}>
+                  <span className="truncate text-14 text-default dark:text-neutral-50">Branch: {d.name}</span>
+                  <span className={`${NOTE} truncate`}>
+                    {d.createdBy}
+                    {d.slug === slug ? (
+                      <span className="font-bold text-primary-500">{d.createdBy ? ' · Here' : 'Here'}</span>
+                    ) : null}
+                  </span>
+                </button>
+                {acting?.slug === d.slug ? (
+                  <span className={NOTE}>{acting.label}</span>
+                ) : confirming === d.slug ? (
+                  <span className="flex flex-none items-center gap-8">
+                    <span className={NOTE}>Delete?</span>
+                    <button type="button" className={`${NOTE} font-bold hover:text-default dark:hover:text-neutral-50`} onClick={() => setConfirming(null)}>
+                      Keep
+                    </button>
+                    <button type="button" className={SMALL_PRIMARY} onClick={() => void run(d.slug, 'discard')}>
+                      Delete
+                    </button>
+                  </span>
+                ) : mayAct(d) ? (
+                  <span className="flex flex-none items-center gap-4">
+                    <button
+                      type="button"
+                      className={SMALL_PRIMARY}
+                      disabled={acting !== null}
+                      title={`Push to ${parentName} — its changes go live, and the branch is deleted`}
+                      onClick={() => void run(d.slug, 'push')}
+                    >
+                      Push
+                    </button>
+                    <button
+                      type="button"
+                      className={ICON_BUTTON}
+                      disabled={acting !== null}
+                      aria-label={`Discard the branch ${d.name}`}
+                      title="Discard this branch and its changes"
+                      onClick={() => setConfirming(d.slug)}
+                    >
+                      <TrashIcon className="size-16" />
+                    </button>
+                  </span>
+                ) : null}
+              </div>
+            ))}
+            {outcome && !starting ? <div className="px-8"><Refused outcome={outcome} /></div> : null}
+            <div className="border-t border-default pt-4 dark:border-ink-700">
+              {starting ? (
+                <form onSubmit={start} className="flex flex-col gap-8 p-8">
+                  <p className={NOTE}>Try a change without it showing on the project’s link. Push the branch when it’s ready.</p>
+                  <div className="flex gap-8">
+                    <input
+                      autoFocus
+                      value={draftName}
+                      onChange={(e) => setDraftName(e.target.value)}
+                      placeholder="Name the branch"
+                      maxLength={40}
+                      className="min-w-0 flex-1 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12 text-default placeholder:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
+                    />
+                    <button type="submit" className={PRIMARY} disabled={busy || !draftName.trim()}>
+                      {busy ? 'Starting…' : 'Start'}
+                    </button>
+                  </div>
+                  {outcome ? <Refused outcome={outcome} /> : null}
+                </form>
+              ) : (
+                <button type="button" className={`${ROW} justify-start`} onClick={() => setStarting(true)}>
+                  <PlusIcon className="size-16 text-caption dark:text-neutral-400" />
+                  <span className="text-14 text-default dark:text-neutral-50">Start a branch</span>
+                </button>
+              )}
             </div>
-          ))}
-          {outcome && !starting ? <div className="px-8"><Refused outcome={outcome} /></div> : null}
-          <div className="border-t border-default pt-4 dark:border-ink-700">
-            {starting ? (
-              <form onSubmit={start} className="flex flex-col gap-8 p-8">
-                <p className={NOTE}>Try a change without it showing on the project’s link. Push the branch when it’s ready.</p>
-                <div className="flex gap-8">
-                  <input
-                    autoFocus
-                    value={draftName}
-                    onChange={(e) => setDraftName(e.target.value)}
-                    placeholder="Name the branch"
-                    maxLength={40}
-                    className="min-w-0 flex-1 rounded-8 border border-default bg-neutral-white px-12 py-8 text-12 text-default placeholder:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
-                  />
-                  <button type="submit" className={PRIMARY} disabled={busy || !draftName.trim()}>
-                    {busy ? 'Starting…' : 'Start'}
-                  </button>
-                </div>
-                {outcome ? <Refused outcome={outcome} /> : null}
-              </form>
-            ) : (
-              <button type="button" className={`${ROW} justify-start`} onClick={() => setStarting(true)}>
-                <PlusIcon className="size-16 text-caption dark:text-neutral-400" />
-                <span className="text-14 text-default dark:text-neutral-50">Start a branch</span>
-              </button>
-            )}
           </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+    </>
   )
 }
 
-/** The Edit panel's title. On a database project it opens the save History;
- *  a git project has none, so it stays plain "Edit". */
-export function HistoryMenu({ slug }: { slug: string }) {
+/** The right panel's History, beside its ✕. On a database project it opens
+ *  the History of every save; a git project has none, so it draws nothing. */
+export function HistoryButton({ slug }: { slug: string }) {
   const { open, setOpen, box } = useMenu()
-  const title = <span className="text-14 font-bold text-default dark:text-neutral-50">Edit</span>
-  if (!isActiveDbProject(slug)) return title
+  if (!isActiveDbProject(slug)) return null
 
   return (
-    <div ref={box} className="relative min-w-0">
+    <div ref={box} className="relative flex-none">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        aria-label="History"
         title="History — every save of this project"
-        className="group flex min-w-0 items-center gap-4 py-4"
+        className="flex size-32 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-500 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
       >
-        {title}
-        <ChevronRightIcon className={CHEVRON} />
+        <HistoryIcon className="size-16" />
       </button>
       {open ? (
-        <div className={MENU}>
+        <div className={`${MENU} right-0`}>
           <HistoryList slug={slug} />
         </div>
       ) : null}

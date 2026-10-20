@@ -8,13 +8,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStudioUser } from '@/platform/auth/session'
-import { LinkIcon } from '@/platform/chrome/icons'
+import { LinkIcon, ShareIcon } from '@/platform/chrome/icons'
 import { EXPIRY_CHOICES, type ShareAccess, type ShareLink, type ShareResponse } from './protocol'
 
 const PILL =
   'flex h-40 flex-none items-center gap-8 rounded-full border border-default bg-neutral-white px-16 text-14 font-bold text-default shadow-sm hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:shadow-none dark:hover:bg-ink-800'
-const COMPACT =
-  'flex h-32 flex-none items-center gap-4 rounded-full border border-default bg-neutral-white px-12 text-12 font-bold text-default hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800'
+const ICON =
+  'flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-500 dark:hover:bg-ink-800 dark:hover:text-neutral-50'
 const BLOCK =
   'flex w-full items-center justify-center gap-8 rounded-full border border-default px-20 py-12 text-14 font-bold text-default'
 const SMALL =
@@ -46,10 +46,11 @@ async function call(init?: { slug: string; body: object }, slug?: string): Promi
   }
 }
 
-/** `compact`: the smaller pill for a panel header (the project sidebar).
+/** `icon`: a bare icon button for the project sidebar's header, its panel
+ *  opening below it over the page.
  *  `block`: a full-width button whose panel opens in place below it — for the
  *  phone's prototype-controls dialog, where a floating panel has no room. */
-export function ShareButton({ slug, compact, block }: { slug: string; compact?: boolean; block?: boolean }) {
+export function ShareButton({ slug, icon, block }: { slug: string; icon?: boolean; block?: boolean }) {
   const { user } = useStudioUser()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -65,13 +66,31 @@ export function ShareButton({ slug, compact, block }: { slug: string; compact?: 
 
   if (!user || (user.role !== 'editor' && user.role !== 'admin')) return null
 
+  if (icon) {
+    return (
+      <div ref={ref} className="relative flex-none">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label="Share"
+          title="Share — a link that opens this prototype without an account"
+          className={ICON}
+        >
+          <ShareIcon className="size-16" />
+        </button>
+        {open ? <SharePanel slug={slug} below /> : null}
+      </div>
+    )
+  }
+
   return (
     <div ref={ref} className={block ? 'flex flex-col gap-8' : 'relative'}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={block ? BLOCK : compact ? COMPACT : PILL}
+        className={block ? BLOCK : PILL}
       >
         <LinkIcon className="size-16" />
         Share
@@ -81,7 +100,9 @@ export function ShareButton({ slug, compact, block }: { slug: string; compact?: 
   )
 }
 
-function SharePanel({ slug, inline }: { slug: string; inline?: boolean }) {
+/** `below`: under a button near the sidebar's right edge, so it runs right
+ *  from the button over the page, rather than left off the screen. */
+function SharePanel({ slug, inline, below }: { slug: string; inline?: boolean; below?: boolean }) {
   const [links, setLinks] = useState<ShareLink[] | null>(null)
   const [access, setAccess] = useState<ShareAccess>('comment')
   const [days, setDays] = useState<number | null>(EXPIRY_CHOICES[0])
@@ -122,7 +143,7 @@ function SharePanel({ slug, inline }: { slug: string; inline?: boolean }) {
   return (
     <div
       className={`flex flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12 dark:border-ink-700 dark:bg-ink-900 ${
-        inline ? 'w-full' : 'absolute right-0 top-full z-50 mt-8 w-320 shadow-sm'
+        inline ? 'w-full' : `absolute top-full z-50 mt-8 w-320 shadow-sm ${below ? 'left-0' : 'right-0'}`
       }`}
     >
       <div className="flex flex-col gap-4">
