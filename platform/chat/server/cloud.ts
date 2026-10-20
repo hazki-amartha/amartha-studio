@@ -40,7 +40,7 @@ import { redis } from '@/platform/comments/server/store'
 import { draftChatLines } from '@/platform/dbProjects/draftMeta'
 import { draftsOf } from '@/platform/dbProjects/drafts'
 import { FIGMA_TOOLS, figmaConfigured, figmaTools } from './figma'
-import { VOCUS_TOOLS, vocusConfigured, vocusTools } from './vocus'
+import { VOCUS_TOOLS, reportUsage, vocusConfigured, vocusTools } from './vocus'
 import { LiveSave } from './liveSave'
 import { isSessionStoreConfigured, redisSessionStore } from './sessionStore'
 import { readImages, userContent, type ChatImage } from '../images'
@@ -362,6 +362,8 @@ export async function cloudTurn(request: Request): Promise<Response> {
 
       let result: Record<string, any> | null = null
       let failure: string | undefined
+      let model: string | null = null
+      let rateLimit: unknown = null
       const started = Date.now()
       try {
         for await (const msg of query({
@@ -397,6 +399,7 @@ export async function cloudTurn(request: Request): Promise<Response> {
         })) {
           const m = msg as Record<string, any>
           if (m.type === 'system' && m.subtype === 'init') {
+            model = m.model ?? null
             send({ type: 'session', sessionId: m.session_id, model: m.model })
           } else if (m.type === 'assistant') {
             for (const block of m.message?.content ?? []) {
@@ -414,6 +417,7 @@ export async function cloudTurn(request: Request): Promise<Response> {
               }
             }
           } else if (m.type === 'rate_limit_event') {
+            rateLimit = m.rate_limit_info
             send({ type: 'usage', info: m.rate_limit_info })
           } else if (m.type === 'result') {
             result = m
@@ -436,6 +440,17 @@ export async function cloudTurn(request: Request): Promise<Response> {
       } else if (!failure && result?.is_error) {
         failure = String(result.result ?? 'The turn failed.')
       }
+
+      // Sent while the edits save; awaited before the stream closes.
+      const usageSent = reportUsage({
+        user: user?.email ?? null,
+        sessionId,
+        model,
+        failure,
+        durationMs: Date.now() - started,
+        result,
+        rateLimit,
+      })
 
       // Save whatever the last edits left pending, then say what didn't make it.
       try {
@@ -469,6 +484,7 @@ export async function cloudTurn(request: Request): Promise<Response> {
         outside: [],
         error: failure,
       })
+      await usageSent
       try {
         controller.close()
       } catch {}
