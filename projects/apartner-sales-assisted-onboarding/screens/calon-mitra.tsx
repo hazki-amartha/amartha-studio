@@ -333,7 +333,6 @@ export function CalonMitraScreen() {
           <button
             type="button"
             onClick={finishUnderwriting}
-            style={{ fontFamily: '"Comic Sans MS", "Comic Sans", cursive' }}
             className="rounded-full border border-orange-500 bg-orange-50 px-16 py-8 text-14 font-bold text-orange-500"
           >
             Tandai underwriting selesai
