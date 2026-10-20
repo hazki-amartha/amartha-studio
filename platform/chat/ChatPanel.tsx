@@ -13,8 +13,17 @@
 // spend figure that makes the cost of the wait legible rather than a surprise.
 // =============================================================================
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ChevronRightIcon, CloseIcon, CursorIcon, FigmaIcon, MediaIcon, StopIcon } from '@/platform/chrome/icons'
+import { useEffect, useMemo, useRef, useState, type ReactNode, type TextareaHTMLAttributes } from 'react'
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CloseIcon,
+  CursorIcon,
+  FigmaIcon,
+  MediaIcon,
+  StopIcon,
+} from '@/platform/chrome/icons'
 import { PanelHeader } from '@/platform/chrome/SidePanel'
 import { resolveTarget } from '@/platform/inspect/resolve'
 import { attachmentFor } from './attach'
@@ -25,6 +34,7 @@ import type { RecordedTurn, TranscriptEvent } from './transcript'
 import { useTranscriptReplay } from './useTranscriptReplay'
 import { useLiveChat } from './useLiveChat'
 import { useUsage, type LimitReport } from './usage'
+import type { Effort } from './effort'
 import { Markdown } from './Markdown'
 import { isActiveDbProject } from '@/platform/dbProjects/active'
 import { screenError } from '@/platform/runtime/screenError'
@@ -35,6 +45,8 @@ export type ChatEvent =
   | TranscriptEvent
   | { at: number; kind: 'user'; text: string; images?: string[]; figma?: string[] }
   | { at: number; kind: 'error'; text: string }
+  /** The panel's own word, between turns — "carrying on". */
+  | { at: number; kind: 'note'; text: string }
 
 /** What the view needs from either source. */
 export interface ChatState {
@@ -48,6 +60,7 @@ export interface ChatState {
 /** Plain-language activity per tool — a designer does not read tool names. */
 function activityFor(event: ChatEvent | undefined): string {
   if (!event || event.kind === 'user') return 'Starting up'
+  if (event.kind === 'note') return 'Carrying on'
   if (event.kind !== 'tool') return 'Writing a reply'
   const file = event.detail.split('/').pop() ?? event.detail
   switch (event.tool) {
@@ -62,6 +75,8 @@ function activityFor(event: ChatEvent | undefined): string {
     case 'Glob':
     case 'Grep':
       return 'Searching the project'
+    case 'Prototype':
+      return `Looking at ${event.detail.split(' · ')[0]}`
     default:
       return 'Working'
   }
@@ -268,6 +283,12 @@ function ChatView({
                   {event.text}
                 </p>
               )
+            case 'note':
+              return (
+                <p key={i} className="mb-12 text-12 font-regular text-neutral-600">
+                  {event.text}
+                </p>
+              )
             default:
               return null
           }
@@ -364,6 +385,96 @@ function Thumb({ src, small, onRemove }: { src: string; small?: boolean; onRemov
         />
       ) : null}
     </span>
+  )
+}
+
+const FIELD_TEXT = 'whitespace-pre-wrap break-words text-14 font-regular text-ink-900 dark:text-neutral-white'
+
+/** The message field. It grows with its text — a pasted brief shows, not two
+ *  lines of it — up to max-h-240, then scrolls, and shrinks back once sent. An
+ *  invisible copy of the text in the same grid cell sets the height, so nothing
+ *  is measured and the transcript never jumps while typing. */
+function GrowingField({ value, ...field }: TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string }) {
+  return (
+    <div className="grid grid-cols-1">
+      {/* The trailing space gives a final empty line its height. */}
+      <div aria-hidden className={`invisible col-start-1 row-start-1 max-h-240 overflow-hidden ${FIELD_TEXT}`}>
+        {`${value} `}
+      </div>
+      <textarea
+        {...field}
+        value={value}
+        rows={2}
+        className={`col-start-1 row-start-1 w-full resize-none overflow-y-auto bg-transparent outline-none placeholder:text-neutral-400 ${FIELD_TEXT}`}
+      />
+    </div>
+  )
+}
+
+const EFFORT_CHOICES: { id: Effort; label: string; note: string }[] = [
+  { id: 'medium', label: 'Medium', note: 'Quicker, and uses less of your Claude limit' },
+  { id: 'high', label: 'High', note: 'Thinks longer — better for new screens and multi-step changes' },
+]
+
+/** How long Claude thinks on the next message (./effort.ts): the level and a
+ *  chevron, quiet beside the image button, and a menu above it that says what
+ *  each level is for. */
+function EffortMenu({ value, onChange }: { value: Effort; onChange: (effort: Effort) => void }) {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const away = (e: MouseEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', esc)
+    return () => {
+      document.removeEventListener('mousedown', away)
+      document.removeEventListener('keydown', esc)
+    }
+  }, [open])
+
+  const current = EFFORT_CHOICES.find((c) => c.id === value) ?? EFFORT_CHOICES[1]
+  return (
+    <div ref={box} className="relative">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={`Effort: ${current.label}`}
+        title="Effort — how long Claude thinks on your next message"
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-32 items-center gap-4 rounded-8 px-8 text-12 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-700 dark:hover:text-neutral-50"
+      >
+        {current.label}
+        <ChevronDownIcon className="size-12" />
+      </button>
+      {/* Opens upward: the composer sits at the bottom of the panel. */}
+      {open ? (
+        <div className="absolute bottom-full left-0 z-10 mb-4 flex w-240 flex-col rounded-12 border border-default bg-neutral-white p-4 shadow-sm dark:border-ink-700 dark:bg-ink-900">
+          {EFFORT_CHOICES.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              aria-pressed={value === c.id}
+              onClick={() => {
+                onChange(c.id)
+                setOpen(false)
+              }}
+              className="flex items-start gap-8 rounded-8 p-8 text-left hover:bg-neutral-50 dark:hover:bg-ink-800"
+            >
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-14 font-bold text-default dark:text-neutral-50">{c.label}</span>
+                <span className="text-12 text-caption dark:text-neutral-400">{c.note}</span>
+              </span>
+              {value === c.id ? <CheckIcon className="size-16 flex-none text-primary-500" /> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -611,7 +722,7 @@ export function LiveChatPanel({
             removeLabel="Deselect — the message will be about the project"
           />
         ) : null}
-        <textarea
+        <GrowingField
           value={chat.draft}
           onChange={(e) => chat.setDraft(e.target.value)}
           onPaste={(e) => {
@@ -642,7 +753,6 @@ export function LiveChatPanel({
               submit()
             }
           }}
-          rows={2}
           aria-label="Message"
           placeholder={
             attachment
@@ -651,33 +761,36 @@ export function LiveChatPanel({
                 ? 'What should it take from the image?'
                 : 'Describe the change, or click an element first'
           }
-          className="w-full resize-none bg-transparent text-14 font-regular text-ink-900 outline-none placeholder:text-neutral-400 dark:text-neutral-white"
         />
         {imageError ? <p className="text-12 font-regular text-red-500">{imageError}</p> : null}
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => picker.current?.click()}
-            disabled={chat.images.length >= MAX_IMAGES}
-            aria-label="Attach images"
-            title="Attach images — or paste or drop them here"
-            className="flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-ink-700 dark:hover:text-neutral-50"
-          >
-            <MediaIcon className="size-16" />
-          </button>
-          <input
-            ref={picker}
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={(e) => {
-              void attach([...(e.target.files ?? [])])
-              e.target.value = ''
-            }}
-          />
+        {/* Wraps rather than squeezes in a narrow panel. */}
+        <div className="flex flex-wrap items-center justify-between gap-8">
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => picker.current?.click()}
+              disabled={chat.images.length >= MAX_IMAGES}
+              aria-label="Attach images"
+              title="Attach images — or paste or drop them here"
+              className="flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-ink-700 dark:hover:text-neutral-50"
+            >
+              <MediaIcon className="size-16" />
+            </button>
+            <input
+              ref={picker}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => {
+                void attach([...(e.target.files ?? [])])
+                e.target.value = ''
+              }}
+            />
+            {chat.canSetEffort ? <EffortMenu value={chat.effort} onChange={chat.setEffort} /> : null}
+          </div>
           {/* Usage sits with Send, so the field's own edge stays clean. */}
-          <div className="flex items-center gap-12">
+          <div className="ml-auto flex items-center gap-8">
             <span className="text-12 font-regular text-neutral-600">
               <UsageMeter />
             </span>

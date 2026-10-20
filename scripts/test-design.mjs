@@ -1830,7 +1830,11 @@ const turnNotes = await (async () => {
   await build({
     absWorkingDir: root,
     stdin: {
-      contents: `export { turnNote, locateScreen, screenImport } from './platform/chat/server/turnNote'`,
+      contents: [
+        `export { turnNote, locateScreen, screenImport } from './platform/chat/server/turnNote'`,
+        `export { withContract } from './platform/chat/server/contract'`,
+        `export { readPrototype } from './platform/chat/server/otherPrototype'`,
+      ].join('\n'),
       resolveDir: root,
       loader: 'ts',
     },
@@ -1860,6 +1864,12 @@ const chatTree = await (async () => {
     'projects/_db/demo/screens/pay-sheet.tsx': '',
     'projects/base/index.ts': `export const project = { screens: [{ id: 'profile', component: lazyScreen(() => import('./screens/profile'), 'P') }] }`,
     'projects/base/screens/profile.tsx': '',
+    'projects/_db/memo/MEMORY.md': '# Memory\n- 2026-10-20 — Copy stays in Bahasa.\n',
+    'projects/_db/long/MEMORY.md': `- ${'a'.repeat(7000)}\n`,
+    'projects/_db/demo-branch-ana/draft.json': '{}\n',
+    'projects/_db/demo-branch-ana/screens/home.tsx': '',
+    'CLAUDE.md': '# The contract\n',
+    'design-system/guidelines/STUDIO-MEMORY.md': '# Studio memory\n- Copy a sticky bar from apartner-sot.\n',
   }
   for (const [rel, content] of Object.entries(files)) {
     await mkdir(dirname(join(dir, rel)), { recursive: true })
@@ -1906,13 +1916,86 @@ test('chat note: a branch is explained once, then named', () => {
   assert.doesNotMatch(later, /Chat cannot push it/)
 })
 
+test('chat note: a conversation’s first note brings the prototype’s memory and the date', () => {
+  const memo = (extra = {}) => note({}, { slug: 'memo', folder: 'projects/_db/memo', ...extra })
+  assert.match(
+    memo(),
+    /\nToday: \d{4}-\d{2}-\d{2}\.\n<\/studio-note>\n\n<prototype-memory file="projects\/_db\/memo\/MEMORY\.md">\n# Memory\n- 2026-10-20 — Copy stays in Bahasa\.\n<\/prototype-memory>$/,
+  )
+  // Later turns already have it.
+  assert.doesNotMatch(memo({ first: false }), /prototype-memory|Today:/)
+  // A prototype with no memory yet gets no block.
+  assert.doesNotMatch(note({ screen: 'home' }), /prototype-memory/)
+})
+
+test('chat note: a long memory is cut, with a pointer to the file', () => {
+  const text = note({}, { slug: 'long', folder: 'projects/_db/long' })
+  assert.match(text, /\n… \(cut here — read the file for the rest\)\n<\/prototype-memory>$/)
+  assert.ok(text.length < 6500)
+})
+
+test('chat contract: the studio memory follows CLAUDE.md in the system prompt', async () => {
+  const prompt = turnNotes.withContract('Chat rules.', chatTree)
+  assert.match(
+    prompt,
+    /^Chat rules\.\n[\s\S]*# The contract\n\n## The studio memory — design-system\/guidelines\/STUDIO-MEMORY\.md\n[\s\S]*\n# Studio memory\n- Copy a sticky bar from apartner-sot\.$/,
+  )
+  // No memory file, no section.
+  const { mkdtemp, writeFile } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const bare = await mkdtemp(join(tmpdir(), 'studio-contract-'))
+  await writeFile(join(bare, 'CLAUDE.md'), '# The contract\n')
+  assert.doesNotMatch(turnNotes.withContract('Chat rules.', bare), /studio memory/)
+  await rm(bare, { recursive: true, force: true })
+})
+
+test('chat prototype: another one is found by name, memory first, and never a branch', async () => {
+  const configs = [
+    { slug: 'checker-maker', name: 'Checker Maker', owner: 'Chandra' },
+    { slug: 'checker-maker-branch-ana', name: 'Checker Maker', owner: 'Ananda', draft: { parent: 'checker-maker' } },
+    { slug: 'old-thing', name: 'Old Thing', owner: 'Patricia', deleted: { deletedAt: '2026-10-01' } },
+    { slug: 'ngmis-bm-bp-progress', name: 'NGMIS BM — BP Progress Board', owner: 'Hazki' },
+    { slug: 'ngmis-cash-outstanding', name: 'NGMIS Cash Outstanding & Settlement', owner: 'Chandra' },
+    { slug: 'vocus-field-officer-dashboard-2', name: 'Vocus - Field Officer Dashboard', owner: 'Ananda' },
+  ]
+  const files = {
+    'checker-maker': new Map([
+      ['MEMORY.md', { content: '# Memory\n- 2026-10-20 — Approvals need two checkers.\n' }],
+      ['index.ts', { content: 'export const project = {}' }],
+      ['screens/home.tsx', { content: 'export function Home() {}' }],
+    ]),
+    'ngmis-bm-bp-progress': new Map([['index.ts', { content: '' }]]),
+  }
+  const source = { configs: async () => configs, files: async (slug) => files[slug] ?? new Map() }
+  const read = (project, extra = {}) =>
+    turnNotes.readPrototype(source, { project, ...extra }, 'vocus-field-officer-dashboard-2')
+
+  assert.match(
+    await read('checker maker'),
+    /^Checker Maker \(`checker-maker`\), by Chandra — read-only\.\n\nIts memory:\n# Memory\n- 2026-10-20 — Approvals need two checkers\.\n\nIts files: index\.ts, screens\/home\.tsx$/,
+  )
+  assert.match(await read('checker-maker', { file: './screens/home.tsx' }), /^Checker Maker · screens\/home\.tsx \(read-only\):\n\nexport function Home\(\) \{\}$/)
+  assert.match(await read('checker-maker', { file: 'nope.tsx' }), /has no file nope\.tsx\. Its files: MEMORY\.md, index\.ts, screens\/home\.tsx\./)
+  assert.match(await read('BP Progress'), /It has no memory yet\./)
+  // A branch that hasn't been pushed, or a deleted project, is never found.
+  assert.match(await read('checker-maker-branch-ana'), /^No prototype in the studio database is called/)
+  assert.match(await read('Old Thing'), /^No prototype in the studio database is called/)
+  // A vague name asks back; the chat's own prototype is already in its workspace.
+  assert.match(await read('ngmis'), /^More than one prototype matches “ngmis”: NGMIS BM — BP Progress Board \(`ngmis-bm-bp-progress`\), NGMIS Cash/)
+  assert.match(await read('Vocus - Field Officer Dashboard'), /is the prototype you are working on/)
+})
+
 const { spawnSync } = await import('node:child_process')
 
 /** One tool call through the guard, as the CLI makes it. */
-function guarded(tool, input, { commands = 'npm run check:project\nnpm run check:project -- demo', dir = 'projects/_db/demo' } = {}) {
+function guarded(
+  tool,
+  input,
+  { commands = 'npm run check:project\nnpm run check:project -- demo', dir = 'projects/_db/demo', at = root } = {},
+) {
   const run = spawnSync(process.execPath, [join(root, 'scripts', 'chat-guard.mjs')], {
     input: JSON.stringify({ tool_name: tool, tool_input: input }),
-    env: { PATH: process.env.PATH, CHAT_SLUG: 'demo', CHAT_ROOT: root, CHAT_DIR: dir, CHAT_COMMANDS: commands },
+    env: { PATH: process.env.PATH, CHAT_SLUG: 'demo', CHAT_ROOT: at, CHAT_DIR: dir, CHAT_COMMANDS: commands },
     encoding: 'utf8',
   })
   const decision = run.stdout ? JSON.parse(run.stdout).hookSpecificOutput?.permissionDecision : undefined
@@ -1959,6 +2042,19 @@ test('chat guard: writes stay in the project, and secrets stay unread', () => {
   assert.match(outside.reason, /only change files inside projects\/_db\/demo\/; platform\/types\.ts is outside it/)
   assert.equal(guarded('Read', { file_path: join(root, '.env.local') }).code, 2)
   assert.equal(guarded('Read', { file_path: join(root, 'CLAUDE.md') }).code, 0)
+})
+
+test('chat guard: a branch that hasn’t been pushed stays closed, unless it’s the chat’s own', () => {
+  const tree = { at: chatTree }
+  const file = join(chatTree, 'projects/_db/demo-branch-ana/screens/home.tsx')
+  const closed = guarded('Read', { file_path: file }, tree)
+  assert.equal(closed.code, 2)
+  assert.match(closed.reason, /a branch that hasn’t been pushed yet/)
+  assert.equal(guarded('Glob', { pattern: 'projects/_db/demo-branch-ana/**/*.tsx', path: chatTree }, tree).code, 2)
+  assert.equal(guarded('Grep', { pattern: 'Home', path: join(chatTree, 'projects/_db/demo-branch-ana') }, tree).code, 2)
+  // The branch the chat is on, and every published prototype, open as usual.
+  assert.equal(guarded('Read', { file_path: file }, { ...tree, dir: 'projects/_db/demo-branch-ana' }).code, 0)
+  assert.equal(guarded('Read', { file_path: join(chatTree, 'projects/_db/memo/MEMORY.md') }, tree).code, 0)
 })
 
 // ------------------------------------------------- Illustration swap (Edit)

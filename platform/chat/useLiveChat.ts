@@ -31,6 +31,7 @@ import type { ChatEvent, ChatState } from './ChatPanel'
 import { reportUsage, type RateLimitInfo } from './usage'
 import type { PendingImage } from './images'
 import { figmaFileLabel, type PendingFigma } from './figmaLink'
+import { DEFAULT_EFFORT, effortOf, type Effort } from './effort'
 
 interface Done {
   type: 'done'
@@ -43,6 +44,8 @@ interface Done {
    *  last version that passed until they're fixed. */
   notSaved?: string[]
   error?: string
+  /** The studio's clock stopped the turn, not the designer (server/cloud.ts). */
+  outOfTime?: boolean
 }
 
 type ServerEvent =
@@ -98,8 +101,25 @@ let convo: Conversation = fresh()
 let gate: Gate = 'checking'
 /** Where turns run: this laptop's CLI, or the deployed studio (owner only). */
 let where: 'laptop' | 'cloud' = 'laptop'
+/** Whether that Claude Code takes an effort level — a laptop's may be too old. */
+let canSetEffort = false
 let abort: AbortController | null = null
 const listeners = new Set<() => void>()
+
+// --- out of time ---------------------------------------------------------------
+// On the studio a turn stops after about four minutes (the function's limit),
+// often mid-change. What it finished is already saved and the session goes on,
+// so the panel sends "continue" itself, a couple of times, before handing the
+// stop back to the designer. A laptop's turns get ten minutes and never do this.
+
+const MAX_CONTINUES = 2
+const CONTINUE = 'You ran out of time on the last message and were stopped mid-step. Carry on from where you stopped; what you saved is in the files.'
+/** How many times the current message has been continued. */
+let continues = 0
+/** Set by a turn that ran out of time; read once that turn's stream ends. */
+let carryOn = false
+/** The device as the designer's message left it — a continue reports the same. */
+let lastView: DeviceView | undefined
 
 function set(patch: Partial<Conversation>) {
   convo = { ...convo, ...patch }
@@ -140,6 +160,32 @@ function restore(slug: string): Conversation {
   } catch {
     return fresh()
   }
+}
+
+// --- effort ------------------------------------------------------------------
+// The designer's own pick, not a conversation's: it outlasts New chat, another
+// project and the tab, so it lives in localStorage — guarded the same way.
+
+const EFFORT_KEY = 'studio-chat:effort'
+let effort: Effort | null = null
+
+function effortNow(): Effort {
+  if (effort === null) {
+    try {
+      effort = effortOf(localStorage.getItem(EFFORT_KEY))
+    } catch {
+      effort = DEFAULT_EFFORT
+    }
+  }
+  return effort
+}
+
+function setEffort(next: Effort) {
+  effort = next
+  try {
+    localStorage.setItem(EFFORT_KEY, next)
+  } catch {}
+  listeners.forEach((l) => l())
 }
 
 function setGate(next: Gate) {
@@ -187,6 +233,12 @@ function handle(event: ServerEvent) {
       set({ sessionId: event.sessionId ?? convo.sessionId, spendUsd: convo.spendUsd + event.costUsd, last: event })
       if (event.changed.length > 0) refreshProjectSoon()
       if (event.error) push({ kind: 'error', text: event.error })
+      if (event.outOfTime && continues < MAX_CONTINUES) {
+        carryOn = true
+        push({ kind: 'note', text: `Out of time for one message — carrying on (${continues + 1} of ${MAX_CONTINUES}).` })
+      } else if (event.outOfTime) {
+        push({ kind: 'error', text: 'Stopped: it ran out of time again. What it finished is kept — say “continue” to carry on.' })
+      }
       if (event.notSaved?.length) {
         push({ kind: 'error', text: `Not saved — the link still shows the last version that worked: ${event.notSaved.join('; ')}` })
       }
@@ -210,23 +262,38 @@ export interface DeviceView {
   screenError: string | null
 }
 
-async function send(prompt: string, shown?: string, view?: DeviceView) {
+/** `auto` is the panel's own "continue": the draft and its attachments stay
+ *  put, and the transcript shows the note about it instead of a message. */
+async function send(prompt: string, shown?: string, view?: DeviceView, auto = false) {
   const text = prompt.trim()
   const slug = slugNow
   if (!text || abort || !slug) return
   const controller = new AbortController()
   abort = controller
-  const images = convo.images
-  const figma = convo.figma
+  carryOn = false
+  if (!auto) {
+    continues = 0
+    lastView = view
+  }
+  const images = auto ? [] : convo.images
+  const figma = auto ? [] : convo.figma
   // The links go to the agent ahead of the message; the transcript shows chips.
   const message = figma.length ? `Figma:\n${figma.map((f) => `- ${f.label}: ${f.url}`).join('\n')}\n\n${text}` : text
-  set({ startedAt: Date.now(), lastEventAt: 0, last: null, status: 'running', draft: '', images: [], figma: [] })
-  push({
-    kind: 'user',
-    text: shown ?? text,
-    ...(images.length ? { images: images.map((i) => i.thumb) } : {}),
-    ...(figma.length ? { figma: figma.map((f) => f.label) } : {}),
+  set({
+    startedAt: Date.now(),
+    lastEventAt: 0,
+    last: null,
+    status: 'running',
+    ...(auto ? {} : { draft: '', images: [], figma: [] }),
   })
+  if (!auto) {
+    push({
+      kind: 'user',
+      text: shown ?? text,
+      ...(images.length ? { images: images.map((i) => i.thumb) } : {}),
+      ...(figma.length ? { figma: figma.map((f) => f.label) } : {}),
+    })
+  }
 
   try {
     const res = await fetch('/api/chat', {
@@ -242,6 +309,7 @@ async function send(prompt: string, shown?: string, view?: DeviceView) {
         db: isActiveDbProject(slug) || undefined,
         screen: view?.screen,
         screenError: view?.screenError ?? undefined,
+        effort: effortNow(),
       }),
       signal: controller.signal,
     })
@@ -277,11 +345,16 @@ async function send(prompt: string, shown?: string, view?: DeviceView) {
     if (abort === controller) {
       abort = null
       set({ status: 'done' })
+      if (carryOn) {
+        continues++
+        void send(CONTINUE, undefined, lastView, true)
+      }
     }
   }
 }
 
 function stop() {
+  carryOn = false
   abort?.abort()
 }
 
@@ -290,6 +363,7 @@ function stop() {
 function newChat() {
   abort?.abort()
   abort = null
+  carryOn = false
   convo = fresh()
   save()
   listeners.forEach((l) => l())
@@ -331,6 +405,8 @@ interface Status {
   needsPassword: boolean
   signIn: 'signed-in' | 'signed-out' | 'no-cli' | null
   where?: 'laptop' | 'cloud'
+  /** Claude Code there takes an effort level, so the composer shows its menu. */
+  effort?: boolean
 }
 
 function gateOf(s: Status | null): Gate {
@@ -356,6 +432,7 @@ function check() {
     .then((r) => (r.ok ? (r.json() as Promise<Status>) : Promise.reject(new Error(String(r.status)))))
     .then((s) => {
       where = s.where ?? 'laptop'
+      canSetEffort = Boolean(s.effort)
       setGate(gateOf(s))
       setChatAvailable(Boolean(s.available))
     })
@@ -399,6 +476,11 @@ export interface LiveChat extends ChatState {
   model: string | null
   last: Done | null
   where: 'laptop' | 'cloud'
+  /** How long Claude thinks on the next message — the composer's effort menu. */
+  effort: Effort
+  setEffort: (effort: Effort) => void
+  /** False where Claude Code is too old to take one; the menu hides. */
+  canSetEffort: boolean
 }
 
 const SERVER: Conversation = fresh()
@@ -408,6 +490,7 @@ export function useLiveChat(slug: string): LiveChat {
   useEffect(probe, [])
   const c = useSyncExternalStore(subscribe, () => convo, () => SERVER)
   const g = useSyncExternalStore(subscribe, () => gate, () => 'checking' as Gate)
+  const e = useSyncExternalStore(subscribe, effortNow, () => DEFAULT_EFFORT)
 
   // Same reason as the replay: the clock must move through a long think. It is
   // derived from the turn's start, so a panel mounted mid-turn shows the truth.
@@ -443,5 +526,8 @@ export function useLiveChat(slug: string): LiveChat {
     model: c.model,
     last: c.last,
     where,
+    effort: e,
+    setEffort,
+    canSetEffort,
   }
 }

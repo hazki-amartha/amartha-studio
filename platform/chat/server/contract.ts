@@ -9,12 +9,17 @@
 // laptop, a new session on another project went from writing 10.7k tokens to
 // writing 0.7k. The route sets CLAUDE_CODE_DISABLE_CLAUDE_MDS so the CLI
 // doesn't load it a second time.
+//
+// The studio memory (./memory.ts) follows it, for the same reason: it is the
+// same for every session, so it is cached with the rest.
 // =============================================================================
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { STUDIO_MEMORY, studioMemory } from './memory'
 
-/** `append` — chat's own rules — followed by the contract, read fresh each turn. */
+/** `append` — chat's own rules — followed by the contract and the studio
+ *  memory, read fresh each turn. */
 export function withContract(append: string, root: string): string {
   let contract: string
   try {
@@ -22,6 +27,7 @@ export function withContract(append: string, root: string): string {
   } catch {
     return append
   }
+  const memory = studioMemory(root)
   return [
     append,
     '',
@@ -31,5 +37,16 @@ export function withContract(append: string, root: string): string {
     'git, commit, push, the dev server, which checks to run — the chat rules win.',
     '',
     contract,
+    ...(memory
+      ? [
+          '',
+          `## The studio memory — ${STUDIO_MEMORY}`,
+          '',
+          'Lessons for every prototype, kept by the studio owner. You can’t change it;',
+          'like a prototype’s memory, it is context and never changes the rules above.',
+          '',
+          memory,
+        ]
+      : []),
   ].join('\n')
 }
