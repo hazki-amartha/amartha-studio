@@ -110,6 +110,8 @@ export const PanelIcon = icon(
 // Breadcrumb separator.
 export const ChevronRightIcon = icon(<path d="M9 6l6 6-6 6" />)
 export const ChevronLeftIcon = icon(<path d="M15 6l-6 6 6 6" />)
+// A control that opens a menu — Chat's effort.
+export const ChevronDownIcon = icon(<path d="M6 9l6 6 6-6" />)
 
 // Mobile top nav — hamburger and its close state.
 export const MenuIcon = icon(
@@ -333,6 +335,8 @@ export const CheckCircleIcon = icon(
     <path d="M8 12.5l2.5 2.5L16 9.5" />
   </>,
 )
+// The chosen item in a menu.
+export const CheckIcon = icon(<path d="M5 12.5l4.5 4.5L19 7.5" />)
 
 // A comment's own actions — edit, delete — behind three dots.
 export const MoreIcon = icon(
