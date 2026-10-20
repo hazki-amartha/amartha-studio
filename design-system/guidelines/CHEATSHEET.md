@@ -214,12 +214,12 @@ import { Illustration } from '@/design-system/assets'
 
 `generic` states: `error offline empty success waiting warning`. Use one when a
 screen needs an illustration and nobody has named the right one yet; the
-designer swaps it later. A `name` comes from **Copy code** on its Library card,
-so never guess one. Names say what the picture shows (`hourglass`,
-`phone-bell`), not the screen it's for. An unknown name shows a tinted
-placeholder. Write `name`
-and `generic` as plain strings, never computed, because swapping an
-illustration edits that string.
+designer swaps it later in **Edit → Illustration → Swap**, which can also make a
+new version when nothing fits. A `name` comes from Swap or from **Copy code** on
+its Library card, so never guess one. Names say what the picture shows
+(`hourglass`, `phone-bell`), not the screen it's for. An unknown name shows a
+tinted placeholder. Write `name` and `generic` as plain strings, never computed,
+because Swap edits that string.
 
 ---
 

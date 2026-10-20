@@ -404,6 +404,17 @@
 
 @keyframes ds-sheet-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 
+/* FunDS Illustration (design-system/assets/Illustration.tsx): a box of the
+   tier's shape with the library's image inside, so the layout holds while it
+   loads. Spot is a square of `size`; Hero and Splash fill the width. */
+.ds-illustration {
+  display: inline-flex; align-items: center; justify-content: center;
+  overflow: hidden; vertical-align: middle;
+}
+.ds-illustration-wide { display: flex; width: 100%; }
+.ds-illustration > img { width: 100%; height: 100%; object-fit: contain; }
+.ds-illustration-missing { border-radius: 16px; background: var(--primary-50); color: var(--primary-500); }
+
 /* FunDS Navigation Bar component styles */
 .ds-navbar {
   display: flex; align-items: stretch; justify-content: space-between;

@@ -70,10 +70,12 @@ export function Illustration({
       role={failed && alt ? 'img' : undefined}
       aria-label={failed && alt ? alt : undefined}
       {...props}
+      // ds- classes, like every FunDS component: Edit never offers a
+      // component's own styling as knobs (styles.css).
       className={[
-        tier === 'spot' ? 'inline-flex' : 'flex w-full',
-        'items-center justify-center overflow-hidden align-middle',
-        failed ? 'rounded-16 bg-primary-50 text-primary-500' : '',
+        'ds-illustration',
+        tier === 'spot' ? '' : 'ds-illustration-wide',
+        failed ? 'ds-illustration-missing' : '',
         className,
       ]
         .filter(Boolean)
@@ -90,7 +92,7 @@ export function Illustration({
         <ImageIcon size={24} />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element -- the library resizes it; next/image would only add a loader in front of a URL that is already the right size
-        <img src={src} alt={alt} decoding="async" className="size-full object-contain" onError={() => setFailedSrc(src)} />
+        <img src={src} alt={alt} decoding="async" onError={() => setFailedSrc(src)} />
       )}
     </span>
   )
