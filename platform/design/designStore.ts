@@ -575,14 +575,14 @@ export function stageTextEdit(ctx: StageContext, src: Src, old: string, next: st
 }
 
 /** Stage a component prop change on the node at `src`. `old` is the value
- *  currently rendered. */
+ *  currently rendered; null on either side adds or removes the prop. */
 export function stagePropEdit(
   ctx: StageContext,
   src: Src,
   component: string,
   prop: string,
-  old: string,
-  next: string,
+  old: string | null,
+  next: string | null,
 ) {
   if (state.pushed) return
   const key = `prop|${src}|${prop}`
@@ -596,12 +596,22 @@ export function stagePropEdit(
       ...ctx,
       edit: { kind: 'prop', src, prop, old: originalOld, next },
       component,
-      label: `${component} ${prop} ${originalOld} → ${next}`,
+      label: `${component} ${prop} ${originalOld ?? 'none'} → ${next ?? 'none'}`,
       seq: ++seq,
       patched: true,
     })
   }
   emit({})
+}
+
+/** The props staged for the node at `src` and not yet on screen, by name;
+ *  null where the prop is being removed. */
+export function stagedProps(src: Src): Map<string, string | null> {
+  const props = new Map<string, string | null>()
+  for (const entry of pending.values()) {
+    if (entry.edit.kind === 'prop' && entry.edit.src === src) props.set(entry.edit.prop, entry.edit.next)
+  }
+  return props
 }
 
 /**

@@ -41,6 +41,7 @@ await build({
       `export { tidyImports, restoreSemicolons } from './platform/design/tidy'`,
       `export { layoutOf, withLayout, SPACING } from './platform/design/layout'`,
       `export { spacingNames } from './platform/inspect/tokenMap'`,
+      `export { propsFor, swapEdits, readPick, pickerUrl } from './platform/design/illustration'`,
     ].join('\n'),
     resolveDir: root,
     loader: 'ts',
@@ -52,9 +53,19 @@ await build({
   packages: 'external',
   logLevel: 'silent',
 })
-const { applyEdits, versionOf, tidyImports, layoutOf, withLayout, SPACING, spacingNames } = await import(
-  pathToFileURL(outFile).href
-)
+const {
+  applyEdits,
+  versionOf,
+  tidyImports,
+  layoutOf,
+  withLayout,
+  SPACING,
+  spacingNames,
+  propsFor,
+  swapEdits,
+  readPick,
+  pickerUrl,
+} = await import(pathToFileURL(outFile).href)
 process.on('exit', () => {
   rm(outFile, { force: true }).catch(() => {})
 })
@@ -1948,4 +1959,63 @@ test('chat guard: writes stay in the project, and secrets stay unread', () => {
   assert.match(outside.reason, /only change files inside projects\/_db\/demo\/; platform\/types\.ts is outside it/)
   assert.equal(guarded('Read', { file_path: join(root, '.env.local') }).code, 2)
   assert.equal(guarded('Read', { file_path: join(root, 'CLAUDE.md') }).code, 0)
+})
+
+// ------------------------------------------------- Illustration swap (Edit)
+
+const SHEET = `'use client'
+
+import { BottomSheet } from '@/design-system/components'
+import { Illustration } from '@/design-system/assets'
+
+export function OfflineSheet() {
+  return <BottomSheet slot={<Illustration generic="offline" />} title="Internet terputus" />
+}
+`
+
+test('Illustration swap: a generic stand-in becomes a library illustration, written in place', () => {
+  const at = srcOf(stampSource(SHEET, 'f.tsx').code, 'Illustration')
+  const now = { name: null, generic: 'offline', tier: null }
+  const changes = swapEdits(now, propsFor({ name: 'phone-cloud-cross', tier: 'spot' }, now))
+  assert.deepEqual(changes, [
+    { prop: 'generic', old: 'offline', next: null },
+    { prop: 'name', old: null, next: 'phone-cloud-cross' },
+  ])
+  const result = applyEdits(SHEET, changes.map((c) => ({ kind: 'prop', src: at, ...c })))
+  assert.ok(result.ok, result.ok ? '' : result.refused.reason)
+  assert.match(result.source, /slot=\{<Illustration name="phone-cloud-cross" \/>\}/)
+})
+
+test('Illustration swap: a tier is written only when it isn’t Spot, or already was', () => {
+  const spot = { name: 'hourglass', generic: null, tier: null }
+  assert.deepEqual(swapEdits(spot, propsFor({ name: 'market-stall', tier: 'hero' }, spot)), [
+    { prop: 'name', old: 'hourglass', next: 'market-stall' },
+    { prop: 'tier', old: null, next: 'hero' },
+  ])
+  const hero = { name: 'market-stall', generic: null, tier: 'hero' }
+  assert.deepEqual(swapEdits(hero, propsFor({ generic: 'empty', tier: 'spot' }, hero)), [
+    { prop: 'generic', old: null, next: 'empty' },
+    { prop: 'name', old: 'market-stall', next: null },
+    { prop: 'tier', old: 'hero', next: null },
+  ])
+  const spelledOut = { name: 'hourglass', generic: null, tier: 'spot' }
+  assert.deepEqual(swapEdits(spelledOut, propsFor({ name: 'magnifier', tier: 'spot' }, spelledOut)), [
+    { prop: 'name', old: 'hourglass', next: 'magnifier' },
+  ])
+  assert.deepEqual(swapEdits(spot, propsFor({ name: 'hourglass', tier: 'spot' }, spot)), [])
+})
+
+test('Illustration swap: only a well-formed pick from the library counts', () => {
+  const pick = { source: 'amartha-illustration', type: 'pick' }
+  assert.deepEqual(readPick({ ...pick, name: 'hourglass', tier: 'spot' }), { ...pick, name: 'hourglass', tier: 'spot' })
+  assert.deepEqual(readPick({ ...pick, generic: 'error', tier: 'spot' }), { ...pick, generic: 'error', tier: 'spot' })
+  assert.deepEqual(readPick({ source: 'amartha-illustration', type: 'close' }), { source: 'amartha-illustration', type: 'close' })
+  assert.equal(readPick({ ...pick, name: 'Hourglass"/><script>', tier: 'spot' }), null)
+  assert.equal(readPick({ ...pick, name: 'hourglass', tier: 'banner' }), null)
+  assert.equal(readPick({ ...pick, generic: 'error', tier: 'hero' }), null)
+  assert.equal(readPick({ ...pick, generic: 'sleepy', tier: 'spot' }), null)
+  assert.equal(readPick({ source: 'another-frame', type: 'pick', name: 'hourglass', tier: 'spot' }), null)
+  assert.equal(readPick('pick'), null)
+  assert.equal(pickerUrl({ name: null, generic: 'error', tier: null }), '/assets-app/pick?tier=spot&generic=error')
+  assert.equal(pickerUrl({ name: 'market-stall', generic: null, tier: 'hero' }), '/assets-app/pick?tier=hero&name=market-stall')
 })

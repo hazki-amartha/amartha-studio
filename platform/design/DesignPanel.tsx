@@ -83,6 +83,8 @@ import {
 } from './applyDom'
 import { COMPONENT_PROPS } from './componentProps'
 import { Section } from './DesignSections'
+import type { PropChange } from './illustration'
+import { IllustrationSection } from './IllustrationSection'
 import {
   applyPending,
   canSave,
@@ -420,6 +422,23 @@ export function DesignPanel({
     [slug, screenId],
   )
 
+  // An Illustration swap adds, changes and removes props in one go. Nothing to
+  // preview: the image only changes once the file does.
+  const swapIllustration = useCallback(
+    (changes: PropChange[]) => {
+      const el = pinnedRef.current
+      if (!el) return
+      const src = srcOf(el)
+      if (!src) return
+      for (const c of changes) {
+        stagePropEdit(stageContext(el, slug, screenId), src, 'Illustration', c.prop, c.old, c.next)
+      }
+      repinRef.current = src
+      bump()
+    },
+    [slug, screenId],
+  )
+
   // --- unstaging (pre-apply undo) --------------------------------------------
 
   const revertEdit = useCallback((unstaged: { edit: Edit; component?: string }) => {
@@ -665,6 +684,10 @@ export function DesignPanel({
             })}
           </div>
         </Section>
+      ) : null}
+
+      {target.component === 'Illustration' ? (
+        <IllustrationSection el={target.el} onSwap={swapIllustration} />
       ) : null}
 
       {layoutRows.length > 0 ? (

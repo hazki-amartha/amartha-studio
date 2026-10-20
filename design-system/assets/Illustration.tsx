@@ -6,11 +6,11 @@
 // Prototypes never carry illustration files. They name one, and the library
 // serves it, resized, from /assets-app/i/ (public, so share links show it).
 //
-//   <Illustration name="koneksi-terputus" />        a library illustration;
-//                                                   Copy code on its card
-//   <Illustration name="panen-raya" tier="hero" />  Hero and Splash say so
-//   <Illustration generic="error" />                stands in until the right
-//                                                   one exists
+//   <Illustration name="hourglass" />       a library illustration;
+//                                           Copy code on its card
+//   <Illustration name="…" tier="hero" />   Hero and Splash say so
+//   <Illustration generic="error" />        stands in until the right
+//                                           one exists
 //
 // A name is fixed: the library never points it at another image, so a
 // prototype never changes under its designer. A generic state is the one
@@ -50,13 +50,14 @@ const ASPECT: Record<Exclude<IllustrationTier, 'spot'>, string> = { hero: '16 / 
 export function Illustration({
   name,
   generic,
-  tier = 'spot',
+  tier: writtenTier,
   size = 160,
   alt = '',
   className,
   style,
   ...props
 }: IllustrationProps) {
+  const tier = writtenTier ?? 'spot'
   const width = tier === 'spot' ? size * 2 : FULL_WIDTH
   const src = generic ? `${BASE}/generic/${generic}.webp?w=${width}` : `${BASE}/${name}.webp?w=${width}`
   // Kept per URL, so a swapped-in name gets its own try.
@@ -69,25 +70,29 @@ export function Illustration({
       role={failed && alt ? 'img' : undefined}
       aria-label={failed && alt ? alt : undefined}
       {...props}
+      // ds- classes, like every FunDS component: Edit never offers a
+      // component's own styling as knobs (styles.css).
       className={[
-        tier === 'spot' ? 'inline-flex' : 'flex w-full',
-        'items-center justify-center overflow-hidden align-middle',
-        failed ? 'rounded-16 bg-primary-50 text-primary-500' : '',
+        'ds-illustration',
+        tier === 'spot' ? '' : 'ds-illustration-wide',
+        failed ? 'ds-illustration-missing' : '',
         className,
       ]
         .filter(Boolean)
         .join(' ')}
       style={{ ...box, ...style }}
+      // The props as the source writes them, an absent tier included: Edit's
+      // Swap rewrites them, and must know which are there to change.
       data-fds="Illustration"
       data-fds-name={name}
       data-fds-generic={generic}
-      data-fds-tier={tier}
+      data-fds-tier={writtenTier}
     >
       {failed ? (
         <ImageIcon size={24} />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element -- the library resizes it; next/image would only add a loader in front of a URL that is already the right size
-        <img src={src} alt={alt} decoding="async" className="size-full object-contain" onError={() => setFailedSrc(src)} />
+        <img src={src} alt={alt} decoding="async" onError={() => setFailedSrc(src)} />
       )}
     </span>
   )
