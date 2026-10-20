@@ -19,7 +19,7 @@
 //   instance model a designer already knows from Figma.
 // =============================================================================
 
-import { COMPONENT_BASE, COMPONENT_PROPS } from './componentProps'
+import { artworkSrc, COMPONENT_BASE, COMPONENT_PROPS } from './componentProps'
 import { withLayout, type Layout } from './layout'
 import { isHidden, visibleBySrc } from './overlay'
 import { isStructural, type Edit, type Src } from './protocol'
@@ -65,8 +65,11 @@ export function findBySrc(src: Src): Element | null {
  * to be the pinned one: Input and Toggle stamp `data-fds` on their outermost
  * wrapper when they render a labelled field, leaving the size class inside.
  *
+ * A brand asset's `name` picks the file its <img> shows, so that preview points
+ * the image at the new file instead (`artworkSrc`).
+ *
  * Returns whether a visual change was made — false for props whose effect
- * isn't a class (a swapped icon, an input's `type`), which the panel reports
+ * isn't a class or artwork (an input's `type`), which the panel reports
  * rather than leaving the designer waiting for a repaint that never comes.
  */
 export function applyPropPreview(
@@ -82,6 +85,13 @@ export function applyPropPreview(
   // The attribute is the panel's own source of truth for "what is it now", so
   // it moves whether or not anything repaints.
   el.setAttribute(`data-fds-${meta.attr}`, to)
+  if (meta.artwork) {
+    const src = el.getAttribute('src')
+    const next = src && artworkSrc(src, from, to)
+    if (!next || next === src) return false
+    el.setAttribute('src', next)
+    return true
+  }
   if (!meta.classes) return false
 
   const base = COMPONENT_BASE[component]
