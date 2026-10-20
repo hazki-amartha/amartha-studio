@@ -192,6 +192,11 @@ to "delete" a project. Moving a git project into the database is the owner's
 (names in the cheatsheet) — never hand-roll an icon or add a project-local
 `icons.tsx`. A glyph the set truly lacks is a project-local one-off, below.
 
+**Illustrations are never missing either.** Use `<Illustration>` from
+`@/design-system/assets`: the library name the designer gives you, or a
+`generic` state until the right one exists (cheatsheet). Never add an image
+file, a data URI or a tinted stand-in panel for artwork.
+
 When `@/design-system/components` lacks something a screen needs:
 
 1. Build it **project-local** in `projects/<slug>/lib/`, from tokens and
