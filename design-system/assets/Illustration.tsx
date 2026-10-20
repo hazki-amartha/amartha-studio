@@ -6,11 +6,11 @@
 // Prototypes never carry illustration files. They name one, and the library
 // serves it, resized, from /assets-app/i/ (public, so share links show it).
 //
-//   <Illustration name="koneksi-terputus" />        a library illustration;
-//                                                   Copy code on its card
-//   <Illustration name="panen-raya" tier="hero" />  Hero and Splash say so
-//   <Illustration generic="error" />                stands in until the right
-//                                                   one exists
+//   <Illustration name="hourglass" />       a library illustration;
+//                                           Copy code on its card
+//   <Illustration name="…" tier="hero" />   Hero and Splash say so
+//   <Illustration generic="error" />        stands in until the right
+//                                           one exists
 //
 // A name is fixed: the library never points it at another image, so a
 // prototype never changes under its designer. A generic state is the one
