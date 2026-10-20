@@ -2019,3 +2019,60 @@ test('Illustration swap: only a well-formed pick from the library counts', () =>
   assert.equal(pickerUrl({ name: null, generic: 'error', tier: null }), '/assets-app/pick?tier=spot&generic=error')
   assert.equal(pickerUrl({ name: 'market-stall', generic: null, tier: 'hero' }), '/assets-app/pick?tier=hero&name=market-stall')
 })
+
+// ------------------------------------------------- laptop tokens at the edge
+//
+// Middleware lets a request without a session through to the API only with a
+// real laptop token (platform/auth/laptopEdge.ts). Checked against tokens made
+// the way the deployed studio makes them (platform/auth/laptop.ts).
+
+const laptopTokens = await (async () => {
+  const file = join(root, 'scripts', '.test-design-laptop.mjs')
+  await build({
+    absWorkingDir: root,
+    alias: { 'next/server': 'next/server.js', 'next/headers': 'next/headers.js' },
+    stdin: {
+      contents: [
+        `export { createLaptopToken } from './platform/auth/laptop'`,
+        `export { isLaptopToken } from './platform/auth/laptopEdge'`,
+      ].join('\n'),
+      resolveDir: root,
+      loader: 'ts',
+    },
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    outfile: file,
+    packages: 'external',
+    logLevel: 'silent',
+  })
+  const mod = await import(pathToFileURL(file).href)
+  process.on('exit', () => rm(file, { force: true }).catch(() => {}))
+  return mod
+})()
+
+test('laptop token: only a real, unexpired Amartha token gets past middleware', async () => {
+  const before = process.env.STUDIO_LAPTOP_SECRET
+  process.env.STUDIO_LAPTOP_SECRET = 'test-secret'
+  try {
+    const { createLaptopToken, isLaptopToken } = laptopTokens
+    const token = createLaptopToken('uid-1', 'Designer@Amartha.com')
+    assert.equal(await isLaptopToken(token), true)
+    const [payload, signature] = token.split('.')
+    // Made up, edited, re-signed with another key, or expired: refused.
+    assert.equal(await isLaptopToken('anything'), false)
+    assert.equal(await isLaptopToken(`${payload}.${signature.slice(0, -2)}xx`), false)
+    const forged = Buffer.from(JSON.stringify({ uid: 'uid-1', email: 'boss@amartha.com', exp: Date.now() + 1e9 })).toString('base64url')
+    assert.equal(await isLaptopToken(`${forged}.${signature}`), false)
+    assert.equal(await isLaptopToken(token, Date.now() + 91 * 86_400_000), false)
+    assert.equal(await isLaptopToken(`${token}.extra`), false)
+    process.env.STUDIO_LAPTOP_SECRET = 'another-secret'
+    assert.equal(await isLaptopToken(token), false)
+    // No secret on this deployment: nothing passes.
+    delete process.env.STUDIO_LAPTOP_SECRET
+    assert.equal(await isLaptopToken(token), false)
+  } finally {
+    if (before === undefined) delete process.env.STUDIO_LAPTOP_SECRET
+    else process.env.STUDIO_LAPTOP_SECRET = before
+  }
+})

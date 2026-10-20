@@ -1,8 +1,8 @@
 // GET /api/names — every name a project may be owned under
 // (platform/auth/profiles.ts). Asked by laptops, whose save checks hold a
 // database project's owner to it but who can't read the database themselves.
-// Members only when the studio is: middleware lets any Bearer header through
-// to the route, so the token is checked here.
+// Members only when the studio is: middleware lets a laptop's signed token
+// through to the route, and the role behind it is checked here.
 
 import { NextResponse } from 'next/server'
 import { isSignInRequired } from '@/platform/auth/env'
