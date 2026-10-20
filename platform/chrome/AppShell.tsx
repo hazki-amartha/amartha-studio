@@ -302,11 +302,11 @@ function AppShellInner({
           ) : (
             <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{children}</div>
           )}
-          {/* The prototype draws its own, beside full screen; the flow view's
-              canvas is the whole area, so it goes in the corner here — the
-              same place, so going across and back is the same click. */}
+          {/* The prototype draws its own, bottom left of its canvas; the flow
+              view's canvas is the whole area, so it goes in that corner here —
+              the same place, so going across and back is the same click. */}
           {currentSlug && isFlow ? (
-            <ViewSwitch slug={currentSlug} isFlow className="absolute bottom-16 right-16 z-30 hidden md:flex" />
+            <ViewSwitch slug={currentSlug} isFlow className="absolute bottom-16 left-16 z-30 hidden md:flex" />
           ) : null}
         </div>
       </div>

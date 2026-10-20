@@ -5,7 +5,7 @@
 // Two pieces, one state:
 //
 //   ProjectSwitcher  the sidebar's project name — "<Project>" or "<Project> ·
-//                  Branch: <name>" — and the branch button beside Share,
+//                  Branch: <name>" — and the branch button after it,
 //                  opening a list of the project and its branches, and
 //                  "Start a branch". Each branch row the viewer
 //                  may act on carries Push (its changes go live on the
@@ -122,7 +122,7 @@ const MENU =
 /** The sidebar's project name, and on a database project the branch button
  *  after it, which opens the project and its branches and starts a new one. A
  *  git project has no branches: just the name. The name takes the room left,
- *  so the button stays put beside Share however long the name is. */
+ *  so the button stays put at the row's end however long the name is. */
 export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) {
   const db = isActiveDbProject(slug)
   const { data, refresh } = useDrafts(slug, db)

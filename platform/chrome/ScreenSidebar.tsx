@@ -9,8 +9,8 @@
 //     the live screen and clicking jumps the device there, no page reload.
 //   • Flow route (no runtime mounted): rows deep-link to /p/<slug>?screen=<id>.
 // One header row: back to the gallery, the project name, then the branch
-// button (the project and its branches) and Share — those two at the right
-// end, where they stay however long the name is.
+// button (the project and its branches) at the right end, where it stays
+// however long the name is. Share moved to the top bar, beside Comment.
 // Layers and Notes sit beside Screens as tabs while a prototype runs — the
 // prototype portals them into the slots this renders (see shellSlots.ts).
 // =============================================================================
@@ -21,7 +21,6 @@ import Link from 'next/link'
 import { Fragment, useCallback, useState, useSyncExternalStore } from 'react'
 import { getScreenBridge, screenBridgeJump, subscribeScreenBridge } from '@/platform/runtime/bridge'
 import { ProjectSwitcher } from '@/platform/dbProjects/DraftControls'
-import { ShareButton } from '@/platform/share/ShareButton'
 import { ChevronLeftIcon } from './icons'
 import {
   getShellSlots,
@@ -82,7 +81,6 @@ export function ScreenSidebar({
         ) : (
           <ProjectSwitcher slug={project.slug} name={project.name} />
         )}
-        {guest ? null : <ShareButton slug={project.slug} icon />}
       </div>
       {running ? <PanelTabs tabs={TABS} active={tab} onChange={setSidebarTab} /> : null}
 
