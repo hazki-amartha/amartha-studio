@@ -27,7 +27,7 @@ import { Button } from '@/design-system/components'
 | `size` | `'sm' \| 'md' \| 'fullscreen'` | `'sm'` | Sheet height/width |
 | `title` | `string` | — | Sheet heading |
 | `description` | `string` | — | Body copy |
-| `slot` | `ReactNode` | — | Swappable visual block (image, chart, selection list) |
+| `slot` | `ReactNode` | — | Swappable visual block (an `Illustration`, chart, selection list) |
 | `slotPosition` | `'above' \| 'below'` | `'above'` | Slot placement relative to text |
 | `primaryAction` | `ReactNode` | — | Full-width primary CTA |
 | `secondaryAction` | `ReactNode` | — | Full-width secondary action |
@@ -73,7 +73,7 @@ import { Button } from '@/design-system/components'
 <BottomSheet
   open={open}
   onClose={close}
-  slot={<IllustrationSuccess />}
+  slot={<Illustration generic="success" />}  // @/design-system/assets
   slotPosition="above"
   title="OTP Terkirim"
   description="Kode 6 digit telah dikirim ke +62 812 xxx xxxx"

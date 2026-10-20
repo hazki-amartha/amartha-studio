@@ -7,7 +7,7 @@
 // token and they must not be recoloured, so giving them the icon API would be a
 // lie.
 //
-// Four families, and the difference between the first two matters when you are
+// Five families, and the difference between the first two matters when you are
 // picking one:
 //
 //   ProductLogo  56x56 square — the MARK alone, no words. For tiles and rows
@@ -19,12 +19,16 @@
 //                two-tone when active and a flat neutral-500 silhouette when
 //                not. That state is baked into the file, so it takes `active`
 //                rather than a colour.
+//   Illustration the illustration library's artwork, by name — empty states,
+//                sheets, banners, splash screens (./Illustration.tsx). Served by
+//                the Assets app, never a file in this repo.
 //
-//   import { NavIcon, ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
+//   import { Illustration, NavIcon, ProductLogo, ServiceIcon, Wordmark } from '@/design-system/assets'
 //   <ProductLogo name="poket" />
 //   <Wordmark name="poket" height={20} />
 //   <ServiceIcon name="pln" size={40} />
 //   <NavIcon name="home" active />
+//   <Illustration generic="error" />
 //
 // They render as <img> against files in public/funds/ rather than inlined JSX.
 // The artwork uses gradient defs with fixed ids, and inlining the same asset
@@ -32,6 +36,8 @@
 // own document and keeps the source tree from carrying 36 hand-pasted SVGs.
 
 import type { ImgHTMLAttributes } from 'react'
+
+export * from './Illustration'
 
 export const PRODUCT_LOGOS = [
   'amartha-link',
