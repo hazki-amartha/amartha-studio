@@ -50,13 +50,14 @@ const ASPECT: Record<Exclude<IllustrationTier, 'spot'>, string> = { hero: '16 / 
 export function Illustration({
   name,
   generic,
-  tier = 'spot',
+  tier: writtenTier,
   size = 160,
   alt = '',
   className,
   style,
   ...props
 }: IllustrationProps) {
+  const tier = writtenTier ?? 'spot'
   const width = tier === 'spot' ? size * 2 : FULL_WIDTH
   const src = generic ? `${BASE}/generic/${generic}.webp?w=${width}` : `${BASE}/${name}.webp?w=${width}`
   // Kept per URL, so a swapped-in name gets its own try.
@@ -78,10 +79,12 @@ export function Illustration({
         .filter(Boolean)
         .join(' ')}
       style={{ ...box, ...style }}
+      // The props as the source writes them, an absent tier included: Edit's
+      // Swap rewrites them, and must know which are there to change.
       data-fds="Illustration"
       data-fds-name={name}
       data-fds-generic={generic}
-      data-fds-tier={tier}
+      data-fds-tier={writtenTier}
     >
       {failed ? (
         <ImageIcon size={24} />
