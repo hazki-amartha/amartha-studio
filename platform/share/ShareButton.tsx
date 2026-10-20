@@ -13,8 +13,9 @@ import { EXPIRY_CHOICES, type ShareAccess, type ShareLink, type ShareResponse } 
 
 const PILL =
   'flex h-40 flex-none items-center gap-8 rounded-full border border-default bg-neutral-white px-16 text-14 font-bold text-default shadow-sm hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:shadow-none dark:hover:bg-ink-800'
+// The top bar's own button (chrome/TopBar's ToolButton), as just its icon.
 const ICON =
-  'flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-500 dark:hover:bg-ink-800 dark:hover:text-neutral-50'
+  'flex size-32 flex-none items-center justify-center rounded-8 border border-default bg-neutral-white text-default hover:bg-neutral-50 dark:border-ink-800 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800'
 const BLOCK =
   'flex w-full items-center justify-center gap-8 rounded-full border border-default px-20 py-12 text-14 font-bold text-default'
 const SMALL =
@@ -46,8 +47,8 @@ async function call(init?: { slug: string; body: object }, slug?: string): Promi
   }
 }
 
-/** `icon`: a bare icon button for the project sidebar's header, its panel
- *  opening below it over the page.
+/** `icon`: an icon button for the top bar, beside Comment, its panel opening
+ *  below it over the page.
  *  `block`: a full-width button whose panel opens in place below it — for the
  *  phone's prototype-controls dialog, where a floating panel has no room. */
 export function ShareButton({ slug, icon, block }: { slug: string; icon?: boolean; block?: boolean }) {
@@ -79,7 +80,7 @@ export function ShareButton({ slug, icon, block }: { slug: string; icon?: boolea
         >
           <ShareIcon className="size-16" />
         </button>
-        {open ? <SharePanel slug={slug} below /> : null}
+        {open ? <SharePanel slug={slug} /> : null}
       </div>
     )
   }
@@ -100,9 +101,9 @@ export function ShareButton({ slug, icon, block }: { slug: string; icon?: boolea
   )
 }
 
-/** `below`: under a button near the sidebar's right edge, so it runs right
- *  from the button over the page, rather than left off the screen. */
-function SharePanel({ slug, inline, below }: { slug: string; inline?: boolean; below?: boolean }) {
+/** Floating, it hangs from the button's right edge: the button sits at the top
+ *  bar's end, so the panel runs left over the page instead of off the screen. */
+function SharePanel({ slug, inline }: { slug: string; inline?: boolean }) {
   const [links, setLinks] = useState<ShareLink[] | null>(null)
   const [access, setAccess] = useState<ShareAccess>('comment')
   const [days, setDays] = useState<number | null>(EXPIRY_CHOICES[0])
@@ -143,7 +144,7 @@ function SharePanel({ slug, inline, below }: { slug: string; inline?: boolean; b
   return (
     <div
       className={`flex flex-col gap-12 rounded-16 border border-default bg-neutral-white p-12 dark:border-ink-700 dark:bg-ink-900 ${
-        inline ? 'w-full' : `absolute top-full z-50 mt-8 w-320 shadow-sm ${below ? 'left-0' : 'right-0'}`
+        inline ? 'w-full' : 'absolute right-0 top-full z-50 mt-8 w-320 shadow-sm'
       }`}
     >
       <div className="flex flex-col gap-4">

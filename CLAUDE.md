@@ -178,7 +178,7 @@ means it's already saved, "push it" means it's already live. A **branch** is the
 one exception — `/push` merges it into its project.
 
 **Branches** are the studio's own word, so say it freely — never a git branch. A
-designer starts one from the branch button atop the sidebar, beside Share: a
+designer starts one from the branch button atop the sidebar: a
 database project at `/p/<slug>-branch-<name>` (older ones say `-draft-`) with a
 `draft.json` you never edit, kept off the project's link until it's pushed.
 
