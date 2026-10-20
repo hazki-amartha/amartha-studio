@@ -1834,6 +1834,7 @@ const turnNotes = await (async () => {
         `export { turnNote, locateScreen, screenImport } from './platform/chat/server/turnNote'`,
         `export { withContract } from './platform/chat/server/contract'`,
         `export { readPrototype } from './platform/chat/server/otherPrototype'`,
+        `export { parseDraftMeta, canSeeDraft, canActOnDraft, visibleTo } from './platform/dbProjects/draftMeta'`,
       ].join('\n'),
       resolveDir: root,
       loader: 'ts',
@@ -1866,8 +1867,10 @@ const chatTree = await (async () => {
     'projects/base/screens/profile.tsx': '',
     'projects/_db/memo/MEMORY.md': '# Memory\n- 2026-10-20 — Copy stays in Bahasa.\n',
     'projects/_db/long/MEMORY.md': `- ${'a'.repeat(7000)}\n`,
-    'projects/_db/demo-branch-ana/draft.json': '{}\n',
+    'projects/_db/demo-branch-ana/draft.json': '{"visibility":"private"}\n',
     'projects/_db/demo-branch-ana/screens/home.tsx': '',
+    'projects/_db/demo-branch-bo/draft.json': '{"visibility":"team"}\n',
+    'projects/_db/demo-branch-bo/screens/home.tsx': '',
     'CLAUDE.md': '# The contract\n',
     'design-system/guidelines/STUDIO-MEMORY.md': '# Studio memory\n- Copy a sticky bar from apartner-sot.\n',
   }
@@ -1949,10 +1952,11 @@ test('chat contract: the studio memory follows CLAUDE.md in the system prompt', 
   await rm(bare, { recursive: true, force: true })
 })
 
-test('chat prototype: another one is found by name, memory first, and never a branch', async () => {
+test('chat prototype: another one is found by name, memory first, and never a private branch', async () => {
   const configs = [
     { slug: 'checker-maker', name: 'Checker Maker', owner: 'Chandra' },
-    { slug: 'checker-maker-branch-ana', name: 'Checker Maker', owner: 'Ananda', draft: { parent: 'checker-maker' } },
+    { slug: 'checker-maker-branch-ana', name: 'Checker Maker · Ana', owner: 'Chandra', draft: { draftOf: 'checker-maker', createdBy: 'Ananda', visibility: 'private' } },
+    { slug: 'checker-maker-branch-bo', name: 'Checker Maker · Bo tweak', owner: 'Chandra', draft: { draftOf: 'checker-maker', createdBy: 'Bo', visibility: 'team' } },
     { slug: 'old-thing', name: 'Old Thing', owner: 'Patricia', deleted: { deletedAt: '2026-10-01' } },
     { slug: 'ngmis-bm-bp-progress', name: 'NGMIS BM — BP Progress Board', owner: 'Hazki' },
     { slug: 'ngmis-cash-outstanding', name: 'NGMIS Cash Outstanding & Settlement', owner: 'Chandra' },
@@ -1965,6 +1969,7 @@ test('chat prototype: another one is found by name, memory first, and never a br
       ['screens/home.tsx', { content: 'export function Home() {}' }],
     ]),
     'ngmis-bm-bp-progress': new Map([['index.ts', { content: '' }]]),
+    'checker-maker-branch-bo': new Map([['draft.json', { content: '{}' }], ['index.ts', { content: '' }]]),
   }
   const source = { configs: async () => configs, files: async (slug) => files[slug] ?? new Map() }
   const read = (project, extra = {}) =>
@@ -1977,8 +1982,11 @@ test('chat prototype: another one is found by name, memory first, and never a br
   assert.match(await read('checker-maker', { file: './screens/home.tsx' }), /^Checker Maker · screens\/home\.tsx \(read-only\):\n\nexport function Home\(\) \{\}$/)
   assert.match(await read('checker-maker', { file: 'nope.tsx' }), /has no file nope\.tsx\. Its files: MEMORY\.md, index\.ts, screens\/home\.tsx\./)
   assert.match(await read('BP Progress'), /It has no memory yet\./)
-  // A branch that hasn't been pushed, or a deleted project, is never found.
+  // A private branch, or a deleted project, is never found; a shared branch is,
+  // and says whose — but on a tie the project itself wins.
   assert.match(await read('checker-maker-branch-ana'), /^No prototype in the studio database is called/)
+  assert.match(await read('Checker Maker · Bo tweak'), /^Checker Maker · Bo tweak \(`checker-maker-branch-bo`\), a branch Bo shared with the team — read-only\.[\s\S]*Its files: index\.ts$/)
+  assert.match(await read('checker'), /^Checker Maker \(`checker-maker`\), by Chandra/)
   assert.match(await read('Old Thing'), /^No prototype in the studio database is called/)
   // A vague name asks back; the chat's own prototype is already in its workspace.
   assert.match(await read('ngmis'), /^More than one prototype matches “ngmis”: NGMIS BM — BP Progress Board \(`ngmis-bm-bp-progress`\), NGMIS Cash/)
@@ -2044,17 +2052,53 @@ test('chat guard: writes stay in the project, and secrets stay unread', () => {
   assert.equal(guarded('Read', { file_path: join(root, 'CLAUDE.md') }).code, 0)
 })
 
-test('chat guard: a branch that hasn’t been pushed stays closed, unless it’s the chat’s own', () => {
+test('chat guard: a private branch stays closed, unless it’s the chat’s own; a shared one opens', () => {
   const tree = { at: chatTree }
   const file = join(chatTree, 'projects/_db/demo-branch-ana/screens/home.tsx')
   const closed = guarded('Read', { file_path: file }, tree)
   assert.equal(closed.code, 2)
-  assert.match(closed.reason, /a branch that hasn’t been pushed yet/)
+  assert.match(closed.reason, /a private branch: only its designer works on it/)
   assert.equal(guarded('Glob', { pattern: 'projects/_db/demo-branch-ana/**/*.tsx', path: chatTree }, tree).code, 2)
   assert.equal(guarded('Grep', { pattern: 'Home', path: join(chatTree, 'projects/_db/demo-branch-ana') }, tree).code, 2)
-  // The branch the chat is on, and every published prototype, open as usual.
+  // The branch the chat is on, a branch shared with the team, and every
+  // other prototype open as usual.
   assert.equal(guarded('Read', { file_path: file }, { ...tree, dir: 'projects/_db/demo-branch-ana' }).code, 0)
+  assert.equal(guarded('Read', { file_path: join(chatTree, 'projects/_db/demo-branch-bo/screens/home.tsx') }, tree).code, 0)
   assert.equal(guarded('Read', { file_path: join(chatTree, 'projects/_db/memo/MEMORY.md') }, tree).code, 0)
+})
+
+test('branches: private to its designer and admins until shared; only they act on it', () => {
+  const { parseDraftMeta, canSeeDraft, canActOnDraft, visibleTo } = turnNotes
+  const ana = { email: 'ana@amartha.com', displayName: 'Ana', label: 'Ana', role: 'editor' }
+  const bo = { email: 'bo@amartha.com', displayName: 'Bo', label: 'Bo', role: 'editor' }
+  const admin = { email: 'boss@amartha.com', displayName: 'Boss', label: 'Boss', role: 'admin' }
+  const base = { draftOf: 'p', name: 'try', createdBy: 'Ana', createdAt: '2026-10-20', baseVersion: 1 }
+
+  // Older branches: shared, known by name only.
+  const old = parseDraftMeta(JSON.stringify(base))
+  assert.equal(old.visibility, 'team')
+  assert.equal(old.createdByEmail, null)
+  assert.equal(canSeeDraft(old, null), true)
+  assert.equal(canActOnDraft(old, ana), true)
+  assert.equal(canActOnDraft(old, bo), false)
+
+  const mine = parseDraftMeta(JSON.stringify({ ...base, createdByEmail: 'Ana@Amartha.com', visibility: 'private' }))
+  assert.equal(mine.createdByEmail, 'ana@amartha.com')
+  for (const [who, sees] of [[ana, true], [admin, true], [bo, false], [null, false]]) {
+    assert.equal(canSeeDraft(mine, who), sees, who?.email ?? 'nobody')
+  }
+  // A renamed designer still owns it: the account decides, not the name.
+  assert.equal(canSeeDraft(mine, { ...ana, displayName: 'Ana P.', label: 'Ana P.' }), true)
+  assert.equal(canSeeDraft(mine, { ...bo, displayName: 'Ana', label: 'Ana' }), false)
+
+  const shared = { ...mine, visibility: 'team' }
+  assert.equal(canSeeDraft(shared, bo), true)
+  assert.equal(canActOnDraft(shared, bo), false)
+  assert.equal(canActOnDraft(shared, admin), true)
+
+  const list = [{ slug: 'p' }, { slug: 'p-branch-try', draft: mine }, { slug: 'p-branch-team', draft: shared }]
+  assert.deepEqual(visibleTo(list, bo).map((c) => c.slug), ['p', 'p-branch-team'])
+  assert.deepEqual(visibleTo(list, ana).map((c) => c.slug), ['p', 'p-branch-try', 'p-branch-team'])
 })
 
 // ------------------------------------------------- Illustration swap (Edit)

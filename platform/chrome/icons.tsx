@@ -278,6 +278,21 @@ export const TrashIcon = icon(
 // Stop — a square: stops the chat turn that is running.
 export const StopIcon = icon(<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" />)
 
+// A branch's privacy: locked while only its designer sees it, open once it's
+// shared with the team.
+export const LockIcon = icon(
+  <>
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V7.5a4 4 0 0 1 8 0V11" />
+  </>,
+)
+export const LockOpenIcon = icon(
+  <>
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V7.5a4 4 0 0 1 7.8-1.3" />
+  </>,
+)
+
 // --- Panel tabs --------------------------------------------------------------
 
 // CSS — angle brackets: read the element's computed styles.

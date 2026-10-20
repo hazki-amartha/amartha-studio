@@ -5,11 +5,13 @@
 // reads the other one from the database: its memory first, then any one of its
 // files on request.
 //
-// Published prototypes only: a branch that hasn't been pushed, or a deleted
-// project, is never found. On a laptop Chat reads the files themselves, and
-// scripts/chat-guard.mjs keeps it out of unpushed branches the same way.
+// A branch its designer shared with the team reads like any prototype; a
+// private branch, or a deleted project, is never found. On a laptop Chat reads
+// the files themselves, and scripts/chat-guard.mjs keeps it out of private
+// branches the same way.
 // =============================================================================
 
+import { DRAFT_FILE } from '@/platform/dbProjects/draftMeta'
 import type { DbProjectConfig } from '@/platform/dbProjects/server'
 import { MEMORY_FILE } from './memory'
 
@@ -33,31 +35,34 @@ export async function readPrototype(
   current: string,
 ): Promise<string> {
   const key = norm(ask.project)
-  const published = (await source.configs()).filter((c) => !c.draft && !c.deleted)
-  const exact = published.filter((c) => norm(c.slug) === key || norm(c.name) === key)
-  const matches = exact.length ? exact : published.filter((c) => key && (norm(c.slug).includes(key) || norm(c.name).includes(key)))
+  const open = (await source.configs()).filter((c) => !c.deleted && c.draft?.visibility !== 'private')
+  const exact = open.filter((c) => norm(c.slug) === key || norm(c.name) === key)
+  const found = exact.length ? exact : open.filter((c) => key && (norm(c.slug).includes(key) || norm(c.name).includes(key)))
+  // A project and its branches share most of a name: the project wins a tie.
+  const matches = found.length > 1 && found.some((c) => !c.draft) ? found.filter((c) => !c.draft) : found
   if (!key || !matches.length) {
-    return `No prototype in the studio database is called “${ask.project}”. Ask the designer which one they mean — git-only prototypes and branches that haven’t been pushed can’t be opened here.`
+    return `No prototype in the studio database is called “${ask.project}”. Ask the designer which one they mean — git-only prototypes and private branches can’t be opened here.`
   }
   if (matches.length > 1) {
     return `More than one prototype matches “${ask.project}”: ${matches.map((c) => `${c.name} (\`${c.slug}\`)`).join(', ')}. Ask the designer which one.`
   }
-  const found = matches[0]
-  if (found.slug === current) return `“${found.name}” is the prototype you are working on — its files are in your workspace.`
+  const pick = matches[0]
+  if (pick.slug === current) return `“${pick.name}” is the prototype you are working on — its files are in your workspace.`
 
-  const files = await source.files(found.slug)
+  const files = await source.files(pick.slug)
   if (ask.file) {
     const path = ask.file.replace(/^\.?\//, '')
     const file = files.get(path)
-    if (!file) return `“${found.name}” has no file ${path}. Its files: ${[...files.keys()].sort().join(', ')}.`
-    return `${found.name} · ${path} (read-only):\n\n${capped(file.content, MAX_FILE)}`
+    if (!file) return `“${pick.name}” has no file ${path}. Its files: ${[...files.keys()].sort().join(', ')}.`
+    return `${pick.name} · ${path} (read-only):\n\n${capped(file.content, MAX_FILE)}`
   }
   const memory = files.get(MEMORY_FILE)?.content.trim()
+  const whose = pick.draft ? `a branch ${pick.draft.createdBy ?? 'a designer'} shared with the team` : `by ${pick.owner}`
   return [
-    `${found.name} (\`${found.slug}\`), by ${found.owner} — read-only.`,
+    `${pick.name} (\`${pick.slug}\`), ${whose} — read-only.`,
     '',
     memory ? `Its memory:\n${capped(memory, MAX_MEMORY)}` : 'It has no memory yet.',
     '',
-    `Its files: ${[...files.keys()].filter((p) => p !== MEMORY_FILE).sort().join(', ')}`,
+    `Its files: ${[...files.keys()].filter((p) => p !== MEMORY_FILE && p !== DRAFT_FILE).sort().join(', ')}`,
   ].join('\n')
 }

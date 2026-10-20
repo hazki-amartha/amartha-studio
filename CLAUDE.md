@@ -185,9 +185,12 @@ means it's already saved, "push it" means it's already live. A **branch** is the
 one exception — `/push` merges it into its project.
 
 **Branches** are the studio's own word, so say it freely — never a git branch. A
-designer starts one from the branch button atop the sidebar, beside Share: a
-database project at `/p/<slug>-branch-<name>` (older ones say `-draft-`) with a
-`draft.json` you never edit, kept off the project's link until it's pushed.
+designer starts one from the branch button atop the sidebar: a database project
+at `/p/<slug>-branch-<name>` (older ones say `-draft-`) with a `draft.json` you
+never edit, kept off the project's link until it's pushed. A new branch is
+**private** — only its designer and studio admins see it — until its designer
+shares it with the team from that menu; only they or an admin push or discard
+it. Never open or mention someone's private branch.
 
 **Done in the studio, not by hand:** undo across saves is the right panel's
 **History** (the clock beside its ✕). Deleting is the gallery card's **⋯ →
