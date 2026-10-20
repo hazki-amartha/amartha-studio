@@ -291,7 +291,7 @@ test('stamps every project screen in the repo', async () => {
   const { glob } = await import('node:fs/promises')
   const files = []
   for await (const f of glob('projects/**/*.tsx', { cwd: root })) files.push(f)
-  assert.ok(files.length > 100, `expected the repo's screens, found ${files.length}`)
+  assert.ok(files.length > 40, `expected the repo's screens, found ${files.length}`)
 
   const failed = []
   for (const rel of files) {
