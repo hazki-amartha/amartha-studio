@@ -17,6 +17,7 @@
 // =============================================================================
 
 import { Component, type ReactNode } from 'react'
+import { clearScreenError, setScreenError } from './screenError'
 
 interface Props {
   /** Clears a caught error when it changes — pass whatever identifies the
@@ -24,6 +25,9 @@ interface Props {
   resetKey: unknown
   /** Thumbnails have no room for a message or a button. */
   compact?: boolean
+  /** The device's own boundary names its screen, so Chat can pass the error
+   *  on to the agent (./screenError.ts). Thumbnails don't. */
+  screen?: string
   children: ReactNode
 }
 
@@ -41,6 +45,18 @@ export class ScreenErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromProps(props: Props, state: State): Partial<State> | null {
     return props.resetKey !== state.resetKey ? { error: null, resetKey: props.resetKey } : null
+  }
+
+  componentDidCatch(error: unknown) {
+    if (this.props.screen) setScreenError(this.props.screen, error instanceof Error ? error.message : String(error))
+  }
+
+  componentDidUpdate(_: Props, prev: State) {
+    if (prev.error && !this.state.error && this.props.screen) clearScreenError(this.props.screen)
+  }
+
+  componentWillUnmount() {
+    if (this.props.screen) clearScreenError(this.props.screen)
   }
 
   render() {

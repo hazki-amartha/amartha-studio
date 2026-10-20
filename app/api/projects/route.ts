@@ -1,7 +1,10 @@
 // =============================================================================
 // New project · the gallery's New Project button.
 //
-//   POST { name, owner?, businessUnit, platform, start }  → { ok, slug }
+//   POST { name, owner?, businessUnit, platform?, start }  → { ok, slug }
+//
+// `platform` is a blank project's; one started inside a live app takes the
+// app's, so the two can't disagree (an NG-MIS project inside AmarthaFin).
 //
 // The project is created in the database (platform/projects/server/create.ts),
 // so this runs on the dev server and on a deployment alike. Who may: on the
@@ -16,7 +19,7 @@ import { isEditor, requestUser } from '@/platform/auth/laptop'
 import { NotSignedIn } from '@/platform/dbProjects/remote'
 import { listDbConfigs } from '@/platform/dbProjects/server'
 import { knownNames } from '@/platform/auth/profiles'
-import { type NewProjectRequest, type NewProjectResponse } from '@/platform/projects/protocol'
+import { liveStart, type NewProjectRequest, type NewProjectResponse } from '@/platform/projects/protocol'
 import { createProject, CreateRefused } from '@/platform/projects/server/create'
 import type { BusinessUnit, Platform } from '@/platform/types'
 
@@ -39,8 +42,10 @@ export async function POST(request: Request): Promise<Response> {
   const name = typeof body?.name === 'string' ? body.name.trim().slice(0, 60) : ''
   if (!name) return refuse('Give the project a name first.')
   if (!body?.businessUnit || !BUSINESS_UNITS.includes(body.businessUnit)) return refuse('Pick a business unit.')
-  if (!body.platform || !PLATFORMS.includes(body.platform)) return refuse('Pick a platform.')
-  if (body.start !== 'blank' && body.start !== 'amarthafin-live') return refuse('Pick how the project starts.')
+  const start = liveStart(body.start)
+  if (!start && body.start !== 'blank') return refuse('Pick where the project starts.')
+  const platform = start?.platform ?? body.platform
+  if (!platform || !PLATFORMS.includes(platform)) return refuse('Pick a platform for the blank project.')
 
   // Signed in, the account's name is the owner; otherwise the name typed in
   // the form (on a laptop, the name it signed in as), spelled the way the
@@ -62,14 +67,18 @@ export async function POST(request: Request): Promise<Response> {
       name,
       owner,
       businessUnit: body.businessUnit,
-      platform: body.platform,
-      start: body.start,
+      platform,
+      start,
       taken: new Set([...Object.keys(configs), ...(await listDbConfigs()).map((c) => c.slug)]),
     })
     return answer({ ok: true, slug, owner })
   } catch (err) {
     if (err instanceof NotSignedIn) {
-      return refuse('Sign in to the studio on this laptop first — open localhost:4000/auth/laptop/start, then try again.')
+      return answer({
+        ok: false,
+        reason: 'This laptop isn’t signed in to the studio yet, so the project can’t be saved.',
+        signIn: '/auth/laptop/start',
+      })
     }
     return refuse(err instanceof CreateRefused ? err.message : 'The project couldn’t be created — try again.')
   }

@@ -193,6 +193,34 @@ label. Names are kebab-case; the full lists are the `PRODUCT_LOGOS`, `WORDMARKS`
 
 ---
 
+## Illustrations
+
+Artwork for empty states, sheets, banners and splash screens comes from the
+illustration library (the studio's **Assets** section). Never add an image file,
+a data URI or a tinted stand-in panel: name the illustration, and the library
+serves it.
+
+```tsx
+import { Illustration } from '@/design-system/assets'
+
+<Illustration generic="error" />                     // stand-in until the right one exists
+<Illustration name="koneksi-terputus" />             // Spot: a 160px square
+<Illustration name="koneksi-terputus" size={120} />  // a smaller Spot
+<Illustration name="panen-raya" tier="hero" />       // 16:9, fills the width
+<Illustration name="selamat-datang" tier="splash" /> // 9:16, fills the width
+
+<BottomSheet slot={<Illustration generic="offline" />} title="…" />
+```
+
+`generic` states: `error offline empty success waiting warning`. Use one when a
+screen needs an illustration and nobody has named the right one yet; the
+designer swaps it later. A `name` comes from **Copy code** on its Library card,
+so never guess one. An unknown name shows a tinted placeholder. Write `name`
+and `generic` as plain strings, never computed, because swapping an
+illustration edits that string.
+
+---
+
 ## Navigation
 
 ```tsx
