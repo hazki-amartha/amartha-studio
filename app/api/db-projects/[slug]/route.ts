@@ -5,6 +5,8 @@
 // =============================================================================
 
 import { NextResponse } from 'next/server'
+import { requestUser } from '@/platform/auth/laptop'
+import { maySee, PRIVATE_BRANCH } from '@/platform/dbProjects/branchAccess'
 import { buildDbProject, findProjectConfig } from '@/platform/dbProjects/server'
 import type { DbProjectResponse } from '@/platform/dbProjects/protocol'
 
@@ -13,9 +15,12 @@ export const fetchCache = 'force-no-store'
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
-export async function GET(_req: Request, { params }: { params: { slug: string } }) {
+export async function GET(request: Request, { params }: { params: { slug: string } }) {
   if (!KEBAB.test(params.slug)) {
     return NextResponse.json({ ok: false, error: 'Bad slug.' } satisfies DbProjectResponse, { status: 400 })
+  }
+  if (!(await maySee(params.slug, await requestUser(request), { shared: true }))) {
+    return NextResponse.json({ ok: false, error: PRIVATE_BRANCH } satisfies DbProjectResponse, { status: 404 })
   }
   const build = await buildDbProject(params.slug)
   if ('error' in build) {
@@ -23,8 +28,10 @@ export async function GET(_req: Request, { params }: { params: { slug: string } 
   }
   // A base in the database rides along (platform/dbProjects/load.ts links
   // both); its version joins this one's, so a save to the base shows here too.
+  // Never a branch: the save checks refuse one as a base (./checks.ts).
   const baseSlug = (await findProjectConfig(params.slug))?.config.extends
-  const base = baseSlug && (await findProjectConfig(baseSlug))?.inDb ? await buildDbProject(baseSlug) : null
+  const baseFound = baseSlug ? await findProjectConfig(baseSlug) : null
+  const base = baseSlug && baseFound?.inDb && !baseFound.config.draft ? await buildDbProject(baseSlug) : null
   const body: DbProjectResponse =
     base && !('error' in base) ? { ok: true, ...build, version: `${build.version}+${base.version}`, base } : { ok: true, ...build }
   return NextResponse.json(body, {

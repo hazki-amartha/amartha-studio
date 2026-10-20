@@ -20,6 +20,8 @@ import { daysLeft } from '@/platform/dbProjects/trashMeta'
 import { RestoreButton } from '@/platform/projects/ProjectMenu'
 import { noteOpened } from '@/platform/dbProjects/opened'
 import { getStudioUser } from '@/platform/auth/server'
+import { maySee } from '@/platform/dbProjects/branchAccess'
+import { PrivateBranch } from '@/platform/dbProjects/PrivateBranch'
 
 interface PageProps {
   params: { slug: string }
@@ -94,10 +96,13 @@ export default async function PrototypePage({ params, searchParams }: PageProps)
     && firstValue(searchParams.full) !== '0'
 
   if (await isDbProject(params.slug)) {
+    const user = await getStudioUser()
+    // Before anything else — even a deleted branch's page would say its name.
+    if (!(await maySee(params.slug, user, { shared: true }))) return <PrivateBranch />
     const deleted = (await findProjectConfig(params.slug))?.config
     if (deleted?.deleted) return <Deleted slug={params.slug} name={deleted.name} {...deleted.deleted} />
     noteOpened(params.slug, true)
-    const viewer = viewerName((await getStudioUser())?.displayName)
+    const viewer = viewerName(user?.displayName)
     return (
       <DbPrototype slug={params.slug} viewer={viewer} initialScreenId={initialScreenId} initialBare={initialBare} />
     )

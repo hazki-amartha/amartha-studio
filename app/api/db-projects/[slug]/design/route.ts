@@ -25,6 +25,7 @@ import { isAuthConfigured } from '@/platform/auth/env'
 import type { StudioUser } from '@/platform/auth/protocol'
 import { getStudioUser, isSameOrigin } from '@/platform/auth/server'
 import { isEditor, laptopUser, nameOf } from '@/platform/auth/laptop'
+import { maySee, PRIVATE_BRANCH } from '@/platform/dbProjects/branchAccess'
 import { laptopCredentials, NotSignedIn } from '@/platform/dbProjects/remote'
 import { isLocalRequest } from '@/platform/chat/localRequest'
 import { applyEdits } from '@/platform/design/applyEdits'
@@ -104,6 +105,7 @@ export async function GET(request: Request, { params }: Params): Promise<NextRes
     return NextResponse.json({ backend: 'record', owners: [] } satisfies DesignStatus)
   }
   const { may, user, laptopReady } = await access(request)
+  if (!(await maySee(slug, user))) return NextResponse.json({ backend: 'record', owners: [] } satisfies DesignStatus)
   const facts = await dbFacts(slug)
   const status: DesignStatus = {
     backend: 'fs',
@@ -130,6 +132,7 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
 
   const { may, user, laptopReady } = await access(request)
   if (!laptopReady) return refuse(SIGN_IN_FIRST)
+  if (!(await maySee(slug, user))) return refuse(PRIVATE_BRANCH)
   if (!may) {
     if (user) return refuse('Your account can’t save from the link yet. Ask the studio owner to set you up as an editor.')
     return refuse(isAuthConfigured() ? 'Sign in with your Amartha Google account first.' : 'Enter the editing password first.')

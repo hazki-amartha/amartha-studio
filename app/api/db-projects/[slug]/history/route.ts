@@ -12,6 +12,7 @@
 
 import { NextResponse } from 'next/server'
 import { isEditor, nameOf, requestUser } from '@/platform/auth/laptop'
+import { maySee, PRIVATE_BRANCH } from '@/platform/dbProjects/branchAccess'
 import { isLocalRequest } from '@/platform/chat/localRequest'
 import { KEBAB } from '@/platform/design/server/common'
 import { listHistory, restoreTo } from '@/platform/dbProjects/history'
@@ -29,15 +30,16 @@ const answer = (body: HistoryResponse | RestoreResult) =>
 
 const SIGN_IN_FIRST = `Sign in to the studio on this laptop first — open localhost:4000${SIGN_IN_PATH}, then try again.`
 
-async function allowed(request: Request): Promise<{ ok: boolean; by: string | null }> {
+async function allowed(request: Request, slug: string): Promise<{ ok: boolean; by: string | null }> {
   const dev = process.env.NODE_ENV === 'development'
   const user = dev ? null : await requestUser(request)
-  return { ok: dev ? isLocalRequest(request) : isEditor(user), by: user ? nameOf(user) : viewerName(null) }
+  const ok = (dev ? isLocalRequest(request) : isEditor(user)) && (await maySee(slug, user))
+  return { ok, by: user ? nameOf(user) : viewerName(null) }
 }
 
 export async function GET(request: Request, { params }: { params: { slug: string } }) {
   if (!KEBAB.test(params.slug)) return answer({ ok: false, reason: 'Bad slug.' })
-  if (!(await allowed(request)).ok) return answer({ ok: false, reason: 'Sign in as a studio editor to see the history.' })
+  if (!(await allowed(request, params.slug)).ok) return answer({ ok: false, reason: 'Sign in as a studio editor to see the history.' })
   try {
     return answer(await listHistory(params.slug))
   } catch (err) {
@@ -49,7 +51,7 @@ export async function GET(request: Request, { params }: { params: { slug: string
 
 export async function POST(request: Request, { params }: { params: { slug: string } }) {
   if (!KEBAB.test(params.slug)) return answer({ ok: false, reason: 'Bad slug.' })
-  const { ok, by } = await allowed(request)
+  const { ok, by } = await allowed(request, params.slug)
   if (!ok) return answer({ ok: false, reason: 'Sign in as a studio editor to restore a version.' })
   const body = (await request.json().catch(() => null)) as { id?: unknown } | null
   if (typeof body?.id !== 'number') return answer({ ok: false, reason: 'Pick a save to restore.' })

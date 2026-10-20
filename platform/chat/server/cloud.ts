@@ -44,6 +44,7 @@ import { createSdkMcpServer, query, tool, type HookCallback } from '@anthropic-a
 import { z } from 'zod'
 import { getStudioUser, isSameOrigin } from '@/platform/auth/server'
 import { isDbProject, listDbConfigs, readDbRows } from '@/platform/dbProjects/server'
+import { maySee, PRIVATE_BRANCH } from '@/platform/dbProjects/branchAccess'
 import { KEBAB } from '@/platform/design/server/common'
 import { redis } from '@/platform/comments/server/store'
 import { draftsOf } from '@/platform/dbProjects/drafts'
@@ -318,6 +319,7 @@ export async function cloudTurn(request: Request): Promise<Response> {
   if (!(await isDbProject(slug))) {
     return json({ error: 'Chat on the live studio works on database projects only.' }, 400)
   }
+  if (!(await maySee(slug, await getStudioUser()))) return json({ error: PRIVATE_BRANCH }, 404)
 
   // A new conversation gets its id here, so its workspace and lock exist
   // before the CLI starts; a later turn names the one it continues.

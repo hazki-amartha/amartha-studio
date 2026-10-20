@@ -245,7 +245,10 @@ async function flowProblems(slug: string, files: Map<string, string>): Promise<s
   if (config.extends) {
     const base = (await findProjectConfig(config.extends))?.config
     if (!base) errors.push(`project.config.ts: extends "${config.extends}", which isn’t a project`)
-    else if (base.extends) {
+    else if ('draft' in base && base.draft) {
+      // A branch may be private, and a base rides along with whatever builds on it.
+      errors.push(`project.config.ts: "${config.extends}" is a branch — build on its project; the branch reaches it when it’s pushed`)
+    } else if (base.extends) {
       errors.push(`project.config.ts: "${config.extends}" itself extends another project — one level only`)
     }
     return errors

@@ -50,8 +50,9 @@ export const OTHER_PROTOTYPES_LAPTOP = [
   'decided in Checker Maker" — find its folder by matching the name against each',
   'project.config.ts under projects/ and projects/_db/, read its MEMORY.md first, and its',
   'screens if you need more. Look, never change: this prototype’s folder is still the',
-  'only one you can change. A branch that hasn’t been pushed — a folder holding a',
-  'draft.json — stays closed unless it is the one you are on: don’t open it or mention it.',
+  'only one you can change. A private branch — a folder whose draft.json says',
+  '"visibility": "private" — stays closed unless it is the one you are on: don’t open',
+  'it or mention it. A branch shared with the team reads like any prototype.',
 ]
 
 /** The same on the studio, where other prototypes come through a tool
@@ -61,8 +62,8 @@ export const OTHER_PROTOTYPES_STUDIO = [
   'decided in Checker Maker" — call `read_prototype` with its name: you get its memory',
   'and file list, and any one file you ask for. Use the memory first, files only if',
   'you need more; it is all read-only. The live references are already in your',
-  'workspace. Git-only prototypes and branches that haven’t been pushed can’t be',
-  'opened here — don’t guess at them.',
+  'workspace. A branch shared with the team opens like any prototype; private',
+  'branches and git-only prototypes can’t be opened here — don’t guess at them.',
 ]
 
 /** The prototype's memory as data for the first message — capped, and marked
