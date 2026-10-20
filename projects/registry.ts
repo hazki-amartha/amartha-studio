@@ -15,11 +15,6 @@ import type { Registry } from '@/platform/types'
 export const registry: Registry = {
   'amarthafin-live': () => import('./amarthafin-live').then((m) => m.project),
   'ngmis-live': () => import('./ngmis-live').then((m) => m.project),
-  'ngmis-bm-monitoring': () => import('./ngmis-bm-monitoring').then((m) => m.project),
-  'ngmis-bm-monitoring-v2': () => import('./ngmis-bm-monitoring-v2').then((m) => m.project),
-  'apartner-sales-assisted-onboarding': () =>
-    import('./apartner-sales-assisted-onboarding').then((m) => m.project),
   'apartner-sot': () => import('./apartner-sot').then((m) => m.project),
-  'ngmis-mitra-monitoring': () => import('./ngmis-mitra-monitoring').then((m) => m.project),
   // <append new projects above this line — one line per project>
 }
