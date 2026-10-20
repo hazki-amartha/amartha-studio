@@ -5,7 +5,7 @@
 // A BP's "Lihat detail" opens the drawer with her mitra. Only Pembayaran is
 // built; the other tabs are drawn so the header reads the same as the live page.
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { CashPage } from './cash-page'
 import { DailyDashboard } from './daily-dashboard'
 import { WeeklyProgress } from './weekly-page'
@@ -32,14 +32,10 @@ export function MitraPage() {
   const [cashBp, setCashBp] = useState<string | undefined>()
   const [bpOpen, setBpOpen] = useState<string | null>(null)
 
-  // A page opened by "Review" in a new browser tab lands straight on Sisa setor
-  // tunai for that BP (?tab=cash&bp=...).
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search)
-    if (q.get('tab') !== 'cash') return
-    setCashBp(q.get('bp') ?? undefined)
+  const openCash = (name: string) => {
+    setCashBp(name)
     setTab('cash')
-  }, [])
+  }
 
   const branchLabel = BRANCHES.find((b) => b.value === branch)?.label ?? ''
 
@@ -71,24 +67,9 @@ export function MitraPage() {
       }
     >
       {tab === 'daily' ? (
-        <DailyDashboard
-          // Opens in a new browser tab so the BM keeps the daily drawer where it is.
-          onOpenCash={(name) =>
-            // eslint-disable-next-line no-restricted-properties -- asked for in #525; it opens this same prototype, so the viewer never leaves the studio
-            window.open(
-              `${window.location.pathname}?tab=cash&bp=${encodeURIComponent(name)}`,
-              '_blank',
-              'noopener',
-            )
-          }
-        />
+        <DailyDashboard onOpenCash={openCash} />
       ) : tab === 'weekly' ? (
-        <WeeklyProgress
-          onOpenCash={(name) => {
-            setCashBp(name)
-            setTab('cash')
-          }}
-        />
+        <WeeklyProgress onOpenCash={openCash} />
       ) : tab === 'cash' ? (
         <CashPage initialBp={cashBp} />
       ) : tab === 'repayment' ? (
