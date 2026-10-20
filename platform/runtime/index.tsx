@@ -186,7 +186,7 @@ export function ScreenStage() {
             its chunk. Fallback is blank rather than a spinner: the wait is a
             frame or two on localhost, and a flashing loader would read as part
             of the prototype. */}
-        <ScreenErrorBoundary resetKey={Screen}>
+        <ScreenErrorBoundary resetKey={Screen} screen={current}>
           <Suspense fallback={null}>
             <Screen />
           </Suspense>

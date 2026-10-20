@@ -27,6 +27,7 @@ import { useLiveChat } from './useLiveChat'
 import { useUsage, type LimitReport } from './usage'
 import { Markdown } from './Markdown'
 import { isActiveDbProject } from '@/platform/dbProjects/active'
+import { screenError } from '@/platform/runtime/screenError'
 
 const SPEEDS = [1, 4, 16] as const
 
@@ -485,11 +486,14 @@ export function LiveChatPanel({
     const draft = chat.draft.trim()
     if (!draft || running) return
     setImageError(null)
+    // Every message says which screen is open, and what it shows if it threw,
+    // so a turn starts there instead of searching for it.
+    const view = { screen: screenId, screenError: screenError(screenId) }
     if (attachment) {
       // The element goes to the agent in full; the transcript shows the chip.
-      chat.send(`${attachment.context}\n\nChange: ${draft}`, `[${attachment.label}] ${draft}`)
+      chat.send(`${attachment.context}\n\nChange: ${draft}`, `[${attachment.label}] ${draft}`, view)
     } else {
-      chat.send(draft)
+      chat.send(draft, undefined, view)
     }
   }
 

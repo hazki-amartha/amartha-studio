@@ -203,7 +203,14 @@ function handle(event: ServerEvent) {
 /** Tools that write files, as the route names them. */
 const WRITES = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 
-async function send(prompt: string, shown?: string) {
+/** What the device shows as a message is sent — the route turns it into the
+ *  note the agent starts from (platform/chat/server/turnNote.ts). */
+export interface DeviceView {
+  screen: string
+  screenError: string | null
+}
+
+async function send(prompt: string, shown?: string, view?: DeviceView) {
   const text = prompt.trim()
   const slug = slugNow
   if (!text || abort || !slug) return
@@ -233,6 +240,8 @@ async function send(prompt: string, shown?: string) {
         images: images.length ? images.map((i) => i.image) : undefined,
         sessionId: convo.sessionId,
         db: isActiveDbProject(slug) || undefined,
+        screen: view?.screen,
+        screenError: view?.screenError ?? undefined,
       }),
       signal: controller.signal,
     })
@@ -376,7 +385,7 @@ export interface LiveChat extends ChatState {
   /** Re-checks the gate, e.g. once the designer has signed in. */
   recheck: () => void
   /** `shown` is what the transcript displays, when it differs from the prompt. */
-  send: (prompt: string, shown?: string) => void
+  send: (prompt: string, shown?: string, view?: DeviceView) => void
   stop: () => void
   newChat: () => void
   draft: string
@@ -420,7 +429,7 @@ export function useLiveChat(slug: string): LiveChat {
     elapsedMs,
     sinceLastEventMs: Math.max(0, elapsedMs - c.lastEventAt),
     spendUsd: c.spendUsd,
-    send: (prompt, shown) => void send(prompt, shown),
+    send: (prompt, shown, view) => void send(prompt, shown, view),
     stop,
     newChat,
     draft: c.draft,

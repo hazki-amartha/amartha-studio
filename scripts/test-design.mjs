@@ -11,7 +11,8 @@
 // catches it.
 //
 // At the end, the database-project save checks that need no server
-// (platform/dbProjects/vocabulary.ts) — raw colours and fonts, and imports.
+// (platform/dbProjects/vocabulary.ts) — raw colours and fonts, and imports —
+// and Chat's per-message note and command guard.
 //
 // Bundles the TypeScript with esbuild so it runs in plain Node, the same way
 // scripts/check-flows.mjs does.
@@ -1805,4 +1806,146 @@ test('save check: HOST_MODULES is exactly what the loader provides', async () =>
   const block = loader.match(/const HOST: Record<string, unknown> = \{([\s\S]*?)\n\}/)[1]
   const keys = [...block.matchAll(/^\s*(?:'([^']+)'|([\w/-]+)):/gm)].map((m) => m[1] ?? m[2])
   assert.deepEqual([...keys].sort(), [...vocabulary.HOST_MODULES].sort())
+})
+
+// ------------------------------------------------------------------ chat
+//
+// The note at the top of each Chat message (platform/chat/server/turnNote.ts),
+// against a throwaway project tree, and the command guard Chat's CLI runs
+// before every tool call (scripts/chat-guard.mjs), as a real process.
+
+const turnNotes = await (async () => {
+  const file = join(root, 'scripts', '.test-design-chat.mjs')
+  await build({
+    absWorkingDir: root,
+    stdin: {
+      contents: `export { turnNote, locateScreen, screenImport } from './platform/chat/server/turnNote'`,
+      resolveDir: root,
+      loader: 'ts',
+    },
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    outfile: file,
+    packages: 'external',
+    logLevel: 'silent',
+  })
+  const mod = await import(pathToFileURL(file).href)
+  process.on('exit', () => rm(file, { force: true }).catch(() => {}))
+  return mod
+})()
+
+const chatTree = await (async () => {
+  const { mkdtemp, mkdir, writeFile } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const dir = await mkdtemp(join(tmpdir(), 'studio-chat-'))
+  const files = {
+    'projects/_db/demo/project.config.ts': `export const config = { slug: 'demo', extends: 'base' }`,
+    'projects/_db/demo/index.ts': `export const project = { screens: [
+  { id: 'home', title: 'Home', entry: true, component: lazyScreen(() => import('./screens/home'), 'Home') },
+  { component: lazyScreen(() => import('./screens/pay-sheet'), 'Pay'), title: 'Pay', id: 'pay' },
+] }`,
+    'projects/_db/demo/screens/home.tsx': '',
+    'projects/_db/demo/screens/pay-sheet.tsx': '',
+    'projects/base/index.ts': `export const project = { screens: [{ id: 'profile', component: lazyScreen(() => import('./screens/profile'), 'P') }] }`,
+    'projects/base/screens/profile.tsx': '',
+  }
+  for (const [rel, content] of Object.entries(files)) {
+    await mkdir(dirname(join(dir, rel)), { recursive: true })
+    await writeFile(join(dir, rel), content)
+  }
+  process.on('exit', () => rm(dir, { recursive: true, force: true }).catch(() => {}))
+  return dir
+})()
+
+const note = (view, extra = {}) =>
+  turnNotes.turnNote({ root: chatTree, slug: 'demo', folder: 'projects/_db/demo', db: true, draftOf: null, first: true, view, ...extra })
+
+test('chat note: names the project, its folder and the open screen’s file', () => {
+  const text = note({ screen: 'home' })
+  assert.match(text, /^<studio-note>\n/)
+  assert.match(text, /Project: `demo`, a database project\. Its files are in `projects\/_db\/demo\/`/)
+  assert.match(text, /Viewing: screen `home`, in `projects\/_db\/demo\/screens\/home\.tsx`\./)
+  // The id can come after the import in the entry.
+  assert.match(note({ screen: 'pay' }), /screen `pay`, in `projects\/_db\/demo\/screens\/pay-sheet\.tsx`/)
+})
+
+test('chat note: an inherited screen points at its base, read-only', () => {
+  assert.match(
+    note({ screen: 'profile' }),
+    /screen `profile`, inherited from `base` \(`projects\/base\/screens\/profile\.tsx`, read-only\)\. To change it, add a screen with the same id/,
+  )
+  assert.match(note({ screen: 'nowhere' }), /Viewing: screen `nowhere`\.\n/)
+})
+
+test('chat note: the device’s error goes with the screen, quoted and capped', () => {
+  const text = note({ screen: 'home', screenError: 'Cannot read "x" of undefined\n' + 'a'.repeat(600) })
+  const line = text.split('\n').find((l) => l.startsWith('The device shows an error'))
+  assert.ok(line.includes('"Cannot read \\"x\\" of undefined\\n'))
+  assert.ok(line.length < 480)
+  // Nothing about a screen, or an error, that isn't a real screen id.
+  assert.doesNotMatch(note({ screen: '../../etc', screenError: 'boom' }), /Viewing|error/)
+  assert.doesNotMatch(note({ screen: { id: 'home' } }), /Viewing/)
+})
+
+test('chat note: a branch is explained once, then named', () => {
+  assert.match(note({}, { draftOf: 'QRIS Merchant' }), /BRANCH of “QRIS Merchant”[\s\S]*Chat cannot push it\./)
+  const later = note({}, { draftOf: 'QRIS Merchant', first: false })
+  assert.match(later, /It is a branch of “QRIS Merchant”: saves reach the branch only\./)
+  assert.doesNotMatch(later, /Chat cannot push it/)
+})
+
+const { spawnSync } = await import('node:child_process')
+
+/** One tool call through the guard, as the CLI makes it. */
+function guarded(tool, input, { commands = 'npm run check:project\nnpm run check:project -- demo', dir = 'projects/_db/demo' } = {}) {
+  const run = spawnSync(process.execPath, [join(root, 'scripts', 'chat-guard.mjs')], {
+    input: JSON.stringify({ tool_name: tool, tool_input: input }),
+    env: { PATH: process.env.PATH, CHAT_SLUG: 'demo', CHAT_ROOT: root, CHAT_DIR: dir, CHAT_COMMANDS: commands },
+    encoding: 'utf8',
+  })
+  const decision = run.stdout ? JSON.parse(run.stdout).hookSpecificOutput?.permissionDecision : undefined
+  return { code: run.status, decision, reason: run.stderr }
+}
+const bash = (command, options) => guarded('Bash', { command }, options)
+
+test('chat guard: the project’s check runs as CLAUDE.md writes it, with its output trimmed', () => {
+  for (const command of [
+    'npm run check:project',
+    'npm run check:project -- demo',
+    'npm run check:project 2>&1 | tail -n 40',
+    'npm run check:project -- demo 2>&1 | tail -20',
+    'npm run check:project | head',
+  ]) {
+    assert.deepEqual(bash(command), { code: 0, decision: 'allow', reason: '' }, command)
+  }
+  const git = { commands: 'npm run lint\nnpm run check:flows\nnpx tsc --noEmit', dir: 'projects/demo' }
+  assert.equal(bash('npm run lint 2>&1 | tail -n 30 && npx tsc --noEmit', git).decision, 'allow')
+})
+
+test('chat guard: anything else is refused, with what to do instead', () => {
+  for (const command of [
+    'npm run lint', // a git project's check, in a database project's turn
+    'npm run check:project -- someone-else',
+    'npm run check:project; rm -rf projects',
+    'npm run check:project && rm -rf projects',
+    'npm run check:project | tail -5 .env.local',
+    'npm run check:project > notes.txt',
+    'npm run check:project\nrm -rf projects',
+    'cd projects/_db/demo && ls',
+  ]) {
+    const { code, reason } = bash(command)
+    assert.equal(code, 2, command)
+    assert.match(reason, /can run only `npm run check:project` \(adding `2>&1 \| tail -n 40` is fine\)\. To look at files, use Read, Glob or Grep/)
+    assert.doesNotMatch(reason, /do not try another way/)
+  }
+})
+
+test('chat guard: writes stay in the project, and secrets stay unread', () => {
+  assert.equal(guarded('Write', { file_path: join(root, 'projects/_db/demo/screens/home.tsx') }).code, 0)
+  const outside = guarded('Edit', { file_path: join(root, 'platform/types.ts') })
+  assert.equal(outside.code, 2)
+  assert.match(outside.reason, /only change files inside projects\/_db\/demo\/; platform\/types\.ts is outside it/)
+  assert.equal(guarded('Read', { file_path: join(root, '.env.local') }).code, 2)
+  assert.equal(guarded('Read', { file_path: join(root, 'CLAUDE.md') }).code, 0)
 })
