@@ -1568,8 +1568,12 @@ test('github: an editing password gates saving without gating the studio', async
     process.env.STUDIO_EDIT_PASSWORD = 'changed'
     assert.equal((await get(cookie)).needsPassword, true, 'changing the password signs everyone out')
 
+    // The site password only gates the door now: saving still takes an editor
+    // or the editing password.
     process.env.SITE_PASSWORD = 'site'
-    assert.equal((await get()).needsPassword, undefined, 'behind the site gate, getting in is enough')
+    assert.equal((await get()).needsPassword, true, 'behind the site gate, getting in is not enough')
+    process.env.STUDIO_EDIT_PASSWORD = 'let-me-edit'
+    assert.equal((await get(cookie)).needsPassword, undefined, 'the editing password still opens it')
   } finally {
     for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k]
     Object.assign(process.env, saved)

@@ -1,7 +1,8 @@
 // =============================================================================
 // Share · make, list and revoke a prototype's share links (platform/share).
 //
-//   GET  ?slug=…                              the live links (signed in)
+//   GET  ?slug=…                              the live links (editors: a link
+//                                             is a way in for anyone it's sent to)
 //   POST { action: 'create', slug, access, days }   any signed-in editor
 //   POST { action: 'revoke', slug, token }          any signed-in editor
 // =============================================================================
@@ -29,6 +30,7 @@ export async function GET(request: Request): Promise<Response> {
   if (typeof slug !== 'string' || !(await knownSlug(slug))) return json({ error: 'Unknown project' }, 404)
   const user = await getStudioUser()
   if (!user) return json({ error: 'Sign in to see share links' }, 401)
+  if (!canShare(user)) return json({ error: 'Only editors can see share links' }, 403)
   if (!(await maySee(slug, user))) return json({ error: 'Unknown project' }, 404)
   if (!isShareStoreConfigured()) return json({ links: [] })
   try {

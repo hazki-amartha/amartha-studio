@@ -20,7 +20,6 @@
 
 import { NextResponse } from 'next/server'
 import * as iconModule from '@/design-system/icons'
-import { isGateConfigured } from '@/app/unlock/auth'
 import { isAuthConfigured } from '@/platform/auth/env'
 import type { StudioUser } from '@/platform/auth/protocol'
 import { getStudioUser, isSameOrigin } from '@/platform/auth/server'
@@ -68,7 +67,8 @@ interface Params {
  * Whether this request may save. On a laptop: the designer at it — and, since
  * the save goes to the deployed studio as them, only once this laptop is signed
  * in (`laptopReady`). Deployed: any studio editor, by browser session or laptop
- * token, else the site gate or the editing password as on /api/design.
+ * token, else the editing password as on /api/design. Getting past the site
+ * password (SITE_PASSWORD) isn't enough: since sign-in, it only gates the door.
  */
 async function access(request: Request): Promise<{ may: boolean; user: StudioUser | null; laptopReady: boolean }> {
   if (DEV) {
@@ -80,7 +80,6 @@ async function access(request: Request): Promise<{ may: boolean; user: StudioUse
   const laptop = await laptopUser(request)
   if (isEditor(laptop)) return { may: true, user: laptop, laptopReady: true }
   const user = session ?? laptop
-  if (isGateConfigured()) return { may: true, user, laptopReady: true }
   return { may: verifyEditToken(editCookie(request)), user, laptopReady: true }
 }
 

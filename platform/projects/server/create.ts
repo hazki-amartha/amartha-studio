@@ -23,6 +23,7 @@
 
 import { existsSync } from 'node:fs'
 import path from 'node:path'
+import { everSaved } from '@/platform/dbProjects/history'
 import { saveDbFiles } from '@/platform/dbProjects/server'
 import type { BusinessUnit, DeviceKind, Platform } from '@/platform/types'
 import { deviceFor, type LiveStart } from '../protocol'
@@ -45,12 +46,13 @@ export function slugFor(name: string): string {
     .replace(/-+$/, '')
 }
 
-/** The name's slug, or the first free `-2`, `-3`… after it. */
-function freeSlug(name: string, taken: Set<string>): string {
+/** The name's slug, or the first free `-2`, `-3`… after it — never one a
+ *  project ever had (dbProjects/history.ts everSaved). */
+async function freeSlug(name: string, taken: Set<string>): Promise<string> {
   const base = slugFor(name)
   if (!base) throw new CreateRefused('Give the project a name with some letters or numbers in it.')
   let slug = base
-  for (let n = 2; taken.has(slug) || existsSync(path.join(PROJECTS, slug)); n++) slug = `${base}-${n}`
+  for (let n = 2; taken.has(slug) || existsSync(path.join(PROJECTS, slug)) || (await everSaved(slug)); n++) slug = `${base}-${n}`
   return slug
 }
 
@@ -156,7 +158,7 @@ export async function createProject(input: {
   start: LiveStart | null
   taken: Set<string>
 }): Promise<string> {
-  const slug = freeSlug(input.name, input.taken)
+  const slug = await freeSlug(input.name, input.taken)
   const device = input.start?.device ?? deviceFor(input.platform)
   const files = input.start
     ? await startingFiles(input.start.id)
