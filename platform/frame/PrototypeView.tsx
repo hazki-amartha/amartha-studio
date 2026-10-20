@@ -90,6 +90,7 @@ import { FullScreenButton, ViewSwitch } from '@/platform/chrome/CanvasControls'
 import { ShellPortal } from '@/platform/chrome/ShellPortal'
 import { ToolButton } from '@/platform/chrome/TopBar'
 import { nextZoom, ZoomControl } from '@/platform/chrome/ZoomControl'
+import { ShareButton } from '@/platform/share/ShareButton'
 import { ShortcutSheet, useShortcuts, withKey, type ShortcutAction } from '@/platform/chrome/shortcuts'
 import {
   getShellSlots,
@@ -766,10 +767,10 @@ function SidebarPortals({
 
 /**
  * The framed layout — the device on the page card's canvas, with how you look
- * at it in the canvas's bottom corners (zoom; Prototype | Flow and full
- * screen). What you do to it goes through the shell: Comment · Edit · Chat in
- * the top bar, their panel in the column right of the card, Layers and Notes
- * as the sidebar's tabs.
+ * at it in the canvas's bottom corners (Prototype | Flow; zoom and full
+ * screen). What you do to it goes through the shell: Share and Comment · Edit ·
+ * Chat in the top bar, their panel in the column right of the card, Layers and
+ * Notes as the sidebar's tabs.
  */
 function FramedLayout({ config, screens, presence }: { config: ProjectConfig; screens: ScreenDef[]; presence?: ReactNode }) {
   const { editing, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
@@ -864,17 +865,16 @@ function FramedLayout({ config, screens, presence }: { config: ProjectConfig; sc
           </ZoomableDevice>
         </DeviceStepper>
       </div>
-      <ZoomControl
-        scale={zoom.scale}
-        fitted={zoom.fitted}
-        min={MIN_ZOOM}
-        max={MAX_ZOOM}
-        onStep={zoom.step}
-        onFit={zoom.refit}
-        className="absolute bottom-16 left-16 z-30"
-      />
+      <ViewSwitch slug={config.slug} className="absolute bottom-16 left-16 z-30" />
       <div className="absolute bottom-16 right-16 z-30 flex items-center gap-8">
-        <ViewSwitch slug={config.slug} />
+        <ZoomControl
+          scale={zoom.scale}
+          fitted={zoom.fitted}
+          min={MIN_ZOOM}
+          max={MAX_ZOOM}
+          onStep={zoom.step}
+          onFit={zoom.refit}
+        />
         <FullScreenButton />
       </div>
       {shortcuts ? (
@@ -884,10 +884,11 @@ function FramedLayout({ config, screens, presence }: { config: ProjectConfig; sc
         />
       ) : null}
 
-      {/* The top bar's end: who else is here, then the ways into the panel —
-          gone while it's open, since its tabs are the same three. */}
+      {/* The top bar's end: who else is here, Share, then the ways into the
+          panel — those go while it's open, since its tabs are the same three. */}
       <ShellPortal slot="actions">
         {presence}
+        {guest ? null : <ShareButton slug={config.slug} icon />}
         {panel.tab ? null : (
           <>
             {canComment ? (

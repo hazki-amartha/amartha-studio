@@ -89,7 +89,7 @@ export const AccountIcon = icon(
   </>,
 )
 
-// Branches — a fork: the project and its branches, beside Share.
+// Branches — a fork: the project and its branches, atop the sidebar.
 export const BranchIcon = icon(
   <>
     <path d="M6 3v12" />

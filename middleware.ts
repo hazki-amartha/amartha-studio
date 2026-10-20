@@ -29,6 +29,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { COOKIE_NAME, isGateConfigured, verifySessionToken } from '@/app/unlock/auth'
 import { isAllowedEmail, isSignInRequired, supabaseEnv } from '@/platform/auth/env'
+import { isLaptopToken } from '@/platform/auth/laptopEdge'
 import { edgeShareOpens, shareCookie } from '@/platform/share/edge'
 
 /** Reachable without signing in, even when sign-in is required. */
@@ -58,9 +59,13 @@ export async function middleware(request: NextRequest) {
   if (!isSignInRequired() || signedIn || OPEN.some((re) => re.test(pathname))) return response
 
   // A laptop acting as its signed-in designer (platform/auth/laptop.ts) sends
-  // a token, not a cookie. The route checks it — the Edge runtime can't reach
-  // the role table — so here it only has to get through.
-  if (pathname.startsWith('/api/') && request.headers.get('authorization')?.startsWith('Bearer ')) return response
+  // a token, not a cookie. Its signature and expiry are checked here; the
+  // route checks the role, which the Edge runtime can't reach. A header that
+  // isn't a real token gets no further than any other stranger.
+  const bearer = request.headers.get('authorization')
+  if (pathname.startsWith('/api/') && bearer?.startsWith('Bearer ') && (await isLaptopToken(bearer.slice(7).trim()))) {
+    return response
+  }
 
   const shared = pathname.match(PROTOTYPE)?.[1] ?? (request.method === 'GET' ? pathname.match(DB_PROJECT)?.[1] : undefined)
   if (shared && (await edgeShareOpens(request.cookies.get(shareCookie(shared))?.value, shared))) return response
