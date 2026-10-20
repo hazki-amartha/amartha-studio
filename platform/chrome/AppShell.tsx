@@ -1,77 +1,75 @@
 // =============================================================================
-// AppShell — the studio chrome: icon rail + contextual secondary sidebar +
-// content region with a breadcrumb top bar and collapse toggle. Inside a
-// project there is no top bar: the sidebar is its Screens · Layers · Notes
-// panel, and the view switch floats on the canvas (CanvasControls).
+// AppShell — the studio chrome. A dark frame holds three things side by side:
+//
+//   • the sidebar (Sidebar.tsx), drawn straight on the frame — the app
+//     switcher outside a project, the project's own sidebar inside one, or,
+//     folded, a 56px rail of icons;
+//   • the page, a rounded card inset in the frame, with a 48px top bar
+//     (TopBar.tsx) over whatever the route renders — its left end holds the
+//     button that folds and opens the sidebar, in the same place either way.
+//     The theme toggle changes the card; the frame and everything on it stay
+//     dark;
+//   • the panel column right of the card, on the frame, which the prototype
+//     portals its Comments · Edit · Chat panel into (shellSlots.ts). Empty, it
+//     takes no room.
+//
 // Wraps every tool route except /unlock, /auth/* and the share-link pages
-// (which render bare). Built only from
-// FunDS tokens; the single non-token width lives in chrome.module.css.
+// (which render bare). Below md there is no frame: the card fills the window,
+// MobileTopNav carries the sections, and prototype routes go full screen.
 // =============================================================================
 
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react'
 import {
   getBareMode,
   getBareServerSnapshot,
-  setBareMode,
   subscribeBareMode,
 } from '@/platform/runtime/presentBridge'
+import { getScreenBridge, subscribeScreenBridge } from '@/platform/runtime/bridge'
 import { resolveAssetPage } from './assetPages'
-import { AssetsSidebar } from './AssetsSidebar'
-import styles from './chrome.module.css'
 import { HeaderStatusProvider, useHeaderStatus } from './headerStatus'
-import {
-  ChevronRightIcon,
-  DeviceIcon,
-  ExpandIcon,
-  FlowIcon,
-  PanelIcon,
-} from './icons'
-import { CanvasControls, ViewSwitch } from './CanvasControls'
+import { ViewSwitch } from './CanvasControls'
+import { JumpTo } from './JumpTo'
 import { MobileTopNav } from './MobileTopNav'
-import { NavRail, type RailSection } from './NavRail'
-import { ScreenSidebar } from './ScreenSidebar'
-import { StudioSidebar } from './StudioSidebar'
+import { setShellSlot } from './shellSlots'
+import { isTyping } from './shortcuts'
+import { Sidebar, SidebarRail, type Section } from './Sidebar'
+import { Breadcrumb, TopBar, type Crumb } from './TopBar'
 import { useGuestAccess, useStudioUser } from '@/platform/auth/session'
 import { TripleTapExit } from './TripleTapExit'
-import { SystemSidebar } from './SystemSidebar'
 import { getDbIndexEntry, subscribeDbIndexEntry } from '@/platform/dbProjects/active'
 import type { ProjectIndexEntry } from './loadProjectIndex'
 
 const STORAGE_KEY = 'db.chrome.sidebarCollapsed'
 
-interface Crumb {
-  label: string
-  href?: string
-}
-
 interface RouteInfo {
-  active: RailSection
+  active: Section
   currentSlug: string | null
   isFlow: boolean
+  isGallery: boolean
   crumbs: Crumb[]
 }
 
-function resolveRoute(pathname: string, projects: ProjectIndexEntry[]): RouteInfo {
-  const isFunds = pathname === '/system' || pathname.startsWith('/system/')
-  if (isFunds) {
-    return {
-      active: 'funds',
-      currentSlug: null,
-      isFlow: false,
-      crumbs: [{ label: 'FunDS', href: '/system' }, { label: 'System' }],
-    }
+function resolveRoute(pathname: string): RouteInfo {
+  const base = { currentSlug: null, isFlow: false, isGallery: false }
+
+  if (pathname === '/system' || pathname.startsWith('/system/')) {
+    return { ...base, active: 'funds', crumbs: [{ label: 'FunDS' }] }
   }
 
-  const isAssets = pathname === '/assets' || pathname.startsWith('/assets/')
-  if (isAssets) {
+  if (pathname === '/assets' || pathname.startsWith('/assets/')) {
     return {
+      ...base,
       active: 'assets',
-      currentSlug: null,
-      isFlow: false,
       crumbs: [{ label: 'Assets', href: '/assets' }, { label: resolveAssetPage(pathname).label }],
     }
   }
@@ -79,55 +77,29 @@ function resolveRoute(pathname: string, projects: ProjectIndexEntry[]): RouteInf
   // /db/<slug> is the same view with its source in the database (platform/dbProjects).
   const proto = pathname.match(/^\/(?:p|db)\/([^/]+)(\/flow)?/)
   if (proto) {
-    const slug = proto[1]
     const isFlow = Boolean(proto[2])
-    const name = projects.find((p) => p.slug === slug)?.name ?? slug
-    const crumbs: Crumb[] = [{ label: 'Studio', href: '/' }]
-    crumbs.push(isFlow ? { label: name, href: `/p/${slug}` } : { label: name })
-    if (isFlow) crumbs.push({ label: 'Flow' })
-    return { active: 'studio', currentSlug: slug, isFlow, crumbs }
+    // The prototype's title is its live screen, filled in by the shell.
+    return { active: 'projects', currentSlug: proto[1], isFlow, isGallery: false, crumbs: isFlow ? [{ label: 'Flow' }] : [] }
   }
 
-  return {
-    active: 'studio',
-    currentSlug: null,
-    isFlow: false,
-    crumbs: [{ label: 'Studio', href: '/' }, { label: 'Gallery' }],
-  }
+  return { ...base, active: 'projects', isGallery: pathname === '/', crumbs: [{ label: 'Projects' }] }
 }
 
-function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
+// The gallery's business-unit folders (app/page.tsx) — a folder is a place,
+// so the top bar names it: Projects › Lending.
+const FOLDERS = ['Lending', 'Funding', 'Core', 'Payments']
+
+/** Reads the folder from the query, so it sits in its own Suspense boundary:
+ *  only the gallery renders it, and only it waits on the search params. */
+function GalleryTitle() {
+  const bu = useSearchParams()?.get('bu') ?? null
+  const folder = bu && FOLDERS.includes(bu) ? bu : null
   return (
-    <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-8">
-      {crumbs.map((crumb, i) => {
-        const isLast = i === crumbs.length - 1
-        return (
-          <span key={`${crumb.label}-${i}`} className="flex min-w-0 items-center gap-8">
-            {i > 0 ? <ChevronRightIcon className="size-12 shrink-0 text-placeholder dark:text-neutral-600" /> : null}
-            {crumb.href && !isLast ? (
-              <Link href={crumb.href} className="truncate text-14 text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50">
-                {crumb.label}
-              </Link>
-            ) : (
-              <span
-                className={
-                  isLast
-                    ? 'truncate text-14 font-bold text-default dark:text-neutral-50'
-                    : 'truncate text-14 text-caption dark:text-neutral-400'
-                }
-              >
-                {crumb.label}
-              </span>
-            )}
-          </span>
-        )
-      })}
-    </nav>
+    <Breadcrumb crumbs={folder ? [{ label: 'Projects', href: '/' }, { label: folder }] : [{ label: 'Projects' }]} />
   )
 }
 
-/** Route-published extras (zoom, badges) — in the top bar, or beside the flow
- *  view's floating controls where there is no top bar. */
+/** Route-published extras (the flow canvas's badge) at the top bar's right. */
 function HeaderStatusView() {
   const status = useHeaderStatus()
   if (!status) return null
@@ -143,6 +115,14 @@ function HeaderStatusView() {
       ) : null}
     </>
   )
+}
+
+/** The running prototype's screen, for the top bar's title. */
+function useScreenTitle(project: ProjectIndexEntry | null): string | null {
+  const bridge = useSyncExternalStore(subscribeScreenBridge, getScreenBridge, () => null)
+  if (!project || bridge?.slug !== project.slug) return null
+  const all = [...project.screens, ...(project.inherited?.screens ?? [])]
+  return all.find((s) => s.id === bridge.current)?.title ?? null
 }
 
 /**
@@ -192,8 +172,10 @@ function AppShellInner({
 }) {
   const pathname = usePathname() ?? '/'
   const [collapsed, setCollapsed] = useState(false)
+  const [jumping, setJumping] = useState(false)
   const bare = useSyncExternalStore(subscribeBareMode, getBareMode, getBareServerSnapshot)
   const dbEntry = useSyncExternalStore(subscribeDbIndexEntry, getDbIndexEntry, () => null)
+  const panelRef = useCallback((el: HTMLElement | null) => setShellSlot('panel', el), [])
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(STORAGE_KEY) === '1')
@@ -207,19 +189,18 @@ function AppShellInner({
     })
   }, [])
 
-  const { active, currentSlug, isFlow, crumbs } = resolveRoute(pathname, projects)
+  const { active, currentSlug, isFlow, isGallery, crumbs } = resolveRoute(pathname)
   // Opened from a share link: the prototype and its screens, and no way out
   // to the rest of the studio (platform/share).
   const guest = useGuestAccess(currentSlug) !== null
   const viewerKnown = useStudioUser().loaded
-
-  // The unlock gate, the sign-in hand-off and share-link pages render without
-  // any chrome.
-  if (['/unlock', '/auth/', '/s/', '/share-ended'].some((p) => pathname.startsWith(p))) return <>{children}</>
-
-  // Below md the rail and sidebar never render: prototype routes go fullscreen
-  // (TripleTapExit is the way back), every other route gets MobileTopNav.
   const isProto = currentSlug != null
+
+  // A prototype keeps the studio's chrome out until it's known whether this
+  // viewer is a guest — otherwise a share link flashes the way back to the
+  // gallery before the guest view takes it away.
+  const pendingViewer = isProto && !viewerKnown
+  const studioHidden = guest || pendingViewer
 
   // Bare presentation — the prototype gets the window and the shell's own
   // chrome steps out of the way.
@@ -232,76 +213,86 @@ function AppShellInner({
   // was the whole reason the toggle sets a flag instead of navigating.
   const bareProto = isProto && bare
 
-  // A prototype keeps the studio's chrome out until it's known whether this
-  // viewer is a guest — otherwise a share link flashes the rail and an empty
-  // sidebar before the guest view takes them away.
-  const pendingViewer = isProto && !viewerKnown
-
-  // Inside a project the sidebar becomes its page explorer; an unknown slug
-  // (the 404 route) falls back to the project list.
-  // A database project's screens come from the running prototype.
+  // Inside a project the sidebar becomes its own; an unknown slug (the 404
+  // route) falls back to the app switcher. A database project's screens come
+  // from the running prototype.
   const currentProject = currentSlug
     ? (dbEntry?.slug === currentSlug ? dbEntry : null) ?? projects.find((p) => p.slug === currentSlug) ?? null
     : null
+  const screenTitle = useScreenTitle(isFlow ? null : currentProject)
+
+  // A guest only ever sees the prototype they were shared, so nothing shows
+  // while its screens are still loading or the viewer isn't known.
+  const sidebarShown = !bareProto && !(isProto && !currentProject && studioHidden)
+
+  // ⌘K opens Jump to; [ folds and opens the sidebar.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+        if (studioHidden) return
+        e.preventDefault()
+        setJumping((open) => !open)
+        return
+      }
+      if (e.key === '[' && !e.metaKey && !e.ctrlKey && !e.altKey && !isTyping(e.target) && sidebarShown) {
+        e.preventDefault()
+        toggle()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [studioHidden, sidebarShown, toggle])
+
+  // The unlock gate, the sign-in hand-off and share-link pages render without
+  // any chrome.
+  if (['/unlock', '/auth/', '/s/', '/share-ended'].some((p) => pathname.startsWith(p))) return <>{children}</>
+
+  const sidebarProps = {
+    active,
+    project: currentProject,
+    guest: studioHidden,
+    onJump: () => setJumping(true),
+  }
+
+  const title = isGallery ? (
+    <Suspense fallback={<Breadcrumb crumbs={crumbs} />}>
+      <GalleryTitle />
+    </Suspense>
+  ) : isProto && !isFlow ? (
+    screenTitle ? <Breadcrumb crumbs={[{ label: screenTitle }]} /> : null
+  ) : (
+    <Breadcrumb crumbs={crumbs} />
+  )
 
   return (
-    <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-ink-950">
-      <NavRail active={active} className={bareProto || guest || pendingViewer ? 'hidden' : 'hidden md:flex'} />
-
-      {/* Inside a project the sidebar holds Screens · Layers · Notes, which the
-          prototype can't do without — so it stays, and only elsewhere folds.
-          A guest only ever sees the prototype they were shared, so nothing
-          shows while its screens are still loading or the viewer isn't known. */}
-      {(collapsed && !isProto) || bareProto || (isProto && !currentProject && (guest || pendingViewer)) ? null : isProto && currentProject ? (
-        // Inside a project the sidebar floats as a card on the canvas, matching
-        // the Edit panel opposite — both are tools laid over the design, not
-        // columns of the page.
-        <div className="hidden shrink-0 py-16 pl-16 md:flex">
-          <aside
-            className={`${styles.projectCard} overflow-y-auto rounded-16 border border-default bg-neutral-white px-12 pb-12 dark:border-ink-700 dark:bg-ink-900`}
-          >
-            <ScreenSidebar project={currentProject} />
-          </aside>
-        </div>
-      ) : (
-        <aside
-          className={`${styles.secondary} hidden shrink-0 overflow-y-auto border-r border-default bg-neutral-white px-8 py-16 dark:border-ink-700 dark:bg-ink-900 md:block`}
-        >
-          {active === 'funds' ? (
-            <SystemSidebar />
-          ) : active === 'assets' ? (
-            <AssetsSidebar />
-          ) : currentProject ? (
-            <ScreenSidebar project={currentProject} />
+    <div className="flex h-screen overflow-hidden bg-ink-900">
+      {sidebarShown ? (
+        <div className="hidden md:flex">
+          {collapsed ? (
+            <SidebarRail {...sidebarProps} onExpand={toggle} />
           ) : (
-            <StudioSidebar projects={projects} currentSlug={currentSlug} />
+            <Sidebar {...sidebarProps} />
           )}
-        </aside>
-      )}
+        </div>
+      ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div
+        className={`flex min-w-0 flex-1 flex-col overflow-hidden bg-neutral-white dark:bg-ink-950 ${
+          bareProto ? '' : `md:my-8 md:mr-8 md:rounded-12 md:ring-1 md:ring-transparent md:dark:ring-neutral-white/5 ${sidebarShown ? '' : 'md:ml-8'}`
+        }`}
+      >
+        {/* Below md, prototype routes go full screen (TripleTapExit is the way
+            back); every other route gets MobileTopNav. */}
         {isProto ? null : <MobileTopNav active={active} />}
 
-        {/* No top bar inside a project: the sidebar already names it, and the
-            view switch and full screen float on the canvas instead. */}
-        <header
-          className={`${isProto ? 'hidden' : 'flex'} h-48 shrink-0 items-center gap-12 border-b border-default bg-neutral-white px-16 dark:border-ink-700 dark:bg-ink-900`}
-        >
-          <button
-            type="button"
-            onClick={toggle}
-            aria-label={collapsed ? 'Show sidebar' : 'Hide sidebar'}
-            aria-pressed={!collapsed}
-            className="hidden size-32 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50 md:flex"
-          >
-            <PanelIcon className="size-20" />
-          </button>
-          <span aria-hidden className="hidden h-20 border-l border-neutral-200 dark:border-ink-700 md:block" />
-          <Breadcrumb crumbs={crumbs} />
-          <div className="ml-auto flex shrink-0 items-center gap-12">
-            <HeaderStatusView />
-          </div>
-        </header>
+        {bareProto ? null : (
+          <TopBar
+            title={title}
+            status={<HeaderStatusView />}
+            sidebar={sidebarShown ? { folded: collapsed, onToggle: toggle } : undefined}
+            className={isProto ? 'hidden md:flex' : 'flex'}
+          />
+        )}
 
         <div className="relative flex min-h-0 flex-1">
           {isProto ? (
@@ -311,23 +302,19 @@ function AppShellInner({
           ) : (
             <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{children}</div>
           )}
-          {/* The prototype draws its own, beside its right panel; the flow
-              view's canvas is the whole area, so they go in its corner here. */}
+          {/* The prototype draws its own, beside full screen; the flow view's
+              canvas is the whole area, so it goes in the corner here — the
+              same place, so going across and back is the same click. */}
           {currentSlug && isFlow ? (
-            <>
-              {/* Top left, where the prototype keeps its Flow switch, so
-                  going across and back is the same click in the same place. */}
-              <ViewSwitch slug={currentSlug} isFlow className="absolute left-16 top-16 z-30 hidden md:flex" />
-              <CanvasControls
-                slug={currentSlug}
-                isFlow
-                status={<HeaderStatusView />}
-                className="absolute right-16 top-16 z-30 hidden md:flex"
-              />
-            </>
+            <ViewSwitch slug={currentSlug} isFlow className="absolute bottom-16 right-16 z-30 hidden md:flex" />
           ) : null}
         </div>
       </div>
+
+      {/* The prototype's panel column, on the frame. Dark in either theme. */}
+      <div ref={panelRef} data-theme="dark" className="hidden w-360 flex-none flex-col py-8 pr-8 md:flex md:empty:hidden" />
+
+      {jumping ? <JumpTo projects={projects} onClose={() => setJumping(false)} /> : null}
     </div>
   )
 }

@@ -47,7 +47,8 @@ export const SHORTCUTS: {
 export const withKey = (title: string, action: ShortcutAction) =>
   `${title} · ${SHORTCUTS.find((s) => s.action === action)?.keys ?? ''}`
 
-const typing = (t: EventTarget | null) =>
+/** Someone is typing into this — a key there is text, not a shortcut. */
+export const isTyping = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))
 
 function actionOf(e: KeyboardEvent): ShortcutAction | null {
@@ -83,7 +84,7 @@ export function useShortcuts(actions: Partial<Record<ShortcutAction, () => boole
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return
-      if (typing(e.target)) return
+      if (isTyping(e.target)) return
       const action = actionOf(e)
       const run = action ? ref.current[action] : undefined
       if (!run) return

@@ -362,8 +362,8 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
   // wheel with ctrlKey set (the browser synthesises it), and ⌘/ctrl + scroll is
   // the mouse-wheel equivalent — both zoom about the cursor.
   //
-  // cx/cy are cursor coordinates relative to the canvas box, so the nav rail
-  // and sidebar to our left are already excluded. Pan and zoom move together in
+  // cx/cy are cursor coordinates relative to the canvas box, so the sidebar
+  // to our left is already excluded. Pan and zoom move together in
   // one pure updater: nesting a setPan inside a setZoom updater made the
   // updater impure, and StrictMode's double-invoke applied `ratio` twice —
   // which is what pulled the anchor off the cursor.
@@ -400,8 +400,9 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
     return () => el.removeEventListener('wheel', handler)
   }, [])
 
-  // The shell's top bar already names the project and the view; it carries the
-  // canvas's zoom and grid-fallback badge too, so this route has no header.
+  // The shell's top bar already names the view; it carries the grid-fallback
+  // badge too, so this route has no header of its own. The bottom-right corner
+  // is the shell's Prototype | Flow, so Reset layout sits top right.
   usePublishHeaderStatus(
     state === 'ready'
       ? { badge: layout?.isGrid ? 'no flow metadata' : undefined }
@@ -433,7 +434,7 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
           <button
             type="button"
             data-reset
-            className="absolute bottom-16 right-16 z-10 rounded-full border border-default bg-neutral-white px-12 py-8 text-12 text-caption hover:text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+            className="absolute right-16 top-16 z-10 flex h-32 items-center rounded-8 border border-default bg-neutral-white px-12 text-12 text-caption hover:text-default dark:border-ink-800 dark:bg-ink-900 dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
           >
             Reset layout
           </button>

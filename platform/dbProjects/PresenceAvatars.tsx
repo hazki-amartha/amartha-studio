@@ -1,9 +1,10 @@
 'use client'
 
 // =============================================================================
-// DB projects · who else has this project open, as a stack of initials beside
-// the Flow button — as in Figma. It used to be a pill across the top of the
-// canvas, which sat over the device. Click it for the names in full.
+// DB projects · who else has this project open, as a stack of initials in the
+// top bar, before Comment · Edit · Chat — as in Figma. It used to be a pill
+// across the top of the canvas, which sat over the device. Click it for the
+// names in full.
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react'
@@ -25,7 +26,7 @@ function initials(name: string): string {
   return (parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : parts[0].slice(0, 2)).toUpperCase()
 }
 
-const DISC = 'flex size-32 flex-none items-center justify-center rounded-full border-2 border-neutral-white text-12 font-bold text-neutral-white dark:border-ink-900'
+const DISC = 'flex size-24 flex-none items-center justify-center rounded-full border-2 border-neutral-white text-10 font-bold text-neutral-white dark:border-ink-900'
 
 export function PresenceAvatars({ names }: { names: string[] }) {
   const [open, setOpen] = useState(false)
@@ -50,7 +51,7 @@ export function PresenceAvatars({ names }: { names: string[] }) {
         onClick={() => setOpen((o) => !o)}
         title={`Also here: ${names.join(', ')}`}
         aria-label={`Also here: ${names.join(', ')}`}
-        className="flex h-40 items-center gap-4 rounded-full border border-default bg-neutral-white py-4 pl-4 pr-8 shadow-sm hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:shadow-none dark:hover:bg-ink-800"
+        className="flex h-32 items-center gap-4 rounded-8 border border-default bg-neutral-white py-2 pl-2 pr-8 hover:bg-neutral-50 dark:border-ink-800 dark:bg-ink-900 dark:hover:bg-ink-800"
       >
         <span className="flex">
           {names.slice(0, SHOWN).map((n, i) => (
@@ -63,7 +64,7 @@ export function PresenceAvatars({ names }: { names: string[] }) {
         <ChevronRightIcon className="size-16 rotate-90 text-caption dark:text-neutral-400" />
       </button>
       {open ? (
-        <div className="absolute left-0 top-full mt-8 min-w-200 rounded-12 border border-default bg-neutral-white p-8 shadow-sm dark:border-ink-700 dark:bg-ink-900">
+        <div className="absolute right-0 top-full z-40 mt-8 min-w-200 rounded-12 border border-default bg-neutral-white p-8 shadow-sm dark:border-ink-700 dark:bg-ink-900">
           <p className="px-8 pb-4 text-12 text-caption dark:text-neutral-400">Also here</p>
           {names.map((n) => (
             <div key={n} className="flex items-center gap-8 px-8 py-4">

@@ -1,15 +1,15 @@
 'use client'
 
 // =============================================================================
-// Comments · the right panel. Open, clicks on the device drop pins; its ✕
-// closes it and clicks tap through the app again — the same switch as Edit,
-// and the two never show at once. This screen's comments first, each one
-// opening its pin; every other screen's after, each one jumping there.
+// Comments · the right panel's first tab. Showing, clicks on the device drop
+// pins; the panel's ✕ closes it and clicks tap through the app again — the
+// same switch as Edit, and the two never show at once. This screen's comments
+// first, each one opening its pin; every other screen's after, each one
+// jumping there.
 // =============================================================================
 
 import { useFlow, useScreenJump } from '@/platform/runtime'
 import type { ScreenDef } from '@/platform/types'
-import { CloseIcon } from '@/platform/chrome/icons'
 import { ago, initials } from './CommentLayer'
 import type { Comment } from './protocol'
 import { numberOf, openComment, repliesOf, setCommentMode, setShowResolved, threadsOf, useComments } from './store'
@@ -71,16 +71,8 @@ function Row({
   )
 }
 
-export function CommentsPanel({
-  screens,
-  onClose,
-  className,
-}: {
-  screens: ScreenDef[]
-  onClose: () => void
-  /** Column geometry from the layout — the same width as the Edit panel. */
-  className?: string
-}) {
+/** The tab's body; the panel around it (PrototypeView) draws the tabs and ✕. */
+export function CommentsPanel({ screens }: { screens: ScreenDef[] }) {
   const { current } = useFlow()
   const jump = useScreenJump()
   const { comments, openId, showResolved } = useComments()
@@ -99,24 +91,8 @@ export function CommentsPanel({
   }
 
   return (
-    <aside
-      className={`${className ?? ''} flex h-full min-h-0 flex-none flex-col rounded-16 border border-default bg-neutral-white px-12 pb-12 dark:border-ink-700 dark:bg-ink-900`}
-    >
-      {/* The Edit panel's header — a 48px title row with the way out. */}
-      <div className="flex h-48 flex-none items-center justify-between">
-        <span className="text-14 font-bold text-default dark:text-neutral-50">Comments</span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close Comments"
-          title="Close Comments — clicks tap through the prototype again"
-          className="flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
-        >
-          <CloseIcon className="size-16" />
-        </button>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto pt-12">
         <div className="flex items-center justify-between">
           <span className="truncate text-12 font-bold text-caption dark:text-neutral-400">
             {screens.find((sc) => sc.id === current)?.title ?? 'This screen'}
@@ -156,6 +132,6 @@ export function CommentsPanel({
           </>
         ) : null}
       </div>
-    </aside>
+    </div>
   )
 }

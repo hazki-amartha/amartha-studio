@@ -1,26 +1,20 @@
 // =============================================================================
 // MobileTopNav — the shell's chrome below md, where there is no room for the
-// icon rail or the secondary sidebar. A 48px bar (hamburger + wordmark) sits
-// above the breadcrumb bar; the hamburger expands the top-level destinations
-// (Studio, FunDS, Assets) inline. Prototype routes never render this — they go
-// fullscreen with TripleTapExit instead.
+// sidebar. A 48px bar (hamburger + wordmark) sits above the page's top bar;
+// the hamburger expands the top-level destinations (Projects, FunDS, Assets)
+// inline. Prototype routes never render this — they go fullscreen with
+// TripleTapExit instead.
 // =============================================================================
 
 'use client'
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { AssetsIcon, CloseIcon, FundsIcon, MenuIcon, StudioIcon } from './icons'
-import type { RailSection } from './NavRail'
+import { CloseIcon, MenuIcon, StudioMark } from './icons'
+import { SECTIONS, type Section } from './Sidebar'
 import { ThemeToggle } from './theme'
 
-const ITEMS: { section: RailSection; href: string; label: string; Icon: typeof StudioIcon }[] = [
-  { section: 'studio', href: '/', label: 'Studio', Icon: StudioIcon },
-  { section: 'funds', href: '/system', label: 'FunDS', Icon: FundsIcon },
-  { section: 'assets', href: '/assets', label: 'Assets', Icon: AssetsIcon },
-]
-
-export function MobileTopNav({ active }: { active: RailSection | null }) {
+export function MobileTopNav({ active }: { active: Section | null }) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -36,8 +30,8 @@ export function MobileTopNav({ active }: { active: RailSection | null }) {
           {open ? <CloseIcon className="size-20" /> : <MenuIcon className="size-20" />}
         </button>
         <Link href="/" className="flex items-center gap-8" onClick={() => setOpen(false)}>
-          <span className="flex size-24 items-center justify-center rounded-8 bg-primary-500 text-12 font-bold text-neutral-white">
-            D
+          <span className="flex size-24 items-center justify-center rounded-6 bg-primary-500 text-neutral-white">
+            <StudioMark className="size-16" />
           </span>
           <span className="text-14 font-bold text-default dark:text-neutral-50">Amartha Studio</span>
         </Link>
@@ -49,7 +43,7 @@ export function MobileTopNav({ active }: { active: RailSection | null }) {
           aria-label="Sections"
           className="flex flex-col gap-2 border-b border-default bg-neutral-white p-8 dark:border-ink-700 dark:bg-ink-900"
         >
-          {ITEMS.map(({ section, href, label, Icon }) => {
+          {SECTIONS.map(({ section, href, label, Icon }) => {
             const isActive = active === section
             return (
               <Link

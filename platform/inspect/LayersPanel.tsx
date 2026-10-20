@@ -215,14 +215,15 @@ function Row({
           drag.onDrop(dragged, node.el, where)
         }}
         onDragEnd={() => setDragState({ dragged: null, over: null })}
-        className={`relative flex items-center gap-2 rounded-4 pr-4 ${
+        className={`relative flex items-center gap-4 rounded-8 pr-8 ${
           over === 'inside'
             ? 'outline outline-2 outline-primary-500'
             : isPinned
               ? 'bg-primary-50 dark:bg-ink-800'
               : 'hover:bg-neutral-50 dark:hover:bg-ink-800'
         } ${dragState.dragged === node.el ? 'opacity-50' : ''}`}
-        style={{ paddingLeft: depth * 12 }}
+        // 16px a level, so the nesting reads at a glance in a roomy row.
+        style={{ paddingLeft: 4 + depth * 16 }}
         onMouseEnter={() => onHover(node.el)}
         onMouseLeave={() => onHover(null)}
       >
@@ -253,30 +254,30 @@ function Row({
         <button
           type="button"
           onClick={() => onPin(node.el)}
-          className="flex min-w-0 flex-1 items-center gap-4 py-2 text-left"
+          className="flex min-w-0 flex-1 items-center gap-8 py-8 text-left"
         >
           <Glyph
-            className={`size-12 flex-none ${
+            className={`size-16 flex-none ${
               node.kind === 'component'
                 ? 'text-link dark:text-neutral-400'
-                : 'text-placeholder dark:text-neutral-600'
+                : 'text-placeholder dark:text-neutral-500'
             }`}
           />
           <span
-            className={`truncate text-12 ${
-              node.kind === 'component'
-                ? isPinned
-                  ? 'font-bold text-link dark:text-neutral-50'
-                  : 'font-bold text-default dark:text-neutral-50'
-                : node.kind === 'text'
-                  ? 'text-caption dark:text-neutral-400'
-                  : 'text-default dark:text-neutral-50'
+            className={`truncate text-14 ${
+              isPinned
+                ? 'font-bold text-link dark:text-neutral-50'
+                : node.kind === 'component'
+                  ? 'font-bold text-default dark:text-neutral-50'
+                  : node.kind === 'text'
+                    ? 'text-caption dark:text-neutral-500'
+                    : 'text-default dark:text-neutral-400'
             }`}
           >
             {node.kind === 'text' ? `“${node.label}”` : node.label}
           </span>
           {node.detail ? (
-            <span className="truncate text-10 text-placeholder dark:text-neutral-600">
+            <span className="truncate text-12 text-placeholder dark:text-neutral-600">
               {node.detail}
             </span>
           ) : null}
@@ -342,9 +343,9 @@ export function LayersPanel({
 
   const tree =
     nodes.length === 0 ? (
-      <p className="text-12 text-caption dark:text-neutral-400">Nothing on this screen yet.</p>
+      <p className="px-8 text-12 text-caption dark:text-neutral-400">Nothing on this screen yet.</p>
     ) : (
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-2">
         {nodes.map((node, i) => (
           <Row
             key={i}

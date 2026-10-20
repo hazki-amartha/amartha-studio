@@ -19,7 +19,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/design-system/components/Button'
-import { CloseIcon } from '@/platform/chrome/icons'
+import { CloseIcon, PlusIcon } from '@/platform/chrome/icons'
+import { ToolButton } from '@/platform/chrome/TopBar'
 import { setDesignMode, setEditTab } from '@/platform/runtime/designBridge'
 import type { BusinessUnit, Platform } from '@/platform/types'
 import { getCommenterName } from '@/platform/comments/store'
@@ -147,9 +148,8 @@ export function NewProjectButton({
   const [open, setOpen] = useState(false)
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>
-        New project
-      </Button>
+      {/* In the shell's top bar, so it wears the top bar's button. */}
+      <ToolButton icon={<PlusIcon className="size-16" />} label="New project" onClick={() => setOpen(true)} />
       {open ? (
         <NewProjectDialog
           account={account}

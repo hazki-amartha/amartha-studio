@@ -46,7 +46,7 @@ export async function resolveDbProject(build: DbProjectBuild): Promise<{ own: Pr
  * those (`hidden`, `bg-neutral-50`) the studio already has. Appended after the
  * studio's CSS, a repeat moves that utility to the end of the cascade and beats
  * variants it used to lose to: `hidden` overrode the shell's `md:flex` and hid
- * the nav rail and sidebar. So only rules for classes new to this page go in.
+ * the sidebar. So only rules for classes new to this page go in.
  */
 function injectCss(slug: string, css: string) {
   const id = `db-project-css-${slug}`

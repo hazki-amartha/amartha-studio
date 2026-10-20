@@ -383,10 +383,10 @@ export function InspectorPanel({
           <button
             type="button"
             onClick={() => setEditTab('chat')}
-            title="Open Chat about this element and say what should change"
+            title="Open AI Chat about this element and say what should change"
             className="rounded-full bg-primary-500 px-16 py-8 text-12 font-bold text-neutral-white hover:bg-primary-600"
           >
-            Ask chat about this
+            Ask AI Chat about this
           </button>
         ) : null}
       </div>

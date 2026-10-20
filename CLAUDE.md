@@ -178,15 +178,15 @@ means it's already saved, "push it" means it's already live. A **branch** is the
 one exception — `/push` merges it into its project.
 
 **Branches** are the studio's own word, so say it freely — never a git branch. A
-designer starts one from the Edit panel's title ("Edit · Main ▾"): a database
-project at `/p/<slug>-branch-<name>` (older ones say `-draft-`) with a
+designer starts one from the branch button atop the sidebar, beside Share: a
+database project at `/p/<slug>-branch-<name>` (older ones say `-draft-`) with a
 `draft.json` you never edit, kept off the project's link until it's pushed.
 
-**Done in the studio, not by hand:** undo across saves is the Edit panel's title
-menu → **History**. Deleting is the gallery card's **⋯ → Delete project** (owner
-or admin; restorable for 30 days) — never touch `deleted.json` or delete files
-to "delete" a project. Moving a git project into the database is the owner's
-`npm run db:sync -- <slug>`.
+**Done in the studio, not by hand:** undo across saves is the right panel's
+**History** (the clock beside its ✕). Deleting is the gallery card's **⋯ →
+Delete project** (owner or admin; restorable for 30 days) — never touch
+`deleted.json` or delete files to "delete" a project. Moving a git project into
+the database is the owner's `npm run db:sync -- <slug>`.
 
 ---
 

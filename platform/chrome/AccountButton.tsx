@@ -1,9 +1,9 @@
 // =============================================================================
-// AccountButton — the rail's sign-in (platform/auth). Hidden where sign-in
-// isn't configured, so local dev and unconfigured previews look as before.
-// Signed out: a person icon that goes to Google. Signed in: initials, and a
-// card with who you are — the name you go by, yours to change — what you can
-// do, and Sign out.
+// AccountButton — the sidebar's sign-in (platform/auth), at its foot. Hidden
+// where sign-in isn't configured, so local dev and unconfigured previews look
+// as before. Signed out: a person icon that goes to Google. Signed in:
+// initials (and, in the open sidebar, your name), and a card with who you are
+// — the name you go by, yours to change — what you can do, and Sign out.
 // =============================================================================
 
 'use client'
@@ -23,7 +23,9 @@ function initials(label: string): string {
   return (parts.length > 1 ? parts[0][0] + parts[1][0] : label.slice(0, 2)).toUpperCase()
 }
 
-export function AccountButton() {
+/** `row`: avatar and name, for the open sidebar's foot — the card opens above
+ *  it. Otherwise the avatar alone, for the folded rail — the card opens beside. */
+export function AccountButton({ row }: { row?: boolean }) {
   const { loaded, configured, user } = useStudioUser()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -46,29 +48,47 @@ export function AccountButton() {
         onClick={signIn}
         aria-label="Sign in with Google"
         title="Sign in"
-        className="flex size-40 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+        className={
+          row
+            ? 'flex h-40 min-w-0 flex-1 items-center gap-8 rounded-8 px-8 text-14 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50'
+            : 'flex size-40 items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-500 dark:hover:bg-ink-800 dark:hover:text-neutral-50'
+        }
       >
-        <AccountIcon className="size-20" />
+        <AccountIcon className={row ? 'size-16 flex-none' : 'size-16'} />
+        {row ? <span className="truncate">Sign in</span> : null}
       </button>
     )
   }
 
+  const avatar = (
+    <span className="flex size-24 flex-none items-center justify-center rounded-full bg-primary-700 text-10 font-bold text-primary-50">
+      {initials(user.label)}
+    </span>
+  )
+
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className={row ? 'relative min-w-0 flex-1' : 'relative'}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={`Signed in as ${user.label}`}
         aria-expanded={open}
         title={user.label}
-        className="flex size-40 items-center justify-center rounded-8 hover:bg-neutral-50 dark:hover:bg-ink-800"
+        className={
+          row
+            ? 'flex h-40 w-full min-w-0 items-center gap-8 rounded-8 px-8 text-left text-14 text-default hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-ink-800 dark:hover:text-neutral-50'
+            : 'flex size-40 items-center justify-center rounded-8 hover:bg-neutral-50 dark:hover:bg-ink-800'
+        }
       >
-        <span className="flex size-32 items-center justify-center rounded-full bg-primary-500 text-10 font-bold text-neutral-white">
-          {initials(user.label)}
-        </span>
+        {avatar}
+        {row ? <span className="truncate">{user.label}</span> : null}
       </button>
       {open ? (
-        <div className="absolute bottom-0 left-48 z-50 flex w-240 flex-col gap-8 rounded-12 border border-default bg-neutral-white p-12 shadow-sm dark:border-ink-700 dark:bg-ink-900">
+        <div
+          className={`absolute z-50 flex w-240 flex-col gap-8 rounded-12 border border-default bg-neutral-white p-12 shadow-sm dark:border-ink-700 dark:bg-ink-900 ${
+            row ? 'bottom-full left-0 mb-8' : 'bottom-0 left-full ml-8'
+          }`}
+        >
           <NameRow name={user.label} />
           <span className="truncate text-12 text-caption dark:text-neutral-400">{user.email}</span>
           <span className="text-12 text-caption dark:text-neutral-400">{ROLE[user.role]}</span>
