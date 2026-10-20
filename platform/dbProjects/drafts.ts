@@ -32,6 +32,7 @@
 import type { StudioUser } from '@/platform/auth/protocol'
 import { slugFor } from '@/platform/projects/server/create'
 import { checkDbProject } from './checks'
+import { everSaved } from './history'
 import {
   canActOnDraft,
   DRAFT_FILE,
@@ -191,7 +192,7 @@ export async function startDraft(project: string, name: string, by: string | nul
   const taken = new Set(configs.map((c) => c.slug))
   const base = `${project}-branch-${tail}`
   let slug = base
-  for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`
+  for (let n = 2; taken.has(slug) || (await everSaved(slug)); n++) slug = `${base}-${n}`
 
   // History first, files second: a save landing in between is then in the
   // draft's files but newer than its base, which merges as a change both

@@ -22,6 +22,11 @@ export async function GET(request: Request, { params }: { params: { slug: string
   if (!(await maySee(params.slug, await requestUser(request), { shared: true }))) {
     return NextResponse.json({ ok: false, error: PRIVATE_BRANCH } satisfies DbProjectResponse, { status: 404 })
   }
+  // A deleted project is shut until it's restored, as its page already is.
+  const found = await findProjectConfig(params.slug)
+  if (found?.config.deleted) {
+    return NextResponse.json({ ok: false, error: 'This project was deleted.' } satisfies DbProjectResponse, { status: 404 })
+  }
   const build = await buildDbProject(params.slug)
   if ('error' in build) {
     return NextResponse.json({ ok: false, error: build.error } satisfies DbProjectResponse, { status: 404 })
@@ -29,7 +34,7 @@ export async function GET(request: Request, { params }: { params: { slug: string
   // A base in the database rides along (platform/dbProjects/load.ts links
   // both); its version joins this one's, so a save to the base shows here too.
   // Never a branch: the save checks refuse one as a base (./checks.ts).
-  const baseSlug = (await findProjectConfig(params.slug))?.config.extends
+  const baseSlug = found?.config.extends
   const baseFound = baseSlug ? await findProjectConfig(baseSlug) : null
   const base = baseSlug && baseFound?.inDb && !baseFound.config.draft ? await buildDbProject(baseSlug) : null
   const body: DbProjectResponse =

@@ -53,6 +53,27 @@ async function allRows(db: Db, slug: string): Promise<Row[]> {
   }
 }
 
+/**
+ * Whether a project ever had this slug. Its saved history outlives it — and so
+ * do its comments and share links, which are keyed by slug — so a new project
+ * or branch under an old slug would show the old saves, carry the old
+ * comments and open to the old links. A pushed or discarded branch frees its
+ * slug at once, a deleted project after its 30 days; neither is handed out
+ * again. On a laptop the deployed studio's history answers.
+ */
+export async function everSaved(slug: string): Promise<boolean> {
+  const db = createAdminClient()
+  if (!db) {
+    const r = await listHistory(slug)
+    // Unanswered, it can't say the slug is free — and "used" would loop on to -2, -3…
+    if (!r.ok) throw new Error(r.reason)
+    return r.points.length > 0
+  }
+  const { data, error } = await db.from(VERSIONS_TABLE).select('id').eq('slug', slug).limit(1)
+  if (error) throw new Error(error.message)
+  return data.length > 0
+}
+
 export async function listHistory(slug: string): Promise<HistoryResponse> {
   const db = createAdminClient()
   if (!db) return remote<HistoryResponse>(`/api/db-projects/${encodeURIComponent(slug)}/history`, { write: true })

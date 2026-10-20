@@ -56,13 +56,13 @@ function backend(): 'fs' | 'github' | 'record' {
 
 /**
  * Whether this request may save, and who is signed in. A signed-in editor
- * always may; otherwise behind the site gate getting in was enough, and
- * failing that the editing password's cookie.
+ * always may; anyone else needs the editing password's cookie. Getting past
+ * the site password (SITE_PASSWORD) isn't enough: since sign-in, it only
+ * gates the door.
  */
 async function access(request: Request): Promise<{ may: boolean; user: StudioUser | null }> {
   const user = await getStudioUser()
   if (canEditAs(user) && isSameOrigin(request)) return { may: true, user }
-  if (isGateConfigured()) return { may: true, user }
   return { may: verifyEditToken(editCookie(request)), user }
 }
 
