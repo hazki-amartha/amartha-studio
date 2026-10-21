@@ -12,7 +12,8 @@
 // button (the project and its branches) at the right end, where it stays
 // however long the name is. Share moved to the top bar, beside Comment.
 // Layers and Notes sit beside Screens as tabs while a prototype runs — the
-// prototype portals them into the slots this renders (see shellSlots.ts).
+// prototype portals them into the slots this renders (see shellSlots.ts). A
+// share-link guest gets Screens and Notes only.
 // =============================================================================
 
 'use client'
@@ -40,6 +41,10 @@ const TABS: { id: SidebarTab; label: string }[] = [
   { id: 'notes', label: 'Notes' },
 ]
 
+// A share-link guest only views the prototype, so Layers — an inspector for
+// building it — stays out of their sidebar.
+const GUEST_TABS = TABS.filter((t) => t.id !== 'layers')
+
 function getServerSnapshot() {
   return null
 }
@@ -62,7 +67,7 @@ export function ScreenSidebar({
     getShellSlots,
     getShellSlotsServerSnapshot,
   )
-  const tab: SidebarTab = running ? chosen : 'screens'
+  const tab: SidebarTab = running && !(guest && chosen === 'layers') ? chosen : 'screens'
   const layersRef = useCallback((el: HTMLElement | null) => setShellSlot('layers', el), [])
   const notesRef = useCallback((el: HTMLElement | null) => setShellSlot('notes', el), [])
 
@@ -82,7 +87,7 @@ export function ScreenSidebar({
           <ProjectSwitcher slug={project.slug} name={project.name} />
         )}
       </div>
-      {running ? <PanelTabs tabs={TABS} active={tab} onChange={setSidebarTab} /> : null}
+      {running ? <PanelTabs tabs={guest ? GUEST_TABS : TABS} active={tab} onChange={setSidebarTab} /> : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-12 pb-12 pt-8">
         {/* Mounted whenever the sidebar is, so the prototype always has somewhere
