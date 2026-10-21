@@ -26,6 +26,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react'
 import { BranchIcon, HistoryIcon, LockIcon, LockOpenIcon, PlusIcon, TrashIcon } from '@/platform/chrome/icons'
 import { ICON_BUTTON as SIDEBAR_BUTTON } from '@/platform/chrome/sidebarRows'
+import { toolButtonClass } from '@/platform/chrome/TopBar'
 import { isActiveDbProject } from './active'
 import type { DraftActionResult, DraftsResponse, DraftSummary } from './draftMeta'
 import { HistoryList } from './HistoryList'
@@ -225,9 +226,8 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
             <button type="button" className={ROW} onClick={() => go(project)}>
               <span className="flex min-w-0 flex-col">
                 <span className="text-14 text-default dark:text-neutral-50">Main</span>
-                <span className={`${NOTE} truncate`}>What the project’s link shows</span>
+                {!draft ? <span className="text-12 font-bold text-primary-500">Opened</span> : null}
               </span>
-              {!draft ? <span className="text-12 font-bold text-primary-500">Here</span> : null}
             </button>
             {data.drafts.map((d) => (
               <div key={d.slug} className={ROW}>
@@ -235,7 +235,7 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
                   <span className="truncate text-14 text-default dark:text-neutral-50">Branch: {d.name}</span>
                   <span className={`${NOTE} truncate`}>
                     {[d.createdBy, d.visibility === 'private' ? 'Private' : 'Shared'].filter(Boolean).join(' · ')}
-                    {d.slug === slug ? <span className="font-bold text-primary-500"> · Here</span> : null}
+                    {d.slug === slug ? <span className="font-bold text-primary-500"> · Opened</span> : null}
                   </span>
                 </button>
                 {acting?.slug === d.slug ? (
@@ -254,6 +254,15 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
                   <span className="flex flex-none items-center gap-4">
                     <button
                       type="button"
+                      className={toolButtonClass(true)}
+                      disabled={acting !== null}
+                      title={`Push to ${parentName} — its changes go live, and the branch is deleted`}
+                      onClick={() => void run(d.slug, 'push')}
+                    >
+                      Push
+                    </button>
+                    <button
+                      type="button"
                       className={ICON_BUTTON}
                       disabled={acting !== null}
                       aria-label={d.visibility === 'private' ? `Share the branch ${d.name} with the team` : `Make the branch ${d.name} private`}
@@ -265,15 +274,6 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
                       onClick={() => void share(d)}
                     >
                       {d.visibility === 'private' ? <LockIcon className="size-16" /> : <LockOpenIcon className="size-16" />}
-                    </button>
-                    <button
-                      type="button"
-                      className={SMALL_PRIMARY}
-                      disabled={acting !== null}
-                      title={`Push to ${parentName} — its changes go live, and the branch is deleted`}
-                      onClick={() => void run(d.slug, 'push')}
-                    >
-                      Push
                     </button>
                     <button
                       type="button"

@@ -78,6 +78,9 @@ export async function GET(request: Request): Promise<NextResponse> {
   const notAnEditor = kind === 'github' && !may && user !== null
   const status: DesignStatus = {
     backend: kind,
+    // The dev server writes the working copy as each change is made; Push is
+    // the one step that sends it live.
+    instant: kind === 'fs' ? true : undefined,
     sha: kind === 'github' ? githubConfig()?.sha : undefined,
     owners: facts?.owners ?? [],
     locked:

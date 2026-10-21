@@ -100,8 +100,10 @@ export interface DesignStoreState {
   undo: UndoEntry[]
   /** Where a write goes, once the route has said. */
   backend: Backend
-  /** A database project: each change saves itself (DesignStatus.instant). */
+  /** `fs`: each change saves itself (DesignStatus.instant). */
   instant?: boolean
+  /** A database project: a save is already live (DesignStatus.live). */
+  live?: boolean
   /** `github`: the deployment's build commit. */
   sha?: string
   /** The project's owners, for the name prompt. */
@@ -245,7 +247,7 @@ function emit(next: Partial<DesignStoreState>) {
 }
 
 /**
- * Instant saving (a database project): write whatever is staged a beat after
+ * Instant saving (the `fs` backend): write whatever is staged a beat after
  * the last change, so a run of nudges becomes one save and the designer never
  * presses Save. A refused batch is not retried on its own — the error stays up
  * until it is dismissed or the change is discarded.
@@ -340,6 +342,7 @@ async function probe(slug: string) {
     ...state,
     backend: status.backend,
     instant: status.instant,
+    live: status.live,
     sha: status.sha,
     owners: status.owners,
     locked: status.locked,

@@ -6,9 +6,10 @@
 
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useStudioUser } from '@/platform/auth/session'
-import { LinkIcon, ShareIcon } from '@/platform/chrome/icons'
+import { ChevronDownIcon, LinkIcon, ShareIcon } from '@/platform/chrome/icons'
+import { toolButtonClass } from '@/platform/chrome/TopBar'
 import { EXPIRY_CHOICES, type ShareAccess, type ShareLink, type ShareResponse } from './protocol'
 
 const PILL =
@@ -24,6 +25,23 @@ const NOTE = 'text-12 text-caption dark:text-neutral-400'
 
 const ACCESS: Record<ShareAccess, string> = { view: 'View only', comment: 'View & comment' }
 const expiryLabel = (days: number | null) => (days ? `${days} days` : 'Never')
+
+/** A native select in the top bar's face, with its own chevron — the browser's
+ *  sits flush against the edge and ignores the dark theme. */
+function Select({ value, onChange, children }: { value: string | number; onChange: (v: string) => void; children: ReactNode }) {
+  return (
+    <span className="relative flex-none">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-32 cursor-pointer appearance-none rounded-8 border border-default bg-neutral-white pl-12 pr-32 text-12 font-bold text-default hover:bg-neutral-50 dark:border-ink-800 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800"
+      >
+        {children}
+      </select>
+      <ChevronDownIcon className="pointer-events-none absolute right-12 top-1/2 size-12 -translate-y-1/2 text-caption dark:text-neutral-400" />
+    </span>
+  )
+}
 
 const urlOf = (link: ShareLink) => `${window.location.origin}/s/${link.token}`
 
@@ -155,43 +173,31 @@ function SharePanel({ slug, inline }: { slug: string; inline?: boolean }) {
       </div>
 
       <div className="flex flex-col gap-8">
-        <div className="flex gap-4" role="radiogroup" aria-label="Access">
-          {(Object.keys(ACCESS) as ShareAccess[]).map((a) => (
-            <button
-              key={a}
-              type="button"
-              role="radio"
-              aria-checked={access === a}
-              onClick={() => setAccess(a)}
-              className={
-                access === a
-                  ? 'flex-1 rounded-full bg-ink-900 px-12 py-4 text-12 font-bold text-neutral-white dark:bg-neutral-white dark:text-ink-900'
-                  : `flex-1 ${SMALL}`
-              }
-            >
-              {ACCESS[a]}
-            </button>
-          ))}
-        </div>
+        <label className="flex items-center justify-between gap-8">
+          <span className={NOTE}>Access</span>
+          <Select value={access} onChange={(v) => setAccess(v as ShareAccess)}>
+            {(Object.keys(ACCESS) as ShareAccess[]).map((a) => (
+              <option key={a} value={a}>
+                {ACCESS[a]}
+              </option>
+            ))}
+          </Select>
+        </label>
         <label className="flex items-center justify-between gap-8">
           <span className={NOTE}>Expires</span>
-          <select
-            value={days ?? ''}
-            onChange={(e) => setDays(e.target.value ? Number(e.target.value) : null)}
-            className="rounded-8 border border-neutral-200 bg-neutral-white px-8 py-4 text-12 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-white"
-          >
+          <Select value={days ?? ''} onChange={(v) => setDays(v ? Number(v) : null)}>
             {EXPIRY_CHOICES.map((d) => (
               <option key={d ?? 'never'} value={d ?? ''}>
                 {expiryLabel(d)}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <button
           type="button"
           onClick={() => void create()}
           disabled={busy}
-          className="rounded-full bg-primary-500 px-16 py-8 text-14 font-bold text-neutral-white hover:bg-primary-600 disabled:opacity-50"
+          className={`${toolButtonClass(true)} justify-center`}
         >
           Create link and copy
         </button>

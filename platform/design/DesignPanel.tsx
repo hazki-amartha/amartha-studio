@@ -1008,8 +1008,9 @@ const plural = (n: number) => `${n} change${n === 1 ? '' : 's'}`
 /**
  * One list, and what can be done with it here:
  *
- *   dev server — Save writes it into the working copy; commit and push go
- *                through the agent.
+ *   dev server — each change saves itself, into the database project or
+ *                the git working copy; only Undo is left to show. A git
+ *                project's Push bar, below, sends it live.
  *   the link   — Push writes it and sends it live, in one press. The editing
  *                password and who is editing are asked THEN, inline, and the
  *                push carries on once they are answered — never up front,
@@ -1087,10 +1088,11 @@ function ActionsFooter({
     )
   }
 
-  // A database project saves each change as it is made, and a save is already
-  // live: the footer is just where that stands, and Undo.
+  // The dev server saves each change as it is made — on a database project a
+  // save is already live, in a git project it waits for Push: the footer is
+  // just where that stands, and Undo.
   if (store.instant && writable) {
-    const status = store.busy ? 'Saving…' : n > 0 ? 'Saving…' : saved > 0 ? 'Saved — live on the link' : null
+    const status = store.busy || n > 0 ? 'Saving…' : saved > 0 ? (store.live ? 'Saved — live on the link' : 'Saved') : null
     return (
       <div className="flex flex-col gap-4">
         {store.needsSignIn ? <SignInStep onCancel={() => undefined} /> : null}
