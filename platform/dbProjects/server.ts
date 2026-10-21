@@ -160,19 +160,55 @@ export async function isDbProject(slug: string): Promise<boolean> {
   return (count ?? 0) > 0
 }
 
-/** Every file of every project, with when it was last saved — what the live
- *  sync polls to see what changed. */
-export async function listDbChanges(): Promise<{ slug: string; path: string; at: string }[]> {
+/** What the live sync polls. `rows` — every file of every project, with when
+ *  it was last saved — only when something changed since the version the
+ *  laptop sent back; otherwise just the version, which it keeps. */
+export interface DbChanges {
+  version: string
+  rows?: { slug: string; path: string; at: string }[]
+}
+
+/**
+ * What the live sync polls to see what changed. Every laptop asks again and
+ * again, and nearly every time nothing has — so two tiny reads come first and
+ * say whether anything moved: every save writes a history row, and a file
+ * removed changes the count. Who is asking (`viewer`) is part of the version
+ * too: which branches they may see depends on it.
+ */
+export async function listDbChanges(since: string | null, viewer: unknown): Promise<DbChanges> {
   const db = createAdminClient()
-  if (!db) return (await remote<{ rows: { slug: string; path: string; at: string }[] }>('/api/db-projects/changes')).rows
-  const { data, error } = await db.from(FILES_TABLE).select('slug, path, updated_at')
-  if (error) throw new Error(error.message)
+  if (!db) return remote<DbChanges>(`/api/db-projects/changes${since ? `?since=${encodeURIComponent(since)}` : ''}`)
+  const [files, saves] = await Promise.all([
+    db.from(FILES_TABLE).select('path', { count: 'exact', head: true }),
+    db.from(VERSIONS_TABLE).select('id').order('id', { ascending: false }).limit(1),
+  ])
+  if (files.error) throw new Error(files.error.message)
+  if (saves.error) throw new Error(saves.error.message)
+  const count = files.count ?? 0
+  const who = createHash('sha1').update(JSON.stringify(viewer ?? null)).digest('hex').slice(0, 8)
+  const version = `${count}.${saves.data[0]?.id ?? 0}.${who}`
+  if (since === version) return { version }
+
+  // In pages: the database answers at most 1000 rows a request.
+  const data: { slug: string; path: string; updated_at: string }[] = []
+  while (data.length < count) {
+    const page = await db
+      .from(FILES_TABLE)
+      .select('slug, path, updated_at')
+      .order('slug')
+      .order('path')
+      .range(data.length, data.length + 999)
+    if (page.error) throw new Error(page.error.message)
+    if (!page.data.length) break
+    data.push(...page.data)
+  }
   // A deleted project isn't offered to laptops, so their sync drops its folder;
   // a restore brings it back on the next poll.
-  const deleted = new Set(data.filter((r) => r.path === TRASH_FILE).map((r) => r.slug as string))
-  return data
-    .filter((r) => !deleted.has(r.slug as string))
-    .map((r) => ({ slug: r.slug as string, path: r.path as string, at: r.updated_at as string }))
+  const deleted = new Set(data.filter((r) => r.path === TRASH_FILE).map((r) => r.slug))
+  return {
+    version,
+    rows: data.filter((r) => !deleted.has(r.slug)).map((r) => ({ slug: r.slug, path: r.path, at: r.updated_at })),
+  }
 }
 
 /**

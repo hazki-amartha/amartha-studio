@@ -12,7 +12,7 @@
 // =============================================================================
 
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:fs'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { checkDbProject } from './checks'
@@ -20,6 +20,7 @@ import { checkDbProject } from './checks'
 // `.md` is NOTES.md — the missing-component log CLAUDE.md §4 asks for. Left
 // out, every note written in a database project stayed on one laptop.
 const SYNCED = /\.(tsx?|jsx?|json|md)$/
+const SYNC_CACHE = path.join(process.cwd(), 'node_modules', '.cache', 'db-live')
 
 /** The folder Claude Code edits, relative to the repo. */
 export function projectFolder(slug: string, db: boolean): string {
@@ -50,19 +51,35 @@ export async function diskFiles(slug: string): Promise<Map<string, string>> {
   return out
 }
 
+/** Whether the live sync has finished a look for others' saves that began at
+ *  `t` or later (scripts/db-live.mjs writes when each look began). */
+function lookedSince(t: number): boolean {
+  try {
+    return Number(readFileSync(path.join(SYNC_CACHE, 'looked'), 'utf8')) >= t
+  } catch {
+    return false
+  }
+}
+
 /**
- * Make sure the live sync is running and has written this project to disk.
- * Starting it is safe to repeat — a second copy exits at once. Waits a few
- * seconds for a project this laptop hasn't seen yet.
+ * Make sure the live sync is running, has just looked for others' saves — it
+ * looks only now and then on its own — and has this project on disk, so a turn
+ * starts on everyone's latest. Starting it is safe to repeat: a running one is
+ * asked to look now instead. Waits ten seconds at most.
  */
 export async function ensureLocalCopy(slug: string): Promise<boolean> {
   const index = path.join(absFolder(slug), 'index.ts')
+  const asked = Date.now()
+  mkdirSync(SYNC_CACHE, { recursive: true })
+  // Its log, as `npm run dev` starts it: this start may be the one that runs.
+  const out = openSync(path.join(SYNC_CACHE, 'log'), 'a')
   spawn(process.execPath, [path.join(process.cwd(), 'scripts', 'db-live.mjs')], {
     cwd: process.cwd(),
     detached: true,
-    stdio: 'ignore',
+    stdio: ['ignore', out, out],
   }).unref()
-  for (let i = 0; i < 20 && !existsSync(index); i++) await new Promise((r) => setTimeout(r, 500))
+  closeSync(out)
+  for (let i = 0; i < 40 && !(existsSync(index) && lookedSince(asked)); i++) await new Promise((r) => setTimeout(r, 250))
   return existsSync(index)
 }
 

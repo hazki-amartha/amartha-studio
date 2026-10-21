@@ -40,7 +40,8 @@
 // Everything else is forwarded to `next dev`.
 //
 // It also makes sure the live sync for database projects is running
-// (scripts/db-live.mjs — one per laptop; a second start exits by itself).
+// (scripts/db-live.mjs — one per laptop; a second start asks the running one
+// to look now, or replaces it if it stopped looking).
 // =============================================================================
 
 import { spawn } from 'node:child_process'

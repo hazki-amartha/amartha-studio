@@ -11,10 +11,12 @@
 // change list for whoever signed in here (platform/dbProjects/branchAccess.ts),
 // and a branch that goes private leaves the list, so its folder goes too.
 //
-//   their save → your files    Every 2s it looks for files someone else saved.
-//                              A file you haven't touched is replaced. A file
-//                              you have is MERGED (git merge-file): their
-//                              change and yours both kept.
+//   their save → your files    Every 10s while someone works on this laptop —
+//                              every minute once it sits idle — it looks for
+//                              files someone else saved. A file you haven't
+//                              touched is replaced. A file you have is MERGED
+//                              (git merge-file): their change and yours both
+//                              kept.
 //   your edit → the database   A few hundred ms after a file changes, it is
 //                              saved through the dev server — the same checks
 //                              as every save, and only if nobody saved that
@@ -46,10 +48,29 @@ const DIR = join(ROOT, 'projects', '_db')
 const CACHE = join(ROOT, 'node_modules', '.cache', 'db-live')
 const STATE_FILE = join(CACHE, 'state.json')
 const PID_FILE = join(CACHE, 'pid')
+// When the last look began, written as it ends: what the dev server waits on
+// before a Chat turn (platform/dbProjects/disk.ts), and how a second start
+// tells a working sync from one that stopped looking.
+const LOOKED_FILE = join(CACHE, 'looked')
+// Written by a second start to ask the running sync to look now.
+const WAKE_FILE = join(CACHE, 'wake')
 const API = 'http://127.0.0.1:4000'
 const SYNCED = /\.(tsx?|jsx?|json|md)$/ // .md: NOTES.md (CLAUDE.md §4) — as platform/dbProjects/disk.ts
 const MARKERS = /^(<{7}|>{7}) /m
-const POLL_MS = 2000
+// Every look is a call to the deployed studio, whose CPU is metered — and at
+// one look every 2s, laptops left running all day used most of it. So it looks
+// often only while someone works here (an edit in projects/_db/, a Chat turn
+// starting), and seldom once the laptop has sat idle.
+const BUSY_POLL_MS = 10_000
+const IDLE_POLL_MS = 60_000
+const IDLE_AFTER_MS = 10 * 60_000
+// The studio answers "nothing changed" with its version alone. Now and then
+// the whole list anyway, for what that can't see: a folder deleted here by
+// hand, an edit made straight in the database.
+const FULL_EVERY_MS = 10 * 60_000
+// A sync that hasn't looked in this long is stuck, or an older version that
+// still looks every 2s: a second start replaces it.
+const STALE_MS = 3 * 60_000
 const SETTLE_MS = 400
 // A request that never answers (the laptop slept mid-request) must fail, not
 // hang: the next poll and every later push wait on it.
@@ -59,18 +80,66 @@ const log = (msg) => console.log(`[db-live ${new Date().toLocaleTimeString()}] $
 
 // --- setup ---------------------------------------------------------------------
 
-mkdirSync(CACHE, { recursive: true })
-// One per laptop: a second copy would race the first over the same files.
-if (existsSync(PID_FILE)) {
-  const pid = Number(readFileSync(PID_FILE, 'utf8'))
+function pidInFile() {
   try {
-    if (pid && pid !== process.pid) {
-      process.kill(pid, 0)
-      process.exit(0)
-    }
+    return Number(readFileSync(PID_FILE, 'utf8')) || null
   } catch {
-    // Stale pid file — that process is gone.
+    return null
   }
+}
+
+/** The live sync already running on this laptop, if any. */
+function runningSync() {
+  const pid = pidInFile()
+  if (!pid || pid === process.pid) return null
+  try {
+    process.kill(pid, 0)
+  } catch {
+    return null // Stale pid file — that process is gone.
+  }
+  try {
+    // After a restart, the pid may belong to some other program.
+    return execFileSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' }).includes('db-live.mjs') ? pid : null
+  } catch {
+    return pid // No ps to ask: trust the pid file.
+  }
+}
+
+/** When the running sync last showed it's working: it started, or ended a look. */
+function lastSign() {
+  let t = 0
+  for (const file of [PID_FILE, LOOKED_FILE]) {
+    try {
+      t = Math.max(t, statSync(file).mtimeMs)
+    } catch {}
+  }
+  return t
+}
+
+async function replace(pid) {
+  try {
+    process.kill(pid, 'SIGTERM')
+    for (let i = 0; i < 50; i++) {
+      await new Promise((r) => setTimeout(r, 100))
+      process.kill(pid, 0) // Throws once it's gone.
+    }
+    process.kill(pid, 'SIGKILL')
+  } catch {}
+}
+
+mkdirSync(CACHE, { recursive: true })
+// One per laptop: a second copy would race the first over the same files. A
+// second start — `npm run dev`, or the dev server before a Chat turn — asks
+// the running one to look now, and exits. One that has stopped looking it
+// replaces, so a laptop that pulls this version stops looking every 2s.
+const running = runningSync()
+if (running && Date.now() - lastSign() < STALE_MS) {
+  writeFileSync(WAKE_FILE, String(Date.now()))
+  process.exit(0)
+}
+if (running) {
+  await replace(running)
+  log('Took over from a live sync that had stopped looking (an older version, or stuck).')
 }
 writeFileSync(PID_FILE, String(process.pid))
 const cleanup = () => {
@@ -192,35 +261,44 @@ async function api(path) {
   return r.json()
 }
 
-let polling = false
+/** The studio's version as of the last whole list: sent back, it answers with
+ *  the list only if something changed since. */
+let version = null
+let fullAt = 0
 let lastPollError = null
 async function poll() {
-  if (polling) return
-  polling = true
+  const began = Date.now()
   try {
-    const { rows } = await api('/api/db-projects/changes')
-    const stale = new Set()
-    for (const r of rows) {
-      if (known(r.slug, r.path)?.at === r.at && existsSync(local(r.slug, r.path))) continue
-      stale.add(r.slug)
-    }
-    for (const slug of stale) {
-      const { rows: files } = await api(`/api/db-projects/${encodeURIComponent(slug)}/files`)
-      for (const f of files) {
-        if (known(slug, f.path)?.at === f.at && existsSync(local(slug, f.path))) continue
-        applyRemote(slug, f.path, f.content, f.at)
+    const since = version && began - fullAt < FULL_EVERY_MS ? `?since=${encodeURIComponent(version)}` : ''
+    const { rows, version: latest } = await api(`/api/db-projects/changes${since}`)
+    if (rows) {
+      const stale = new Set()
+      for (const r of rows) {
+        if (known(r.slug, r.path)?.at === r.at && existsSync(local(r.slug, r.path))) continue
+        stale.add(r.slug)
       }
+      for (const slug of stale) {
+        const { rows: files } = await api(`/api/db-projects/${encodeURIComponent(slug)}/files`)
+        for (const f of files) {
+          if (known(slug, f.path)?.at === f.at && existsSync(local(slug, f.path))) continue
+          applyRemote(slug, f.path, f.content, f.at)
+        }
+      }
+      if (rows.length) forgetGone(new Set(rows.map((r) => r.slug)))
+      version = latest ?? null
+      fullAt = began
     }
     lastPollError = null
-    if (rows.length) forgetGone(new Set(rows.map((r) => r.slug)))
     // Catch edits the watcher missed.
     for (const slug of Object.keys(state)) queue(slug)
   } catch (e) {
-    // Usually the dev server isn't up yet — say so once, not every 2 seconds.
+    // Usually the dev server isn't up yet — say so once, not every look.
     if (lastPollError !== e.message) log(`Waiting for the studio (${e.message}).`)
     lastPollError = e.message
   } finally {
-    polling = false
+    try {
+      writeFileSync(LOOKED_FILE, String(began))
+    } catch {}
   }
 }
 
@@ -248,6 +326,7 @@ function forgetGone(present) {
 
 // --- this laptop → the database ------------------------------------------------------
 
+const seen = new Map()
 const lastRefused = new Map()
 let askedToSignIn = false
 
@@ -259,8 +338,16 @@ async function push(slug) {
     if (MARKERS.test(text)) continue
     changes.push({ path: rel, content: text, baseAt: was?.at ?? null })
   }
-  if (!changes.length) return
+  if (!changes.length) {
+    seen.delete(slug)
+    return
+  }
   const signature = JSON.stringify(changes.map((c) => [c.path, c.content]))
+  // An edit this laptop hasn't seen yet: someone is working here.
+  if (seen.get(slug) !== signature) {
+    seen.set(slug, signature)
+    busy()
+  }
   if (lastRefused.get(slug) === signature) return
 
   let res
@@ -309,13 +396,56 @@ function queue(slug) {
   }, SETTLE_MS)
 }
 
+// --- when to look ------------------------------------------------------------------------
+
+let lastBusy = Date.now() // Starting counts: someone just ran `npm run dev`, or began a Chat turn.
+const idle = () => Date.now() - lastBusy > IDLE_AFTER_MS
+
+let soon = false
+let wake = () => {}
+function lookNow() {
+  soon = true
+  wake()
+}
+
+/** Someone is working here: look often again — and back from idle, at once. */
+function busy() {
+  if (idle()) lookNow()
+  lastBusy = Date.now()
+}
+
 // --- run -------------------------------------------------------------------------------
 
 mkdirSync(DIR, { recursive: true })
 log('Live sync on — database projects are in projects/_db/.')
+// A second start asking for a look (see setup).
+watch(CACHE, (_event, file) => {
+  if (file !== 'wake') return
+  busy()
+  lookNow()
+})
 await poll()
 watch(DIR, { recursive: true }, (_event, file) => {
   const slug = file ? String(file).split(sep)[0] : null
   if (slug) queue(slug)
 })
-setInterval(poll, POLL_MS)
+for (;;) {
+  if (!soon) {
+    await new Promise((resolve) => {
+      const timer = setTimeout(resolve, idle() ? IDLE_POLL_MS : BUSY_POLL_MS)
+      wake = () => {
+        clearTimeout(timer)
+        resolve()
+      }
+    })
+  }
+  soon = false
+  // Two that started at once both got this far: the one the pid file names
+  // keeps going.
+  const owner = pidInFile()
+  if (owner && owner !== process.pid) {
+    log('Another live sync is running here — this one stops.')
+    process.exit(0)
+  }
+  await poll()
+}
