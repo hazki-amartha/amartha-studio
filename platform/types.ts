@@ -112,6 +112,11 @@ export interface ScreenDef {
   component: ScreenComponent
   /** Exactly one screen per project sets entry: true. */
   entry?: boolean
+  /** The sidebar section this screen is listed under — a feature or a flow
+   *  ("Pencairan", "KYC"). Screens sharing one are grouped, in the order the
+   *  section first appears; screens without one stay above every section.
+   *  Purely presentational: ids, entry and navigation are untouched. */
+  section?: string
   /** Annotations shown beside the device in desktop prototype view
    *  while this screen is active. */
   notes?: string[]

@@ -56,7 +56,14 @@ import { turnNote } from './turnNote'
 import { withContract } from './contract'
 import { MEMORY_RULES, OTHER_PROTOTYPES_STUDIO } from './memory'
 import { readPrototype } from './otherPrototype'
-import { readImages, userContent, type ChatImage } from '../images'
+import {
+  MAX_TOTAL_CHARS,
+  readDocuments,
+  readImages,
+  userContent,
+  type ChatDocument,
+  type ChatImage,
+} from '../images'
 import { effortOf } from '../effort'
 
 const ROOT = process.cwd()
@@ -282,6 +289,7 @@ interface ChatRequest {
   slug: string
   message: string
   images?: unknown
+  documents?: unknown
   sessionId?: string
   db?: boolean
   screen?: string
@@ -289,12 +297,12 @@ interface ChatRequest {
   effort?: string
 }
 
-/** With images, the prompt has to be a message stream — a plain string can't
- *  carry them. */
-async function* withImages(text: string, images: ChatImage[]) {
+/** With images or PDFs, the prompt has to be a message stream — a plain
+ *  string can't carry them. */
+async function* withImages(text: string, images: ChatImage[], documents: ChatDocument[]) {
   yield {
     type: 'user' as const,
-    message: { role: 'user' as const, content: userContent(text, images) },
+    message: { role: 'user' as const, content: userContent(text, images, documents) },
     parent_tool_use_id: null,
   }
 }
@@ -315,6 +323,10 @@ export async function cloudTurn(request: Request): Promise<Response> {
   }
   const images = readImages(body.images)
   if ('error' in images) return json(images, 400)
+  // The deployment's request cap is shared: PDFs get what the images left.
+  const imageChars = images.reduce((n, img) => n + img.data.length, 0)
+  const documents = readDocuments(body.documents, { each: MAX_TOTAL_CHARS, total: MAX_TOTAL_CHARS }, imageChars)
+  if ('error' in documents) return json(documents, 400)
   const slug = body.slug
   if (!(await isDbProject(slug))) {
     return json({ error: 'Chat on the live studio works on database projects only.' }, 400)
@@ -425,7 +437,7 @@ export async function cloudTurn(request: Request): Promise<Response> {
       const started = Date.now()
       try {
         for await (const msg of query({
-          prompt: images.length ? withImages(prompt, images) : prompt,
+          prompt: images.length || documents.length ? withImages(prompt, images, documents) : prompt,
           options: {
             cwd: ws,
             pathToClaudeCodeExecutable: BINARY,

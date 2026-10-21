@@ -69,8 +69,23 @@
 
 /* Inspect mode retargets the pointer from "use this app" to "pick this element".
    The overlay itself is pointer-events:none, so the cursor has to be set on the
-   content underneath it. */
-.viewport[data-inspect='on'] * {
+   content underneath it. The arrow means selecting; Chat's navigate mode
+   (data-interact) shows the hand, so the two never look alike — except a text
+   field keeps its caret, and holding ⌘ (data-select-key) brings the arrow back,
+   since a ⌘-click selects. */
+.viewport[data-inspect='on']:not([data-interact]) * {
+  cursor: default;
+}
+
+.viewport[data-interact] * {
+  cursor: pointer;
+}
+
+.viewport[data-interact] :is(input, textarea, [contenteditable='true']) {
+  cursor: text;
+}
+
+.viewport[data-interact][data-select-key] * {
   cursor: default;
 }
 

@@ -13,7 +13,10 @@
 // The layer also turns the prototype read-only while it is mounted. Inspect is
 // a mode, not a decoration: a click has to select the element rather than fire
 // the screen's own onClick, or you could never inspect a button without also
-// navigating away from it.
+// navigating away from it. `passive` (Chat navigating) hands clicks back to
+// the app and keeps only the pinned outline — except a ⌘/Ctrl-click, which
+// always selects. While ⌘/Ctrl is held the viewport says so
+// (data-select-key), so the hand cursor turns back into the arrow.
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react'
@@ -56,7 +59,14 @@ export interface InspectLayerProps {
   onRepin?: (stale: Element) => void
   /** `design` draws the selection blue, with corner squares and no size. */
   tone?: 'inspect' | 'design'
+  /** Clicks tap through to the prototype; only the pinned outline is drawn,
+   *  and ⌘/Ctrl-click still selects. */
+  passive?: boolean
 }
+
+/** ⌘/Ctrl-click selects, whatever the mode. Nothing else here gives those
+ *  modifiers a meaning. */
+const selectKey = (e: Event) => e instanceof MouseEvent && (e.metaKey || e.ctrlKey)
 
 interface Box {
   left: number
@@ -101,6 +111,7 @@ export function InspectLayer({
   onShiftPick,
   onRepin,
   tone = 'inspect',
+  passive = false,
 }: InspectLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null)
   const hoverBoxRef = useRef<HTMLDivElement>(null)
@@ -121,6 +132,8 @@ export function InspectLayer({
     const layer = layerRef.current
     const viewport = layer?.parentElement
     if (!viewport) return
+    setHover(null)
+    const picks = (e: Event) => !passive || selectKey(e)
 
     const pick = (target: EventTarget | null): Element | null => {
       if (!(target instanceof Element)) return null
@@ -131,7 +144,7 @@ export function InspectLayer({
       return boundaryOf(target) ?? target
     }
 
-    const onMouseOver = (e: Event) => setHover(pick(e.target))
+    const onMouseOver = (e: Event) => setHover(picks(e) ? pick(e.target) : null)
     const onMouseLeave = () => setHover(null)
 
     // React delegates click handling at the app root, which is an ancestor of
@@ -139,16 +152,19 @@ export function InspectLayer({
     // reaches the target and never bubbles back, and the prototype's own
     // handlers never run.
     const swallow = (e: Event) => {
+      if (!picks(e)) return
       e.stopPropagation()
     }
     // preventDefault on mousedown suppresses focus, which keeps inputs and
     // toggles inert. It is deliberately NOT set on pointerdown, where it would
     // also cancel the compatibility click we rely on for pinning.
     const swallowAndBlock = (e: Event) => {
+      if (!picks(e)) return
       e.preventDefault()
       e.stopPropagation()
     }
     const onClick = (e: Event) => {
+      if (!picks(e)) return
       e.preventDefault()
       e.stopPropagation()
       const el = pick(e.target)
@@ -171,19 +187,26 @@ export function InspectLayer({
       viewport.removeEventListener('mouseup', swallow, true)
       viewport.removeEventListener('click', onClick, true)
     }
-  }, [onPin, rule, onShiftPick])
+  }, [onPin, rule, onShiftPick, passive])
 
   // --- modifier + escape ----------------------------------------------------
   useEffect(() => {
+    const viewport = layerRef.current?.parentElement
+    const holdSelectKey = (held: boolean) => viewport?.toggleAttribute('data-select-key', held)
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Alt') setAlt(true)
+      if (e.key === 'Meta' || e.key === 'Control') holdSelectKey(true)
       if (e.key === 'Escape') onPin(null)
     }
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'Alt') setAlt(false)
+      if (e.key === 'Meta' || e.key === 'Control') holdSelectKey(false)
     }
     // Alt-tabbing away never fires keyup, so the modifier would stick on.
-    const onBlur = () => setAlt(false)
+    const onBlur = () => {
+      setAlt(false)
+      holdSelectKey(false)
+    }
 
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
@@ -192,6 +215,7 @@ export function InspectLayer({
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
       window.removeEventListener('blur', onBlur)
+      holdSelectKey(false)
     }
   }, [onPin])
 

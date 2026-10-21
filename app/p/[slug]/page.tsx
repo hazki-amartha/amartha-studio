@@ -121,8 +121,10 @@ export default async function PrototypePage({ params, searchParams }: PageProps)
 
   return (
     <PrototypeView
-      // Remount when the deep-link target changes so the visit stack resets.
-      key={initialScreenId ?? 'entry'}
+      // Not keyed by the deep link: the view writes ?screen itself as the
+      // device moves, so a key on it would remount the prototype — closing the
+      // panel and dropping its state — on any re-render of this page. A new
+      // deep link jumps the running prototype instead (PrototypeProvider).
       config={config}
       initialScreenId={initialScreenId}
       initialBare={initialBare}

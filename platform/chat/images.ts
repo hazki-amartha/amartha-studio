@@ -10,6 +10,12 @@
 //
 // The transcript keeps only a small thumbnail, so a conversation still fits in
 // sessionStorage across a reload.
+//
+// PDFs ride along the same way, as document blocks the model reads whole —
+// text and pages. They can't be shrunk, so their limit is where the request
+// goes: the hosted Chat shares the deployment's ~4.5 MB request cap with any
+// images, while the laptop's Chat talks to its own server and takes PDFs up to
+// what the model itself accepts. The transcript keeps only their names.
 // =============================================================================
 
 export const MAX_IMAGES = 6
@@ -18,6 +24,26 @@ const THUMB_SIDE = 160
 /** Base64 characters per image, and per message — checked again on the server. */
 export const MAX_IMAGE_CHARS = 3_000_000
 export const MAX_TOTAL_CHARS = 4_000_000
+
+export const MAX_DOCUMENTS = 3
+/** A PDF's base64 on the laptop — about 20 MB of file; the model takes 32 MB
+ *  per request. The hosted Chat is held to MAX_TOTAL_CHARS instead. */
+export const MAX_LAPTOP_DOCUMENT_CHARS = 27_000_000
+export const MAX_LAPTOP_TOTAL_CHARS = 30_000_000
+
+export interface ChatDocument {
+  mediaType: 'application/pdf'
+  /** Base64, no data: prefix. */
+  data: string
+  /** The file's name — the model sees it as the document's title. */
+  name: string
+}
+
+/** A PDF waiting in the composer. */
+export interface PendingDocument {
+  id: string
+  document: ChatDocument
+}
 
 export interface ChatImage {
   mediaType: 'image/jpeg'
@@ -81,6 +107,34 @@ export async function prepareImage(file: File): Promise<PendingImage | null> {
   }
 }
 
+function base64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const url = String(reader.result)
+      resolve(url.slice(url.indexOf(',') + 1))
+    }
+    reader.onerror = () => reject(new Error('unreadable'))
+    reader.readAsDataURL(file)
+  })
+}
+
+export const isPdf = (file: File) => file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+
+/** A PDF from paste, drop or the picker, ready to attach — or null if it isn't
+ *  one, or can't be read. */
+export async function prepareDocument(file: File): Promise<PendingDocument | null> {
+  if (!isPdf(file)) return null
+  try {
+    return {
+      id: Math.random().toString(36).slice(2),
+      document: { mediaType: 'application/pdf', data: await base64(file), name: file.name.slice(0, 120) },
+    }
+  } catch {
+    return null
+  }
+}
+
 // --- server side -------------------------------------------------------------
 
 const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/
@@ -104,9 +158,43 @@ export function readImages(raw: unknown): ChatImage[] | { error: string } {
   return raw as ChatImage[]
 }
 
-/** The user message's content blocks: images first, then the words about them. */
-export function userContent(text: string, images: ChatImage[]) {
+/** The request's PDFs, or an error to show. `limits` is where the request
+ *  landed: the hosted Chat counts its images in the same budget. */
+export function readDocuments(
+  raw: unknown,
+  limits: { each: number; total: number },
+  alsoChars = 0,
+): ChatDocument[] | { error: string } {
+  if (raw === undefined) return []
+  if (!Array.isArray(raw) || raw.length > MAX_DOCUMENTS) {
+    return { error: `Attach up to ${MAX_DOCUMENTS} PDFs at a time.` }
+  }
+  let total = alsoChars
+  for (const doc of raw as Partial<ChatDocument>[]) {
+    if (
+      doc?.mediaType !== 'application/pdf' ||
+      typeof doc.data !== 'string' ||
+      typeof doc.name !== 'string' ||
+      !BASE64.test(doc.data)
+    ) {
+      return { error: 'One of the PDFs could not be read — remove it and attach it again.' }
+    }
+    if (doc.data.length > limits.each) return { error: `${doc.name} is too large to send.` }
+    total += doc.data.length
+  }
+  if (total > limits.total) return { error: 'Those attachments are too large together — send fewer at once.' }
+  return raw as ChatDocument[]
+}
+
+/** The user message's content blocks: PDFs and images first, then the words
+ *  about them. */
+export function userContent(text: string, images: ChatImage[], documents: ChatDocument[] = []) {
   return [
+    ...documents.map((doc) => ({
+      type: 'document' as const,
+      source: { type: 'base64' as const, media_type: doc.mediaType, data: doc.data },
+      title: doc.name,
+    })),
     ...images.map((img) => ({
       type: 'image' as const,
       source: { type: 'base64' as const, media_type: img.mediaType, data: img.data },

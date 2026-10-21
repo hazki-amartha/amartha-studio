@@ -17,6 +17,7 @@ import { PrototypeView } from '@/platform/frame'
 import { ChatLoader, useLoaderVisible } from '@/platform/chat/ChatLoader'
 import { STUDIO_DB_ANON_KEY, STUDIO_DB_URL } from './public'
 import type { ProjectConfig, ScreenDef } from '@/platform/types'
+import { briefScreen } from '@/platform/chrome/screenIndex'
 import { publishDbIndexEntry, setActiveDbProject } from './active'
 import { PresenceAvatars } from './PresenceAvatars'
 import { SAVED_EVENT, savedChannel } from './protocol'
@@ -49,14 +50,13 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
       const { own, resolved } = await resolveDbProject(build)
       version.current = build.version
       setProject({ config: own.config, screens: resolved.screens })
-      const brief = (s: ScreenDef) => ({ id: s.id, title: s.title })
       publishDbIndexEntry({
         slug,
         name: own.config.name,
         status: own.config.status,
         createdAt: own.config.createdAt,
-        screens: resolved.own.map(brief),
-        inherited: resolved.base ? { from: resolved.base.name, screens: resolved.inherited.map(brief) } : undefined,
+        screens: resolved.own.map(briefScreen),
+        inherited: resolved.base ? { from: resolved.base.name, screens: resolved.inherited.map(briefScreen) } : undefined,
       })
       setProblem(build.errors.length ? build.errors.map((e) => `${e.path}: ${e.message}`).join('\n') : null)
     } catch (e) {
@@ -119,8 +119,8 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
 
   return (
     <>
+      {/* Not keyed by the deep link — see app/p/[slug]/page.tsx. */}
       <PrototypeView
-        key={initialScreenId ?? 'entry'}
         config={project.config}
         screens={project.screens}
         initialScreenId={initialScreenId}

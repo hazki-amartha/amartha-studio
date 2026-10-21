@@ -31,6 +31,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -46,14 +47,17 @@ import {
   useScreenJump,
   useScreenStep,
 } from '@/platform/runtime'
-import { clearScreenBridge, publishScreenBridge } from '@/platform/runtime/bridge'
+import { clearScreenBridge, publishScreenBridge, reapplyScreenState } from '@/platform/runtime/bridge'
 import {
   getDesignMode,
   getDesignServerSnapshot,
   getEditTab,
   getEditTabServerSnapshot,
+  getPicking,
+  getPickingServerSnapshot,
   setDesignMode,
   setEditTab,
+  setPicking,
   subscribeDesignMode,
   type EditTab,
 } from '@/platform/runtime/designBridge'
@@ -129,10 +133,31 @@ function BridgePublisher({ slug, screens }: { slug: string; screens: ScreenDef[]
   const { current } = useFlow()
   const jump = useScreenJump()
 
+  // A new screen list on the same mount is an edit landing: the project
+  // relinked and its stores started over. Put back the state the designer had
+  // applied before the screen paints its defaults.
+  const linked = useRef(screens)
+  useLayoutEffect(() => {
+    if (linked.current === screens) return
+    linked.current = screens
+    reapplyScreenState(screens)
+  }, [screens])
+
   useEffect(() => {
     const active = screens.find((s) => s.id === current)
-    publishScreenBridge(slug, current, jump, active?.states ?? [])
+    publishScreenBridge(slug, current, active?.title ?? current, jump, active?.states)
   }, [slug, current, jump, screens])
+
+  // The address bar follows the device, so a reload — or a full reload after
+  // an edit — opens on this screen, and the URL can be copied as a link to it.
+  // replaceState, not the router: the route keys the view by ?screen, and a
+  // router navigation would remount it.
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('screen') === current) return
+    url.searchParams.set('screen', current)
+    window.history.replaceState(null, '', url)
+  }, [current])
 
   // Clear only on unmount — the publish effect above handles every update.
   useEffect(() => () => clearScreenBridge(), [])
@@ -149,6 +174,7 @@ function AppViewport({
   device = 'mobile',
   slug,
   editing,
+  picking = true,
   pinned,
   onPin,
   onRepin,
@@ -158,6 +184,8 @@ function AppViewport({
   device?: DeviceKind
   slug?: string
   editing?: boolean
+  /** In Edit mode, whether clicks select (true) or tap through (false). */
+  picking?: boolean
   pinned?: Element | null
   onPin?: (el: Element | null) => void
   onRepin?: (stale: Element) => void
@@ -167,7 +195,12 @@ function AppViewport({
 } = {}) {
   const { current } = useFlow()
   return (
-    <div className={styles.viewport} data-device={device} data-inspect={editing ? 'on' : undefined}>
+    <div
+      className={styles.viewport}
+      data-device={device}
+      data-inspect={editing ? 'on' : undefined}
+      data-interact={editing && !picking ? '' : undefined}
+    >
       <ScreenStage />
       {/* Picks the nearest element the project's source wrote. Picking the
           nearest FunDS boundary was tried and dropped: `Screen` is one, so
@@ -183,6 +216,7 @@ function AppViewport({
           onShiftPick={(el) => (pinned ? toggleSelected(el) : onPin(el))}
           onRepin={onRepin}
           tone="design"
+          passive={!picking}
         />
       ) : null}
       {editing && onPin && slug ? (
@@ -192,6 +226,7 @@ function AppViewport({
           pinned={pinned ?? null}
           onPin={onPin}
           onRepin={onRepin}
+          passive={!picking}
         />
       ) : null}
       {commenting ? <CommentLayer /> : null}
@@ -480,6 +515,7 @@ function DeviceStepper({ children }: { children: ReactNode }) {
  *  element that must be dropped whenever the screen under it remounts. */
 function useInspectState() {
   const editing = useSyncExternalStore(subscribeDesignMode, getDesignMode, getDesignServerSnapshot)
+  const picking = useSyncExternalStore(subscribeDesignMode, getPicking, getPickingServerSnapshot)
   const [pinned, setPinned] = useState<Element | null>(null)
   // Re-find a pin that left the screen — only while it is still the pin. See
   // InspectLayer's `onRepin` for the race this closes.
@@ -502,7 +538,7 @@ function useInspectState() {
     }
   }, [editing])
 
-  return { editing, pinned, setPinned, repin, preview, setPreview, current }
+  return { editing, picking, pinned, setPinned, repin, preview, setPreview, current }
 }
 
 // --- the right panel: Comments · Edit · Chat ----------------------------------
@@ -526,19 +562,6 @@ function useInspectState() {
 type PanelTab = 'comments' | 'edit' | 'chat'
 /** What Edit shows: Visual (the design panel) or CSS (the inspector). */
 type EditView = 'edit' | 'css'
-
-/** Edit opens on the view last chosen — whoever works in CSS keeps landing
- *  there. */
-const EDIT_VIEW_KEY = 'db.chrome.editView'
-
-function storedEditView(): EditView | null {
-  try {
-    const v = window.localStorage.getItem(EDIT_VIEW_KEY)
-    return v === 'edit' || v === 'css' ? v : null
-  } catch {
-    return null
-  }
-}
 
 /** Whether Chat is offered — unless the server said no; loading and errors
  *  show inside the tab. */
@@ -573,12 +596,15 @@ function usePanel(chatAvailable: boolean) {
   const openEdit = (view?: EditView) => {
     setCommentMode(false)
     setDesignMode(true)
-    setEditTab(view ?? storedEditView() ?? (backend === 'record' ? 'css' : 'edit'))
+    // Visual, unless nothing here can be saved — then only CSS has a use.
+    setEditTab(view ?? (backend === 'record' ? 'css' : 'edit'))
+    setPicking(true)
   }
   const openChat = () => {
     setCommentMode(false)
     setDesignMode(true)
     setEditTab('chat')
+    setPicking(false)
   }
   // Turning Comment on turns Edit off (comments/store).
   const openComments = () => setCommentMode(true)
@@ -586,16 +612,10 @@ function usePanel(chatAvailable: boolean) {
     setDesignMode(false)
     setCommentMode(false)
   }
-  const chooseView = (view: EditView) => {
-    try {
-      window.localStorage.setItem(EDIT_VIEW_KEY, view)
-    } catch {
-      /* private mode — the choice holds for this visit */
-    }
-    setEditTab(view)
-  }
+  const chooseView = (view: EditView) => setEditTab(view)
+  // The tab already showing keeps its Pick / Interact choice.
   const select = (next: PanelTab) =>
-    next === 'comments' ? openComments() : next === 'chat' ? openChat() : tab === 'edit' ? undefined : openEdit()
+    next === tab ? undefined : next === 'comments' ? openComments() : next === 'chat' ? openChat() : openEdit()
 
   return { tab, editView, openEdit, openChat, openComments, close, chooseView, select }
 }
@@ -641,6 +661,7 @@ function RightPanel({
   editView,
   onEditView,
   onClose,
+  picking,
   pinned,
   onPin,
   slug,
@@ -653,6 +674,7 @@ function RightPanel({
   editView: EditView
   onEditView: (view: EditView) => void
   onClose: () => void
+  picking: boolean
   pinned: Element | null
   onPin: (el: Element | null) => void
   slug: string
@@ -697,6 +719,7 @@ function RightPanel({
                 screenId={screenId}
                 pinned={pinned}
                 onDeselect={() => onPin(null)}
+                select={{ on: picking, onToggle: () => setPicking(!picking) }}
                 tabs={false}
                 className="flex-1"
               />
@@ -773,7 +796,7 @@ function SidebarPortals({
  * Notes as the sidebar's tabs.
  */
 function FramedLayout({ config, screens, presence }: { config: ProjectConfig; screens: ScreenDef[]; presence?: ReactNode }) {
-  const { editing, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
+  const { editing, picking, pinned, setPinned, repin, preview, setPreview, current } = useInspectState()
   const device = config.device ?? 'mobile'
   const zoom = useCanvasZoom(device === 'desktop' ? DESKTOP_FRAME : PHONE)
   useCommentsFor(config.slug)
@@ -835,6 +858,7 @@ function FramedLayout({ config, screens, presence }: { config: ProjectConfig; sc
       device={device}
       slug={config.slug}
       editing={editing}
+      picking={picking}
       pinned={pinned}
       onPin={setPinned}
       onRepin={repin}
@@ -929,6 +953,7 @@ function FramedLayout({ config, screens, presence }: { config: ProjectConfig; sc
             editView={panel.editView}
             onEditView={panel.chooseView}
             onClose={panel.close}
+            picking={picking}
             pinned={pinned}
             onPin={setPinned}
             slug={config.slug}

@@ -115,6 +115,9 @@ not just a WhatsApp button.
   apply }`) — worth offering when a screen has conditions you can't tap to.
   `apply` writes the module store; seeding lives in `lib/demo.ts`.
 - `flowsTo` (flow-view metadata) — every `to` must be a real screen id.
+- `section` (a sidebar group: `section: 'KYC'`) — worth it once a project
+  passes ~15 screens; name sections by feature or flow, and keep a section's
+  screens together in the list.
 
 **Mock data** — plain constants in `lib/` — covers what's on screen: ~3–5 rows,
 never faker-scale volume unless the designer asks to see the prototype under load.

@@ -14,13 +14,15 @@ import { config } from './project.config'
 export const project: ProjectModule = {
   config,
   screens: [
-    // id + title + component is the whole requirement. Two optional extras exist
-    // and are OFF by default:
+    // id + title + component is the whole requirement. Three optional extras
+    // exist and are OFF by default:
     //   notes    — annotations beside the device on desktop. Add ONLY when the
     //              designer asks. Never write unrequested design rationale.
     //   flowsTo  — descriptive edges for the flow view. Real navigation is
     //              useFlow().go(id) in the component; this just draws the map.
     //              Add it when a diagram helps, skip it otherwise.
+    //   section  — groups screens in the sidebar ('KYC', 'Pencairan'). Worth it
+    //              once a project passes ~15 screens.
     {
       id: 'example', // kebab-case, unique in this project, stable
       title: 'Example',

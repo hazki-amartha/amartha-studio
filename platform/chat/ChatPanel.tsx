@@ -18,10 +18,11 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  AttachIcon,
   CloseIcon,
   CursorIcon,
+  DocumentIcon,
   FigmaIcon,
-  MediaIcon,
   StopIcon,
 } from '@/platform/chrome/icons'
 import { PanelHeader } from '@/platform/chrome/SidePanel'
@@ -29,7 +30,18 @@ import { resolveTarget } from '@/platform/inspect/resolve'
 import { attachmentFor } from './attach'
 import { MAX_FIGMA_LINKS, isFigmaLink, parseFigmaUrl } from './figmaLink'
 import { ChatLoader, LoaderMark, useLoaderVisible } from './ChatLoader'
-import { MAX_IMAGES, MAX_TOTAL_CHARS, prepareImage, type PendingImage } from './images'
+import {
+  MAX_DOCUMENTS,
+  MAX_IMAGES,
+  MAX_LAPTOP_DOCUMENT_CHARS,
+  MAX_LAPTOP_TOTAL_CHARS,
+  MAX_TOTAL_CHARS,
+  isPdf,
+  prepareDocument,
+  prepareImage,
+  type PendingDocument,
+  type PendingImage,
+} from './images'
 import type { RecordedTurn, TranscriptEvent } from './transcript'
 import { useTranscriptReplay } from './useTranscriptReplay'
 import { useLiveChat } from './useLiveChat'
@@ -43,7 +55,7 @@ const SPEEDS = [1, 4, 16] as const
 
 export type ChatEvent =
   | TranscriptEvent
-  | { at: number; kind: 'user'; text: string; images?: string[]; figma?: string[] }
+  | { at: number; kind: 'user'; text: string; images?: string[]; documents?: string[]; figma?: string[] }
   | { at: number; kind: 'error'; text: string }
   /** The panel's own word, between turns — "carrying on". */
   | { at: number; kind: 'note'; text: string }
@@ -257,6 +269,13 @@ function ChatView({
                       ))}
                     </div>
                   ) : null}
+                  {event.documents?.length ? (
+                    <div className="mb-8 flex flex-col gap-4">
+                      {event.documents.map((name, j) => (
+                        <Chip key={j} icon={<DocumentIcon className="size-12" />} label={name} />
+                      ))}
+                    </div>
+                  ) : null}
                   {event.figma?.length ? (
                     <div className="mb-8 flex flex-col gap-4">
                       {event.figma.map((label, j) => (
@@ -320,7 +339,8 @@ function ChatView({
   )
 }
 
-/** The one ✕ every attachment uses — the selection, a Figma link, an image. */
+/** The one ✕ every attachment uses — the selection, a Figma link, an image,
+ *  a PDF. */
 function RemoveButton({ label, onClick, className = '' }: { label: string; onClick: () => void; className?: string }) {
   return (
     <button
@@ -547,6 +567,7 @@ export function LiveChatPanel({
   screenId,
   pinned,
   onDeselect,
+  select,
   tabs,
   onMinimize,
   className,
@@ -555,6 +576,9 @@ export function LiveChatPanel({
   screenId: string
   pinned: Element | null
   onDeselect: () => void
+  /** Whether a click on the device selects an element to ask about, or taps
+   *  through the prototype — the switch beside Attach. */
+  select?: { on: boolean; onToggle: () => void }
   tabs?: ReactNode
   onMinimize?: () => void
   className?: string
@@ -570,26 +594,57 @@ export function LiveChatPanel({
     [pinned, slug, screenId],
   )
 
-  /** Pasted, dropped or picked files: the images among them, shrunk and
-   *  attached, up to what one message can carry. */
+  /** Pasted, dropped or picked files: the images among them, shrunk, and the
+   *  PDFs, attached up to what one message can carry — on the hosted Chat the
+   *  deployment's request cap, shared by both; on the laptop, the model's. */
   const attach = async (files: File[]) => {
-    const picked = files.filter((f) => f.type.startsWith('image/'))
-    if (!picked.length) return
-    const room = MAX_IMAGES - chat.images.length
-    const ready = (await Promise.all(picked.slice(0, Math.max(0, room)).map(prepareImage))).filter(
-      (img): img is PendingImage => img !== null,
-    )
-    let total = chat.images.reduce((n, img) => n + img.image.data.length, 0)
-    const fits = ready.filter((img) => (total += img.image.data.length) <= MAX_TOTAL_CHARS)
-    if (fits.length) chat.addImages(fits)
+    const pictures = files.filter((f) => f.type.startsWith('image/'))
+    const pdfs = files.filter(isPdf)
+    if (!pictures.length && !pdfs.length) {
+      if (files.length) setImageError('Attach images or PDFs.')
+      return
+    }
+    const imageRoom = MAX_IMAGES - chat.images.length
+    const docRoom = MAX_DOCUMENTS - chat.documents.length
+    const [images, documents] = await Promise.all([
+      Promise.all(pictures.slice(0, Math.max(0, imageRoom)).map(prepareImage)),
+      Promise.all(pdfs.slice(0, Math.max(0, docRoom)).map(prepareDocument)),
+    ])
+    const readyImages = images.filter((img): img is PendingImage => img !== null)
+    const readyDocs = documents.filter((doc): doc is PendingDocument => doc !== null)
+
+    const laptop = chat.where === 'laptop'
+    const totalCap = laptop ? MAX_LAPTOP_TOTAL_CHARS : MAX_TOTAL_CHARS
+    const eachDocCap = laptop ? MAX_LAPTOP_DOCUMENT_CHARS : MAX_TOTAL_CHARS
+    let total =
+      chat.images.reduce((n, img) => n + img.image.data.length, 0) +
+      chat.documents.reduce((n, doc) => n + doc.document.data.length, 0)
+    // Each one is taken if it still fits beside what's already attached.
+    const fits = (size: number) => {
+      if (total + size > totalCap) return false
+      total += size
+      return true
+    }
+    const fitImages = readyImages.filter((img) => fits(img.image.data.length))
+    const tooBig = readyDocs.find((doc) => doc.document.data.length > eachDocCap)
+    const fitDocs = readyDocs.filter((doc) => doc.document.data.length <= eachDocCap && fits(doc.document.data.length))
+    if (fitImages.length) chat.addImages(fitImages)
+    if (fitDocs.length) chat.addDocuments(fitDocs)
+
     setImageError(
-      picked.length > room
+      pictures.length > imageRoom
         ? `Up to ${MAX_IMAGES} images per message.`
-        : fits.length < ready.length
-          ? 'Those images are too large together — send fewer at once.'
-          : ready.length < picked.length
-            ? 'One of those files couldn’t be read as an image.'
-            : null,
+        : pdfs.length > docRoom
+          ? `Up to ${MAX_DOCUMENTS} PDFs per message.`
+          : tooBig
+            ? laptop
+              ? `${tooBig.document.name} is over 20 MB — too large to send.`
+              : `${tooBig.document.name} is too large for Chat here — under 3 MB works, or use Chat on your laptop.`
+            : fitImages.length < readyImages.length || fitDocs.length < readyDocs.length
+              ? 'Those attachments are too large together — send fewer at once.'
+              : readyImages.length < Math.min(pictures.length, imageRoom) || readyDocs.length < Math.min(pdfs.length, docRoom)
+                ? 'One of those files couldn’t be read.'
+                : null,
     )
   }
 
@@ -704,6 +759,15 @@ export function LiveChatPanel({
             ))}
           </div>
         ) : null}
+        {chat.documents.map((d) => (
+          <Chip
+            key={d.id}
+            icon={<DocumentIcon className="size-12" />}
+            label={d.document.name}
+            onRemove={() => chat.removeDocument(d.id)}
+            removeLabel="Remove the PDF"
+          />
+        ))}
         {chat.figma.map((f) => (
           <Chip
             key={f.id}
@@ -742,7 +806,7 @@ export function LiveChatPanel({
             }
             // A screenshot or a frame copied from Figma arrives as a file; text
             // pastes as usual.
-            const files = [...e.clipboardData.files].filter((f) => f.type.startsWith('image/'))
+            const files = [...e.clipboardData.files].filter((f) => f.type.startsWith('image/') || isPdf(f))
             if (!files.length) return
             e.preventDefault()
             void attach(files)
@@ -757,9 +821,11 @@ export function LiveChatPanel({
           placeholder={
             attachment
               ? 'What should change about it?'
-              : chat.images.length
-                ? 'What should it take from the image?'
-                : 'Describe the change, or click an element first'
+              : chat.documents.length
+                ? 'What should it take from the PDF?'
+                : chat.images.length
+                  ? 'What should it take from the image?'
+                  : 'Describe the change, or ⌘+click an element first'
           }
         />
         {imageError ? <p className="text-12 font-regular text-red-500">{imageError}</p> : null}
@@ -769,17 +835,33 @@ export function LiveChatPanel({
             <button
               type="button"
               onClick={() => picker.current?.click()}
-              disabled={chat.images.length >= MAX_IMAGES}
-              aria-label="Attach images"
-              title="Attach images — or paste or drop them here"
+              disabled={chat.images.length >= MAX_IMAGES && chat.documents.length >= MAX_DOCUMENTS}
+              aria-label="Attach images or PDFs"
+              title="Attach images or PDFs — or paste or drop them here"
               className="flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-ink-700 dark:hover:text-neutral-50"
             >
-              <MediaIcon className="size-16" />
+              <AttachIcon className="size-16" />
             </button>
+            {select ? (
+              <button
+                type="button"
+                onClick={select.onToggle}
+                aria-pressed={select.on}
+                aria-label="Select elements"
+                title={select.on ? 'Selecting — click to stop' : '⌘+click to select an element into chat'}
+                className={`flex size-32 flex-none items-center justify-center rounded-8 ${
+                  select.on
+                    ? 'bg-primary-50 text-primary-500 dark:bg-ink-700 dark:text-neutral-50'
+                    : 'text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-400 dark:hover:bg-ink-700 dark:hover:text-neutral-50'
+                }`}
+              >
+                <CursorIcon className="size-16" />
+              </button>
+            ) : null}
             <input
               ref={picker}
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf,.pdf"
               multiple
               hidden
               onChange={(e) => {

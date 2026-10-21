@@ -67,6 +67,8 @@ export interface DesignLayerProps {
   onPin: (el: Element | null) => void
   /** Replace a pin that left the screen, if it is still the pin. */
   onRepin?: (stale: Element) => void
+  /** Clicks tap through to the prototype, so a press starts no drag. */
+  passive?: boolean
 }
 
 interface Box {
@@ -168,7 +170,7 @@ function dropAt(
   return { to: before ? { before: at } : { after: at }, target, line, box: null }
 }
 
-export function DesignLayer({ slug, screenId, pinned, onPin, onRepin }: DesignLayerProps) {
+export function DesignLayer({ slug, screenId, pinned, onPin, onRepin, passive = false }: DesignLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null)
   const lineRef = useRef<HTMLDivElement>(null)
   const boxRef = useRef<HTMLDivElement>(null)
@@ -186,6 +188,8 @@ export function DesignLayer({ slug, screenId, pinned, onPin, onRepin }: DesignLa
   pinnedRef.current = pinned
   const ctxRef = useRef({ slug, screenId, onPin, onRepin })
   ctxRef.current = { slug, screenId, onPin, onRepin }
+  const passiveRef = useRef(passive)
+  passiveRef.current = passive
 
   // --- the overlay ------------------------------------------------------------
   const overlayRef = useRef<ReturnType<typeof watchOverlay> | null>(null)
@@ -366,6 +370,9 @@ export function DesignLayer({ slug, screenId, pinned, onPin, onRepin }: DesignLa
     }
 
     const onDown = (e: PointerEvent) => {
+      // Navigating is using the app, not picking anything up — a ⌘-click
+      // there selects, but never starts a drag.
+      if (passiveRef.current) return
       if (e.button !== 0 || e.altKey || !(e.target instanceof Element)) return
       if (onGapDown(e)) return
       const el = e.target.closest('[data-src]')

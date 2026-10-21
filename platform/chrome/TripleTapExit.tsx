@@ -16,7 +16,7 @@ import Link from 'next/link'
 import { useCallback, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useGuestAccess } from '@/platform/auth/session'
 import { ShareButton } from '@/platform/share/ShareButton'
-import { getScreenBridge, subscribeScreenBridge } from '@/platform/runtime/bridge'
+import { applyScreenState, getScreenBridge, subscribeScreenBridge } from '@/platform/runtime/bridge'
 import type { ScreenState } from '@/platform/types'
 
 /** Max gap between taps for them to count as one triple-tap. */
@@ -50,7 +50,7 @@ function DialogStates({
           key={state.id}
           type="button"
           onClick={() => {
-            state.apply()
+            applyScreenState(state)
             onApplied()
           }}
           className="flex flex-col gap-2 rounded-12 border border-default bg-neutral-white px-12 py-8 text-left"

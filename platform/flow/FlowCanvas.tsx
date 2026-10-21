@@ -19,6 +19,7 @@ import { ShortcutSheet, useShortcuts } from '@/platform/chrome/shortcuts'
 import { registry } from '@/projects/registry'
 import { resolveProject, type ResolvedProject } from '@/platform/runtime/resolveProject'
 import { publishDbIndexEntry } from '@/platform/dbProjects/active'
+import { briefScreen } from '@/platform/chrome/screenIndex'
 import { Edges } from './Edges'
 import { ScreenThumb } from './ScreenThumb'
 import { computeLayout } from './layout'
@@ -77,14 +78,13 @@ async function resolveDb(slug: string): Promise<ResolvedProject | null> {
   const build = await fetchDbProject(slug)
   if (!build.ok) return null
   const { resolved } = await resolveDbProject(build)
-  const brief = (s: { id: string; title: string }) => ({ id: s.id, title: s.title })
   publishDbIndexEntry({
     slug,
     name: resolved.config.name,
     status: resolved.config.status,
     createdAt: resolved.config.createdAt,
-    screens: resolved.own.map(brief),
-    inherited: resolved.base ? { from: resolved.base.name, screens: resolved.inherited.map(brief) } : undefined,
+    screens: resolved.own.map(briefScreen),
+    inherited: resolved.base ? { from: resolved.base.name, screens: resolved.inherited.map(briefScreen) } : undefined,
   })
   return resolved
 }

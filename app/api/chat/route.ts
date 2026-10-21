@@ -57,7 +57,13 @@ import { cloudStatus, cloudTurn } from '@/platform/chat/server/cloud'
 import { turnNote } from '@/platform/chat/server/turnNote'
 import { withContract } from '@/platform/chat/server/contract'
 import { MEMORY_RULES, OTHER_PROTOTYPES_LAPTOP } from '@/platform/chat/server/memory'
-import { readImages, userContent } from '@/platform/chat/images'
+import {
+  MAX_LAPTOP_DOCUMENT_CHARS,
+  MAX_LAPTOP_TOTAL_CHARS,
+  readDocuments,
+  readImages,
+  userContent,
+} from '@/platform/chat/images'
 import { effortOf } from '@/platform/chat/effort'
 
 export const runtime = 'nodejs'
@@ -319,6 +325,8 @@ interface ChatRequest {
   message: string
   /** Reference images the designer pasted (platform/chat/images.ts). */
   images?: unknown
+  /** PDFs the designer attached (platform/chat/images.ts). */
+  documents?: unknown
   /** The CLI session to continue; absent on the first turn. */
   sessionId?: string
   /** Sent from /db/<slug>: the project lives in the database. The turn starts
@@ -369,6 +377,8 @@ export async function POST(request: Request): Promise<Response> {
   }
   const images = readImages(body.images)
   if ('error' in images) return Response.json(images, { status: 400 })
+  const documents = readDocuments(body.documents, { each: MAX_LAPTOP_DOCUMENT_CHARS, total: MAX_LAPTOP_TOTAL_CHARS })
+  if ('error' in documents) return Response.json(documents, { status: 400 })
   if (running) {
     return Response.json({ error: 'Another turn is still running.' }, { status: 409 })
   }
@@ -376,7 +386,7 @@ export async function POST(request: Request): Promise<Response> {
   const db = Boolean(body.db)
   const draftOf = db ? ((await draftsOf(body.slug).catch(() => null))?.draft?.parentName ?? null) : null
   // The message goes in on stdin as a stream-json user message, not as an
-  // argument: that is the only way the CLI takes images with it.
+  // argument: that is the only way the CLI takes images and PDFs with it.
   const args = [
     '-p',
     '--input-format', 'stream-json',
@@ -434,7 +444,7 @@ export async function POST(request: Request): Promise<Response> {
   child.stdin!.end(
     JSON.stringify({
       type: 'user',
-      message: { role: 'user', content: userContent(`${note}\n\n${body.message}`, images) },
+      message: { role: 'user', content: userContent(`${note}\n\n${body.message}`, images, documents) },
     }) + '\n',
   )
   let timedOut = false
