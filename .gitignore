@@ -32,6 +32,7 @@ next-env.d.ts
 /scripts/.test-design-github.mjs
 /scripts/.test-design-vocabulary.mjs
 /scripts/.test-design-chat.mjs
+/scripts/.test-design-laptop.mjs
 /scripts/.check-flows-bundle.css
 
 # Figma-exported component specs — /ingest reads them from here, but they are

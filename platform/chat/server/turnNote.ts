@@ -12,11 +12,15 @@
 // The screen line also saves the search a turn opened with. The panel only said
 // which screen was open when an element was pinned, so "make the header
 // shorter" started with Glob and ls to find out which file the header was in.
+//
+// A conversation's first note also brings the prototype's memory (./memory.ts)
+// and the date its lines are stamped with; later turns already have both.
 // =============================================================================
 
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { draftChatLines } from '@/platform/dbProjects/draftMeta'
+import { prototypeMemory } from './memory'
 
 // Screen ids and slugs are kebab-case. (common.ts has the same pattern, but
 // importing it loads every project's config.)
@@ -72,7 +76,10 @@ export function turnNote(n: {
       lines.push(`The device shows an error in place of this screen: ${JSON.stringify(error.slice(0, MAX_ERROR))}`)
     }
   }
-  return `<studio-note>\n${lines.join('\n')}\n</studio-note>`
+  if (n.first) lines.push(`Today: ${new Date().toISOString().slice(0, 10)}.`)
+  const note = `<studio-note>\n${lines.join('\n')}\n</studio-note>`
+  const memory = n.first ? prototypeMemory(n.root, n.folder) : null
+  return memory ? `${note}\n\n${memory}` : note
 }
 
 /** The file a screen is in: this project's own, or its base's when the screen is inherited. */

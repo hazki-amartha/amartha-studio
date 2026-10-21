@@ -2,10 +2,11 @@
 
 // =============================================================================
 // Canvas controls — the buttons in the bottom corners of a project route's
-// canvas. Bottom right: ViewSwitch (Prototype | Flow) and, on the prototype,
-// FullScreenButton beside it. Bottom left: chrome/ZoomControl. What you do TO
-// the prototype — Comment, Edit, Chat — sits in the page's top bar instead
-// (TopBar), so the canvas keeps only what changes how you look at it.
+// canvas. Bottom left: ViewSwitch (Prototype | Flow). Bottom right:
+// chrome/ZoomControl and, on the prototype, FullScreenButton beside it. What
+// you do TO the prototype — Share, Comment, Edit, Chat — sits in the page's
+// top bar instead (TopBar), so the canvas keeps only what changes how you look
+// at it.
 //
 // Positioned by the caller (`className`), because the canvas differs: the
 // prototype's beside its device, the flow view's the whole content area.
@@ -18,7 +19,7 @@ import { withKey } from './shortcuts'
 
 const SEGMENT = 'flex h-full items-center rounded-6 px-8 text-12'
 
-/** Full screen — beside the view switch. Only on the prototype: the flow view
+/** Full screen — beside the zoom. Only on the prototype: the flow view
  *  is a diagram, nothing to present bare. It sets a flag rather than
  *  navigating: remounting PrototypeView would reset the visit stack, dropping
  *  the viewer on the entry screen at exactly the moment they wanted to show

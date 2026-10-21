@@ -20,8 +20,9 @@
 //
 // What the agent can do is enforced, not asked for: built-in tools are only
 // Read, Edit, Write, Glob and Grep (no Bash, no web) plus, with a Figma app set up,
-// two read-only Figma tools (./figma.ts) and, with Vocus set up, read-only research
-// tools (./vocus.ts), a PreToolUse hook keeps
+// two read-only Figma tools (./figma.ts), with Vocus set up, read-only research
+// tools (./vocus.ts), and a read-only look at another prototype the designer
+// names (./otherPrototype.ts); a PreToolUse hook keeps
 // writes inside the project's folder and reads inside the workspace, and the
 // CLI's env carries the token and nothing else — none of the deployment's
 // keys. Turns are capped in steps and in time, and a conversation runs one turn
@@ -40,8 +41,10 @@ import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { createSdkMcpServer, query, tool, type HookCallback } from '@anthropic-ai/claude-agent-sdk'
+import { z } from 'zod'
 import { getStudioUser, isSameOrigin } from '@/platform/auth/server'
-import { isDbProject, readDbRows } from '@/platform/dbProjects/server'
+import { isDbProject, listDbConfigs, readDbRows } from '@/platform/dbProjects/server'
+import { maySee, PRIVATE_BRANCH } from '@/platform/dbProjects/branchAccess'
 import { KEBAB } from '@/platform/design/server/common'
 import { redis } from '@/platform/comments/server/store'
 import { draftsOf } from '@/platform/dbProjects/drafts'
@@ -51,7 +54,10 @@ import { LiveSave } from './liveSave'
 import { isSessionStoreConfigured, redisSessionStore } from './sessionStore'
 import { turnNote } from './turnNote'
 import { withContract } from './contract'
+import { MEMORY_RULES, OTHER_PROTOTYPES_STUDIO } from './memory'
+import { readPrototype } from './otherPrototype'
 import { readImages, userContent, type ChatImage } from '../images'
+import { effortOf } from '../effort'
 
 const ROOT = process.cwd()
 const BASE = '/tmp/studio-chat'
@@ -67,6 +73,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const BUILT_IN = ['Read', 'Edit', 'Write', 'Glob', 'Grep']
 const WRITES = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
 const CHECK_TOOL = 'mcp__studio__check_project'
+const PROTOTYPE_TOOL = 'mcp__studio__read_prototype'
 const SLASH_COMMAND = /^\/[a-z][\w:-]*(\s|$)/i
 
 // Read-only reference the agent works from, shipped with the function
@@ -107,7 +114,7 @@ export async function isOwner(): Promise<boolean> {
 export async function cloudStatus(): Promise<Response> {
   const open = configured() && (await isOwner())
   return Response.json(
-    { available: open, needsPassword: false, signIn: open ? 'signed-in' : null, where: 'cloud' },
+    { available: open, needsPassword: false, signIn: open ? 'signed-in' : null, where: 'cloud', effort: open },
     { headers: { 'cache-control': 'no-store' } },
   )
 }
@@ -177,7 +184,7 @@ function guard(ws: string, projectDir: string): HookCallback {
     const deny = (reason: string) => ({
       hookSpecificOutput: { hookEventName: 'PreToolUse' as const, permissionDecision: 'deny' as const, permissionDecisionReason: reason },
     })
-    if (name === CHECK_TOOL || FIGMA_TOOLS.includes(name) || VOCUS_TOOLS.includes(name)) return {}
+    if (name === CHECK_TOOL || name === PROTOTYPE_TOOL || FIGMA_TOOLS.includes(name) || VOCUS_TOOLS.includes(name)) return {}
     if (!BUILT_IN.includes(name)) return deny(`${name} is not available in studio chat.`)
     const target = [args.file_path, args.path, args.notebook_path].find((v): v is string => typeof v === 'string')
     const resolved = target ? path.resolve(ws, target) : ws
@@ -204,11 +211,10 @@ function studioAppend(figma: boolean, vocus: boolean): string {
     'instead of searching for it.',
     '',
     'Scope. You only help with this prototype: its screens, flows, copy and design',
-    ...(vocus
-      ? ['system usage, and the customer research behind it. If asked anything else,']
-      : ['system usage. If asked anything else,']),
-    'reply in one short sentence that chat is only for this prototype, and do not',
-    'answer it.',
+    ...(vocus ? ['system usage, and the customer research behind it.'] : ['system usage.']),
+    'Looking at another prototype for it is part of that (Other prototypes, below).',
+    'If asked anything else, reply in one short sentence that chat is only for this',
+    'prototype, and do not answer it.',
     '',
     'Files. The project is a database project (CLAUDE.md §3b), in the folder the note',
     'names. You can change files only there. design-system/, platform/ and the other',
@@ -245,6 +251,16 @@ function studioAppend(figma: boolean, vocus: boolean): string {
     'your turn ends is lost. Ignore the git, commit, push and `npm run` instructions',
     'in CLAUDE.md — they do not apply here.',
     '',
+    'Time. A message gets about four minutes and 40 steps here. When the time runs out',
+    'the studio stops you mid-step and sends "continue", up to twice — so save as you',
+    'go: make each edit leave the project working (list a new screen in index.ts as',
+    'soon as its file exists), and finish one screen before starting the next. If a',
+    'request is too big for that, do it in parts and say what is left.',
+    '',
+    ...MEMORY_RULES,
+    '',
+    ...OTHER_PROTOTYPES_STUDIO,
+    '',
     'Others. Designers and other chat sessions may be editing this project at the',
     'same time. When someone else changes a file you are working on, the studio',
     'merges it and tells you — re-read the file before editing it again. If a file',
@@ -270,6 +286,7 @@ interface ChatRequest {
   db?: boolean
   screen?: string
   screenError?: string
+  effort?: string
 }
 
 /** With images, the prompt has to be a message stream — a plain string can't
@@ -302,6 +319,7 @@ export async function cloudTurn(request: Request): Promise<Response> {
   if (!(await isDbProject(slug))) {
     return json({ error: 'Chat on the live studio works on database projects only.' }, 400)
   }
+  if (!(await maySee(slug, await getStudioUser()))) return json({ error: PRIVATE_BRANCH }, 404)
 
   // A new conversation gets its id here, so its workspace and lock exist
   // before the CLI starts; a later turn names the one it continues.
@@ -354,6 +372,17 @@ export async function cloudTurn(request: Request): Promise<Response> {
           return { content: [{ type: 'text' as const, text: lines.length ? lines.join('\n') : 'check_project — OK, everything is saved.' }] }
         },
       ),
+      tool(
+        'read_prototype',
+        'Look at another prototype the designer names, read-only. With only `project` (its name or slug) you get its memory and file list; add `file` for one of its files. Branches that haven’t been pushed can’t be opened.',
+        {
+          project: z.string().describe('The prototype’s name, as the designer said it, or its slug'),
+          file: z.string().optional().describe('One of its files, as the file list names it'),
+        },
+        async (args) => ({
+          content: [{ type: 'text' as const, text: await readPrototype({ configs: listDbConfigs, files: readDbRows }, args, slug) }],
+        }),
+      ),
     ],
   })
 
@@ -382,11 +411,15 @@ export async function cloudTurn(request: Request): Promise<Response> {
         if (typeof input.query === 'string') return input.query
         if (Array.isArray(input.titles)) return input.titles.join(', ')
         if (typeof input.product === 'string' || typeof input.business_unit === 'string') return String(input.product ?? input.business_unit)
+        if (typeof input.project === 'string') return typeof input.file === 'string' ? `${input.project} · ${input.file}` : input.project
         return typeof input.pattern === 'string' ? input.pattern : ''
       }
 
       let result: Record<string, any> | null = null
       let failure: string | undefined
+      // Stopped by the clock, not the viewer: the panel says so itself and
+      // sends "continue" (platform/chat/useLiveChat.ts).
+      let outOfTime = false
       let model: string | null = null
       let rateLimit: unknown = null
       const started = Date.now()
@@ -397,8 +430,10 @@ export async function cloudTurn(request: Request): Promise<Response> {
             cwd: ws,
             pathToClaudeCodeExecutable: BINARY,
             model: process.env.CHAT_MODEL?.trim() || 'opus',
+            // The composer's effort menu (../effort.ts).
+            effort: effortOf(body.effort),
             tools: BUILT_IN,
-            allowedTools: [...BUILT_IN, CHECK_TOOL, ...(figma ? FIGMA_TOOLS : []), ...(vocus ? VOCUS_TOOLS : [])],
+            allowedTools: [...BUILT_IN, CHECK_TOOL, PROTOTYPE_TOOL, ...(figma ? FIGMA_TOOLS : []), ...(vocus ? VOCUS_TOOLS : [])],
             mcpServers: { studio },
             permissionMode: 'acceptEdits',
             settingSources: ['project'],
@@ -440,11 +475,13 @@ export async function cloudTurn(request: Request): Promise<Response> {
                 const name =
                   block.name === CHECK_TOOL
                     ? 'Check'
-                    : FIGMA_TOOLS.includes(block.name)
-                      ? 'Figma'
-                      : VOCUS_TOOLS.includes(block.name)
-                        ? 'Vocus'
-                        : block.name
+                    : block.name === PROTOTYPE_TOOL
+                      ? 'Prototype'
+                      : FIGMA_TOOLS.includes(block.name)
+                        ? 'Figma'
+                        : VOCUS_TOOLS.includes(block.name)
+                          ? 'Vocus'
+                          : block.name
                 send({ type: 'tool', tool: name, detail: detail(block.input ?? {}) })
               }
             }
@@ -456,6 +493,7 @@ export async function cloudTurn(request: Request): Promise<Response> {
           }
         }
       } catch (err) {
+        outOfTime = abort.signal.aborted && !request.signal.aborted
         failure = abort.signal.aborted
           ? request.signal.aborted
             ? 'Stopped.'
@@ -485,10 +523,10 @@ export async function cloudTurn(request: Request): Promise<Response> {
       })
 
       // Save whatever the last edits left pending, then say what didn't make it.
+      const notes: string[] = []
       try {
         await live.sync()
         const unsaved = await live.pending()
-        const notes: string[] = []
         if (live.clashes.size) notes.push(`Not saved — still has clashing changes to settle: ${[...live.clashes].join(', ')}.`)
         const blocked = unsaved.filter((p) => !live.clashes.has(p))
         if (blocked.length) {
@@ -498,9 +536,8 @@ export async function cloudTurn(request: Request): Promise<Response> {
               : `Not saved: ${blocked.join(', ')}.`,
           )
         }
-        if (notes.length) failure = [failure, ...notes].filter(Boolean).join('\n\n')
       } catch (err) {
-        failure = [failure, `Saving failed: ${err instanceof Error ? err.message : String(err)}`].filter(Boolean).join('\n\n')
+        notes.push(`Saving failed: ${err instanceof Error ? err.message : String(err)}`)
       } finally {
         await redis('DEL', lock).catch(() => {})
         await rm(ws, { recursive: true, force: true }).catch(() => {})
@@ -514,7 +551,8 @@ export async function cloudTurn(request: Request): Promise<Response> {
         durationMs: (result?.duration_ms as number | undefined) ?? Date.now() - started,
         changed: [...live.saved].map((p) => `${folderOf(slug)}/${p}`),
         outside: [],
-        error: failure,
+        error: [outOfTime ? undefined : failure, ...notes].filter(Boolean).join('\n\n') || undefined,
+        outOfTime: outOfTime || undefined,
       })
       await usageSent
       try {

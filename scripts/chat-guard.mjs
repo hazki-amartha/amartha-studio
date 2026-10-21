@@ -10,7 +10,13 @@
 //     it (a database project's copy, projects/_db/<slug>/).
 //   Reads (Read, Glob, Grep) — only inside the repo, and never secrets: .env*,
 //     .git, .claude, .vercel, keys. The editing password and the GitHub App key
-//     live there, and a read secret is one Write away from a pushed file.
+//     live there, and a read secret is one Write away from a pushed file. Nor
+//     a private branch (a projects/_db/ folder whose draft.json says so) other
+//     than the chat's own. The live sync gives a laptop only the private
+//     branches its designer may see, but those are still theirs alone to work
+//     on; one shared with the team reads like any project. A search across all
+//     of projects/_db/ can still pass through one; the route's rules tell Chat
+//     not to use or mention it.
 //   Bash — only this project's check commands (CHAT_COMMANDS, from the route),
 //     with no extra arguments: `lint --fix` or `eslint -o <file>` would write
 //     files this guard never sees. Output plumbing that runs nothing new is
@@ -23,6 +29,7 @@
 // above that its exact-match --allowedTools entries don't cover.
 // =============================================================================
 
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
 const slug = process.env.CHAT_SLUG
@@ -85,6 +92,11 @@ if (READ_TOOLS.has(tool)) {
   if (isSecret(target) || isSecret(String(input.glob ?? '')) || isSecret(String(input.pattern ?? ''), tool === 'Glob')) {
     refuse('That file holds studio secrets, so chat cannot read it.')
   }
+  // A Glob names its folder in the pattern: `projects/_db/x-branch-y/**/*.tsx`.
+  const globbed = tool === 'Glob' && typeof input.pattern === 'string' ? resolve(path.join(String(input.path ?? '.'), input.pattern.split(/[*?[{]/)[0])) : null
+  if (otherBranch(target) || otherBranch(globbed)) {
+    refuse('That is a private branch: only its designer works on it, until they share it with the team or push it.')
+  }
   process.exit(0)
 }
 
@@ -101,6 +113,24 @@ function inside(target, dir) {
 
 function shown(target) {
   return target ? path.relative(root, target) || target : 'that file'
+}
+
+/** True for a path inside a private branch — a database project whose
+ *  draft.json says so (platform/dbProjects/draftMeta.ts) — unless it is the
+ *  one this chat is on. */
+function otherBranch(target) {
+  if (!target) return false
+  const db = path.join(root, 'projects', '_db')
+  const rel = path.relative(db, target)
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return false
+  const folder = path.join(db, rel.split(path.sep)[0])
+  const own = process.env.CHAT_DIR ? path.join(root, process.env.CHAT_DIR) : null
+  if (folder === own) return false
+  try {
+    return JSON.parse(readFileSync(path.join(folder, 'draft.json'), 'utf8')).visibility === 'private'
+  } catch {
+    return false
+  }
 }
 
 /** A path, or a glob, that names a secret. Grep's `pattern` is a regex over

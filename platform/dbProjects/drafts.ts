@@ -18,15 +18,33 @@
 //             clean merge passes the same checks as any save, lands, and the
 //             draft is deleted.
 //   discard   delete the draft.
+//   visibility  private (its designer and admins) or shared with the team.
+//
+// Push, discard and visibility are its designer's or an admin's to do
+// (canActOnDraft in ./draftMeta.ts); the deployed studio checks, since a
+// laptop passes the request on as whoever signed in on it.
 //
 // Like every other write, it happens on the deployed studio, which holds the
 // database key. A laptop's dev server passes the request on as the designer
 // signed in there (./remote.ts).
 // =============================================================================
 
+import type { StudioUser } from '@/platform/auth/protocol'
 import { slugFor } from '@/platform/projects/server/create'
 import { checkDbProject } from './checks'
-import { DRAFT_FILE, draftMetaText, parseDraftMeta, type DraftActionResult, type DraftMeta, type DraftsResponse } from './draftMeta'
+import { everSaved } from './history'
+import {
+  canActOnDraft,
+  DRAFT_FILE,
+  draftMetaText,
+  parseDraftMeta,
+  type DraftAction,
+  type DraftActionResult,
+  type DraftMeta,
+  type DraftsResponse,
+  type DraftVisibility,
+  visibleTo,
+} from './draftMeta'
 import { mergeText } from './merge'
 import { remote } from './remote'
 import {
@@ -43,6 +61,8 @@ import {
 const CONFIG = 'project.config.ts'
 
 export class DraftRefused extends Error {}
+
+const NOT_YOURS = 'Only the designer who started this branch, or a studio admin, can do that.'
 
 // --- project.config.ts -----------------------------------------------------------
 
@@ -65,18 +85,29 @@ export const asProject = (source: string, slug: string, name: string) =>
 
 // --- listing -------------------------------------------------------------------
 
-/** Whether <slug> is a draft, and the drafts of its project. Reads only, so a
- *  laptop answers it from the studio's project list. */
-export async function draftsOf(slug: string): Promise<DraftsResponse> {
-  const configs = await listDbConfigs()
+/** Whether <slug> is a draft, and the drafts of its project the viewer may
+ *  see. Reads only, so a laptop answers it from the studio's project list.
+ *  Without a viewer — the server asking for itself, as Chat's note does —
+ *  nothing is left out. */
+export async function draftsOf(slug: string, viewer?: StudioUser | null): Promise<DraftsResponse> {
+  const all = await listDbConfigs()
+  const configs = viewer === undefined ? all : visibleTo(all, viewer)
   const self = configs.find((c) => c.slug === slug)
   const parent = self?.draft?.draftOf ?? slug
   const parentName = configs.find((c) => c.slug === parent)?.name ?? parent
+  const mayAct = (meta: DraftMeta) => canActOnDraft(meta, viewer ?? null)
   return {
-    draft: self?.draft ? { ...self.draft, parentName } : null,
+    draft: self?.draft ? { ...self.draft, parentName, mayAct: mayAct(self.draft) } : null,
     drafts: configs
       .filter((c) => c.draft?.draftOf === parent && !c.deleted)
-      .map((c) => ({ slug: c.slug, name: c.draft!.name, createdBy: c.draft!.createdBy, createdAt: c.draft!.createdAt }))
+      .map((c) => ({
+        slug: c.slug,
+        name: c.draft!.name,
+        createdBy: c.draft!.createdBy,
+        createdAt: c.draft!.createdAt,
+        visibility: c.draft!.visibility,
+        mayAct: mayAct(c.draft!),
+      }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
   }
 }
@@ -143,7 +174,8 @@ async function draftOf(slug: string): Promise<{ meta: DraftMeta; rows: Map<strin
 
 // --- start -----------------------------------------------------------------------
 
-export async function startDraft(project: string, name: string, by: string | null): Promise<DraftActionResult> {
+/** A new branch is private to whoever started it, until they share it. */
+export async function startDraft(project: string, name: string, by: string | null, email: string | null): Promise<DraftActionResult> {
   const db = createAdminClient()
   if (!db) return passOn(project, { action: 'start', name })
 
@@ -160,7 +192,7 @@ export async function startDraft(project: string, name: string, by: string | nul
   const taken = new Set(configs.map((c) => c.slug))
   const base = `${project}-branch-${tail}`
   let slug = base
-  for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`
+  for (let n = 2; taken.has(slug) || (await everSaved(slug)); n++) slug = `${base}-${n}`
 
   // History first, files second: a save landing in between is then in the
   // draft's files but newer than its base, which merges as a change both
@@ -173,7 +205,15 @@ export async function startDraft(project: string, name: string, by: string | nul
       path,
       content: path === CONFIG ? asProject(r.content, slug, `${parent.name} · ${label}`) : r.content,
     }))
-  const meta: DraftMeta = { draftOf: project, name: label, createdBy: by, createdAt: new Date().toISOString(), baseVersion }
+  const meta: DraftMeta = {
+    draftOf: project,
+    name: label,
+    createdBy: by,
+    createdByEmail: email?.toLowerCase() ?? null,
+    visibility: 'private',
+    createdAt: new Date().toISOString(),
+    baseVersion,
+  }
   files.push({ path: DRAFT_FILE, content: draftMetaText(meta) })
   await saveDbFiles(slug, files, by)
   return { ok: true, slug }
@@ -181,11 +221,12 @@ export async function startDraft(project: string, name: string, by: string | nul
 
 // --- push ------------------------------------------------------------------------
 
-export async function pushDraft(slug: string, by: string | null): Promise<DraftActionResult> {
+export async function pushDraft(slug: string, by: string | null, viewer: StudioUser | null): Promise<DraftActionResult> {
   const db = createAdminClient()
   if (!db) return passOn(slug, { action: 'push' })
 
   const { meta, rows: draftRows } = await draftOf(slug)
+  if (!canActOnDraft(meta, viewer)) throw new DraftRefused(NOT_YOURS)
   const project = meta.draftOf
   const caughtUpTo = await newestVersion(db, project)
   const live = await readDbRows(project)
@@ -314,17 +355,36 @@ async function catchUp(
 
 // --- discard -------------------------------------------------------------------
 
-export async function discardDraft(slug: string): Promise<DraftActionResult> {
+export async function discardDraft(slug: string, viewer: StudioUser | null): Promise<DraftActionResult> {
   const db = createAdminClient()
   if (!db) return passOn(slug, { action: 'discard' })
   const { meta } = await draftOf(slug)
+  if (!canActOnDraft(meta, viewer)) throw new DraftRefused(NOT_YOURS)
   await deleteProject(db, slug)
   return { ok: true, slug: meta.draftOf }
 }
 
+// --- who sees it -----------------------------------------------------------------
+
+/** Share a branch with the team, or make it private again. Laptops follow on
+ *  their next sync: a branch going private leaves the others' laptops. */
+export async function setDraftVisibility(
+  slug: string,
+  visibility: DraftVisibility,
+  by: string | null,
+  viewer: StudioUser | null,
+): Promise<DraftActionResult> {
+  const db = createAdminClient()
+  if (!db) return passOn(slug, { action: 'visibility', visibility })
+  const { meta } = await draftOf(slug)
+  if (!canActOnDraft(meta, viewer)) throw new DraftRefused(NOT_YOURS)
+  if (meta.visibility !== visibility) await saveDbFiles(slug, [{ path: DRAFT_FILE, content: draftMetaText({ ...meta, visibility }) }], by)
+  return { ok: true, slug }
+}
+
 // --- a laptop ----------------------------------------------------------------------
 
-function passOn(slug: string, body: { action: string; name?: string }): Promise<DraftActionResult> {
+function passOn(slug: string, body: DraftAction): Promise<DraftActionResult> {
   return remote<DraftActionResult>(`/api/db-projects/${encodeURIComponent(slug)}/draft`, {
     method: 'POST',
     body: JSON.stringify(body),

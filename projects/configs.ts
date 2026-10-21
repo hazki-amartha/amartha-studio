@@ -20,14 +20,6 @@ import type { ConfigRegistry } from '@/platform/types'
 export const configs: ConfigRegistry = {
   'amarthafin-live': () => import('./amarthafin-live/project.config').then((m) => m.config),
   'ngmis-live': () => import('./ngmis-live/project.config').then((m) => m.config),
-  'ngmis-bm-monitoring': () =>
-    import('./ngmis-bm-monitoring/project.config').then((m) => m.config),
-  'ngmis-bm-monitoring-v2': () =>
-    import('./ngmis-bm-monitoring-v2/project.config').then((m) => m.config),
-  'apartner-sales-assisted-onboarding': () =>
-    import('./apartner-sales-assisted-onboarding/project.config').then((m) => m.config),
   'apartner-sot': () => import('./apartner-sot/project.config').then((m) => m.config),
-  'ngmis-mitra-monitoring': () =>
-    import('./ngmis-mitra-monitoring/project.config').then((m) => m.config),
   // <append new projects above this line — one line per project>
 }

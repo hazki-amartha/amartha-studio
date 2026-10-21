@@ -5,14 +5,16 @@
 // Two pieces, one state:
 //
 //   ProjectSwitcher  the sidebar's project name — "<Project>" or "<Project> ·
-//                  Branch: <name>" — and the branch button beside Share,
-//                  opening a list of the project and its branches, and
-//                  "Start a branch". Each branch row the viewer
-//                  may act on carries Push (its changes go live on the
-//                  project, the branch is deleted) and a trash button
-//                  (Discard, after asking). Every edit to a database project
-//                  saves itself, so there's nothing to save first. Hidden
-//                  from share-link guests.
+//                  Branch: <name>", with a lock while it's private — and the
+//                  branch button after it, opening a list of the project and
+//                  the branches the viewer may see, and "Start a branch". A
+//                  branch starts private to its designer. Each row its
+//                  designer (or an admin) may act on carries the lock that
+//                  shares it with the team or makes it private again, Push
+//                  (its changes go live on the project, the branch is
+//                  deleted) and a trash button (Discard, after asking). Every
+//                  edit to a database project saves itself, so there's
+//                  nothing to save first. Hidden from share-link guests.
 //   HistoryButton  the clock beside the right panel's ✕, opening the History
 //                  of every save (./HistoryList.tsx).
 //
@@ -22,11 +24,10 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react'
-import { BranchIcon, HistoryIcon, PlusIcon, TrashIcon } from '@/platform/chrome/icons'
+import { BranchIcon, HistoryIcon, LockIcon, LockOpenIcon, PlusIcon, TrashIcon } from '@/platform/chrome/icons'
 import { ICON_BUTTON as SIDEBAR_BUTTON } from '@/platform/chrome/sidebarRows'
-import { useStudioUser } from '@/platform/auth/session'
 import { isActiveDbProject } from './active'
-import type { DraftActionResult, DraftsResponse } from './draftMeta'
+import type { DraftActionResult, DraftsResponse, DraftSummary } from './draftMeta'
 import { HistoryList } from './HistoryList'
 
 const PRIMARY =
@@ -122,7 +123,7 @@ const MENU =
 /** The sidebar's project name, and on a database project the branch button
  *  after it, which opens the project and its branches and starts a new one. A
  *  git project has no branches: just the name. The name takes the room left,
- *  so the button stays put beside Share however long the name is. */
+ *  so the button stays put at the row's end however long the name is. */
 export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) {
   const db = isActiveDbProject(slug)
   const { data, refresh } = useDrafts(slug, db)
@@ -136,7 +137,6 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
   // asking before it deletes.
   const [acting, setActing] = useState<{ slug: string; label: string } | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
-  const me = useStudioUser().user?.displayName ?? null
 
   useEffect(() => {
     if (open) return
@@ -152,6 +152,11 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
       <span className="truncate text-14 font-bold text-default dark:text-neutral-50">{draft?.parentName ?? name}</span>
       {draft ? (
         <span className="truncate text-14 text-caption dark:text-neutral-400">· Branch: {draft.name}</span>
+      ) : null}
+      {draft?.visibility === 'private' ? (
+        <span title="Private — only you and studio admins can see this branch" className="flex-none self-center text-caption dark:text-neutral-400">
+          <LockIcon className="size-12" />
+        </span>
       ) : null}
     </span>
   )
@@ -188,8 +193,16 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
     if (action === 'push' || branch === slug) go(result.slug)
     else refresh()
   }
-  // Today's limits: the branch that's open, and the ones this person started.
-  const mayAct = (d: { slug: string; createdBy: string | null }) => d.slug === slug || (me !== null && d.createdBy === me)
+  /** Share a branch with the team, or make it private again. */
+  const share = async (d: DraftSummary) => {
+    const visibility = d.visibility === 'private' ? 'team' : 'private'
+    setOutcome(null)
+    setActing({ slug: d.slug, label: visibility === 'team' ? 'Sharing…' : 'Making it private…' })
+    const result = await act(d.slug, { action: 'visibility', visibility })
+    setActing(null)
+    if (!result.ok) return setOutcome(result)
+    refresh()
+  }
   const parentName = draft?.parentName ?? name
 
   return (
@@ -221,10 +234,8 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
                 <button type="button" className="flex min-w-0 flex-1 flex-col text-left" onClick={() => go(d.slug)}>
                   <span className="truncate text-14 text-default dark:text-neutral-50">Branch: {d.name}</span>
                   <span className={`${NOTE} truncate`}>
-                    {d.createdBy}
-                    {d.slug === slug ? (
-                      <span className="font-bold text-primary-500">{d.createdBy ? ' · Here' : 'Here'}</span>
-                    ) : null}
+                    {[d.createdBy, d.visibility === 'private' ? 'Private' : 'Shared'].filter(Boolean).join(' · ')}
+                    {d.slug === slug ? <span className="font-bold text-primary-500"> · Here</span> : null}
                   </span>
                 </button>
                 {acting?.slug === d.slug ? (
@@ -239,8 +250,22 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
                       Delete
                     </button>
                   </span>
-                ) : mayAct(d) ? (
+                ) : d.mayAct ? (
                   <span className="flex flex-none items-center gap-4">
+                    <button
+                      type="button"
+                      className={ICON_BUTTON}
+                      disabled={acting !== null}
+                      aria-label={d.visibility === 'private' ? `Share the branch ${d.name} with the team` : `Make the branch ${d.name} private`}
+                      title={
+                        d.visibility === 'private'
+                          ? 'Private — only you and studio admins see it. Click to share it with the team (it still isn’t pushed).'
+                          : 'Shared with the team. Click to make it private again.'
+                      }
+                      onClick={() => void share(d)}
+                    >
+                      {d.visibility === 'private' ? <LockIcon className="size-16" /> : <LockOpenIcon className="size-16" />}
+                    </button>
                     <button
                       type="button"
                       className={SMALL_PRIMARY}
@@ -268,7 +293,10 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
             <div className="border-t border-default pt-4 dark:border-ink-700">
               {starting ? (
                 <form onSubmit={start} className="flex flex-col gap-8 p-8">
-                  <p className={NOTE}>Try a change without it showing on the project’s link. Push the branch when it’s ready.</p>
+                  <p className={NOTE}>
+                    Try a change without it showing on the project’s link. It starts private — only you and studio admins
+                    see it until you share it. Push it when it’s ready.
+                  </p>
                   <div className="flex gap-8">
                     <input
                       autoFocus

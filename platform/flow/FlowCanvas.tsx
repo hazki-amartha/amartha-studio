@@ -401,8 +401,8 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
   }, [])
 
   // The shell's top bar already names the view; it carries the grid-fallback
-  // badge too, so this route has no header of its own. The bottom-right corner
-  // is the shell's Prototype | Flow, so Reset layout sits top right.
+  // badge too, so this route has no header of its own. The bottom corners are
+  // the shell's Prototype | Flow and the zoom, so Reset layout sits top right.
   usePublishHeaderStatus(
     state === 'ready'
       ? { badge: layout?.isGrid ? 'no flow metadata' : undefined }
@@ -520,7 +520,7 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
           max={MAX_ZOOM}
           onStep={step}
           onFit={fit}
-          className="absolute bottom-16 left-16 z-10"
+          className="absolute bottom-16 right-16 z-10"
         />
       ) : null}
       {shortcuts ? (

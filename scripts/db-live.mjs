@@ -6,7 +6,10 @@
 // A database project (platform/dbProjects) has one shared copy, and it is
 // live. Designers still work on files: each project is mirrored to
 // projects/_db/<slug>/ (outside git and the type-check), and this process runs
-// alongside the dev server — `npm run dev` starts it; one per laptop.
+// alongside the dev server — `npm run dev` starts it; one per laptop. Someone
+// else's private branch never reaches it: the studio leaves it out of the
+// change list for whoever signed in here (platform/dbProjects/branchAccess.ts),
+// and a branch that goes private leaves the list, so its folder goes too.
 //
 //   their save → your files    Every 2s it looks for files someone else saved.
 //                              A file you haven't touched is replaced. A file

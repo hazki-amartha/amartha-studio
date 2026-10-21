@@ -89,7 +89,7 @@ export const AccountIcon = icon(
   </>,
 )
 
-// Branches — a fork: the project and its branches, beside Share.
+// Branches — a fork: the project and its branches, atop the sidebar.
 export const BranchIcon = icon(
   <>
     <path d="M6 3v12" />
@@ -110,6 +110,8 @@ export const PanelIcon = icon(
 // Breadcrumb separator.
 export const ChevronRightIcon = icon(<path d="M9 6l6 6-6 6" />)
 export const ChevronLeftIcon = icon(<path d="M15 6l-6 6 6 6" />)
+// A control that opens a menu — Chat's effort.
+export const ChevronDownIcon = icon(<path d="M6 9l6 6 6-6" />)
 
 // Mobile top nav — hamburger and its close state.
 export const MenuIcon = icon(
@@ -276,6 +278,21 @@ export const TrashIcon = icon(
 // Stop — a square: stops the chat turn that is running.
 export const StopIcon = icon(<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" />)
 
+// A branch's privacy: locked while only its designer sees it, open once it's
+// shared with the team.
+export const LockIcon = icon(
+  <>
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V7.5a4 4 0 0 1 8 0V11" />
+  </>,
+)
+export const LockOpenIcon = icon(
+  <>
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V7.5a4 4 0 0 1 7.8-1.3" />
+  </>,
+)
+
 // --- Panel tabs --------------------------------------------------------------
 
 // CSS — angle brackets: read the element's computed styles.
@@ -333,6 +350,8 @@ export const CheckCircleIcon = icon(
     <path d="M8 12.5l2.5 2.5L16 9.5" />
   </>,
 )
+// The chosen item in a menu.
+export const CheckIcon = icon(<path d="M5 12.5l4.5 4.5L19 7.5" />)
 
 // A comment's own actions — edit, delete — behind three dots.
 export const MoreIcon = icon(

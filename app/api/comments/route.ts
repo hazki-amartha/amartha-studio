@@ -30,6 +30,7 @@ import { isSignInRequired } from '@/platform/auth/env'
 import type { StudioUser } from '@/platform/auth/protocol'
 import { getStudioUser } from '@/platform/auth/server'
 import { shareAccess } from '@/platform/share/server/access'
+import { maySee } from '@/platform/dbProjects/branchAccess'
 import { KEY_HEADER, LIMITS, type Comment, type CommentRequest, type CommentsResponse } from '@/platform/comments/protocol'
 import {
   countComments,
@@ -76,6 +77,8 @@ const coord = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v 
  */
 async function caller(slug: string): Promise<{ user: StudioUser | null; allowed: boolean }> {
   const user = await getStudioUser()
+  // A private branch's: its designer's, admins', and its share links'.
+  if (!(await maySee(slug, user, { shared: true }))) return { user, allowed: false }
   if (user || !isSignInRequired()) return { user, allowed: true }
   return { user, allowed: (await shareAccess(slug)) === 'comment' }
 }

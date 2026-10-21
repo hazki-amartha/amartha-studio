@@ -7,14 +7,15 @@
 // here (its SessionStore adapter) and materializes it again on resume.
 //
 // One Redis list per session, `studio:chat:session:<projectKey>:<id>[:<sub>]`,
-// one JSON entry per element, kept for a week after the last turn. Same Upstash
-// store as comments (platform/comments/server/store.ts) — no new service.
+// one JSON entry per element, kept for 30 days after the last turn — long
+// enough for /studio-memory to look back over (scripts/chat-history.mjs). Same
+// Upstash store as comments (platform/comments/server/store.ts) — no new service.
 // =============================================================================
 
 import type { SessionKey, SessionStore, SessionStoreEntry } from '@anthropic-ai/claude-agent-sdk'
 import { isStoreConfigured, redis } from '@/platform/comments/server/store'
 
-const TTL_SECONDS = 7 * 24 * 60 * 60
+const TTL_SECONDS = 30 * 24 * 60 * 60
 
 const keyOf = (k: SessionKey) =>
   `studio:chat:session:${k.projectKey}:${k.sessionId}${k.subpath ? `:${k.subpath}` : ''}`
