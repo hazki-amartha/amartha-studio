@@ -1,12 +1,18 @@
 // =============================================================================
 // ScreenSidebar — the sidebar while a project is open: its screens, and while
 // it runs its Layers and Notes. The live screen's states (if it declares any)
-// nest under its row.
+// nest under its row. A long project groups its screens into folding sections
+// (ScreenDef.section — a feature or a flow). In a database project an editor
+// arranges them right here: drag a row or a section, double-click a section to
+// rename it, New section to start one — each saved into index.ts at once
+// (screenArrangement.ts). The live references stay as their code has them.
 // Inside a project the common navigation is between its screens, not between
 // projects, so the sidebar lists the project's screens instead of the studio's
 // sections.
 //   • Prototype route: the runtime publishes the screen bridge — rows highlight
-//     the live screen and clicking jumps the device there, no page reload.
+//     the live screen and clicking jumps the device there, no page reload. The
+//     list keeps the live screen (and its states) scrolled into view, however
+//     the device got there.
 //   • Flow route (no runtime mounted): rows deep-link to /p/<slug>?screen=<id>.
 // One header row: back to the gallery, the project name, then the branch
 // button (the project and its branches) at the right end, where it stays
@@ -19,10 +25,16 @@
 'use client'
 
 import Link from 'next/link'
-import { Fragment, useCallback, useState, useSyncExternalStore } from 'react'
-import { getScreenBridge, screenBridgeJump, subscribeScreenBridge } from '@/platform/runtime/bridge'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent } from 'react'
+import {
+  applyScreenState,
+  getScreenBridge,
+  screenBridgeJump,
+  subscribeScreenBridge,
+} from '@/platform/runtime/bridge'
 import { ProjectSwitcher } from '@/platform/dbProjects/DraftControls'
-import { ChevronLeftIcon } from './icons'
+import { isActiveDbProject } from '@/platform/dbProjects/active'
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from './icons'
 import {
   getShellSlots,
   getShellSlotsServerSnapshot,
@@ -32,7 +44,17 @@ import {
   type SidebarTab,
 } from './shellSlots'
 import { PanelTabs } from './SidePanel'
-import { GROUP_LABEL, ICON_BUTTON, ROW_ACTIVE, ROW_IDLE } from './sidebarRows'
+import { GROUP_LABEL, ICON_BUTTON, NEW_SECTION, ROW_ACTIVE, ROW_IDLE, SECTION_HEADER } from './sidebarRows'
+import {
+  flatten,
+  groupsOf,
+  moveScreen,
+  moveSection,
+  renameSection,
+  sameArrangement,
+  saveArrangement,
+  type Group,
+} from './screenArrangement'
 import type { ProjectIndexEntry, ScreenIndexEntry } from './loadProjectIndex'
 
 const TABS: { id: SidebarTab; label: string }[] = [
@@ -71,6 +93,7 @@ export function ScreenSidebar({
   const layersRef = useCallback((el: HTMLElement | null) => setShellSlot('layers', el), [])
   const notesRef = useCallback((el: HTMLElement | null) => setShellSlot('notes', el), [])
 
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex h-48 flex-none items-center gap-4 px-8">
@@ -97,7 +120,14 @@ export function ScreenSidebar({
 
         {tab !== 'screens' ? null : (
           <>
-            <ScreenList label="Screens" screens={project.screens} slug={project.slug} activeId={activeId} live={live} />
+            <ScreenList
+              label="Screens"
+              screens={project.screens}
+              slug={project.slug}
+              activeId={activeId}
+              live={live}
+              editable={!guest && project.status !== 'live' && isActiveDbProject(project.slug)}
+            />
             {/* Inherited screens sit in their own group so the feature's own pages
               stay readable at the top; they jump the device just the same. */}
             {project.inherited && project.inherited.screens.length > 0 ? (
@@ -117,6 +147,49 @@ export function ScreenSidebar({
   )
 }
 
+/** Which sections the viewer folded, per project — a per-viewer convenience,
+ *  so it lives in this browser only and survives its loss. */
+function useFoldedSections(slug: string) {
+  const key = `studio.sidebar.folded.${slug}`
+  const [folded, setFolded] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    try {
+      setFolded(new Set(JSON.parse(window.localStorage.getItem(key) ?? '[]') as string[]))
+    } catch {
+      setFolded(new Set())
+    }
+  }, [key])
+  const set = useCallback(
+    (section: string, fold: boolean) =>
+      setFolded((prev) => {
+        if (prev.has(section) === fold) return prev
+        const next = new Set(prev)
+        if (fold) next.add(section)
+        else next.delete(section)
+        try {
+          window.localStorage.setItem(key, JSON.stringify([...next]))
+        } catch {
+          /* private mode — the fold holds for this visit */
+        }
+        return next
+      }),
+    [key],
+  )
+  return { folded, set }
+}
+
+/** What is being dragged: a screen's row, or a section by its header. */
+type Drag = { kind: 'screen'; id: string } | { kind: 'section'; group: number }
+/** Where it would land: a screen before row `index` of `group`; a section
+ *  before the group `before`. */
+type Drop = { kind: 'screen'; group: number; index: number } | { kind: 'section'; before: number }
+
+/** Above or below the middle of the element the pointer is over. */
+const lowerHalf = (e: DragEvent<HTMLElement>) => {
+  const r = e.currentTarget.getBoundingClientRect()
+  return e.clientY > r.top + r.height / 2
+}
+
 function ScreenList({
   label,
   showLabel,
@@ -124,6 +197,7 @@ function ScreenList({
   slug,
   activeId,
   live,
+  editable,
 }: {
   label: string
   /** The project's own screens go unlabelled; an inherited group says where
@@ -133,32 +207,328 @@ function ScreenList({
   slug: string
   activeId: string | null
   live: boolean
+  /** Rows and sections can be dragged, named and renamed — the project's own
+   *  screens, in a database project an editor has open. */
+  editable?: boolean
 }) {
+  // A drag shows its result at once; the project's next list — the save
+  // landing, or anyone else's edit — replaces it.
+  const [override, setOverride] = useState<ScreenIndexEntry[] | null>(null)
+  useEffect(() => setOverride(null), [screens])
+  const shown = override ?? screens
+  // Sections made here that no screen has joined yet — this browser's only.
+  const [drafts, setDrafts] = useState<string[]>([])
+  const groups = useMemo(() => groupsOf(shown, drafts), [shown, drafts])
+  const { folded, set } = useFoldedSections(slug)
+
+  const [drag, setDrag] = useState<Drag | null>(null)
+  const [drop, setDrop] = useState<Drop | null>(null)
+  /** The section being named: its name, or '' for a new one. */
+  const [naming, setNaming] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // The device moving into a folded section opens it, so the live row is
+  // always there to see (and to scroll to).
+  const activeSection = shown.find((s) => s.id === activeId)?.section
+  useEffect(() => {
+    if (activeSection) set(activeSection, false)
+  }, [activeSection, set])
+
+  const commit = async (next: Group[]) => {
+    const list = flatten(next)
+    if (sameArrangement(list, shown)) return
+    setOverride(list)
+    setSaving(true)
+    setError(null)
+    // `shown` is what index.ts holds now: the project's list, or the last
+    // drag's once its save came back.
+    const why = await saveArrangement(slug, shown, list)
+    setSaving(false)
+    if (why) {
+      setOverride(null)
+      setError(why)
+    }
+  }
+
+  const endDrag = () => {
+    setDrag(null)
+    setDrop(null)
+  }
+  const onDrop = (e: DragEvent<HTMLElement>) => {
+    e.preventDefault()
+    if (drag?.kind === 'screen' && drop?.kind === 'screen') {
+      const name = groups[drop.group]?.section
+      if (name) set(name, false)
+      void commit(moveScreen(groups, drag.id, drop.group, drop.index))
+    } else if (drag?.kind === 'section' && drop?.kind === 'section') {
+      void commit(moveSection(groups, drag.group, drop.before))
+    }
+    endDrag()
+  }
+
+  const rename = (from: string, to: string) => {
+    setNaming(null)
+    const name = to.trim()
+    if (from === '') {
+      if (name && !groups.some((g) => g.section === name)) setDrafts((d) => [...d, name])
+      return
+    }
+    if (drafts.includes(from) && !shown.some((s) => s.section === from)) {
+      setDrafts((d) => (name ? d.map((n) => (n === from ? name : n)) : d.filter((n) => n !== from)))
+      return
+    }
+    void commit(renameSection(groups, from, name))
+  }
+
+  const canDrag = Boolean(editable && live && !saving)
+  const row = (screen: ScreenIndexEntry, group: number, index: number, rows: number) => {
+    const mark =
+      drop?.kind === 'screen' && drop.group === group
+        ? drop.index === index
+          ? 'top'
+          : drop.index === rows && index === rows - 1
+            ? 'bottom'
+            : undefined
+        : undefined
+    return (
+      <ScreenRow
+        key={screen.id}
+        screen={screen}
+        slug={slug}
+        active={screen.id === activeId}
+        live={live}
+        mark={mark}
+        drag={
+          canDrag
+            ? {
+                start: () => setDrag({ kind: 'screen', id: screen.id }),
+                over: (e) => {
+                  if (drag?.kind !== 'screen') return
+                  e.preventDefault()
+                  setDrop({ kind: 'screen', group, index: index + (lowerHalf(e) ? 1 : 0) })
+                },
+                end: endDrag,
+              }
+            : undefined
+        }
+      />
+    )
+  }
+
+  const [loose, ...sections] = groups
+  const sectionMark = (group: number) =>
+    drop?.kind === 'section'
+      ? drop.before === group
+        ? 'top'
+        : drop.before === groups.length && group === groups.length - 1
+          ? 'bottom'
+          : undefined
+      : drop?.kind === 'screen' && drop.group === group && (groups[group].rows.length === 0 || folded.has(groups[group].section!))
+        ? 'bottom'
+        : undefined
+
   return (
-    <nav aria-label={label} className="flex flex-col gap-2">
+    <nav aria-label={label} className="flex flex-col gap-2" onDrop={onDrop} onDragOver={(e) => drag && e.preventDefault()}>
       {showLabel ? <p className={GROUP_LABEL}>{label}</p> : null}
-      {screens.map((screen) => {
-        const isActive = screen.id === activeId
-        const className = isActive ? ROW_ACTIVE : ROW_IDLE
-        return live ? (
-          <Fragment key={screen.id}>
-            <button
-              type="button"
-              onClick={() => screenBridgeJump(screen.id)}
-              aria-current={isActive ? 'page' : undefined}
-              className={className}
-            >
-              <span className="truncate">{screen.title}</span>
-            </button>
-            {isActive ? <StateList /> : null}
-          </Fragment>
-        ) : (
-          <Link key={screen.id} href={`/p/${slug}?screen=${screen.id}`} className={className}>
-            <span className="truncate">{screen.title}</span>
-          </Link>
+      {error ? <p className="px-8 pb-4 text-12 text-red-500">{error}</p> : null}
+      {loose.rows.map((s, i) => row(s, 0, i, loose.rows.length))}
+      {/* With nothing unsectioned, somewhere to drop a screen out of its section. */}
+      {drag?.kind === 'screen' && loose.rows.length === 0 && sections.length > 0 ? (
+        <div
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDrop({ kind: 'screen', group: 0, index: 0 })
+          }}
+          className={`rounded-8 border border-dashed px-8 py-4 text-12 text-caption dark:text-neutral-500 ${
+            drop?.kind === 'screen' && drop.group === 0 ? 'border-primary-500' : 'border-default dark:border-ink-700'
+          }`}
+        >
+          No section
+        </div>
+      ) : null}
+      {sections.map(({ section, rows }, s) => {
+        const group = s + 1
+        const name = section!
+        const open = !folded.has(name)
+        return (
+          <div key={name} role="group" aria-label={name} className="flex flex-col gap-2">
+            {naming === name ? (
+              <SectionName initial={name} onDone={(to) => rename(name, to)} onCancel={() => setNaming(null)} />
+            ) : (
+              <div
+                className="relative"
+                draggable={canDrag}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData('text/plain', name)
+                  setDrag({ kind: 'section', group })
+                }}
+                onDragOver={(e) => {
+                  if (!drag) return
+                  e.preventDefault()
+                  if (drag.kind === 'section') setDrop({ kind: 'section', before: lowerHalf(e) ? group + 1 : group })
+                  else setDrop({ kind: 'screen', group, index: 0 })
+                }}
+                onDragEnd={endDrag}
+              >
+                <button
+                  type="button"
+                  onClick={() => set(name, open)}
+                  onDoubleClick={editable ? () => setNaming(name) : undefined}
+                  aria-expanded={open}
+                  title={editable ? 'Drag to move · double-click to rename' : undefined}
+                  className={SECTION_HEADER}
+                >
+                  <ChevronRightIcon className={`size-12 flex-none transition-transform ${open ? 'rotate-90' : ''}`} />
+                  <span className="min-w-0 flex-1 truncate">{name}</span>
+                  <span className="flex-none">{rows.length}</span>
+                </button>
+                <DropMark at={sectionMark(group)} />
+              </div>
+            )}
+            {open ? rows.map((r, i) => row(r, group, i, rows.length)) : null}
+            {open && rows.length === 0 ? (
+              <p
+                onDragOver={(e) => {
+                  if (drag?.kind !== 'screen') return
+                  e.preventDefault()
+                  setDrop({ kind: 'screen', group, index: 0 })
+                }}
+                className="px-8 text-12 text-caption dark:text-neutral-500"
+              >
+                Drag screens here
+              </p>
+            ) : null}
+          </div>
         )
       })}
+      {editable && live ? (
+        naming === '' ? (
+          <SectionName initial="" onDone={(to) => rename('', to)} onCancel={() => setNaming(null)} />
+        ) : (
+          <button type="button" onClick={() => setNaming('')} className={NEW_SECTION}>
+            <PlusIcon className="size-12 flex-none" />
+            New section
+          </button>
+        )
+      ) : null}
     </nav>
+  )
+}
+
+/** The line a drop would land on, along a row's or header's edge. */
+function DropMark({ at }: { at?: 'top' | 'bottom' }) {
+  if (!at) return null
+  return (
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute inset-x-0 h-2 rounded-full bg-primary-500 ${at === 'top' ? 'top-0' : 'bottom-0'}`}
+    />
+  )
+}
+
+/** Naming a section in place: Enter or leaving the field keeps it, Esc
+ *  doesn't. Renamed to nothing, a section's screens leave it. */
+function SectionName({
+  initial,
+  onDone,
+  onCancel,
+}: {
+  initial: string
+  onDone: (name: string) => void
+  onCancel: () => void
+}) {
+  const [value, setValue] = useState(initial)
+  const done = useRef(false)
+  const finish = (keep: boolean) => {
+    if (done.current) return
+    done.current = true
+    if (keep) onDone(value)
+    else onCancel()
+  }
+  return (
+    <div className="px-8 pb-4 pt-12">
+      <input
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') finish(true)
+          if (e.key === 'Escape') finish(false)
+        }}
+        onBlur={() => finish(true)}
+        placeholder={initial ? 'Empty takes its screens out' : 'Section name'}
+        aria-label="Section name"
+        className="h-24 w-full rounded-4 border border-default bg-neutral-white px-4 text-12 text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
+      />
+    </div>
+  )
+}
+
+function ScreenRow({
+  screen,
+  slug,
+  active,
+  live,
+  mark,
+  drag,
+}: {
+  screen: ScreenIndexEntry
+  slug: string
+  active: boolean
+  live: boolean
+  mark?: 'top' | 'bottom'
+  drag?: { start: () => void; over: (e: DragEvent<HTMLElement>) => void; end: () => void }
+}) {
+  const className = active ? ROW_ACTIVE : ROW_IDLE
+
+  // Follow the device: tapping through a flow, the stepper arrows, a state
+  // applied from the phone dialog — the live row comes into view, its states
+  // with it. On the row itself, so it also runs when the row first appears: a
+  // section opening for it, or the Screens tab coming back. `nearest` leaves
+  // the list alone while the row is already showing.
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!active) return
+    const next = ref.current?.nextElementSibling
+    if (next?.getAttribute('aria-label') === 'States') next.scrollIntoView({ block: 'nearest' })
+    ref.current?.scrollIntoView({ block: 'nearest' })
+  }, [active])
+
+  if (!live) {
+    return (
+      <Link href={`/p/${slug}?screen=${screen.id}`} className={className}>
+        <span className="truncate">{screen.title}</span>
+      </Link>
+    )
+  }
+  return (
+    <>
+      <div
+        ref={ref}
+        className="relative"
+        draggable={Boolean(drag)}
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'move'
+          e.dataTransfer.setData('text/plain', screen.id)
+          drag?.start()
+        }}
+        onDragOver={drag?.over}
+        onDragEnd={drag?.end}
+      >
+        <button
+          type="button"
+          onClick={() => screenBridgeJump(screen.id)}
+          aria-current={active ? 'page' : undefined}
+          className={className}
+        >
+          <span className="truncate">{screen.title}</span>
+        </button>
+        <DropMark at={mark} />
+      </div>
+      {active ? <StateList /> : null}
+    </>
   )
 }
 
@@ -168,14 +538,14 @@ function ScreenList({
  * away, and some states cannot be tapped to at all. One click puts the screen
  * in the condition, without leaving it.
  *
- * The highlight is what was last APPLIED here, not what the project is
- * actually in — the platform cannot know that, and pretending otherwise would
- * mean reading project internals. It resets with the screen, since the list
- * only mounts under the active row.
+ * The highlight is what was last APPLIED to this screen, not what the project
+ * is actually in — the platform cannot know that, and pretending otherwise
+ * would mean reading project internals. The bridge keeps it, so it survives an
+ * edit landing (which applies it again) and a trip to another screen and back.
  */
 function StateList() {
   const bridge = useSyncExternalStore(subscribeScreenBridge, getScreenBridge, getServerSnapshot)
-  const [applied, setApplied] = useState<string | null>(null)
+  const applied = bridge?.applied ?? null
   const states = bridge?.states ?? []
   if (states.length === 0) return null
 
@@ -191,10 +561,7 @@ function StateList() {
           <button
             key={state.id}
             type="button"
-            onClick={() => {
-              state.apply()
-              setApplied(state.id)
-            }}
+            onClick={() => applyScreenState(state)}
             title={state.description}
             className={on ? ROW_ACTIVE : ROW_IDLE}
           >

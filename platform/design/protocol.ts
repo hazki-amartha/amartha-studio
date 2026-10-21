@@ -276,6 +276,19 @@ export interface DesignRequest {
   file?: string
 }
 
+/**
+ * Database projects only: rearrange the screen list — the sidebar's drag and
+ * drop (platform/design/arrangeScreens.ts). `seen` is what the sidebar showed,
+ * and the save is refused unless index.ts still says exactly that.
+ */
+export interface DesignArrangeRequest {
+  slug: string
+  arrange: {
+    seen: { id: string; section?: string }[]
+    next: { id: string; section?: string }[]
+  }
+}
+
 /** `github` backend only: open the change and let it land itself. */
 export interface DesignPushRequest {
   slug: string

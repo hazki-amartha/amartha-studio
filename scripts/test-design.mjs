@@ -37,6 +37,7 @@ await build({
   stdin: {
     contents: [
       `export { applyEdits } from './platform/design/applyEdits'`,
+      `export { arrangeScreens } from './platform/design/arrangeScreens'`,
       `export { versionOf } from './platform/design/version'`,
       `export { tidyImports, restoreSemicolons } from './platform/design/tidy'`,
       `export { layoutOf, withLayout, SPACING } from './platform/design/layout'`,
@@ -57,6 +58,7 @@ await build({
 })
 const {
   applyEdits,
+  arrangeScreens,
   versionOf,
   tidyImports,
   layoutOf,
@@ -2264,4 +2266,69 @@ test('laptop token: only a real, unexpired Amartha token gets past middleware', 
     if (before === undefined) delete process.env.STUDIO_LAPTOP_SECRET
     else process.env.STUDIO_LAPTOP_SECRET = before
   }
+})
+
+// --- the sidebar's drag and drop: index.ts's screen list ----------------------
+
+const INDEX = `import { config } from './project.config'
+
+export const project: ProjectModule = {
+  config,
+  screens: [
+    // The start.
+    {
+      id: 'home',
+      title: 'Home',
+      component: lazyScreen(() => import('./screens/home'), 'HomeScreen'),
+      entry: true,
+    },
+    {
+      id: 'kyc',
+      title: 'KYC',
+      section: 'Onboarding',
+      component: lazyScreen(() => import('./screens/kyc'), 'KycScreen'),
+    },
+    {
+      id: 'done',
+      title: 'Done',
+      component: lazyScreen(() => import('./screens/done'), 'DoneScreen'),
+    }
+  ],
+}
+`
+const SEEN = [{ id: 'home' }, { id: 'kyc', section: 'Onboarding' }, { id: 'done' }]
+
+test('arrangeScreens moves entries verbatim and edits only section lines', () => {
+  const next = [{ id: 'done', section: "Bank's KYC" }, { id: 'home' }, { id: 'kyc' }]
+  const r = arrangeScreens(INDEX, SEEN, next)
+  assert.equal(r.ok, true)
+  const out = r.source
+  // Order follows `next`; the comment travels with its entry.
+  assert.ok(out.indexOf("id: 'done'") < out.indexOf('// The start.'))
+  assert.ok(out.indexOf('// The start.') < out.indexOf("id: 'home'"))
+  // A section is one quoted line under the title; a removed one is gone.
+  assert.match(out, /title: 'Done',\n {6}section: 'Bank\\'s KYC',\n/)
+  assert.doesNotMatch(out, /Onboarding/)
+  // The entry that was last had no comma; moved up, it gets one.
+  assert.match(out, /'DoneScreen'\),\n {4}\},\n/)
+})
+
+test('arrangeScreens round-trips back to the exact source', () => {
+  const next = [{ id: 'kyc', section: 'Onboarding' }, { id: 'done', section: 'Onboarding' }, { id: 'home' }]
+  const there = arrangeScreens(INDEX, SEEN, next)
+  assert.equal(there.ok, true)
+  const back = arrangeScreens(there.source, next, SEEN)
+  assert.equal(back.ok, true)
+  // Only the trailing comma the last entry gained remains.
+  assert.equal(back.source, INDEX.replace("'DoneScreen'),\n    }\n", "'DoneScreen'),\n    },\n"))
+})
+
+test('arrangeScreens refuses a stale view, a changed set, or a list it cannot read', () => {
+  assert.equal(arrangeScreens(INDEX, [{ id: 'home' }, { id: 'kyc' }, { id: 'done' }], SEEN).ok, false)
+  assert.equal(arrangeScreens(INDEX, SEEN, [{ id: 'home' }, { id: 'kyc' }]).ok, false)
+  assert.equal(arrangeScreens(INDEX, SEEN, [{ id: 'home' }, { id: 'kyc' }, { id: 'kyc' }]).ok, false)
+  const spread = 'export const project = { config, screens: [...base, { id: "a", title: "A" }] }'
+  assert.equal(arrangeScreens(spread, [{ id: 'a' }], [{ id: 'a', section: 'S' }]).ok, false)
+  // Nothing to change is not a write.
+  assert.deepEqual(arrangeScreens(INDEX, SEEN, SEEN), { ok: true, source: INDEX })
 })

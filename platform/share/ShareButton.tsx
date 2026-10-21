@@ -1,13 +1,17 @@
 // =============================================================================
-// Share · the prototype's Share control, for signed-in editors. Makes a link
-// that opens this one prototype to someone without an Amartha account — view
-// only, or view and comment — lists the live ones, and revokes them.
+// Share · the prototype's Share control, for signed-in editors. Copies the
+// studio link for teammates, and makes a link that opens this one prototype to
+// someone without an Amartha account — view only, or view and comment — lists
+// the live ones, and revokes them. While a prototype runs it also copies the
+// studio link to the page showing now (?screen=<id>) — the project's own link
+// is already the address bar.
 // =============================================================================
 
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useStudioUser } from '@/platform/auth/session'
+import { getScreenBridge, subscribeScreenBridge } from '@/platform/runtime/bridge'
 import { ChevronDownIcon, LinkIcon, ShareIcon } from '@/platform/chrome/icons'
 import { toolButtonClass } from '@/platform/chrome/TopBar'
 import { EXPIRY_CHOICES, type ShareAccess, type ShareLink, type ShareResponse } from './protocol'
@@ -44,6 +48,10 @@ function Select({ value, onChange, children }: { value: string | number; onChang
 }
 
 const urlOf = (link: ShareLink) => `${window.location.origin}/s/${link.token}`
+
+function getServerSnapshot() {
+  return null
+}
 
 function expiresNote(link: ShareLink): string {
   if (!link.expiresAt) return 'No expiry'
@@ -93,7 +101,7 @@ export function ShareButton({ slug, icon, block }: { slug: string; icon?: boolea
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-label="Share"
-          title="Share — a link that opens this prototype without an account"
+          title="Share — a link to this page, for teammates or anyone"
           className={ICON}
         >
           <ShareIcon className="size-16" />
@@ -122,6 +130,9 @@ export function ShareButton({ slug, icon, block }: { slug: string; icon?: boolea
 /** Floating, it hangs from the button's right edge: the button sits at the top
  *  bar's end, so the panel runs left over the page instead of off the screen. */
 function SharePanel({ slug, inline }: { slug: string; inline?: boolean }) {
+  // The page showing now, if this prototype is running (not on the flow view).
+  const bridge = useSyncExternalStore(subscribeScreenBridge, getScreenBridge, getServerSnapshot)
+  const page = bridge?.slug === slug ? bridge : null
   const [links, setLinks] = useState<ShareLink[] | null>(null)
   const [access, setAccess] = useState<ShareAccess>('comment')
   const [days, setDays] = useState<number | null>(EXPIRY_CHOICES[0])
@@ -133,12 +144,13 @@ function SharePanel({ slug, inline }: { slug: string; inline?: boolean }) {
     void call(undefined, slug).then((r) => (r.error ? setError(r.error) : setLinks(r.links ?? [])))
   }, [slug])
 
-  const copy = useCallback((link: ShareLink) => {
-    void navigator.clipboard.writeText(urlOf(link)).then(() => {
-      setCopied(link.token)
+  const copyText = useCallback((text: string, id: string) => {
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopied(id)
       window.setTimeout(() => setCopied(null), 1500)
     })
   }, [])
+  const copy = (link: ShareLink) => copyText(urlOf(link), link.token)
 
   const create = async () => {
     setBusy(true)
@@ -165,14 +177,26 @@ function SharePanel({ slug, inline }: { slug: string; inline?: boolean }) {
         inline ? 'w-full' : 'absolute right-0 top-full z-50 mt-8 w-320 shadow-sm'
       }`}
     >
-      <div className="flex flex-col gap-4">
-        <span className="text-14 font-bold text-default dark:text-neutral-50">Share this prototype</span>
-        <span className={NOTE}>
-          For people without an Amartha account. The link opens only this prototype, and nobody can edit it.
-        </span>
-      </div>
+      <span className="text-14 font-bold text-default dark:text-neutral-50">Share this prototype</span>
 
-      <div className="flex flex-col gap-8">
+      {page ? (
+        <button
+          type="button"
+          onClick={() =>
+            copyText(`${window.location.origin}/p/${slug}?screen=${encodeURIComponent(page.current)}`, 'page')
+          }
+          title={`Copies a link that opens on ${page.title}`}
+          className={`${toolButtonClass()} justify-center`}
+        >
+          {copied === 'page' ? 'Copied' : 'Share link to this page'}
+        </button>
+      ) : null}
+
+      <div className="flex flex-col gap-8 border-t border-default pt-12 dark:border-ink-700">
+        <div className="flex flex-col gap-4">
+          <span className="text-12 font-bold text-default dark:text-neutral-50">Without an account</span>
+          <span className={NOTE}>The link opens only this prototype, and nobody can edit it.</span>
+        </div>
         <label className="flex items-center justify-between gap-8">
           <span className={NOTE}>Access</span>
           <Select value={access} onChange={(v) => setAccess(v as ShareAccess)}>

@@ -11,7 +11,7 @@
 //   • ScreenStage        — renders the active screen inside the device viewport.
 // =============================================================================
 
-import { createContext, Suspense, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { FlowApi, ScreenDef } from '@/platform/types'
 import styles from '@/platform/frame/prototype.module.css'
 import { ScreenErrorBoundary } from './ScreenErrorBoundary'
@@ -82,6 +82,20 @@ export function PrototypeProvider({ screens, initialScreenId, children }: Protot
   const [direction, setDirection] = useState<Direction>('forward')
 
   const current = stack[stack.length - 1] ?? startId
+
+  // A different deep link on the same mount (the route re-rendering with a new
+  // ?screen) starts over on that screen, as a fresh visit would. The view keeps
+  // ?screen in step with the device, so a re-render that only echoes the
+  // current screen back changes nothing.
+  const linkedId = useRef(initialScreenId)
+  useEffect(() => {
+    if (linkedId.current === initialScreenId) return
+    linkedId.current = initialScreenId
+    if (!initialScreenId || initialScreenId === current) return
+    if (!screens.some((s) => s.id === initialScreenId)) return
+    setDirection('forward')
+    setStack([initialScreenId])
+  }, [initialScreenId, current, screens])
 
   const go = useCallback(
     (id: string) => {

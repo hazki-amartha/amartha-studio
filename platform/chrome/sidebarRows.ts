@@ -14,6 +14,14 @@ export const ROW_ACTIVE = `${ROW} bg-primary-50 font-bold text-link dark:bg-ink-
 /** A group's label above its rows. */
 export const GROUP_LABEL = 'truncate px-8 pb-4 pt-16 text-12 text-caption dark:text-neutral-500'
 
+/** A folding section's header above its rows — a group label you can click. */
+export const SECTION_HEADER =
+  'flex w-full min-w-0 items-center gap-4 rounded-8 px-8 pb-4 pt-16 text-left text-12 text-caption hover:text-default dark:text-neutral-500 dark:hover:text-neutral-50'
+
+/** "New section", under a project's own screens. */
+export const NEW_SECTION =
+  'flex items-center gap-4 self-start rounded-8 px-8 pb-4 pt-12 text-12 text-caption hover:text-default dark:text-neutral-500 dark:hover:text-neutral-50'
+
 /** The 32px icon buttons — collapse, back, Share, the theme. */
 export const ICON_BUTTON =
   'flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-500 dark:hover:bg-ink-800 dark:hover:text-neutral-50'

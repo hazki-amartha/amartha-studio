@@ -4,6 +4,7 @@
 //   GET                  what the panel may do here (a DesignStatus)
 //   POST { edits, … }    apply a batch to one file, in the database
 //   POST { undo }        put that file back as it was before one batch
+//   POST { arrange }     reorder index.ts's screens and their sections
 //   POST { unlock }      the editing password, as on /api/design
 //
 // To the panel this is the `fs` backend: a save is written at once and undo is
@@ -28,7 +29,9 @@ import { maySee, PRIVATE_BRANCH } from '@/platform/dbProjects/branchAccess'
 import { laptopCredentials, NotSignedIn } from '@/platform/dbProjects/remote'
 import { isLocalRequest } from '@/platform/chat/localRequest'
 import { applyEdits } from '@/platform/design/applyEdits'
+import { arrangeScreens } from '@/platform/design/arrangeScreens'
 import type {
+  DesignArrangeRequest,
   DesignRequest,
   DesignResponse,
   DesignStatus,
@@ -121,7 +124,7 @@ export async function GET(request: Request, { params }: Params): Promise<NextRes
 
 export async function POST(request: Request, { params }: Params): Promise<NextResponse> {
   const { slug } = params
-  let body: DesignRequest | DesignUndoRequest | DesignUnlockRequest
+  let body: DesignRequest | DesignUndoRequest | DesignUnlockRequest | DesignArrangeRequest
   try {
     body = (await request.json()) as typeof body
   } catch {
@@ -143,6 +146,7 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
 
   try {
     if ('undo' in body) return await undo(slug, body.undo, by)
+    if ('arrange' in body) return await arrange(slug, body, by)
     return await apply(slug, body, by)
   } catch (err) {
     if (err instanceof NotSignedIn) return refuse(SIGN_IN_FIRST)
@@ -180,6 +184,36 @@ async function apply(slug: string, body: DesignRequest, by: string | null): Prom
   const { saved } = await saveIfUnchanged(slug, [{ path, content: result.source, baseAt: row.at }], by)
   const hit = saved.get(path)
   if (!hit) return refuse(CHANGED)
+  return NextResponse.json({
+    ok: true,
+    file,
+    version: versionOf(result.source),
+    undo: String(hit.id),
+  } satisfies DesignResponse)
+}
+
+/** The sidebar's drag and drop: index.ts's screens in a new order, or new
+ *  sections. Saved and checked like any other edit, and undone the same way. */
+async function arrange(slug: string, body: DesignArrangeRequest, by: string | null): Promise<NextResponse> {
+  const { seen, next } = body.arrange ?? {}
+  if (!Array.isArray(seen) || !Array.isArray(next)) return refuse('That request could not be read.')
+  const rows = await readDbRows(slug)
+  const path = ['index.ts', 'index.tsx'].find((p) => rows.has(p))
+  if (!path) return refuse('This project has no index.ts.')
+  const row = rows.get(path)!
+  const result = arrangeScreens(row.content, seen, next)
+  if (!result.ok) return refuse(result.reason)
+  const file = `projects/${slug}/${path}`
+  if (result.source === row.content) {
+    return NextResponse.json({ ok: true, file, version: versionOf(row.content) } satisfies DesignResponse)
+  }
+
+  const current = new Map([...rows].map(([p, r]) => [p, r.content]))
+  const problems = await checkDbProject(slug, new Map(current).set(path, result.source), current, [path])
+  if (problems.length) return refuse(`That change wasn’t saved — ${problems.join('; ')}`)
+  const { saved } = await saveIfUnchanged(slug, [{ path, content: result.source, baseAt: row.at }], by)
+  const hit = saved.get(path)
+  if (!hit) return refuse('Someone just changed this project’s screens. The list updates in a moment — then try again.')
   return NextResponse.json({
     ok: true,
     file,

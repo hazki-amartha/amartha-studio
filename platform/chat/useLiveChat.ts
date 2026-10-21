@@ -29,7 +29,7 @@ import { refreshProjectSoon } from '@/platform/runtime/projectRefresh'
 import { setChatAvailable } from '@/platform/runtime/chatBridge'
 import type { ChatEvent, ChatState } from './ChatPanel'
 import { reportUsage, type RateLimitInfo } from './usage'
-import type { PendingImage } from './images'
+import type { PendingDocument, PendingImage } from './images'
 import { figmaFileLabel, type PendingFigma } from './figmaLink'
 import { DEFAULT_EFFORT, effortOf, type Effort } from './effort'
 
@@ -77,6 +77,8 @@ interface Conversation {
   /** Reference images waiting to go with the draft. Not kept across a reload:
    *  they are too large for sessionStorage, and re-pasting is one keystroke. */
   images: PendingImage[]
+  /** PDFs waiting to go with the draft — not kept across a reload either. */
+  documents: PendingDocument[]
   /** Figma links pasted into the draft, shown as chips. */
   figma: PendingFigma[]
 }
@@ -91,6 +93,7 @@ const fresh = (): Conversation => ({
   last: null,
   draft: '',
   images: [],
+  documents: [],
   figma: [],
 })
 
@@ -137,7 +140,7 @@ const key = (slug: string) => `studio-chat:${slug}`
 function save() {
   if (!slugNow) return
   try {
-    sessionStorage.setItem(key(slugNow), JSON.stringify({ ...convo, images: [] }))
+    sessionStorage.setItem(key(slugNow), JSON.stringify({ ...convo, images: [], documents: [] }))
   } catch {}
 }
 
@@ -145,7 +148,7 @@ function restore(slug: string): Conversation {
   try {
     const raw = sessionStorage.getItem(key(slug))
     if (!raw) return fresh()
-    const saved = { ...fresh(), ...(JSON.parse(raw) as Partial<Conversation>), images: [] }
+    const saved = { ...fresh(), ...(JSON.parse(raw) as Partial<Conversation>), images: [], documents: [] }
     // The reload cut the stream, and the route stops the agent when its
     // request goes away — so a turn that was running is over, not paused.
     if (saved.status === 'running') {
@@ -276,6 +279,7 @@ async function send(prompt: string, shown?: string, view?: DeviceView, auto = fa
     lastView = view
   }
   const images = auto ? [] : convo.images
+  const documents = auto ? [] : convo.documents
   const figma = auto ? [] : convo.figma
   // The links go to the agent ahead of the message; the transcript shows chips.
   const message = figma.length ? `Figma:\n${figma.map((f) => `- ${f.label}: ${f.url}`).join('\n')}\n\n${text}` : text
@@ -284,13 +288,14 @@ async function send(prompt: string, shown?: string, view?: DeviceView, auto = fa
     lastEventAt: 0,
     last: null,
     status: 'running',
-    ...(auto ? {} : { draft: '', images: [], figma: [] }),
+    ...(auto ? {} : { draft: '', images: [], documents: [], figma: [] }),
   })
   if (!auto) {
     push({
       kind: 'user',
       text: shown ?? text,
       ...(images.length ? { images: images.map((i) => i.thumb) } : {}),
+      ...(documents.length ? { documents: documents.map((d) => d.document.name) } : {}),
       ...(figma.length ? { figma: figma.map((f) => f.label) } : {}),
     })
   }
@@ -305,6 +310,7 @@ async function send(prompt: string, shown?: string, view?: DeviceView, auto = fa
         slug,
         message,
         images: images.length ? images.map((i) => i.image) : undefined,
+        documents: documents.length ? documents.map((d) => d.document) : undefined,
         sessionId: convo.sessionId,
         db: isActiveDbProject(slug) || undefined,
         screen: view?.screen,
@@ -379,6 +385,14 @@ function addImages(images: PendingImage[]) {
 
 function removeImage(id: string) {
   set({ images: convo.images.filter((i) => i.id !== id) })
+}
+
+function addDocuments(documents: PendingDocument[]) {
+  set({ documents: [...convo.documents, ...documents] })
+}
+
+function removeDocument(id: string) {
+  set({ documents: convo.documents.filter((d) => d.id !== id) })
 }
 
 /** A pasted Figma link becomes a chip at once, labelled with the file's name;
@@ -470,6 +484,9 @@ export interface LiveChat extends ChatState {
   images: PendingImage[]
   addImages: (images: PendingImage[]) => void
   removeImage: (id: string) => void
+  documents: PendingDocument[]
+  addDocuments: (documents: PendingDocument[]) => void
+  removeDocument: (id: string) => void
   figma: PendingFigma[]
   addFigma: (url: string) => void
   removeFigma: (id: string) => void
@@ -520,6 +537,9 @@ export function useLiveChat(slug: string): LiveChat {
     images: c.images,
     addImages,
     removeImage,
+    documents: c.documents,
+    addDocuments,
+    removeDocument,
     figma: c.figma,
     addFigma,
     removeFigma,
