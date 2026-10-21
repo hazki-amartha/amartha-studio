@@ -674,7 +674,7 @@ export function DesignPanel({
                   />
                   {/* Honesty over silence: these change something the preview
                       can't fake, so say when it will actually show up. */}
-                  {!p.classes ? (
+                  {!p.classes && !p.artwork ? (
                     <span className="text-10 text-placeholder dark:text-neutral-600">
                       Shows after Apply
                     </span>

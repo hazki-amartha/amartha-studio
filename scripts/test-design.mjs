@@ -42,6 +42,8 @@ await build({
       `export { layoutOf, withLayout, SPACING } from './platform/design/layout'`,
       `export { spacingNames } from './platform/inspect/tokenMap'`,
       `export { propsFor, swapEdits, readPick, pickerUrl } from './platform/design/illustration'`,
+      `export { artworkSrc, COMPONENT_PROPS } from './platform/design/componentProps'`,
+      `export { NAV_ICONS, PRODUCT_LOGOS, SERVICE_ICONS, WORDMARKS } from './design-system/assets/names'`,
     ].join('\n'),
     resolveDir: root,
     loader: 'ts',
@@ -65,6 +67,12 @@ const {
   swapEdits,
   readPick,
   pickerUrl,
+  artworkSrc,
+  COMPONENT_PROPS,
+  NAV_ICONS,
+  PRODUCT_LOGOS,
+  SERVICE_ICONS,
+  WORDMARKS,
 } = await import(pathToFileURL(outFile).href)
 process.on('exit', () => {
   rm(outFile, { force: true }).catch(() => {})
@@ -2162,6 +2170,43 @@ test('Illustration swap: only a well-formed pick from the library counts', () =>
   assert.equal(readPick('pick'), null)
   assert.equal(pickerUrl({ name: null, generic: 'error', tier: null }), '/assets-app/pick?tier=spot&generic=error')
   assert.equal(pickerUrl({ name: 'market-stall', generic: null, tier: 'hero' }), '/assets-app/pick?tier=hero&name=market-stall')
+})
+
+// ------------------------------------------------ brand artwork menus (Edit)
+
+test('brand artwork: every name has its file, and Edit offers exactly those names', async () => {
+  const { existsSync } = await import('node:fs')
+  const families = [
+    ['ProductLogo', PRODUCT_LOGOS, (n) => [`logos/${n}.svg`]],
+    ['Wordmark', WORDMARKS, (n) => [`wordmarks/${n}.svg`]],
+    ['ServiceIcon', SERVICE_ICONS, (n) => [`services/${n}.svg`]],
+    ['NavIcon', NAV_ICONS, (n) => [`nav/${n}.svg`, `nav/${n}-active.svg`]],
+  ]
+  for (const [component, names, files] of families) {
+    const menu = COMPONENT_PROPS[component].find((p) => p.prop === 'name')
+    assert.deepEqual(menu.values, [...names], component)
+    assert.equal(menu.artwork, true, component)
+    for (const name of names) {
+      for (const file of files(name)) assert.ok(existsSync(join(root, 'public/funds', file)), `missing public/funds/${file}`)
+    }
+  }
+})
+
+test('brand artwork: a name change previews by pointing the image at the new file', () => {
+  assert.equal(artworkSrc('/funds/services/pln.svg', 'pln', 'pulsa'), '/funds/services/pulsa.svg')
+  assert.equal(artworkSrc('/funds/services/e-wallet.svg', 'e-wallet', 'kirim-uang'), '/funds/services/kirim-uang.svg')
+  assert.equal(artworkSrc('/funds/nav/home-active.svg', 'home', 'scan'), '/funds/nav/scan-active.svg')
+  assert.equal(artworkSrc('/funds/nav/home.svg', 'home', 'scan'), '/funds/nav/scan.svg')
+  // Not the name it claims to be: leave it alone rather than guess.
+  assert.equal(artworkSrc('/funds/services/pln.svg', 'pulsa', 'zakat'), '/funds/services/pln.svg')
+})
+
+test('brand artwork: switching a ServiceIcon writes its name in place', () => {
+  const source = `export function Tiles() {\n  return <ServiceIcon name="pln" size={32} />\n}\n`
+  const at = srcOf(stampSource(source, 'f.tsx').code, 'ServiceIcon')
+  const result = applyEdits(source, [{ kind: 'prop', src: at, prop: 'name', old: 'pln', next: 'pulsa' }])
+  assert.ok(result.ok, result.ok ? '' : result.refused.reason)
+  assert.match(result.source, /<ServiceIcon name="pulsa" size=\{32\} \/>/)
 })
 
 // ------------------------------------------------- laptop tokens at the edge

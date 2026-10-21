@@ -30,71 +30,19 @@
 //   <NavIcon name="home" active />
 //   <Illustration generic="error" />
 //
+// Each puts its `name` on data-fds-name, so Edit can offer the family's names
+// in a menu and switch the artwork (platform/design/componentProps.ts).
+//
 // They render as <img> against files in public/funds/ rather than inlined JSX.
 // The artwork uses gradient defs with fixed ids, and inlining the same asset
 // twice on one page would make those ids collide — an <img> gives each one its
 // own document and keeps the source tree from carrying 36 hand-pasted SVGs.
 
 import type { ImgHTMLAttributes } from 'react'
+import type { NavIconName, ProductLogoName, ServiceIconName, WordmarkName } from './names'
 
 export * from './Illustration'
-
-export const PRODUCT_LOGOS = [
-  'amartha-link',
-  'celengan',
-  'ggs',
-  'insurance',
-  'modal',
-  'poket',
-] as const
-
-export const WORDMARKS = [
-  // The corporate lockup — flower mark plus the word "amartha". This is the
-  // company, not a product: it belongs in an app's own chrome (the NGMIS menu
-  // header) rather than beside a product tile.
-  'amartha',
-  'amartha-link',
-  'celengan',
-  'empower',
-  'ggs',
-  'modal',
-  'poket',
-  'proteksi',
-] as const
-
-export const SERVICE_ICONS = [
-  'all',
-  'belanja',
-  'bpjs',
-  'cicilan-kredit',
-  'donasi',
-  'donasi-inverted',
-  'donasi-pohon',
-  'donasi-rutin',
-  'e-wallet',
-  'grassroot',
-  'isi-celengan',
-  'kirim-uang',
-  'laporan-keuangan',
-  'paket-data',
-  'pdam',
-  'pln',
-  'pulsa',
-  'receipt',
-  'tarik-tunai',
-  'top-up-game',
-  'tv-kabel',
-  'wakaf',
-  'zakat',
-  'zakat-inverted',
-] as const
-
-export const NAV_ICONS = ['celengan', 'home', 'modal', 'scan', 'transaction'] as const
-
-export type ProductLogoName = (typeof PRODUCT_LOGOS)[number]
-export type WordmarkName = (typeof WORDMARKS)[number]
-export type ServiceIconName = (typeof SERVICE_ICONS)[number]
-export type NavIconName = (typeof NAV_ICONS)[number]
+export * from './names'
 
 type AssetProps = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt' | 'width' | 'height'> & {
   /** Rendered box in px. Defaults to the size the artwork was drawn at. */
@@ -117,6 +65,7 @@ export function ProductLogo({ name, size = 56, ...props }: AssetProps & { name: 
       aria-hidden="true"
       {...props}
       data-fds="ProductLogo"
+      data-fds-name={name}
     />
   )
 }
@@ -141,6 +90,7 @@ export function Wordmark({
       className={['w-auto', props.className].filter(Boolean).join(' ')}
       style={{ height }}
       data-fds="Wordmark"
+      data-fds-name={name}
     />
   )
 }
@@ -156,6 +106,7 @@ export function ServiceIcon({ name, size = 48, ...props }: AssetProps & { name: 
       aria-hidden="true"
       {...props}
       data-fds="ServiceIcon"
+      data-fds-name={name}
     />
   )
 }
@@ -182,6 +133,7 @@ export function NavIcon({
       aria-hidden="true"
       {...props}
       data-fds="NavIcon"
+      data-fds-name={name}
     />
   )
 }

@@ -24,6 +24,8 @@
 // one or two levels in.
 // =============================================================================
 
+import { NAV_ICONS, PRODUCT_LOGOS, SERVICE_ICONS, WORDMARKS } from '@/design-system/assets/names'
+
 export interface EditableProp {
   /** JSX attribute name as written in source, e.g. `inputType`. */
   prop: string
@@ -32,6 +34,20 @@ export interface EditableProp {
   values: string[]
   /** value → the `ds-*` class it produces; '' where the value is the default. */
   classes?: Record<string, string>
+  /** The value names the artwork file the component's <img> shows (a brand
+   *  asset), so a change previews by pointing the image at the new file. */
+  artwork?: true
+}
+
+/**
+ * A brand asset's image, switched from one name to another: `/funds/services/
+ * pln.svg` → `…/pulsa.svg`. A NavIcon's `-active` suffix stays, since that is
+ * the `active` prop, not the name. Anything else is left as it was.
+ */
+export function artworkSrc(src: string, from: string, to: string): string {
+  const match = /^(.*\/)([a-z0-9-]+?)(-active)?\.svg$/.exec(src)
+  if (!match || match[2] !== from) return src
+  return `${match[1]}${to}${match[3] ?? ''}.svg`
 }
 
 /** The class each component puts on the node carrying its own styling. */
@@ -185,4 +201,10 @@ export const COMPONENT_PROPS: Record<string, EditableProp[]> = {
     // radio vs checkbox is the input's `type`, not a class.
     { prop: 'inputType', attr: 'input-type', values: ['radio', 'checkbox'] },
   ],
+  // The brand artwork (design-system/assets). Its name lists are imported, not
+  // copied: they are the files in public/funds/, and a copy would fall behind.
+  ProductLogo: [{ prop: 'name', attr: 'name', values: [...PRODUCT_LOGOS], artwork: true }],
+  Wordmark: [{ prop: 'name', attr: 'name', values: [...WORDMARKS], artwork: true }],
+  ServiceIcon: [{ prop: 'name', attr: 'name', values: [...SERVICE_ICONS], artwork: true }],
+  NavIcon: [{ prop: 'name', attr: 'name', values: [...NAV_ICONS], artwork: true }],
 }
