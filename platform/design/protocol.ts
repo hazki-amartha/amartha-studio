@@ -325,11 +325,13 @@ export interface DesignStatus {
   /** `github`: the signed-in editor's display name — who changes go out as. */
   signedInAs?: string
   /**
-   * `fs` on a database project (/db/<slug>): every change saves itself a beat
-   * after it is made — no Save, Push or Copy, just Undo. A save is already
-   * live for everyone with the link, so there is nothing further to do.
+   * `fs`: every change saves itself a beat after it is made — no Save, Copy or
+   * Revert, just Undo. On a database project a save is already live for
+   * everyone with the link (`live`); in a git project it waits for Push.
    */
   instant?: boolean
+  /** `instant` on a database project: a save is live as soon as it lands. */
+  live?: boolean
 }
 
 /**

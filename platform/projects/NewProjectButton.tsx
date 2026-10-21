@@ -18,9 +18,8 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/design-system/components/Button'
 import { CloseIcon, PlusIcon } from '@/platform/chrome/icons'
-import { ToolButton } from '@/platform/chrome/TopBar'
+import { ToolButton, toolButtonClass } from '@/platform/chrome/TopBar'
 import { setDesignMode, setEditTab } from '@/platform/runtime/designBridge'
 import type { BusinessUnit, Platform } from '@/platform/types'
 import { getCommenterName } from '@/platform/comments/store'
@@ -199,7 +198,7 @@ function NewProjectDialog({
     name: name.trim() ? null : 'Give the project a name.',
     start: start ? null : 'Pick where it starts.',
     platform: start === 'blank' && !blankPlatform ? 'Pick the platform it’s for.' : null,
-    bu: bu ? null : 'Pick the business unit it belongs to.',
+    bu: bu ? null : 'Pick the team it belongs to.',
     owner: accountOwner || owner.trim() ? null : 'Say who you are.',
   }
   const shown = (key: keyof typeof missing) => (tried ? missing[key] : null)
@@ -261,11 +260,6 @@ function NewProjectDialog({
   }
 
   const blankDevice = blankPlatform ? deviceFor(blankPlatform) : null
-  const summary = live
-    ? `Opens on ${live.opensOn}, with Chat ready for you to describe the change. The rest of ${live.app} is there to tap through.`
-    : start === 'blank'
-      ? `Opens on one empty ${blankDevice === 'desktop' ? 'desktop ' : blankDevice ? 'phone ' : ''}screen, with Chat ready for you to describe what to build.`
-      : null
 
   return (
     <div
@@ -332,9 +326,6 @@ function NewProjectDialog({
                     <span className="min-w-0 flex-1 text-14 font-bold text-default dark:text-neutral-50">Inside {s.app}</span>
                     <span className="text-12 text-caption dark:text-neutral-400">{DEVICE_LABEL[s.device]}</span>
                   </span>
-                  <span className="text-12 text-caption dark:text-neutral-400">
-                    The live app, opening on {s.opensOn} — ready to change.
-                  </span>
                 </Radio>
               ))}
               <Radio
@@ -350,9 +341,6 @@ function NewProjectDialog({
                   {blankDevice ? (
                     <span className="text-12 text-caption dark:text-neutral-400">{DEVICE_LABEL[blankDevice]}</span>
                   ) : null}
-                </span>
-                <span className="text-12 text-caption dark:text-neutral-400">
-                  One empty screen — build everything by prompting.
                 </span>
               </Radio>
             </div>
@@ -371,7 +359,7 @@ function NewProjectDialog({
             </Field>
           ) : null}
 
-          <Field legend="Business unit" hint="The gallery folder it goes in." error={shown('bu')}>
+          <Field legend="Team" error={shown('bu')}>
             <div ref={buRef}>
               <Choice name="bu" options={BUSINESS_UNITS.map((b) => ({ id: b, label: b }))} value={bu} onChange={setBu} />
             </div>
@@ -394,7 +382,6 @@ function NewProjectDialog({
           )}
 
           <div className="flex flex-col gap-12 border-t border-default pt-16 dark:border-ink-700">
-            {summary ? <p className="text-12 text-caption dark:text-neutral-400">{summary}</p> : null}
             {error ? (
               <p role="alert" className="whitespace-pre-wrap text-12 text-error">
                 {error.reason}
@@ -411,14 +398,14 @@ function NewProjectDialog({
             ) : null}
             <div className="flex items-center justify-end gap-8">
               {accountOwner ? (
-                <span className="min-w-0 flex-1 truncate text-12 text-caption dark:text-neutral-400">As {accountOwner}</span>
+                <span className="min-w-0 flex-1 truncate text-12 text-caption dark:text-neutral-400">Project Owner: {accountOwner}</span>
               ) : null}
-              <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={busy}>
+              <button type="button" onClick={onClose} disabled={busy} className={toolButtonClass()}>
                 Cancel
-              </Button>
-              <Button type="submit" size="sm" disabled={busy}>
+              </button>
+              <button type="submit" disabled={busy} className={toolButtonClass(true)}>
                 {busy ? 'Creating…' : 'Create project'}
-              </Button>
+              </button>
             </div>
           </div>
         </form>

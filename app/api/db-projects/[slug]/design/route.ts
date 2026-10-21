@@ -109,6 +109,7 @@ export async function GET(request: Request, { params }: Params): Promise<NextRes
   const status: DesignStatus = {
     backend: 'fs',
     instant: true,
+    live: true,
     owners: facts?.owners ?? [],
     locked: await locked(slug),
     needsSignIn: (!may && !user && isAuthConfigured()) || !laptopReady ? true : undefined,

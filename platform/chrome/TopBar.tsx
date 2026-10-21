@@ -60,6 +60,13 @@ const TOOL = 'flex h-32 flex-none items-center gap-8 rounded-8 px-12 text-12 fon
 /** One of the top bar's actions — Comment, Edit, AI Chat, New project.
  *  `inverted`: against the bar — white with black text on the dark theme,
  *  near-black with white text on the light one — so AI Chat stands apart. */
+/** The top bar's button face, for a shell button that isn't a ToolButton —
+ *  inverted is the primary one. */
+export const toolButtonClass = (inverted?: boolean) =>
+  inverted
+    ? `${TOOL} bg-ink-900 text-neutral-white hover:bg-ink-800 disabled:opacity-60 dark:bg-neutral-white dark:text-ink-900 dark:hover:bg-neutral-200`
+    : `${TOOL} border border-default bg-neutral-white text-default hover:bg-neutral-50 disabled:opacity-60 dark:border-ink-800 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800`
+
 export function ToolButton({
   icon,
   label,
@@ -78,11 +85,7 @@ export function ToolButton({
       type="button"
       onClick={onClick}
       title={title}
-      className={
-        inverted
-          ? `${TOOL} bg-ink-900 text-neutral-white hover:bg-ink-800 dark:bg-neutral-white dark:text-ink-900 dark:hover:bg-neutral-200`
-          : `${TOOL} border border-default bg-neutral-white text-default hover:bg-neutral-50 dark:border-ink-800 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800`
-      }
+      className={toolButtonClass(inverted)}
     >
       {icon}
       {label}
