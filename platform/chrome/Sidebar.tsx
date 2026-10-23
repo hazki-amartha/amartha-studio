@@ -67,7 +67,7 @@ export function Sidebar({ active, project, guest, onJump }: SidebarProps) {
   return (
     <nav data-theme="dark" aria-label="Studio" className="flex w-248 flex-none flex-col pt-8">
       {project ? (
-        <ScreenSidebar project={project} guest={guest} />
+        <ScreenSidebar project={project} guest={guest} onJump={onJump} />
       ) : (
         <>
           <div className="flex h-48 flex-none items-center px-8">

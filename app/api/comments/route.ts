@@ -31,7 +31,14 @@ import type { StudioUser } from '@/platform/auth/protocol'
 import { getStudioUser } from '@/platform/auth/server'
 import { shareAccess } from '@/platform/share/server/access'
 import { maySee } from '@/platform/dbProjects/branchAccess'
-import { KEY_HEADER, LIMITS, type Comment, type CommentRequest, type CommentsResponse } from '@/platform/comments/protocol'
+import {
+  KEY_HEADER,
+  LIMITS,
+  type Comment,
+  type CommentRequest,
+  type CommentState,
+  type CommentsResponse,
+} from '@/platform/comments/protocol'
 import {
   countComments,
   deleteComments,
@@ -69,6 +76,13 @@ function present(c: StoredComment, me: string | null): Comment {
 }
 
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
+/** A comment's state, if it sent a well-formed one — otherwise none, never a refusal. */
+function stateOf(v: unknown): CommentState | undefined {
+  if (!v || typeof v !== 'object') return undefined
+  const { screen, id, label } = v as Record<string, unknown>
+  if (typeof screen !== 'string' || !KEBAB.test(screen) || typeof id !== 'string' || !id || id.length > 80) return undefined
+  return { screen, id, label: text(label, 80) || id }
+}
 const coord = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100_000 ? Math.round(v) : null)
 
 /**
@@ -123,6 +137,7 @@ export async function POST(request: Request): Promise<Response> {
         screenId: body.screenId,
         x,
         y,
+        ...(stateOf(body.state) ? { state: stateOf(body.state) } : {}),
         body: words,
         author,
         createdAt: now,

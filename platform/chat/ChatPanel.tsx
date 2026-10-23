@@ -23,11 +23,12 @@ import {
   CursorIcon,
   DocumentIcon,
   FigmaIcon,
+  FrameIcon,
   StopIcon,
 } from '@/platform/chrome/icons'
 import { PanelHeader } from '@/platform/chrome/SidePanel'
 import { resolveTarget } from '@/platform/inspect/resolve'
-import { attachmentFor } from './attach'
+import { attachmentFor, type ChatAttachment } from './attach'
 import { MAX_FIGMA_LINKS, isFigmaLink, parseFigmaUrl } from './figmaLink'
 import { ChatLoader, LoaderMark, useLoaderVisible } from './ChatLoader'
 import {
@@ -567,6 +568,7 @@ export function LiveChatPanel({
   screenId,
   pinned,
   onDeselect,
+  selection,
   select,
   tabs,
   onMinimize,
@@ -576,6 +578,9 @@ export function LiveChatPanel({
   screenId: string
   pinned: Element | null
   onDeselect: () => void
+  /** A selection made away from the device — a whole screen, in the flow view.
+   *  Passing it (null included) also says elements can't be clicked here. */
+  selection?: ChatAttachment | null
   /** Whether a click on the device selects an element to ask about, or taps
    *  through the prototype — the switch beside Attach. */
   select?: { on: boolean; onToggle: () => void }
@@ -590,8 +595,8 @@ export function LiveChatPanel({
   const [dragging, setDragging] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
   const attachment = useMemo(
-    () => (pinned ? attachmentFor(resolveTarget(pinned), slug, screenId) : null),
-    [pinned, slug, screenId],
+    () => (pinned ? attachmentFor(resolveTarget(pinned), slug, screenId) : (selection ?? null)),
+    [pinned, slug, screenId, selection],
   )
 
   /** Pasted, dropped or picked files: the images among them, shrunk, and the
@@ -780,7 +785,7 @@ export function LiveChatPanel({
         ))}
         {attachment ? (
           <Chip
-            icon={<CursorIcon className="size-12" />}
+            icon={pinned ? <CursorIcon className="size-12" /> : <FrameIcon className="size-12" />}
             label={attachment.label}
             onRemove={onDeselect}
             removeLabel="Deselect — the message will be about the project"
@@ -825,7 +830,9 @@ export function LiveChatPanel({
                 ? 'What should it take from the PDF?'
                 : chat.images.length
                   ? 'What should it take from the image?'
-                  : 'Describe the change, or ⌘+click an element first'
+                  : selection !== undefined
+                    ? 'Describe the change, or click a screen first'
+                    : 'Describe the change, or ⌘+click an element first'
           }
         />
         {imageError ? <p className="text-12 font-regular text-red-500">{imageError}</p> : null}

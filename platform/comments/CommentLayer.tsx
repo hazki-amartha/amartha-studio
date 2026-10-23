@@ -11,6 +11,11 @@
 // card of a long list stays on the fifth card. Anything in a pinned top bar
 // scrolls with the page — the price of one coordinate space, and rarely where
 // review feedback lands.
+//
+// The flow view mounts one per screen and says which state the canvas shows
+// (`applied`): a pin posted in another state is muted, names it, and opening it
+// puts the canvas in that state first (`onApplyState`), so it points at what
+// was there. The prototype passes neither, and every pin shows as before.
 // =============================================================================
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
@@ -18,7 +23,7 @@ import { createPortal } from 'react-dom'
 import { useStudioUser } from '@/platform/auth/session'
 import { useFlow } from '@/platform/runtime'
 import { CheckCircleIcon, CloseIcon, MoreIcon } from '@/platform/chrome/icons'
-import type { Comment } from './protocol'
+import type { Comment, CommentState } from './protocol'
 import {
   editComment,
   getCommenterName,
@@ -57,8 +62,18 @@ export function ago(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
 
-export function CommentLayer() {
+export function CommentLayer({
+  applied,
+  onApplyState,
+}: {
+  /** The state the canvas shows — given by the flow view only. */
+  applied?: { screen: string; id: string } | null
+  onApplyState?: (state: CommentState) => void
+} = {}) {
   const { current } = useFlow()
+  /** Posted in a state other than the one showing (flow view only). */
+  const elsewhere = (c: Comment) =>
+    applied !== undefined && Boolean(c.state) && !(applied && applied.screen === c.state!.screen && applied.id === c.state!.id)
   const { comments, openId, draft, showResolved } = useComments()
   const ref = useRef<HTMLDivElement>(null)
   // The scroller's offset under the layer and how far it has scrolled, in
@@ -144,7 +159,9 @@ export function CommentLayer() {
       ref={ref}
       onClick={onClick}
       onWheel={onWheel}
-      className="absolute inset-0 z-50 overflow-hidden"
+      data-comment-layer
+      // pointer-events-auto: on the flow canvas the thumbnail around it is inert.
+      className="pointer-events-auto absolute inset-0 z-50 overflow-hidden"
       style={{ cursor: 'crosshair' }}
     >
       <div className="absolute left-0" style={{ top: frame.top - frame.scroll }}>
@@ -155,10 +172,13 @@ export function CommentLayer() {
             counter={counter}
             flip={flip(c)}
             active={openId === c.id}
-            muted={c.resolved}
+            muted={c.resolved || elsewhere(c)}
             label={initials(c.author)}
-            title={pinTitle(comments, c)}
-            onOpen={() => openComment(openId === c.id ? null : c.id)}
+            title={`${pinTitle(comments, c)}${elsewhere(c) ? ` · in “${c.state!.label}” — opening it shows that state` : ''}`}
+            onOpen={() => {
+              if (openId !== c.id && elsewhere(c)) onApplyState?.(c.state!)
+              openComment(openId === c.id ? null : c.id)
+            }}
           >
             {openId === c.id ? <Thread comment={c} number={numberOf(comments, c.id)} /> : null}
           </Pin>

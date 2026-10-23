@@ -13,10 +13,15 @@
 //     the live screen and clicking jumps the device there, no page reload. The
 //     list keeps the live screen (and its states) scrolled into view, however
 //     the device got there.
-//   • Flow route (no runtime mounted): rows deep-link to /p/<slug>?screen=<id>.
+//   • Flow route: the canvas publishes its selection (platform/flow/focus.ts)
+//     — a row selects its screen on the canvas and brings it into view, and
+//     the row of the screen selected there reads as the current one; its
+//     states nest under it and apply to the whole canvas. Rows the canvas
+//     doesn't draw (inherited screens) deep-link to /p/<slug>?screen=<id>.
 // One header row: back to the gallery, the project name, then the branch
 // button (the project and its branches) at the right end, where it stays
-// however long the name is. Share moved to the top bar, beside Comment.
+// however long the name is. Under it, Jump to (⌘K) — this project's pages
+// first, so a page in a long list is a few letters away. Share moved to the top bar, beside Comment.
 // Layers and Notes sit beside Screens as tabs while a prototype runs — the
 // prototype portals them into the slots this renders (see shellSlots.ts). A
 // share-link guest gets Screens and Notes only.
@@ -32,9 +37,10 @@ import {
   screenBridgeJump,
   subscribeScreenBridge,
 } from '@/platform/runtime/bridge'
+import { applyFlowState, getFlowFocus, selectInFlow, subscribeFlowFocus, type FlowFocus } from '@/platform/flow/focus'
 import { ProjectSwitcher } from '@/platform/dbProjects/DraftControls'
 import { isActiveDbProject } from '@/platform/dbProjects/active'
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from './icons'
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, SearchIcon } from './icons'
 import {
   getShellSlots,
   getShellSlotsServerSnapshot,
@@ -55,6 +61,7 @@ import {
   saveArrangement,
   type Group,
 } from './screenArrangement'
+import type { ScreenState } from '@/platform/types'
 import type { ProjectIndexEntry, ScreenIndexEntry } from './loadProjectIndex'
 
 const TABS: { id: SidebarTab; label: string }[] = [
@@ -74,15 +81,20 @@ function getServerSnapshot() {
 export function ScreenSidebar({
   project,
   guest,
+  onJump,
 }: {
   project: ProjectIndexEntry
   /** A share-link guest — or a viewer not yet known not to be one — only
    *  views: no way out to the gallery, no branches, nothing to share. */
   guest: boolean
+  /** Opens Jump to (⌘K) — not offered to a guest, who can't leave the project. */
+  onJump?: () => void
 }) {
   const bridge = useSyncExternalStore(subscribeScreenBridge, getScreenBridge, getServerSnapshot)
   const live = bridge?.slug === project.slug
-  const activeId = live ? bridge.current : null
+  const focus = useSyncExternalStore(subscribeFlowFocus, getFlowFocus, getServerSnapshot)
+  const flow = !live && focus?.slug === project.slug ? focus : null
+  const activeId = live ? bridge.current : (flow?.selected ?? null)
 
   const { live: running, tab: chosen } = useSyncExternalStore(
     subscribeShellSlots,
@@ -110,6 +122,19 @@ export function ScreenSidebar({
           <ProjectSwitcher slug={project.slug} name={project.name} />
         )}
       </div>
+      {guest || !onJump ? null : (
+        <div className="flex-none px-12 pb-4 pt-4">
+          <button
+            type="button"
+            onClick={onJump}
+            className="flex h-32 w-full items-center gap-8 rounded-8 border border-ink-700 bg-ink-950 px-8 text-12 text-neutral-500 hover:bg-ink-800 hover:text-neutral-50"
+          >
+            <SearchIcon className="size-16 flex-none" />
+            <span className="flex-1 text-left">Jump to a page…</span>
+            <kbd className="rounded-4 border border-ink-700 px-4 font-sans text-10">⌘K</kbd>
+          </button>
+        </div>
+      )}
       {running ? <PanelTabs tabs={guest ? GUEST_TABS : TABS} active={tab} onChange={setSidebarTab} /> : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-12 pb-12 pt-8">
@@ -126,6 +151,7 @@ export function ScreenSidebar({
               slug={project.slug}
               activeId={activeId}
               live={live}
+              flow={flow}
               editable={!guest && project.status !== 'live' && isActiveDbProject(project.slug)}
             />
             {/* Inherited screens sit in their own group so the feature's own pages
@@ -138,6 +164,7 @@ export function ScreenSidebar({
                 slug={project.slug}
                 activeId={activeId}
                 live={live}
+                flow={flow}
               />
             ) : null}
           </>
@@ -197,6 +224,7 @@ function ScreenList({
   slug,
   activeId,
   live,
+  flow,
   editable,
 }: {
   label: string
@@ -207,6 +235,8 @@ function ScreenList({
   slug: string
   activeId: string | null
   live: boolean
+  /** The flow canvas, while it's showing this project. */
+  flow: FlowFocus | null
   /** Rows and sections can be dragged, named and renamed — the project's own
    *  screens, in a database project an editor has open. */
   editable?: boolean
@@ -298,6 +328,8 @@ function ScreenList({
         slug={slug}
         active={screen.id === activeId}
         live={live}
+        onFlow={Boolean(flow?.ids.has(screen.id))}
+        flow={flow}
         mark={mark}
         drag={
           canDrag
@@ -471,6 +503,8 @@ function ScreenRow({
   slug,
   active,
   live,
+  onFlow,
+  flow,
   mark,
   drag,
 }: {
@@ -478,6 +512,10 @@ function ScreenRow({
   slug: string
   active: boolean
   live: boolean
+  /** Drawn on the flow canvas showing now — the row selects it there. */
+  onFlow: boolean
+  /** That canvas — its states for this row, and which is applied. */
+  flow: FlowFocus | null
   mark?: 'top' | 'bottom'
   drag?: { start: () => void; over: (e: DragEvent<HTMLElement>) => void; end: () => void }
 }) {
@@ -496,7 +534,7 @@ function ScreenRow({
     ref.current?.scrollIntoView({ block: 'nearest' })
   }, [active])
 
-  if (!live) {
+  if (!live && !onFlow) {
     return (
       <Link href={`/p/${slug}?screen=${screen.id}`} className={className}>
         <span className="truncate">{screen.title}</span>
@@ -519,7 +557,7 @@ function ScreenRow({
       >
         <button
           type="button"
-          onClick={() => screenBridgeJump(screen.id)}
+          onClick={() => (live ? screenBridgeJump(screen.id) : selectInFlow(screen.id, true))}
           aria-current={active ? 'page' : undefined}
           className={className}
         >
@@ -527,7 +565,14 @@ function ScreenRow({
         </button>
         <DropMark at={mark} />
       </div>
-      {active ? <StateList /> : null}
+      {active && live ? <LiveStateList /> : null}
+      {active && !live && flow ? (
+        <StateList
+          states={flow.states.get(screen.id) ?? []}
+          applied={flow.applied?.screen === screen.id ? flow.applied.state : null}
+          onApply={(state) => applyFlowState(screen.id, state)}
+        />
+      ) : null}
     </>
   )
 }
@@ -543,10 +588,21 @@ function ScreenRow({
  * would mean reading project internals. The bridge keeps it, so it survives an
  * edit landing (which applies it again) and a trip to another screen and back.
  */
-function StateList() {
+function LiveStateList() {
   const bridge = useSyncExternalStore(subscribeScreenBridge, getScreenBridge, getServerSnapshot)
-  const applied = bridge?.applied ?? null
-  const states = bridge?.states ?? []
+  return <StateList states={bridge?.states ?? []} applied={bridge?.applied ?? null} onApply={applyScreenState} />
+}
+
+/** The rows themselves — for the running prototype, or the flow canvas. */
+function StateList({
+  states,
+  applied,
+  onApply,
+}: {
+  states: ScreenState[]
+  applied: string | null
+  onApply: (state: ScreenState) => void
+}) {
   if (states.length === 0) return null
 
   return (
@@ -561,7 +617,7 @@ function StateList() {
           <button
             key={state.id}
             type="button"
-            onClick={() => applyScreenState(state)}
+            onClick={() => onApply(state)}
             title={state.description}
             className={on ? ROW_ACTIVE : ROW_IDLE}
           >

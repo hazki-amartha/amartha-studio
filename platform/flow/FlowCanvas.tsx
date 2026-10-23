@@ -3,28 +3,46 @@
 // =============================================================================
 // Flow canvas (WS-B) — the whole project at a glance.
 //   1. Live screen thumbnails at ~25% (ScreenThumb).
-//   2. BFS auto-layout, unreached screens trailing (layout.ts).
-//   3. SVG edges with labels, revealed per-selection (Edges).
+//   2. Auto-layout: one lane per sidebar section, BFS inside each (layout.ts).
+//   3. Right-angled SVG edges with labels, revealed per-selection (Edges).
 //   4. Hand-rolled pan (drag) + zoom (wheel / trackpad pinch) — no graph lib.
 //   5. Clicking a screen selects it — showing where it leads; the fullscreen
 //      button on the selected screen deep-links to /p/<slug>?screen=<id>.
+//      The selection is shared with the sidebar (focus.ts): its rows select
+//      here, and a row picked there is brought into view.
+//   6. AI Chat, as in the prototype view: its button in the top bar, its panel
+//      in the column on the right, asking about the selected screen. A change
+//      it makes re-reads the project, so new screens and arrows appear.
+//   7. Comment: the pins on every page at once (FlowComments), and a click on
+//      a page drops a new one — the same comments as the prototype's.
 // =============================================================================
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ProjectModule } from '@/platform/types'
 import { usePublishHeaderStatus } from '@/platform/chrome'
+import { ChatIcon, CloseIcon, CommentIcon } from '@/platform/chrome/icons'
+import { setCommentMode, useComments, useCommentsFor } from '@/platform/comments/store'
+import { ShellPortal } from '@/platform/chrome/ShellPortal'
+import { ToolButton } from '@/platform/chrome/TopBar'
+import { LiveChatPanel } from '@/platform/chat/ChatPanel'
+import { attachmentForScreen } from '@/platform/chat/attach'
+import { getChat, getChatServerSnapshot, probeChat, subscribeChat } from '@/platform/runtime/chatBridge'
+import { useProjectVersion } from '@/platform/runtime/projectRefresh'
+import { useGuestAccess } from '@/platform/auth/session'
 import { nextZoom, ZoomControl } from '@/platform/chrome/ZoomControl'
 import { ShortcutSheet, useShortcuts } from '@/platform/chrome/shortcuts'
 import { registry } from '@/projects/registry'
 import { resolveProject, type ResolvedProject } from '@/platform/runtime/resolveProject'
-import { publishDbIndexEntry } from '@/platform/dbProjects/active'
+import { publishDbIndexEntry, setActiveDbProject } from '@/platform/dbProjects/active'
 import { briefScreen } from '@/platform/chrome/screenIndex'
 import { Edges } from './Edges'
 import { ScreenThumb } from './ScreenThumb'
 import { computeLayout } from './layout'
 import { loadOffsets, saveOffsets, type OffsetMap } from './offsets'
-import { CANVAS_PAD, MAX_ZOOM, MIN_ZOOM, TITLE_H, nodeBox } from './geometry'
+import { getFlowFocus, publishFlow, selectInFlow, subscribeFlowFocus } from './focus'
+import { findOrigins, type Origins } from './origins'
+import { CANVAS_PAD, LANE_PAD, MAX_ZOOM, MIN_ZOOM, REVEAL_ZOOM, TITLE_H, nodeBox } from './geometry'
 
 type LoadState = 'loading' | 'missing' | 'ready'
 
@@ -89,17 +107,74 @@ async function resolveDb(slug: string): Promise<ResolvedProject | null> {
   return resolved
 }
 
+/** AI Chat beside the flow: the same conversation as the prototype view's, in
+ *  the same panel column. Elements can't be clicked on the canvas, so the
+ *  screen selected there is the selection — the chip the message is about. */
+function FlowChat({
+  slug,
+  screenId,
+  selected,
+  onClose,
+}: {
+  slug: string
+  screenId: string
+  selected: { id: string; title: string } | null
+  onClose: () => void
+}) {
+  const selection = useMemo(() => (selected ? attachmentForScreen(slug, selected) : null), [slug, selected])
+  return (
+    <aside aria-label="AI Chat" className="flex min-h-0 flex-1 flex-col">
+      <div className="flex h-48 flex-none items-center gap-4 px-4">
+        <span className="flex-1 px-8 text-14 font-bold text-neutral-50">AI Chat</span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close AI Chat"
+          title="Close AI Chat"
+          className="flex size-32 flex-none items-center justify-center rounded-8 text-caption hover:bg-neutral-50 hover:text-default dark:text-neutral-500 dark:hover:bg-ink-800 dark:hover:text-neutral-50"
+        >
+          <CloseIcon className="size-16" />
+        </button>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-12 border border-default bg-neutral-white px-12 pb-12 dark:border-ink-800 dark:bg-ink-950">
+        <LiveChatPanel
+          slug={slug}
+          screenId={screenId}
+          pinned={null}
+          selection={selection}
+          onDeselect={() => selectInFlow(null)}
+          tabs={false}
+          className="flex-1"
+        />
+      </div>
+    </aside>
+  )
+}
+
 /** `db`: the project lives in the database (platform/dbProjects), not the registry. */
 export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean }) {
   const router = useRouter()
   const [mod, setMod] = useState<ProjectModule | null>(null)
   const [state, setState] = useState<LoadState>('loading')
+  // Chat beside the canvas decides where to write by this, as on /p/<slug>:
+  // unmarked, a database project's turn was sent as a git one and could
+  // write only to a projects/<slug>/ that doesn't exist.
+  if (db) setActiveDbProject(slug)
+  // Again after commit: the prototype view this replaced clears the mark as it
+  // unmounts, which runs after this render.
+  useEffect(() => {
+    if (!db) return
+    setActiveDbProject(slug)
+    return () => setActiveDbProject(null)
+  }, [slug, db])
 
   const containerRef = useRef<HTMLDivElement>(null)
   // Pan and zoom live in one state object so a wheel event can move both in a
   // single pure updater — zooming about the cursor needs them to agree exactly.
   const [view, setView] = useState({ x: CANVAS_PAD, y: CANVAS_PAD, zoom: 1 })
-  const [selected, setSelected] = useState<string | null>(null)
+  const focus = useSyncExternalStore(subscribeFlowFocus, getFlowFocus, () => null)
+  const selected = focus?.slug === slug ? focus.selected : null
+  const reveal = focus?.slug === slug ? focus.reveal : 0
   const fittedRef = useRef(false)
 
   // Committed node deltas, and the one being dragged right now (kept separate
@@ -113,6 +188,8 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
 
   // --- load the project module client-side (screen components can't cross the
   //     server boundary; the registry loader runs here) --------------------
+  // Bumped when Chat changes the project: read it again.
+  const version = useProjectVersion()
   useEffect(() => {
     let alive = true
     // Only the project's own screens are drawn: a feature that extends a base
@@ -135,13 +212,52 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
       alive = false
       if (db) publishDbIndexEntry(null)
     }
-  }, [slug, db])
+  }, [slug, db, version])
+
+  // AI Chat — offered unless the server says no, and never to a share-link guest.
+  useEffect(probeChat, [])
+  const chatAvailable = useSyncExternalStore(
+    subscribeChat,
+    () => getChat().available !== false,
+    () => getChatServerSnapshot().available !== false,
+  )
+  const guest = useGuestAccess(slug)
+  const [chatting, setChatting] = useState(false)
+  // Comments — offered where the prototype offers them: a store configured,
+  // and not a view-only share link.
+  useCommentsFor(slug)
+  const { mode: commenting, available: commentsOn } = useComments()
+  const canComment = commentsOn && guest !== 'view'
+  useEffect(() => () => setCommentMode(false), [])
+  const selectedScreen = useMemo(() => {
+    const s = selected ? mod?.screens.find((x) => x.id === selected) : undefined
+    return s ? { id: s.id, title: s.title } : null
+  }, [selected, mod])
 
   // The node box follows the project's device, so a 1440-wide desktop flow
   // lays out on a 1440-shaped lattice instead of the phone's.
   const box = useMemo(() => nodeBox(mod?.config.device), [mod])
 
-  const layout = useMemo(() => (mod ? computeLayout(mod.screens, box) : null), [mod, box])
+  // Each page's measured length (ScreenThumb). Collected for a frame before the
+  // layout is redone, so ninety pages arriving relayout once, not ninety times.
+  const [heights, setHeights] = useState<ReadonlyMap<string, number>>(new Map())
+  const pendingHeights = useRef(new Map<string, number>())
+  const heightFrame = useRef(0)
+  const onHeight = useCallback((id: string, h: number) => {
+    pendingHeights.current.set(id, h)
+    cancelAnimationFrame(heightFrame.current)
+    heightFrame.current = requestAnimationFrame(() => {
+      const next = pendingHeights.current
+      pendingHeights.current = new Map()
+      setHeights((prev) => {
+        if ([...next].every(([k, v]) => Math.abs((prev.get(k) ?? 0) - v) < 0.5)) return prev
+        return new Map([...prev, ...next])
+      })
+    })
+  }, [])
+  useEffect(() => () => cancelAnimationFrame(heightFrame.current), [])
+
+  const layout = useMemo(() => (mod ? computeLayout(mod.screens, box, heights) : null), [mod, box, heights])
 
   // Auto-layout + saved deltas + the live drag = where nodes actually render.
   // Edges read these same coordinates, so they follow a node as it moves.
@@ -154,6 +270,55 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
     })
     return { ...layout, nodes }
   }, [layout, offsets, dragging])
+
+  // The sidebar selects on this canvas while it's here.
+  // Published again when the project is re-read (Chat changed it), which keeps
+  // the selection and the applied state; withdrawn only when the canvas goes.
+  useEffect(() => {
+    if (mod) publishFlow(slug, mod.screens)
+  }, [mod, slug])
+  useEffect(() => () => publishFlow(null), [])
+
+  // A screen picked in the sidebar: centred, at a zoom where it reads.
+  const revealed = useRef(0)
+  useEffect(() => {
+    if (!reveal || reveal === revealed.current || !placed || !selected) return
+    revealed.current = reveal
+    const node = placed.nodes.find((n) => n.screen.id === selected)
+    const el = containerRef.current
+    if (!node || !el) return
+    const { width: cw, height: ch } = el.getBoundingClientRect()
+    setView((v) => {
+      const zoom = Math.max(v.zoom, REVEAL_ZOOM)
+      // The middle of its first screenful — a long page's top is what you came to see.
+      return { zoom, x: cw / 2 - (node.x + box.nodeW / 2) * zoom, y: ch / 2 - (node.y + box.nodeH / 2) * zoom }
+    })
+  }, [reveal, placed, selected, box])
+
+  // Where the selection's arrows start — measured on the live render, again
+  // whenever it changes (a lazy screen arriving, a state applied). Kept in node
+  // units, so panning, zooming and dragging the node don't need a re-measure.
+  const [origins, setOrigins] = useState<Origins>({})
+  const zoomRef = useRef(view.zoom)
+  zoomRef.current = view.zoom
+  useEffect(() => {
+    setOrigins({})
+    const el = selected ? containerRef.current?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(selected)}"]`) : null
+    if (!el || !layout) return
+    const links = layout.links.filter((l) => l.from === selected)
+    let frame = 0
+    const measure = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => setOrigins(findOrigins(el, links, zoomRef.current)))
+    }
+    measure()
+    const watch = new MutationObserver(measure)
+    watch.observe(el, { childList: true, subtree: true, characterData: true })
+    return () => {
+      cancelAnimationFrame(frame)
+      watch.disconnect()
+    }
+  }, [selected, layout])
 
   // Screens the selection leads to — ringed so the destinations read as a set.
   const targets = useMemo(() => {
@@ -250,6 +415,9 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       const target = e.target as HTMLElement
+      // The comment pins take their own clicks: no pan, and no pointer capture
+      // that would send the click to the canvas instead.
+      if (target.closest('[data-comment-layer]')) return
       const nodeEl = target.closest('[data-node-id]') as HTMLElement | null
       const nodeId = nodeEl?.dataset.nodeId ?? null
       // Only the move handle grabs a node — dragging anywhere else on the
@@ -340,7 +508,7 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
       }
       // Clicking a screen selects it; clicking bare canvas clears.
       setDragging(null)
-      setSelected(d.nodeId)
+      selectInFlow(d.nodeId)
     },
     [router, slug, dragging, resetLayout],
   )
@@ -348,7 +516,7 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
   // Escape clears the selection, hiding its edges again.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelected(null)
+      if (e.key === 'Escape') selectInFlow(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -405,7 +573,7 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
   // the shell's Prototype | Flow and the zoom, so Reset layout sits top right.
   usePublishHeaderStatus(
     state === 'ready'
-      ? { badge: layout?.isGrid ? 'no flow metadata' : undefined }
+      ? { badge: layout && layout.links.length === 0 ? 'no flow metadata' : undefined }
       : null,
   )
 
@@ -445,8 +613,29 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
             className="absolute left-0 top-0 origin-top-left"
             style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
           >
-            <Edges layout={placed} selected={selected} box={box} />
+            {/* A band per named section, behind everything. Fixed to the
+                auto-layout: a screen dragged out of its lane leaves the band. */}
+            {placed.lanes.map((lane) =>
+              lane.section ? (
+                <div
+                  key={lane.section}
+                  className="pointer-events-none absolute rounded-16 border border-default bg-neutral-white px-24 pt-24 dark:border-ink-800 dark:bg-ink-900"
+                  style={{
+                    left: -LANE_PAD,
+                    top: lane.y - LANE_PAD,
+                    width: placed.width + LANE_PAD * 2,
+                    height: lane.height + LANE_PAD * 2,
+                  }}
+                >
+                  <span className="text-14 font-bold text-default dark:text-neutral-50">{lane.section}</span>
+                </div>
+              ) : null,
+            )}
+            <Edges layout={placed} selected={selected} box={box} origins={origins} layer="under" zoom={view.zoom} />
             {placed.nodes.map((n) => {
+              // Zoomed past 100%, a node's title, ring and buttons stay one size
+              // on screen instead of growing with the screen they sit on.
+              const chrome = Math.min(1, 1 / view.zoom)
               const active = selected === n.screen.id
               const isTarget = selected != null && targets.has(n.screen.id)
               return (
@@ -454,33 +643,37 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
                   key={n.screen.id}
                   data-node-id={n.screen.id}
                   className="absolute cursor-pointer"
-                  style={{ left: n.x, top: n.y, width: box.nodeW, height: box.nodeH }}
+                  style={{ left: n.x, top: n.y, width: box.nodeW, height: n.h }}
                 >
-                  <div
-                    className="flex items-center gap-4 truncate"
-                    style={{ height: TITLE_H }}
-                  >
-                    {n.screen.entry ? (
-                      <span className="rounded-full bg-primary-50 px-4 text-10 font-bold uppercase text-link">
-                        entry
+                  <div className="flex items-end" style={{ height: TITLE_H }}>
+                    <div
+                      className="flex items-center gap-4 pb-4"
+                      style={{ width: box.nodeW / chrome, transform: `scale(${chrome})`, transformOrigin: 'left bottom' }}
+                    >
+                      {n.screen.entry ? (
+                        <span className="rounded-full bg-primary-50 px-4 text-10 font-bold uppercase text-link">
+                          entry
+                        </span>
+                      ) : null}
+                      <span className="truncate text-12 font-bold text-default dark:text-neutral-50">
+                        {n.screen.title}
                       </span>
-                    ) : null}
-                    <span className="truncate text-12 font-bold text-default dark:text-neutral-50">
-                      {n.screen.title}
-                    </span>
+                    </div>
                   </div>
                   <div
-                    className={`relative rounded-8 ${
-                      active
-                        ? 'ring-2 ring-primary-500'
-                        : isTarget
-                          ? 'ring-2 ring-primary-200'
-                          : 'ring-1 ring-transparent'
-                    }`}
+                    className={`relative rounded-8 ${active ? 'ring-primary-500' : isTarget ? 'ring-primary-200' : ''}`}
+                    style={
+                      active || isTarget
+                        ? { boxShadow: `0 0 0 ${(2 / view.zoom).toFixed(3)}px var(--tw-ring-color)` }
+                        : undefined
+                    }
                   >
-                    <ScreenThumb screen={n.screen} device={mod?.config.device} box={box} />
+                    <ScreenThumb screen={n.screen} device={mod?.config.device} box={box} onHeight={onHeight} />
                     {active ? (
-                      <div className="absolute right-4 top-4 flex items-center gap-2">
+                      <div
+                        className="absolute right-4 top-4 flex items-center gap-2"
+                        style={{ transform: `scale(${chrome})`, transformOrigin: 'right top' }}
+                      >
                         <span
                           data-move
                           role="button"
@@ -503,6 +696,8 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
                 </div>
               )
             })}
+            {/* Above the screens: where on the selected one each arrow starts. */}
+            <Edges layout={placed} selected={selected} box={box} origins={origins} layer="over" zoom={view.zoom} />
           </div>
         ) : (
           <div className="flex h-full items-center justify-center">
@@ -523,6 +718,38 @@ export function FlowCanvas({ slug, db = false }: { slug: string; db?: boolean })
           className="absolute bottom-16 right-16 z-10"
         />
       ) : null}
+      {state !== 'ready' ? null : (
+        <ShellPortal slot="actions">
+          {canComment ? (
+            <ToolButton
+              icon={<CommentIcon className="size-16" />}
+              label={commenting ? 'Done' : 'Comment'}
+              title={commenting ? 'Stop commenting' : 'Comment — click anywhere on a page to leave feedback'}
+              inverted={commenting}
+              onClick={() => setCommentMode(!commenting)}
+            />
+          ) : null}
+          {guest || !chatAvailable || chatting ? null : (
+            <ToolButton
+              icon={<ChatIcon className="size-16" />}
+              label="AI Chat"
+              title="AI Chat — ask Claude for a change"
+              inverted
+              onClick={() => setChatting(true)}
+            />
+          )}
+        </ShellPortal>
+      )}
+      {guest || !chatAvailable || state !== 'ready' || !chatting ? null : (
+        <ShellPortal slot="panel">
+          <FlowChat
+            slug={slug}
+            screenId={selected ?? (mod?.screens.find((s) => s.entry) ?? mod?.screens[0])?.id ?? ''}
+            selected={selectedScreen}
+            onClose={() => setChatting(false)}
+          />
+        </ShellPortal>
+      )}
       {shortcuts ? (
         <ShortcutSheet
           only={['fit', 'actual', 'zoomIn', 'zoomOut', 'escape', 'help']}
