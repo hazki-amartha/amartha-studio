@@ -387,7 +387,7 @@ export async function announceSave(slug: string): Promise<void> {
  * (erased by the compile), so it runs with no module system at all — anything
  * else it reaches for gets an empty object and the result is checked.
  */
-function configOf(slug: string, source: string): ProjectConfig | null {
+export function configOf(slug: string, source: string): ProjectConfig | null {
   try {
     const code = transform(source, { transforms: ['typescript', 'imports'], production: true }).code
     const mod = { exports: {} as Record<string, unknown> }
@@ -409,6 +409,11 @@ export type DbProjectConfig = ProjectConfig & { draft?: DraftMeta; deleted?: Del
 /** The config of every project in the database, drafts and deleted ones
  *  included, newest first. */
 let remoteConfigs: { at: number; list: Promise<DbProjectConfig[]> } | null = null
+
+/** Drop a laptop's cached list — after a change it just passed on, so the next page shows it. */
+export function forgetDbConfigs() {
+  remoteConfigs = null
+}
 
 export async function listDbConfigs(): Promise<DbProjectConfig[]> {
   const db = createAdminClient()

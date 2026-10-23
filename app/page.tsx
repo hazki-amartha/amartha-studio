@@ -14,6 +14,7 @@ import '@/design-system/components/styles.css'
 import { Badge, type BadgeIntent } from '@/design-system/components/Badge'
 import { Card } from '@/design-system/components/Card'
 import { TopBarContent } from '@/platform/chrome'
+import { knownNames } from '@/platform/auth/profiles'
 import { canEditAs, getStudioUser } from '@/platform/auth/server'
 import { NewProjectButton } from '@/platform/projects/NewProjectButton'
 import { PLATFORM_COLOR, PLATFORM_LABEL, PLATFORM_ORDER } from '@/platform/projects/platforms'
@@ -65,8 +66,11 @@ const NO_PLATFORM_CARD = 'from-neutral-700 to-neutral-900'
 
 type GalleryEntry = {
   config: ProjectConfig
-  /** Set when the person looking may delete it (or would, but it's blocked). */
+  /** Set when the person looking may manage it — rename, change owners,
+   *  delete (or would, but deleting is blocked). */
   deletable?: DeleteState
+  /** Everyone the project may be handed to, for the menu's owner list. */
+  names?: string[]
 }
 
 function formatDate(iso: string): string {
@@ -90,7 +94,7 @@ async function loadEntries() {
     listDbConfigs(),
     currentDeleter(),
   ])
-  const states = await deleteStates(who)
+  const [states, names] = await Promise.all([deleteStates(who), who ? knownNames() : []])
   // Every slug in the database, deleted ones too — a deleted project's git
   // copy (if one is left) mustn't stand in for it.
   const inDb = new Set(all.map((c) => c.slug))
@@ -98,6 +102,7 @@ async function loadEntries() {
   const entries: GalleryEntry[] = [...db, ...git.filter((c) => !inDb.has(c.slug))].map((config) => ({
     config,
     deletable: states[config.slug],
+    names,
   }))
   // Deleted projects, newest deletion first; branches went with their project.
   const deleted = all
@@ -121,7 +126,7 @@ async function loadEntries() {
 // carries the bookkeeping — who and when, and the status badge. Splitting them
 // means the eye can skip the footer entirely when scanning the grid for a
 // prototype, and go straight to it when scanning for what changed recently.
-function ProjectCard({ config, deletable }: GalleryEntry) {
+function ProjectCard({ config, deletable, names = [] }: GalleryEntry) {
   const owners = Array.isArray(config.owner) ? config.owner.join(', ') : config.owner
   const fill = config.platform ? PLATFORM_COLOR[config.platform].card : NO_PLATFORM_CARD
   // The ⋯ menu sits over the card, not inside the link — a button in a link
@@ -165,7 +170,9 @@ function ProjectCard({ config, deletable }: GalleryEntry) {
         </div>
       </Card>
     </Link>
-    {deletable ? <ProjectMenu slug={config.slug} name={config.name} state={deletable} /> : null}
+    {deletable ? (
+      <ProjectMenu slug={config.slug} name={config.name} owners={[config.owner].flat()} names={names} state={deletable} />
+    ) : null}
     </div>
   )
 }
