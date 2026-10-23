@@ -24,13 +24,26 @@ import { boundaryOf, labelOf } from './resolve'
 import { isHidden, refind } from '@/platform/design/overlay'
 import styles from './inspect.module.css'
 
+/**
+ * Design mode's layers (platform/design/layers.ts): what a click selects and a
+ * hover highlights — the layer a click would pick at the selection's depth,
+ * not the element under the pointer — and the boxes and name the outline
+ * draws, which for a list or a component drawn in several boxes is more than
+ * one element.
+ */
+export interface PickLayers {
+  pick: (target: Element, e: MouseEvent) => Element | null
+  hover: (target: Element, e: MouseEvent) => { boxes: Element[]; label: string } | null
+  outline: (pinned: Element) => { boxes: Element[]; label: string }
+}
+
 export interface InspectLayerProps {
   pinned: Element | null
   onPin: (el: Element | null) => void
   /** Highlight driven from outside the device — the layers outline pointing at
    *  a row. Takes precedence over the cursor's own hover, which by definition
    *  isn't over the device while the list is being used. */
-  preview?: Element | null
+  preview?: Element | readonly Element[] | null
   /**
    * What a plain click selects.
    *
@@ -62,6 +75,8 @@ export interface InspectLayerProps {
   /** Clicks tap through to the prototype; only the pinned outline is drawn,
    *  and ⌘/Ctrl-click still selects. */
   passive?: boolean
+  /** Pick by layer rather than by element (Design). */
+  layers?: PickLayers
 }
 
 /** ⌘/Ctrl-click selects, whatever the mode. Nothing else here gives those
@@ -75,18 +90,29 @@ interface Box {
   height: number
 }
 
-function measure(layer: HTMLElement, el: Element): Box | null {
-  if (!el.isConnected) return null
+function measure(layer: HTMLElement, els: Element | readonly Element[]): Box | null {
+  const list = (Array.isArray(els) ? els : [els]).filter((el) => el.isConnected)
+  if (list.length === 0) return null
   const origin = layer.getBoundingClientRect()
   // The layer spans the screen exactly, so its own rendered-vs-layout width is
   // the frame's current scale. No dependency on ScaledDevice's state.
   const scale = origin.width / layer.offsetWidth || 1
-  const r = el.getBoundingClientRect()
+  let l = Infinity
+  let t = Infinity
+  let r = -Infinity
+  let b = -Infinity
+  for (const el of list) {
+    const x = el.getBoundingClientRect()
+    l = Math.min(l, x.left)
+    t = Math.min(t, x.top)
+    r = Math.max(r, x.right)
+    b = Math.max(b, x.bottom)
+  }
   return {
-    left: (r.left - origin.left) / scale,
-    top: (r.top - origin.top) / scale,
-    width: r.width / scale,
-    height: r.height / scale,
+    left: (l - origin.left) / scale,
+    top: (t - origin.top) / scale,
+    width: (r - l) / scale,
+    height: (b - t) / scale,
   }
 }
 
@@ -112,13 +138,15 @@ export function InspectLayer({
   onRepin,
   tone = 'inspect',
   passive = false,
+  layers,
 }: InspectLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null)
   const hoverBoxRef = useRef<HTMLDivElement>(null)
   const pinBoxRef = useRef<HTMLDivElement>(null)
   const sizeRef = useRef<HTMLSpanElement>(null)
+  const labelRef = useRef<HTMLSpanElement>(null)
 
-  const [hover, setHover] = useState<Element | null>(null)
+  const [hover, setHover] = useState<{ boxes: readonly Element[]; label?: string } | null>(null)
   const [alt, setAlt] = useState(false)
   const [labelBelow, setLabelBelow] = useState(false)
 
@@ -126,6 +154,10 @@ export function InspectLayer({
   // read the current modifier without re-binding on every keypress.
   const altRef = useRef(false)
   altRef.current = alt
+  const pinnedRef = useRef(pinned)
+  pinnedRef.current = pinned
+  const layersRef = useRef(layers)
+  layersRef.current = layers
 
   // --- input capture --------------------------------------------------------
   useEffect(() => {
@@ -135,16 +167,28 @@ export function InspectLayer({
     setHover(null)
     const picks = (e: Event) => !passive || selectKey(e)
 
-    const pick = (target: EventTarget | null): Element | null => {
+    const pick = (target: EventTarget | null, e: MouseEvent | null): Element | null => {
       if (!(target instanceof Element)) return null
       if (altRef.current) return target
+      if (layersRef.current && e) return layersRef.current.pick(target, e)
       if (rule === 'authored') {
         return target.closest('[data-src], [data-design-new]') ?? boundaryOf(target) ?? target
       }
       return boundaryOf(target) ?? target
     }
 
-    const onMouseOver = (e: Event) => setHover(picks(e) ? pick(e.target) : null)
+    // Text being typed over on the screen keeps its own clicks.
+    const editing = (e: Event) => e.target instanceof Element && e.target.closest('[data-design-editing]') !== null
+
+    const onMouseOver = (e: Event) => {
+      if (!picks(e) || editing(e) || !(e.target instanceof Element)) return setHover(null)
+      if (layersRef.current && !altRef.current && e instanceof MouseEvent) {
+        const hit = layersRef.current.hover(e.target, e)
+        return setHover(hit)
+      }
+      const el = pick(e.target, null)
+      setHover(el ? { boxes: [el] } : null)
+    }
     const onMouseLeave = () => setHover(null)
 
     // React delegates click handling at the app root, which is an ancestor of
@@ -152,22 +196,22 @@ export function InspectLayer({
     // reaches the target and never bubbles back, and the prototype's own
     // handlers never run.
     const swallow = (e: Event) => {
-      if (!picks(e)) return
+      if (!picks(e) || editing(e)) return
       e.stopPropagation()
     }
     // preventDefault on mousedown suppresses focus, which keeps inputs and
     // toggles inert. It is deliberately NOT set on pointerdown, where it would
     // also cancel the compatibility click we rely on for pinning.
     const swallowAndBlock = (e: Event) => {
-      if (!picks(e)) return
+      if (!picks(e) || editing(e)) return
       e.preventDefault()
       e.stopPropagation()
     }
     const onClick = (e: Event) => {
-      if (!picks(e)) return
+      if (!picks(e) || editing(e)) return
       e.preventDefault()
       e.stopPropagation()
-      const el = pick(e.target)
+      const el = pick(e.target, e instanceof MouseEvent ? e : null)
       if (onShiftPick && el && e instanceof MouseEvent && e.shiftKey) onShiftPick(el)
       else onPin(el)
     }
@@ -239,15 +283,18 @@ export function InspectLayer({
           if (onRepin) onRepin(pinned)
           else onPin(refind(pinned))
         } else {
-          const pinBox = pinned ? measure(layer, pinned) : null
+          const outline = pinned ? (layersRef.current?.outline(pinned) ?? { boxes: [pinned] }) : null
+          const pinBox = outline ? measure(layer, outline.boxes) : null
           place(pinBoxRef.current, pinBox)
+          if (outline && 'label' in outline && labelRef.current && labelRef.current.textContent !== outline.label) {
+            labelRef.current.textContent = outline.label
+          }
           // The outline's row wins over the cursor: using the list means the
           // pointer is off the device, so `hover` is stale by definition.
-          const highlight = preview ?? hover
-          place(
-            hoverBoxRef.current,
-            highlight && highlight !== pinned ? measure(layer, highlight) : null,
-          )
+          const highlight = preview ? { boxes: Array.isArray(preview) ? preview : [preview as Element] } : hover
+          const same =
+            highlight && outline && highlight.boxes.length === outline.boxes.length && highlight.boxes.every((b, i) => b === outline.boxes[i])
+          place(hoverBoxRef.current, highlight && !same ? measure(layer, highlight.boxes) : null)
           // Dimensions ride the label rather than React state — they change on
           // every frame of a screen transition, and a render each time would
           // cost more than the whole overlay.
@@ -275,7 +322,7 @@ export function InspectLayer({
       <div ref={pinBoxRef} className={styles.pin} style={{ display: 'none' }}>
         {pinned ? (
           <span className={`${styles.label} ${labelBelow ? styles.labelBelow : ''}`}>
-            {labelOf(pinned)}
+            <span ref={labelRef}>{labelOf(pinned)}</span>
             <span ref={sizeRef} className={styles.size} />
           </span>
         ) : null}

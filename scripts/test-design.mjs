@@ -37,6 +37,7 @@ await build({
   stdin: {
     contents: [
       `export { applyEdits } from './platform/design/applyEdits'`,
+      `export { factsOf, findText } from './platform/design/facts'`,
       `export { arrangeScreens } from './platform/design/arrangeScreens'`,
       `export { versionOf } from './platform/design/version'`,
       `export { tidyImports, restoreSemicolons } from './platform/design/tidy'`,
@@ -58,6 +59,8 @@ await build({
 })
 const {
   applyEdits,
+  factsOf,
+  findText,
   arrangeScreens,
   versionOf,
   tidyImports,
@@ -359,7 +362,7 @@ export function HomeScreen({ show, rows }: { show: boolean; rows: string[] }) {
 const addresses = (source) => {
   const stamped = stampSource(source, 'f.tsx').code
   const found = {}
-  for (const m of stamped.matchAll(/<([A-Za-z.]+) data-src="([^"]+)"/g)) {
+  for (const m of stamped.matchAll(/<([A-Za-z0-9.]+) data-src="([^"]+)"/g)) {
     ;(found[m[1]] ??= []).push(m[2])
   }
   return (tag, i = 0) => {
@@ -458,9 +461,12 @@ test('refuses to move an element into itself', () => {
   assert.match(child.refused.reason, /into itself/)
 })
 
-test('refuses list rows, conditional elements and the screen root', () => {
+test('refuses a list row on its own, and the screen root', () => {
   const at = addresses(HOME)
-  for (const src of [at('li'), at('p'), at('Screen')]) {
+  for (const [src, why] of [
+    [at('li'), /one row of a list/],
+    [at('Screen'), /what a component returns/],
+  ]) {
     for (const edit of [
       { kind: 'delete', src },
       { kind: 'duplicate', src },
@@ -468,12 +474,173 @@ test('refuses list rows, conditional elements and the screen root', () => {
     ]) {
       const r = applyEdits(HOME, [edit])
       assert.equal(r.ok, false, `${edit.kind} ${src} should be refused`)
-      assert.match(r.refused.reason, /directly in the layout/)
+      assert.match(r.refused.reason, why)
     }
   }
-  // …and refuses them as anchors to sit beside.
-  const beside = applyEdits(HOME, [{ kind: 'move', src: at('Badge'), to: { after: at('li') } }])
-  assert.equal(beside.ok, false)
+  // The list scope is only for lists.
+  const notAList = applyEdits(HOME, [{ kind: 'delete', src: at('Badge'), scope: 'list' }])
+  assert.equal(notAList.ok, false)
+  assert.match(notAList.refused.reason, /isn’t a row of a list/)
+})
+
+test('a conditional element moves together with its condition', () => {
+  const at = addresses(HOME)
+  const out = ok(applyEdits(HOME, [{ kind: 'move', src: at('p'), to: { before: at('Card', 0) } }]))
+  assert.match(out, /<Screen>\n      \{show && <p className="text-12">Conditional<\/p>\}\n      <Card className="flex/)
+  assert.equal(out.match(/Conditional/g).length, 1)
+  assert.equal(hunks(HOME, out), 2)
+})
+
+test('beside a condition or a list means beside its whole {…}', () => {
+  const at = addresses(HOME)
+  const out = ok(applyEdits(HOME, [{ kind: 'move', src: at('Badge'), to: { before: at('p') } }]))
+  assert.match(out, /<\/Card>\n      <Badge intent="green">New<\/Badge>\n      \{show && <p/)
+  const list = ok(applyEdits(HOME, [{ kind: 'move', src: at('Badge'), to: { after: at('li') } }]))
+  assert.match(list, /        \)\)\}\n        <Badge intent="green">New<\/Badge>\n      <\/ul>/)
+})
+
+const STATES = `export function A({ open, done }: { open: boolean; done: boolean }) {
+  return (
+    <div className="flex flex-col">
+      {open ? <p className="text-14">Open</p> : <p className="text-14">Closed</p>}
+      {done && <span className="text-12">Done</span>}
+      <hr />
+    </div>
+  )
+}
+`
+
+test('deleting a conditional element takes away only the state it was in', () => {
+  const at = addresses(STATES)
+  const one = ok(applyEdits(STATES, [{ kind: 'delete', src: at('p', 0) }]))
+  assert.match(one, /\{open \? null : <p className="text-14">Closed<\/p>\}/)
+  // Both states gone: the condition goes too.
+  const both = ok(applyEdits(STATES, [
+    { kind: 'delete', src: at('p', 0) },
+    { kind: 'delete', src: at('p', 1) },
+  ]))
+  assert.doesNotMatch(both, /open \?/)
+  assert.match(both, /<div className="flex flex-col">\n      \{done/)
+  // `a && <B />` shows only B: deleting B removes the condition.
+  const and = ok(applyEdits(STATES, [{ kind: 'delete', src: at('span') }]))
+  assert.doesNotMatch(and, /done &&/)
+})
+
+test('duplicating a conditional element copies its condition', () => {
+  const at = addresses(STATES)
+  const out = ok(applyEdits(STATES, [{ kind: 'duplicate', src: at('span') }]))
+  assert.equal(out.match(/\{done && <span className="text-12">Done<\/span>\}/g).length, 2)
+})
+
+test('wrap takes conditional elements with their conditions', () => {
+  const at = addresses(STATES)
+  const out = ok(applyEdits(STATES, [{ kind: 'wrap', id: 'w1', srcs: [at('p', 1), at('span')], className: 'flex gap-8' }]))
+  assert.match(out, /<div className="flex gap-8">\n        \{open \? <p className="text-14">Open<\/p> : <p className="text-14">Closed<\/p>\}\n        \{done && /)
+})
+
+test('a list moves, copies and deletes as a whole when the edit says so', () => {
+  const at = addresses(HOME)
+  const moved = ok(applyEdits(HOME, [{ kind: 'move', src: at('li'), to: { after: at('Badge') }, scope: 'list' }]))
+  assert.match(moved, /<Badge intent="green">New<\/Badge>\n      \{rows\.map\(\(r\) => \(/)
+  assert.match(moved, /<ul>\s*<\/ul>|<ul><\/ul>|<ul>\n      <\/ul>/)
+  const copied = ok(applyEdits(HOME, [{ kind: 'duplicate', src: at('li'), scope: 'list' }]))
+  assert.equal(copied.match(/rows\.map/g).length, 2)
+  const gone = ok(applyEdits(HOME, [{ kind: 'delete', src: at('li'), scope: 'list' }]))
+  assert.doesNotMatch(gone, /rows\.map/)
+})
+
+test('template className: the classes it writes out edit in place', () => {
+  const T = `export function A({ tone }: { tone: string }) {
+  return <div className={\`flex gap-8 p-12 \${tone}\`}>x</div>
+}
+`
+  const at = addresses(T)
+  const out = ok(applyEdits(T, [{ kind: 'class', src: at('div'), oldClass: 'gap-8', newClass: 'gap-12' }]))
+  assert.match(out, /className=\{`flex gap-12 p-12 \$\{tone\}`\}/)
+  assert.equal(diffLines(T, out), 1)
+  // Half a class written next to code is code's, not the panel's.
+  const half = `export function A({ n }: { n: string }) {
+  return <div className={\`flex p-\${n}\`}>x</div>
+}
+`
+  const refused = applyEdits(half, [{ kind: 'class', src: addresses(half)('div'), oldClass: 'p-8', newClass: 'p-12' }])
+  assert.equal(refused.ok, false)
+  // And a stack edit rewrites the fixed part only.
+  const stacked = ok(applyEdits(T, [{
+    kind: 'stack',
+    src: at('div'),
+    old: layoutOf(['flex', 'gap-8', 'p-12']),
+    next: { ...layoutOf(['flex', 'gap-8', 'p-12']), direction: 'col', gap: '16' },
+  }]))
+  assert.match(stacked, /className=\{`flex flex-col gap-16 p-12 \$\{tone\}`\}/)
+})
+
+test('literal: a string in a data file is rewritten in its own quotes', () => {
+  const DATA = `export const MEMBERS = [
+  { id: 1, name: 'Siti Aminah', role: "Ketua" },
+  { id: 2, name: 'Rina' },
+]
+`
+  const out = ok(applyEdits(DATA, [{ kind: 'literal', src: 'projects/x/lib/data.ts:2:17', old: 'Siti Aminah', next: 'Siti A.' }]))
+  assert.match(out, /name: 'Siti A\.', role: "Ketua"/)
+  assert.equal(diffLines(DATA, out), 1)
+  const quoted = ok(applyEdits(DATA, [{ kind: 'literal', src: 'projects/x/lib/data.ts:2:38', old: 'Ketua', next: 'Ketua "A"' }]))
+  assert.match(quoted, /role: "Ketua \\"A\\""/)
+  const stale = applyEdits(DATA, [{ kind: 'literal', src: 'projects/x/lib/data.ts:2:17', old: 'Rina', next: 'X' }])
+  assert.equal(stale.ok, false)
+  assert.match(stale.refused.reason, /changed since/)
+})
+
+test('facts: how each element is written, by line and column', () => {
+  const at = addresses(HOME)
+  const key = (src) => src.split(':').slice(-2).join(':')
+  const f = factsOf(HOME, 'f.tsx')
+  assert.ok(f)
+  assert.equal(f.version, versionOf(HOME))
+  assert.equal(f.nodes[key(at('Card', 0))].slot, 'child')
+  assert.equal(f.nodes[key(at('Card', 0))].cls, 'literal')
+  assert.equal(f.nodes[key(at('p'))].slot, 'cond')
+  assert.equal(f.nodes[key(at('li'))].slot, 'list')
+  assert.equal(f.nodes[key(at('li'))].text, 'expr')
+  assert.equal(f.nodes[key(at('Screen'))].slot, 'root')
+  assert.equal(f.nodes[key(at('span', 0))].text, 'literal')
+  assert.deepEqual(f.nodes[key(at('Badge'))].props, { intent: 'green' })
+  assert.deepEqual(f.nodes[key(at('Button'))].exprProps, ['onClick'])
+
+  const LIB = `export function StatCell({ label, value: amount }: { label: string; value: string }) {
+  return (
+    <div className={\`flex \${x}\`}>
+      <p className="text-12">{label}</p>
+      <p className="text-14">{amount}</p>
+      {ITEMS.map((label) => <span key={label}>{label}</span>)}
+    </div>
+  )
+}
+export function Named(props: { title: string }) {
+  return <h1>{props.title}</h1>
+}
+`
+  const lat = addresses(LIB)
+  const g = factsOf(LIB, 'lib.tsx')
+  assert.equal(g.nodes[key(lat('div'))].cls, 'template')
+  assert.deepEqual([g.nodes[key(lat('p', 0))].text, g.nodes[key(lat('p', 0))].textProp], ['prop', 'label'])
+  assert.deepEqual([g.nodes[key(lat('p', 1))].text, g.nodes[key(lat('p', 1))].textProp], ['prop', 'value'])
+  // A row's own `label` is the row's, not the component's prop.
+  assert.equal(g.nodes[key(lat('span'))].text, 'expr')
+  assert.equal(g.nodes[key(lat('h1'))].textProp, 'title')
+})
+
+test('findText: words written once are found; classes, keys and comparisons are not', () => {
+  const files = new Map([
+    ['projects/x/lib/data.ts', `export const ROWS = [{ name: 'Siti', status: 'Lunas' }]\nexport const isDone = (s: string) => s === 'Lunas'\n`],
+    ['projects/x/screens/home.tsx', `export function H() {\n  return <p className="Siti" key="Siti">Halo</p>\n}\n`],
+    ['projects/x/index.ts', `export const project = { screens: [{ id: 'home', title: 'Halo' }] }\n`],
+  ])
+  assert.deepEqual(findText(files, 'Siti').map((m) => m.src), ['projects/x/lib/data.ts:1:29'])
+  // The comparison isn't words on screen, so 'Lunas' is found once.
+  assert.equal(findText(files, 'Lunas').length, 1)
+  // JSX text counts; the index's titles don't.
+  assert.deepEqual(findText(files, 'Halo').map((m) => m.src), ['projects/x/screens/home.tsx:2:40'])
 })
 
 test('delete removes the element and the line it was on', () => {
@@ -2331,4 +2498,139 @@ test('arrangeScreens refuses a stale view, a changed set, or a list it cannot re
   assert.equal(arrangeScreens(spread, [{ id: 'a' }], [{ id: 'a', section: 'S' }]).ok, false)
   // Nothing to change is not a write.
   assert.deepEqual(arrangeScreens(INDEX, SEEN, SEEN), { ok: true, source: INDEX })
+})
+
+// ------------------------------------------------- reading React's tree
+//
+// platform/design/analysis.ts turns the screen's fibers into what was
+// written: a component the project wrote is one node with the boxes it draws,
+// what its caller handed it is the caller's, and a `.map()`'s rows are a list.
+// No DOM here, so the fibers are built by hand — the shape React 18 gives
+// them: child/sibling/return links, props as rendered, the host's element.
+
+const { analyze, loadLibrary, Screen: ScreenPrimitive } = await (async () => {
+  const cssStub = {
+    name: 'css-stub',
+    setup(b) {
+      b.onResolve({ filter: /\.css$/ }, (args) => ({ path: args.path, namespace: 'css-stub' }))
+      b.onLoad({ filter: /.*/, namespace: 'css-stub' }, () => ({ contents: '', loader: 'js' }))
+    },
+  }
+  const out = join(root, 'scripts', '.test-design-analysis.mjs')
+  await build({
+    absWorkingDir: root,
+    stdin: {
+      contents: `export { analyze, loadLibrary } from './platform/design/analysis'\nexport { Screen } from './platform/primitives'`,
+      resolveDir: root,
+      loader: 'ts',
+    },
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    jsx: 'automatic',
+    outfile: out,
+    tsconfig: join(root, 'tsconfig.json'),
+    plugins: [cssStub],
+    external: ['react', 'react-dom', 'react/jsx-runtime', 'next'],
+    logLevel: 'silent',
+  })
+  process.on('exit', () => {
+    rm(out, { force: true }).catch(() => {})
+  })
+  return import(pathToFileURL(out).href)
+})()
+
+test('analysis: a project component is one node, with what it was handed kept apart', async () => {
+  await loadLibrary()
+  // analysis.ts asks `instanceof Element` of a host's DOM node.
+  globalThis.Element ??= class Element {}
+  const EL = Symbol.for('react.element')
+  const el = (type, props, key = null) => ({ $$typeof: EL, type, key, props })
+  const dom = (name) => Object.assign(new globalThis.Element(), { name })
+  const fiber = (tag, type, props, kids = [], stateNode = null, key = null) => {
+    const f = { tag, type, key, memoizedProps: props, stateNode, return: null, child: null, sibling: null, alternate: null }
+    let prev = null
+    for (const k of kids) {
+      k.return = f
+      if (prev) prev.sibling = k
+      else f.child = k
+      prev = k
+    }
+    return f
+  }
+  const host = (name, props, kids = [], key = null) => fiber(5, name, props, kids, dom(name), key)
+
+  function HomeScreen() {}
+  function StatusCard() {}
+  function StatCell() {}
+
+  const p = el('p', { 'data-src': 's:4:6', children: 'Hello' })
+  const card = el(StatusCard, { 'data-src': 's:3:4', children: p })
+  const rows = [el('li', { 'data-src': 's:6:8', children: 'A' }, 'a'), el('li', { 'data-src': 's:6:8', children: 'B' }, 'b')]
+  const ul = el('ul', { 'data-src': 's:5:4', children: rows })
+  const cell = el(StatCell, { 'data-src': 's:7:4', label: 'Total' })
+  const screenKids = [card, ul, cell]
+
+  const cellP = host('p', { 'data-src': 'lib:3:6', children: 'Total' })
+  const tree = host('div', { 'data-screen-scroller': '' }, [
+    fiber(0, HomeScreen, {}, [
+      fiber(0, ScreenPrimitive, { 'data-src': 's:2:2', children: screenKids }, [
+        // Screen spreads its props — the stamp — onto its own root.
+        host('div', { 'data-src': 's:2:2', children: [] }, [
+          host('div', { className: 'sticky' }),
+          host('div', { className: 'flex', children: screenKids }, [
+            fiber(0, StatusCard, card.props, [
+              host('div', { 'data-src': 'lib:1:2', children: p }, [host('p', p.props)]),
+            ]),
+            host('ul', ul.props, [host('li', rows[0].props, [], 'a'), host('li', rows[1].props, [], 'b')]),
+            fiber(0, StatCell, cell.props, [host('div', { 'data-src': 'lib:2:4', children: el('p', cellP.memoizedProps) }, [cellP])]),
+          ]),
+        ]),
+      ]),
+    ]),
+  ])
+  const rootFiber = fiber(3, null, null, [tree])
+  rootFiber.stateNode = { current: rootFiber }
+  const scroller = tree.stateNode
+  scroller['__reactFiber$test'] = tree
+
+  const a = analyze(scroller)
+  const by = (src, i = 0) => a.bySrc.get(src)?.[i]
+  assert.equal(a.nodes.length, 10)
+
+  const screen = by('s:2:2')
+  assert.equal(screen.kind, 'component')
+  assert.equal(screen.name, 'Screen')
+  assert.equal(screen.owner, null)
+  assert.equal(screen.slot, 'root')
+
+  // The instance and the box its component draws.
+  const statusCard = by('s:3:4')
+  assert.equal(statusCard.kind, 'instance')
+  assert.equal(statusCard.name, 'StatusCard')
+  assert.equal(statusCard.parent, screen)
+  assert.equal(statusCard.slot, 'child')
+  const cardRoot = by('lib:1:2')
+  assert.equal(cardRoot.owner, statusCard, 'its root is StatusCard’s own')
+  assert.equal(cardRoot.parent, null)
+  assert.deepEqual(cardRoot.hosts, statusCard.hosts)
+  assert.deepEqual(a.byHost.get(statusCard.hosts[0]), [statusCard, cardRoot])
+
+  // What the screen handed it is the screen's, written inside the usage.
+  const hello = by('s:4:6')
+  assert.equal(hello.owner, null)
+  assert.equal(hello.parent, statusCard)
+
+  // A `.map()`'s rows: one address, one list.
+  const [ra, rb] = a.bySrc.get('s:6:8')
+  assert.equal(ra.slot, 'list')
+  assert.equal(rb.slot, 'list')
+  assert.equal(ra.list, rb.list)
+  assert.equal(ra.parent, by('s:5:4'))
+
+  // Inside another component: its own markup, its own nesting.
+  const label = by('lib:3:6')
+  assert.equal(label.owner, by('s:7:4'))
+  assert.equal(label.parent, by('lib:2:4'))
+  assert.equal(label.slot, 'child')
 })

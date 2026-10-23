@@ -8,17 +8,18 @@
 // scale, so the panel is physically incapable of producing an off-system
 // value: spacing steps through the 4px grid, radius through the radius ramp,
 // colours through named tokens, and FunDS components expose only their
-// declared props. Free-form input exists nowhere but the text field, and text
-// isn't a token.
+// declared props. Free-form input exists nowhere but text, and text isn't a
+// token.
 //
-// Layout mirrors a design-tool inspector on purpose (source → component →
-// layout → shape → text → fill), with human labels ("Padding", not `p`) —
-// utility-class spellings live in Inspect, which is the engineer-facing view.
+// It works on a LAYER (layers.ts) — what the designer wrote, an instance of
+// one of the project's components included — and says plainly how far a
+// change reaches: this instance only (its properties, its words), every use
+// of the component (its own styling), or every row of a list.
 //
-// A nudge patches the live DOM instantly and stages a pending change; NOTHING
-// is written until "Apply N changes". Undo is two-layered to match: while
-// changes are pending it unstages the last-touched one (reverting its patch);
-// once applied, it reverses real file edits through the write-back route.
+// Layout mirrors a design-tool inspector on purpose (selection → arrange →
+// properties → text → layout → shape → fill), with human labels ("Padding",
+// not `p`) — utility-class spellings live in the CSS tab, which is the
+// engineer-facing view.
 // =============================================================================
 
 import {
@@ -33,7 +34,7 @@ import {
 import { signIn } from '@/platform/auth/session'
 import { PanelShell } from '@/platform/chrome/SidePanel'
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Trash } from '@/design-system/icons'
-import { ancestorChain, labelOf, resolveTarget } from '@/platform/inspect/resolve'
+import { labelOf, resolveTarget } from '@/platform/inspect/resolve'
 import {
   colorEntries,
   fontSizeNames,
@@ -46,17 +47,18 @@ import {
 } from '@/platform/inspect/tokenMap'
 import {
   canHoldDom,
-  describe,
-  duplicateElement,
+  commitText,
+  deleteLayer,
+  describeLayer,
+  duplicateLayer,
   isRow,
-  moveStep,
-  removeElement,
   stageContext,
-  stepPlace,
-  structuralBlock,
+  stepLayer,
+  textPlan,
   unwrapAt,
   unwrapTarget,
-  wrapElements,
+  wrapLayers,
+  type TextPlan,
 } from './actions'
 import {
   InsertSection,
@@ -67,14 +69,26 @@ import {
   TokenField,
   sentenceCase,
 } from './DesignSections'
-import { catalogItem } from './catalog'
 import { layoutOf } from './layout'
-import { NEW_ATTR } from './overlay'
-import { getSelection, getSelectionServerSnapshot, subscribeSelection } from './selection'
+import {
+  blockOf,
+  fileOfSrc,
+  getLayerTree,
+  getLayersVersion,
+  isTextBox,
+  layerAt,
+  pathOf,
+  stepOf,
+  styleScope,
+  subscribeLayers,
+  type Layer,
+} from './layers'
+import { selectedLayer, selectLayer } from './pick'
+import { findRemembered, getSelection, getSelectionServerSnapshot, subscribeSelection } from './selection'
 import {
   applyClassSwap,
   applyPropPreview,
-  applyTextSwap,
+  applyShownText,
   countPeers,
   findBySrc,
   peersOf,
@@ -82,6 +96,7 @@ import {
   srcOf,
 } from './applyDom'
 import { COMPONENT_PROPS } from './componentProps'
+import { factsAt, getFactsVersion, subscribeFacts } from './factsClient'
 import { Section } from './DesignSections'
 import type { PropChange } from './illustration'
 import { IllustrationSection } from './IllustrationSection'
@@ -92,9 +107,10 @@ import {
   clearDesignError,
   copyChangeList,
   fileOf,
-  newEdit,
+  noteDesignError,
   pushChanges,
   setDesignerName,
+  stagedProps,
   unlockEditing,
   type PendingRow,
   getDesignStoreServerSnapshot,
@@ -105,12 +121,11 @@ import {
   setOnFlushed,
   stageClassEdit,
   stagePropEdit,
-  stageTextEdit,
   subscribeDesignStore,
   unstage,
   undoLast,
+  type Unstaged,
 } from './designStore'
-import type { Edit } from './protocol'
 import { diskPath } from '@/platform/dbProjects/active'
 
 export interface DesignPanelProps {
@@ -215,12 +230,10 @@ function classify(cls: string): EditableRow | null {
 /**
  * Why a selected element has no controls, or null when it can be edited.
  *
- * Selection and editing have different reach on purpose. Hold ⌥ and the pick
- * layer reaches inside a component, which Inspect needs; but only elements the
- * build stamped have an address, and `design-system/` is never stamped. Showing
- * controls for an unaddressed element made every click on them do nothing,
- * silently — which reads as the panel being broken. Saying why teaches the rule
- * instead.
+ * Only for what isn't a layer: hold ⌥ and the pick layer reaches inside a
+ * FunDS component, which the CSS tab needs; but only what the project wrote
+ * has an address, and `design-system/` is never stamped. Saying why teaches
+ * the rule instead of showing controls that do nothing.
  */
 type Lock =
   | { kind: 'component'; owner: Element | null }
@@ -273,7 +286,10 @@ function LockNotice({ lock, onPin }: { lock: Lock; onPin: (el: Element | null) =
   )
 }
 
-// --- small UI atoms ----------------------------------------------------------
+const zero = () => 0
+
+const CHIP =
+  'self-start rounded-full border border-default bg-neutral-white px-12 py-4 text-12 font-bold text-default hover:bg-neutral-50 dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800'
 
 // --- the panel ---------------------------------------------------------------
 
@@ -294,6 +310,10 @@ export function DesignPanel({
   )
 
   const extra = useSyncExternalStore(subscribeSelection, getSelection, getSelectionServerSnapshot)
+  // The screen's layers and the source's facts both arrive on their own; the
+  // panel re-reads when either does.
+  const layersVersion = useSyncExternalStore(subscribeLayers, getLayersVersion, zero)
+  const factsVersion = useSyncExternalStore(subscribeFacts, getFactsVersion, zero)
 
   // Optimistic swaps mutate the DOM outside React's sight; bumping this after
   // each one re-runs resolveTarget so the panel shows what's now on screen.
@@ -303,27 +323,33 @@ export function DesignPanel({
   // soon as the panel knows which one it is looking at.
   useEffect(() => restoreChanges(slug), [slug])
 
+  const layer = useMemo(
+    () => selectedLayer(pinned),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pinned, layersVersion, version],
+  )
+  const select = useCallback((l: Layer | null) => selectLayer(l, onPin), [onPin])
+  const extraLayers = useMemo(
+    () => extra.map((el) => layerAt(el)).filter((l): l is Layer => l !== null && l !== layer),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [extra, layer, layersVersion],
+  )
+
   const target = useMemo(
     () => (pinned ? resolveTarget(pinned) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pinned, version],
   )
 
-  const crumbs = useMemo(() => {
-    if (!pinned) return []
-    const root = pinned.closest('[data-inspect]') ?? document.body
-    return ancestorChain(pinned, root)
-  }, [pinned])
-
-  // How many elements one write really changes: N for a `.map()`, 1 otherwise.
-  // Exact now that it counts by address rather than by identical className.
+  // How many elements one write to the box's own classes really changes: N for
+  // a list's rows or a component's insides, 1 otherwise.
   const peerCount = useMemo(
     () => {
       const src = pinned ? srcOf(pinned) : null
       return src ? countPeers(src) : 0
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pinned, version],
+    [pinned, version, layersVersion],
   )
 
   const pinnedSrc = pinned ? srcOf(pinned) : null
@@ -350,7 +376,9 @@ export function DesignPanel({
           bump()
           return
         }
-        const found = findBySrc(wanted)
+        // The layer it was, by what it looks like, before the first box with
+        // its address: every StatCell's frame shares one.
+        const found = findRemembered(getLayerTree().all)?.hosts[0] ?? findBySrc(wanted)
         if (found) {
           clearInterval(iv)
           onPin(found)
@@ -380,28 +408,27 @@ export function DesignPanel({
     [slug, screenId],
   )
 
-  // --- text editing ----------------------------------------------------------
-  // Editable only when the element is a pure text node holder: with element
-  // children, "its text" spans several source expressions and a swap would lie.
-  const fullText = pinned && pinned.children.length === 0 ? (pinned.textContent ?? '') : ''
-  const textEditable = fullText.trim().length >= 2 && fullText.length <= 200
+  // --- text --------------------------------------------------------------------
+  // The words a layer shows, and where they are written (actions.textPlan): on
+  // the element, on one use of a component, or in the project's data.
+  const plan: TextPlan | null = useMemo(
+    () => (layer ? textPlan(layer, slug) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [layer, slug, factsVersion, version],
+  )
+  const fullText = pinned && isTextBox(pinned) ? (pinned.textContent ?? '').replace(/\s+/g, ' ').trim() : ''
+  const textEditable = Boolean(plan && plan.kind !== 'none' && fullText.length > 0 && fullText.length <= 200)
   const [draftText, setDraftText] = useState('')
   const [insertOpen, setInsertOpen] = useState(false)
   useEffect(() => setDraftText(fullText), [fullText, pinned])
 
-  const commitText = useCallback(() => {
-    const el = pinnedRef.current
-    const oldText = fullText
-    const next = draftText
-    if (!el || next === oldText || next.trim().length === 0) return
-    if (/[<>{}]/.test(next)) return
-    const src = srcOf(el)
-    if (!src) return
-    stageTextEdit(stageContext(el, slug, screenId), src, oldText, next)
-    applyTextSwap(src, next)
-    repinRef.current = src
-    bump()
-  }, [draftText, fullText, slug, screenId])
+  const saveText = useCallback(() => {
+    if (!layer || draftText.trim() === fullText) return
+    void commitText(layer, draftText, slug, screenId).then((why) => {
+      if (why) noteDesignError('that text', why)
+      bump()
+    })
+  }, [layer, draftText, fullText, slug, screenId])
 
   // --- component props -------------------------------------------------------
   const editableProps = target?.component ? (COMPONENT_PROPS[target.component] ?? []) : []
@@ -441,8 +468,8 @@ export function DesignPanel({
 
   // --- unstaging (pre-apply undo) --------------------------------------------
 
-  const revertEdit = useCallback((unstaged: { edit: Edit; component?: string }) => {
-    revertStagedPatch(unstaged.edit, unstaged.component)
+  const revertEdit = useCallback((unstaged: Unstaged) => {
+    revertStagedPatch(unstaged)
     bump()
   }, [])
 
@@ -455,7 +482,7 @@ export function DesignPanel({
   )
 
   const onRevert = useCallback(() => {
-    for (const unstaged of revertAll()) revertStagedPatch(unstaged.edit, unstaged.component)
+    for (const unstaged of revertAll()) revertStagedPatch(unstaged)
     bump()
   }, [])
 
@@ -512,7 +539,7 @@ export function DesignPanel({
 
   const insert = (
     <InsertSection
-      pinned={pinned}
+      layer={layer}
       slug={slug}
       screenId={screenId}
       onChanged={bump}
@@ -527,26 +554,31 @@ export function DesignPanel({
         {insert}
         {footer}
         <p className="text-10 text-caption dark:text-neutral-400">
-          Hover the prototype to highlight an element, click to pin it, then tweak it here. Hold ⌥
-          to reach the raw element inside a component, and ⇧ to select more than one.
+          Click to select — double-click to go inside, ⌘-click to reach straight in. Drag to move. Enter and ⇧Enter
+          step in and out, Tab moves along. Double-click text to type over it.
         </p>
       </PanelShell>
     )
   }
 
+  const heading = (
+    <SelectionHeader
+      layer={layer}
+      fallback={target.component ?? `<${target.tag}>`}
+      file={layer?.node ? fileOfSrc(layer.node.src) : (pinnedFile ?? `projects/${slug}/screens/${screenId}.tsx`)}
+      defined={layer?.kind === 'instance' && pinnedFile && layer.node && pinnedFile !== fileOfSrc(layer.node.src) ? pinnedFile : null}
+      onSelect={select}
+    />
+  )
+
   // A new element — staged, not yet written — is edited through its staged
   // definition, since it has no address to aim a value edit at.
-  const newId = target.el.getAttribute(NEW_ATTR)
-  if (newId) {
-    const made = newEdit(newId)
-    const item = made?.kind === 'insert' ? catalogItem(made.item) : undefined
+  if (layer?.kind === 'new') {
     return (
       <PanelShell {...shell}>
-        <h2 className="text-16 font-bold text-default dark:text-neutral-50">
-          New · {made?.kind === 'wrap' ? 'Stack' : (made?.kind === 'insert' && made.icon) || item?.label || 'element'}
-        </h2>
-        {extra.length > 0 ? (
-          <SelectionSection els={[target.el, ...extra]} slug={slug} screenId={screenId} onChanged={bump} />
+        {heading}
+        {extraLayers.length > 0 ? (
+          <SelectionSection layers={[layer, ...extraLayers]} slug={slug} screenId={screenId} onChanged={bump} />
         ) : null}
         <NewElementSection el={target.el} onChanged={bump} />
         <LayoutSection el={target.el} slug={slug} screenId={screenId} onChanged={bump} />
@@ -556,14 +588,30 @@ export function DesignPanel({
     )
   }
 
-  const lock = lockOf(target.el, slug)
-  if (lock) {
+  // What isn't a layer at all: inside a FunDS component (⌥-click), or chrome.
+  const lock = layer ? (layer.node && !fileOfSrc(layer.node.src).startsWith(`projects/${slug}/`) ? lockOf(target.el, slug) : null) : lockOf(target.el, slug)
+  if (lock || !layer) {
     return (
       <PanelShell {...shell}>
-        <h2 className="text-16 font-bold text-default dark:text-neutral-50">
-          {target.component ?? `<${target.tag}>`}
-        </h2>
-        <LockNotice lock={lock} onPin={onPin} />
+        {heading}
+        {lock ? <LockNotice lock={lock} onPin={onPin} /> : null}
+        {footer}
+      </PanelShell>
+    )
+  }
+
+  // A list: one place in the layout, many rows. It moves as a whole; its rows
+  // are styled through any one of them.
+  if (layer.kind === 'list') {
+    return (
+      <PanelShell {...shell}>
+        {heading}
+        <ScopeNote>
+          Every row comes from one piece of code and the screen’s data. Move, copy or delete the list here; select a
+          row to restyle all of them at once.
+        </ScopeNote>
+        <ArrangeSection layer={layer} slug={slug} screenId={screenId} structure={store.structure.length} />
+        {insert}
         {footer}
       </PanelShell>
     )
@@ -584,8 +632,12 @@ export function DesignPanel({
   const weightRow = rows.find((r) => r.type === 'weight')
   const textColorRow = rows.find((r) => r.type === 'textColor')
   const fillRows = rows.filter((r) => r.type === 'bgColor' || r.type === 'borderColor')
+  const styled = Boolean(pinnedSrc)
+  const hasTextStyle = styled && Boolean(sizeRow || weightRow || textColorRow)
 
-  const hasTextSection = Boolean(sizeRow || weightRow || textColorRow || textEditable)
+  // How far a change to this box's own styling reaches.
+  const scope = styleScope(layer)
+  const listOf = layer.list
 
   // Same field as Auto layout's: the label above, the value in a box, the
   // scale in a menu.
@@ -613,51 +665,70 @@ export function DesignPanel({
         <span className="text-10 text-caption dark:text-neutral-400">Saving…</span>
       ) : null}
 
-      {/* Selection: what it is, where it lives, how many it really is. */}
-      <div className="flex flex-col gap-4">
-        <h2 className="text-16 font-bold text-default dark:text-neutral-50">
-          {target.component ?? `<${target.tag}>`}
-        </h2>
-        {/* The file the address names — not always the screen's: a row drawn
-            by a component in the project's lib/ lives there, and so does any
-            change made to it. */}
-        <span className="break-all text-10 text-placeholder dark:text-neutral-600">
-          {diskPath(pinnedFile ?? `projects/${slug}/screens/${screenId}.tsx`)}
-        </span>
-        {peerCount > 1 ? (
-          <span className="text-12 text-caption dark:text-neutral-400">
-            Applies to {peerCount} matching items
-          </span>
-        ) : null}
-        {crumbs.length > 1 ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {crumbs.map((el, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onPin(el)}
-                className={`rounded-4 px-4 py-2 text-10 hover:bg-neutral-50 dark:hover:bg-ink-800 ${
-                  el === pinned
-                    ? 'font-bold text-link dark:text-neutral-50'
-                    : 'text-caption dark:text-neutral-400'
-                }`}
-              >
-                {labelOf(el)}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
+      {heading}
 
-      {extra.length > 0 ? (
-        <SelectionSection els={[target.el, ...extra]} slug={slug} screenId={screenId} onChanged={bump} />
+      {/* How far a change reaches, said before anything is changed. */}
+      {listOf ? (
+        <ScopeNote action={{ label: 'Select the list', run: () => select(listOf) }}>
+          One of {listOf.children.length} rows from a list — style changes apply to every row.
+        </ScopeNote>
+      ) : layer.inside && layer.inside !== layer ? (
+        <ScopeNote action={{ label: `Select the ${layer.inside.name}`, run: () => select(layer.inside) }}>
+          Part of {layer.inside.name}’s own design — changes here change every {layer.inside.name}.
+        </ScopeNote>
+      ) : peerCount > 1 ? (
+        <span className="text-12 text-caption dark:text-neutral-400">Applies to {peerCount} matching items</span>
       ) : null}
 
-      <ArrangeSection el={target.el} slug={slug} screenId={screenId} structure={store.structure.length} />
+      {extraLayers.length > 0 ? (
+        <SelectionSection layers={[layer, ...extraLayers]} slug={slug} screenId={screenId} onChanged={bump} />
+      ) : null}
 
-      <LayoutSection el={target.el} slug={slug} screenId={screenId} onChanged={bump} />
+      <ArrangeSection layer={layer} slug={slug} screenId={screenId} structure={store.structure.length} />
 
-      {editableProps.length > 0 ? (
+      {layer.kind === 'instance' ? (
+        <InstanceSection layer={layer} slug={slug} screenId={screenId} onChanged={bump} />
+      ) : null}
+
+      {textEditable ? (
+        <Section title="Text">
+          <div className="flex flex-col gap-4">
+            <textarea
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  saveText()
+                }
+              }}
+              rows={2}
+              aria-label="Text"
+              className="w-full rounded-8 border border-default bg-neutral-white px-8 py-4 text-12 text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
+            />
+            <span className="text-10 text-placeholder dark:text-neutral-600">{whereWritten(plan, layer)}</span>
+            {draftText.trim() !== fullText ? (
+              <button type="button" onClick={saveText} disabled={draftText.trim().length === 0} className={CHIP}>
+                Set text
+              </button>
+            ) : null}
+          </div>
+        </Section>
+      ) : plan?.kind === 'none' && plan.reason && fullText ? (
+        <Section title="Text">
+          <span className="text-12 text-caption dark:text-neutral-400">{plan.reason}</span>
+        </Section>
+      ) : null}
+
+      {/* Everything below styles the box itself — for an instance, that is the
+          component's own design. */}
+      {scope === layer && styled ? (
+        <ScopeNote>Styles below are {layer.name}’s own — changing them changes every {layer.name}.</ScopeNote>
+      ) : null}
+
+      {styled ? <LayoutSection el={target.el} slug={slug} screenId={screenId} onChanged={bump} /> : null}
+
+      {editableProps.length > 0 && styled ? (
         <Section title="Component">
           <div className="grid grid-cols-2 gap-8">
             {editableProps.map((p) => {
@@ -676,7 +747,7 @@ export function DesignPanel({
                       can't fake, so say when it will actually show up. */}
                   {!p.classes && !p.artwork ? (
                     <span className="text-10 text-placeholder dark:text-neutral-600">
-                      Shows after Apply
+                      Shows once saved
                     </span>
                   ) : null}
                 </div>
@@ -686,11 +757,11 @@ export function DesignPanel({
         </Section>
       ) : null}
 
-      {target.component === 'Illustration' ? (
+      {target.component === 'Illustration' && styled ? (
         <IllustrationSection el={target.el} onSwap={swapIllustration} />
       ) : null}
 
-      {layoutRows.length > 0 ? (
+      {layoutRows.length > 0 && styled ? (
         <Section title="Spacing">
           <div className="grid grid-cols-2 gap-8">
             {layoutRows.map((r) => tokenRow(r, spacingNames))}
@@ -698,7 +769,7 @@ export function DesignPanel({
         </Section>
       ) : null}
 
-      {shapeRows.length > 0 ? (
+      {shapeRows.length > 0 && styled ? (
         <Section title="Shape">
           <div className="grid grid-cols-2 gap-8">
             {shapeRows.map((r) => tokenRow(r, radiusNames))}
@@ -706,59 +777,30 @@ export function DesignPanel({
         </Section>
       ) : null}
 
-      {hasTextSection ? (
-        <Section title="Text">
-          <div className="flex flex-col gap-8">
-            <div className="grid grid-cols-2 gap-8">
-              {sizeRow ? tokenRow(sizeRow, fontSizeNames) : null}
-              {weightRow ? (
-                <div className="flex min-w-0 flex-col gap-4">
-                  <RowLabel>Weight</RowLabel>
-                  <TokenField
-                    label="Weight"
-                    value={weightRow.suffix}
-                    options={fontWeightNames.map((w) => ({ value: w, label: sentenceCase(w) }))}
-                    chevron
-                    onPick={(w) => {
-                      if (w !== weightRow.suffix) swapClass(weightRow.cls, `font-${w}`)
-                    }}
-                  />
-                </div>
-              ) : null}
-              {textColorRow ? <ColorRow row={textColorRow} label="Color" onSwap={swapClass} /> : null}
-            </div>
-            {textEditable ? (
-              <div className="flex flex-col gap-4">
-                <RowLabel>Content</RowLabel>
-                <textarea
-                  value={draftText}
-                  onChange={(e) => setDraftText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      commitText()
-                    }
+      {hasTextStyle ? (
+        <Section title="Text style">
+          <div className="grid grid-cols-2 gap-8">
+            {sizeRow ? tokenRow(sizeRow, fontSizeNames) : null}
+            {weightRow ? (
+              <div className="flex min-w-0 flex-col gap-4">
+                <RowLabel>Weight</RowLabel>
+                <TokenField
+                  label="Weight"
+                  value={weightRow.suffix}
+                  options={fontWeightNames.map((w) => ({ value: w, label: sentenceCase(w) }))}
+                  chevron
+                  onPick={(w) => {
+                    if (w !== weightRow.suffix) swapClass(weightRow.cls, `font-${w}`)
                   }}
-                  rows={2}
-                  className="w-full rounded-8 border border-default bg-neutral-white px-8 py-4 text-12 text-default dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50"
                 />
-                {draftText !== fullText ? (
-                  <button
-                    type="button"
-                    onClick={commitText}
-                    disabled={/[<>{}]/.test(draftText) || draftText.trim().length === 0}
-                    className="self-start rounded-full border border-default bg-neutral-white px-12 py-4 text-12 font-bold text-default hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-placeholder dark:border-ink-700 dark:bg-ink-900 dark:text-neutral-50 dark:hover:bg-ink-800"
-                  >
-                    Set text
-                  </button>
-                ) : null}
               </div>
             ) : null}
+            {textColorRow ? <ColorRow row={textColorRow} label="Color" onSwap={swapClass} /> : null}
           </div>
         </Section>
       ) : null}
 
-      {fillRows.length > 0 ? (
+      {fillRows.length > 0 && styled ? (
         <Section title="Fill & border">
           <div className="grid grid-cols-2 gap-8">
             {fillRows.map((r) => (
@@ -773,12 +815,10 @@ export function DesignPanel({
         </Section>
       ) : null}
 
-      {rows.length === 0 && editableProps.length === 0 && !textEditable ? (
+      {rows.length === 0 && editableProps.length === 0 && !textEditable && layer.kind !== 'instance' ? (
         <p className="text-12 text-caption dark:text-neutral-400">
-          Nothing tweakable here — this element has no token classes of its own.
-          {target.component
-            ? ' Its styling belongs to the design system.'
-            : ' Try a parent, or hold ⌥ and pick again.'}
+          No styling of its own here.
+          {target.component ? ' Its look belongs to the design system.' : ' Try the layer around it.'}
         </p>
       ) : null}
 
@@ -788,12 +828,251 @@ export function DesignPanel({
 
       <button
         type="button"
-        onClick={() => onPin(null)}
+        onClick={() => select(null)}
         className="rounded-full px-16 py-8 text-12 text-caption hover:text-default dark:text-neutral-400 dark:hover:text-neutral-50"
       >
         Clear selection
       </button>
     </PanelShell>
+  )
+}
+
+/** Where typing over this text writes, said under the field. */
+function whereWritten(plan: TextPlan | null, layer: Layer): string {
+  if (!plan) return ''
+  switch (plan.kind) {
+    case 'text':
+      return plan.scope ? `Changes every ${plan.scope.name}.` : 'Written right here.'
+    case 'prop':
+      return `Changes this ${plan.component} only.`
+    case 'find':
+      return 'Written in the screen’s data — it is looked up when you set it.'
+    case 'wait':
+      return 'Reading where this text is written…'
+    default:
+      return layer.inside ? `Part of ${layer.inside.name}.` : ''
+  }
+}
+
+// --- the selection's header ------------------------------------------------------
+
+const KIND_LABEL: Record<Layer['kind'], string> = {
+  instance: 'Component',
+  component: 'FunDS',
+  element: 'Element',
+  list: 'List',
+  new: 'New — not saved yet',
+  copy: 'Copy — saving',
+}
+
+function SelectionHeader({
+  layer,
+  fallback,
+  file,
+  defined,
+  onSelect,
+}: {
+  layer: Layer | null
+  fallback: string
+  file: string
+  /** For an instance: where its component is written, when elsewhere. */
+  defined: string | null
+  onSelect: (l: Layer) => void
+}) {
+  const path = layer ? pathOf(layer) : []
+  const short = (f: string) => diskPath(f).split('/').slice(-2).join('/')
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-baseline gap-8">
+        <h2 className="min-w-0 truncate text-16 font-bold text-default dark:text-neutral-50">{layer?.name ?? fallback}</h2>
+        {layer ? (
+          <span className="flex-none text-10 font-bold uppercase text-caption dark:text-neutral-400">
+            {layer.kind === 'list' ? `${KIND_LABEL.list} · ${layer.children.length}` : KIND_LABEL[layer.kind]}
+          </span>
+        ) : null}
+      </div>
+      <span className="break-all text-10 text-placeholder dark:text-neutral-600" title={diskPath(file)}>
+        {short(file)}
+        {defined ? ` · its design is in ${short(defined)}` : ''}
+      </span>
+      {/* Every layer around the selection, so any of them is one click away. */}
+      {path.length > 1 ? (
+        <nav aria-label="Selection path" className="flex flex-wrap items-center gap-2">
+          {path.map((l, i) => (
+            <span key={l.id} className="flex items-center gap-2">
+              {i > 0 ? <span className="text-10 text-placeholder dark:text-neutral-600">›</span> : null}
+              <button
+                type="button"
+                onClick={() => onSelect(l)}
+                className={`max-w-120 truncate rounded-4 px-4 py-2 text-10 hover:bg-neutral-50 dark:hover:bg-ink-800 ${
+                  l === layer ? 'font-bold text-link dark:text-neutral-50' : 'text-caption dark:text-neutral-400'
+                }`}
+              >
+                {l.name}
+              </button>
+            </span>
+          ))}
+        </nav>
+      ) : null}
+    </div>
+  )
+}
+
+/** A quiet line saying how far a change reaches, with a way to the bigger
+ *  thing when there is one. */
+function ScopeNote({ children, action }: { children: React.ReactNode; action?: { label: string; run: () => void } }) {
+  return (
+    <div className="flex flex-col gap-4 rounded-8 bg-neutral-50 px-8 py-8 dark:bg-ink-800">
+      <span className="text-12 text-default dark:text-neutral-50">{children}</span>
+      {action ? (
+        <button type="button" onClick={action.run} className={CHIP}>
+          {action.label}
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+// --- one use of a component --------------------------------------------------------
+
+const QUIET_PROPS = new Set(['key', 'className', 'children', 'style', 'id'])
+
+/**
+ * The props this use of a component is written with — Figma's instance
+ * overrides. A plain value can be changed here and changes this use only;
+ * one worked out by code is listed, so it isn't a mystery why it can't.
+ */
+function InstanceSection({
+  layer,
+  slug,
+  screenId,
+  onChanged,
+}: {
+  layer: Layer
+  slug: string
+  screenId: string
+  onChanged: () => void
+}) {
+  const node = layer.node
+  if (!node) return null
+  const facts = factsAt(slug, node.src, node.version)
+  if (!facts) {
+    return (
+      <Section title="Properties">
+        <span className="text-12 text-caption dark:text-neutral-400">Reading how this {layer.name} is written…</span>
+      </Section>
+    )
+  }
+  const staged = stagedProps(node.src)
+  const plain = Object.entries(facts.props).filter(([k]) => !QUIET_PROPS.has(k) && !k.startsWith('data-'))
+  const coded = facts.exprProps.filter((k) => !QUIET_PROPS.has(k) && !/^on[A-Z]/.test(k) && k !== '...')
+  if (plain.length === 0 && coded.length === 0) return null
+
+  const ctx = { slug, screenId, version: node.version ?? undefined }
+  /** A text box inside the instance showing exactly `words` — what a string
+   *  prop's preview rewrites. */
+  const shownIn = (words: string): string | null => {
+    const inside: Layer[] = []
+    const visit = (l: Layer) => {
+      for (const k of l.children) {
+        inside.push(k)
+        visit(k)
+      }
+    }
+    visit(layer)
+    const hit = inside.find((l) => isTextBox(l.hosts[0]) && l.text === words && l.node)
+    return hit?.node?.src ?? (isTextBox(layer.hosts[0]) && layer.text === words ? (srcOf(layer.hosts[0]) ?? null) : null)
+  }
+
+  return (
+    <Section title="Properties">
+      <div className="flex flex-col gap-8">
+        {plain.map(([prop, value]) => {
+          const pending = staged.get(prop)
+          const now = pending === undefined ? value : (pending ?? '')
+          if (typeof value === 'boolean') {
+            const on = String(now) === 'true'
+            return (
+              <label key={prop} className="flex cursor-pointer items-center justify-between gap-8 text-12 text-default dark:text-neutral-50">
+                {sentenceCase(prop)}
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={(e) => {
+                    stagePropEdit(ctx, node.src, layer.name, prop, String(value), String(e.target.checked), undefined, 'boolean')
+                    onChanged()
+                  }}
+                  className="size-16 accent-blue-500"
+                />
+              </label>
+            )
+          }
+          return (
+            <PropText
+              key={prop}
+              label={sentenceCase(prop)}
+              value={String(now)}
+              numeric={typeof value === 'number'}
+              onCommit={(next) => {
+                if (typeof value === 'number') {
+                  stagePropEdit(ctx, node.src, layer.name, prop, String(value), next, undefined, 'number')
+                } else {
+                  const shows = shownIn(String(now))
+                  stagePropEdit(ctx, node.src, layer.name, prop, String(value), next, shows ?? undefined)
+                  if (shows) applyShownText(shows, String(now), next)
+                }
+                onChanged()
+              }}
+            />
+          )
+        })}
+        {coded.length > 0 ? (
+          <span className="text-10 text-placeholder dark:text-neutral-600">
+            Set by code: {coded.join(', ')}
+          </span>
+        ) : null}
+        <span className="text-10 text-placeholder dark:text-neutral-600">Changes this {layer.name} only.</span>
+      </div>
+    </Section>
+  )
+}
+
+function PropText({
+  label,
+  value,
+  numeric,
+  onCommit,
+}: {
+  label: string
+  value: string
+  numeric: boolean
+  onCommit: (next: string) => void
+}) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const shown = draft ?? value
+  const ok = numeric ? /^-?\d+(\.\d+)?$/.test(shown) : shown.length > 0 && shown.length <= 200 && !/["{}<>\\\n]/.test(shown)
+  const commit = () => {
+    if (draft === null) return
+    setDraft(null)
+    if (ok && draft !== value) onCommit(draft)
+  }
+  return (
+    <label className="flex flex-col gap-4">
+      <RowLabel>{label}</RowLabel>
+      <input
+        value={shown}
+        inputMode={numeric ? 'numeric' : undefined}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit()
+          if (e.key === 'Escape') setDraft(null)
+        }}
+        className={`rounded-8 border bg-neutral-white px-8 py-4 text-12 text-default dark:bg-ink-900 dark:text-neutral-50 ${
+          ok ? 'border-default dark:border-ink-700' : 'border-red-500'
+        }`}
+      />
+    </label>
   )
 }
 
@@ -809,21 +1088,21 @@ const ARRANGE_BTN =
  * on the overlay, which React doesn't see.
  */
 function ArrangeSection({
-  el,
+  layer,
   slug,
   screenId,
 }: {
-  el: Element
+  layer: Layer
   slug: string
   screenId: string
   structure: number
 }) {
-  const blocked = structuralBlock(el, slug)
-  const up = blocked ? null : stepPlace(el, -1)
-  const down = blocked ? null : stepPlace(el, 1)
-  const unwrapFrom = unwrapTarget(el, slug)
+  const blocked = layer.kind === 'new' ? null : blockOf(layer, slug)
+  const up = blocked ? null : stepOf(layer, -1)
+  const down = blocked ? null : stepOf(layer, 1)
+  const unwrapFrom = unwrapTarget(layer, slug)
   // Steps follow the stack's own axis, as the arrow keys do.
-  const row = isRow(el.parentElement)
+  const row = isRow(layer.hosts[0]?.parentElement ?? null)
 
   return (
     <Section title="Arrange">
@@ -832,31 +1111,31 @@ function ArrangeSection({
           {[
             {
               label: row ? 'Move left' : 'Move up',
-              hint: up ? `${row ? 'Before' : 'Above'} ${describe(up.past)} (${row ? '←' : '↑'})` : 'Already first',
+              hint: up ? `${row ? 'Before' : 'Above'} ${describeLayer(up.past)} (${row ? '←' : '↑'})` : 'Already first',
               Glyph: row ? ArrowLeft : ArrowUp,
               disabled: !up,
-              run: () => moveStep(el, -1, slug, screenId),
+              run: () => stepLayer(layer, -1, slug, screenId),
             },
             {
               label: row ? 'Move right' : 'Move down',
-              hint: down ? `${row ? 'After' : 'Below'} ${describe(down.past)} (${row ? '→' : '↓'})` : 'Already last',
+              hint: down ? `${row ? 'After' : 'Below'} ${describeLayer(down.past)} (${row ? '→' : '↓'})` : 'Already last',
               Glyph: row ? ArrowRight : ArrowDown,
               disabled: !down,
-              run: () => moveStep(el, 1, slug, screenId),
+              run: () => stepLayer(layer, 1, slug, screenId),
             },
             {
               label: 'Duplicate',
               hint: 'Duplicate (⌘D)',
               Glyph: Copy,
-              disabled: Boolean(blocked),
-              run: () => duplicateElement(el, slug, screenId),
+              disabled: Boolean(blocked) || layer.kind === 'new',
+              run: () => duplicateLayer(layer, slug, screenId),
             },
             {
               label: 'Delete',
               hint: 'Delete (⌫)',
               Glyph: Trash,
               disabled: Boolean(blocked),
-              run: () => removeElement(el, slug, screenId),
+              run: () => deleteLayer(layer, slug, screenId),
             },
           ].map(({ label, hint, Glyph, disabled, run }) => (
             <button
@@ -876,9 +1155,9 @@ function ArrangeSection({
           <button
             type="button"
             className={ARRANGE_BTN}
-            disabled={Boolean(blocked)}
+            disabled={Boolean(blocked) || layer.kind === 'list'}
             title="Wrap in a stack (⌥⌘G)"
-            onClick={() => wrapElements([el], slug, screenId)}
+            onClick={() => wrapLayers([layer], slug, screenId)}
           >
             Wrap
           </button>
@@ -887,15 +1166,15 @@ function ArrangeSection({
             className={ARRANGE_BTN}
             disabled={!unwrapFrom}
             title={
-              unwrapFrom === el
+              unwrapFrom === layer
                 ? 'Replace this stack with what it holds (⇧⌘G)'
                 : unwrapFrom
-                  ? `Replace the ${describe(unwrapFrom)} this sits in with what it holds (⇧⌘G)`
+                  ? `Replace the ${describeLayer(unwrapFrom)} this sits in with what it holds (⇧⌘G)`
                   : 'Not a plain stack, and not inside one'
             }
-            onClick={() => unwrapAt(el, slug, screenId)}
+            onClick={() => unwrapAt(layer, slug, screenId)}
           >
-            {unwrapFrom && unwrapFrom !== el ? 'Unwrap parent' : 'Unwrap'}
+            {unwrapFrom && unwrapFrom !== layer ? 'Unwrap parent' : 'Unwrap'}
           </button>
         </div>
         {blocked ? <span className="text-10 text-caption dark:text-neutral-400">{blocked}</span> : null}

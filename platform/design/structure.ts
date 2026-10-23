@@ -146,7 +146,7 @@ export const unsettled = (code: string) => code.includes(OPEN) || code.includes(
  * that never had A. Only when there is no leading break (A was first on its
  * line) is the trailing one taken instead.
  */
-export function detach(parent: JSXParent, el: JSXElement): void {
+export function detach(parent: JSXParent, el: JSXChild): void {
   const kids = parent.children ?? []
   const i = kids.indexOf(el)
   if (i === -1) return

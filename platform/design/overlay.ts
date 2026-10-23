@@ -19,11 +19,14 @@
 // written file the same. A redraw runs whenever the list changes and whenever
 // React re-renders the screen underneath (which would drop the hidden marks).
 //
-// Moved clones keep their `data-src`: they ARE that element, just somewhere
-// else, so selecting one and nudging its padding edits the right node.
-// Duplicates lose theirs: a copy has no address until the file is written.
+// An address is found through React's tree (analysis.ts), not only the page:
+// a component the project wrote (`<StatCell />`) leaves no stamp of its own
+// on the page, but its boxes are known all the same, so moving one draws.
+// Every clone remembers the element it shows (`sourceOf`), so the layers and
+// the selection still know what a moved box is.
 // =============================================================================
 
+import { analyze, screenRoot, type Analysis } from './analysis'
 import { ensurePreview, previewOf } from './preview'
 import { isNewRef, NEW_PREFIX, type Place, type Src, type Staged } from './protocol'
 
@@ -38,21 +41,63 @@ function root(): Element | null {
   return document.querySelector('[data-inspect]')
 }
 
+/** Clone → the element it shows. Kept across redraws: a clone left over from
+ *  an earlier one is gone from the page, and a WeakMap lets it go. */
+const sources = new WeakMap<Element, Element>()
+
+/** The element a box on screen shows: itself, or the original a clone was
+ *  made from. */
+export function sourceOf(el: Element): Element {
+  return sources.get(el) ?? el
+}
+
+/** What the last redraw read from React, for resolving addresses. */
+let lastAnalysis: Analysis | null = null
+/** Original → the clone that shows it now, for the redraw in progress. */
+let shownAs = new Map<Element, Element>()
+
+/** The element now showing `original`: its moved clone, or itself. A clone
+ *  that never made it onto the page (its anchor was gone) shows nothing. */
+function currentOf(original: Element): Element {
+  let at = original
+  for (let guard = 0; guard < 32; guard++) {
+    const next = shownAs.get(at)
+    if (!next || !next.isConnected) return at
+    at = next
+  }
+  return at
+}
+
 /**
- * The element currently SHOWING an address — its moved clone if there is one,
- * otherwise the original, and never a hidden one. `.map()` rows share an
- * address; structural edits refuse those, so the first match is the one.
+ * The elements currently SHOWING an address, in page order — its moved
+ * clones where it moved, the originals otherwise, never a hidden one.
+ *
+ * `all` takes every occurrence (a list's rows); otherwise only the first's,
+ * since structural edits are refused on anything that repeats.
  */
-export function visibleBySrc(src: Src): Element | null {
+export function shownBySrc(src: Src, all = false): Element[] {
   const r = root()
-  if (!r) return null
+  if (!r) return []
   if (isNewRef(src)) {
-    return r.querySelector(`[${NEW_ATTR}="${CSS.escape(src.slice(NEW_PREFIX.length))}"]`)
+    const el = r.querySelector(`[${NEW_ATTR}="${CSS.escape(src.slice(NEW_PREFIX.length))}"]`)
+    return el ? [el] : []
   }
-  for (const el of Array.from(r.querySelectorAll(q(src)))) {
-    if (!isHidden(el)) return el
+  const nodes = lastAnalysis?.bySrc.get(src)
+  const hosts = nodes?.length
+    ? (all ? nodes : nodes.slice(0, 1)).flatMap((n) => n.hosts)
+    : Array.from(r.querySelectorAll(q(src)))
+  const out: Element[] = []
+  for (const h of hosts) {
+    const el = currentOf(h)
+    if (el.isConnected && !isHidden(el) && !out.includes(el)) out.push(el)
   }
-  return null
+  if (out.length > 0 || nodes?.length) return out
+  return []
+}
+
+/** The first element currently showing an address. */
+export function visibleBySrc(src: Src): Element | null {
+  return shownBySrc(src)[0] ?? null
 }
 
 /** Whether `el`, or something it sits in, is hidden by the overlay. */
@@ -90,6 +135,7 @@ function reveal(el: Element) {
 function clear(r: Element) {
   for (const g of Array.from(r.querySelectorAll(`[${GHOST_ATTR}]`))) g.remove()
   for (const h of Array.from(r.querySelectorAll(`[${HIDDEN_ATTR}]`))) reveal(h)
+  shownAs = new Map()
 }
 
 function cloneOf(el: Element, kind: 'move' | 'copy'): Element {
@@ -98,6 +144,18 @@ function cloneOf(el: Element, kind: 'move' | 'copy'): Element {
   // copy is of the element as it will be written.
   if (c.hasAttribute(HIDDEN_ATTR)) reveal(c)
   c.setAttribute(GHOST_ATTR, kind)
+  if (kind === 'move') {
+    // A moved clone IS its element, somewhere else: remember which, all the
+    // way down, so what is inside it is found through it too.
+    const from = [el, ...Array.from(el.querySelectorAll('*'))]
+    const to = [c, ...Array.from(c.querySelectorAll('*'))]
+    from.forEach((f, i) => {
+      const original = sourceOf(f)
+      if (!to[i]) return
+      sources.set(to[i], original)
+      shownAs.set(f, to[i])
+    })
+  }
   if (kind === 'copy') {
     // Marked so it reads as not yet real.
     if (c instanceof HTMLElement) {
@@ -108,12 +166,13 @@ function cloneOf(el: Element, kind: 'move' | 'copy'): Element {
       n.removeAttribute('data-src')
       n.removeAttribute('data-src-v')
     }
+    sources.set(c, sourceOf(el))
   }
   return c
 }
 
-/** Take the element that shows `src` off the screen: hide an original, drop a
- *  clone (its original is already hidden). */
+/** Take what shows an address off the screen: hide an original, drop a clone
+ *  (its original is already hidden). */
 function lift(el: Element) {
   if (el.hasAttribute(GHOST_ATTR)) el.remove()
   else hide(el)
@@ -125,45 +184,59 @@ function lift(el: Element) {
  * Usually the element itself. A component can render its children one level
  * down (a card body inside a card frame), and can render OTHER props as
  * elements too — `Screen` draws its `topBar` before its children, in a
- * different box. So the body is the parent of the LAST addressed element the
- * container holds directly: children come after props in every component
- * here. With nothing addressed inside, a component's last box is the best
- * guess at its body.
+ * different box. So the body is the parent of the LAST child the container
+ * holds — what the source writes inside it, read from React's tree, or failing
+ * that the last addressed element directly in it: children come after props
+ * in every component here. With nothing inside, a component's last box is the
+ * best guess at its body.
  */
-function bodyOf(container: Element): Element {
+function bodyOf(container: Element, src: Src | null): { body: Element; after: Element | null } {
+  const node = src ? lastAnalysis?.bySrc.get(src)?.[0] : undefined
+  if (node && lastAnalysis) {
+    const kids = lastAnalysis.nodes.filter((n) => n.parent === node && n.slot !== 'prop')
+    const shown = kids.flatMap((k) => k.hosts.map(currentOf)).filter((e) => e.isConnected && !isHidden(e))
+    const last = shown.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))[shown.length - 1]
+    if (last?.parentElement) return { body: last.parentElement, after: last }
+  }
   const own = Array.from(container.querySelectorAll('[data-src], [data-design-new]')).filter(
     (d) => d.parentElement?.closest('[data-src], [data-design-new]') === container && !isHidden(d),
   )
   const last = own[own.length - 1]
-  if (last?.parentElement) return last.parentElement
-  if (container.hasAttribute('data-fds') && container.lastElementChild) return container.lastElementChild
-  return container
+  if (last?.parentElement) return { body: last.parentElement, after: null }
+  if (container.hasAttribute('data-fds') && container.lastElementChild) return { body: container.lastElementChild, after: null }
+  return { body: container, after: null }
 }
 
-function place(node: Element, to: Place): boolean {
+function place(nodes: Element[], to: Place): boolean {
+  if (nodes.length === 0) return false
   if ('inside' in to) {
     const container = visibleBySrc(to.inside)
     if (!container) return false
-    const body = bodyOf(container)
+    const { body, after } = bodyOf(container, isNewRef(to.inside) ? null : to.inside)
+    if (after) {
+      after.after(...nodes)
+      return true
+    }
     // After the last addressed child, so text or chrome a component draws
     // after its children stays after them.
     const kids = Array.from(body.children).filter(
       (k) => (k.hasAttribute('data-src') || k.hasAttribute(NEW_ATTR)) && !isHidden(k),
     )
     const last = kids[kids.length - 1]
-    if (last) last.after(node)
-    else body.appendChild(node)
+    if (last) last.after(...nodes)
+    else body.append(...nodes)
     return true
   }
-  const anchor = visibleBySrc('before' in to ? to.before : to.after)
-  if (!anchor) return false
-  if ('before' in to) anchor.before(node)
-  else anchor.after(node)
+  // Beside a list is beside all of it.
+  const anchors = shownBySrc('before' in to ? to.before : to.after, true)
+  if (anchors.length === 0) return false
+  if ('before' in to) anchors[0].before(...nodes)
+  else anchors[anchors.length - 1].after(...nodes)
   return true
 }
 
 /** Whether every real address `op` names is on screen at `version`. */
-function current(r: Element, op: Staged['edit'], version: string): boolean {
+function current(op: Staged['edit'], version: string): boolean {
   const srcs =
     op.kind === 'move'
       ? [op.src, 'before' in op.to ? op.to.before : 'after' in op.to ? op.to.after : op.to.inside]
@@ -172,10 +245,12 @@ function current(r: Element, op: Staged['edit'], version: string): boolean {
         : op.kind === 'wrap'
           ? op.srcs
           : [op.src]
+  const r = root()
   return srcs.every((src) => {
     if (isNewRef(src)) return true
-    const el = r.querySelector(q(src))
-    return !el || el.getAttribute('data-src-v') === version
+    const node = lastAnalysis?.bySrc.get(src)?.[0]
+    const v = node ? node.version : r?.querySelector(q(src))?.getAttribute('data-src-v')
+    return !v || v === version
   })
 }
 
@@ -189,6 +264,9 @@ function fresh(html: string | undefined, id: string): Element {
   return el
 }
 
+const inPageOrder = (els: Element[]) =>
+  [...els].sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+
 /**
  * Replay the staged structure onto the live screen.
  *
@@ -199,55 +277,60 @@ export function renderOverlay(staged: readonly Staged[], onPreview: () => void =
   const r = root()
   if (!r) return
   clear(r)
+  lastAnalysis = analyze(screenRoot())
 
   for (const { edit: op, version } of staged) {
     // Positions are only meaningful in the file version they were read from.
     // An op from an older version — the file has been written since — is left
     // undrawn rather than applied to whatever now sits at its line.
-    if (version && !current(r, op, version)) continue
+    if (version && !current(op, version)) continue
 
     if (op.kind === 'insert') {
       const html = previewOf(op)
       if (html === undefined) ensurePreview(op, onPreview)
-      place(fresh(html, op.id), op.to)
+      place([fresh(html, op.id)], op.to)
       continue
     }
 
     if (op.kind === 'wrap') {
-      const els = op.srcs.map(visibleBySrc)
-      if (els.some((e) => !e)) continue
+      const groups = op.srcs.map((s) => shownBySrc(s))
+      if (groups.some((g) => g.length === 0)) continue
+      const els = inPageOrder(groups.flat())
       const wrapper = fresh(undefined, op.id)
       wrapper.setAttribute('class', op.className)
-      els[0]!.before(wrapper)
+      els[0].before(wrapper)
       for (const e of els) {
-        const moved = cloneOf(e!, 'move')
-        lift(e!)
+        const moved = cloneOf(e, 'move')
+        lift(e)
         wrapper.appendChild(moved)
       }
       continue
     }
 
-    const el = visibleBySrc(op.src)
+    // A list's edit takes all its rows; anything else, the first showing.
+    const list = 'scope' in op && op.scope === 'list'
+    const els = shownBySrc(op.src, list)
     // Not on this screen — a change staged on another screen, or one whose
     // element has not rendered. Nothing to draw; the list still has it.
-    if (!el) continue
+    if (els.length === 0) continue
 
     if (op.kind === 'delete') {
-      lift(el)
+      for (const el of els) lift(el)
     } else if (op.kind === 'duplicate') {
-      el.after(cloneOf(el, 'copy'))
+      els[els.length - 1].after(...els.map((el) => cloneOf(el, 'copy')))
     } else if (op.kind === 'unwrap') {
-      const kids = Array.from(bodyOf(el).children).filter((k) => !isHidden(k))
+      const el = els[0]
+      const kids = Array.from(bodyOf(el, op.src).body.children).filter((k) => !isHidden(k))
       for (const k of kids) el.before(k.hasAttribute(GHOST_ATTR) ? k : cloneOf(k, 'move'))
       for (const k of kids) if (!k.hasAttribute(GHOST_ATTR)) lift(k)
       lift(el)
     } else {
-      const moved = cloneOf(el, 'move')
-      lift(el)
+      const moved = els.map((el) => cloneOf(el, 'move'))
+      for (const el of els) lift(el)
       if (!place(moved, op.to)) {
         // The anchor is gone (deleted earlier in the list, or not rendered):
         // show the element where it was rather than nowhere.
-        if (el.isConnected) reveal(el)
+        for (const el of els) if (el.isConnected) reveal(el)
       }
     }
   }

@@ -131,6 +131,35 @@ export function applyTextSwap(src: Src, next: string) {
 }
 
 /**
+ * Swap the words on the elements drawn from `shows` that read exactly `from`.
+ *
+ * For text that is written somewhere else than the element showing it — a
+ * component's prop (`<StatCell label="…" />` shown by StatCell's `<p>`), or a
+ * string in a data file shown by a list's row. Every StatCell's `<p>` shares
+ * one address, so the words are what tells the one being changed apart.
+ */
+export function applyShownText(shows: Src, from: string, to: string) {
+  for (const peer of peersOf(shows)) {
+    if (peer.children.length === 0 && (peer.textContent ?? '').trim() === from) peer.textContent = to
+  }
+}
+
+/** A staged edit as the optimistic layer needs it. */
+export interface Patch {
+  edit: Edit
+  component?: string
+  /** Text-like edits written away from the element showing them. */
+  shows?: Src
+}
+
+/** The words a text-like edit changes, as `[from, to]`, or null. */
+function wordsOf(edit: Edit): [string, string] | null {
+  if (edit.kind === 'literal' || edit.kind === 'text') return [edit.old, edit.next]
+  if (edit.kind === 'prop' && edit.old !== null && edit.next !== null) return [edit.old, edit.next]
+  return null
+}
+
+/**
  * Reverse a staged edit's optimistic patch — used when a pending change is
  * removed before Apply. A miss is harmless: the file was never touched, so any
  * repaint from source is correct.
@@ -138,9 +167,15 @@ export function applyTextSwap(src: Src, next: string) {
  * Far simpler than the v1 version, which had to re-derive which elements it had
  * patched by searching for the value it had written. The address is enough.
  */
-export function revertStagedPatch(edit: Edit, component?: string) {
+export function revertStagedPatch({ edit, component, shows }: Patch) {
   // Structure has no patch to reverse: the overlay redraws from the list.
   if (isStructural(edit)) return
+  const text = shows ? wordsOf(edit) : null
+  if (shows && text) {
+    applyShownText(shows, text[1], text[0])
+    return
+  }
+  if (edit.kind === 'literal') return
   if (edit.kind === 'class') {
     applyClassSwap(edit.src, edit.newClass, edit.oldClass)
     return
@@ -171,8 +206,10 @@ export function revertStagedPatch(edit: Edit, component?: string) {
  * on a screen reopened with a restored list. Each patch is idempotent: a swap
  * whose old class is already gone just makes sure the new one is there.
  */
-export function repaint(edit: Edit, component?: string) {
-  if (edit.kind === 'class') applyClassSwap(edit.src, edit.oldClass, edit.newClass)
+export function repaint({ edit, component, shows }: Patch) {
+  const text = shows ? wordsOf(edit) : null
+  if (shows && text) applyShownText(shows, text[0], text[1])
+  else if (edit.kind === 'class') applyClassSwap(edit.src, edit.oldClass, edit.newClass)
   else if (edit.kind === 'text') applyTextSwap(edit.src, edit.next)
   else if (edit.kind === 'stack') applyLayoutPatch(edit.src, edit.next)
   else if (edit.kind === 'prop' && component && edit.old !== null && edit.next !== null) {

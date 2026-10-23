@@ -137,6 +137,9 @@ interface PendingEntry {
   label: string
   /** The `data-src-v` the address was read under. See DesignRequest. */
   version?: string
+  /** Text written away from the element that shows it — a component's prop,
+   *  a string in a data file: the element showing it, for the preview. */
+  shows?: Src
   /** Monotonic touch order — "undo" on pending removes the last-touched knob,
    *  and structural edits apply in this order. */
   seq: number
@@ -163,7 +166,7 @@ type Sink = (
  * (platform/dbProjects), and its twin route writes there instead of to files or
  * GitHub — to the panel it is the `fs` backend all the same.
  */
-function designRoute(slug: string): string {
+export function designRoute(slug: string): string {
   return isActiveDbProject(slug) ? `/api/db-projects/${encodeURIComponent(slug)}/design` : '/api/design'
 }
 
@@ -394,6 +397,7 @@ function persist() {
       component: p.component,
       label: p.label,
       version: p.version,
+      shows: p.shows,
       seq: p.seq,
       applied: p.applied,
     }))
@@ -557,7 +561,7 @@ export function stageClassEdit(ctx: StageContext, src: Src, oldClass: string, ne
 /** Stage a text replacement on the node at `src`. `old` is the text as
  *  currently RENDERED — if a pending edit already produced it, the merge keeps
  *  that edit's original, so the file's value is what finally gets verified. */
-export function stageTextEdit(ctx: StageContext, src: Src, old: string, next: string) {
+export function stageTextEdit(ctx: StageContext, src: Src, old: string, next: string, shows?: Src) {
   if (state.pushed) return
   const key = `text|${src}`
   const existing = pending.get(key)
@@ -570,6 +574,34 @@ export function stageTextEdit(ctx: StageContext, src: Src, old: string, next: st
       ...ctx,
       edit: { kind: 'text', src, old: originalOld, next },
       label: `"${originalOld}" → "${next}"`,
+      // Written on a component's use, shown inside it: the preview needs the
+      // element that shows it.
+      shows: shows ?? existing?.shows,
+      seq: ++seq,
+      patched: true,
+    })
+  }
+  emit({})
+}
+
+/**
+ * Stage new words for a string written in code — a list row's label in a data
+ * file, a constant (LiteralEdit). `src` is the string's own position, found by
+ * the facts route; `shows` is the element showing it, for the preview.
+ */
+export function stageLiteralEdit(ctx: StageContext, src: Src, old: string, next: string, shows: Src) {
+  if (state.pushed) return
+  const key = `literal|${src}`
+  const existing = pending.get(key)
+  const originalOld = existing && existing.edit.kind === 'literal' ? existing.edit.old : old
+  if (next === originalOld) {
+    pending.delete(key)
+  } else {
+    pending.set(key, {
+      ...ctx,
+      edit: { kind: 'literal', src, old: originalOld, next },
+      label: `"${originalOld}" → "${next}"`,
+      shows,
       seq: ++seq,
       patched: true,
     })
@@ -586,6 +618,10 @@ export function stagePropEdit(
   prop: string,
   old: string | null,
   next: string | null,
+  /** A prop whose value is words on screen: the element showing them. */
+  shows?: Src,
+  /** How the value is written (PropEdit.type); a string when absent. */
+  type?: 'string' | 'number' | 'boolean',
 ) {
   if (state.pushed) return
   const key = `prop|${src}|${prop}`
@@ -597,9 +633,14 @@ export function stagePropEdit(
   } else {
     pending.set(key, {
       ...ctx,
-      edit: { kind: 'prop', src, prop, old: originalOld, next },
+      edit: { kind: 'prop', src, prop, old: originalOld, next, ...(type && type !== 'string' ? { type } : {}) },
       component,
-      label: `${component} ${prop} ${originalOld ?? 'none'} → ${next ?? 'none'}`,
+      label: shows
+        ? originalOld === null
+          ? `${component} text → "${next ?? ''}"`
+          : `${component} "${originalOld}" → "${next ?? ''}"`
+        : `${component} ${prop} ${originalOld ?? 'none'} → ${next ?? 'none'}`,
+      shows: shows ?? existing?.shows,
       seq: ++seq,
       patched: true,
     })
@@ -687,7 +728,7 @@ export function removeNew(id: string): Unstaged[] {
       if (makes || uses) {
         if (p.applied) touched.add(fileOfEdit(p.edit))
         pending.delete(key)
-        removed.push({ edit: e, component: p.component })
+        removed.push({ edit: e, component: p.component, shows: p.shows })
         if (e.kind === 'insert' || e.kind === 'wrap') gone.add(e.id)
         changed = true
       }
@@ -732,6 +773,7 @@ export interface Unstaged {
   edit: Edit
   /** Present for prop edits — `applyDom` needs it to repaint. */
   component?: string
+  shows?: Src
 }
 
 export function unstage(key: string): Unstaged | null {
@@ -741,7 +783,7 @@ export function unstage(key: string): Unstaged | null {
   emit({})
   // Taken back after it was written: the branch has to be rebuilt without it.
   if (entry.applied) void rewrite(fileOfEdit(entry.edit), entry)
-  return { edit: entry.edit, component: entry.component }
+  return { edit: entry.edit, component: entry.component, shows: entry.shows }
 }
 
 /** Remove the most recently touched staged edit — "undo" before anything has
@@ -755,7 +797,7 @@ export function unstageLast(): Unstaged | null {
 /** Drop everything staged. Used when a staged list can no longer be applied
  *  (the screen changed under it) and the designer chooses to start over. */
 export function discardPending(): Unstaged[] {
-  const out: Unstaged[] = ordered().map(([, p]) => ({ edit: p.edit, component: p.component }))
+  const out: Unstaged[] = ordered().map(([, p]) => ({ edit: p.edit, component: p.component, shows: p.shows }))
   pending.clear()
   emit({ error: null })
   return out
@@ -1059,7 +1101,7 @@ export function revertAll(): Unstaged[] {
   const written = new Map<string, PendingEntry>()
   for (const [, p] of rows) if (p.applied) written.set(fileOfEdit(p.edit), p)
   pending.clear()
-  const out = rows.map(([, p]) => ({ edit: p.edit, component: p.component }))
+  const out = rows.map(([, p]) => ({ edit: p.edit, component: p.component, shows: p.shows }))
   emit({ error: null })
   if (state.backend === 'github') {
     void rewriteAll(written)
@@ -1137,10 +1179,18 @@ async function checkPush() {
 }
 
 /** Every staged value edit, for re-painting a screen that re-rendered. */
-export function valueEdits(): { edit: Edit; component?: string }[] {
-  return ordered().flatMap(([, p]) => (isStructural(p.edit) ? [] : [{ edit: p.edit, component: p.component }]))
+export function valueEdits(): Unstaged[] {
+  return ordered().flatMap(([, p]) =>
+    isStructural(p.edit) ? [] : [{ edit: p.edit, component: p.component, shows: p.shows }],
+  )
 }
 
 export function clearDesignError() {
   emit({ error: null })
+}
+
+/** Say why something couldn't be done from the canvas — typing over text that
+ *  code writes, say — where the panel shows refusals. */
+export function noteDesignError(label: string, reason: string) {
+  emit({ error: { label, reason, title: 'That can’t be changed here' } })
 }

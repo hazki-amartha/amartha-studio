@@ -9,7 +9,8 @@
 import path from 'path'
 import { NextResponse } from 'next/server'
 import { configs } from '@/projects/configs'
-import { addressesOf, isNewRef, type DesignRequest, type DesignResponse } from '../protocol'
+import { factsOf, findText } from '../facts'
+import { addressesOf, isNewRef, type DesignRequest, type DesignResponse, type FactsResponse } from '../protocol'
 
 export const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
@@ -30,7 +31,9 @@ export function projectFile(src: string, slug: string): string | null {
 }
 
 export function checkFile(rel: string, slug: string): string | null {
-  if (!rel || !rel.endsWith('.tsx')) return null
+  // `.ts` for the data files a LiteralEdit rewrites; every JSX address is
+  // stamped from a `.tsx`.
+  if (!rel || !/\.tsx?$/.test(rel)) return null
   const root = path.resolve('/repo')
   const abs = path.resolve(root, rel)
   const projectDir = path.join(root, 'projects', slug)
@@ -64,6 +67,39 @@ export function batchFile(body: DesignRequest): { file: string } | { reason: str
   if (files.size > 1) return { reason: 'Elements can only be moved within the file they are written in.' }
   if (files.size === 0) return { reason: 'There is nowhere on the screen for that to go.' }
   return { file: [...files][0] }
+}
+
+/**
+ * Answer a facts request — `?facts=<file>` (what a file's JSX can take) or
+ * `?find=<text>` (where a piece of text is written) — from wherever this
+ * backend keeps the project's files. Null when the request asks for neither.
+ */
+export async function factsResponse(
+  url: URL,
+  slug: string,
+  files: {
+    read: (rel: string) => Promise<string | null>
+    all?: () => Promise<Map<string, string>>
+  },
+): Promise<NextResponse | null> {
+  const fact = url.searchParams.get('facts')
+  const text = url.searchParams.get('find')
+  if (fact === null && text === null) return null
+  const nope = (reason: string) => NextResponse.json({ ok: false, reason } satisfies FactsResponse)
+  if (fact !== null) {
+    const file = checkFile(fact, slug)
+    if (!file) return nope('That file isn’t part of this project.')
+    const source = await files.read(file).catch(() => null)
+    if (source === null) return nope('That file could not be read.')
+    const facts = factsOf(source, file)
+    if (!facts) return nope('That file could not be parsed.')
+    return NextResponse.json(facts satisfies FactsResponse, { headers: { 'cache-control': 'no-store' } })
+  }
+  if (!files.all) return nope('Text can’t be looked up here.')
+  if (!text || text.length > 400) return nope('That text can’t be looked up.')
+  const all = await files.all().catch(() => new Map<string, string>())
+  const matches = findText(all, text)
+  return NextResponse.json({ ok: true, matches } satisfies FactsResponse, { headers: { 'cache-control': 'no-store' } })
 }
 
 /** The icon names in the icon module's source. */

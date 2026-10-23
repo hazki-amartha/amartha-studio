@@ -11,14 +11,15 @@
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react'
 import {
   canHoldDom,
-  describe,
+  describeLayer,
   insertItem,
   insertPlace,
   removeNewElement,
   setLayout,
-  wrapElements,
+  wrapLayers,
   wrappable,
 } from './actions'
+import type { Layer } from './layers'
 import { CATALOG, catalogItem, isPlainText, type CatalogItem } from './catalog'
 import { COMPONENT_PROPS } from './componentProps'
 import { newEdit, updateNew } from './designStore'
@@ -67,14 +68,15 @@ export function insertBeingDragged() {
 const GROUPS: CatalogItem['group'][] = ['Layout', 'Text', 'Components']
 
 export function InsertSection({
-  pinned,
+  layer,
   slug,
   screenId,
   onChanged,
   open,
   onOpen,
 }: {
-  pinned: Element | null
+  /** The selected layer: things go inside it, or after it. */
+  layer: Layer | null
   slug: string
   screenId: string
   onChanged: () => void
@@ -84,7 +86,7 @@ export function InsertSection({
   onOpen: (open: boolean) => void
 }) {
   const [picking, setPicking] = useState(false)
-  const place = insertPlace(pinned, slug)
+  const place = insertPlace(layer, slug)
 
   const add = (key: string, icon?: string) => {
     if (!place) return
@@ -109,7 +111,7 @@ export function InsertSection({
       }}
       onClick={() => (item.key === 'icon' ? setPicking((p) => !p) : add(item.key))}
       className={`${BTN} text-left`}
-      title={place ? `Add ${place.how} ${describe(place.near)} — or drag it onto the screen` : undefined}
+      title={place ? `Add ${place.how} ${describeLayer(place.near)} — or drag it onto the screen` : undefined}
     >
       {item.label}
     </button>
@@ -142,7 +144,7 @@ export function InsertSection({
       </div>
       <span className="text-10 text-caption dark:text-neutral-400">
         {place
-          ? `Adds ${place.how} ${describe(place.near)}. Or drag onto the screen.`
+          ? `Adds ${place.how} ${describeLayer(place.near)}. Or drag onto the screen.`
           : 'Nothing on this screen can take new elements.'}
       </span>
       {GROUPS.map((g) => (
@@ -712,19 +714,19 @@ export function NewElementSection({
 // --- a multi-selection ------------------------------------------------------------
 
 export function SelectionSection({
-  els,
+  layers,
   slug,
   screenId,
   onChanged,
 }: {
-  els: Element[]
+  layers: Layer[]
   slug: string
   screenId: string
   onChanged: () => void
 }) {
-  const ok = wrappable(els, slug)
+  const ok = wrappable(layers, slug)
   return (
-    <Section title={`${els.length} selected`}>
+    <Section title={`${layers.length} selected`}>
       <div className="flex gap-4">
         <button
           type="button"
@@ -732,7 +734,7 @@ export function SelectionSection({
           disabled={typeof ok === 'string'}
           title="Wrap in a stack (⌥⌘G)"
           onClick={() => {
-            wrapElements(els, slug, screenId)
+            wrapLayers(layers, slug, screenId)
             clearSelection()
             onChanged()
           }}

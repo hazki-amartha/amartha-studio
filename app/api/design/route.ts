@@ -26,7 +26,7 @@ import { isGateConfigured } from '@/app/unlock/auth'
 import { isAuthConfigured } from '@/platform/auth/env'
 import type { StudioUser } from '@/platform/auth/protocol'
 import { canEditAs, getStudioUser, isSameOrigin } from '@/platform/auth/server'
-import { githubConfig } from '@/platform/design/github'
+import { GitHub, githubConfig } from '@/platform/design/github'
 import type {
   DesignCheckRequest,
   DesignPushRequest,
@@ -36,7 +36,7 @@ import type {
   DesignUndoRequest,
   DesignUnlockRequest,
 } from '@/platform/design/protocol'
-import { KEBAB, projectFacts, refuse, whyNot } from '@/platform/design/server/common'
+import { factsResponse, KEBAB, projectFacts, refuse, whyNot } from '@/platform/design/server/common'
 import {
   createEditToken,
   EDIT_COOKIE,
@@ -46,7 +46,7 @@ import {
   passwordMatches,
   verifyEditToken,
 } from '@/platform/design/server/editGate'
-import { fsApply, fsUndo } from '@/platform/design/server/fsBackend'
+import { fsApply, fsFiles, fsUndo } from '@/platform/design/server/fsBackend'
 import { githubApply, githubCheck, githubPush } from '@/platform/design/server/githubBackend'
 
 function backend(): 'fs' | 'github' | 'record' {
@@ -69,9 +69,23 @@ async function access(request: Request): Promise<{ may: boolean; user: StudioUse
 const NOT_AN_EDITOR = 'Your account can’t save from the link yet. Ask the studio owner to set you up as an editor.'
 
 export async function GET(request: Request): Promise<NextResponse> {
-  const slug = new URL(request.url).searchParams.get('slug') ?? ''
-  const facts = KEBAB.test(slug) ? await projectFacts(slug) : null
+  const url = new URL(request.url)
+  const slug = url.searchParams.get('slug') ?? ''
   const kind = backend()
+
+  // What a file can take, or where some text is written — read from the
+  // working copy on the dev server, from the build's commit on the link.
+  if (KEBAB.test(slug) && kind !== 'record') {
+    const config = kind === 'github' ? githubConfig() : null
+    const files =
+      kind === 'fs'
+        ? fsFiles(slug)
+        : { read: async (rel: string) => (await new GitHub(config!).getFile(rel, config!.sha))?.text ?? null }
+    const answer = await factsResponse(url, slug, files)
+    if (answer) return answer
+  }
+
+  const facts = KEBAB.test(slug) ? await projectFacts(slug) : null
   const { may, user } = kind === 'github' ? await access(request) : { may: false, user: null }
   const signedInAs = canEditAs(user) ? user.displayName : undefined
   // Signed in without edit rights, and no password cookie to fall back on.
