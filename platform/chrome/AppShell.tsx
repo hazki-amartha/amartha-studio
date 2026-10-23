@@ -314,7 +314,7 @@ function AppShellInner({
       {/* The prototype's panel column, on the frame. Dark in either theme. */}
       <div ref={panelRef} data-theme="dark" className="hidden w-360 flex-none flex-col py-8 pr-8 md:flex md:empty:hidden" />
 
-      {jumping ? <JumpTo projects={projects} onClose={() => setJumping(false)} /> : null}
+      {jumping ? <JumpTo projects={projects} project={currentProject} onClose={() => setJumping(false)} /> : null}
     </div>
   )
 }

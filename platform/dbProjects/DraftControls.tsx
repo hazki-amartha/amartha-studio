@@ -22,7 +22,7 @@
 // trying something off the link.
 // =============================================================================
 
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react'
 import { BranchIcon, HistoryIcon, LockIcon, LockOpenIcon, PlusIcon, TrashIcon } from '@/platform/chrome/icons'
 import { ICON_BUTTON as SIDEBAR_BUTTON } from '@/platform/chrome/sidebarRows'
@@ -129,6 +129,8 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
   const db = isActiveDbProject(slug)
   const { data, refresh } = useDrafts(slug, db)
   const router = useRouter()
+  // Switching branches keeps the view: from the flow, to the other one's flow.
+  const view = usePathname()?.endsWith('/flow') ? '/flow' : ''
   const { open, setOpen, box } = useMenu(() => refresh())
   const [starting, setStarting] = useState(false)
   const [draftName, setDraftName] = useState('')
@@ -166,7 +168,7 @@ export function ProjectSwitcher({ slug, name }: { slug: string; name: string }) 
   const project = draft?.draftOf ?? slug
   const go = (to: string) => {
     setOpen(false)
-    if (to !== slug) router.push(`/p/${to}`)
+    if (to !== slug) router.push(`/p/${to}${view}`)
   }
 
   const start = async (e: FormEvent) => {

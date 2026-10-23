@@ -36,7 +36,7 @@ let state: ScreenBridgeState | null = null
 let jumpFn: ((id: string) => void) | null = null
 /** The last state applied, and on which screen. It outlives a move to another
  *  screen, since the store it seeded does too; only its highlight doesn't. */
-let lastApplied: { screen: string; state: string; apply: () => void } | null = null
+let lastApplied: { screen: string; state: string; label: string; apply: () => void } | null = null
 const listeners = new Set<() => void>()
 
 function emit() {
@@ -77,7 +77,7 @@ function update(slug: string, current: string, title: string, states: ScreenStat
 export function applyScreenState(next: ScreenState) {
   if (!state) return
   next.apply()
-  lastApplied = { screen: state.current, state: next.id, apply: next.apply }
+  lastApplied = { screen: state.current, state: next.id, label: next.label, apply: next.apply }
   update(state.slug, state.current, state.title, state.states)
 }
 
@@ -94,7 +94,7 @@ export function reapplyScreenState(screens: ScreenDef[]) {
     lastApplied = null
   } else if (found.apply !== apply) {
     found.apply()
-    lastApplied = { screen, state: id, apply: found.apply }
+    lastApplied = { screen, state: id, label: found.label, apply: found.apply }
   }
 }
 
@@ -105,6 +105,11 @@ export function clearScreenBridge() {
     state = null
     emit()
   }
+}
+
+/** The state the running prototype is in — what a comment posted now records. */
+export function appliedScreenState(): { screen: string; id: string; label: string } | null {
+  return state && lastApplied ? { screen: lastApplied.screen, id: lastApplied.state, label: lastApplied.label } : null
 }
 
 export function subscribeScreenBridge(cb: () => void): () => void {

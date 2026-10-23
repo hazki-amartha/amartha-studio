@@ -21,6 +21,11 @@ export interface Comment {
    *  long page stays on the thing it points at when the page scrolls. */
   x: number
   y: number
+  /** The state applied when it was posted — a state sets up the whole project,
+   *  so the spot it points at may only look like this in that setup. The flow
+   *  view mutes a pin from another state and applies it on open. Older
+   *  comments have none. */
+  state?: CommentState
   body: string
   author: string
   createdAt: string
@@ -31,6 +36,13 @@ export interface Comment {
   mine: boolean
 }
 
+/** A screen state, as a comment records it: whose, which, and what it's called. */
+export interface CommentState {
+  screen: string
+  id: string
+  label: string
+}
+
 export interface CommentsResponse {
   /** False where no store is configured — the view then hides commenting. */
   available: boolean
@@ -38,7 +50,7 @@ export interface CommentsResponse {
 }
 
 export type CommentRequest =
-  | { action: 'create'; slug: string; screenId: string; x: number; y: number; body: string; author: string }
+  | { action: 'create'; slug: string; screenId: string; x: number; y: number; state?: CommentState; body: string; author: string }
   | { action: 'reply'; slug: string; parentId: string; body: string; author: string }
   | { action: 'edit'; slug: string; id: string; body: string }
   | { action: 'resolve'; slug: string; id: string; resolved: boolean }

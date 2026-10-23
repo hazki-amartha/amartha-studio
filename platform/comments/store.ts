@@ -16,12 +16,24 @@
 
 import { useEffect, useSyncExternalStore } from 'react'
 import { setDesignMode } from '@/platform/runtime/designBridge'
-import { KEY_HEADER, type Comment, type CommentRequest, type CommentsResponse } from './protocol'
+import { appliedScreenState } from '@/platform/runtime/bridge'
+import { getFlowFocus } from '@/platform/flow/focus'
+import { KEY_HEADER, type Comment, type CommentRequest, type CommentState, type CommentsResponse } from './protocol'
 
 export interface Draft {
   screenId: string
   x: number
   y: number
+  /** The state applied when the pin went down (protocol.ts). */
+  state?: CommentState
+}
+
+/** The state the project is showing: the running prototype's, else the flow canvas's. */
+function appliedState(): CommentState | undefined {
+  const live = appliedScreenState()
+  if (live) return live
+  const flow = getFlowFocus()?.applied
+  return flow ? { screen: flow.screen, id: flow.state, label: flow.label } : undefined
 }
 
 interface State {
@@ -114,7 +126,7 @@ export function openComment(id: string | null) {
 }
 
 export function startDraft(draft: Draft) {
-  set({ draft, openId: 'draft', error: null })
+  set({ draft: { ...draft, state: draft.state ?? appliedState() }, openId: 'draft', error: null })
 }
 
 export const setShowResolved = (showResolved: boolean) => set({ showResolved })

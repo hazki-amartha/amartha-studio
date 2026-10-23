@@ -65,6 +65,9 @@ export function DbPrototype({ slug, viewer, initialScreenId, initialBare }: Prop
   }, [slug])
 
   useEffect(() => {
+    // Again here: a re-run clears the mark below, and a refresh that finds the
+    // same version doesn't re-render to set it again.
+    setActiveDbProject(slug)
     refresh()
     const onFocus = () => refresh()
     window.addEventListener('focus', onFocus)

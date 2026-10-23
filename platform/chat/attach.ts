@@ -1,9 +1,11 @@
 // =============================================================================
 // The selection as chat context: Inspect's copyForAgent text for the element,
 // with the blank for the change removed because the chat message IS the change.
-// The label is what the chip in the composer says.
+// The label is what the chip in the composer says. In the flow view there are
+// no elements to click, only screens — a whole screen is the selection there.
 // =============================================================================
 
+import { diskPath } from '@/platform/dbProjects/active'
 import { copyForAgent } from '@/platform/inspect/copyForAgent'
 import type { InspectTarget } from '@/platform/inspect/resolve'
 
@@ -23,5 +25,20 @@ export function attachmentFor(target: InspectTarget, slug: string, screenId: str
       /\nChange: <describe what you want>\n/,
       '\n',
     ),
+  }
+}
+
+/** A whole screen, selected on the flow canvas. */
+export function attachmentForScreen(slug: string, screen: { id: string; title: string }): ChatAttachment {
+  return {
+    label: `Screen “${screen.title}”`,
+    context: [
+      `Amartha Studio · project \`${slug}\` · screen \`${screen.id}\``,
+      `File: ${diskPath(`projects/${slug}/screens/${screen.id}.tsx`)} (or a helper it imports from lib/)`,
+      '',
+      `Selected in the flow view: the whole screen "${screen.title}".`,
+      '',
+      'Rules: token-locked Tailwind only, no arbitrary values (CLAUDE.md §2).',
+    ].join('\n'),
   }
 }

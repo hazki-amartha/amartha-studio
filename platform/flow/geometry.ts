@@ -25,12 +25,26 @@ export const TITLE_H = 28
 export const COL_GAP = 96
 export const ROW_GAP = 48
 
+/** A section lane: the label strip above its screens, and the space between lanes. */
+export const LANE_HEAD = 56
+export const LANE_GAP = 96
+
+/** How far a lane's band reaches past its screens. */
+export const LANE_PAD = 24
+
+/** Corner radius where an arrow turns. */
+export const EDGE_RADIUS = 12
+
 /** Padding around the whole laid-out graph. */
 export const CANVAS_PAD = 64
 
 /** Zoom bounds. */
 export const MIN_ZOOM = 0.2
-export const MAX_ZOOM = 2
+/** 8 puts a thumbnail at twice the screen's real size — close enough to read anything on it. */
+export const MAX_ZOOM = 8
+
+/** The least zoom a screen picked from the sidebar is shown at. */
+export const REVEAL_ZOOM = 0.75
 
 /** Everything the layout, the edges and the node chrome need to agree on. */
 export interface NodeBox {

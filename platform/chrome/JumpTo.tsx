@@ -5,9 +5,15 @@
 // Enter opens it: the quick way back to a project without hunting the gallery
 // for it. The sidebar's "Jump to…" opens it too. Arrows move, Esc or a click
 // outside closes.
+//
+// Inside a project its pages come first. A page opens where you are: the
+// running prototype jumps to it, the flow canvas selects it and brings it into
+// view, and anywhere else it opens the prototype on it.
 // =============================================================================
 
 import { useRouter } from 'next/navigation'
+import { getScreenBridge, screenBridgeJump } from '@/platform/runtime/bridge'
+import { getFlowFocus, selectInFlow } from '@/platform/flow/focus'
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { ProjectStatus } from '@/platform/types'
 import { SearchIcon } from './icons'
@@ -26,25 +32,61 @@ interface Target {
   label: string
   detail: string
   href: string
+  /** A page of the open project — opened in place where it can be. */
+  page?: { slug: string; id: string }
 }
 
-export function JumpTo({ projects, onClose }: { projects: ProjectIndexEntry[]; onClose: () => void }) {
+/** Open a page where the designer is: the prototype, the flow, or its link. */
+function openPage(slug: string, id: string): boolean {
+  if (getScreenBridge()?.slug === slug) {
+    screenBridgeJump(id)
+    return true
+  }
+  const flow = getFlowFocus()
+  if (flow?.slug === slug && flow.ids.has(id)) {
+    selectInFlow(id, true)
+    return true
+  }
+  return false
+}
+
+export function JumpTo({
+  projects,
+  project,
+  onClose,
+}: {
+  projects: ProjectIndexEntry[]
+  /** The project open now, whose pages are listed first. */
+  project?: ProjectIndexEntry | null
+  onClose: () => void
+}) {
   const router = useRouter()
   const listId = useId()
   const [query, setQuery] = useState('')
   const [index, setIndex] = useState(0)
   const list = useRef<HTMLUListElement>(null)
 
-  // Projects first, newest first — the usual reason to be here — then the
-  // sections.
+  // Inside a project, its pages first — its own, then what it inherits. Then
+  // projects, newest first, and the sections.
   const targets = useMemo(() => {
+    const page = (s: { id: string; title: string; section?: string }, detail: string): Target => ({
+      key: `page:${s.id}`,
+      label: s.title,
+      detail: s.section ?? detail,
+      href: `/p/${project!.slug}?screen=${s.id}`,
+      page: { slug: project!.slug, id: s.id },
+    })
     const all: Target[] = [
+      ...(project ? project.screens.map((s) => page(s, 'Page')) : []),
+      ...(project?.inherited ? project.inherited.screens.map((s) => page(s, project.inherited!.from)) : []),
       ...projects.map((p) => ({ key: `p:${p.slug}`, label: p.name, detail: STATUS_LABEL[p.status], href: `/p/${p.slug}` })),
       ...SECTIONS.map((s) => ({ key: `s:${s.section}`, label: s.label, detail: 'Section', href: s.href })),
     ]
     const q = query.trim().toLowerCase()
-    return q ? all.filter((t) => t.label.toLowerCase().includes(q) || t.href.toLowerCase().includes(q)) : all
-  }, [projects, query])
+    return q
+      ? all.filter((t) => t.label.toLowerCase().includes(q) || t.detail.toLowerCase().includes(q) || t.href.toLowerCase().includes(q))
+      : all
+  }, [projects, project, query])
 
   useEffect(() => setIndex(0), [query])
   useEffect(() => {
@@ -53,6 +95,7 @@ export function JumpTo({ projects, onClose }: { projects: ProjectIndexEntry[]; o
 
   const go = (t: Target) => {
     onClose()
+    if (t.page && openPage(t.page.slug, t.page.id)) return
     router.push(t.href)
   }
 
@@ -91,7 +134,7 @@ export function JumpTo({ projects, onClose }: { projects: ProjectIndexEntry[]; o
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Jump to a project or section…"
+            placeholder={project ? 'Jump to a page, project or section…' : 'Jump to a project or section…'}
             aria-label="Jump to"
             role="combobox"
             aria-expanded="true"
