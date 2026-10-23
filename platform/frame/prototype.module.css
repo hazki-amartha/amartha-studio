@@ -89,6 +89,34 @@
   cursor: default;
 }
 
+/* Edit, while something is in the hand — or can't be picked up. */
+.viewport[data-dragging] * {
+  cursor: grabbing !important;
+}
+
+.viewport[data-drag-blocked] * {
+  cursor: not-allowed !important;
+}
+
+/* Over a gap's handle on a selected stack: dragging it resizes the gap. */
+.viewport[data-gap-hover='col'] * {
+  cursor: row-resize !important;
+}
+
+.viewport[data-gap-hover='row'] * {
+  cursor: col-resize !important;
+}
+
+/* Text being typed over, right on the screen. */
+.viewport [data-design-editing] {
+  cursor: text !important;
+  outline: 2px solid var(--blue-500);
+  outline-offset: 2px;
+  border-radius: 2px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 /* Phones don't show scrollbar tracks, so neither does the prototype. This covers
    every scroller inside the running app — the screen stage, sheet bodies, and any
    horizontal rail a project builds — in both the framed and full-page layouts.

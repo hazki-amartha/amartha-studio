@@ -38,7 +38,7 @@ import type {
   DesignUndoRequest,
   DesignUnlockRequest,
 } from '@/platform/design/protocol'
-import { batchFile, KEBAB, refuse, whyNot, type ProjectFacts } from '@/platform/design/server/common'
+import { batchFile, factsResponse, KEBAB, refuse, whyNot, type ProjectFacts } from '@/platform/design/server/common'
 import {
   createEditToken,
   EDIT_COOKIE,
@@ -50,6 +50,7 @@ import {
 } from '@/platform/design/server/editGate'
 import { versionOf } from '@/platform/design/version'
 import { checkDbProject } from '@/platform/dbProjects/checks'
+import { diskFiles } from '@/platform/dbProjects/disk'
 import { contentBefore, createAdminClient, findProjectConfig, isDbProject, readDbRows, saveIfUnchanged } from '@/platform/dbProjects/server'
 
 export const runtime = 'nodejs'
@@ -108,6 +109,24 @@ export async function GET(request: Request, { params }: Params): Promise<NextRes
   }
   const { may, user, laptopReady } = await access(request)
   if (!(await maySee(slug, user))) return NextResponse.json({ backend: 'record', owners: [] } satisfies DesignStatus)
+
+  // What a file can take, or where some text is written. On a laptop, from
+  // its own copy (the live sync keeps it in step, and asking the deployed
+  // studio would spend its CPU on every selection); deployed, the database's.
+  const prefix = `projects/${slug}/`
+  let files: Map<string, string> | null = null
+  const load = async () => {
+    if (files) return files
+    const local = DEV ? await diskFiles(slug) : null
+    files = local?.size ? local : new Map([...(await readDbRows(slug))].map(([p, r]) => [p, r.content]))
+    return files
+  }
+  const answer = await factsResponse(new URL(request.url), slug, {
+    read: async (rel) => (await load()).get(rel.slice(prefix.length)) ?? null,
+    all: async () => new Map([...(await load())].map(([p, c]) => [`${prefix}${p}`, c])),
+  })
+  if (answer) return answer
+
   const facts = await dbFacts(slug)
   const status: DesignStatus = {
     backend: 'fs',

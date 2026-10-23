@@ -15,13 +15,16 @@
 // whole screen selectable from a list, and shows where the current selection
 // sits in the structure.
 //
-// The tree is rebuilt from the DOM on mutation rather than tracked
-// incrementally: screens remount on navigation, states rewrite them wholesale,
-// and edit mode patches classes underneath. One debounced rebuild covers every
-// one of those without the panel knowing which happened.
+// It lists the screen's LAYERS (platform/design/layers.ts) — what the source
+// writes, one row per element or component used, in the source's nesting —
+// rather than a guess at the page's markup. A component the project wrote is
+// one row; its own insides sit under a quiet "own layers" row, closed until
+// asked for, because changing them changes every use of it. A `.map()` is one
+// List row holding its rows. Rows are keyed by layer, so what is open stays
+// open while the screen re-renders underneath.
 // =============================================================================
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { PanelShell } from '@/platform/chrome/SidePanel'
 import {
   ComponentIcon,
@@ -30,16 +33,17 @@ import {
   MediaIcon,
   TextIcon,
 } from '@/platform/chrome/icons'
-import { buildOutline, pathTo, type NodeIcon, type OutlineNode } from './tree'
-
-/** One glyph per layer kind, so a long outline can be scanned rather than read. */
-const KIND_ICON: Record<NodeIcon, (props: { className?: string }) => React.ReactNode> = {
-  component: ComponentIcon,
-  frame: FrameIcon,
-  text: TextIcon,
-  media: MediaIcon,
-  list: ListIcon,
-}
+import {
+  getLayersVersion,
+  getLayerTree,
+  isTextBox,
+  layerOfPin,
+  pathOf,
+  subscribeLayers,
+  watchLayers,
+  type Layer,
+} from '@/platform/design/layers'
+import { rememberedLayerId } from '@/platform/design/selection'
 
 export type DropWhere = 'before' | 'after' | 'inside'
 
@@ -49,73 +53,63 @@ export type DropWhere = 'before' | 'after' | 'inside'
  * it is allowed) is the caller's.
  */
 export interface LayersDrag {
-  canDrag: (el: Element) => boolean
-  accepts: (dragged: Element, target: Element, where: DropWhere) => boolean
-  onDrop: (dragged: Element, target: Element, where: DropWhere) => void
+  canDrag: (layer: Layer) => boolean
+  accepts: (dragged: Layer, target: Layer, where: DropWhere) => boolean
+  onDrop: (dragged: Layer, target: Layer, where: DropWhere) => void
 }
 
 export interface LayersPanelProps {
   pinned: Element | null
-  onPin: (el: Element | null) => void
+  /** Select a layer from the list; shift adds it to a multi-selection. */
+  onSelect: (layer: Layer, add: boolean) => void
   /** Drives the device's hover highlight from the list. */
-  onHover: (el: Element | null) => void
+  onHover: (boxes: readonly Element[] | null) => void
   className?: string
   onMinimize?: () => void
   drag?: LayersDrag
   /** Docked in the sidebar: no card header — the sidebar's tabs name it. */
   embedded?: boolean
+  /** Which project and screen — what is open is remembered per screen. */
+  memoryKey?: string
 }
 
 interface DragState {
-  dragged: Element | null
-  over: { el: Element; where: DropWhere } | null
+  dragged: Layer | null
+  over: { id: string; where: DropWhere } | null
 }
 
-const REBUILD_DELAY = 150
+/** The rows a layer opens to: what is written inside it, then — for a
+ *  component the project wrote — its own layers, kept apart. */
+function partsOf(layer: Layer): { own: Layer[]; inner: Layer[] } {
+  if (layer.kind !== 'instance') return { own: layer.children, inner: [] }
+  const own: Layer[] = []
+  const inner: Layer[] = []
+  for (const k of layer.children) (k.inside === layer ? inner : own).push(k)
+  return { own, inner }
+}
 
-/** Rebuilds the outline whenever the rendered screen changes. */
-function useOutline(): OutlineNode[] {
-  const [nodes, setNodes] = useState<OutlineNode[]>([])
+/** What is open, per project and screen, for the life of the page. */
+const openMemory = new Map<string, Set<string>>()
 
-  useEffect(() => {
-    // The app viewport, found by `data-device` rather than `data-inspect`: the
-    // tree sits in the sidebar in both modes, and `data-inspect` is only set
-    // while Edit is on — so a tree mounted before Edit found no root, ever.
-    const root = document.querySelector('[data-device]')
-    if (!root) return
+function glyphOf(layer: Layer) {
+  if (layer.kind === 'instance' || layer.kind === 'component') return ComponentIcon
+  if (layer.kind === 'list') return ListIcon
+  const host = layer.hosts[0]
+  if (host && isTextBox(host)) return TextIcon
+  if (layer.name === 'Image' || layer.name === 'Icon' || layer.name === 'Divider') return MediaIcon
+  return FrameIcon
+}
 
-    let timer: ReturnType<typeof setTimeout> | null = null
-    const rebuild = () => setNodes(buildOutline(root))
-
-    const schedule = () => {
-      if (timer) clearTimeout(timer)
-      timer = setTimeout(rebuild, REBUILD_DELAY)
-    }
-
-    rebuild()
-    // The highlight overlay lives inside this root and rewrites its own
-    // geometry every animation frame. Left unfiltered those writes reset the
-    // debounce forever and the tree would never rebuild at all.
-    const mo = new MutationObserver((records) => {
-      const ours = (n: Node) => n instanceof Element && n.hasAttribute('data-inspect-layer')
-      const real = records.some((r) => {
-        const target = r.target instanceof Element ? r.target : r.target.parentElement
-        if (target?.closest('[data-inspect-layer]')) return false
-        // The CSS tab's default-value probe visits for one task (inspect/computed.ts).
-        const moved = [...Array.from(r.addedNodes), ...Array.from(r.removedNodes)]
-        return !(r.type === 'childList' && moved.length > 0 && moved.every(ours))
-      })
-      if (real) schedule()
-    })
-    mo.observe(root, { childList: true, subtree: true, attributes: true })
-
-    return () => {
-      mo.disconnect()
-      if (timer) clearTimeout(timer)
-    }
-  }, [])
-
-  return nodes
+/** The words that tell one row from its siblings. */
+function detailOf(layer: Layer): string {
+  if (layer.kind === 'list') return `${layer.children.length} rows`
+  if (layer.kind === 'new') return 'not saved yet'
+  if (layer.kind === 'copy') return 'copy'
+  const host = layer.hosts[0]
+  if (layer.kind === 'element' && host && isTextBox(host)) return ''
+  // Only a layer with nothing listed under it: anything with rows beneath
+  // would just repeat their words, run together.
+  return layer.children.length === 0 ? layer.text.slice(0, 32) : ''
 }
 
 function Chevron({ open }: { open: boolean }) {
@@ -137,57 +131,60 @@ function Chevron({ open }: { open: boolean }) {
   )
 }
 
-function Row({
-  node,
-  depth,
-  pinned,
-  collapsed,
-  onToggle,
-  onPin,
-  onHover,
-  drag,
-  dragState,
-  setDragState,
-}: {
-  node: OutlineNode
+interface RowProps {
+  layer: Layer
   depth: number
-  pinned: Element | null
-  collapsed: Set<Element>
-  onToggle: (el: Element) => void
-  onPin: (el: Element) => void
-  onHover: (el: Element | null) => void
+  selected: Layer | null
+  open: Set<string>
+  onToggle: (id: string) => void
+  onSelect: (layer: Layer, add: boolean) => void
+  onHover: (boxes: readonly Element[] | null) => void
   drag?: LayersDrag
   dragState: DragState
   setDragState: (next: DragState) => void
-}) {
+  /** Inside a component's own layers: drawn quieter. */
+  quiet?: boolean
+}
+
+function Row(props: RowProps) {
+  const { layer, depth, selected, open, onToggle, onSelect, onHover, drag, dragState, setDragState, quiet } = props
   const rowRef = useRef<HTMLDivElement>(null)
-  const isPinned = node.el === pinned
-  const hasChildren = node.children.length > 0
-  const open = hasChildren && !collapsed.has(node.el)
-  const Glyph = KIND_ICON[node.icon]
-  const draggable = Boolean(drag?.canDrag(node.el))
-  const over = dragState.over?.el === node.el ? dragState.over.where : null
+  const isSelected = layer === selected
+  const { own, inner } = partsOf(layer)
+  const hasChildren = own.length > 0 || inner.length > 0
+  const isOpen = hasChildren && open.has(layer.id)
+  const innerKey = `${layer.id}::own`
+  const innerOpen = open.has(innerKey)
+  const Glyph = glyphOf(layer)
+  const draggable = Boolean(drag?.canDrag(layer))
+  const over = dragState.over?.id === layer.id ? dragState.over.where : null
+  const text = layer.hosts[0] && isTextBox(layer.hosts[0]) && layer.kind === 'element'
+  const detail = detailOf(layer)
 
   // Top and bottom thirds drop beside the row; the middle drops into it, when
   // it can take children. Dropping onto yourself or your own contents is not a
   // place at all.
   const whereAt = (e: React.DragEvent<HTMLDivElement>): DropWhere | null => {
     const dragged = dragState.dragged
-    if (!drag || !dragged || dragged === node.el || dragged.contains(node.el)) return null
+    if (!drag || !dragged || dragged === layer) return null
     const r = e.currentTarget.getBoundingClientRect()
     const f = (e.clientY - r.top) / r.height
     // An open container's next row is its own first child, so below its middle
     // reads as "into it", not "after all of it".
-    const intoBand = open ? f > 0.3 : f > 0.25 && f < 0.75
-    if (intoBand && drag.accepts(dragged, node.el, 'inside')) return 'inside'
+    const intoBand = isOpen ? f > 0.3 : f > 0.25 && f < 0.75
+    if (intoBand && drag.accepts(dragged, layer, 'inside')) return 'inside'
     const beside: DropWhere = f < 0.5 ? 'before' : 'after'
-    return drag.accepts(dragged, node.el, beside) ? beside : null
+    return drag.accepts(dragged, layer, beside) ? beside : null
   }
 
   // Bring the selection into view when it was made in the device, not here.
   useEffect(() => {
-    if (isPinned) rowRef.current?.scrollIntoView({ block: 'nearest' })
-  }, [isPinned])
+    if (isSelected) rowRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [isSelected])
+
+  const child = (l: Layer, q: boolean) => (
+    <Row key={l.id} {...props} layer={l} depth={depth + 1} quiet={q} />
+  )
 
   return (
     <>
@@ -197,14 +194,14 @@ function Row({
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = 'move'
           // Firefox will not start a drag without data.
-          e.dataTransfer.setData('text/plain', node.label)
-          setDragState({ dragged: node.el, over: null })
+          e.dataTransfer.setData('text/plain', layer.name)
+          setDragState({ dragged: layer, over: null })
         }}
         onDragOver={(e) => {
           const where = whereAt(e)
           if (!where) return
           e.preventDefault()
-          if (over !== where) setDragState({ ...dragState, over: { el: node.el, where } })
+          if (over !== where) setDragState({ ...dragState, over: { id: layer.id, where } })
         }}
         onDrop={(e) => {
           const where = whereAt(e)
@@ -212,19 +209,19 @@ function Row({
           setDragState({ dragged: null, over: null })
           if (!where || !dragged || !drag) return
           e.preventDefault()
-          drag.onDrop(dragged, node.el, where)
+          drag.onDrop(dragged, layer, where)
         }}
         onDragEnd={() => setDragState({ dragged: null, over: null })}
         className={`relative flex items-center gap-4 rounded-8 pr-8 ${
           over === 'inside'
             ? 'outline outline-2 outline-primary-500'
-            : isPinned
+            : isSelected
               ? 'bg-primary-50 dark:bg-ink-800'
               : 'hover:bg-neutral-50 dark:hover:bg-ink-800'
-        } ${dragState.dragged === node.el ? 'opacity-50' : ''}`}
+        } ${dragState.dragged === layer ? 'opacity-50' : ''}`}
         // 16px a level, so the nesting reads at a glance in a roomy row.
         style={{ paddingLeft: 4 + depth * 16 }}
-        onMouseEnter={() => onHover(node.el)}
+        onMouseEnter={() => onHover(layer.hosts)}
         onMouseLeave={() => onHover(null)}
       >
         {/* Drawn over the row, not as a border: a border moves the row under
@@ -240,12 +237,12 @@ function Row({
         {hasChildren ? (
           <button
             type="button"
-            onClick={() => onToggle(node.el)}
-            aria-expanded={open}
-            aria-label={open ? 'Collapse' : 'Expand'}
+            onClick={() => onToggle(layer.id)}
+            aria-expanded={isOpen}
+            aria-label={isOpen ? 'Collapse' : 'Expand'}
             className="flex size-16 flex-none items-center justify-center text-placeholder hover:text-default dark:text-neutral-600 dark:hover:text-neutral-50"
           >
-            <Chevron open={open} />
+            <Chevron open={isOpen} />
           </button>
         ) : (
           <span aria-hidden className="size-16 flex-none" />
@@ -253,108 +250,143 @@ function Row({
 
         <button
           type="button"
-          onClick={() => onPin(node.el)}
+          onClick={(e) => onSelect(layer, e.shiftKey)}
           className="flex min-w-0 flex-1 items-center gap-8 py-8 text-left"
         >
           <Glyph
             className={`size-16 flex-none ${
-              node.kind === 'component'
-                ? 'text-link dark:text-neutral-400'
-                : 'text-placeholder dark:text-neutral-500'
+              layer.kind === 'instance'
+                ? 'text-primary-500 dark:text-primary-300'
+                : layer.kind === 'component'
+                  ? 'text-link dark:text-neutral-400'
+                  : 'text-placeholder dark:text-neutral-500'
             }`}
           />
           <span
-            className={`truncate text-14 ${
-              isPinned
+            className={`min-w-0 truncate text-14 ${
+              isSelected
                 ? 'font-bold text-link dark:text-neutral-50'
-                : node.kind === 'component'
-                  ? 'font-bold text-default dark:text-neutral-50'
-                  : node.kind === 'text'
-                    ? 'text-caption dark:text-neutral-500'
-                    : 'text-default dark:text-neutral-400'
-            }`}
+                : quiet
+                  ? 'text-caption dark:text-neutral-500'
+                  : layer.kind === 'instance' || layer.kind === 'component'
+                    ? 'font-bold text-default dark:text-neutral-50'
+                    : text
+                      ? 'text-caption dark:text-neutral-500'
+                      : 'text-default dark:text-neutral-400'
+            } ${layer.kind === 'new' || layer.kind === 'copy' ? 'italic' : ''}`}
           >
-            {node.kind === 'text' ? `“${node.label}”` : node.label}
+            {text ? `“${layer.text}”` : layer.name}
           </span>
-          {node.detail ? (
-            <span className="truncate text-12 text-placeholder dark:text-neutral-600">
-              {node.detail}
-            </span>
+          {/* The rest of the row, after the name has what it needs. */}
+          {detail ? (
+            <span className="min-w-0 flex-1 truncate text-12 text-placeholder dark:text-neutral-600">{detail}</span>
           ) : null}
         </button>
       </div>
 
-      {open
-        ? node.children.map((child, i) => (
-            <Row
-              key={i}
-              node={child}
-              depth={depth + 1}
-              pinned={pinned}
-              collapsed={collapsed}
-              onToggle={onToggle}
-              onPin={onPin}
-              onHover={onHover}
-              drag={drag}
-              dragState={dragState}
-              setDragState={setDragState}
-            />
-          ))
-        : null}
+      {isOpen ? own.map((l) => child(l, Boolean(quiet))) : null}
+      {isOpen && inner.length > 0 ? (
+        <>
+          <div className="flex items-center gap-4 pr-8" style={{ paddingLeft: 4 + (depth + 1) * 16 }}>
+            <button
+              type="button"
+              onClick={() => onToggle(innerKey)}
+              aria-expanded={innerOpen}
+              className="flex min-w-0 flex-1 items-center gap-4 py-4 text-left text-12 text-placeholder hover:text-default dark:text-neutral-600 dark:hover:text-neutral-50"
+              title={`Changing these changes every ${layer.name}`}
+            >
+              <span className="flex size-16 flex-none items-center justify-center">
+                <Chevron open={innerOpen} />
+              </span>
+              <span className="truncate">{layer.name}’s own layers</span>
+            </button>
+          </div>
+          {innerOpen ? inner.map((l) => <Row key={l.id} {...props} layer={l} depth={depth + 2} quiet />) : null}
+        </>
+      ) : null}
     </>
   )
 }
 
+/** The screen's layers, rebuilt as the screen changes — Edit open or not. */
+function useLayers(): Layer[] {
+  useEffect(() => watchLayers(), [])
+  const version = useSyncExternalStore(subscribeLayers, getLayersVersion, () => 0)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => getLayerTree().roots, [version])
+}
+
 export function LayersPanel({
   pinned,
-  onPin,
+  onSelect,
   onHover,
   className,
   onMinimize,
   drag,
   embedded,
+  memoryKey = '',
 }: LayersPanelProps) {
-  const nodes = useOutline()
-  const [collapsed, setCollapsed] = useState<Set<Element>>(new Set())
+  const roots = useLayers()
+  const version = useSyncExternalStore(subscribeLayers, getLayersVersion, () => 0)
+  const [open, setOpen] = useState<Set<string>>(() => openMemory.get(memoryKey) ?? new Set())
   const [dragState, setDragState] = useState<DragState>({ dragged: null, over: null })
+  useEffect(() => setOpen(openMemory.get(memoryKey) ?? new Set()), [memoryKey])
 
-  const toggle = useCallback((el: Element) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev)
-      if (next.has(el)) next.delete(el)
-      else next.add(el)
-      return next
-    })
-  }, [])
+  const toggle = useCallback(
+    (id: string) => {
+      setOpen((prev) => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+        openMemory.set(memoryKey, next)
+        return next
+      })
+    },
+    [memoryKey],
+  )
 
-  // A selection made in the device must be reachable in the list, so reveal it
-  // by opening anything collapsed above it.
-  const path = useMemo(() => (pinned ? pathTo(nodes, pinned) : []), [nodes, pinned])
+  const selected = useMemo(
+    () => layerOfPin(pinned, rememberedLayerId()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pinned, version],
+  )
+
+  // The screen's own top level starts open, and so does the way to the
+  // selection — wherever it was made.
   useEffect(() => {
-    if (path.length < 2) return
-    setCollapsed((prev) => {
-      const ancestors = path.slice(0, -1).filter((n) => prev.has(n.el))
-      if (ancestors.length === 0) return prev
+    const want = [...roots, ...(selected ? pathOf(selected).slice(0, -1) : [])]
+    setOpen((prev) => {
+      const missing = want.filter((l) => !prev.has(l.id) && l.children.length > 0)
+      // A component's own layers open too, when the way to the selection
+      // goes through them.
+      const path = selected ? pathOf(selected) : []
+      const inner = path
+        .filter((l, i) => l.kind === 'instance' && path[i + 1]?.inside === l)
+        .map((l) => `${l.id}::own`)
+        .filter((k) => !prev.has(k))
+      if (missing.length === 0 && inner.length === 0) return prev
       const next = new Set(prev)
-      for (const n of ancestors) next.delete(n.el)
+      for (const l of missing) next.add(l.id)
+      for (const k of inner) next.add(k)
+      openMemory.set(memoryKey, next)
       return next
     })
-  }, [path])
+  }, [roots, selected, memoryKey])
 
   const tree =
-    nodes.length === 0 ? (
+    roots.length === 0 ? (
       <p className="px-8 text-12 text-caption dark:text-neutral-400">Nothing on this screen yet.</p>
     ) : (
       <div className="flex flex-col gap-2">
-        {nodes.map((node, i) => (
+        {roots.map((layer) => (
           <Row
-            key={i}
-            node={node}
+            key={layer.id}
+            layer={layer}
             depth={0}
-            pinned={pinned}
-            collapsed={collapsed}
+            selected={selected}
+            open={open}
             onToggle={toggle}
-            onPin={onPin}
+            onSelect={onSelect}
             onHover={onHover}
             drag={drag}
             dragState={dragState}
@@ -383,3 +415,4 @@ export function LayersPanel({
     </PanelShell>
   )
 }
+

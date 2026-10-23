@@ -43,6 +43,23 @@ export const SHORTCUTS: {
   { action: 'help', keys: '?', label: 'Show these shortcuts' },
 ]
 
+/** Edit mode's own keys and gestures, Figma's where Figma has one. They are
+ *  handled by the Edit layer (platform/design/DesignLayer.tsx), not above —
+ *  listed here so they can be found. */
+const EDIT_KEYS: { keys: string; label: string }[] = [
+  { keys: 'Click', label: 'Select, at the same depth as the selection' },
+  { keys: 'Double-click', label: 'Go inside — or type over text' },
+  { keys: '⌘ Click', label: 'Select the innermost layer' },
+  { keys: 'Enter', label: 'Select inside — or type over text' },
+  { keys: 'Shift Enter', label: 'Select the layer around it' },
+  { keys: 'Tab', label: 'Select the next layer beside it' },
+  { keys: 'Arrows', label: 'Move along its stack' },
+  { keys: '⌘ D', label: 'Duplicate' },
+  { keys: 'Delete', label: 'Delete' },
+  { keys: '⌥ ⌘ G', label: 'Wrap in a stack' },
+  { keys: '⌘ Z', label: 'Undo' },
+]
+
 /** For a button's tooltip: "Comment · C". */
 export const withKey = (title: string, action: ShortcutAction) =>
   `${title} · ${SHORTCUTS.find((s) => s.action === action)?.keys ?? ''}`
@@ -109,11 +126,11 @@ export function ShortcutSheet({ only, onClose }: { only?: ShortcutAction[]; onCl
       aria-modal="true"
       aria-label="Keyboard shortcuts"
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay px-16"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-16"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex w-full max-w-sm flex-col gap-12 rounded-16 bg-neutral-white p-20 shadow-sm dark:bg-ink-900"
+        className="flex max-h-full w-full max-w-sm flex-col gap-12 overflow-y-auto rounded-16 bg-neutral-white p-20 shadow-sm dark:bg-ink-900"
       >
         <p className="text-16 font-bold text-default dark:text-neutral-50">Keyboard shortcuts</p>
         <ul className="flex flex-col gap-8">
@@ -126,6 +143,21 @@ export function ShortcutSheet({ only, onClose }: { only?: ShortcutAction[]; onCl
             </li>
           ))}
         </ul>
+        {!only || only.includes('edit') ? (
+          <>
+            <p className="pt-8 text-14 font-bold text-default dark:text-neutral-50">In Edit</p>
+            <ul className="flex flex-col gap-8">
+              {EDIT_KEYS.map((s) => (
+                <li key={s.keys} className="flex items-center justify-between gap-12">
+                  <span className="text-14 font-regular text-caption dark:text-neutral-400">{s.label}</span>
+                  <kbd className="flex-none rounded-8 border border-default px-8 py-2 text-12 font-bold text-default dark:border-ink-700 dark:text-neutral-50">
+                    {s.keys}
+                  </kbd>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
       </div>
     </div>
   )

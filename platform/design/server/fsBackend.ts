@@ -60,6 +60,28 @@ async function saveSnapshot(snap: Snapshot): Promise<string | undefined> {
   }
 }
 
+/** A git project's files on disk, for the facts route (common.ts). */
+export function fsFiles(slug: string) {
+  return {
+    read: (rel: string) => fs.readFile(onDisk(rel), 'utf8'),
+    all: async () => {
+      const out = new Map<string, string>()
+      const visit = async (dir: string) => {
+        for (const e of await fs.readdir(onDisk(dir), { withFileTypes: true })) {
+          const rel = `${dir}/${e.name}`
+          if (e.isDirectory()) {
+            if (e.name !== 'node_modules' && !e.name.startsWith('.')) await visit(rel)
+          } else if (/\.tsx?$/.test(e.name)) {
+            out.set(rel, await fs.readFile(onDisk(rel), 'utf8'))
+          }
+        }
+      }
+      await visit(`projects/${slug}`)
+      return out
+    },
+  }
+}
+
 export async function fsUndo(body: DesignUndoRequest): Promise<NextResponse> {
   if (!TOKEN.test(body.undo)) return refuse('That undo could not be found.')
   let snap: Snapshot

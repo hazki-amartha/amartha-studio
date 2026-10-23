@@ -9,6 +9,17 @@ import { diskPath } from '@/platform/dbProjects/active'
 import { copyForAgent } from '@/platform/inspect/copyForAgent'
 import type { InspectTarget } from '@/platform/inspect/resolve'
 
+/**
+ * What Edit knows about the selected element, beyond its box — the layer it
+ * is (platform/design/layers.ts). Set by the prototype view, which has Edit
+ * loaded; Chat doesn't import Edit, so the flow view's Chat stays light.
+ */
+type Describer = (el: Element) => { name: string; text: string; lines: string[] } | null
+let describe: Describer | null = null
+export function setSelectionDescriber(fn: Describer | null) {
+  describe = fn
+}
+
 export interface ChatAttachment {
   /** What the chip in the composer says: "Button “Lanjut”", "<div>". */
   label: string
@@ -17,14 +28,17 @@ export interface ChatAttachment {
 }
 
 export function attachmentFor(target: InspectTarget, slug: string, screenId: string): ChatAttachment {
-  const name = target.component ?? `<${target.tag}>`
-  const text = target.text.length > 24 ? `${target.text.slice(0, 24)}…` : target.text
+  const layer = describe?.(target.el) ?? null
+  const name = layer?.name ?? target.component ?? `<${target.tag}>`
+  const words = layer?.text ?? target.text
+  const text = words.length > 24 ? `${words.slice(0, 24)}…` : words
+  const context = copyForAgent(target, slug, screenId).replace(/\nChange: <describe what you want>\n/, '\n')
+  const about = layer?.lines ?? []
   return {
     label: text ? `${name} “${text}”` : name,
-    context: copyForAgent(target, slug, screenId).replace(
-      /\nChange: <describe what you want>\n/,
-      '\n',
-    ),
+    // What was selected comes first: the element's own lines below describe
+    // its box, which for a component is the component's markup, not this use.
+    context: about.length > 0 ? context.replace(/\n/, `\n${about.join('\n')}\n`) : context,
   }
 }
 

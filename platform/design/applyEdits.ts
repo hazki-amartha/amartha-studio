@@ -38,10 +38,12 @@ import type {
   DuplicateEdit,
   Edit,
   InsertEdit,
+  LiteralEdit,
   MoveEdit,
   Place,
   PropEdit,
   Refusal,
+  Scope,
   Src,
   StackEdit,
   TextEdit,
@@ -52,6 +54,7 @@ import { isNewRef, isStructural, NEW_PREFIX } from './protocol'
 import { catalogItem, isPlainText, isTokenClassList } from './catalog'
 import { COMPONENT_PROPS } from './componentProps'
 import { layoutOf, sameLayout, withLayout } from './layout'
+import { rendersNothing, slotOf, type AstNode, type SlotInfo, type Step } from './slots'
 import {
   append,
   attachAfter,
@@ -79,6 +82,7 @@ import { restoreSemicolons, tidyImports, type ImportNeed } from './tidy'
 const n = types.namedTypes
 type JSXOpeningElement = types.namedTypes.JSXOpeningElement
 type JSXAttribute = types.namedTypes.JSXAttribute
+type TemplateLiteral = types.namedTypes.TemplateLiteral
 
 const refuse = (edit: Edit, reason: string): ApplyResult => ({
   ok: false,
@@ -99,10 +103,36 @@ function positionOf(src: Src): { line: number; col: number } | null {
 
 /** An addressed element, and the JSX element or fragment it sits in directly —
  *  null when it is not a JSX child (a screen's root, a `.map()` row, the right
- *  side of `cond && …`). */
+ *  side of `cond && …`). `slot` says what it is instead (slots.ts), worked
+ *  out only when a structural edit asks. */
 interface Located {
   el: JSXElement
   parent: JSXParent | null
+  slot: () => SlotInfo
+}
+
+/** recast's path, as far as it is read here. */
+interface PathLike {
+  node: types.ASTNode
+  name: string | number
+  parentPath: PathLike | null
+  parent: PathLike | null
+}
+
+/** A recast path as a slots.ts step chain. In ast-types an array child's
+ *  `parentPath` is the array, whose name is the field; `parent` skips it. */
+function stepOf(path: PathLike): Step {
+  const field = typeof path.name === 'number' ? path.parentPath?.name : path.name
+  let up: Step | null | undefined
+  return {
+    node: path.node as unknown as AstNode,
+    field: typeof field === 'string' ? field : null,
+    index: typeof path.name === 'number' ? path.name : null,
+    get up() {
+      if (up === undefined) up = path.parent ? stepOf(path.parent) : null
+      return up
+    },
+  }
 }
 
 /**
@@ -127,7 +157,9 @@ function locate(ast: types.ASTNode, src: Src, fresh: WeakSet<object>): Located |
       if (fresh.has(path.node)) return false
       const loc = path.node.openingElement.loc
       if (loc && loc.start.line === pos.line && loc.start.column === pos.col) {
-        found.push({ el: path.node, parent: jsxParentOf(path) })
+        const p = path as unknown as PathLike
+        let slot: SlotInfo | undefined
+        found.push({ el: path.node, parent: jsxParentOf(p), slot: () => (slot ??= slotOf(stepOf(p))) })
       }
       this.traverse(path)
     },
@@ -140,14 +172,10 @@ function locate(ast: types.ASTNode, src: Src, fresh: WeakSet<object>): Located |
 
 /** The JSX parent a path sits in directly, or null. In ast-types a child's
  *  parent path is the `children` array, and that array's parent is the owner. */
-interface PathLike {
-  parentPath?: { name?: unknown; parentPath?: { value?: unknown } } | null
-}
-
 function jsxParentOf(path: PathLike): JSXParent | null {
   const list = path.parentPath
   if (!list || list.name !== 'children') return null
-  const owner = list.parentPath?.value
+  const owner = list.parentPath?.node
   return n.JSXElement.check(owner) || n.JSXFragment.check(owner) ? owner : null
 }
 
@@ -203,13 +231,74 @@ function setLiteralValue(attr: JSXAttribute, next: string): void {
   attr.value = types.builders.stringLiteral(next)
 }
 
+/**
+ * A className written as a template — `` `flex gap-8 ${tone}` `` — read for
+ * the classes it spells out. Nine in ten such lists in the projects are a
+ * fixed list with one expression after it; the fixed classes are as editable
+ * as a plain string's.
+ *
+ * A class counts only when whole: `p-${n}` is half code, and is left alone.
+ */
+interface TemplateClasses {
+  tpl: TemplateLiteral
+  /** Per quasi: the text around its whole classes, and the classes. */
+  parts: { head: string; lead: string; classes: string[]; trail: string; tail: string }[]
+}
+
+function templateOf(attr: JSXAttribute): TemplateClasses | null {
+  const v = attr.value
+  if (!v || !n.JSXExpressionContainer.check(v) || !n.TemplateLiteral.check(v.expression)) return null
+  const tpl = v.expression
+  const last = tpl.quasis.length - 1
+  const parts = tpl.quasis.map((q, i) => {
+    const raw = q.value.raw
+    // A run touching an expression belongs to it: `p-${n}` is not a class.
+    const head = i === 0 ? '' : (/^\S*/.exec(raw)?.[0] ?? '')
+    const tail = i === last ? '' : (/\S*$/.exec(raw.slice(head.length))?.[0] ?? '')
+    const middle = raw.slice(head.length, raw.length - tail.length)
+    const lead = /^\s*/.exec(middle)?.[0] ?? ''
+    const trail = middle.length > lead.length ? (/\s*$/.exec(middle)?.[0] ?? '') : ''
+    const classes = middle.slice(lead.length, middle.length - trail.length).split(/\s+/).filter(Boolean)
+    return { head, lead, classes, trail, tail }
+  })
+  return { tpl, parts }
+}
+
+function writeTemplate(t: TemplateClasses): void {
+  const last = t.parts.length - 1
+  t.tpl.quasis.forEach((q, i) => {
+    const p = t.parts[i]
+    // A quasi left with no classes keeps one space between two expressions,
+    // so `${a} ${b}` doesn't fuse into `${a}${b}`; at either end it goes.
+    const middle =
+      p.classes.length > 0
+        ? `${p.lead}${p.classes.join(' ')}${p.trail}`
+        : i > 0 && i < last && (p.lead || p.trail)
+          ? ' '
+          : ''
+    const text = `${p.head}${middle}${p.tail}`
+    q.value = { raw: text, cooked: text }
+  })
+}
+
+const staticClasses = (t: TemplateClasses) => t.parts.flatMap((p) => p.classes)
+
 function applyClass(el: JSXElement, edit: ClassEdit): Refusal | null {
   const attr = attributeNamed(el.openingElement, 'className')
   if (!attr) return { edit, reason: 'that element has no className to change' }
 
   const current = literalValue(attr)
   if (current === null) {
-    return { edit, reason: 'its className is computed, so there is no single class list to edit' }
+    const t = templateOf(attr)
+    if (!t) return { edit, reason: 'its className is computed, so there is no single class list to edit' }
+    const hits = t.parts.flatMap((p, i) => (p.classes.includes(edit.oldClass) ? [i] : []))
+    if (hits.length === 0) {
+      return { edit, reason: `"${edit.oldClass}" isn’t written out in its className — code adds it` }
+    }
+    const part = t.parts[hits[0]]
+    part.classes[part.classes.indexOf(edit.oldClass)] = edit.newClass
+    writeTemplate(t)
+    return null
   }
 
   const classes = current.split(/\s+/).filter(Boolean)
@@ -223,21 +312,96 @@ function applyClass(el: JSXElement, edit: ClassEdit): Refusal | null {
   return null
 }
 
+/**
+ * JSX text as the page shows it: React drops the line breaks and indentation
+ * a long sentence is wrapped with in the file, joining its lines with one
+ * space. A designer edits that, so that is what is compared.
+ */
+function shownText(value: string): string {
+  const lines = value.split(/\r\n|\n|\r/)
+  let last = -1
+  lines.forEach((l, i) => {
+    if (/[^ \t]/.test(l)) last = i
+  })
+  let out = ''
+  lines.forEach((line, i) => {
+    let t = line.replace(/\t/g, ' ')
+    if (i > 0) t = t.replace(/^ +/, '')
+    if (i < lines.length - 1) t = t.replace(/ +$/, '')
+    if (t) out += i === last ? t : `${t} `
+  })
+  return out.trim()
+}
+
 function applyText(el: JSXElement, edit: TextEdit): Refusal | null {
   const texts = (el.children ?? []).filter((c) => n.JSXText.check(c)) as types.namedTypes.JSXText[]
-  // Compared trimmed because JSX text carries the indentation around it, which
-  // is layout in the file and not something the designer edited.
-  const match = texts.filter((t) => t.value.trim() === edit.old)
+  // Compared as shown because JSX text carries the indentation around it,
+  // which is layout in the file and not something the designer edited.
+  const match = texts.filter((t) => t.value.trim() === edit.old || shownText(t.value) === edit.old)
 
   if (match.length === 0) return { edit, reason: 'its text has changed since you selected it' }
   if (match.length > 1) return { edit, reason: 'that text appears more than once inside the element' }
 
   const node = match[0]
-  node.value = node.value.replace(edit.old, edit.next)
+  if (node.value.includes(edit.old)) {
+    node.value = node.value.replace(edit.old, edit.next)
+  } else {
+    // Wrapped over several lines in the file: the new words take one line,
+    // between the same whitespace the text started and ended with.
+    const lead = /^\s*/.exec(node.value)?.[0] ?? ''
+    const trail = /\s*$/.exec(node.value)?.[0] ?? ''
+    node.value = `${lead}${edit.next}${trail}`
+  }
+  return null
+}
+
+/** A number or boolean prop's value as written, as text — `{3}` → "3",
+ *  `{false}` → "false", a bare `active` → "true" — or null for code. */
+function typedValue(attr: JSXAttribute): string | null {
+  const v = attr.value
+  if (!v) return 'true'
+  if (n.JSXExpressionContainer.check(v)) {
+    const e = v.expression
+    if (n.NumericLiteral.check(e) || n.BooleanLiteral.check(e)) return String(e.value)
+  }
+  return null
+}
+
+/** A typed value as it is written in JSX. */
+function typedNode(type: 'number' | 'boolean', value: string) {
+  const b = types.builders
+  return b.jsxExpressionContainer(type === 'boolean' ? b.booleanLiteral(value === 'true') : b.numericLiteral(Number(value)))
+}
+
+function applyTypedProp(el: JSXElement, edit: PropEdit & { type: 'number' | 'boolean' }): Refusal | null {
+  const open = el.openingElement
+  const attr = attributeNamed(open, edit.prop)
+  if (edit.next !== null && (edit.type === 'boolean' ? !/^(true|false)$/.test(edit.next) : !/^-?\d+(\.\d+)?$/.test(edit.next))) {
+    return { edit, reason: `“${edit.next}” isn’t a ${edit.type}` }
+  }
+  if (!attr) {
+    if (edit.old !== null) return { edit, reason: `it has no ${edit.prop} to change` }
+    if (edit.next === null) return null
+    open.attributes = [...(open.attributes ?? []), types.builders.jsxAttribute(types.builders.jsxIdentifier(edit.prop), typedNode(edit.type, edit.next))]
+    return null
+  }
+  const current = typedValue(attr)
+  if (current === null) return { edit, reason: `its ${edit.prop} is computed, so there is no single value to edit` }
+  if (edit.old !== null && current !== edit.old) {
+    return { edit, reason: `its ${edit.prop} is now ${current}, not ${edit.old}` }
+  }
+  if (edit.next === null) {
+    open.attributes = (open.attributes ?? []).filter((a) => a !== attr)
+    return null
+  }
+  attr.value = typedNode(edit.type, edit.next)
   return null
 }
 
 function applyProp(el: JSXElement, edit: PropEdit): Refusal | null {
+  if (edit.type === 'number' || edit.type === 'boolean') {
+    return applyTypedProp(el, edit as PropEdit & { type: 'number' | 'boolean' })
+  }
   const open = el.openingElement
   const attr = attributeNamed(open, edit.prop)
 
@@ -287,7 +451,19 @@ function applyStack(el: JSXElement, edit: StackEdit): Refusal | null {
   const attr = attributeNamed(el.openingElement, 'className')
   const current = attr ? literalValue(attr) : ''
   if (current === null) {
-    return { edit, reason: 'its className is computed, so its layout can’t be set here' }
+    // A template: its fixed classes are the layout, rewritten where they are —
+    // as long as they are all in one place, so nothing moves across code.
+    const t = attr ? templateOf(attr) : null
+    const holding = t ? t.parts.filter((p) => p.classes.length > 0) : []
+    if (!t || holding.length !== 1) {
+      return { edit, reason: 'its className is computed, so its layout can’t be set here' }
+    }
+    if (!sameLayout(layoutOf(staticClasses(t)), edit.old)) {
+      return { edit, reason: 'part of its layout is worked out by code, so it can’t be set here' }
+    }
+    holding[0].classes = withLayout(holding[0].classes, edit.next)
+    writeTemplate(t)
+    return null
   }
   const classes = current.split(/\s+/).filter(Boolean)
   if (!sameLayout(layoutOf(classes), edit.old)) {
@@ -308,17 +484,130 @@ function applyStack(el: JSXElement, edit: StackEdit): Refusal | null {
   return null
 }
 
+// --- values: a string written in code -----------------------------------------
+
+/**
+ * The string at a position: a `'…'` literal, a template with no expressions,
+ * or JSX text. Data files are plain `.ts`, so this looks at every node type
+ * that can carry words, not only JSX.
+ */
+function locateString(ast: types.ASTNode, src: Src): types.ASTNode[] {
+  const pos = positionOf(src)
+  if (!pos) return []
+  const found: types.ASTNode[] = []
+  const at = (node: types.ASTNode & { loc?: types.namedTypes.SourceLocation | null }) =>
+    node.loc?.start.line === pos.line && node.loc.start.column === pos.col
+  types.visit(ast, {
+    visitStringLiteral(path) {
+      if (at(path.node)) found.push(path.node)
+      return false
+    },
+    visitTemplateLiteral(path) {
+      if (at(path.node) && path.node.expressions.length === 0) found.push(path.node)
+      this.traverse(path)
+    },
+    visitJSXText(path) {
+      if (at(path.node)) found.push(path.node)
+      return false
+    },
+  })
+  return found
+}
+
+/** A string as source, in the quotes it was written with. */
+function quoted(value: string, quote: string): string {
+  const escaped = value
+    .replace(/\\/g, '\\\\')
+    .replace(new RegExp(quote, 'g'), `\\${quote}`)
+    .replace(/\n/g, '\\n')
+  return `${quote}${escaped}${quote}`
+}
+
+function applyLiteral(ctx: Ctx, edit: LiteralEdit): Refusal | null {
+  const found = locateString(ctx.ast, edit.src)
+  if (found.length === 0) return { edit, reason: 'that text has moved in the code since the screen loaded' }
+  if (found.length > 1) return { edit, reason: 'that position matches more than one piece of text' }
+  const node = found[0]
+  // A string in code is escaped as it is written, so only its length and
+  // line breaks matter; JSX text has to stay text.
+  const writable = n.JSXText.check(node) ? isPlainText(edit.next) : edit.next.length > 0 && edit.next.length <= 200 && !/\n/.test(edit.next)
+  if (!writable) return { edit, reason: 'that text can’t be written as it is' }
+
+  if (n.StringLiteral.check(node)) {
+    if (node.value !== edit.old) return { edit, reason: 'that text has changed since you selected it' }
+    const raw = (node as { extra?: { raw?: string } }).extra?.raw
+    const quote = raw?.startsWith("'") ? "'" : '"'
+    // recast prints a changed string in ITS quotes, not the file's — so the
+    // string goes in as a placeholder, swapped for the text after printing.
+    const name = `__design_literal_${ctx.literals.size}__`
+    ctx.literals.set(name, quoted(edit.next, quote))
+    node.value = name
+    return null
+  }
+  if (n.TemplateLiteral.check(node)) {
+    const q = node.quasis[0]
+    if (q.value.cooked !== edit.old) return { edit, reason: 'that text has changed since you selected it' }
+    const raw = edit.next.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
+    q.value = { raw, cooked: edit.next }
+    return null
+  }
+  if (n.JSXText.check(node)) {
+    if (node.value.trim() !== edit.old && shownText(node.value) !== edit.old) {
+      return { edit, reason: 'that text has changed since you selected it' }
+    }
+    const lead = /^\s*/.exec(node.value)?.[0] ?? ''
+    const trail = /\s*$/.exec(node.value)?.[0] ?? ''
+    node.value = node.value.includes(edit.old) ? node.value.replace(edit.old, edit.next) : `${lead}${edit.next}${trail}`
+    return null
+  }
+  return { edit, reason: 'that isn’t text the panel can change' }
+}
+
 // --- structure (D2, D3) -------------------------------------------------------
 
-/** Why a located node cannot be picked up, or null when it can. */
-function movable(at: Located, edit: Edit): Refusal | null {
-  if (at.parent) return null
-  return {
-    edit,
-    reason:
-      'it isn’t placed directly in the layout — it is the screen itself, repeated by a list, or shown by a condition — so moving it means changing code',
+/**
+ * What a structural edit lifts for a located node: the node itself, or the
+ * `{…}` it is shown by (slots.ts) — and the parent whose children hold it.
+ * A refusal says why there is nothing to lift.
+ */
+interface Lifted {
+  parent: JSXParent
+  thing: JSXChild
+  slot: SlotInfo
+}
+
+function lift(at: Located, edit: Edit, scope?: Scope): Lifted | Refusal {
+  const slot = at.slot()
+  if (scope === 'list' && slot.kind !== 'list') {
+    return { edit, reason: 'it isn’t a row of a list' }
+  }
+  switch (slot.kind) {
+    case 'child':
+    case 'cond':
+      return { parent: slot.parent as unknown as JSXParent, thing: slot.node as unknown as JSXChild, slot }
+    case 'list':
+      if (scope === 'list') {
+        return { parent: slot.parent as unknown as JSXParent, thing: slot.node as unknown as JSXChild, slot }
+      }
+      return {
+        edit,
+        reason: 'it is one row of a list — every row comes from the same line, so the list moves as a whole',
+      }
+    case 'prop':
+      return {
+        edit,
+        reason: `it is the ${slot.prop ?? 'value'} of the element around it, so it stays where that element puts it`,
+      }
+    default:
+      return {
+        edit,
+        reason:
+          'it isn’t placed inside another element here — it is what a component returns, or the screen itself — so moving it means changing code',
+      }
   }
 }
+
+const isLifted = (x: Lifted | Refusal): x is Lifted => 'thing' in x
 
 interface Ctx extends Indent {
   ast: types.ASTNode
@@ -330,13 +619,20 @@ interface Ctx extends Indent {
   /** Imports the created elements need. */
   needs: ImportNeed[]
   icons?: ReadonlySet<string>
+  /** Rewritten strings waiting for their placeholders, by placeholder name. */
+  literals: Map<string, string>
 }
 
 function find(ctx: Ctx, edit: Edit, src: Src, role: string): Located | Refusal {
   if (isNewRef(src)) {
     const el = ctx.news.get(src.slice(NEW_PREFIX.length))
     if (!el) return { edit, reason: `${role} was not created earlier in this batch` }
-    return { el, parent: parentOf(ctx.ast, el) }
+    // An element this batch created sits straight in what it was put into.
+    const parent = parentOf(ctx.ast, el)
+    const slot: SlotInfo = parent
+      ? { kind: 'child', parent: parent as unknown as AstNode, node: el as unknown as AstNode }
+      : { kind: 'root', parent: null, node: null }
+    return { el, parent, slot: () => slot }
   }
   const at = locate(ctx.ast, src, ctx.fresh)
   if (at === null) {
@@ -350,6 +646,18 @@ const isRefusal = (x: Located | Refusal): x is Refusal => 'reason' in x
 
 const placeSrc = (to: Place) => ('before' in to ? to.before : 'after' in to ? to.after : to.inside)
 
+/**
+ * What "before" or "after" an anchor means: beside it, or beside the `{…}`
+ * it is shown by — a condition, or a whole list.
+ */
+function besideOf(anchor: Located, edit: Edit, role: string): Lifted | Refusal {
+  const slot = anchor.slot()
+  if (slot.kind === 'child' || slot.kind === 'cond' || slot.kind === 'list') {
+    return { parent: slot.parent as unknown as JSXParent, thing: slot.node as unknown as JSXChild, slot }
+  }
+  return { edit, reason: `${role} isn’t directly in the layout, so there is nothing to put it beside` }
+}
+
 /** Put `node` at `to`, which has already been checked not to be inside it. */
 function put(ctx: Ctx, edit: Edit, node: JSXChild, to: Place, role: string): Refusal | null {
   const anchor = find(ctx, edit, placeSrc(to), role)
@@ -361,51 +669,68 @@ function put(ctx: Ctx, edit: Edit, node: JSXChild, to: Place, role: string): Ref
     append(anchor.el, node, ctx)
     return null
   }
-  if (!anchor.parent) {
-    return {
-      edit,
-      reason: `${role} isn’t directly in the layout, so there is nothing to put it beside`,
-    }
-  }
-  if ('before' in to) attachBefore(anchor.parent, anchor.el, node, ctx)
-  else attachAfter(anchor.parent, anchor.el, node, ctx)
+  const beside = besideOf(anchor, edit, role)
+  if (!isLifted(beside)) return beside
+  if ('before' in to) attachBefore(beside.parent, beside.thing, node, ctx)
+  else attachAfter(beside.parent, beside.thing, node, ctx)
   return null
 }
 
 function applyMove(ctx: Ctx, edit: MoveEdit): Refusal | null {
   const node = find(ctx, edit, edit.src, 'that element')
   if (isRefusal(node)) return node
-  const blocked = movable(node, edit)
-  if (blocked) return blocked
+  const lifted = lift(node, edit, edit.scope)
+  if (!isLifted(lifted)) return lifted
 
   const anchor = find(ctx, edit, placeSrc(edit.to), 'the place you dropped it')
   if (isRefusal(anchor)) return anchor
-  if (contains(node.el, anchor.el)) {
+  if (contains(lifted.thing, anchor.el)) {
     return { edit, reason: 'an element can’t be moved into itself' }
   }
   // Checked before detaching, so a refusal leaves the tree as it was — the
   // batch is abandoned anyway, but a half-moved tree is not worth reasoning
   // about.
-  if ('inside' in edit.to && !canHold(anchor.el)) {
-    return { edit, reason: `a ${tagName(anchor.el) ?? 'that element'} can’t hold other elements` }
-  }
-  if (!('inside' in edit.to) && !anchor.parent) {
-    return {
-      edit,
-      reason: 'the place you dropped it isn’t directly in the layout, so there is nothing to put it beside',
+  if ('inside' in edit.to) {
+    if (!canHold(anchor.el)) {
+      return { edit, reason: `a ${tagName(anchor.el) ?? 'that element'} can’t hold other elements` }
     }
+  } else {
+    const beside = besideOf(anchor, edit, 'the place you dropped it')
+    if (!isLifted(beside)) return beside
+    // Beside its own condition or list: it is already there.
+    if (beside.thing === lifted.thing) return null
   }
 
-  detach(node.parent!, node.el)
-  return put(ctx, edit, node.el, edit.to, 'the place you dropped it')
+  detach(lifted.parent, lifted.thing)
+  return put(ctx, edit, lifted.thing, edit.to, 'the place you dropped it')
+}
+
+/** Whether an expression shows nothing whichever way its conditions go. */
+function showsNothing(node: AstNode | undefined): boolean {
+  if (!node) return true
+  if (rendersNothing(node)) return true
+  if (node.type === 'ConditionalExpression') {
+    return showsNothing(node.consequent as AstNode) && showsNothing(node.alternate as AstNode)
+  }
+  if (node.type === 'LogicalExpression' && node.operator === '&&') return showsNothing(node.right as AstNode)
+  return false
 }
 
 function applyDelete(ctx: Ctx, edit: DeleteEdit): Refusal | null {
   const node = find(ctx, edit, edit.src, 'that element')
   if (isRefusal(node)) return node
-  const blocked = movable(node, edit)
-  if (blocked) return blocked
-  detach(node.parent!, node.el)
+  const lifted = lift(node, edit, edit.scope)
+  if (!isLifted(lifted)) return lifted
+
+  const { slot } = lifted
+  if (slot.kind === 'cond' && slot.holder && slot.branch) {
+    // Only the state it was selected in: its branch shows nothing now. A
+    // condition left showing nothing at all goes with it.
+    ;(slot.holder as Record<string, unknown>)[slot.branch] = types.builders.nullLiteral()
+    const expression = (lifted.thing as unknown as { expression?: AstNode }).expression
+    if (!showsNothing(expression)) return null
+  }
+  detach(lifted.parent, lifted.thing)
   return null
 }
 
@@ -421,16 +746,18 @@ function applyDelete(ctx: Ctx, edit: DeleteEdit): Refusal | null {
 function applyDuplicate(ctx: Ctx, edit: DuplicateEdit): Refusal | null {
   const node = find(ctx, edit, edit.src, 'that element')
   if (isRefusal(node)) return node
-  const blocked = movable(node, edit)
-  if (blocked) return blocked
   if (isNewRef(edit.src)) {
     return { edit, reason: 'a new element can be duplicated once it has been applied' }
   }
+  // A condition or a list is copied whole: the copy shows when the original
+  // does.
+  const lifted = lift(node, edit, edit.scope)
+  if (!isLifted(lifted)) return lifted
 
   // A multi-line template literal would have its CONTENT re-indented below,
   // silently changing a string. Rare in markup, and not worth a guess.
   let multiline = false
-  types.visit(node.el, {
+  types.visit(lifted.thing, {
     visitTemplateLiteral(path) {
       if (path.node.quasis.some((q) => q.value.raw.includes('\n'))) multiline = true
       return false
@@ -440,11 +767,11 @@ function applyDuplicate(ctx: Ctx, edit: DuplicateEdit): Refusal | null {
     return { edit, reason: 'it contains a multi-line text template, which can’t be copied safely here' }
   }
 
-  const raw = print(node.el).code
+  const raw = print(lifted.thing).code
 
   // recast prints a lone node from column 0; the copy sits beside its
   // original, so every line after the first gets the original's indentation.
-  const indent = lineIndent(node.el, ctx)
+  const indent = lineIndent(lifted.thing, ctx)
   const text = raw
     .split('\n')
     .map((l, i) => (i === 0 || l === '' ? l : indent + l))
@@ -453,13 +780,19 @@ function applyDuplicate(ctx: Ctx, edit: DuplicateEdit): Refusal | null {
   ctx.copies.set(name, text)
   const placeholder = types.builders.jsxExpressionContainer(types.builders.identifier(name))
   ctx.fresh.add(placeholder)
-  attachAfter(node.parent!, node.el, placeholder, ctx)
+  attachAfter(lifted.parent, lifted.thing, placeholder, ctx)
   return null
 }
 
 function fillCopies(printed: string, copies: Map<string, string>): string {
   let out = printed
   for (const [name, text] of copies) out = out.replace(`{${name}}`, () => text)
+  return out
+}
+
+function fillLiterals(printed: string, literals: Map<string, string>): string {
+  let out = printed
+  for (const [name, text] of literals) out = out.replace(new RegExp(`(["'])${name}\\1`), () => text)
   return out
 }
 
@@ -523,7 +856,8 @@ function buildInsert(ctx: Ctx, edit: InsertEdit): JSXElement | Refusal {
 /** Lay element children out on their own lines, one step in from `el`. */
 function frameChildren(ctx: Ctx, el: JSXElement) {
   const kids = (el.children ?? []).filter((k) => !isLayoutText(k))
-  if (!kids.some((k) => types.namedTypes.JSXElement.check(k))) return
+  // Elements and the `{…}` a condition or list lives in each take a line.
+  if (!kids.some((k) => n.JSXElement.check(k) || n.JSXFragment.check(k) || n.JSXExpressionContainer.check(k))) return
   const outer = lineIndent(el, ctx)
   const inner = `${outer}  `
   const framed: JSXChild[] = []
@@ -555,18 +889,19 @@ function applyWrap(ctx: Ctx, edit: WrapEdit): Refusal | null {
   }
   if (edit.srcs.length === 0) return { edit, reason: 'there is nothing to wrap' }
 
-  const nodes: JSXElement[] = []
+  // What goes inside: each element, or the `{…}` condition it is shown by.
+  const nodes: JSXChild[] = []
   let parent: JSXParent | null = null
   for (const src of edit.srcs) {
     const at = find(ctx, edit, src, 'one of those elements')
     if (isRefusal(at)) return at
-    const blocked = movable(at, edit)
-    if (blocked) return blocked
-    if (parent && at.parent !== parent) {
+    const lifted = lift(at, edit)
+    if (!isLifted(lifted)) return lifted
+    if (parent && lifted.parent !== parent) {
       return { edit, reason: 'only elements side by side in the same container can be wrapped together' }
     }
-    parent = at.parent
-    nodes.push(at.el)
+    parent = lifted.parent
+    if (!nodes.includes(lifted.thing)) nodes.push(lifted.thing)
   }
 
   // Consecutive, in this order, with nothing but line breaks between them.
@@ -582,7 +917,7 @@ function applyWrap(ctx: Ctx, edit: WrapEdit): Refusal | null {
   const indent = lineIndent(nodes[0], ctx)
   const wrapper = buildElement('div', { className: edit.className }, [])
   ctx.placed.set(wrapper, indent)
-  wrapper.children = nodes.map((node) => node as JSXChild)
+  wrapper.children = [...nodes]
   kids.splice(first, last - first + 1, wrapper)
   frameChildren(ctx, wrapper)
 
@@ -594,8 +929,11 @@ function applyWrap(ctx: Ctx, edit: WrapEdit): Refusal | null {
 function applyUnwrap(ctx: Ctx, edit: UnwrapEdit): Refusal | null {
   const at = find(ctx, edit, edit.src, 'that element')
   if (isRefusal(at)) return at
-  const blocked = movable(at, edit)
-  if (blocked) return blocked
+  const lifted = lift(at, edit)
+  if (!isLifted(lifted)) return lifted
+  if (lifted.thing !== at.el) {
+    return { edit, reason: 'it is shown by a condition, so taking it away would leave its children nowhere to be' }
+  }
 
   const open = at.el.openingElement
   const onlyClass = (open.attributes ?? []).every(
@@ -617,13 +955,13 @@ function applyUnwrap(ctx: Ctx, edit: UnwrapEdit): Refusal | null {
   const i = kids.indexOf(at.el)
   const indent = lineIndent(at.el, ctx)
   const inner = (at.el.children ?? []).filter(isElementish)
-  const lifted: JSXChild[] = []
+  const raised: JSXChild[] = []
   inner.forEach((k, n) => {
-    if (n > 0) lifted.push(ws(indent))
-    lifted.push(k)
+    if (n > 0) raised.push(ws(indent))
+    raised.push(k)
     ctx.placed.set(k, indent)
   })
-  kids.splice(i, 1, ...lifted)
+  kids.splice(i, 1, ...raised)
   return null
 }
 
@@ -667,6 +1005,7 @@ export function applyEdits(
     news: new Map(),
     needs: [],
     icons: options.icons,
+    literals: new Map(),
   }
 
   // Values first, then structure. A value edit's address never depends on
@@ -678,6 +1017,11 @@ export function applyEdits(
     if (isStructural(edit)) continue
     if (isNewRef(edit.src)) {
       return refuse(edit, 'a new element is changed through its insert, not on its own')
+    }
+    if (edit.kind === 'literal') {
+      const refusal = applyLiteral(ctx, edit)
+      if (refusal) return { ok: false, refused: refusal }
+      continue
     }
     const at = find(ctx, edit, edit.src, 'that element')
     if (isRefusal(at)) return { ok: false, refused: at }
@@ -711,7 +1055,7 @@ export function applyEdits(
     if (refusal) return { ok: false, refused: refusal }
   }
 
-  const printed = settleIndents(fillCopies(print(ast).code, ctx.copies))
+  const printed = settleIndents(fillLiterals(fillCopies(print(ast).code, ctx.copies), ctx.literals))
   if (unsettled(printed)) return refuse(edits[0], 'the change couldn’t be laid out cleanly in the file')
   let out = restoreSemicolons(source, printed)
   if (structural) out = tidyImports(source, out, ctx.needs)

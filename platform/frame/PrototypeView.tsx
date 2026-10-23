@@ -32,6 +32,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -79,8 +80,12 @@ import { useGuestAccess } from '@/platform/auth/session'
 import { CommentsPanel } from '@/platform/comments/CommentList'
 import { setCommentMode, useComments, useCommentsFor } from '@/platform/comments/store'
 import { layersDrag } from '@/platform/design/actions'
-import { toggleSelected } from '@/platform/design/selection'
+import { findRemembered, toggleSelected } from '@/platform/design/selection'
 import { refind } from '@/platform/design/overlay'
+import { getLayerTree, type Layer } from '@/platform/design/layers'
+import { describeForChat, hoverAt, outlineOf, pickAt, revealLayer, selectLayer } from '@/platform/design/pick'
+import { setSelectionDescriber } from '@/platform/chat/attach'
+import type { PickLayers } from '@/platform/inspect/InspectLayer'
 import {
   ChatIcon,
   ChevronLeftIcon,
@@ -189,11 +194,28 @@ function AppViewport({
   pinned?: Element | null
   onPin?: (el: Element | null) => void
   onRepin?: (stale: Element) => void
-  preview?: Element | null
+  preview?: readonly Element[] | null
   /** Comment is on: clicks drop review pins instead of tapping the app. */
   commenting?: boolean
 } = {}) {
   const { current } = useFlow()
+  // Chat's selection chip and context speak in layers while a prototype is open.
+  useEffect(() => {
+    setSelectionDescriber(describeForChat)
+    return () => setSelectionDescriber(null)
+  }, [])
+  // Edit picks layers (platform/design/layers.ts): a click selects at the
+  // selection's own depth, a hover shows what it would select.
+  const pinnedRef = useRef(pinned ?? null)
+  pinnedRef.current = pinned ?? null
+  const layers = useMemo<PickLayers>(
+    () => ({
+      pick: (target, e) => pickAt(target, pinnedRef.current, e),
+      hover: (target, e) => hoverAt(target, pinnedRef.current, e),
+      outline: (el) => outlineOf(el),
+    }),
+    [],
+  )
   return (
     <div
       className={styles.viewport}
@@ -213,6 +235,7 @@ function AppViewport({
           onPin={onPin}
           preview={preview}
           pick="authored"
+          layers={layers}
           onShiftPick={(el) => (pinned ? toggleSelected(el) : onPin(el))}
           onRepin={onRepin}
           tone="design"
@@ -518,13 +541,18 @@ function useInspectState() {
   const picking = useSyncExternalStore(subscribeDesignMode, getPicking, getPickingServerSnapshot)
   const [pinned, setPinned] = useState<Element | null>(null)
   // Re-find a pin that left the screen — only while it is still the pin. See
-  // InspectLayer's `onRepin` for the race this closes.
+  // InspectLayer's `onRepin` for the race this closes. The layer it stood for
+  // is found first by what it looks like: a save shifts every address below
+  // the change, and the card is still the card.
   const repin = useCallback(
-    (stale: Element) => setPinned((current) => (current === stale ? refind(stale) : current)),
+    (stale: Element) =>
+      setPinned((current) =>
+        current === stale ? (findRemembered(getLayerTree().all)?.hosts[0] ?? refind(stale)) : current,
+      ),
     [],
   )
   // The layers outline's hovered row, highlighted in the device.
-  const [preview, setPreview] = useState<Element | null>(null)
+  const [preview, setPreview] = useState<readonly Element[] | null>(null)
   const { current } = useFlow()
 
   // Screens remount on every navigation, so a pin held across one would point
@@ -755,7 +783,7 @@ function SidebarPortals({
   current: string
   pinned: Element | null
   setPinned: (el: Element | null) => void
-  setPreview: (el: Element | null) => void
+  setPreview: (boxes: readonly Element[] | null) => void
 }) {
   const slots = useSyncExternalStore(subscribeShellSlots, getShellSlots, getShellSlotsServerSnapshot)
   useEffect(() => {
@@ -763,10 +791,16 @@ function SidebarPortals({
     return () => setPrototypeLive(false)
   }, [])
 
-  // Picking a layer is a request to work on it, so it starts Edit first.
-  const pinFromList = (el: Element | null) => {
-    if (el && !editing) setDesignMode(true)
-    setPinned(el)
+  // Picking a layer is a request to work on it, so it starts Edit first — and
+  // brings it into view, wherever the screen is scrolled.
+  const selectFromList = (layer: Layer, add: boolean) => {
+    if (add && pinned) {
+      if (layer.hosts[0]) toggleSelected(layer.hosts[0])
+      return
+    }
+    if (!editing) setDesignMode(true)
+    selectLayer(layer, setPinned)
+    revealLayer(layer)
   }
 
   return (
@@ -776,9 +810,10 @@ function SidebarPortals({
             <LayersPanel
               embedded
               pinned={pinned}
-              onPin={pinFromList}
+              onSelect={selectFromList}
               onHover={setPreview}
               drag={editing ? layersDrag(slug, current) : undefined}
+              memoryKey={`${slug}:${current}`}
             />,
             slots.layers,
           )

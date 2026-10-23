@@ -61,3 +61,40 @@
   font-weight: 700;
   line-height: 1.4;
 }
+
+/* What is being dragged, following the pointer: a copy of its boxes, a
+   little see-through, lifted with a shadow so it reads as in the hand. Drawn
+   first in the layer, so the drop line lands on top of it. */
+.ghost {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.8;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  border-radius: 4px;
+  outline: 1px solid var(--blue-500);
+  background: var(--neutral-white);
+  overflow: hidden;
+}
+
+/* The container a drop lands in, while the line shows where in it. */
+.target {
+  position: absolute;
+  pointer-events: none;
+  outline: 1px solid var(--blue-400);
+  border-radius: 2px;
+}
+
+/* Why the thing under the pointer can't be dragged — said at the pointer. */
+.tip {
+  position: absolute;
+  pointer-events: none;
+  max-width: 240px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--neutral-900);
+  color: var(--neutral-white);
+  font-family: var(--font);
+  font-size: 11px;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}

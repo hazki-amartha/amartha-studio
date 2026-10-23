@@ -600,6 +600,44 @@ left when design mode is off.
 The right-hand column is exactly the case chat exists for. Once Part B ships,
 "copy for agent" becomes "ask chat", in the same panel.
 
+> **Built — Edit mode v2, layers (2026-10-23).** Designers found Edit "not
+> useful": most of a screen couldn't be moved or edited, selecting was
+> clunky, dragging was clunky. Measured across every project, the causes were:
+>
+> - **A component the project wrote left no address on the page.** `data-src`
+>   is a prop of `<StatCell />`, and project components don't pass it on, so a
+>   click landed on StatCell's own markup — stamped with `lib/`, shared by
+>   every StatCell ("repeats N times", or a change to every copy). ~4,600 uses
+>   in screen files. Now `analysis.ts` reads React's fibers, which keep every
+>   element's props: each use of a component is one layer with its boxes, its
+>   JSX parent, and its owner (whose code drew it).
+> - **Elements shown by a condition, and list rows, were refused** (~1,850 and
+>   ~690). `slots.ts` now says how an element sits — child, condition, list
+>   row, prop, root — for the write side and the facts route alike. A
+>   conditional element moves and copies with its `{…}`; deleting it blanks
+>   only its branch. A list moves, copies and deletes whole, with
+>   `scope: 'list'`; a single row is still refused.
+> - **Text from props or data refused at save.** `facts.ts`
+>   (`GET …?facts=<file>`) says how each element is written, so text is
+>   traced to where it lives: JSX text, the prop of THIS use of a component
+>   (an instance override — added if the use doesn't set it), or a string
+>   written once in the project (`LiteralEdit`, found with `?find=`).
+>   Template-literal classNames edit their fixed classes.
+> - **Selection is Figma's**: a click picks at the selection's own depth,
+>   double-click goes in (or types over text, on the canvas), ⌘-click goes
+>   straight in, Enter / ⇧Enter / Tab move in, out and along. Layers lists
+>   layers, a component's own markup under "<Name>'s own layers".
+> - **Dragging is auto layout's**: a copy follows the pointer, a line marks
+>   the gap it lands in (the innermost container that can hold it, beside it
+>   at its very edge), the screen scrolls at its edges, and a refused drag
+>   says why at the pointer.
+>
+> Tested in `npm run test:design` (slots, facts, find, literal and template
+> edits, the fiber reading on a hand-built tree) and against every project's
+> files: all conditional elements and list rows delete and duplicate to a
+> file that parses. The table above still holds for what remains: values off
+> the token map, text worked out by code, a single list row.
+
 ---
 
 ## Part B — Chat
